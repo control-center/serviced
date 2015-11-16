@@ -7,9 +7,6 @@
 // It supports both TempAuth authentication and Keystone authentication
 // (up to version 3).
 //
-// Since Swift has no concept of directories (directories are an abstration),
-// empty objects are created with the MIME type application/vnd.swift.directory.
-//
 // As Swift has a limit on the size of a single uploaded object (by default
 // this is 5GB), the driver makes use of the Swift Large Object Support
 // (http://docs.openstack.org/developer/swift/overview_large_objects.html).
@@ -20,16 +17,16 @@ package swift
 
 import (
 	"bytes"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	gopath "path"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -52,23 +49,42 @@ const defaultChunkSize = 20 * 1024 * 1024
 // minChunkSize defines the minimum size of a segment
 const minChunkSize = 1 << 20
 
+// readAfterWriteTimeout defines the time we wait before an object appears after having been uploaded
+var readAfterWriteTimeout = 15 * time.Second
+
+// readAfterWriteWait defines the time to sleep between two retries
+var readAfterWriteWait = 200 * time.Millisecond
+
 // Parameters A struct that encapsulates all of the driver parameters after all values have been set
 type Parameters struct {
-	Username           string
-	Password           string
-	AuthURL            string
-	Tenant             string
-	TenantID           string
-	Domain             string
-	DomainID           string
-	Region             string
-	Container          string
-	Prefix             string
-	InsecureSkipVerify bool
-	ChunkSize          int
+	Username            string
+	Password            string
+	AuthURL             string
+	Tenant              string
+	TenantID            string
+	Domain              string
+	DomainID            string
+	TrustID             string
+	Region              string
+	Container           string
+	Prefix              string
+	InsecureSkipVerify  bool
+	ChunkSize           int
+	SecretKey           string
+	AccessKey           string
+	TempURLContainerKey bool
+	TempURLMethods      []string
 }
 
-type swiftInfo map[string]interface{}
+// swiftInfo maps the JSON structure returned by Swift /info endpoint
+type swiftInfo struct {
+	Swift struct {
+		Version string `mapstructure:"version"`
+	}
+	Tempurl struct {
+		Methods []string `mapstructure:"methods"`
+	}
+}
 
 func init() {
 	factory.Register(driverName, &swiftDriverFactory{})
@@ -82,11 +98,15 @@ func (factory *swiftDriverFactory) Create(parameters map[string]interface{}) (st
 }
 
 type driver struct {
-	Conn              swift.Connection
-	Container         string
-	Prefix            string
-	BulkDeleteSupport bool
-	ChunkSize         int
+	Conn                swift.Connection
+	Container           string
+	Prefix              string
+	BulkDeleteSupport   bool
+	ChunkSize           int
+	SecretKey           string
+	AccessKey           string
+	TempURLContainerKey bool
+	TempURLMethods      []string
 }
 
 type baseEmbed struct {
@@ -156,6 +176,7 @@ func New(params Parameters) (*Driver, error) {
 		TenantId:       params.TenantID,
 		Domain:         params.Domain,
 		DomainId:       params.DomainID,
+		TrustId:        params.TrustID,
 		Transport:      transport,
 		ConnectTimeout: 60 * time.Second,
 		Timeout:        15 * 60 * time.Second,
@@ -165,16 +186,74 @@ func New(params Parameters) (*Driver, error) {
 		return nil, fmt.Errorf("Swift authentication failed: %s", err)
 	}
 
-	if err := ct.ContainerCreate(params.Container, nil); err != nil {
-		return nil, fmt.Errorf("Failed to create container %s (%s)", params.Container, err)
+	if _, _, err := ct.Container(params.Container); err == swift.ContainerNotFound {
+		if err := ct.ContainerCreate(params.Container, nil); err != nil {
+			return nil, fmt.Errorf("Failed to create container %s (%s)", params.Container, err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve info about container %s (%s)", params.Container, err)
 	}
 
 	d := &driver{
-		Conn:              ct,
-		Container:         params.Container,
-		Prefix:            params.Prefix,
-		BulkDeleteSupport: detectBulkDelete(params.AuthURL),
-		ChunkSize:         params.ChunkSize,
+		Conn:           ct,
+		Container:      params.Container,
+		Prefix:         params.Prefix,
+		ChunkSize:      params.ChunkSize,
+		TempURLMethods: make([]string, 0),
+		AccessKey:      params.AccessKey,
+	}
+
+	info := swiftInfo{}
+	if config, err := d.Conn.QueryInfo(); err == nil {
+		_, d.BulkDeleteSupport = config["bulk_delete"]
+
+		if err := mapstructure.Decode(config, &info); err == nil {
+			d.TempURLContainerKey = info.Swift.Version >= "2.3.0"
+			d.TempURLMethods = info.Tempurl.Methods
+		}
+	} else {
+		d.TempURLContainerKey = params.TempURLContainerKey
+		d.TempURLMethods = params.TempURLMethods
+	}
+
+	if len(d.TempURLMethods) > 0 {
+		secretKey := params.SecretKey
+		if secretKey == "" {
+			secretKey, _ = generateSecret()
+		}
+
+		// Since Swift 2.2.2, we can now set secret keys on containers
+		// in addition to the account secret keys. Use them in preference.
+		if d.TempURLContainerKey {
+			_, containerHeaders, err := d.Conn.Container(d.Container)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to fetch container info %s (%s)", d.Container, err)
+			}
+
+			d.SecretKey = containerHeaders["X-Container-Meta-Temp-Url-Key"]
+			if d.SecretKey == "" || (params.SecretKey != "" && d.SecretKey != params.SecretKey) {
+				m := swift.Metadata{}
+				m["temp-url-key"] = secretKey
+				if d.Conn.ContainerUpdate(d.Container, m.ContainerHeaders()); err == nil {
+					d.SecretKey = secretKey
+				}
+			}
+		} else {
+			// Use the account secret key
+			_, accountHeaders, err := d.Conn.Account()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to fetch account info (%s)", err)
+			}
+
+			d.SecretKey = accountHeaders["X-Account-Meta-Temp-Url-Key"]
+			if d.SecretKey == "" || (params.SecretKey != "" && d.SecretKey != params.SecretKey) {
+				m := swift.Metadata{}
+				m["temp-url-key"] = secretKey
+				if err := d.Conn.AccountUpdate(m.AccountHeaders()); err == nil {
+					d.SecretKey = secretKey
+				}
+			}
+		}
 	}
 
 	return &Driver{
@@ -246,6 +325,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 	partNumber := 1
 	chunkSize := int64(d.ChunkSize)
 	zeroBuf := make([]byte, d.ChunkSize)
+	hash := md5.New()
 
 	getSegment := func() string {
 		return fmt.Sprintf("%s/%016d", segmentPath, partNumber)
@@ -286,18 +366,13 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 		return 0, err
 	}
 
-	if createManifest {
-		if err := d.createManifest(path, d.Container+"/"+segmentPath); err != nil {
-			return 0, err
-		}
-	}
-
 	// First, we skip the existing segments that are not modified by this call
 	for i := range segments {
 		if offset < cursor+segments[i].Bytes {
 			break
 		}
 		cursor += segments[i].Bytes
+		hash.Write([]byte(segments[i].Hash))
 		partNumber++
 	}
 
@@ -306,7 +381,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 	if offset >= currentLength {
 		for offset-currentLength >= chunkSize {
 			// Insert a block a zero
-			_, err := d.Conn.ObjectPut(d.Container, getSegment(), bytes.NewReader(zeroBuf), false, "", d.getContentType(), nil)
+			headers, err := d.Conn.ObjectPut(d.Container, getSegment(), bytes.NewReader(zeroBuf), false, "", d.getContentType(), nil)
 			if err != nil {
 				if err == swift.ObjectNotFound {
 					return 0, storagedriver.PathNotFoundError{Path: getSegment()}
@@ -315,6 +390,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 			}
 			currentLength += chunkSize
 			partNumber++
+			hash.Write([]byte(headers["Etag"]))
 		}
 
 		cursor = currentLength
@@ -349,13 +425,23 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 			return false, bytesRead, err
 		}
 
-		n, err := io.Copy(currentSegment, multi)
+		segmentHash := md5.New()
+		writer := io.MultiWriter(currentSegment, segmentHash)
+
+		n, err := io.Copy(writer, multi)
 		if err != nil {
 			return false, bytesRead, err
 		}
 
 		if n > 0 {
-			defer currentSegment.Close()
+			defer func() {
+				closeError := currentSegment.Close()
+				if err != nil {
+					err = closeError
+				}
+				hexHash := hex.EncodeToString(segmentHash.Sum(nil))
+				hash.Write([]byte(hexHash))
+			}()
 			bytesRead += n - max(0, offset-cursor)
 		}
 
@@ -373,7 +459,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 					return false, bytesRead, err
 				}
 
-				_, copyErr := io.Copy(currentSegment, file)
+				_, copyErr := io.Copy(writer, file)
 
 				if err := file.Close(); err != nil {
 					if err == swift.ObjectNotFound {
@@ -408,7 +494,35 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 		}
 	}
 
-	return bytesRead, nil
+	for ; partNumber < len(segments); partNumber++ {
+		hash.Write([]byte(segments[partNumber].Hash))
+	}
+
+	if createManifest {
+		if err := d.createManifest(path, d.Container+"/"+segmentPath); err != nil {
+			return 0, err
+		}
+	}
+
+	expectedHash := hex.EncodeToString(hash.Sum(nil))
+	waitingTime := readAfterWriteWait
+	endTime := time.Now().Add(readAfterWriteTimeout)
+	for {
+		var infos swift.Object
+		if infos, _, err = d.Conn.Object(d.Container, d.swiftPath(path)); err == nil {
+			if strings.Trim(infos.Hash, "\"") == expectedHash {
+				return bytesRead, nil
+			}
+			err = fmt.Errorf("Timeout expired while waiting for segments of %s to show up", path)
+		}
+		if time.Now().Add(waitingTime).After(endTime) {
+			break
+		}
+		time.Sleep(waitingTime)
+		waitingTime *= 2
+	}
+
+	return bytesRead, err
 }
 
 // Stat retrieves the FileInfo for the given path, including the current size
@@ -515,7 +629,7 @@ func (d *driver) Delete(ctx context.Context, path string) error {
 		return err
 	}
 
-	if d.BulkDeleteSupport {
+	if len(objects) > 0 && d.BulkDeleteSupport {
 		filenames := make([]string, len(objects))
 		for i, obj := range objects {
 			filenames[i] = obj.Name
@@ -584,9 +698,58 @@ func (d *driver) Delete(ctx context.Context, path string) error {
 }
 
 // URLFor returns a URL which may be used to retrieve the content stored at the given path.
-// May return an UnsupportedMethodErr in certain StorageDriver implementations.
 func (d *driver) URLFor(ctx context.Context, path string, options map[string]interface{}) (string, error) {
-	return "", storagedriver.ErrUnsupportedMethod
+	if d.SecretKey == "" {
+		return "", storagedriver.ErrUnsupportedMethod{}
+	}
+
+	methodString := "GET"
+	method, ok := options["method"]
+	if ok {
+		if methodString, ok = method.(string); !ok {
+			return "", storagedriver.ErrUnsupportedMethod{}
+		}
+	}
+
+	if methodString == "HEAD" {
+		// A "HEAD" request on a temporary URL is allowed if the
+		// signature was generated with "GET", "POST" or "PUT"
+		methodString = "GET"
+	}
+
+	supported := false
+	for _, method := range d.TempURLMethods {
+		if method == methodString {
+			supported = true
+			break
+		}
+	}
+
+	if !supported {
+		return "", storagedriver.ErrUnsupportedMethod{}
+	}
+
+	expiresTime := time.Now().Add(20 * time.Minute)
+	expires, ok := options["expiry"]
+	if ok {
+		et, ok := expires.(time.Time)
+		if ok {
+			expiresTime = et
+		}
+	}
+
+	tempURL := d.Conn.ObjectTempUrl(d.Container, d.swiftPath(path), d.SecretKey, methodString, expiresTime)
+
+	if d.AccessKey != "" {
+		// On HP Cloud, the signature must be in the form of tenant_id:access_key:signature
+		url, _ := url.Parse(tempURL)
+		query := url.Query()
+		query.Set("temp_url_sig", fmt.Sprintf("%s:%s:%s", d.Conn.TenantId, d.AccessKey, query.Get("temp_url_sig")))
+		url.RawQuery = query.Encode()
+		tempURL = url.String()
+	}
+
+	return tempURL, nil
 }
 
 func (d *driver) swiftPath(path string) string {
@@ -634,19 +797,6 @@ func (d *driver) createManifest(path string, segments string) error {
 	return nil
 }
 
-func detectBulkDelete(authURL string) (bulkDelete bool) {
-	resp, err := http.Get(gopath.Join(authURL, "..", "..") + "/info")
-	if err == nil {
-		defer resp.Body.Close()
-		decoder := json.NewDecoder(resp.Body)
-		var infos swiftInfo
-		if decoder.Decode(&infos) == nil {
-			_, bulkDelete = infos["bulk_delete"]
-		}
-	}
-	return
-}
-
 func parseManifest(manifest string) (container string, prefix string) {
 	components := strings.SplitN(manifest, "/", 2)
 	container = components[0]
@@ -654,4 +804,12 @@ func parseManifest(manifest string) (container string, prefix string) {
 		prefix = components[1]
 	}
 	return container, prefix
+}
+
+func generateSecret() (string, error) {
+	var secretBytes [32]byte
+	if _, err := rand.Read(secretBytes[:]); err != nil {
+		return "", fmt.Errorf("could not generate random bytes for Swift secret key: %v", err)
+	}
+	return hex.EncodeToString(secretBytes[:]), nil
 }

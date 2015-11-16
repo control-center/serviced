@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,14 +22,17 @@ func blobUploadDispatcher(ctx *Context, r *http.Request) http.Handler {
 		UUID:    getUploadUUID(ctx),
 	}
 
-	handler := http.Handler(handlers.MethodHandler{
-		"POST":   http.HandlerFunc(buh.StartBlobUpload),
-		"GET":    http.HandlerFunc(buh.GetUploadStatus),
-		"HEAD":   http.HandlerFunc(buh.GetUploadStatus),
-		"PATCH":  http.HandlerFunc(buh.PatchBlobData),
-		"PUT":    http.HandlerFunc(buh.PutBlobUploadComplete),
-		"DELETE": http.HandlerFunc(buh.CancelBlobUpload),
-	})
+	handler := handlers.MethodHandler{
+		"GET":  http.HandlerFunc(buh.GetUploadStatus),
+		"HEAD": http.HandlerFunc(buh.GetUploadStatus),
+	}
+
+	if !ctx.readOnly {
+		handler["POST"] = http.HandlerFunc(buh.StartBlobUpload)
+		handler["PATCH"] = http.HandlerFunc(buh.PatchBlobData)
+		handler["PUT"] = http.HandlerFunc(buh.PutBlobUploadComplete)
+		handler["DELETE"] = http.HandlerFunc(buh.CancelBlobUpload)
+	}
 
 	if buh.UUID != "" {
 		state, err := hmacKey(ctx.Config.HTTP.Secret).unpackUploadState(r.FormValue("_state"))
@@ -94,7 +96,7 @@ func blobUploadDispatcher(ctx *Context, r *http.Request) http.Handler {
 			}
 		}
 
-		handler = closeResources(handler, buh.Upload)
+		return closeResources(handler, buh.Upload)
 	}
 
 	return handler
@@ -118,8 +120,13 @@ type blobUploadHandler struct {
 func (buh *blobUploadHandler) StartBlobUpload(w http.ResponseWriter, r *http.Request) {
 	blobs := buh.Repository.Blobs(buh)
 	upload, err := blobs.Create(buh)
+
 	if err != nil {
-		buh.Errors = append(buh.Errors, errcode.ErrorCodeUnknown.WithDetail(err))
+		if err == distribution.ErrUnsupported {
+			buh.Errors = append(buh.Errors, errcode.ErrorCodeUnsupported)
+		} else {
+			buh.Errors = append(buh.Errors, errcode.ErrorCodeUnknown.WithDetail(err))
+		}
 		return
 	}
 
@@ -170,10 +177,8 @@ func (buh *blobUploadHandler) PatchBlobData(w http.ResponseWriter, r *http.Reque
 
 	// TODO(dmcgowan): support Content-Range header to seek and write range
 
-	// Copy the data
-	if _, err := io.Copy(buh.Upload, r.Body); err != nil {
-		ctxu.GetLogger(buh).Errorf("unknown error copying into upload: %v", err)
-		buh.Errors = append(buh.Errors, errcode.ErrorCodeUnknown.WithDetail(err))
+	if err := copyFullPayload(w, r, buh.Upload, buh, "blob PATCH", &buh.Errors); err != nil {
+		// copyFullPayload reports the error if necessary
 		return
 	}
 
@@ -211,10 +216,8 @@ func (buh *blobUploadHandler) PutBlobUploadComplete(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Read in the data, if any.
-	if _, err := io.Copy(buh.Upload, r.Body); err != nil {
-		ctxu.GetLogger(buh).Errorf("unknown error copying into upload: %v", err)
-		buh.Errors = append(buh.Errors, errcode.ErrorCodeUnknown.WithDetail(err))
+	if err := copyFullPayload(w, r, buh.Upload, buh, "blob PUT", &buh.Errors); err != nil {
+		// copyFullPayload reports the error if necessary
 		return
 	}
 
@@ -232,6 +235,8 @@ func (buh *blobUploadHandler) PutBlobUploadComplete(w http.ResponseWriter, r *ht
 			buh.Errors = append(buh.Errors, v2.ErrorCodeDigestInvalid.WithDetail(err))
 		default:
 			switch err {
+			case distribution.ErrUnsupported:
+				buh.Errors = append(buh.Errors, errcode.ErrorCodeUnsupported)
 			case distribution.ErrBlobInvalidLength, distribution.ErrBlobDigestUnsupported:
 				buh.Errors = append(buh.Errors, v2.ErrorCodeBlobUploadInvalid.WithDetail(err))
 			default:

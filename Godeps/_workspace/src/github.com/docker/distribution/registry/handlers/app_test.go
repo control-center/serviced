@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/configuration"
+	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/auth"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/distribution/registry/storage"
 	memorycache "github.com/docker/distribution/registry/storage/cache/memory"
 	"github.com/docker/distribution/registry/storage/driver/inmemory"
-	"golang.org/x/net/context"
 )
 
 // TestAppDispatcher builds an application with a test dispatcher and ensures
@@ -26,12 +26,16 @@ import (
 func TestAppDispatcher(t *testing.T) {
 	driver := inmemory.New()
 	ctx := context.Background()
+	registry, err := storage.NewRegistry(ctx, driver, storage.BlobDescriptorCacheProvider(memorycache.NewInMemoryBlobDescriptorCacheProvider()), storage.EnableDelete, storage.EnableRedirect)
+	if err != nil {
+		t.Fatalf("error creating registry: %v", err)
+	}
 	app := &App{
-		Config:   configuration.Configuration{},
+		Config:   &configuration.Configuration{},
 		Context:  ctx,
 		router:   v2.Router(),
 		driver:   driver,
-		registry: storage.NewRegistryWithDriver(ctx, driver, memorycache.NewInMemoryBlobDescriptorCacheProvider(), true, true),
+		registry: registry,
 	}
 	server := httptest.NewServer(app)
 	router := v2.Router()
@@ -160,7 +164,7 @@ func TestNewApp(t *testing.T) {
 	// Mostly, with this test, given a sane configuration, we are simply
 	// ensuring that NewApp doesn't panic. We might want to tweak this
 	// behavior.
-	app := NewApp(ctx, config)
+	app := NewApp(ctx, &config)
 
 	server := httptest.NewServer(app)
 	builder, err := v2.NewURLBuilderFromString(server.URL)
@@ -205,8 +209,8 @@ func TestNewApp(t *testing.T) {
 	if !ok {
 		t.Fatalf("not an ErrorCoder: %#v", errs[0])
 	}
-	if err2.ErrorCode() != v2.ErrorCodeUnauthorized {
-		t.Fatalf("unexpected error code: %v != %v", err2.ErrorCode(), v2.ErrorCodeUnauthorized)
+	if err2.ErrorCode() != errcode.ErrorCodeUnauthorized {
+		t.Fatalf("unexpected error code: %v != %v", err2.ErrorCode(), errcode.ErrorCodeUnauthorized)
 	}
 }
 

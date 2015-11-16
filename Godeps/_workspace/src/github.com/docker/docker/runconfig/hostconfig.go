@@ -6,32 +6,49 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/ulimit"
 )
 
+// KeyValuePair is a structure that hold a value for a key.
 type KeyValuePair struct {
 	Key   string
 	Value string
 }
 
+// NetworkMode represents the container network stack.
 type NetworkMode string
 
+// IsolationLevel represents the isolation level of a container. The supported
+// values are platform specific
+type IsolationLevel string
+
+// IsDefault indicates the default isolation level of a container. On Linux this
+// is the native driver. On Windows, this is a Windows Server Container.
+func (i IsolationLevel) IsDefault() bool {
+	return strings.ToLower(string(i)) == "default" || string(i) == ""
+}
+
+// IpcMode represents the container ipc stack.
 type IpcMode string
 
-// IsPrivate indicates whether container use it's private ipc stack
+// IsPrivate indicates whether the container uses it's private ipc stack.
 func (n IpcMode) IsPrivate() bool {
 	return !(n.IsHost() || n.IsContainer())
 }
 
+// IsHost indicates whether the container uses the host's ipc stack.
 func (n IpcMode) IsHost() bool {
 	return n == "host"
 }
 
+// IsContainer indicates whether the container uses a container's ipc stack.
 func (n IpcMode) IsContainer() bool {
 	parts := strings.SplitN(string(n), ":", 2)
 	return len(parts) > 1 && parts[0] == "container"
 }
 
+// Valid indicates whether the ipc stack is valid.
 func (n IpcMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
@@ -46,6 +63,7 @@ func (n IpcMode) Valid() bool {
 	return true
 }
 
+// Container returns the name of the container ipc stack is going to be used.
 func (n IpcMode) Container() string {
 	parts := strings.SplitN(string(n), ":", 2)
 	if len(parts) > 1 {
@@ -54,17 +72,20 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+// UTSMode represents the UTS namespace of the container.
 type UTSMode string
 
-// IsPrivate indicates whether container use it's private UTS namespace
+// IsPrivate indicates whether the container uses it's private UTS namespace.
 func (n UTSMode) IsPrivate() bool {
 	return !(n.IsHost())
 }
 
+// IsHost indicates whether the container uses the host's UTS namespace.
 func (n UTSMode) IsHost() bool {
 	return n == "host"
 }
 
+// Valid indicates whether the UTS namespace is valid.
 func (n UTSMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
@@ -75,17 +96,20 @@ func (n UTSMode) Valid() bool {
 	return true
 }
 
+// PidMode represents the pid stack of the container.
 type PidMode string
 
-// IsPrivate indicates whether container use it's private pid stack
+// IsPrivate indicates whether the container uses it's private pid stack.
 func (n PidMode) IsPrivate() bool {
 	return !(n.IsHost())
 }
 
+// IsHost indicates whether the container uses the host's pid stack.
 func (n PidMode) IsHost() bool {
 	return n == "host"
 }
 
+// Valid indicates whether the pid stack is valid.
 func (n PidMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
@@ -96,177 +120,103 @@ func (n PidMode) Valid() bool {
 	return true
 }
 
+// DeviceMapping represents the device mapping between the host and the container.
 type DeviceMapping struct {
 	PathOnHost        string
 	PathInContainer   string
 	CgroupPermissions string
 }
 
+// RestartPolicy represents the restart policies of the container.
 type RestartPolicy struct {
 	Name              string
 	MaximumRetryCount int
 }
 
+// IsNone indicates whether the container has the "no" restart policy.
+// This means the container will not automatically restart when exiting.
 func (rp *RestartPolicy) IsNone() bool {
 	return rp.Name == "no"
 }
 
+// IsAlways indicates whether the container has the "always" restart policy.
+// This means the container will automatically restart regardless of the exit status.
 func (rp *RestartPolicy) IsAlways() bool {
 	return rp.Name == "always"
 }
 
+// IsOnFailure indicates whether the container has the "on-failure" restart policy.
+// This means the contain will automatically restart of exiting with a non-zero exit status.
 func (rp *RestartPolicy) IsOnFailure() bool {
 	return rp.Name == "on-failure"
 }
 
+// IsUnlessStopped indicates whether the container has the
+// "unless-stopped" restart policy. This means the container will
+// automatically restart unless user has put it to stopped state.
+func (rp *RestartPolicy) IsUnlessStopped() bool {
+	return rp.Name == "unless-stopped"
+}
+
+// LogConfig represents the logging configuration of the container.
 type LogConfig struct {
 	Type   string
 	Config map[string]string
 }
 
-type LxcConfig struct {
-	values []KeyValuePair
-}
-
-func (c *LxcConfig) MarshalJSON() ([]byte, error) {
-	if c == nil {
-		return []byte{}, nil
-	}
-	return json.Marshal(c.Slice())
-}
-
-func (c *LxcConfig) UnmarshalJSON(b []byte) error {
-	if len(b) == 0 {
-		return nil
-	}
-
-	var kv []KeyValuePair
-	if err := json.Unmarshal(b, &kv); err != nil {
-		var h map[string]string
-		if err := json.Unmarshal(b, &h); err != nil {
-			return err
-		}
-		for k, v := range h {
-			kv = append(kv, KeyValuePair{k, v})
-		}
-	}
-	c.values = kv
-
-	return nil
-}
-
-func (c *LxcConfig) Len() int {
-	if c == nil {
-		return 0
-	}
-	return len(c.values)
-}
-
-func (c *LxcConfig) Slice() []KeyValuePair {
-	if c == nil {
-		return nil
-	}
-	return c.values
-}
-
-func NewLxcConfig(values []KeyValuePair) *LxcConfig {
-	return &LxcConfig{values}
-}
-
-type CapList struct {
-	caps []string
-}
-
-func (c *CapList) MarshalJSON() ([]byte, error) {
-	if c == nil {
-		return []byte{}, nil
-	}
-	return json.Marshal(c.Slice())
-}
-
-func (c *CapList) UnmarshalJSON(b []byte) error {
-	if len(b) == 0 {
-		return nil
-	}
-
-	var caps []string
-	if err := json.Unmarshal(b, &caps); err != nil {
-		var s string
-		if err := json.Unmarshal(b, &s); err != nil {
-			return err
-		}
-		caps = append(caps, s)
-	}
-	c.caps = caps
-
-	return nil
-}
-
-func (c *CapList) Len() int {
-	if c == nil {
-		return 0
-	}
-	return len(c.caps)
-}
-
-func (c *CapList) Slice() []string {
-	if c == nil {
-		return nil
-	}
-	return c.caps
-}
-
-func NewCapList(caps []string) *CapList {
-	return &CapList{caps}
-}
-
+// HostConfig the non-portable Config structure of a container.
+// Here, "non-portable" means "dependent of the host we are running on".
+// Portable information *should* appear in Config.
 type HostConfig struct {
-	Binds            []string
-	ContainerIDFile  string
-	LxcConf          *LxcConfig
-	Memory           int64 // Memory limit (in bytes)
-	MemorySwap       int64 // Total memory usage (memory + swap); set `-1` to disable swap
-	CpuShares        int64 // CPU shares (relative weight vs. other containers)
-	CpuPeriod        int64
-	CpusetCpus       string // CpusetCpus 0-2, 0,1
-	CpusetMems       string // CpusetMems 0-2, 0,1
-	CpuQuota         int64
-	BlkioWeight      int64  // Block IO weight (relative weight vs. other containers)
-	OomKillDisable   bool   // Whether to disable OOM Killer or not
-	MemorySwappiness *int64 // Tuning container memory swappiness behaviour
-	Privileged       bool
-	PortBindings     nat.PortMap
-	Links            []string
-	PublishAllPorts  bool
-	Dns              []string
-	DnsSearch        []string
-	ExtraHosts       []string
-	VolumesFrom      []string
-	Devices          []DeviceMapping
-	NetworkMode      NetworkMode
-	IpcMode          IpcMode
-	PidMode          PidMode
-	UTSMode          UTSMode
-	CapAdd           *CapList
-	CapDrop          *CapList
-	GroupAdd         []string
-	RestartPolicy    RestartPolicy
-	SecurityOpt      []string
-	ReadonlyRootfs   bool
-	Ulimits          []*ulimit.Ulimit
-	LogConfig        LogConfig
-	CgroupParent     string // Parent cgroup.
-	ConsoleSize      [2]int // Initial console size on Windows
+	// Applicable to all platforms
+	Binds           []string      // List of volume bindings for this container
+	ContainerIDFile string        // File (path) where the containerId is written
+	CPUShares       int64         `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+	LogConfig       LogConfig     // Configuration of the logs for this container
+	NetworkMode     NetworkMode   // Network mode to use for the container
+	PortBindings    nat.PortMap   // Port mapping between the exposed port (container) and the host
+	RestartPolicy   RestartPolicy // Restart policy to be used for the container
+	VolumeDriver    string        // Name of the volume driver used to mount volumes
+	VolumesFrom     []string      // List of volumes to take from other container
+
+	// Applicable to UNIX platforms
+	BlkioWeight       uint16                // Block IO weight (relative weight vs. other containers)
+	CapAdd            *stringutils.StrSlice // List of kernel capabilities to add to the container
+	CapDrop           *stringutils.StrSlice // List of kernel capabilities to remove from the container
+	CgroupParent      string                // Parent cgroup.
+	CPUPeriod         int64                 `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota          int64                 `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
+	CpusetCpus        string                // CpusetCpus 0-2, 0,1
+	CpusetMems        string                // CpusetMems 0-2, 0,1
+	Devices           []DeviceMapping       // List of devices to map inside the container
+	DNS               []string              `json:"Dns"`        // List of DNS server to lookup
+	DNSOptions        []string              `json:"DnsOptions"` // List of DNSOption to look for
+	DNSSearch         []string              `json:"DnsSearch"`  // List of DNSSearch to look for
+	ExtraHosts        []string              // List of extra hosts
+	GroupAdd          []string              // List of additional groups that the container process will run as
+	IpcMode           IpcMode               // IPC namespace to use for the container
+	KernelMemory      int64                 // Kernel memory limit (in bytes)
+	Links             []string              // List of links (in the name:alias form)
+	Memory            int64                 // Memory limit (in bytes)
+	MemoryReservation int64                 // Memory soft limit (in bytes)
+	MemorySwap        int64                 // Total memory usage (memory + swap); set `-1` to disable swap
+	MemorySwappiness  *int64                // Tuning container memory swappiness behaviour
+	OomKillDisable    bool                  // Whether to disable OOM Killer or not
+	PidMode           PidMode               // PID namespace to use for the container
+	Privileged        bool                  // Is the container in privileged mode
+	PublishAllPorts   bool                  // Should docker publish all exposed port for the container
+	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only
+	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
+	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
+	UTSMode           UTSMode               // UTS namespace to use for the container
+
+	// Applicable to Windows
+	ConsoleSize [2]int         // Initial console size
+	Isolation   IsolationLevel // Isolation level of the container (eg default, hyperv)
 }
 
-func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
-	return &ContainerConfigWrapper{
-		config,
-		hostConfig,
-		"", nil,
-	}
-}
-
+// DecodeHostConfig creates a HostConfig based on the specified Reader.
+// It assumes the content of the reader will be JSON, and decodes it.
 func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
 	decoder := json.NewDecoder(src)
 
@@ -275,7 +225,19 @@ func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
 		return nil, err
 	}
 
-	hc := w.GetHostConfig()
-
+	hc := w.getHostConfig()
 	return hc, nil
+}
+
+// SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
+// to default if it is not populated. This ensures backwards compatibility after
+// the validation of the network mode was moved from the docker CLI to the
+// docker daemon.
+func SetDefaultNetModeIfBlank(hc *HostConfig) *HostConfig {
+	if hc != nil {
+		if hc.NetworkMode == NetworkMode("") {
+			hc.NetworkMode = NetworkMode("default")
+		}
+	}
+	return hc
 }

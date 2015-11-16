@@ -10,8 +10,10 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/units"
 )
@@ -25,14 +27,18 @@ func init() {
 
 // End of placeholder interfaces.
 
+// Driver contains the device set mounted and the home directory
 type Driver struct {
 	*DeviceSet
-	home string
+	home    string
+	uidMaps []idtools.IDMap
+	gidMaps []idtools.IDMap
 }
 
 var backingFs = "<unknown>"
 
-func Init(home string, options []string) (graphdriver.Driver, error) {
+// Init creates a driver with the given home and the set of options.
+func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
 		return nil, err
@@ -41,7 +47,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		backingFs = fsName
 	}
 
-	deviceSet, err := NewDeviceSet(home, true, options)
+	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -53,21 +59,27 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
+		uidMaps:   uidMaps,
+		gidMaps:   gidMaps,
 	}
 
-	return graphdriver.NaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
 
 func (d *Driver) String() string {
 	return "devicemapper"
 }
 
+// Status returns the status about the driver in a printable format.
+// Information returned contains Pool Name, Data File, Metadata file, disk usage by
+// the data and metadata, etc.
 func (d *Driver) Status() [][2]string {
 	s := d.DeviceSet.Status()
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
 		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
+		{"Base Device Size", fmt.Sprintf("%s", units.HumanSize(float64(s.BaseDeviceSize)))},
 		{"Backing Filesystem", backingFs},
 		{"Data file", s.DataFile},
 		{"Metadata file", s.MetadataFile},
@@ -79,6 +91,8 @@ func (d *Driver) Status() [][2]string {
 		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
 		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
 		{"Deferred Removal Enabled", fmt.Sprintf("%v", s.DeferredRemoveEnabled)},
+		{"Deferred Deletion Enabled", fmt.Sprintf("%v", s.DeferredDeleteEnabled)},
+		{"Deferred Deleted Device Count", fmt.Sprintf("%v", s.DeferredDeletedDeviceCount)},
 	}
 	if len(s.DataLoopback) > 0 {
 		status = append(status, [2]string{"Data loop file", s.DataLoopback})
@@ -92,20 +106,22 @@ func (d *Driver) Status() [][2]string {
 	return status
 }
 
+// GetMetadata returns a map of information about the device.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	m, err := d.DeviceSet.ExportDeviceMetadata(id)
+	m, err := d.DeviceSet.exportDeviceMetadata(id)
 
 	if err != nil {
 		return nil, err
 	}
 
 	metadata := make(map[string]string)
-	metadata["DeviceId"] = strconv.Itoa(m.deviceId)
+	metadata["DeviceId"] = strconv.Itoa(m.deviceID)
 	metadata["DeviceSize"] = strconv.FormatUint(m.deviceSize, 10)
 	metadata["DeviceName"] = m.deviceName
 	return metadata, nil
 }
 
+// Cleanup unmounts a device.
 func (d *Driver) Cleanup() error {
 	err := d.DeviceSet.Shutdown()
 
@@ -116,6 +132,7 @@ func (d *Driver) Cleanup() error {
 	return err
 }
 
+// Create adds a device with a given id and the parent.
 func (d *Driver) Create(id, parent string) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
@@ -124,6 +141,7 @@ func (d *Driver) Create(id, parent string) error {
 	return nil
 }
 
+// Remove removes a device with a given id, unmounts the filesystem.
 func (d *Driver) Remove(id string) error {
 	if !d.DeviceSet.HasDevice(id) {
 		// Consider removing a non-existing device a no-op
@@ -133,7 +151,7 @@ func (d *Driver) Remove(id string) error {
 	}
 
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
-	if err := d.DeviceSet.DeleteDevice(id); err != nil {
+	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
 		return err
 	}
 
@@ -145,11 +163,19 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
+// Get mounts a device with given id into the root filesystem
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 
+	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return "", err
+	}
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mp, 0755); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	if err := idtools.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
@@ -159,7 +185,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	rootFs := path.Join(mp, "rootfs")
-	if err := os.MkdirAll(rootFs, 0755); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.DeviceSet.UnmountDevice(id)
 		return "", err
 	}
@@ -177,6 +203,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return rootFs, nil
 }
 
+// Put unmounts a device and removes it.
 func (d *Driver) Put(id string) error {
 	err := d.DeviceSet.UnmountDevice(id)
 	if err != nil {
@@ -185,6 +212,7 @@ func (d *Driver) Put(id string) error {
 	return err
 }
 
+// Exists checks to see if the device exists.
 func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
 }

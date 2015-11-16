@@ -1,11 +1,10 @@
 <!--[metadata]>
 +++
-title = "Docker Registry Storage Driver"
-description = "Explains how to use the storage drivers"
-keywords = ["registry, service, driver, images,  storage"]
+title = "Storage Drivers"
+description = "Explains how to use storage drivers"
+keywords = ["registry, on-prem, images, tags, repository, distribution, storage drivers, advanced"]
 [menu.main]
 parent="smn_registry_ref"
-identifier="smn_registry_drivers"
 +++
 <![end-metadata]-->
 
@@ -24,6 +23,8 @@ This storage driver package comes bundled with several drivers:
 - [azure](storage-drivers/azure.md): A driver storing objects in [Microsoft Azure Blob Storage](http://azure.microsoft.com/en-us/services/storage/).
 - [rados](storage-drivers/rados.md): A driver storing objects in a [Ceph Object Storage](http://ceph.com/docs/master/rados/) pool.
 - [swift](storage-drivers/swift.md): A driver storing objects in [Openstack Swift](http://docs.openstack.org/developer/swift/).
+- [oss](storage-drivers/oss.md): A driver storing objects in [Aliyun OSS](http://www.aliyun.com/product/oss).
+- [gcs](storage-drivers/gcs.md): A driver storing objects in a [Google Cloud Storage](https://cloud.google.com/storage/) bucket.
 
 ## Storage Driver API
 
@@ -46,14 +47,17 @@ with a driver name and parameters map. If no such storage driver can be found,
 ## Driver Contribution
 
 ### Writing new storage drivers
+
 To create a valid storage driver, one must implement the
 `storagedriver.StorageDriver` interface and make sure to expose this driver
 via the factory system.
 
 #### Registering
+
 Storage drivers should call `factory.Register` with their driver name in an `init` method, allowing callers of `factory.New` to construct instances of this driver without requiring modification of imports throughout the codebase.
 
 ## Testing
+
 Storage driver test suites are provided in
 `storagedriver/testsuites/testsuites.go` and may be used for any storage
 driver written in Go. Tests can be registered using the `RegisterSuite`
