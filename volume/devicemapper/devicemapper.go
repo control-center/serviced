@@ -496,13 +496,13 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	v.Lock()
 	defer v.Unlock()
 	// Create a new device based on the current one
-	oldHead := v.volumeDevice()
-	newHead, err := utils.NewUUID62()
+	activeDevice := v.volumeDevice()
+	snapshotDevice, err := utils.NewUUID62()
 	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("Creating new head device %s based on %s", newHead, oldHead)
-	if err := v.driver.DeviceSet.AddDevice(newHead, oldHead); err != nil {
+	glog.V(2).Infof("Creating snapshot device %s based on %s", snapshotDevice, activeDevice)
+	if err := v.driver.DeviceSet.AddDevice(snapshotDevice, activeDevice); err != nil {
 		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
 	}
@@ -518,34 +518,10 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	if err := v.writeSnapshotInfo(label, &info); err != nil {
 		return err
 	}
-	// Unmount the current device and mount the new one
-	glog.V(2).Infof("Unmounting the old head device (%s)", oldHead)
-	if err := v.unmount(); err != nil {
-		glog.Errorf("Unable to unmount device %s", oldHead)
-		return err
-	}
-	glog.V(2).Infof("Deactivating the old head device (%s)", oldHead)
-	v.driver.DeviceSet.Lock()
-	if err := v.driver.deactivateDevice(oldHead); err != nil {
-		glog.V(2).Infof("Error removing device: %s", err)
-	}
-	v.driver.DeviceSet.Unlock()
-	glog.V(2).Infof("Deactivated the old head device (%s)", oldHead)
-	glog.V(2).Infof("Mounting the new head device %s at %s", newHead, v.path)
-	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
-		glog.Errorf("Unable to mount device %s at %s", newHead, v.path)
-		return err
-	}
-	// Save the old HEAD as the snapshot
-	glog.V(2).Infof("Saving old head %s as snapshot %s", oldHead, label)
-	if err := v.Metadata.AddSnapshot(label, oldHead); err != nil {
+	// Save the new HEAD as the snapshot
+	glog.V(2).Infof("Saving device %s as snapshot %s", snapshotDevice, label)
+	if err := v.Metadata.AddSnapshot(label, snapshotDevice); err != nil {
 		glog.Errorf("Unable to save snapshot metadata: %s", err)
-		return err
-	}
-	// Save the new HEAD as the current device
-	glog.V(2).Infof("Saving new head device %s as current", newHead)
-	if err := v.Metadata.SetCurrentDevice(newHead); err != nil {
-		glog.Errorf("Unable to save device metadata: %s", err)
 		return err
 	}
 	return nil
