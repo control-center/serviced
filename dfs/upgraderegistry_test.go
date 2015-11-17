@@ -126,3 +126,25 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageFail(c *C) {
 	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
 	c.Assert(err, Equals, ErrTestNoPush)
 }
+
+// duplicate images are only migrated once
+func (s *DFSTestSuite) TestUpgradeRegistry_NoDupes(c *C) {
+	imageName := "localhost:5000/goodtenant/repo"
+	svcs := []service.Service{
+		{
+			Name:    "service",
+			ID:      "service_id",
+			ImageID: imageName,
+		}, {
+			Name:    "service",
+			ID:      "service_id",
+			ImageID: imageName,
+		},
+	}
+	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound).Once()
+	image := &dockerclient.Image{ID: "youyoueyedee"}
+	s.docker.On("FindImage", imageName).Return(image, nil).Once()
+	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(nil).Once()
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	c.Assert(err, IsNil)
+}

@@ -256,6 +256,23 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 	return nil
 }
 
+func (f *Facade) UpgradeRegistry(ctx datastore.Context) error {
+	tenantIDs, err := f.getTenantIDs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, tenantID := range tenantIDs {
+		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+		if err != nil {
+			return err
+		}
+		if err := f.dfs.UpgradeRegistry(svcs, tenantID); err != nil {
+			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
+		}
+	}
+	return nil
+}
+
 // Restore restores application data from a backup.
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader) error {
 	glog.Infof("Beginning restore from backup")

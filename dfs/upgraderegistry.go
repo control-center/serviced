@@ -22,12 +22,18 @@ import (
 // UpgradeRegistry loads images for each service
 // into the docker registry index
 func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID string) error {
+	imageIDs := make(map[string]struct{})
 	for _, svc := range svcs {
 		if svc.ImageID == "" {
 			// no image, no migration needed
 			continue
 		}
 		image := svc.ImageID
+		if _, ok := imageIDs[image]; ok {
+			// image has already been added
+			continue
+		}
+		imageIDs[image] = struct{}{}
 		// is image in registry?
 		rImage, err := dfs.findImage(image, tenantID)
 		if err != nil {
