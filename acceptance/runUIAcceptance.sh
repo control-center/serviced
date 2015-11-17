@@ -148,8 +148,6 @@ docker run --rm --name ui_acceptance \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
-    -v /etc/timezone:/etc/timezone:ro \
-    -v /etc/localtime:/etc/localtime:ro \
     -v `pwd`/ui:/capybara:rw \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
@@ -161,5 +159,5 @@ docker run --rm --name ui_acceptance \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
     -e HOST_IP=${HOST_IP} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.0.3 \
+    -t zenoss/capybara:1.0.4 \
     ${CMD}
