@@ -75,6 +75,9 @@ func Init(root string, _ []string) (volume.Driver, error) {
 	if err := os.MkdirAll(driver.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
+	if err := volume.TouchFlagFile(driver.poolDir()); err != nil {
+		return nil, err
+	}
 	return driver, nil
 }
 

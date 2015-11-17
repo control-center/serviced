@@ -15,9 +15,11 @@ package volume
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"sort"
 
 	"github.com/zenoss/glog"
@@ -27,6 +29,8 @@ var (
 	ErrNotADirectory = errors.New("not a directory")
 	ErrBtrfsCommand  = errors.New("error running btrfs command")
 )
+
+const FlagFileName = ".initialized"
 
 // IsDir() checks if the given dir is a directory. If any error is encoutered
 // it is returned and directory is set to false.
@@ -107,4 +111,17 @@ func RunBtrFSCmd(sudoer bool, args ...string) ([]byte, error) {
 func IsBtrfsFilesystem(path string) bool {
 	_, err := RunBtrFSCmd(false, "filesystem", "df", path)
 	return err == nil
+}
+
+func FlagFilePath(root string) string {
+	return filepath.Join(root, FlagFileName)
+}
+
+func TouchFlagFile(root string) error {
+	// Touch the file indicating that this dir has been initialized
+	initfile := FlagFilePath(root)
+	if _, err := os.Stat(initfile); os.IsNotExist(err) {
+		return ioutil.WriteFile(initfile, []byte{}, 0754)
+	}
+	return nil
 }
