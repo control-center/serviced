@@ -24,8 +24,7 @@ import (
 func DetectDriverType(root string) (DriverType, error) {
 	// Check to see if the directory even exists. If not, no driver has been initialized.
 	glog.V(2).Infof("Detecting driver type under %s", root)
-	flagfile := FlagFilePath(root)
-	if _, err := os.Stat(flagfile); err != nil {
+	if _, err := os.Stat(root); err != nil {
 		if os.IsNotExist(err) {
 			glog.V(2).Infof("Root does not exist; no driver has been initialized")
 			return "", ErrDriverNotInit
@@ -33,9 +32,10 @@ func DetectDriverType(root string) (DriverType, error) {
 		return "", err
 	}
 	for _, drivertype := range []DriverType{DriverTypeBtrFS, DriverTypeRsync, DriverTypeDeviceMapper} {
-		dirname := fmt.Sprintf(".%s", drivertype)
-		if fi, err := os.Stat(filepath.Join(root, dirname)); !os.IsNotExist(err) && fi != nil && fi.IsDir() {
-			glog.V(2).Infof("Found %s directory; returning %s", dirname, drivertype)
+		dirname := filepath.Join(root, fmt.Sprintf(".%s", drivertype))
+		flagfile := FlagFilePath(dirname)
+		if fi, err := os.Stat(flagfile); !os.IsNotExist(err) && fi != nil {
+			glog.V(2).Infof("Found %s file; returning %s", dirname, drivertype)
 			return drivertype, nil
 		}
 	}
