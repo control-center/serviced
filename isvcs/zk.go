@@ -83,31 +83,46 @@ func initZK() {
 
 // a health check for zookeeper
 func zkHealthCheck(halt <-chan struct{}) error {
-	lastError := time.Now()
+	// minUptime til zookeeper is considered available
 	minUptime := time.Second * 2
-	zookeepers := []string{"127.0.0.1:2181"}
-
+	// timer to verify that the service has been available for the min duration
+	timer := time.NewTimer(minUptime)
+	timer.Stop()
+	defer timer.Stop()
+	// flag to determine if the timer is set or not
+	stopped := true
 	for {
-		if conn, _, err := zk.Connect(zookeepers, time.Second*10); err == nil {
-			conn.Close()
-		} else {
-			conn.Close()
+		// establish a zookeeper connection
+		conn, _, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second*10)
+		if err != nil {
 			glog.V(1).Infof("Could not connect to zookeeper: %s", err)
-			lastError = time.Now()
+			timer.Stop()
+			stopped = true
+		} else {
+			// Verify that you can read from root (even if root is empty)
+			if _, _, err := conn.Children("/"); err != nil {
+				glog.V(1).Infof("Zookeeper not ready: %s", err)
+				timer.Stop()
+				stopped = true
+			} else if stopped {
+				// Reset the success timer if it is stopped
+				timer.Reset(minUptime)
+				stopped = false
+			}
 		}
-		// make sure that service has been good for at least minUptime
-		if time.Since(lastError) > minUptime {
-			break
+		// close the client connection
+		if conn != nil {
+			conn.Close()
 		}
-
 		select {
 		case <-halt:
 			glog.V(1).Infof("Quit healthcheck for zookeeper")
+			return nil
+		case <-timer.C:
+			glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 			return nil
 		default:
 			time.Sleep(time.Second)
 		}
 	}
-	glog.V(1).Info("zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
-	return nil
 }
