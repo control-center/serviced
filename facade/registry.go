@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/registry"
 )
@@ -85,7 +86,7 @@ func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	// only adds and updates
 	for _, rImage := range rImages {
 		img, err := f.zzk.GetRegistryImage(rImage.ID())
-		if err != nil {
+		if err != client.ErrNoNode && err != nil {
 			return err
 		}
 		// only update the images where the uuid has changed and from the

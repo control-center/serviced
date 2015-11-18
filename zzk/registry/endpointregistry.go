@@ -182,7 +182,7 @@ func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpoin
 
 // WatchTenantEndpoint watches a tenant endpoint directory
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantEndpointKey string,
-	processChildren ProcessChildrenFunc, errorHandler WatchError, cancel <-chan bool) error {
+	processChildren ProcessChildrenFunc, errorHandler WatchError, cancel <-chan interface{}) error {
 
 	//TODO: Deal with cancel channel if this cares
 	return ar.WatchKey(conn, tenantEndpointKey, cancel, processChildren, errorHandler)

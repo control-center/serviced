@@ -356,7 +356,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		return err
 	}
 
-	cancelChan := make(chan bool)
+	cancelChan := make(chan interface{})
 	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 

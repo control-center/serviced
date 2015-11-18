@@ -16,14 +16,81 @@
 package dfs_test
 
 import (
-	"github.com/control-center/serviced/datastore"
 	. "github.com/control-center/serviced/dfs"
+	index "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 )
 
+func (s *DFSTestSuite) TestDownload_Registry(c *C) {
+	// unknown error while checking the registry
+	s.index.On("FindImage", "unknown/repo").Return(nil, ErrTestImageNotInRegistry)
+	img, err := s.dfs.Download("unknown/repo", "tenant", false)
+	c.Assert(img, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotInRegistry)
+	// image in the registry
+	rImage := &registry.Image{
+		Library: "tenant",
+		Repo:    "repo",
+		Tag:     "latest",
+		UUID:    "testuuid",
+	}
+	s.index.On("FindImage", "tenant/repo:latest").Return(rImage, nil)
+	img, err = s.dfs.Download("tenant/repo:latest", "tenant", false)
+	c.Assert(img, Equals, "tenant/repo:latest")
+	c.Assert(err, IsNil)
+}
+
+func (s *DFSTestSuite) TestDownload_ImageNotInRegistry(c *C) {
+	// image not found
+	s.index.On("FindImage", "unknown/repo").Return(nil, index.ErrImageNotFound)
+	s.docker.On("FindImage", "unknown/repo").Return(nil, ErrTestImageNotFound)
+	img, err := s.dfs.Download("unknown/repo", "tenant", false)
+	c.Assert(img, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotFound)
+	// tenant and tag do not match
+	rImage := &registry.Image{
+		Library: "tenant1",
+		Repo:    "repo",
+		Tag:     "tag",
+		UUID:    "someuuid",
+	}
+	s.index.On("FindImage", "tenant1/repo:tag").Return(rImage, nil)
+	s.docker.On("FindImage", "tenant1/repo:tag").Return(nil, ErrTestImageNotFound)
+	img, err = s.dfs.Download("tenant1/repo:tag", "othertenant", false)
+	c.Assert(img, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotFound)
+	// tag does not match
+	rImage = &registry.Image{
+		Library: "tenant2",
+		Repo:    "repo",
+		Tag:     "tag",
+		UUID:    "someuuid",
+	}
+	s.index.On("FindImage", "tenant2/repo:tag").Return(rImage, nil)
+	s.docker.On("FindImage", "tenant2/repo:tag").Return(nil, ErrTestImageNotFound)
+	img, err = s.dfs.Download("tenant2/repo:tag", "tenant2", false)
+	c.Assert(img, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotFound)
+	// tenant does not match
+	rImage = &registry.Image{
+		Library: "tenant3",
+		Repo:    "repo",
+		Tag:     "latest",
+		UUID:    "someuuid",
+	}
+	s.index.On("FindImage", "tenant3/repo:latest").Return(rImage, nil)
+	s.docker.On("FindImage", "tenant3/repo:latest").Return(nil, ErrTestImageNotFound)
+	img, err = s.dfs.Download("tenant3/repo:latest", "othertenant", false)
+	c.Assert(img, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotFound)
+	s.index.AssertExpectations(c)
+	s.docker.AssertExpectations(c)
+}
+
 func (s *DFSTestSuite) TestDownload_NoImage(c *C) {
+	s.index.On("FindImage", "library/repo:tag").Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", "library/repo:tag").Return(nil, ErrTestImageNotFound)
 	img, err := s.dfs.Download("library/repo:tag", "tenant", false)
 	c.Assert(img, Equals, "")
@@ -31,17 +98,20 @@ func (s *DFSTestSuite) TestDownload_NoImage(c *C) {
 	img, err = s.dfs.Download("library/repo:tag", "tenant", true)
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotFound)
+	s.index.On("FindImage", "library/repo2:tag").Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", "library/repo2:tag").Return(nil, dockerclient.ErrNoSuchImage)
 	s.docker.On("PullImage", "library/repo2:tag").Return(ErrTestNoPull)
 	img, err = s.dfs.Download("library/repo2:tag", "tenant", false)
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrTestNoPull)
+	s.index.On("FindImage", "library/repo3:tag").Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", "library/repo3:tag").Return(nil, dockerclient.ErrNoSuchImage).Once()
 	s.docker.On("PullImage", "library/repo3:tag").Return(nil)
 	s.docker.On("FindImage", "library/repo3:tag").Return(nil, ErrTestImageNotFound)
 	img, err = s.dfs.Download("library/repo3:tag", "tenant", false)
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotFound)
+	s.index.On("FindImage", "library/repo4:tag").Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", "library/repo4:tag").Return(nil, dockerclient.ErrNoSuchImage).Once()
 	s.docker.On("PullImage", "library/repo4:tag").Return(nil)
 	image := &dockerclient.Image{ID: "testimage"}
@@ -56,6 +126,7 @@ func (s *DFSTestSuite) TestDownload_NoImage(c *C) {
 func (s *DFSTestSuite) TestDownload_Upgrade(c *C) {
 	image := &dockerclient.Image{ID: "testimage1"}
 	s.docker.On("FindImage", "library/repo:tag").Return(image, nil)
+	s.index.On("PushImage", "tenant/repo:latest", "testimage1").Return(ErrTestImageNotInRegistry).Once()
 	rImage := &registry.Image{
 		Library: "tenant",
 		Repo:    "repo",
@@ -63,7 +134,6 @@ func (s *DFSTestSuite) TestDownload_Upgrade(c *C) {
 		UUID:    "testimage2",
 	}
 	s.index.On("FindImage", "tenant/repo:latest").Return(rImage, nil)
-	s.index.On("PushImage", "tenant/repo:latest", "testimage1").Return(ErrTestImageNotInRegistry).Once()
 	img, err := s.dfs.Download("library/repo:tag", "tenant", true)
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotInRegistry)
@@ -74,6 +144,7 @@ func (s *DFSTestSuite) TestDownload_Upgrade(c *C) {
 }
 
 func (s *DFSTestSuite) TestDownload_NoUpgrade(c *C) {
+	s.index.On("FindImage", "library/repo:tag").Return(nil, index.ErrImageNotFound)
 	image := &dockerclient.Image{ID: "testimage1"}
 	s.docker.On("FindImage", "library/repo:tag").Return(image, nil)
 	rImage := &registry.Image{
@@ -86,6 +157,7 @@ func (s *DFSTestSuite) TestDownload_NoUpgrade(c *C) {
 	img, err := s.dfs.Download("library/repo:tag", "tenant", false)
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrImageCollision)
+	s.index.On("FindImage", "library/repo2:tag").Return(nil, index.ErrImageNotFound)
 	image = &dockerclient.Image{ID: "testimage2"}
 	s.docker.On("FindImage", "library/repo2:tag").Return(image, nil)
 	rImage = &registry.Image{
@@ -99,11 +171,10 @@ func (s *DFSTestSuite) TestDownload_NoUpgrade(c *C) {
 	img, err = s.dfs.Download("library/repo2:tag", "tenant", false)
 	c.Assert(img, Equals, "tenant/repo2:latest")
 	c.Assert(err, IsNil)
+	s.index.On("FindImage", "library/repo3:tag").Return(nil, index.ErrImageNotFound)
 	image = &dockerclient.Image{ID: "testimage3"}
 	s.docker.On("FindImage", "library/repo3:tag").Return(image, nil)
-	expectedErr := datastore.ErrNoSuchEntity{registry.Key("tenant/repo3:latest")}
-	c.Assert(datastore.IsErrNoSuchEntity(expectedErr), Equals, true)
-	s.index.On("FindImage", "tenant/repo3:latest").Return(nil, expectedErr)
+	s.index.On("FindImage", "tenant/repo3:latest").Return(nil, index.ErrImageNotFound)
 	s.index.On("PushImage", "tenant/repo3:latest", "testimage3").Return(nil)
 	img, err = s.dfs.Download("library/repo3:tag", "tenant", false)
 	c.Assert(img, Equals, "tenant/repo3:latest")
