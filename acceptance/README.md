@@ -23,6 +23,7 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
     - [Watching the browser while the tests run](#watching-the-browser-while-the-tests-run)
     - [Mark a test PENDING](#mark-a-test-pending)
     - [Page Object Model](#page-object-model)
+  - [Guidelines](#guidelines)
   - [TODOs](#todos)
   - [Known Issues](#known-issues)
   - [References](#references)
@@ -51,7 +52,7 @@ the perspective of Capybara/Cucumber running inside the container, https://local
 refers to the container itself.
 
 ### Step 2 - Build the docker image (optional)
-The docker image containing Cucumber and Capybara is available on the Zenoss dockerhub repo as `zenoss/capybara:$(VERSION)`, so you do not need to build it yourself. 
+The docker image containing Cucumber and Capybara is available on the Zenoss dockerhub repo as `zenoss/capybara:$(VERSION)`, so you do not need to build it yourself.
 
 In case you do want/need to build the docker image containing Cucumber and Capybara, use the following commands:
 
@@ -107,20 +108,20 @@ In the future, this step may be incorporated directly into the Cucumber tests fo
 ### Step 4 - Run the test suite
 
 Capybara uses different 'drivers' to interface with a web browser.
-The Selenium driver for Capybara is the default, and by default it executes tests againts Firefox.
+By default, `runUIAcceptance.sh` executes tests against Chrome.
 The test suite can be run against any one of several browsers by selecting different drivers.
-Both of the following commands run the test suite against Firefox:
+Both of the following commands run the test suite against Chrome:
 
 ```
 $ ./runUIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
 or
-$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
-```
-
-To run the tests against Chrome, use
-
-```
 $ ./runUIAcceptance.sh -d selenium_chrome -a <servicedURL> -u <userID> -p <password>
+```
+
+To run the tests against Firefox, use
+
+```
+$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Poltergeist/Phantomjs, use
@@ -148,7 +149,7 @@ The primary variables used by `runUIAcceptance.sh` are:
  * **`APPLICATION_URL`** - the URL of the application under test. You can set this variable with the `-a` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_USERID`** - the user id to login into the application under test. You can set this variable with the `-u` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_PASSWORD`** - the password used to login into the application under test. You can set this variable with the `-p` command line option for `runUIAcceptance.sh`.
- * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
+ * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium_chrome`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
  * **`CAPYBARA_TIMEOUT`** - the timeout, in seconds, that Capybara should wait for a page or element. The default is 10 seconds. You can set this variable with the `-t` command line option for `runUIAcceptance.sh`.
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
  * **`DATASET`** - the JSON dataset to use as test input. You can set this variable with the `--dataset` command line option for `runUIAcceptance.sh`.
@@ -171,6 +172,13 @@ Cucumber supports a feature called tags which can be used to run a subset of tes
 For example, you can run tests for a single tag with a command like:
 
 ```
+$ ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password> --tags @hosts
+
+```
+
+or you can include tags as part of the `CUCUMBER_OPTS` environment variable
+
+```
 $ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password>
 
 ```
@@ -186,10 +194,10 @@ Some of the tags defined by this project are:
  * feature tags - There is a unique tag on each Feature to allow running single features at a time or in combination. Some of the valid values are `@login`, and `@hosts`
  * login hook - The tag `@login-required` illustrates how to use hook tags to automatically execute some block of code before/after the associated feature/step. In this case, the `@login-required` tag will login the user before each feature/step decorated with the tag (remember that each Scenario executes as a new browser session).
 
- To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance, the following command will run just the tests for the hosts feature:
+ To specify one or more of these tags, add the `--tags tagName` to the command line. For instance, the following command will run just the tests for the hosts feature:
 
  ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere
+$ ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere --tags @hosts
  ```
 
 For information about this Cucumber feature, see:
@@ -240,6 +248,10 @@ For more discussion of the Page Object Model, see
 
  * [Testing Page Objects with SitePrism](http://www.sitepoint.com/testing-page-objects-siteprism/)
  * [Keeping It Dry With Page Objects](http://techblog.constantcontact.com/software-development/keeping-it-dry-with-page-objects/)
+
+
+## Guidelines
+Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 
 ## TODOs
 
