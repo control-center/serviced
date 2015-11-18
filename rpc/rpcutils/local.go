@@ -90,12 +90,19 @@ func (l *localClient) Call(serviceMethod string, args interface{}, reply interfa
 	debug.PrintStack()
 	go func() {
 		inputs := make([]reflect.Value, 2)
+
 		inputs[0] = reflect.ValueOf(args)
+
 		if reply == nil {
-			inputs[1] = reflect.New(reflect.ValueOf(reply).Type())
+			rType := method.Type().In(1)
+			glog.Warningf("reply type is %#v", rType)
+			rValue := reflect.New(rType.Elem())
+			glog.Warningf("reply value is %#v", rValue)
+			inputs[1] = rValue
 		} else {
 			inputs[1] = reflect.ValueOf(reply)
 		}
+
 		result := method.Call(inputs)
 		err := result[0].Interface()
 		if err != nil {

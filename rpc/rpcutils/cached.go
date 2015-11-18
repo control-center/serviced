@@ -16,7 +16,6 @@ package rpcutils
 import (
 	"sync"
 	"time"
-	"runtime/debug"
 
 	"github.com/zenoss/glog"
 )
@@ -53,7 +52,6 @@ func getClient(addr string) (Client, error) {
 
 	glog.Infof("Getting remote client for %s", addr)
 	glog.Infof("Local rpc addrs %#v", localAddrs)
-		debug.PrintStack()
 	addrLock := getAddrLock(addr)
 	addrLock.RLock()
 	client, found := clientCache[addr]
