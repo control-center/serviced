@@ -76,6 +76,13 @@ RUN echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/so
 RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 #
+# Add the Java app that generates a nice HTML report
+#
+RUN apt-get update -qq && apt-get install -y -q openjdk-7-jre-headless
+RUN mkdir -p /usr/share/reporter
+ADD reporter.jar /usr/share/reporter/reporter.jar
+
+#
 # Setup Xvfb - FF and chrome will connect to this DISPLAY
 # (https://github.com/keyvanfatehi/docker-chrome-xvfb)
 #
@@ -84,25 +91,10 @@ ADD xvfb_init /etc/init.d/xvfb
 RUN chmod a+x /etc/init.d/xvfb
 
 #
-# Add the script that sets up a user account to run cucumber. The account has to be setup
-# on each execution so that the uid/gid can be synced with the caller. Otherwise, the files
-# created by cucumber/capybara will not be owned by the right user.
-#
-ADD makeCukeUser.sh /usr/sbin/makeCukeUser.sh
-RUN chmod a+x /usr/sbin/makeCukeUser.sh
-
-#
 # Add the script used to run cucumber.
 #
 ADD runCucumber.sh /usr/sbin/runCucumber.sh
 RUN chmod a+x /usr/sbin/runCucumber.sh
-
-#
-# Add the Java app that generates a nice HTML report
-#
-RUN apt-get update -qq && apt-get install -y -q openjdk-7-jre-headless
-RUN mkdir -p /usr/share/reporter
-ADD reporter.jar /usr/share/reporter/reporter.jar
 
 #
 # Setup a default timezone that matches CST since the default TZ in the ubuntu

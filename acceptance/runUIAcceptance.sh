@@ -13,7 +13,6 @@
 #
 debug=false
 interactive=false
-runAsRoot=false
 DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 TAGS=()
@@ -46,9 +45,6 @@ while (( "$#" )); do
     elif [ "$1" == "--debug" ]; then
         debug=true
         shift 1
-    elif [ "$1" == "--root" ]; then
-        runAsRoot=true
-        shift 1
     elif [ "$1" == "-i" ]; then
         interactive=true
         shift 1
@@ -60,7 +56,7 @@ while (( "$#" )); do
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
         echo "       [-d driverName] [-t timeout] [--tags tagname [--tags tagname]]"
-        echo "       [--dataset setName] [--debug] [--root] [-i] [-h, --help]"
+        echo "       [--dataset setName] [--debug] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
@@ -72,7 +68,6 @@ while (( "$#" )); do
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
         echo "    --debug               opens the browser on the host's DISPLAY"
-        echo "    --root                run the tests as root in the docker container"
         echo "    -i                    interactive mode. Starts a bash shell with all of the same"
         echo "                          env vars but doesn't run anything"
         echo "    -h, --help             print this usage statement and exit"
@@ -125,10 +120,9 @@ fi
 if [ "$interactive" == true ]; then
     INTERACTIVE_OPTION="-i"
     CMD="bash"
-elif [ "$runAsRoot" == true ]; then
-    CMD="runCucumber.sh --root ${CUCUMBER_OPTS}"
 elif [ `uname -s` == "Darwin" ]; then
-    echo "ERROR: missing required argument '--root' for Mac OS X"
+    # FIXME: This may work with a little testing and tweaking
+    echo "ERROR: not supported on Mac OS X"
     exit 1
 else
     CMD="runCucumber.sh ${CUCUMBER_OPTS}"
