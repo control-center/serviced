@@ -26,6 +26,7 @@ import (
 const (
 	dockerep         = "unix:///var/run/docker.sock"
 	sdr              = "SERVICED_REGISTRY"
+	sdc              = "SERVICED_CONTROLLER"
 	maxStartAttempts = 24
 	Wildcard         = "*"
 )
@@ -36,6 +37,7 @@ const (
 )
 
 var useRegistry = false
+var receiveEvents = true
 
 type request struct {
 	errchan chan error
@@ -113,6 +115,14 @@ func init() {
 		}
 	}
 
+	if v := strings.ToLower(os.Getenv(sdc)); v != "" {
+		for _, t := range trues {
+			if v == t {
+				receiveEvents = false
+			}
+		}
+	}
+
 	client, err := getDockerClient()
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
@@ -133,7 +143,9 @@ func UseRegistry() bool {
 
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc ClientInterface, done <-chan struct{}) error {
-	routeEventsToKernel(dc)
+	if receiveEvents {
+		routeEventsToKernel(dc)
+	}
 
 	eventactions := mkEventActionTable()
 
