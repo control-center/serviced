@@ -33,8 +33,8 @@ import (
 // DriverInit is the subcommand for initializing a new driver
 type DriverInit struct {
 	Args struct {
-		Path    flags.Filename `description:"Path of the driver"`
-		Type    string         `description:"Type of driver to initialize (btrfs|devicemapper|rsync)"`
+		Path flags.Filename `description:"Path of the driver"`
+		Type string         `description:"Type of driver to initialize (btrfs|devicemapper|rsync)"`
 	} `positional-args:"yes" required:"yes"`
 }
 
