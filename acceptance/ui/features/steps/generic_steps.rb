@@ -296,12 +296,15 @@ def getTableValue(valueOrTableUrl)
         if data.to_s.include? "%{local_ip}"
             data.sub! "%{local_ip}", HOST_IP
         end
+        if data.to_s.include? "%{target_host}"
+            data.sub! "%{target_host}", TARGET_HOST
+        end
         return data
     end
 end
 
 def getServicedCLI()
-    return "/capybara/serviced --endpoint #{HOST_IP}:4979"
+    return "/capybara/serviced --endpoint #{TARGET_HOST}:4979"
 end
 
 

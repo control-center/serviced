@@ -128,7 +128,15 @@ else
     CMD="runCucumber.sh ${CUCUMBER_OPTS}"
 fi
 
-HOSTNAME=`hostname -s`
+parse_host() {
+    # Get the URL by removing the protocol
+    url="$(echo $1 | sed -e's,^\(.*://\)\(.*\),\2,g')"
+    # Get the host (in a simple-minded way)
+    host="$(echo $url | cut -d/ -f1)"
+    echo "$host"
+}
+
+TARGET_HOST=`parse_host ${APPLICATION_URL}`
 
 # Don't depend on 'hostname -i' because some machines (like our Jenkins slaves)
 #   map hostname to 127.0.0.1
@@ -139,7 +147,7 @@ cp -u `pwd`/../serviced `pwd`/ui
 trap 'docker rm -f ui_acceptance' INT
 
 docker run --rm --name ui_acceptance \
-    --add-host=${HOSTNAME}:${HOST_IP} \
+    --net=host \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
@@ -152,6 +160,7 @@ docker run --rm --name ui_acceptance \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
     -e HOST_IP=${HOST_IP} \
+    -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
     -t zenoss/capybara:1.0.4 \
     ${CMD}
