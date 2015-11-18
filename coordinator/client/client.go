@@ -82,6 +82,7 @@ var (
 	ErrClosing                 = errors.New("coord-client: zookeeper is closing")
 	ErrNothing                 = errors.New("coord-client: no server responsees to process")
 	ErrSessionMoved            = errors.New("coord-client: session moved to another server, so operation is ignored")
+	ErrNoServer                = errors.New("coord-client: could not connect to a server")
 )
 
 type opClientRequestType int
