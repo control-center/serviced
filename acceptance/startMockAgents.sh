@@ -20,17 +20,17 @@ while (( "$#" )); do
 
 done
 
-HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+HOSTNAME=`hostname -s`
 
 set -e
 
 set -x
 cd ${DIR}
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host defaultHost --address ${HOST_IP} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host2 --address ${HOST_IP} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host3 --address ${HOST_IP} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host4 --address ${HOST_IP} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host5 --address ${HOST_IP} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host defaultHost --address ${HOSTNAME} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host2 --address ${HOSTNAME} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host3 --address ${HOSTNAME} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host4 --address ${HOSTNAME} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host5 --address ${HOSTNAME} &
 set +x
 
 WAIT=0
