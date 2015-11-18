@@ -94,3 +94,7 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 	// wrapper which holds both the TLS and raw connections.
 	return &tlsClientCon{conn, rawConn}, nil
 }
+
+func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
+	return tlsDialWithDialer(new(net.Dialer), network, addr, config)
+}

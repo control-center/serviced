@@ -118,6 +118,7 @@ type IServiceDefinition struct {
 	HealthChecks   map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
 	Configuration  map[string]interface{}             // service specific configuration
 	Notify         func(*IService, interface{}) error // A function to run when notified of a data event
+	PreStart       func(*IService) error              // A function to run before the initial start of the service
 	PostStart      func(*IService) error              // A function to run after the initial start of the service
 	Recover        func(path string) error            // A recovery step if the service fails to start
 	HostNetwork    bool                               // enables host network in the container
@@ -152,7 +153,6 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	if sd.StartupTimeout == 0 { //Initialize startup timeout to Default for all IServices if not specified
 		sd.StartupTimeout = WAIT_FOR_INITIAL_HEALTHCHECK
 	}
-
 	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil, &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
@@ -179,6 +179,13 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 
 	envPerService[sd.Name] = make(map[string]string)
 	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.ID
+
+	if sd.PreStart != nil {
+		if err := sd.PreStart(&svc); err != nil {
+			glog.Errorf("Could not prestart service %s: %s", sd.Name, err)
+			return nil, err
+		}
+	}
 	go svc.run()
 
 	return &svc, nil

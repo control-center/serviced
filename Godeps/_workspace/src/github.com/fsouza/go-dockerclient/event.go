@@ -5,6 +5,7 @@
 package docker
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -259,9 +260,9 @@ func (c *Client) eventHijack(startTime int64, eventChan chan *APIEvents, errChan
 	var dial net.Conn
 	var err error
 	if c.TLSConfig == nil {
-		dial, err = c.Dialer.Dial(protocol, address)
+		dial, err = net.Dial(protocol, address)
 	} else {
-		dial, err = tlsDialWithDialer(c.Dialer, protocol, address, c.TLSConfig)
+		dial, err = tls.Dial(protocol, address, c.TLSConfig)
 	}
 	if err != nil {
 		return err

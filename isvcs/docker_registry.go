@@ -14,6 +14,9 @@
 package isvcs
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -23,7 +26,11 @@ import (
 
 var dockerRegistry *IService
 
-const registryPort = 5000
+const (
+	registryPort     = 5000
+	v1RegistryVolume = "registry"
+	v2RegistryVolume = "v2"
+)
 
 func initDockerRegistry() {
 	var err error
@@ -51,13 +58,51 @@ func initDockerRegistry() {
 			Tag:          IMAGE_TAG,
 			Command:      func() string { return command },
 			PortBindings: []portBinding{dockerPortBinding},
-			Volumes:      map[string]string{"registry": "/tmp/registry-dev"},
+			Volumes:      map[string]string{v2RegistryVolume: "/tmp/registry-dev"},
 			HealthChecks: healthChecks,
+			PreStart:     checkDockerRegistryPath,
 		},
 	)
 	if err != nil {
 		glog.Fatalf("Error initializing docker-registry container: %s", err)
 	}
+}
+
+func checkDockerRegistryPath(svc *IService) error {
+	// does the v2 path exist?
+	v2Path := svc.getResourcePath(v2RegistryVolume)
+	if _, err := os.Stat(v2Path); os.IsNotExist(err) {
+		// if the v2 path does not exist, then check for the v1 path
+		v1Path := svc.getResourcePath(v1RegistryVolume)
+		if _, err := os.Stat(v1Path); os.IsNotExist(err) {
+			// no v1 path, so nothing to migrate
+			return nil
+		} else if err != nil {
+			glog.Errorf("Error trying to look up v1 docker registry path at %s: %s", v1Path, err)
+			return err
+		}
+		// is this a v1 path, or just a misnamed v2 path? (1.1 => 1.1.x
+		// upgrade)
+		if _, err := os.Stat(filepath.Join(v1Path, "docker/registry/v2")); os.IsNotExist(err) {
+			// this is (probably) a v1 registry, so need to migrate at master
+			// startup
+			return nil
+		} else if err != nil {
+			glog.Errorf("Error trying to verify v1 docker registry path at %s: %s", v1Path, err)
+			return err
+		}
+		// this is a v2 registry, now we just need to move it into its new
+		// location. (1.1 => 1.1.x upgrade)
+		if err := os.Rename(v1Path, v2Path); err != nil {
+			glog.Errorf("Could not migrate v2 registry: %s", err)
+			return err
+		}
+		glog.Infof("Successfully migrated v2 registry")
+	} else if err != nil {
+		glog.Errorf("Error trying to look up v2 docker registry path at %s: %s", v2Path, err)
+		return err
+	}
+	return nil
 }
 
 func registryHealthCheck(halt <-chan struct{}) error {

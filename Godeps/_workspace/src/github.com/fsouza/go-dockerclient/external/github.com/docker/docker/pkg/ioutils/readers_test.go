@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
-	"time"
 )
 
 // Implement io.Reader
@@ -62,8 +61,8 @@ func TestNewBufReaderWithDrainbufAndBuffer(t *testing.T) {
 	reader, writer := io.Pipe()
 
 	drainBuffer := make([]byte, 1024)
-	buffer := NewBytesPipe(nil)
-	bufreader := NewBufReaderWithDrainbufAndBuffer(reader, drainBuffer, buffer)
+	buffer := bytes.Buffer{}
+	bufreader := NewBufReaderWithDrainbufAndBuffer(reader, drainBuffer, &buffer)
 
 	// Write everything down to a Pipe
 	// Usually, a pipe should block but because of the buffered reader,
@@ -77,11 +76,7 @@ func TestNewBufReaderWithDrainbufAndBuffer(t *testing.T) {
 
 	// Drain the reader *after* everything has been written, just to verify
 	// it is indeed buffering
-	select {
-	case <-done:
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout")
-	}
+	<-done
 
 	output, err := ioutil.ReadAll(bufreader)
 	if err != nil {
@@ -129,16 +124,13 @@ func TestBufReaderCloseWithNonReaderCloser(t *testing.T) {
 }
 
 // implements io.ReadCloser
-type simpleReaderCloser struct {
-	err error
-}
+type simpleReaderCloser struct{}
 
 func (r *simpleReaderCloser) Read(p []byte) (n int, err error) {
-	return 0, r.err
+	return 0, nil
 }
 
 func (r *simpleReaderCloser) Close() error {
-	r.err = io.EOF
 	return nil
 }
 
