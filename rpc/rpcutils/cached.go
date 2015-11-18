@@ -46,12 +46,10 @@ func GetCachedClient(addr string) (Client, error) {
 
 func getClient(addr string) (Client, error) {
 	if _, found := localAddrs[addr]; found {
-		glog.Infof("Getting local client for %s", addr)
+		glog.V(3).Infof("Getting local client for %s", addr)
 		return localRpcClient, nil
 	}
 
-	glog.Infof("Getting remote client for %s", addr)
-	glog.Infof("Local rpc addrs %#v", localAddrs)
 	addrLock := getAddrLock(addr)
 	addrLock.RLock()
 	client, found := clientCache[addr]

@@ -16,7 +16,6 @@ package rpcutils
 import (
 	"fmt"
 	"reflect"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -70,24 +69,19 @@ func (l *localClient) Call(serviceMethod string, args interface{}, reply interfa
 	name := parts[0]
 	methodName := parts[1]
 
-	glog.Infof("RPC service method %s:%s", name, methodName)
+	glog.V(3).Infof("RPC service method %s:%s", name, methodName)
 
 	l.RLock()
 	server, ok := l.rcvrs[name]
 	l.RUnlock()
 	if !ok {
-		glog.Infof("Server Not Found for %s", serviceMethod)
-		glog.Infof("Server for local %#v", l.rcvrs)
-	} else {
-		glog.Infof("Server found %#v", server)
-	}
-	method := reflect.ValueOf(server).MethodByName(methodName)
+		return fmt.Errorf("Server Not Found for %s", serviceMethod)
 
+	}
+
+	method := reflect.ValueOf(server).MethodByName(methodName)
 	callChan := make(chan error, 1)
 
-	glog.Infof("Calling %s, %#v %#v", serviceMethod, args, reply)
-
-	debug.PrintStack()
 	go func() {
 		inputs := make([]reflect.Value, 2)
 
@@ -95,9 +89,7 @@ func (l *localClient) Call(serviceMethod string, args interface{}, reply interfa
 
 		if reply == nil {
 			rType := method.Type().In(1)
-			glog.Warningf("reply type is %#v", rType)
 			rValue := reflect.New(rType.Elem())
-			glog.Warningf("reply value is %#v", rValue)
 			inputs[1] = rValue
 		} else {
 			inputs[1] = reflect.ValueOf(reply)

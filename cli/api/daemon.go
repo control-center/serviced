@@ -714,8 +714,11 @@ func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
 	server := master.NewServer(d.facade)
-	rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
-		fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
+	bypass := os.Getenv("BYPASS_LOCAL_RPC")
+	if bypass != "" {
+		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
+			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
+	}
 	rpcutils.RegisterLocal("Master", server)
 	if err := d.rpcServer.RegisterName("Master", server); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
