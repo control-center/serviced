@@ -441,7 +441,7 @@ func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
 		if output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput(); err != nil {
 			glog.Errorf("Could not get logs for container %s", ctr.ID)
 		} else {
-			prefix := "container: "
+			prefix := fmt.Sprintf("ctr-%s: ", ctr.ID[0:5])
 			split := strings.Split(string(output), "\n")
 			for i, s := range split {
 				split[i] = prefix + s
