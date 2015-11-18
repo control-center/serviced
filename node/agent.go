@@ -723,6 +723,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
+		fmt.Sprintf("SERVICED_CONTROLLER=1"),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup
