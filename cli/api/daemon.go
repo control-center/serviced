@@ -718,6 +718,8 @@ func (d *daemon) registerMasterRPC() error {
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
 			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
+	}else{
+		glog.V(0).Infoln("Enabling RPC for local calls; disabling reflection lookup")
 	}
 	rpcutils.RegisterLocal("Master", server)
 	if err := d.rpcServer.RegisterName("Master", server); err != nil {
