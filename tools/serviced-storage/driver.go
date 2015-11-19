@@ -33,9 +33,8 @@ import (
 // DriverInit is the subcommand for initializing a new driver
 type DriverInit struct {
 	Args struct {
-		Path    flags.Filename `description:"Path of the driver"`
-		Type    string         `description:"Type of driver to initialize (btrfs|devicemapper|rsync)"`
-		Options []string       `description:"name=value pairs of storage options"`
+		Path flags.Filename `description:"Path of the driver"`
+		Type string         `description:"Type of driver to initialize (btrfs|devicemapper|rsync)"`
 	} `positional-args:"yes" required:"yes"`
 }
 
@@ -83,7 +82,7 @@ func (c *DriverInit) Execute(args []string) error {
 		"type":      driverType,
 	})
 	logger.Info("Initializing storage driver")
-	if err := volume.InitDriver(driverType, path, c.Args.Options); err != nil {
+	if err := volume.InitDriver(driverType, path, App.Options.Options); err != nil {
 		log.Fatal(err)
 	}
 	logger.Info("Storage driver initialized successfully")
@@ -196,7 +195,7 @@ func InitDriverIfExists(directory string) (volume.Driver, error) {
 		"type":      driverType,
 	})
 	logger.Debug("Found existing storage")
-	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
+	if err := volume.InitDriver(driverType, directory, App.Options.Options); err != nil {
 		return nil, err
 	}
 	logger.Debug("Loaded storage driver")

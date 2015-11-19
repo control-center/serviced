@@ -63,7 +63,8 @@ func init() {
 
 // ServicedStorageOptions are the options for ServicedStorage
 type ServicedStorageOptions struct {
-	Verbose []bool `short:"v" description:"Display verbose logging"`
+	Verbose []bool   `short:"v" description:"Display verbose logging"`
+	Options []string `short:"o" description:"name=value pairs of storage options"`
 }
 
 // ServicedStorage is the root client for the application
