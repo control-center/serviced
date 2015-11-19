@@ -51,6 +51,7 @@ var (
 	ErrTestTagSnapshotFailed       = errors.New("unable to tag snapshot")
 	ErrTestRemoveSnapshotTagFailed = errors.New("unable to remove tag from snapshot")
 	ErrTestGetSnapshotByTagFailed  = errors.New("unable to retrieve snapshot by tag name")
+	ErrTestGeneric                 = errors.New("something went wrong")
 )
 
 type NopCloser struct {
