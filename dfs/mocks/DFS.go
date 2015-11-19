@@ -13,7 +13,10 @@
 
 package mocks
 
-import "github.com/control-center/serviced/dfs"
+import (
+	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/domain/service"
+)
 import "github.com/stretchr/testify/mock"
 
 import "io"
@@ -307,16 +310,14 @@ func (_m *DFS) GetSnapshotWithTag(tenantID string, tagName string) (string, erro
 	return r0, r1
 }
 
-func (m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string) error {
+func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string) error {
 	ret := _m.Called(svcs, tenantID)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func([]service.Service, string) string); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]service.Service, string) error); ok {
 		r0 = rf(svcs, tenantID)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(string)
-		}
+		r0 = ret.Error(0)
 	}
 
 	return r0

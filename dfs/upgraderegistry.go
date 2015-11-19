@@ -19,8 +19,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
-// UpgradeRegistry loads images for each service
-// into the docker registry index
+// UpgradeRegistry loads images for each service into the docker registry
+// index.
 func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID string) error {
 	imageIDs := make(map[string]struct{})
 	for _, svc := range svcs {
