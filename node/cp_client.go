@@ -72,11 +72,11 @@ func (s *ControlClient) GetTaggedServices(request dao.ServiceRequest, replyServi
 }
 
 func (s *ControlClient) GetService(serviceId string, service *service.Service) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetService", serviceId, &service, 0)
+	return s.rpcClient.Call("ControlPlane.GetService", serviceId, service, 0)
 }
 
 func (s *ControlClient) FindChildService(request dao.FindChildRequest, service *service.Service) (err error) {
-	return s.rpcClient.Call("ControlPlane.FindChildService", request, &service, 0)
+	return s.rpcClient.Call("ControlPlane.FindChildService", request, service, 0)
 }
 
 func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err error) {
