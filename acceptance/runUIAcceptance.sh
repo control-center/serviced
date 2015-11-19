@@ -138,9 +138,13 @@ parse_host() {
 
 TARGET_HOST=`parse_host ${APPLICATION_URL}`
 
-# Don't depend on 'hostname -i' because some machines (like our Jenkins slaves)
-#   map hostname to 127.0.0.1
-HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+HOST_IP=`hostname -i`
+if [[ $HOST_IP == 127* ]]; then
+    # serviced won't allow us to add a loopback address, so use docker's as an alternative
+    echo "Overriding default HOST_IP ($HOST_IP)"
+    HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+fi
+echo "Using HOST_IP=$HOST_IP"
 
 cp -u `pwd`/../serviced `pwd`/ui
 

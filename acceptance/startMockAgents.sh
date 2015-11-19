@@ -31,6 +31,11 @@ if [ ! -d ${DIR}/ui/features/data/${DATASET} ]; then
 fi
 
 HOST_IP=`hostname -i`
+if [[ $HOST_IP == 127* ]]; then
+    echo "Overriding default HOST_IP ($HOST_IP)"
+    HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+fi
+echo "Using HOST_IP=$HOST_IP"
 
 set -e
 
