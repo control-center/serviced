@@ -2,35 +2,45 @@
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 
 wait_forever=true
+DATASET=default
 
 while (( "$#" )); do
     if [ "$1" == "--no-wait" ]; then
          wait_forever=false
         shift 1
+    elif [ "$1" == "--dataset" ]; then
+        DATASET="${2}"
+        shift 2
     else
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
-        echo "USAGE: startMockAgents.sh [--no-wait]"
+        echo "USAGE: startMockAgents.sh [--no-wait] [--dataset setName]"
         echo ""
         echo "where"
-        echo "    --no-wait    do not wait"
+        echo "    --no-wait             do not wait"
+        echo "    --dataset setName     identifies the dataset to use"
         exit 1
     fi
 
 done
 
-HOSTNAME=`hostname -s`
+if [ ! -d ${DIR}/ui/features/data/${DATASET} ]; then
+    echo "ERROR: directory '${DIR}/ui/features/data/${DATASET}' does not exist"
+    exit 1
+fi
+
+HOST_IP=`hostname -i`
 
 set -e
 
 set -x
 cd ${DIR}
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host defaultHost --address ${HOSTNAME} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host2 --address ${HOSTNAME} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host3 --address ${HOSTNAME} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host4 --address ${HOSTNAME} &
-${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host5 --address ${HOSTNAME} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host defaultHost --address ${HOST_IP} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host host2 --address ${HOST_IP} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host host3 --address ${HOST_IP} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host host4 --address ${HOST_IP} &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host host5 --address ${HOST_IP} &
 set +x
 
 WAIT=0
