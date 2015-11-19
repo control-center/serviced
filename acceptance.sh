@@ -111,7 +111,7 @@ make mockAgent
 cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
 
-# launch cucumber/capybara
-./runUIAcceptance.sh -a https://${HOSTNAME} $*
+# launch cucumber/capybara with colorized output disabled for better readability in Jenkins
+CUCUMBER_OPTS=--no-color ./runUIAcceptance.sh -a https://${HOSTNAME} $*
 
 # "trap cleanup EXIT", above, will handle cleanup

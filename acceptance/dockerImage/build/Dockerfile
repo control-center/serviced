@@ -7,7 +7,7 @@ RUN	apt-get update -qq && apt-get install -y -q build-essential wget curl unzip 
 #
 # Install native prerequisites for the ruby gems we need (e.g.nokogiri)
 #
-RUN apt-get update -qq && apt-get install -y -q zlib1g-dev=1:1.2.8.dfsg-1ubuntu1 libxml2-dev=2.9.1+dfsg1-3ubuntu4.4 libxml2 libxslt1-dev
+RUN apt-get update -qq && apt-get install -y -q zlib1g-dev=1:1.2.8.dfsg-1ubuntu1 libxml2-dev=2.9.1+dfsg1-3ubuntu4.5 libxml2 libxslt1-dev
 
 #
 # Install Ruby, Cucumber, Capybara and the other gems we need
@@ -54,7 +54,9 @@ RUN rm -rf /usr/local/share/firefox-36.0.tar.bz2
 # Install chromedriver that selenium needs to work with chrome
 # (from https://devblog.supportbee.com/2014/10/27/setting-up-cucumber-to-run-with-Chrome-on-Linux/)
 #
-RUN wget -N http://chromedriver.storage.googleapis.com/2.10/chromedriver_linux64.zip -P /tmp
+# Updated to version 2.20 Nov 2015 to work with newer Chrome version pulled in while building 1.0.4 of the image
+#
+RUN wget -N http://chromedriver.storage.googleapis.com/2.20/chromedriver_linux64.zip -P /tmp
 RUN unzip /tmp/chromedriver_linux64.zip -d /tmp
 RUN mv /tmp/chromedriver /usr/bin
 RUN chmod +x /usr/bin/chromedriver
@@ -74,6 +76,13 @@ RUN echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/so
 RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 
 #
+# Add the Java app that generates a nice HTML report
+#
+RUN apt-get update -qq && apt-get install -y -q openjdk-7-jre-headless
+RUN mkdir -p /usr/share/reporter
+ADD reporter.jar /usr/share/reporter/reporter.jar
+
+#
 # Setup Xvfb - FF and chrome will connect to this DISPLAY
 # (https://github.com/keyvanfatehi/docker-chrome-xvfb)
 #
@@ -82,25 +91,17 @@ ADD xvfb_init /etc/init.d/xvfb
 RUN chmod a+x /etc/init.d/xvfb
 
 #
-# Add the script that sets up a user account to run cucumber. The account has to be setup
-# on each execution so that the uid/gid can be synced with the caller. Otherwise, the files
-# created by cucumber/capybara will not be owned by the right user.
-#
-ADD makeCukeUser.sh /usr/sbin/makeCukeUser.sh
-RUN chmod a+x /usr/sbin/makeCukeUser.sh
-
-#
 # Add the script used to run cucumber.
 #
 ADD runCucumber.sh /usr/sbin/runCucumber.sh
 RUN chmod a+x /usr/sbin/runCucumber.sh
 
 #
-# Add the Java app that generates a nice HTML report
+# Setup a default timezone that matches CST since the default TZ in the ubuntu
+# image is a value unknown to the UI (which can cause other problems).
 #
-RUN apt-get update -qq && apt-get install -y -q openjdk-7-jre-headless
-RUN mkdir -p /usr/share/reporter
-ADD reporter.jar /usr/share/reporter/reporter.jar
+RUN echo "America/Chicago" >/etc/timezone
+RUN dpkg-reconfigure --frontend noninteractive tzdata
 
 #
 # Silence warnings from serviced about a missing config file

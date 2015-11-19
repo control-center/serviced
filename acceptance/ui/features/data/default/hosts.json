@@ -2,7 +2,7 @@
   "hosts":
   {
     "defaultHost": {
-      "nameAndPort": "%{local_ip}:4981",
+      "nameAndPort": "%{target_host}:4981",
       "name": "defaultHost",
       "rpcPort": 4981,
       "hostID": 4981,
@@ -15,11 +15,11 @@
       "ccRelease": "Default CC Release Test",
       "pool": "default",
       "commitment": "75%",
-      "outboundIP": "%{local_ip}"
+      "outboundIP": "%{target_host}"
     },
 
     "host2": {
-      "nameAndPort": "%{local_ip}:4982",
+      "nameAndPort": "%{target_host}:4982",
       "name": "secondHost",
       "rpcPort": 4982,
       "hostID": 4982,
@@ -32,11 +32,11 @@
       "ccRelease": "CC Release test 2",
       "pool": "default",
       "commitment": "5737418240",
-      "outboundIP": "%{local_ip}"
+      "outboundIP": "%{target_host}"
     },
 
     "host3": {
-      "nameAndPort": "%{local_ip}:4983",
+      "nameAndPort": "%{target_host}:4983",
       "name": "thirdHost",
       "rpcPort": 4983,
       "hostID": 4983,
@@ -49,11 +49,11 @@
       "ccRelease": "Third Test CC Release",
       "pool": "testPool2",
       "commitment": "20%",
-      "outboundIP": "%{local_ip}"
+      "outboundIP": "%{target_host}"
     },
 
     "host4": {
-      "nameAndPort": "%{local_ip}:4984",
+      "nameAndPort": "%{target_host}:4984",
       "name": "fourthHost",
       "rpcPort": 4984,
       "hostID": 4984,
@@ -66,11 +66,11 @@
       "ccRelease": "v4",
       "pool": "testPool3",
       "commitment": "100%",
-      "outboundIP": "%{local_ip}"
+      "outboundIP": "%{target_host}"
     },
 
     "host5": {
-      "nameAndPort": "%{local_ip}:4985",
+      "nameAndPort": "%{target_host}:4985",
       "name": "fifthHost",
       "rpcPort": 4985,
       "hostID": 4985,
@@ -83,7 +83,7 @@
       "ccRelease": "#5",
       "pool": "testPool4",
       "commitment": "75%",
-      "outboundIP": "%{local_ip}"
+      "outboundIP": "%{target_host}"
     }
   }
 }
