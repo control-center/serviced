@@ -13,7 +13,6 @@
 #
 debug=false
 interactive=false
-runAsRoot=false
 DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 TAGS=()
@@ -46,9 +45,6 @@ while (( "$#" )); do
     elif [ "$1" == "--debug" ]; then
         debug=true
         shift 1
-    elif [ "$1" == "--root" ]; then
-        runAsRoot=true
-        shift 1
     elif [ "$1" == "-i" ]; then
         interactive=true
         shift 1
@@ -60,7 +56,7 @@ while (( "$#" )); do
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
         echo "       [-d driverName] [-t timeout] [--tags tagname [--tags tagname]]"
-        echo "       [--dataset setName] [--debug] [--root] [-i] [-h, --help]"
+        echo "       [--dataset setName] [--debug] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
@@ -72,7 +68,6 @@ while (( "$#" )); do
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
         echo "    --debug               opens the browser on the host's DISPLAY"
-        echo "    --root                run the tests as root in the docker container"
         echo "    -i                    interactive mode. Starts a bash shell with all of the same"
         echo "                          env vars but doesn't run anything"
         echo "    -h, --help             print this usage statement and exit"
@@ -125,16 +120,23 @@ fi
 if [ "$interactive" == true ]; then
     INTERACTIVE_OPTION="-i"
     CMD="bash"
-elif [ "$runAsRoot" == true ]; then
-    CMD="runCucumber.sh --root ${CUCUMBER_OPTS}"
 elif [ `uname -s` == "Darwin" ]; then
-    echo "ERROR: missing required argument '--root' for Mac OS X"
+    # FIXME: This may work with a little testing and tweaking
+    echo "ERROR: not supported on Mac OS X"
     exit 1
 else
     CMD="runCucumber.sh ${CUCUMBER_OPTS}"
 fi
 
-HOSTNAME=`hostname -s`
+parse_host() {
+    # Get the URL by removing the protocol
+    url="$(echo $1 | sed -e's,^\(.*://\)\(.*\),\2,g')"
+    # Get the host (in a simple-minded way)
+    host="$(echo $url | cut -d/ -f1)"
+    echo "$host"
+}
+
+TARGET_HOST=`parse_host ${APPLICATION_URL}`
 
 # Don't depend on 'hostname -i' because some machines (like our Jenkins slaves)
 #   map hostname to 127.0.0.1
@@ -145,11 +147,9 @@ cp -u `pwd`/../serviced `pwd`/ui
 trap 'docker rm -f ui_acceptance' INT
 
 docker run --rm --name ui_acceptance \
-    --add-host=${HOSTNAME}:${HOST_IP} \
+    --net=host \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
-    -v /etc/timezone:/etc/timezone:ro \
-    -v /etc/localtime:/etc/localtime:ro \
     -v `pwd`/ui:/capybara:rw \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
@@ -160,6 +160,7 @@ docker run --rm --name ui_acceptance \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
     -e HOST_IP=${HOST_IP} \
+    -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.0.3 \
+    -t zenoss/capybara:1.0.4 \
     ${CMD}
