@@ -60,6 +60,7 @@ func (l *localClient) register(name string, rcvr interface{}) error {
 func (l *localClient) Close() error {
 	return nil
 }
+
 func (l *localClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
 
 	parts := strings.SplitN(serviceMethod, ".", 2)
@@ -80,6 +81,9 @@ func (l *localClient) Call(serviceMethod string, args interface{}, reply interfa
 	}
 
 	method := reflect.ValueOf(server).MethodByName(methodName)
+	if !method.IsValid() {
+		return fmt.Errorf("can't find method %s", serviceMethod)
+	}
 	callChan := make(chan error, 1)
 
 	go func() {
@@ -87,20 +91,31 @@ func (l *localClient) Call(serviceMethod string, args interface{}, reply interfa
 
 		inputs[0] = reflect.ValueOf(args)
 
-		if reply == nil {
-			rType := method.Type().In(1)
-			rValue := reflect.New(rType.Elem())
-			inputs[1] = rValue
-		} else {
-			inputs[1] = reflect.ValueOf(reply)
-		}
+		//make a new one of the correct type
+		rType := method.Type().In(1)
+		rValue := reflect.New(rType.Elem())
+		inputs[1] = rValue
 
 		result := method.Call(inputs)
 		err := result[0].Interface()
 		if err != nil {
 			callChan <- err.(error)
 		}
-		callChan <- nil
+
+		replyValue := reflect.ValueOf(reply)
+		if reply == nil {
+			callChan <- nil
+		} else if replyValue.Kind() != reflect.Ptr {
+			callChan <- fmt.Errorf("processing response (non-pointer %v)", reflect.TypeOf(reply))
+		} else if replyValue.IsNil() {
+			callChan <- fmt.Errorf("processing response (nil %v)", reflect.TypeOf(reply))
+		} else {
+			//assign
+			//get underlying value since replyValue is a ptr
+			replyValue = replyValue.Elem()
+			replyValue.Set(rValue.Elem())
+			callChan <- nil
+		}
 	}()
 	if timeout <= 0 {
 		timeout = 365 * 24 * time.Hour
