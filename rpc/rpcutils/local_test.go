@@ -8,40 +8,35 @@ import (
 
 func (s *MySuite) BenchmarkNilReplyDirect(c *C) {
 	for n := 0; n < c.N; n++ {
-		rtt.NilReply("", nil)
+		err := rtt.NilReply("", nil)
+		c.Assert(err, IsNil)
 	}
 }
 
 func (s *MySuite) BenchmarkNilReplyLocal(c *C) {
 	client := localRpcClient
 	for n := 0; n < c.N; n++ {
-		client.Call("RPCTestType.NilReply", "", nil, 0)
+		err := client.Call("RPCTestType.NilReply", "", nil, 0)
+		c.Assert(err, IsNil)
 	}
 }
 
 func (s *MySuite) BenchmarkNilReplyCached(c *C) {
 	client := rpcClient
 	for n := 0; n < c.N; n++ {
-		client.Call("RPCTestType.NilReply", "", nil, 0)
+		err := client.Call("RPCTestType.NilReply", "", nil, 0)
+		c.Assert(err, IsNil)
 	}
 }
 
 func (s *MySuite) BenchmarkNilReplyRemote(c *C) {
 	client := bareRpcClient
 	for n := 0; n < c.N; n++ {
-		client.Call("RPCTestType.NilReply", "", nil)
+		err := client.Call("RPCTestType.NilReply", "", nil)
+		c.Assert(err, IsNil)
 	}
 }
 
-//func (s *MySuite) BenchmarkStructLocal(c *C) {
-//	client := rpcClient
-//	arg := args{a:"test", b:10, c:true, d:make([]string, 1000)}
-//	var reply *args
-//	for n := 0; n < c.N; n++ {
-//		err := client.Call("RPCTestType.StructCall", arg, reply, 0)
-//		c.Assert(err, IsNil)
-//	}
-//}
 func (s *MySuite) BenchmarkEchoDirect(c *C) {
 	reply := ""
 	for n := 0; n < c.N; n++ {
@@ -175,4 +170,13 @@ func (s *MySuite) TestNoMethod(c *C) {
 
 	err = localRpcClient.Call("RPCTestType.blam", "", nil, 0)
 	c.Assert(err, ErrorMatches, "can't find method RPCTestType.blam")
+}
+
+func (s *MySuite) TestBadServer(c *C) {
+	client := rpcClient
+	err := client.Call("Blam.blam", "", nil, 0)
+	c.Assert(err, ErrorMatches, "rpc: can't find service Blam.blam")
+
+	err = localRpcClient.Call("Blam.blam", "", nil, 0)
+	c.Assert(err, ErrorMatches, "can't find service Blam.blam")
 }

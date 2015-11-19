@@ -23,9 +23,15 @@ import (
 	"github.com/zenoss/glog"
 )
 
+type method struct {
+	methodV reflect.Value
+	replyT  reflect.Type
+}
+
 type localClient struct {
 	sync.RWMutex
-	rcvrs map[string]interface{}
+	rcvrs  map[string]struct{}
+	rcvrMs map[string]method
 }
 
 var (
@@ -34,7 +40,8 @@ var (
 )
 
 func init() {
-	localRpcClient.rcvrs = make(map[string]interface{})
+	localRpcClient.rcvrs = make(map[string]struct{})
+	localRpcClient.rcvrMs = make(map[string]method)
 	localAddrs = make(map[string]struct{})
 }
 
@@ -53,7 +60,27 @@ func RegisterLocal(name string, rcvr interface{}) error {
 func (l *localClient) register(name string, rcvr interface{}) error {
 	l.Lock()
 	defer l.Unlock()
-	l.rcvrs[name] = rcvr
+	l.rcvrs[name] = struct{}{}
+	rcvrType := reflect.TypeOf(rcvr)
+	rcvrV := reflect.ValueOf(rcvr)
+
+	for i := 0; i < rcvrV.NumMethod(); i++ {
+		mName := rcvrType.Method(i).Name
+		mType := rcvrType.Method(i).Type
+		if mType.NumIn() != 3 {
+			continue
+		}
+		mVal := rcvrV.MethodByName(mName)
+		if !mVal.IsValid() {
+			continue
+		}
+		key := fmt.Sprintf("%s.%s", name, mName)
+		m := method{}
+		m.methodV = mVal
+		m.replyT = mVal.Type().In(1)
+		l.rcvrMs[key] = m
+	}
+
 	return nil
 }
 
@@ -61,45 +88,49 @@ func (l *localClient) Close() error {
 	return nil
 }
 
-func (l *localClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
-
-	parts := strings.SplitN(serviceMethod, ".", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("Invalid service method: %s", serviceMethod)
-	}
-	name := parts[0]
-	methodName := parts[1]
-
-	glog.V(3).Infof("RPC service method %s:%s", name, methodName)
-
+func (l *localClient) lookup(serviceMethod string) (reflect.Value, reflect.Type, error) {
 	l.RLock()
-	server, ok := l.rcvrs[name]
+	methodHolder, ok := l.rcvrMs[serviceMethod]
 	l.RUnlock()
 	if !ok {
-		return fmt.Errorf("Server Not Found for %s", serviceMethod)
-
+		//check if service registered
+		parts := strings.SplitN(serviceMethod, ".", 2)
+		if len(parts) != 2 {
+			return reflect.Value{}, nil, fmt.Errorf("Invalid service method: %s", serviceMethod)
+		}
+		name := parts[0]
+		if _, ok := l.rcvrs[name]; !ok {
+			return reflect.Value{}, nil, fmt.Errorf("can't find service %s", serviceMethod)
+		}
+		return reflect.Value{}, nil, fmt.Errorf("can't find method %s", serviceMethod)
 	}
 
-	method := reflect.ValueOf(server).MethodByName(methodName)
-	if !method.IsValid() {
-		return fmt.Errorf("can't find method %s", serviceMethod)
-	}
+	return methodHolder.methodV, methodHolder.replyT, nil
+}
+
+func (l *localClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+	glog.V(3).Infof("RPC service method %s", serviceMethod)
 	callChan := make(chan error, 1)
 
 	go func() {
+		method, rType, err := l.lookup(serviceMethod)
+		if err != nil {
+			callChan <- err
+			return
+		}
+
 		inputs := make([]reflect.Value, 2)
 
 		inputs[0] = reflect.ValueOf(args)
 
 		//make a new one of the correct type
-		rType := method.Type().In(1)
 		rValue := reflect.New(rType.Elem())
 		inputs[1] = rValue
 
 		result := method.Call(inputs)
-		err := result[0].Interface()
-		if err != nil {
-			callChan <- err.(error)
+		errInterface := result[0].Interface()
+		if errInterface != nil {
+			callChan <- errInterface.(error)
 		}
 
 		replyValue := reflect.ValueOf(reply)
