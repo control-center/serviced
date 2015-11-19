@@ -714,8 +714,8 @@ func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
 	server := master.NewServer(d.facade)
-	bypass := os.Getenv("BYPASS_LOCAL_RPC")
-	if bypass != "" {
+	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
+	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
 			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
 	}
