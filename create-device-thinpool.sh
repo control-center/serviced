@@ -46,7 +46,7 @@ lvconvert -y --zero n --thinpool ${GROUP}/${POOL} --poolmetadata ${GROUP}/${META
 lvs --nameprefixes --noheadings -o lv_name,kernel_major,kernel_minor ${GROUP} | while read line; do
     eval $line
     if [ "$LVM2_LV_NAME" = "${POOL}" ]; then
-        TPOOL_NAME="/dev/mapper/$(cat /sys/dev/block/${LVM2_LV_KERNEL_MAJOR}:${LVM2_LV_KERNEL_MINOR}/dm/name)-tpool"
+        TPOOL_NAME="/dev/mapper/$(cat /sys/dev/block/${LVM2_LV_KERNEL_MAJOR}:${LVM2_LV_KERNEL_MINOR}/dm/name)"
         case $GROUP in 
             docker)
                 echo "Please add the following to /etc/default/docker, stop Docker, delete /var/lib/docker, and start it again:"
