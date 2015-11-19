@@ -63,6 +63,9 @@ type DFS interface {
 	RemoveTag(snapshotID string, tagName string) ([]string, error)
 	// GetSnapshotWithTag finds the snapshot of the specified tenant with the specified tag.
 	GetSnapshotWithTag(tenantID string, tagName string) (string, error)
+	// UpgradeRegistry loads images for each service
+	// into the docker registry index
+	UpgradeRegistry(svcs []service.Service, tenantID string) error
 }
 
 var _ = DFS(&DistributedFilesystem{})
