@@ -713,15 +713,25 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
-	if err := d.rpcServer.RegisterName("Master", master.NewServer(d.facade)); err != nil {
+	server := master.NewServer(d.facade)
+	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
+	if disableLocal == "" {
+		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
+			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
+	}else{
+		glog.V(0).Infoln("Enabling RPC for local calls; disabling reflection lookup")
+	}
+	rpcutils.RegisterLocal("Master", server)
+	if err := d.rpcServer.RegisterName("Master", server); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
 	// register the deprecated rpc servers
+	rpcutils.RegisterLocal("LoadBalancer", d.cpDao)
 	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
-
+	rpcutils.RegisterLocal("ControlPlane", d.cpDao)
 	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
