@@ -19,6 +19,7 @@ import (
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/zenoss/glog"
 )
 
 // Driver implements a Zookeeper based client.Driver interface
@@ -78,7 +79,20 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 	if err != nil {
 		return nil, err
 	}
-	<-event // wait for connected event, or anything really
+
+	// wait for session event
+	connected := false
+	for !connected {
+		select {
+		case e := <-event:
+			if e.State == zklib.StateHasSession {
+				connected = true
+				glog.V(1).Infof("zk connection has session %v", e)
+			} else {
+				glog.V(1).Infof("waiting for zk connection to have session %v", e)
+			}
+		}
+	}
 	return &Connection{
 		basePath: basePath,
 		conn:     conn,
