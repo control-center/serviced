@@ -37,7 +37,6 @@ Feature: Resource Pool Management
   Scenario: Add a resource pool without specifying a name
     When I am on the resource pool page
       And I click the add Resource Pool button
-      And I fill in the Resource Pool name field with ""
       And I fill in the Description field with "none"
       And I click "Add Resource Pool"
     Then I should see "Adding pool failed"
