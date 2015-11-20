@@ -175,10 +175,12 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 	health := make(map[string]interface{})
 	healthURL := fmt.Sprintf("%v/_cluster/health", ed.elasticURL())
 	resp, err := http.Get(healthURL)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return health, err
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return health, fmt.Errorf("http status: %v", resp.StatusCode)
 	}
@@ -221,11 +223,13 @@ func (ed *elasticDriver) postMappings() error {
 		mapURL := fmt.Sprintf("%s/%s/_mapping", ed.indexURL(), typeName)
 		glog.V(4).Infof("Posting mapping to %s", mapURL)
 		resp, err := http.Post(mapURL, "application/json", bytes.NewReader(mappingBytes))
+		if resp != nil {
+			defer resp.Body.Close()
+		}
 		if err != nil {
 			return fmt.Errorf("error mapping %s: %s", typeName, err)
 		}
 		glog.V(4).Infof("Response %v", resp)
-		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		glog.V(4).Infof("Post result %s", body)
 		if err != nil {
@@ -288,11 +292,13 @@ func (ed *elasticDriver) postIndex() error {
 	}
 
 	resp, err := http.Post(url, "application/json", bytes.NewReader(configBytes))
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return err
 	}
 	glog.V(4).Infof("Response %v", resp)
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
