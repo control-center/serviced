@@ -96,9 +96,11 @@ func (l *HostRegistryListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn listens on the host registry and waits til the node is deleted to unregister
 func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 	for {
 		var host host.Host
-		ev, err := l.conn.GetW(hostregpath(eHostID), &HostNode{Host: &host})
+		ev, err := l.conn.GetW(hostregpath(eHostID), &HostNode{Host: &host}, done)
 		if err != nil {
 			glog.Errorf("Could not load ephemeral node %s: %s", eHostID, err)
 			return
@@ -113,6 +115,9 @@ func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string
 			glog.V(2).Infof("Recieved signal to stop listening to %s for host %s (%s)", eHostID, host.ID, host.IPAddr)
 			return
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 }
 
@@ -144,9 +149,11 @@ func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*h
 	if err := zzk.Ready(cancel, conn, hostregpath()); err != nil {
 		return nil, err
 	}
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 	for {
 		// get all of the ready nodes
-		children, ev, err := conn.ChildrenW(hostregpath())
+		children, ev, err := conn.ChildrenW(hostregpath(), done)
 		if err != nil {
 			return nil, err
 		}
@@ -174,6 +181,9 @@ func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*h
 		} else {
 			return hosts, nil
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 }
 
@@ -247,9 +257,11 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 	}
 
 	// wait until all the service instances have stopped
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 loop:
 	for {
-		nodes, event, err := conn.ChildrenW(hostpath(hostID))
+		nodes, event, err := conn.ChildrenW(hostpath(hostID), done)
 		if err != nil {
 			return err
 		} else if len(nodes) == 0 {
@@ -264,6 +276,9 @@ loop:
 			glog.Warningf("Giving up on waiting for services on host %s to stop", hostID)
 			break loop
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 
 	// remove the parent node

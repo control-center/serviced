@@ -82,7 +82,9 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	}
 
 	leader := conn.NewLeader("/storage/leader", node)
-	leaderW, err := leader.TakeLead()
+	leaderDone := make(chan bool)
+	defer close(leaderDone)
+	leaderW, err := leader.TakeLead(leaderDone)
 	if err != zookeeper.ErrDeadlock && err != nil {
 		glog.Errorf("Could not take storage lead: %s", err)
 		return err
@@ -91,11 +93,13 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	// monitor dfs; log warnings each cycle; restart dfs if needed
 	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), s.host.IPAddr, node.ExportTime, shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
 
-	// loop until shutdown event
 	defer leader.ReleaseLead()
 
+	// loop until shutdown event
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 	for {
-		clients, clientW, err := conn.ChildrenW(storageClientsPath)
+		clients, clientW, err := conn.ChildrenW(storageClientsPath, done)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err
@@ -117,5 +121,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		case <-shutdown:
 			return nil
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 }

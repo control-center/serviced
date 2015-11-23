@@ -72,9 +72,11 @@ func (l *RegistryListener) PullImage(image string) error {
 	regaddr := path.Join(l.address, rImage.String())
 	timeout := time.After(l.pulltimeout)
 
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 	for {
 		var node RegistryImageNode
-		evt, err := l.conn.GetW(idpath, &node)
+		evt, err := l.conn.GetW(idpath, &node, done)
 		if err != nil {
 			if err == client.ErrNoNode {
 				glog.Errorf("Image %s not found", regaddr)
@@ -123,5 +125,8 @@ func (l *RegistryListener) PullImage(image string) error {
 		case <-timeout:
 			return ErrOpTimeout
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 }

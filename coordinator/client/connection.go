@@ -27,7 +27,7 @@ type Lock interface {
 
 // Leader is the interface that a Leaer implementation must implement
 type Leader interface {
-	TakeLead() (<-chan Event, error)
+	TakeLead(<-chan bool) (<-chan Event, error)
 	ReleaseLead() error
 	Current(node Node) error
 }
@@ -59,10 +59,10 @@ type Connection interface {
 	EnsurePath(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
-	ChildrenW(path string) (children []string, event <-chan Event, err error)
+	ChildrenW(path string, done <-chan bool) (children []string, event <-chan Event, err error)
 	Children(path string) (children []string, err error)
 	Get(path string, node Node) error
-	GetW(path string, node Node) (<-chan Event, error)
+	GetW(path string, node Node, done <-chan bool) (<-chan Event, error)
 	Set(path string, node Node) error
 	NewLock(path string) Lock
 	NewLeader(path string, data Node) Leader

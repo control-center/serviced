@@ -102,6 +102,9 @@ func (c *Client) loop() {
 	updateMonitorInterval := getDefaultDFSMonitorRemoteInterval()
 	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
 	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
+
+	doneW := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&doneW)
 	for {
 		if doneC == nil {
 			select {
@@ -148,7 +151,7 @@ func (c *Client) loop() {
 			continue
 		}
 
-		e, err = c.conn.GetW(nodePath, node)
+		e, err = c.conn.GetW(nodePath, node, doneW)
 		if err != nil {
 			glog.Errorf("err getting node %s: %s", nodePath, err)
 			continue
@@ -183,6 +186,9 @@ func (c *Client) loop() {
 			glog.Errorf("got zk event: %v", evt)
 			continue
 		}
+
+		close(doneW)
+		doneW = make(chan bool)
 	}
 }
 

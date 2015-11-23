@@ -66,9 +66,12 @@ func MonitorRealm(shutdown <-chan interface{}, conn client.Connection, path stri
 		defer close(realmC)
 		var realm string
 		leader := conn.NewLeader(path, &HostLeader{})
+
+		done := make(chan bool)
+		defer func(channel *chan bool) { close(*channel) }(&done)
 		for {
 			// monitor path for changes
-			_, event, err := conn.ChildrenW(path)
+			_, event, err := conn.ChildrenW(path, done)
 			if err != nil {
 				return
 			}
@@ -93,6 +96,9 @@ func MonitorRealm(shutdown <-chan interface{}, conn client.Connection, path stri
 			case <-shutdown:
 				return
 			}
+
+			close(done)
+			done = make(chan bool)
 		}
 	}()
 	return realmC
@@ -134,12 +140,14 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 		return fmt.Errorf("base path not found")
 	}
 
+	done := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&done)
 	for {
 		if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
 			return err
 		}
 
-		_, event, err := conn.ChildrenW(path.Dir(p))
+		_, event, err := conn.ChildrenW(path.Dir(p), done)
 		if err != nil {
 			return err
 		}
@@ -156,6 +164,9 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 		case <-shutdown:
 			return ErrShutdown
 		}
+
+		close(done)
+		done = make(chan bool)
 	}
 }
 
@@ -195,8 +206,10 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 	}()
 
 	glog.V(1).Infof("Listener %s started; waiting for data", l.GetPath())
+	doneW := make(chan bool)
+	defer func(channel *chan bool) { close(*channel) }(&doneW)
 	for {
-		nodes, event, err := conn.ChildrenW(l.GetPath())
+		nodes, event, err := conn.ChildrenW(l.GetPath(), doneW)
 		if err != nil {
 			glog.Errorf("Could not watch for nodes at %s: %s", l.GetPath(), err)
 			return
@@ -237,6 +250,9 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 		case <-shutdown:
 			return
 		}
+
+		close(doneW)
+		doneW = make(chan bool)
 	}
 }
 
