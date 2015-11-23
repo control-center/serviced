@@ -268,7 +268,9 @@ func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
 	c.Assert(err, IsNil)
 
 	// Set up a watch
-	event, err := conn.GetW(hostpath(badstate.HostID, badstate.ServiceStateID), &HostState{})
+	watchDone := make(chan bool)
+	defer close(watchDone)
+	event, err := conn.GetW(hostpath(badstate.HostID, badstate.ServiceStateID), &HostState{}, watchDone)
 	c.Assert(err, IsNil)
 
 	// Start the listener

@@ -164,7 +164,9 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 	rAddress := rImage.Address(s.listener.address)
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(dockerclient.ErrNoSuchImage).Times(4)
 	s.docker.On("PullImage", rAddress).Return(dockerclient.ErrNoSuchImage).Twice()
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan bool)
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	timeout := time.After(20 * time.Second)
 	errC := make(chan error, 1)
 	go func() {
@@ -176,7 +178,7 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 	case <-errC:
 		c.Fatalf("listener exited unexpectedly!")
 	case <-evt:
-		_, node = rImage.GetW(c, s.conn)
+		_, node = rImage.GetW(c, s.conn, imageDone)
 		c.Assert(node.Image, NotNil)
 		c.Assert(node.PushedAt.Unix(), Equals, int64(0))
 	}

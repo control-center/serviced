@@ -403,12 +403,16 @@ func TestZkDriver_Watch(t *testing.T) {
 		t.Fatalf("creating /foo should work: %s", err)
 	}
 
-	_, w1, err := conn.ChildrenW("/foo")
+	childWDone1 := make(chan bool)
+	defer close(childWDone1)
+	_, w1, err := conn.ChildrenW("/foo", childWDone1)
 	if err != nil {
 		t.Fatalf("should be able to acquire watch for /foo: %s", err)
 	}
 
-	_, w2, err := conn.ChildrenW("/foo")
+	childWDone2 := make(chan bool)
+	defer close(childWDone2)
+	_, w2, err := conn.ChildrenW("/foo", childWDone2)
 	if err != nil {
 		t.Fatalf("should be able to acquire watch for /foo: %s", err)
 	}
