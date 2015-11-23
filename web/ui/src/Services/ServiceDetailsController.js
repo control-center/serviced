@@ -615,6 +615,26 @@
 
                 // setup breadcrumbs
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
+
+                // create an entry in tree state for the
+                // current service
+                if(!($scope.services.current.id in $scope.serviceTreeState)){
+                    $scope.serviceTreeState[$scope.services.current.id] = {};
+
+                    var treeState = $scope.serviceTreeState[$scope.services.current.id];
+
+                    // create default entries from all descendents
+                    $scope.services.current.descendents.forEach(descendent => {
+                        // TODO - formalize this state object
+                        treeState[descendent.id] = {
+                            hidden: false,
+                            collapsed: false
+                        };
+                    });
+
+                    // property for view to bind for tree state
+                    $scope.services.currentTreeState = treeState;
+                }
             }
 
             servicesFactory.updateHealth();
@@ -644,13 +664,57 @@
             }
         };
 
-        $scope.toggleChildren = function($event, app){
-            var $e = $($event.target);
-            if($e.is(".glyphicon-chevron-down")){
-                hideChildren(app);
-            } else {
-                showChildren(app);
+        // expand/collapse state of service tree nodes
+        // NOTE - keys are the current page's service (the current
+        // context service)
+        // TODO - use CCUIState service
+        $scope.serviceTreeState = {};
+
+        $scope.toggleChildren = function(service){
+            if(!$scope.services.current){
+                console.warn("Cannot store toggle state: no current service");
+                return;
             }
+
+            // stored state for the current service's
+            // service tree
+            var treeState = $scope.services.currentTreeState;
+
+            // if this service is marked as collapsed in
+            // this particular tree view, show its children
+            if(treeState[service.id].collapsed){
+                treeState[service.id].collapsed = false;
+                $scope.showChildren(service);
+
+            // otherwise, hide its children
+            } else {
+                treeState[service.id].collapsed = true;
+                $scope.hideChildren(service);
+            }
+        };
+
+        $scope.hideChildren = function(service){
+            // get the state of the current service's tree
+            var treeState = $scope.services.currentTreeState;
+
+            service.children.forEach(function(child){
+                treeState[child.id].hidden = true;
+                $scope.hideChildren(child);
+            });
+        };
+
+        $scope.showChildren = function(service){
+            var treeState = $scope.services.currentTreeState;
+
+            service.children.forEach(function(child){
+                treeState[child.id].hidden = false;
+
+                // if this child service is not marked
+                // as collapsed, show its children
+                if(!treeState[child.id].collapsed){
+                    $scope.showChildren(child);
+                }
+            });
         };
 
         //we need to bring this function into scope so we can use ng-hide if an object is empty
@@ -818,29 +882,7 @@
         // kick off controller
         init();
 
-        function hideChildren(app){
-            app.children.forEach(function(child){
-                $("tr[data-id='" + child.id + "'] td").hide();
-                hideChildren(child);
-            });
 
-            //update icons
-            var $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-down");
-            $e.removeClass("glyphicon-chevron-down");
-            $e.addClass("glyphicon-chevron-right");
-        }
-
-        function showChildren(app){
-            app.children.forEach(function(child){
-                $("tr[data-id='" + child.id + "'] td").show();
-                showChildren(child);
-            });
-
-            //update icons
-            var $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-right");
-            $e.removeClass("glyphicon-chevron-right");
-            $e.addClass("glyphicon-chevron-down");
-        }
 
         function makeCrumbs(current){
             var crumbs = [{
