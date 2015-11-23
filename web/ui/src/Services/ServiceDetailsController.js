@@ -10,9 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
+    "CCUIState", "$cookies",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
-    $timeout, servicesFactory, utils, hostsFactory){
+    $timeout, servicesFactory, utils, hostsFactory,
+    CCUIState, $cookies){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -616,6 +618,9 @@
                 // setup breadcrumbs
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
 
+                // update serviceTreeState
+                $scope.serviceTreeState = CCUIState.get($cookies.ZUsername, "serviceTreeState");
+
                 // create an entry in tree state for the
                 // current service
                 if(!($scope.services.current.id in $scope.serviceTreeState)){
@@ -631,10 +636,10 @@
                             collapsed: false
                         };
                     });
-
-                    // property for view to bind for tree state
-                    $scope.services.currentTreeState = treeState;
                 }
+
+                // property for view to bind for tree state
+                $scope.services.currentTreeState = $scope.serviceTreeState[$scope.services.current.id];
             }
 
             servicesFactory.updateHealth();
@@ -665,10 +670,21 @@
         };
 
         // expand/collapse state of service tree nodes
-        // NOTE - keys are the current page's service (the current
-        // context service)
-        // TODO - use CCUIState service
-        $scope.serviceTreeState = {};
+        $scope.serviceTreeState = CCUIState.get($cookies.ZUsername, "serviceTreeState");
+        // servicedTreeState is a collection of objects
+        // describing if nodes in a service tree are hidden or collapsed.
+        // It is first keyed by the id of the current service context (the
+        // service who's name is at the top of the page), then keyed by
+        // the service in question. eg:
+        //
+        // current service id
+        //      -> child service id
+        //          -> hidden
+        //          -> collapsed
+        //      -> child service id
+        //          -> hidden
+        //          -> collapsed
+        //      ...
 
         $scope.toggleChildren = function(service){
             if(!$scope.services.current){
