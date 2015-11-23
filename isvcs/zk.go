@@ -78,46 +78,40 @@ func initZK() {
 
 // a health check for zookeeper
 func zkHealthCheck(halt <-chan struct{}) error {
-	// minUptime til zookeeper is considered available
-	minUptime := time.Second * 2
-	// timer to verify that the service has been available for the min duration
-	timer := time.NewTimer(minUptime)
-	timer.Stop()
-	defer timer.Stop()
-	// flag to determine if the timer is set or not
-	stopped := true
 	for {
 		// establish a zookeeper connection
-		conn, _, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second*10)
+		conn, ec, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second*10)
+		defer func() {
+			if conn != nil {
+				conn.Close()
+			}
+		}()
 		if err != nil {
 			glog.V(1).Infof("Could not connect to zookeeper: %s", err)
-			timer.Stop()
-			stopped = true
+			time.Sleep(1 * time.Second)
 		} else {
-			// Verify that you can read from root (even if root is empty)
-			if _, _, err := conn.Children("/"); err != nil {
-				glog.V(1).Infof("Zookeeper not ready: %s", err)
-				timer.Stop()
-				stopped = true
-			} else if stopped {
-				// Reset the success timer if it is stopped
-				timer.Reset(minUptime)
-				stopped = false
+			//wait for session
+			sesstionTimeout := 5 * time.Second
+			sessionTimer := time.NewTimer(sesstionTimeout)
+			defer sessionTimer.Stop()
+			timedOut := false
+			for !timedOut {
+				select {
+				case e := <-ec:
+					if e.State == zk.StateHasSession {
+						// success
+						glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+						return nil
+					}
+				case <-halt:
+					glog.V(1).Infof("Quit healthcheck for zookeeper")
+					return nil
+				case <-sessionTimer.C:
+					//Fall through loop and try again
+					glog.V(1).Infof("ZK Session not available in %s", sesstionTimeout)
+					timedOut = true
+				}
 			}
-		}
-		// close the client connection
-		if conn != nil {
-			conn.Close()
-		}
-		select {
-		case <-halt:
-			glog.V(1).Infof("Quit healthcheck for zookeeper")
-			return nil
-		case <-timer.C:
-			glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
-			return nil
-		default:
-			time.Sleep(time.Second)
 		}
 	}
 }
