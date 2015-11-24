@@ -18,7 +18,12 @@ func Test(t *testing.T) { TestingT(t) }
 
 type MySuite struct{}
 
-var _ = Suite(&MySuite{})
+var (
+	_             = Suite(&MySuite{})
+	rtt           *RPCTestType
+	rpcClient     Client
+	bareRpcClient *rpc.Client
+)
 
 type RPCTestType int
 
@@ -28,8 +33,30 @@ func (rtt *RPCTestType) Sleep(sleep time.Duration, reply *time.Duration) error {
 	return nil
 }
 
+type TestArgs struct {
+	A string
+	B int
+	C bool
+	D []string
+}
+
+func (rtt *RPCTestType) NilReply(arg string, _ *struct{}) error {
+	return nil
+}
+
+func (rtt *RPCTestType) Echo(arg string, reply *string) error {
+	*reply = arg
+	return nil
+}
+
+func (rtt *RPCTestType) StructCall(arg TestArgs, reply *TestArgs) error {
+	*reply = arg
+	return nil
+}
+
 func (s *MySuite) SetUpSuite(c *C) {
-	rtt := new(RPCTestType)
+	rtt = new(RPCTestType)
+	RegisterLocal("RPCTestType", rtt)
 	rpc.Register(rtt)
 	rpc.HandleHTTP()
 	listener, err := net.Listen("tcp", ":32111")
@@ -46,6 +73,9 @@ func (s *MySuite) SetUpSuite(c *C) {
 			go rpc.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
+
+	rpcClient, _ = newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	bareRpcClient, _ = connectRPC("localhost:32111")
 }
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {

@@ -676,6 +676,9 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 		}
 
+		if options.Master {
+			rpcutils.RegisterLocal("ControlPlaneAgent", hostAgent)
+		}
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
@@ -692,12 +695,15 @@ func (d *daemon) startAgent() error {
 		}
 	}()
 
-	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
-	if err = d.rpcServer.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
+	agentServer := agent.NewServer(d.staticIPs)
+	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
+	}
+	if options.Master {
+		rpcutils.RegisterLocal("Agent", agentServer)
 	}
 
 	// TODO: Integrate this server into the rpc server, or something.
@@ -713,15 +719,25 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
-	if err := d.rpcServer.RegisterName("Master", master.NewServer(d.facade)); err != nil {
+	server := master.NewServer(d.facade)
+	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
+	if disableLocal == "" {
+		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
+			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
+	} else {
+		glog.V(0).Infoln("Enabling RPC for local calls; disabling reflection lookup")
+	}
+	rpcutils.RegisterLocal("Master", server)
+	if err := d.rpcServer.RegisterName("Master", server); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
 	// register the deprecated rpc servers
+	rpcutils.RegisterLocal("LoadBalancer", d.cpDao)
 	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
-
+	rpcutils.RegisterLocal("ControlPlane", d.cpDao)
 	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
