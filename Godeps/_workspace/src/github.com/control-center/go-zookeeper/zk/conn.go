@@ -598,6 +598,7 @@ func (c *Conn) addWatcher(path string, watchType watchType) <-chan Event {
 	ch := make(chan Event, 1)
 	wpt := watchPathType{path, watchType}
 	c.watchers[wpt] = append(c.watchers[wpt], ch)
+	// log.Printf("KWW: addWatcher: %v = %d", wpt, len(c.watchers[wpt]))
 	return ch
 }
 
@@ -804,4 +805,59 @@ func (c *Conn) Multi(ops MultiOps) error {
 	res := &multiResponse{}
 	_, err := c.request(opMulti, req, res, nil)
 	return err
+}
+
+func (c *Conn) sendRemoveWatches(path string, watchType watchType) error {
+	// Server doesn't support this until 3.5
+	// req := &removeWatchesRequest{
+	// 	Path: path,
+	// 	Type: watchType,
+	// }
+	// res := &removeWatchesResponse{}
+	// _, err := c.request(opRemoveWatches, req, res, nil)
+	// if err != nil {
+	// 	log.Printf("Failed to remove watch (%d, %s): %s", watchType, path, err.Error())
+	// }
+	// return err
+	return nil
+}
+
+func (c *Conn) RemoveWatch(ch <-chan Event) (err error) {
+	found := false
+	c.watchersLock.Lock()
+	for wpt, watchers := range c.watchers {
+		for i := 0; i < len(watchers); i++ {
+			if watchers[i] == ch {
+				c.watchers[wpt] = append(watchers[:i], watchers[i+1:]...)
+				// log.Printf("KWW: RemoveWatch: %v = %d", wpt, len(c.watchers[wpt]))
+				found = true
+				break
+			}
+		}
+	}
+	c.watchersLock.Unlock()
+
+	if found {
+		// Server doesn't support this until 3.5
+		// err = c.sendRemoveWatches(wpt.path, wpt.wType)
+	}
+
+	return err
+}
+
+func (c *Conn) RemoveWatches(path string, watchType watchType, ch <-chan Event) error {
+	c.watchersLock.Lock()
+	defer c.watchersLock.Unlock()
+	wpt := watchPathType{path, watchType}
+	for i := 0; i < len(c.watchers[wpt]); i++ {
+		if c.watchers[wpt][i] == ch {
+			c.watchers[wpt] = append(c.watchers[wpt][:i], c.watchers[wpt][i+1:]...)
+			// log.Printf("KWW: RemoveWatches: %v = %d", wpt, len(c.watchers[wpt]))
+			break
+		}
+	}
+
+	// Server doesn't support this until 3.5
+	// return c.sendRemoveWatches(path, watchType)
+	return nil
 }

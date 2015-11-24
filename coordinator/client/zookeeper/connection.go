@@ -219,7 +219,7 @@ func (c *Connection) Delete(path string) error {
 	return xlateError(c.conn.Delete(join(c.basePath, path), stat.Version))
 }
 
-func toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool) <-chan client.Event {
+func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool) <-chan client.Event {
 	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
 	echan := make(chan client.Event, 1)
 	go func() {
@@ -229,6 +229,7 @@ func toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool) <-chan client.E
 				Type: client.EventType(e.Type),
 			}
 		case <-done:
+			c.conn.RemoveWatch(zkEvent)
 		}
 	}()
 	return echan
@@ -244,7 +245,7 @@ func (c *Connection) ChildrenW(path string, done <-chan bool) (children []string
 	if err != nil {
 		return children, nil, xlateError(err)
 	}
-	return children, toClientEvent(zkEvent, done), xlateError(err)
+	return children, c.toClientEvent(zkEvent, done), xlateError(err)
 }
 
 // GetW gets the node at the given path and returns a channel to watch for events on that node.
@@ -268,7 +269,7 @@ func (c *Connection) getW(path string, node client.Node, done <-chan bool) (even
 		err = client.ErrEmptyNode
 	}
 	node.SetVersion(stat)
-	return toClientEvent(zkEvent, done), xlateError(err)
+	return c.toClientEvent(zkEvent, done), xlateError(err)
 }
 
 // Children returns the children of the node at the given path.
