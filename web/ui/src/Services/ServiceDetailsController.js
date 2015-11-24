@@ -235,7 +235,7 @@
 
         // Returns the string "Application Not Started" (localized) for the popup
         $scope.app_unavail = function(status) {
-            return $translate.instant('application') + " " + status; 
+            return $translate.instant('application') + " " + status;
         };
 
         // Return a string indicating the vhost is down.
