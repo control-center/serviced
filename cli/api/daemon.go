@@ -676,6 +676,9 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 		}
 
+		if options.Master {
+			rpcutils.RegisterLocal("ControlPlaneAgent", hostAgent)
+		}
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
@@ -692,12 +695,15 @@ func (d *daemon) startAgent() error {
 		}
 	}()
 
-	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
-	if err = d.rpcServer.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
+	agentServer := agent.NewServer(d.staticIPs)
+	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 	if err != nil {
 		glog.Fatalf("Could not start ControlPlane agent: %v", err)
+	}
+	if options.Master {
+		rpcutils.RegisterLocal("Agent", agentServer)
 	}
 
 	// TODO: Integrate this server into the rpc server, or something.
@@ -718,7 +724,7 @@ func (d *daemon) registerMasterRPC() error {
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
 			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
-	}else{
+	} else {
 		glog.V(0).Infoln("Enabling RPC for local calls; disabling reflection lookup")
 	}
 	rpcutils.RegisterLocal("Master", server)
