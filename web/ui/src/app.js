@@ -26,7 +26,7 @@ var controlplane = angular.module('controlplane', [
     'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
-    'ngTable', 'jellyTable', 'ngLocationUpdate'
+    'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState'
 ]);
 
 controlplane.
