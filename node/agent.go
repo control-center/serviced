@@ -106,7 +106,6 @@ func getZkDSN(zookeepers []string) string {
 	return dsn.String()
 }
 
-
 type AgentOptions struct {
 	PoolID               string
 	Master               string
@@ -749,7 +748,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
 
-	conn, err := a.zkClient.GetConnection()
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return "", fmt.Errorf("Could not get zk connection for resource path: %s, %s", resourcePath, err)
 	}
