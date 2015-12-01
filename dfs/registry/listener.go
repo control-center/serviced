@@ -73,13 +73,11 @@ type RegistryListener struct {
 	address string
 	// id of the host as recognized by cc
 	hostid string
-	// timeout to cancel long-running pulls
-	pulltimeout time.Duration
 }
 
 // NewRegistryListener instantiates a new registry listener
-func NewRegistryListener(docker docker.Docker, address, hostid string, timeout time.Duration) *RegistryListener {
-	return &RegistryListener{docker: docker, address: address, hostid: hostid, pulltimeout: timeout}
+func NewRegistryListener(docker docker.Docker, address, hostid string) *RegistryListener {
+	return &RegistryListener{docker: docker, address: address, hostid: hostid}
 }
 
 // SetConnection implements zzk.Listener
