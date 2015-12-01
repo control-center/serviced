@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"io"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dfs/utils"
@@ -88,8 +89,10 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not interpret images metadata for tenant %s: %s", info.TenantID, err)
 			return err
 		}
+		timer := time.NewTimer(0)
 		for _, img := range imgs {
-			if err := dfs.reg.PullImage(img); err != nil {
+			timer.Reset(30 * time.Minute)
+			if err := dfs.reg.PullImage(timer.C, img); err != nil {
 				glog.Errorf("Could not pull image %s from registry: %s", img, err)
 				return err
 			}
@@ -100,6 +103,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			}
 			images = append(images, image)
 		}
+		timer.Stop()
 		// export the snapshot
 		if err := vol.Export(info.Label, "", spool); err != nil {
 			glog.Errorf("Could not export tenant %s: %s", info.TenantID, err)

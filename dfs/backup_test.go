@@ -88,7 +88,7 @@ func (s *DFSTestSuite) TestBackup(c *C) {
 	c.Assert(err, IsNil)
 	vol.On("SnapshotInfo", "BASE_LABEL").Return(info, nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imagesbuf}, nil)
-	s.registry.On("PullImage", "BASE/repo:tag").Return(nil)
+	s.registry.On("PullImage", mock.AnythingOfType("<-chan time.Time"), "BASE/repo:tag").Return(nil)
 	s.registry.On("ImagePath", "BASE/repo:tag").Return("testserver:5000/BASE/repo:tag", nil)
 	vol.On("Export", "LABEL", "", mock.AnythingOfType("*utils.Spool")).Return(nil).Run(func(a mock.Arguments) {
 		writer := a.Get(2).(io.Writer)
