@@ -111,3 +111,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 func (s *DeviceMapperSuite) TestSnapShotContainerMounts(c *C) {
 	drivertest.DriverTestSnapshotContainerMounts(c, "devicemapper", "", devmapArgs)
 }
+
+func (s *DeviceMapperSuite) TestResize(c *C) {
+	drivertest.DriverTestResize(c, "devicemapper", "", devmapArgs)
+}

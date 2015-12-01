@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/units"
 	"github.com/zenoss/glog"
 )
 
@@ -193,7 +194,9 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 		glog.Errorf("Unable to resize filesystem (%s)", string(output))
 		return err
 	}
-	glog.Infof("Resized filesystem. New size: ")
+	newSize := volume.FilesystemBytesSize(vol.Path())
+	human := units.HumanSize(float64(newSize))
+	glog.Infof("Resized filesystem. New size: %s", human)
 	return nil
 }
 

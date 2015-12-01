@@ -403,6 +403,28 @@ func DriverTestSnapshotContainerMounts(c *C, drivername volume.DriverType, root 
 	c.Assert(status, Equals, 1)
 }
 
+func DriverTestResize(c *C, drivername volume.DriverType, root string, args []string) {
+	switch drivername {
+	case volume.DriverTypeDeviceMapper:
+	default:
+		c.Skip("Resize tests only apply to devicemapper")
+	}
+	driver := newDriver(c, drivername, root, args)
+	defer cleanup(c, driver)
+
+	vol := createBase(c, driver, "Base")
+
+	origSize := volume.FilesystemBytesSize(vol.Path())
+
+	// Resize to 600MB, since the test device size is 300MB
+	err := driver.Resize(vol.Name(), 600*1024*1024)
+	c.Assert(err, IsNil)
+
+	// newSize will be double origSize minus a sizeable fs overhead
+	diff := volume.FilesystemBytesSize(vol.Path()) - origSize*2
+	c.Assert(diff <= 50*1024*1024, Equals, true)
+}
+
 func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, importfs string, args []string) {
 	buffer := new(bytes.Buffer)
 

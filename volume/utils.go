@@ -21,6 +21,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"sort"
+	"syscall"
 
 	"github.com/zenoss/glog"
 )
@@ -124,4 +125,10 @@ func TouchFlagFile(root string) error {
 		return ioutil.WriteFile(initfile, []byte{}, 0754)
 	}
 	return nil
+}
+
+func FilesystemBytesSize(path string) int64 {
+	s := syscall.Statfs_t{}
+	syscall.Statfs(path, &s)
+	return int64(s.Bsize) * int64(s.Blocks)
 }
