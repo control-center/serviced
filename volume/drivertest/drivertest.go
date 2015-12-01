@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/btrfs"
+	dm "github.com/control-center/serviced/volume/devicemapper"
 	. "gopkg.in/check.v1"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -421,8 +422,14 @@ func DriverTestResize(c *C, drivername volume.DriverType, root string, args []st
 	c.Assert(err, IsNil)
 
 	// newSize will be double origSize minus a sizeable fs overhead
-	diff := volume.FilesystemBytesSize(vol.Path()) - origSize*2
+	newSize := volume.FilesystemBytesSize(vol.Path())
+	diff := newSize - origSize*2
 	c.Assert(diff <= 50*1024*1024, Equals, true)
+
+	// Try to shrink it, which should fail
+	err = driver.Resize(vol.Name(), 100*1024*1024)
+	c.Assert(err, ErrorMatches, dm.ErrNoShrinkage.Error())
+	c.Assert(volume.FilesystemBytesSize(vol.Path()), Equals, newSize)
 }
 
 func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, importfs string, args []string) {
