@@ -141,6 +141,11 @@ func (d *NFSDriver) Release(volumeName string) error {
 	return ErrNotSupported
 }
 
+// Resize implements volume.Driver.Resize
+func (d *NFSDriver) Resize(volumeName string, size uint64) error {
+	return ErrNotSupported
+}
+
 // Name implements volume.Volume.Name
 func (v *NFSVolume) Name() string {
 	return v.name

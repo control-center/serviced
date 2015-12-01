@@ -231,6 +231,11 @@ func (d *RsyncDriver) GetTenant(volumeName string) (volume.Volume, error) {
 	return d.Get(getTenant(volumeName))
 }
 
+// Resize implements volume.Driver.Resize. For rsync it's a noop.
+func (d *RsyncDriver) Resize(volumeName string, size uint64) error {
+	return nil
+}
+
 // Get implements volume.Driver.Get
 func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
