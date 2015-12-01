@@ -44,8 +44,8 @@ type VolumeRemove struct {
 	} `positional-args:"yes" required:"yes"`
 }
 
-// VolumeEnlarge is the subcommand for enlarging an existing devicemapper volume
-type VolumeEnlarge struct {
+// VolumeResize is the subcommand for enlarging an existing devicemapper volume
+type VolumeResize struct {
 	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
 	Args struct {
 		Name string `description:"Name of the volume to mount"`
@@ -125,8 +125,8 @@ func (c *VolumeRemove) Execute(args []string) error {
 	return nil
 }
 
-// Enlarge increases the space available to an existing volume
-func (c *VolumeEnlarge) Execute(args []string) error {
+// Resize increases the space available to an existing volume
+func (c *VolumeResize) Execute(args []string) error {
 	App.initializeLogging()
 	directory := GetDefaultDriver(string(c.Path))
 	driver, err := InitDriverIfExists(directory)
@@ -139,7 +139,7 @@ func (c *VolumeEnlarge) Execute(args []string) error {
 		"type":      driver.DriverType(),
 	})
 	if driver.DriverType() != volume.DriverTypeDeviceMapper {
-		logger.Fatal("Only devicemapper volumes can be enlarged")
+		logger.Fatal("Only devicemapper volumes can be resized")
 	}
 	if !driver.Exists(c.Args.Name) {
 		logger.Fatal("Volume does not exist")

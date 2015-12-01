@@ -58,7 +58,7 @@ func init() {
 	App.Parser.AddCommand("create", "Create a volume on a driver", "Create a volume on a driver", &VolumeCreate{})
 	App.Parser.AddCommand("mount", "Mount an existing volume from a driver", "Mount an existing volume from a driver", &VolumeMount{})
 	App.Parser.AddCommand("remove", "Remove an existing volume from a driver", "Remove an existing volume from a driver", &VolumeRemove{})
-	App.Parser.AddCommand("enlarge", "Enlarge an existing volume", "Enlarge an existing volume", &VolumeEnlarge{})
+	App.Parser.AddCommand("resize", "Resize an existing volume", "Resize an existing volume", &VolumeResize{})
 	App.Parser.AddCommand("version", "Print the version and exit", "Print the version and exit", &ServicedStorageVersion{})
 }
 
