@@ -195,7 +195,7 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 		return err
 	}
 	newSize := volume.FilesystemBytesSize(vol.Path())
-	human := units.HumanSize(float64(newSize))
+	human := units.BytesSize(float64(newSize))
 	glog.Infof("Resized filesystem. New size: %s", human)
 	return nil
 }
