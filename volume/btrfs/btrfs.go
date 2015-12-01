@@ -233,6 +233,11 @@ func (d *BtrfsDriver) GetTenant(volumeName string) (volume.Volume, error) {
 	return d.Get(getTenant(volumeName))
 }
 
+// Resize implements volume.Driver.Resize. For btrfs it's a noop.
+func (d *BtrfsDriver) Resize(volumeName string, size uint64) error {
+	return nil
+}
+
 // Get implements volume.Driver.Get
 func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
