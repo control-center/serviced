@@ -304,6 +304,17 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 	return nil
 }
 
+// PullImage pulls the image into the local repository
+func (a *HostAgent) PullImage(cancel <-chan time.Time, imageID string) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get zk connection: %s", err)
+		return err
+	}
+	a.pullreg.SetConnection(conn)
+	return a.pullreg.PullImage(cancel, imageID)
+}
+
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
 func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	handlerInstalled := false
@@ -330,12 +341,6 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		}
 	}
 
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("Could not get zk connection: %s", err)
-		return err
-	}
-	a.pullreg.SetConnection(conn)
 	// create the docker client Config and HostConfig structures necessary to create and start the service
 	config, hostconfig, err := configureContainer(a, client, svc, state, a.virtualAddressSubnet)
 	if err != nil {
@@ -545,12 +550,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
 		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.ID, svc.ID)
-	}
-
-	// Make sure the image exists locally.
-	if err := a.pullreg.PullImage(svc.ImageID); err != nil {
-		glog.Errorf("Cannot find docker image %s: %s", svc.ImageID, err)
-		return nil, nil, err
 	}
 
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.

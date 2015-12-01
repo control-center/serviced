@@ -29,6 +29,7 @@ func (m *Driver) Root() string {
 
 	return r0
 }
+
 func (m *Driver) DriverType() volume.DriverType {
 	return DriverName
 }
@@ -43,6 +44,13 @@ func (m *Driver) Create(volumeName string) (volume.Volume, error) {
 }
 func (m *Driver) Remove(volumeName string) error {
 	ret := m.Called(volumeName)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
+func (m *Driver) Resize(volumeName string, size uint64) error {
+	ret := m.Called(volumeName, size)
 
 	r0 := ret.Error(0)
 
@@ -98,8 +106,11 @@ func (m *Driver) Cleanup() error {
 func (m *Driver) Status() (*volume.Status, error) {
 	ret := m.Called()
 
-	r0 := ret.Get(0).(volume.Status)
-	r1 := ret.Error(0)
+	var r0 *volume.Status
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*volume.Status)
+	}
+	r1 := ret.Error(1)
 
-	return &r0, r1
+	return r0, r1
 }

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,7 +21,12 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/units"
 	"github.com/zenoss/glog"
+)
+
+var (
+	ErrNoShrinkage = errors.New("you can't shrink a device")
 )
 
 func init() {
@@ -134,6 +140,64 @@ func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error)
 		return nil, volume.ErrVolumeNotExists
 	}
 	return d.Get(getTenant(volumeName))
+}
+
+// Resize implements volume.Driver.Resize.
+func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
+	vol, err := d.newVolume(volumeName)
+	if err != nil {
+		return err
+	}
+
+	dev := vol.Metadata.CurrentDevice()
+	devicename := fmt.Sprintf("%s-%s", d.DevicePrefix, dev)
+
+	// Get the active table for the device
+	start, oldSectors, targetType, params, err := devicemapper.GetTable(devicename)
+	if err != nil {
+		return err
+	}
+
+	// Figure out how many sectors we need
+	newSectors := size / 512
+
+	// If the new table size isn't larger than the old, it's invalid
+	if newSectors <= oldSectors {
+		return ErrNoShrinkage
+	}
+
+	// Create the new table description using the sectors computed
+	oldTable := fmt.Sprintf("%d %d %s %s", start, oldSectors, targetType, params)
+	newTable := fmt.Sprintf("%d %d %s %s", start, newSectors, targetType, params)
+	glog.V(2).Infof("Replacing old table (%s) with new table (%s)", oldTable, newTable)
+
+	// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
+	// exposed, so we'll shell out rather than muck with ioctl
+	dmsetupLoad := exec.Command("dmsetup", "load", devicename)
+	dmsetupLoad.Stdin = strings.NewReader(newTable)
+	if output, err := dmsetupLoad.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to load new table (%s)", string(output))
+		return err
+	}
+	glog.V(2).Infof("Inactive table slot updated with new size")
+
+	// "Resume" the device to load the inactive table into the active slot
+	if err := devicemapper.ResumeDevice(devicename); err != nil {
+		return err
+	}
+	glog.V(2).Infof("Loaded inactive table into the active slot")
+
+	// Resize the filesystem to use the new space
+	dmDevice := fmt.Sprintf("/dev/mapper/%s", devicename)
+	resize2fs := exec.Command("resize2fs", dmDevice)
+	if output, err := resize2fs.CombinedOutput(); err != nil {
+		glog.Errorf("Unable to resize filesystem (%s)", string(output))
+		return err
+	}
+	newSize := volume.FilesystemBytesSize(vol.Path())
+	human := units.BytesSize(float64(newSize))
+	glog.Infof("Resized filesystem. New size: %s", human)
+	return nil
 }
 
 // Get implements volume.Driver.Get
