@@ -258,7 +258,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 
 // UpgradeRegistry adds the images to the registry index so that they will be
 // pushed into the registry.
-func (f *Facade) UpgradeRegistry(ctx datastore.Context) error {
+func (f *Facade) UpgradeRegistry(ctx datastore.Context, registryHost string) error {
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
@@ -268,7 +268,7 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := f.dfs.UpgradeRegistry(svcs, tenantID); err != nil {
+		if err := f.dfs.UpgradeRegistry(svcs, tenantID, registryHost); err != nil {
 			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
 		}
 	}
