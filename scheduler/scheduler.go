@@ -118,7 +118,9 @@ func (s *scheduler) Start() {
 func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// become the leader
 	leader := zzk.NewHostLeader(conn, s.instance_id, s.realm, "/scheduler")
-	event, err := leader.TakeLead()
+	leaderDone := make(chan struct{})
+	defer close(leaderDone)
+	event, err := leader.TakeLead(leaderDone)
 	if err != nil {
 		glog.Errorf("Could not become the leader: %s", err)
 		return
@@ -277,9 +279,11 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	var cancel chan interface{}
 	var done chan struct{}
 
+	doneW := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&doneW)
 	for {
 		var node zkservice.PoolNode
-		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node)
+		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node, doneW)
 		if err != nil {
 			glog.Errorf("Error while monitoring pool %s: %s", poolID, err)
 			return
@@ -314,5 +318,8 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 			}
 			return
 		}
+
+		close(doneW)
+		doneW = make(chan struct{})
 	}
 }
