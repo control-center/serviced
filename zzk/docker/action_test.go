@@ -83,6 +83,8 @@ func (t *ZZKTest) TestActionListener_Listen(c *C) {
 	var wg sync.WaitGroup
 
 	sendAction := func(dockerID string, command []string) {
+		getWDone := make(chan struct{})
+
 		id, err := SendAction(conn, &Action{
 			HostID:   listener.hostID,
 			DockerID: dockerID,
@@ -92,13 +94,15 @@ func (t *ZZKTest) TestActionListener_Listen(c *C) {
 
 		// There *might* be a race condition here if the node is processed before
 		// we acquire the event data (see duration timeouts above)
-		event, err := conn.GetW(actionPath(listener.hostID, id), &Action{})
+		event, err := conn.GetW(actionPath(listener.hostID, id), &Action{}, getWDone)
 		c.Assert(err, IsNil)
 
 		wg.Add(1)
 		go func() {
+			defer close(getWDone)
 			defer wg.Done()
-			<-event
+			ev := <-event
+			c.Logf("Received event: %+v", ev)
 		}()
 		return
 	}

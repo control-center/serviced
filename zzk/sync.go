@@ -157,9 +157,11 @@ func (l *Synchronizer) Spawn(shutdown <-chan interface{}, nodeID string) {
 
 	var id string
 	var wait <-chan time.Time
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		node := l.Allocate()
-		event, err := l.conn.GetW(l.GetPath(nodeID), node)
+		event, err := l.conn.GetW(l.GetPath(nodeID), node, done)
 		if err == client.ErrNoNode && id != "" {
 			if err := l.Delete(id); err != nil {
 				glog.Errorf("Could not delete node at %s: %s", l.GetPath(nodeID), err)
@@ -199,6 +201,9 @@ func (l *Synchronizer) Spawn(shutdown <-chan interface{}, nodeID string) {
 		case <-shutdown:
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
 

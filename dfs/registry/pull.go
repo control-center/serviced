@@ -70,9 +70,12 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 	}
 	idpath := path.Join(zkregistrytags, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
+
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var node RegistryImageNode
-		evt, err := l.conn.GetW(idpath, &node)
+		evt, err := l.conn.GetW(idpath, &node, done)
 		if err != nil {
 			if err == client.ErrNoNode {
 				glog.Errorf("Image %s not found", regaddr)
@@ -121,5 +124,8 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 		case <-cancel:
 			return ErrOpTimeout
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }

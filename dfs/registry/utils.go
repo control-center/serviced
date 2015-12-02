@@ -45,7 +45,10 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
 	if err := conn.Create(imagepath, node); err == client.ErrNodeExists {
 		leader := conn.NewLeader(leaderpath, leadernode)
-		if _, err := leader.TakeLead(); err != nil {
+		leaderDone := make(chan struct{})
+		defer close(leaderDone)
+		_, err := leader.TakeLead(leaderDone)
+		if err != nil {
 			return err
 		}
 		defer leader.ReleaseLead()

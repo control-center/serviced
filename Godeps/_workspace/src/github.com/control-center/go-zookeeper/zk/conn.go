@@ -805,3 +805,56 @@ func (c *Conn) Multi(ops MultiOps) error {
 	_, err := c.request(opMulti, req, res, nil)
 	return err
 }
+
+func (c *Conn) sendRemoveWatches(path string, watchType watchType) error {
+	// Server doesn't support this until 3.5
+	// req := &removeWatchesRequest{
+	// 	Path: path,
+	// 	Type: watchType,
+	// }
+	// res := &removeWatchesResponse{}
+	// _, err := c.request(opRemoveWatches, req, res, nil)
+	// if err != nil {
+	// 	log.Printf("Failed to remove watch (%d, %s): %s", watchType, path, err.Error())
+	// }
+	// return err
+	return nil
+}
+
+func (c *Conn) RemoveWatch(ch <-chan Event) (err error) {
+	found := false
+	c.watchersLock.Lock()
+
+	var wpt watchPathType
+	var watchers []chan Event
+	for wpt, watchers = range c.watchers {
+		for i := 0; i < len(watchers); i++ {
+			if watchers[i] == ch {
+				c.watchers[wpt] = append(watchers[:i], watchers[i+1:]...)
+				found = true
+				break
+			}
+		}
+	}
+	c.watchersLock.Unlock()
+
+	if found {
+		err = c.sendRemoveWatches(wpt.path, wpt.wType)
+	}
+
+	return err
+}
+
+func (c *Conn) RemoveWatches(path string, watchType watchType, ch <-chan Event) error {
+	c.watchersLock.Lock()
+	defer c.watchersLock.Unlock()
+	wpt := watchPathType{path, watchType}
+	for i := 0; i < len(c.watchers[wpt]); i++ {
+		if c.watchers[wpt][i] == ch {
+			c.watchers[wpt] = append(c.watchers[wpt][:i], c.watchers[wpt][i+1:]...)
+			break
+		}
+	}
+
+	return c.sendRemoveWatches(path, watchType)
+}
