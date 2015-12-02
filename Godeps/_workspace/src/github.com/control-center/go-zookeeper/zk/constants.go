@@ -25,9 +25,11 @@ const (
 	opGetChildren2 = 12
 	opCheck        = 13
 	opMulti        = 14
-	opClose        = -11
-	opSetAuth      = 100
-	opSetWatches   = 101
+	// Not supported until 3.5
+	// opRemoveWatches = 18
+	opClose      = -11
+	opSetAuth    = 100
+	opSetWatches = 101
 	// Not in protocol, used internally
 	opWatcherEvent = -2
 )

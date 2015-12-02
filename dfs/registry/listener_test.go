@@ -69,9 +69,9 @@ func (i *testImage) Update(c *C, conn coordclient.Connection, node *RegistryImag
 	c.Assert(err, IsNil)
 }
 
-func (i *testImage) GetW(c *C, conn coordclient.Connection) (<-chan coordclient.Event, *RegistryImageNode) {
+func (i *testImage) GetW(c *C, conn coordclient.Connection, done <-chan struct{}) (<-chan coordclient.Event, *RegistryImageNode) {
 	node := &RegistryImageNode{}
-	evt, err := conn.GetW(i.Path(), node)
+	evt, err := conn.GetW(i.Path(), node, done)
 	c.Assert(err, IsNil)
 	return evt, node
 }
@@ -79,11 +79,11 @@ func (i *testImage) GetW(c *C, conn coordclient.Connection) (<-chan coordclient.
 func TestRegistryListener(t *testing.T) { TestingT(t) }
 
 type RegistryListenerSuite struct {
-	dc       *dockerclient.Client
-	conn     coordclient.Connection
-	docker   *mocks.Docker
-	listener *RegistryListener
-	zkCtrID  string
+	dc        *dockerclient.Client
+	conn      coordclient.Connection
+	docker    *mocks.Docker
+	listener  *RegistryListener
+	zkCtrID   string
 	zzkServer *zzktest.ZZKServer
 }
 
@@ -165,7 +165,9 @@ func (s *RegistryListenerSuite) TestRegistryListener_ImagePushed(c *C) {
 	node := rImage.Create(c, s.conn)
 	node.PushedAt = time.Now().UTC()
 	rImage.Update(c, s.conn, node)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
@@ -198,7 +200,9 @@ func (s *RegistryListenerSuite) TestRegistryListener_NoLocalImage(c *C) {
 		},
 	}
 	_ = rImage.Create(c, s.conn)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, errors.New("image not found")).Once()
 
 	shutdown := make(chan interface{})
@@ -237,9 +241,14 @@ func (s *RegistryListenerSuite) TestRegistryListener_AnotherNodePush(c *C) {
 
 	// take lead of the node
 	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
-	_, err := leader.TakeLead()
+	leaderDone := make(chan struct{})
+	defer close(leaderDone)
+	_, err := leader.TakeLead(leaderDone)
 	c.Assert(err, IsNil)
-	leaders, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
+
+	childWDone := make(chan struct{})
+	defer close(childWDone)
+	leaders, cvt, err := s.conn.ChildrenW(rImage.LeaderPath(), childWDone)
 	c.Assert(err, IsNil)
 	c.Assert(leaders, HasLen, 1)
 
@@ -269,7 +278,9 @@ func (s *RegistryListenerSuite) TestRegistryListener_AnotherNodePush(c *C) {
 	c.Logf("updating push")
 	node.PushedAt = time.Now().UTC()
 	rImage.Update(c, s.conn, node)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	err = leader.ReleaseLead()
 	c.Assert(err, IsNil)
 
@@ -302,9 +313,13 @@ func (s *RegistryListenerSuite) TestRegistryListener_PushFails(c *C) {
 		},
 	}
 	_ = rImage.Create(c, s.conn)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
+	childWDone := make(chan struct{})
+	defer close(childWDone)
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath(), childWDone)
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil)
@@ -366,9 +381,13 @@ func (s *RegistryListenerSuite) TestRegistryListener_LeadDisconnect(c *C) {
 		},
 	}
 	_ = rImage.Create(c, s.conn)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
+	childWDone := make(chan struct{})
+	defer close(childWDone)
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath(), childWDone)
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
@@ -436,9 +455,13 @@ func (s *RegistryListenerSuite) TestRegistryListener_Success(c *C) {
 		},
 	}
 	_ = rImage.Create(c, s.conn)
-	evt, _ := rImage.GetW(c, s.conn)
+	imageDone := make(chan struct{})
+	defer close(imageDone)
+	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
+	childWDone := make(chan struct{})
+	defer close(childWDone)
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath(), childWDone)
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
