@@ -222,16 +222,16 @@ func (c *Connection) Delete(path string) error {
 func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool) <-chan client.Event {
 	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
 	echan := make(chan client.Event, 1)
-	go func() {
+	go func(conn *zklib.Conn) {
 		select {
 		case e := <-zkEvent:
 			echan <- client.Event{
 				Type: client.EventType(e.Type),
 			}
 		case <-done:
-			c.conn.RemoveWatch(zkEvent)
+			conn.RemoveWatch(zkEvent)
 		}
-	}()
+	}(c.conn)
 	return echan
 }
 
