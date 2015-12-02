@@ -130,11 +130,11 @@ class Goroutine_EqualSameStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
                                      'created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         warnings = populateGoroutine(self.goroutine2,
@@ -142,11 +142,11 @@ class Goroutine_EqualSameStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
                                      'created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         self.assertTrue(self.goroutine == self.goroutine2)
@@ -159,11 +159,11 @@ class Goroutine_NotEqualDifferentStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
                                      'created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         warnings = populateGoroutine(self.goroutine2,
@@ -171,12 +171,12 @@ class Goroutine_NotEqualDifferentStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
                                      # Difference is line number below:
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:555 +0x2c',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:555 +0x2c',
                                      'created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         self.assertFalse(self.goroutine == self.goroutine2)
@@ -190,11 +190,11 @@ class Goroutine_NotEqualDifferentNumStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c',
                                      'created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         warnings = populateGoroutine(self.goroutine2,
@@ -202,9 +202,9 @@ class Goroutine_NotEqualDifferentNumStackFrames(EqualityBaseTestCase):
                                      'sync.(*WaitGroup).Wait(0xc208110c00)',
 	                             '   /usr/local/go/src/sync/waitgroup.go:132 +0x169',
                                      'github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208129c70)',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:231 +0x76d',
                                      'github.com/control-center/go-zookeeper/zk.func·001()',
-	                             '   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
+	                             '   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8')
         self.assertEqual(len(warnings), 0)
 
         self.assertFalse(self.goroutine == self.goroutine2)

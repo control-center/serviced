@@ -86,7 +86,7 @@ class Goroutine:
             fieldnum = 0 # Done processing fields
 
             # Verify no extra fields found on line
-            if line != None and line != ':':
+            if line is not None and line != ':':
                 warnings.append(self.formatMessage('Extra fields found: ''{0}'''.format(line), fieldnum))
 
             return warnings
