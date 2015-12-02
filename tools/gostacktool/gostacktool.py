@@ -30,20 +30,21 @@ def parse_args():
     subparsers = argparser.add_subparsers(dest='ANALYSIS', help='Type of analysis to perform.')
 
     subparser_echo = subparsers.add_parser('echo', help='Print the stack trace to stdout.')
-    subparser_echo.add_argument('SOURCE', help='Either the path to a file containing a Go stack trace, ' +
-                                'or the URL of a service that supports the Go pprof package.')
+    subparser_echo.add_argument('SOURCE', help='The URL of a service that supports the Go pprof package.')
 
     subparser_count = subparsers.add_parser('count', help='Count the number of occurrences of each stack. Prints to stdout.')
-    subparser_count.add_argument('SOURCE', help='Either the path to a file containing a Go stack trace, ' +
+    subparser_count.add_argument('SOURCE', help='Either the path to a file containing a Go stack trace (debug=2 format), ' +
                                  'or the URL of a service that supports the Go pprof package.')
 
     subparser_monitor = subparsers.add_parser('monitor', help='Collect stack counts over time.' +
-                                              ' Default is manual interval (when you press Enter).')
-    subparser_monitor.add_argument('-t', '--time', help='Perform automated collections instead, at the specified interval.' +
-                                   ' Append \'s\', \'m\', or \'h\' to specify seconds, minutes, or hours (example: \'20m\').' +
-                                   ' Default is minutes.', dest='TIME', required=False, default='Manual')
-    subparser_monitor.add_argument('-d', '--directory', help='Directory to write results to. Default is \'gostack-data\'' +
-                                   ' in the current directory.', dest='DIR', required=False)
+                                              ' Default is manually triggered (when you press Enter).' +
+                                              ' Data files are written to a directory.')
+    subparser_monitor.add_argument('-t', '--time', help='Perform automated collections instead of manual ones,' +
+                                   ' at the specified interval. Append \'s\', \'m\', or \'h\' to specify seconds,' +
+                                   ' minutes, or hours (example: \'20m\'). Default is minutes.',
+                                   dest='TIME', required=False, default='Manual')
+    subparser_monitor.add_argument('-d', '--directory', help='Directory to write results to. Default is \'./gostack-data\'.',
+                                   dest='DIR', required=False)
     subparser_monitor.add_argument('SOURCE', help='The URL of a service that supports the Go pprof package.')
 
     return argparser.parse_args()
