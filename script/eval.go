@@ -62,16 +62,20 @@ func evalSnapshot(r *runner, n node) error {
 func evalUSE(r *runner, n node) error {
 
 	imageName := n.args[0]
+	replaceImg := ""
+	if len(n.args) > 1 && n.args[1] != "" {
+		replaceImg = n.args[1]
+	}
 	glog.V(0).Infof("preparing to use image: %s", imageName)
 	svcID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", USE)
 	}
-	image, err := r.svcUse(svcID, imageName, r.config.DockerRegistry, r.config.NoOp)
+	_, err := r.svcUse(svcID, imageName, replaceImg, r.config.DockerRegistry, r.config.NoOp)
 	if err != nil {
 		return err
 	}
-	glog.Infof("Successfully tagged new image %s", image)
+	glog.Infof("Successfully pulled and tagged new image %s", imageName)
 	return nil
 }
 

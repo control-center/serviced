@@ -9,6 +9,7 @@ SNAPSHOT
 #comment 2
 SVC_USE  zenoss/resmgr_5.0:5.0.1
 SVC_USE  zenoss/hbase:v5
+SVC_USE  zenoss/testy:5.5 zenoss/old_testy
 SVC_START Zenoss.core/mariadb
 SVC_WAIT Zenoss.core/mariadb started 30
 SVC_STOP Zenoss.core/mariadb
