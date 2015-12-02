@@ -84,12 +84,12 @@ func InitializeRemoteClient(client *client.Client) {
 // GetRemoteConnection acquires a connection from the remote zookeeper client
 func GetRemoteConnection(path string) (client.Connection, error) {
 	managerLock.RLock()
-	client, ok := manager[remote]
+	remoteclient, ok := manager[remote]
 	managerLock.RUnlock()
-	if !ok || client.Client == nil {
+	if !ok || remoteclient.Client == nil {
 		return nil, ErrNotInitialized
 	}
-	return client.GetConnection(path)
+	return remoteclient.GetConnection(path)
 }
 
 // Connect generates a client connection asynchronously

@@ -433,7 +433,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	tenantEndpointID := parts[len(parts)-1]
 
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
-		endpoints := make([]applicationendpoint.ApplicationEndpoint, len(hostContainerIDs))
+		endpoints := make(map[int]applicationendpoint.ApplicationEndpoint, len(hostContainerIDs))
 		for ii, hostContainerID := range hostContainerIDs {
 			path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
 			endpointNode, err := endpointRegistry.GetItem(conn, path)
@@ -441,21 +441,22 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
 				continue
 			}
-			endpoints[ii] = endpointNode.ApplicationEndpoint
+			endpoint := endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
 				glog.V(2).Infof("overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
-				endpoints[ii].ProxyPort = ep.port
+				endpoint.ProxyPort = ep.port
 			} else {
 				glog.V(2).Infof("not overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
-				endpoints[ii].ProxyPort = endpoints[ii].ContainerPort
+				endpoint.ProxyPort = endpoint.ContainerPort
 			}
+			endpoints[ii] = endpoint
 		}
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
 	}
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []applicationendpoint.ApplicationEndpoint, importVirtualAddress, purpose string) {
+func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints map[int]applicationendpoint.ApplicationEndpoint, importVirtualAddress, purpose string) {
 	glog.V(1).Info("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 	proxiesLock.Lock()
 	defer proxiesLock.Unlock()
@@ -511,7 +512,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []appl
 	} else if purpose == "import_all" {
 		// Need to create a proxy per instance of the service whose endpoint is
 		// being imported
-		for ii, instance := range endpoints {
+		for key, instance := range endpoints {
 			// Port for this instance is base port + instanceID
 			proxyPort := instance.ProxyPort + uint16(instance.InstanceID)
 			if _, conflict := exported[proxyPort]; conflict {
@@ -519,7 +520,8 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []appl
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
-			endpoints[ii].ProxyPort = proxyPort
+			instance.ProxyPort = proxyPort
+			endpoints[key] = instance
 		}
 	}
 

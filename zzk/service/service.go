@@ -120,6 +120,8 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var retry <-chan time.Time
 		var err error
@@ -127,13 +129,13 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		var svcnode ServiceNode
 		var svc service.Service
 		svcnode.Service = &svc
-		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &svcnode)
+		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &svcnode, done)
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
 			return
 		}
 
-		stateIDs, stateEvent, err := l.conn.ChildrenW(l.GetPath(serviceID))
+		stateIDs, stateEvent, err := l.conn.ChildrenW(l.GetPath(serviceID), done)
 		if err != nil {
 			glog.Errorf("Could not load service states for %s: %s", serviceID, err)
 			return
@@ -182,6 +184,9 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
 
@@ -468,9 +473,11 @@ func RemoveService(conn client.Connection, serviceID string) error {
 
 // WaitService waits for a particular service's instances to reach a particular state
 func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID string, desiredState service.DesiredState) error {
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// Get the list of service states
-		stateIDs, event, err := conn.ChildrenW(servicepath(serviceID))
+		stateIDs, event, err := conn.ChildrenW(servicepath(serviceID), done)
 		if err != nil {
 			return err
 		}
@@ -546,5 +553,8 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 				return zzk.ErrShutdown
 			}
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }

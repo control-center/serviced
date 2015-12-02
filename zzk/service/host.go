@@ -165,22 +165,24 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}
 	defer l.stopInstance(&processLock, &ss)
 
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// Listen to the registry node
 		var h host.Host
-		hEvt, err := l.conn.GetW(l.registry, &HostNode{Host: &h})
+		hEvt, err := l.conn.GetW(l.registry, &HostNode{Host: &h}, done)
 		if err != nil {
 			glog.Errorf("Failed to get ephemeral node for host %s: %s", l.hostID, err)
 			return
 		}
 		// Get the HostState instance
-		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
+		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs, done)
 		if err != nil {
 			glog.Errorf("Could not load host instance %s on host %s: %s", stateID, l.hostID, err)
 			return
 		}
 		// Get the ServiceState instance
-		ssEvt, err := l.conn.GetW(servicepath(hs.ServiceID, stateID), &ServiceStateNode{ServiceState: &ss})
+		ssEvt, err := l.conn.GetW(servicepath(hs.ServiceID, stateID), &ServiceStateNode{ServiceState: &ss}, done)
 		if err != nil {
 			glog.Errorf("Could not load service state %s for service %s on host %s: %s", stateID, hs.ServiceID, l.hostID, err)
 			return
@@ -257,6 +259,9 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			glog.V(2).Infof("Host instance %s for service %s (%s) received signal to shutdown", stateID, svc.Name, svc.ID)
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
 
