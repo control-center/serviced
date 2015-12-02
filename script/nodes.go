@@ -41,7 +41,7 @@ func init() {
 		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
 		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
 		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(max(1), buildNode)),
-		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(bounds(1, 2), buildNode))),
+		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(min(1), buildNode))),
 		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
 		// eg., SVC_EXEC NO_COMMIT Zenoss.core/Zope /run/my/script.sh --arg1 arg2
 		SVC_EXEC:    require([]string{REQUIRE_SVC}, parseArgMatch(0, "^(NO_)?COMMIT$", false, parseArgCount(min(3), buildNode))),
@@ -181,16 +181,18 @@ func parseImageID(parser lineParser) lineParser {
 			if err != nil {
 				return node{}, err
 			}
-			if len(args) == 2 {
-				tgtImg, err := commons.ParseImageID(args[1])
-				if err != nil {
-					return node{}, err
-				}
-				if tgtImg.Repo == "" {
-					return node{}, fmt.Errorf("image string %s does not specify a repo", args[1])
-				}
-				if tgtImg.Host != "" || tgtImg.Port != 0 || tgtImg.Tag != "" {
-					return node{}, fmt.Errorf("image string %s should only specify a user + repo", args[1])
+			if len(args) >= 2 {
+				for _, tgtImg := range args[1:] {
+					image, err := commons.ParseImageID(tgtImg)
+					if err != nil {
+						return node{}, err
+					}
+					if image.Repo == "" {
+						return node{}, fmt.Errorf("image string %s does not specify a repo", tgtImg)
+					}
+					if image.Host != "" || image.Port != 0 || image.Tag != "" {
+						return node{}, fmt.Errorf("image string %s should only specify a repo", tgtImg)
+					}
 				}
 			}
 		}

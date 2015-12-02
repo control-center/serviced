@@ -83,7 +83,7 @@ type ClientInterface interface {
 	// Service Management Functions
 
 	// ServiceUse will use a new image for a given service - this will pull the image and tag it
-	ServiceUse(serviceID string, imageID string, replaceImg string, registry string, noOp bool) (string, error)
+	ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
 	//--------------------------------------------------------------------------
 	// Volume Management Functions

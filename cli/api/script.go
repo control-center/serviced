@@ -61,12 +61,12 @@ func initConfig(config *script.Config, a *api) {
 }
 
 func cliServiceUse(a *api) script.ServiceUse {
-	return func(serviceID string, imageID string, replaceImg string, registry string, noOp bool) (string, error) {
+	return func(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
 		client, err := a.connectMaster()
 		if err != nil {
 			return "", err
 		}
-		resp, err := client.ServiceUse(serviceID, imageID, replaceImg, registry, noOp)
+		resp, err := client.ServiceUse(serviceID, imageID, registry, replaceImgs, noOp)
 		if err != nil {
 			return "", err
 		}
