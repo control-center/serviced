@@ -266,7 +266,7 @@ func (_m *ClientInterface) RemoveVirtualIP(requestVirtualIP pool.VirtualIP) erro
 
 	return r0
 }
-func (_m *ClientInterface) ServiceUse(serviceID string, imageID string, registry string, noOp bool) (string, error) {
+func (_m *ClientInterface) ServiceUse(serviceID string, imageID string, replaceImg string, registry string, noOp bool) (string, error) {
 	ret := _m.Called()
 
 	var r0 string

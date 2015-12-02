@@ -99,20 +99,34 @@ func (vs *ScriptSuite) Test_use(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(cmd, DeepEquals, node{cmd: USE, line: ctx.line, args: []string{"zenoss/resmgr_5.0:5.0.4"}})
 
-	ctx.line = "USE zenoss/resmgr-stable:5.0.1 blam"
-	cmd, err = nodeFactories[USE](ctx, USE, []string{"USE zenoss/resmgr-stable:5.0.1", "blam"})
+	ctx.line = "USE zenoss/resmgr-stable:5.0.1 blam blammy"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1", "blam", "blammy"})
 	t.Assert(err, NotNil)
-	t.Assert(err, ErrorMatches, "line 0: expected 1, got 2: USE zenoss/resmgr-stable:5.0.1 blam")
+	t.Assert(err, ErrorMatches, "line 0: expected at most 2, got 3: USE zenoss/resmgr-stable:5.0.1 blam blammy")
 
 	ctx.line = "USE"
 	cmd, err = nodeFactories[USE](ctx, USE, []string{})
 	t.Assert(err, NotNil)
-	t.Assert(err, ErrorMatches, "line 0: expected 1, got 0: USE")
+	t.Assert(err, ErrorMatches, "line 0: expected at least 1, got 0: USE")
 
 	ctx.line = "USE *(^&*blamo::::"
 	cmd, err = nodeFactories[USE](ctx, USE, []string{"*(^&*blamo::::"})
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "invalid ImageID .*")
+
+	ctx.line = "USE zenoss/resmgr_5.1 zenoss/newRepo"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.1", "zenoss/newRepo"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "USE zenoss/resmgr_5.1 zenoss/newRepo:tag"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.1", "zenoss/newRepo:tag"})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "image string zenoss/newRepo:tag should only specify a user \\+ repo")
+
+	ctx.line = "USE zenoss/resmgr_5.1 localhost:5000/zenoss/newRepo"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.1", "localhost:5000/zenoss/newRepo"})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "image string localhost:5000/zenoss/newRepo should only specify a user \\+ repo")
 }
 
 func (vs *ScriptSuite) Test_svcrun(t *C) {

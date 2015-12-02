@@ -16,11 +16,10 @@ package master
 import ()
 
 // Use a new image for a given service - this will pull the image and tag it
-func (s *Server) ServiceUse(request *ServiceUseRequest, returnImage *string) error {
-	image, err := s.f.ServiceUse(s.context(), request.ServiceID, request.ImageID, request.Registry, request.NoOp)
-	if err != nil {
+func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
+	if err := s.f.ServiceUse(s.context(), request.ServiceID, request.ImageID, request.ReplaceImg, request.Registry, request.NoOp); err != nil {
 		return err
 	}
-	*returnImage = image
+	*response = ""
 	return nil
 }
