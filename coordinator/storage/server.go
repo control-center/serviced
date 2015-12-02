@@ -82,7 +82,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	}
 
 	leader := conn.NewLeader("/storage/leader", node)
-	leaderDone := make(chan bool)
+	leaderDone := make(chan struct{})
 	defer close(leaderDone)
 	leaderW, err := leader.TakeLead(leaderDone)
 	if err != zookeeper.ErrDeadlock && err != nil {
@@ -96,8 +96,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	defer leader.ReleaseLead()
 
 	// loop until shutdown event
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		clients, clientW, err := conn.ChildrenW(storageClientsPath, done)
 		if err != nil {
@@ -123,6 +123,6 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }

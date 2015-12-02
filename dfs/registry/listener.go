@@ -103,8 +103,8 @@ func (l *RegistryListener) PostProcess(_ map[string]struct{}) {}
 // saved in the registry.
 func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 	imagepath := l.GetPath(id)
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// Get the node
 		var node RegistryImageNode
@@ -124,7 +124,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 				glog.V(1).Infof("Found image %s locally, acquiring lead", node.Image)
 				func() {
 					// Become the leader so I can push the image
-					leaderDone := make(chan bool)
+					leaderDone := make(chan struct{})
 					defer close(leaderDone)
 					_, err := leader.TakeLead(leaderDone)
 					if err != nil {
@@ -178,6 +178,6 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }

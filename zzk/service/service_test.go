@@ -70,7 +70,7 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 		timeout := time.After(time.Minute)
 		for {
 			var instanceIDs []string
-			childWDone := make(chan bool)
+			childWDone := make(chan struct{})
 			defer close(childWDone)
 			stateIDs, ev, err := conn.ChildrenW(servicepath(svc.ID), childWDone)
 			c.Assert(err, IsNil)
@@ -226,7 +226,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 			err      error
 		)
 
-		childWDone := make(chan bool)
+		childWDone := make(chan struct{})
 		defer close(childWDone)
 		for {
 			stateIDs, event, err = conn.ChildrenW(servicepath(svc.ID), childWDone)

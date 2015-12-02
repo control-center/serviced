@@ -223,6 +223,8 @@ def main(options):
         passthru = passthru[1:]
     cmd.extend(passthru)
     cmd.extend(options.packages or ["./..."])
+    # TODO: KWW: Integrate this
+    #cmd.extend(["-check.vv"])
 
     log.debug("Running command: %s" % cmd)
     log.debug("Running in directory: %s" % SERVICED_ROOT)

@@ -165,8 +165,8 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}
 	defer l.stopInstance(&processLock, &ss)
 
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// Listen to the registry node
 		var h host.Host
@@ -261,7 +261,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 

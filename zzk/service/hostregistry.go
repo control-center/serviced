@@ -96,8 +96,8 @@ func (l *HostRegistryListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn listens on the host registry and waits til the node is deleted to unregister
 func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var host host.Host
 		ev, err := l.conn.GetW(hostregpath(eHostID), &HostNode{Host: &host}, done)
@@ -117,7 +117,7 @@ func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 
@@ -149,8 +149,8 @@ func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*h
 	if err := zzk.Ready(cancel, conn, hostregpath()); err != nil {
 		return nil, err
 	}
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// get all of the ready nodes
 		children, ev, err := conn.ChildrenW(hostregpath(), done)
@@ -183,7 +183,7 @@ func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*h
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 
@@ -257,8 +257,8 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 	}
 
 	// wait until all the service instances have stopped
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 loop:
 	for {
 		nodes, event, err := conn.ChildrenW(hostpath(hostID), done)
@@ -278,7 +278,7 @@ loop:
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 
 	// remove the parent node

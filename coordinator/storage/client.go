@@ -103,8 +103,8 @@ func (c *Client) loop() {
 	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
 	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
 
-	doneW := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&doneW)
+	doneW := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&doneW)
 	for {
 		if doneC == nil {
 			select {
@@ -188,7 +188,7 @@ func (c *Client) loop() {
 		}
 
 		close(doneW)
-		doneW = make(chan bool)
+		doneW = make(chan struct{})
 	}
 }
 

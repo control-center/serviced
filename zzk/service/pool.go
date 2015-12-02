@@ -90,8 +90,8 @@ func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, po
 			glog.V(2).Infof("Could not watch pool %s: %s", poolID, err)
 			return
 		}
-		done := make(chan bool)
-		defer func(channel *chan bool) { close(*channel) }(&done)
+		done := make(chan struct{})
+		defer func(channel *chan struct{}) { close(*channel) }(&done)
 		for {
 			var node PoolNode
 			event, err := conn.GetW(poolpath(poolID), &node, done)
@@ -113,7 +113,7 @@ func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, po
 			}
 
 			close(done)
-			done = make(chan bool)
+			done = make(chan struct{})
 		}
 	}()
 	return monitor

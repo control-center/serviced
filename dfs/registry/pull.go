@@ -71,8 +71,8 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 	idpath := path.Join(zkregistrytags, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
 
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var node RegistryImageNode
 		evt, err := l.conn.GetW(idpath, &node, done)
@@ -126,6 +126,6 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }

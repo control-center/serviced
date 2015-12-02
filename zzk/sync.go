@@ -157,8 +157,8 @@ func (l *Synchronizer) Spawn(shutdown <-chan interface{}, nodeID string) {
 
 	var id string
 	var wait <-chan time.Time
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		node := l.Allocate()
 		event, err := l.conn.GetW(l.GetPath(nodeID), node, done)
@@ -203,7 +203,7 @@ func (l *Synchronizer) Spawn(shutdown <-chan interface{}, nodeID string) {
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 

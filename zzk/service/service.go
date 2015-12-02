@@ -120,8 +120,8 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var retry <-chan time.Time
 		var err error
@@ -186,7 +186,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 
@@ -473,8 +473,8 @@ func RemoveService(conn client.Connection, serviceID string) error {
 
 // WaitService waits for a particular service's instances to reach a particular state
 func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID string, desiredState service.DesiredState) error {
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		// Get the list of service states
 		stateIDs, event, err := conn.ChildrenW(servicepath(serviceID), done)
@@ -555,6 +555,6 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }

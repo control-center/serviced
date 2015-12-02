@@ -66,8 +66,8 @@ func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []se
 
 // wait waits for an individual service state to reach its desired state
 func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string, dstate service.DesiredState) error {
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var node ServiceStateNode
 		event, err := conn.GetW(servicepath(serviceID, stateID), &node, done)
@@ -102,7 +102,7 @@ func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateI
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 

@@ -90,7 +90,7 @@ func (l *Leader) Current(node client.Node) (err error) {
 
 // TakeLead attempts to aquire the leader role. When aquired it return a
 // channel on the leader node so the caller can react to changes in zookeeper
-func (l *Leader) TakeLead(done <-chan bool) (echan <-chan client.Event, err error) {
+func (l *Leader) TakeLead(done <-chan struct{}) (echan <-chan client.Event, err error) {
 	if l.lockPath != "" {
 		return nil, ErrDeadlock
 	}

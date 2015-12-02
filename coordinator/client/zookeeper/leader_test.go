@@ -55,7 +55,7 @@ func TestLeader(t *testing.T) {
 		Name: "leader1",
 	}
 	leader1 := conn.NewLeader("/like/a/boss", leader1Node)
-	leaderDone1 := make(chan bool)
+	leaderDone1 := make(chan struct{})
 	defer close(leaderDone1)
 	_, err = leader1.TakeLead(leaderDone1)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestLeader(t *testing.T) {
 	}
 	leader2 := conn.NewLeader("/like/a/boss", leader2Node)
 	leader2Response := make(chan error)
-	leaderDone2 := make(chan bool)
+	leaderDone2 := make(chan struct{})
 	defer close(leaderDone2)
 	go func() {
 		_, err := leader2.TakeLead(leaderDone2)

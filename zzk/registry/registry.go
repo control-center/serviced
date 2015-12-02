@@ -227,8 +227,8 @@ func watch(conn client.Connection, path string, cancel <-chan interface{}, proce
 		return client.ErrNoNode
 	}
 
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		glog.V(1).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path, done)
@@ -248,7 +248,7 @@ func watch(conn client.Connection, path string, cancel <-chan interface{}, proce
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }
 
@@ -261,8 +261,8 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 		return client.ErrNoNode
 	}
 
-	done := make(chan bool)
-	defer func(channel *chan bool) { close(*channel) }(&done)
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		event, err := conn.GetW(path, nodeType, done)
 		if err != nil {
@@ -280,6 +280,6 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 		}
 
 		close(done)
-		done = make(chan bool)
+		done = make(chan struct{})
 	}
 }

@@ -83,7 +83,7 @@ func (t *ZZKTest) TestActionListener_Listen(c *C) {
 	var wg sync.WaitGroup
 
 	sendAction := func(dockerID string, command []string) {
-		getWDone := make(chan bool)
+		getWDone := make(chan struct{})
 
 		id, err := SendAction(conn, &Action{
 			HostID:   listener.hostID,

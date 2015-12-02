@@ -164,7 +164,7 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 	rAddress := rImage.Address(s.listener.address)
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(dockerclient.ErrNoSuchImage).Times(4)
 	s.docker.On("PullImage", rAddress).Return(dockerclient.ErrNoSuchImage).Twice()
-	imageDone := make(chan bool)
+	imageDone := make(chan struct{})
 	defer close(imageDone)
 	evt, _ := rImage.GetW(c, s.conn, imageDone)
 	timeout := time.After(20 * time.Second)

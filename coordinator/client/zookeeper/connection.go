@@ -219,7 +219,7 @@ func (c *Connection) Delete(path string) error {
 	return xlateError(c.conn.Delete(join(c.basePath, path), stat.Version))
 }
 
-func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool) <-chan client.Event {
+func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struct{}) <-chan client.Event {
 	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
 	echan := make(chan client.Event, 1)
 	go func(conn *zklib.Conn) {
@@ -237,7 +237,7 @@ func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan bool)
 
 // ChildrenW returns the children of the node at the given path and a channel of
 // events that will yield the next event at that node.
-func (c *Connection) ChildrenW(path string, done <-chan bool) (children []string, event <-chan client.Event, err error) {
+func (c *Connection) ChildrenW(path string, done <-chan struct{}) (children []string, event <-chan client.Event, err error) {
 	if c.conn == nil {
 		return children, event, client.ErrConnectionClosed
 	}
@@ -249,14 +249,14 @@ func (c *Connection) ChildrenW(path string, done <-chan bool) (children []string
 }
 
 // GetW gets the node at the given path and returns a channel to watch for events on that node.
-func (c *Connection) GetW(path string, node client.Node, done <-chan bool) (event <-chan client.Event, err error) {
+func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
 	if c.conn == nil {
 		return nil, client.ErrConnectionClosed
 	}
 	return c.getW(join(c.basePath, path), node, done)
 }
 
-func (c *Connection) getW(path string, node client.Node, done <-chan bool) (event <-chan client.Event, err error) {
+func (c *Connection) getW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
 
 	data, stat, zkEvent, err := c.conn.GetW(path)
 	if err != nil {
