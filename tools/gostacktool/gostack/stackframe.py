@@ -38,7 +38,7 @@ class StackFrame:
             createdPrefix = 'created by '
             if not line.startswith(createdPrefix):
                 # Formats:
-                #  github.com/fsouza/go-dockerclient.funcÂ·008(0xc20808a7e0, 0xc2080b0210)
+                #  github.com/fsouza/go-dockerclient.func·008(0xc20808a7e0, 0xc2080b0210)
                 #  github.com/control-center/serviced/cli/api.(*daemon).run(0xc2080f0180, 0x0, 0x0)
 
                 # Verify line ends with argument list. Kind of need to do this because object pointers
@@ -58,7 +58,7 @@ class StackFrame:
                         self.addArg(arg.strip())
             else:
                 # Format:
-                #  created by os/signal.initÂ·1
+                #  created by os/signal.init·1
                 fieldnum = 1 # Function name (including path components)
                 self.function = line[len(createdPrefix):]
                 self.iscreatedby = True
@@ -107,7 +107,7 @@ class StackFrame:
             fieldnum = 0 # Done processing fields
 
             # Verify no extra fields found on line
-            if line != None and len(line) > 0:
+            if line is not None and len(line) > 0:
                 warnings.append(self.formatFileMessage('Extra fields found: ''{0}'''.format(line), fieldnum))
 
             return warnings

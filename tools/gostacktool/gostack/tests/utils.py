@@ -11,8 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
+import os
+
 import gostack
 
+
+def ourDir():
+    return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 def populateGoroutine(goroutine, *args):
     for i in range(len(args)):

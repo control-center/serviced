@@ -110,7 +110,7 @@ class Parser:
             self.finishGoroutine(True)
 
     def processFileLine(self, line):
-        if self.currentStackFrame == None:
+        if self.currentStackFrame is None:
             raise InternalError('No StackFrame instance available!')
         
         try:
@@ -126,13 +126,13 @@ class Parser:
             self.finishGoroutine(True)
             
     def finishGoroutine(self, keepIt):
-        if keepIt and self.currentGoroutine != None:
+        if keepIt and self.currentGoroutine is not None:
             self.stacktrace.addGoroutine(self.currentGoroutine)
         self.currentGoroutine = None
         self.state = State.findGoroutine
         
     def finishStackFrame(self, keepIt):
-        if keepIt and self.currentStackFrame != None:
+        if keepIt and self.currentStackFrame is not None:
             self.currentGoroutine.addFrame(self.currentStackFrame)
         self.currentStackFrame = None
         self.state = State.fileEnd
