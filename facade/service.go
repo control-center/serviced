@@ -1153,23 +1153,27 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 
 // ServiceUse will tag a new image (imageName) in a given registry for a given tenant
 // to latest, making sure to push changes to the registry
-func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, replaceImg, registryName string, noOp bool) error {
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registryName string, replaceImgs []string, noOp bool) error {
 	glog.Infof("Pushing image %s for tenant %s into elastic", imageName, serviceID)
 	// Push into elastic
 	if err := f.Download(imageName, serviceID); err != nil {
 		return err
 	}
 
-	if replaceImg != "" {
-		glog.Infof("Replacing references to image %s with %s for tenant %s", replaceImg, imageName, serviceID)
+	if len(replaceImgs) > 0 {
+		glog.Infof("Replacing references to images %s with %s for tenant %s", strings.Join(replaceImgs, ", "), imageName, serviceID)
 		// Determine what services need to be updated
 		svcs, err := f.GetServiceList(ctx, serviceID)
 		if err != nil {
 			return err
 		}
-		srchImg, err := commons.ParseImageID(replaceImg)
-		if err != nil {
-			return fmt.Errorf("error parsing image ID %s: %s", replaceImg, err)
+		srchImgs := make(map[string]struct{})
+		for _, replaceImg := range replaceImgs {
+			img, err := commons.ParseImageID(replaceImg)
+			if err != nil {
+				return fmt.Errorf("error parsing image ID %s: %s", replaceImg, err)
+			}
+			srchImgs[img.Repo] = struct{}{}
 		}
 		newImg, err := commons.ParseImageID(imageName)
 		if err != nil {
@@ -1185,8 +1189,8 @@ func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, replace
 				return fmt.Errorf("error parsing image ID %s: %s", svc.ImageID, err)
 			}
 			// Only match on repo names
-			if origImg.Repo != srchImg.Repo {
-				glog.V(1).Infof("Skipping image replace for service %s due to mismatch: targetImage => %s existingImg => %s", svc.Name, srchImg.String(), origImg.String())
+			if _, ok := srchImgs[origImg.Repo]; !ok {
+				glog.V(1).Infof("Skipping image replace for service %s due to mismatch: targetImages => %s existingImg => %s", svc.Name, srchImgs, origImg.String())
 				continue
 			}
 			// Change the image in the affected svc to point to our new image
