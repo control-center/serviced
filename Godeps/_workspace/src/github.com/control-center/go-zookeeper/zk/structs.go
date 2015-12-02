@@ -196,6 +196,14 @@ type setWatchesRequest struct {
 
 type setWatchesResponse struct{}
 
+// Not supported until 3.5
+// type removeWatchesRequest struct {
+// 	Path string
+// 	Type watchType
+// }
+
+// type removeWatchesResponse struct{}
+
 type syncRequest pathRequest
 type syncResponse pathResponse
 
