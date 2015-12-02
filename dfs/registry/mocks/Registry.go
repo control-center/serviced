@@ -14,6 +14,8 @@
 package mocks
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/stretchr/testify/mock"
 )
@@ -30,12 +32,12 @@ func (_m *Registry) SetConnection(conn client.Connection) {
 	}
 	return
 }
-func (_m *Registry) PullImage(image string) error {
-	ret := _m.Called(image)
+func (_m *Registry) PullImage(cancel <-chan time.Time, image string) error {
+	ret := _m.Called(cancel, image)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(image)
+	if rf, ok := ret.Get(0).(func(<-chan time.Time, string) error); ok {
+		r0 = rf(cancel, image)
 	} else {
 		r0 = ret.Error(0)
 	}

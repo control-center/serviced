@@ -108,6 +108,10 @@ func (handler *TestHostStateHandler) init() *TestHostStateHandler {
 	return &h
 }
 
+func (h *TestHostStateHandler) PullImage(cancel <-chan time.Time, imageID string) error {
+	return nil
+}
+
 func (h *TestHostStateHandler) AttachService(svc *service.Service, state *servicestate.ServiceState, purge func(stateID string)) error {
 	response := make(chan error)
 	h.requestC <- request{state, attach, purge, response}

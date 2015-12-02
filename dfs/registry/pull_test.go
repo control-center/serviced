@@ -28,7 +28,7 @@ import (
 func (s *RegistryListenerSuite) TestPull_NoNode(c *C) {
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage("someimage")
+		errC <- s.listener.PullImage(time.After(15*time.Second), "someimage")
 	}()
 	select {
 	case <-time.After(5 * time.Second):
@@ -52,7 +52,7 @@ func (s *RegistryListenerSuite) TestPull_LocalImageFound(c *C) {
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(nil).Once()
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage(rAddress)
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
@@ -79,7 +79,7 @@ func (s *RegistryListenerSuite) TestPull_RemoteImageFound(c *C) {
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(nil).Once()
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage(rAddress)
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
@@ -106,7 +106,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushingTimeout(c *C) {
 	timeout := time.After(20 * time.Second)
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage(rAddress)
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
 	}()
 	select {
 	case <-timeout:
@@ -138,7 +138,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushing(c *C) {
 
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage(rAddress)
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
@@ -170,7 +170,7 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 	timeout := time.After(20 * time.Second)
 	errC := make(chan error, 1)
 	go func() {
-		errC <- s.listener.PullImage(rAddress)
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
 	}()
 	select {
 	case <-time.After(5 * time.Second):

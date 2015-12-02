@@ -32,7 +32,7 @@ var (
 // Registry performs specific docker actions based on the registry index
 type Registry interface {
 	SetConnection(conn client.Connection)
-	PullImage(image string) error
+	PullImage(cancel <-chan time.Time, image string) error
 	ImagePath(image string) (string, error)
 }
 
@@ -55,7 +55,7 @@ func (l *RegistryListener) ImagePath(image string) (string, error) {
 
 // PullImage waits for an image to be available on the docker registry so it
 // can be pulled (if it does not exist locally).
-func (l *RegistryListener) PullImage(image string) error {
+func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) error {
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
 		return err
@@ -70,7 +70,6 @@ func (l *RegistryListener) PullImage(image string) error {
 	}
 	idpath := path.Join(zkregistrytags, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
-	timeout := time.After(l.pulltimeout)
 
 	done := make(chan bool)
 	defer func(channel *chan bool) { close(*channel) }(&done)
@@ -122,7 +121,7 @@ func (l *RegistryListener) PullImage(image string) error {
 		select {
 		case e := <-evt:
 			glog.Infof("Got an event: %s", e)
-		case <-timeout:
+		case <-cancel:
 			return ErrOpTimeout
 		}
 

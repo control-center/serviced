@@ -304,7 +304,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	// set up the registry
-	d.reg = registry.NewRegistryListener(d.docker, dockerRegistry, d.hostID, 30*time.Minute)
+	d.reg = registry.NewRegistryListener(d.docker, dockerRegistry, d.hostID)
 
 	// Initialize the storage driver
 	if !filepath.IsAbs(options.VolumesPath) {

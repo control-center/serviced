@@ -68,6 +68,7 @@ func (node *HostState) SetVersion(version interface{}) {
 
 // HostHandler is the handler for running the HostListener
 type HostStateHandler interface {
+	PullImage(cancel <-chan time.Time, imageID string) error
 	AttachService(*service.Service, *servicestate.ServiceState, func(string)) error
 	StartService(*service.Service, *servicestate.ServiceState, func(string)) error
 	PauseService(*service.Service, *servicestate.ServiceState) error
@@ -201,7 +202,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if !ss.IsRunning() {
 				// process has stopped
 				glog.Infof("Starting a new instance for %s (%s): %s", svc.Name, svc.ID, stateID)
-				if processDone, err = l.startInstance(&processLock, &svc, &ss); err != nil {
+				if processDone, err = l.startInstance(shutdown, &processLock, &svc, &ss); err != nil {
 					glog.Errorf("Could not start service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
 					return
 				}
@@ -279,7 +280,22 @@ func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- st
 	}
 }
 
-func (l *HostStateListener) startInstance(locker sync.Locker, svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+func (l *HostStateListener) startInstance(shutdown <-chan interface{}, locker sync.Locker, svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+	cancelC := make(chan struct{})
+	defer close(cancelC)
+	timeoutC := make(chan time.Time)
+	go func() {
+		select {
+		case <-shutdown:
+			close(timeoutC)
+		case <-cancelC:
+		}
+	}()
+	// Pull the image
+	if err := l.handler.PullImage(timeoutC, svc.ImageID); err != nil {
+		glog.Errorf("Error trying to pull image %s for service %s (%s): %s", svc.ImageID, svc.Name, svc.ID, err)
+		return nil, err
+	}
 	done := make(chan struct{})
 	locker.Lock()
 	if err := l.handler.StartService(svc, state, l.terminateInstance(locker, done)); err != nil {

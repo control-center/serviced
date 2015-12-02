@@ -119,7 +119,7 @@ func (s *RegistryListenerSuite) SetUpTest(c *C) {
 	// Initialize the mock docker object
 	s.docker = &mocks.Docker{}
 	// Initialize the listener
-	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host", 15*time.Second)
+	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host")
 	s.listener.conn = s.conn
 	// Create the base path
 	s.conn.CreateDir("/docker/registry")
