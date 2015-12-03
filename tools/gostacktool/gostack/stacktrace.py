@@ -82,7 +82,7 @@ class CoalescedStackTrace(object):
 # Multiple data structures to monitor the number of Goroutines over time.
 class MonitoredStackTrace(object):
     def __init__(self, directory):
-        if directory != None and len(directory) > 0:
+        if directory is not None and len(directory) > 0:
             self.output_dir = directory
         else:
             self.output_dir = './gostack-data'
@@ -114,7 +114,7 @@ class MonitoredStackTrace(object):
         self.lock.acquire()
         try:
             self.timestamps.append(timestamp)
-            if label != None and len(label) > 0:
+            if label is not None and len(label) > 0:
                 self.labels.append(label)
             for goroutineList in stacktrace:
                 key = goroutineList[0].getKey()
