@@ -107,14 +107,14 @@ class StackTrace_MonitorNoLabels(unittest.TestCase):
 
     def validate_small_value_row(self, row_num, row, timestamp, label):
         expected_values = [timestamp]
-        if label != None and len(label) > 0:
+        if label is not None and len(label) > 0:
             expected_values.append(label)
         expected_values.extend(['6', '4', '2', '2', '2', '1'])
         self.validate_generic_row(row_num, row, expected_values)
 
     def validate_large_value_row(self, row_num, row, timestamp, label):
         expected_values = [timestamp]
-        if label != None and len(label) > 0:
+        if label is not None and len(label) > 0:
             expected_values.append(label)
         expected_values.extend(['12', '8', '4', '4', '4', '2'])
         self.validate_generic_row(row_num, row, expected_values)
