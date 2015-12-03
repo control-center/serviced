@@ -21,7 +21,6 @@ import (
 	"github.com/control-center/serviced/volume"
 )
 
-
 // The RPC interface is the API for a serviced master.
 type ClientInterface interface {
 
@@ -31,25 +30,25 @@ type ClientInterface interface {
 
 	//--------------------------------------------------------------------------
 	// Host Management Functions
-	
+
 	// GetHost gets the host for the given hostID or nil
-	GetHost(hostID string) (*host.Host, error) 
+	GetHost(hostID string) (*host.Host, error)
 
 	// GetHosts returns all hosts or empty array
 	GetHosts() ([]host.Host, error)
-	
+
 	// GetActiveHosts returns all active host ids or empty array
-	GetActiveHostIDs() ([]string, error) 
-	
+	GetActiveHostIDs() ([]string, error)
+
 	// AddHost adds a Host
 	AddHost(host host.Host) error
-	
+
 	// UpdateHost updates a host
 	UpdateHost(host host.Host) error
-	
+
 	// RemoveHost removes a host
-	RemoveHost(hostID string) error 
-	
+	RemoveHost(hostID string) error
+
 	// FindHostsInPool returns all hosts in a pool
 	FindHostsInPool(poolID string) ([]host.Host, error)
 
@@ -84,7 +83,7 @@ type ClientInterface interface {
 	// Service Management Functions
 
 	// ServiceUse will use a new image for a given service - this will pull the image and tag it
-	ServiceUse(serviceID string, imageID string, registry string, noOp bool) (string, error)
+	ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
 	//--------------------------------------------------------------------------
 	// Volume Management Functions

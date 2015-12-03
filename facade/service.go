@@ -22,6 +22,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -35,8 +36,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicestate"
-
-	"github.com/control-center/serviced/commons/docker"
 
 	"github.com/control-center/serviced/utils"
 
@@ -1154,12 +1153,62 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 
 // ServiceUse will tag a new image (imageName) in a given registry for a given tenant
 // to latest, making sure to push changes to the registry
-func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registryName string, noOp bool) (string, error) {
-	result, err := docker.ServiceUse(serviceID, imageName, registryName, noOp)
-	if err != nil {
-		return "", err
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registryName string, replaceImgs []string, noOp bool) error {
+	glog.Infof("Pushing image %s for tenant %s into elastic", imageName, serviceID)
+	// Push into elastic
+	if err := f.Download(imageName, serviceID); err != nil {
+		return err
 	}
-	return result, nil
+
+	if len(replaceImgs) > 0 {
+		glog.Infof("Replacing references to images %s with %s for tenant %s", strings.Join(replaceImgs, ", "), imageName, serviceID)
+		// Determine what services need to be updated
+		svcs, err := f.GetServiceList(ctx, serviceID)
+		if err != nil {
+			return err
+		}
+		srchImgs := make(map[string]struct{})
+		for _, replaceImg := range replaceImgs {
+			img, err := commons.ParseImageID(replaceImg)
+			if err != nil {
+				return fmt.Errorf("error parsing image ID %s: %s", replaceImg, err)
+			}
+			srchImgs[img.Repo] = struct{}{}
+		}
+		newImg, err := commons.ParseImageID(imageName)
+		if err != nil {
+			return fmt.Errorf("error parsing image ID %s: %s", imageName, err)
+		}
+		var svcsToUpdate []*service.Service
+		for _, svc := range svcs {
+			if svc.ImageID == "" {
+				continue
+			}
+			origImg, err := commons.ParseImageID(svc.ImageID)
+			if err != nil {
+				return fmt.Errorf("error parsing image ID %s: %s", svc.ImageID, err)
+			}
+			// Only match on repo names
+			if _, ok := srchImgs[origImg.Repo]; !ok {
+				glog.V(1).Infof("Skipping image replace for service %s due to mismatch: targetImages => %s existingImg => %s", svc.Name, srchImgs, origImg.String())
+				continue
+			}
+			// Change the image in the affected svc to point to our new image
+			origImg.Merge(&commons.ImageID{Repo: newImg.Repo})
+			glog.Infof("Updating image in service %s to %s", svc.Name, origImg.String())
+			svc.ImageID = origImg.String()
+			svcsToUpdate = append(svcsToUpdate, svc)
+		}
+
+		// Update all the services
+		for _, svc := range svcsToUpdate {
+			if err = f.UpdateService(ctx, *svc); err != nil {
+				return fmt.Errorf("error updating service %s: %s", svc.Name, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, ports ...uint16) (ipinfo, error) {
@@ -1872,6 +1921,8 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *ser
 	return nil
 }
 
+// GetServiceList gets all child services of the service specified by the
+// given service ID, and returns them in a slice
 func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
 	svcs := make([]*service.Service, 0, 1)
 
