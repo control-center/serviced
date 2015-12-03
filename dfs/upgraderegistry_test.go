@@ -34,7 +34,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_FindImageFail(c *C) {
 		},
 	}
 	s.index.On("FindImage", "unknown/repo").Return(nil, ErrTestGeneric)
-	err := s.dfs.UpgradeRegistry(svcs, "test_tenantID")
+	err := s.dfs.UpgradeRegistry(svcs, "test_tenantID", "")
 	c.Assert(err, Equals, ErrTestGeneric)
 }
 
@@ -55,7 +55,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_FindImageSuccess(c *C) {
 		UUID:    "testuuid",
 	}
 	s.index.On("FindImage", imageName).Return(rImage, nil)
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, IsNil)
 }
 
@@ -71,7 +71,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_DockerImageNotFound(c *C) {
 	}
 	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", imageName).Return(nil, dockerclient.ErrNoSuchImage)
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, IsNil)
 }
 
@@ -87,7 +87,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_DockerFindImageFail(c *C) {
 	}
 	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
 	s.docker.On("FindImage", imageName).Return(nil, ErrTestGeneric)
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, Equals, ErrTestGeneric)
 }
 
@@ -105,7 +105,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageSuccess(c *C) {
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
 	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(nil)
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, IsNil)
 }
 
@@ -123,7 +123,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageFail(c *C) {
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
 	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(ErrTestNoPush)
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, Equals, ErrTestNoPush)
 }
 
@@ -145,6 +145,62 @@ func (s *DFSTestSuite) TestUpgradeRegistry_NoDupes(c *C) {
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil).Once()
 	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(nil).Once()
-	err := s.dfs.UpgradeRegistry(svcs, "goodtenant")
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
+	c.Assert(err, IsNil)
+}
+
+// no image in the old docker registry
+func (s *DFSTestSuite) TestUpgradeRegistry_MigrateNoImage(c *C) {
+	imageName := "test-server:5000/tenantid/reponame"
+	svcs := []service.Service{
+		{
+			Name:    "servicename",
+			ID:      "serviceid",
+			ImageID: imageName,
+		},
+	}
+	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
+	s.docker.On("PullImage", "old-server:5001/tenantid/reponame:latest").Return(dockerclient.ErrNoSuchImage)
+	image := &dockerclient.Image{ID: "uuidvalue"}
+	s.docker.On("FindImage", imageName).Return(image, nil)
+	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue").Return(nil)
+	err := s.dfs.UpgradeRegistry(svcs, "tenantid", "old-server:5001")
+	c.Assert(err, IsNil)
+}
+
+// could not retag image
+func (s *DFSTestSuite) TestUpgradeRegistry_MigrateTagFail(c *C) {
+	imageName := "test-server:5000/tenantid/reponame"
+	svcs := []service.Service{
+		{
+			Name:    "servicename",
+			ID:      "serviceid",
+			ImageID: imageName,
+		},
+	}
+	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
+	s.docker.On("PullImage", "old-server:5001/tenantid/reponame:latest").Return(nil)
+	s.docker.On("TagImage", "old-server:5001/tenantid/reponame:latest", "test-server:5000/tenantid/reponame").Return(ErrTestNoTag)
+	err := s.dfs.UpgradeRegistry(svcs, "tenantid", "old-server:5001")
+	c.Assert(err, Equals, ErrTestNoTag)
+}
+
+// migrate successful
+func (s *DFSTestSuite) TestUpgradeRegistry_MigrateSuccess(c *C) {
+	imageName := "test-server:5000/tenantid/reponame"
+	svcs := []service.Service{
+		{
+			Name:    "servicename",
+			ID:      "serviceid",
+			ImageID: imageName,
+		},
+	}
+	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
+	s.docker.On("PullImage", "old-server:5001/tenantid/reponame:latest").Return(nil)
+	s.docker.On("TagImage", "old-server:5001/tenantid/reponame:latest", "test-server:5000/tenantid/reponame").Return(nil)
+	image := &dockerclient.Image{ID: "uuidvalue"}
+	s.docker.On("FindImage", imageName).Return(image, nil)
+	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue").Return(nil)
+	err := s.dfs.UpgradeRegistry(svcs, "tenantid", "old-server:5001")
 	c.Assert(err, IsNil)
 }
