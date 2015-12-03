@@ -18,20 +18,21 @@ import (
 )
 
 type ServiceUseRequest struct {
-	ServiceID string
-	ImageID   string
-	Registry  string
-	NoOp      bool
+	ServiceID   string
+	ImageID     string
+	ReplaceImgs []string
+	Registry    string
+	NoOp        bool
 }
 
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
-func (c *Client) ServiceUse(serviceID string, imageID string, registry string, noOp bool) (string, error) {
-	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, Registry: registry, NoOp: noOp}
-	imageResult := ""
+func (c *Client) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
+	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
+	result := ""
 	glog.Infof("Pulling %s, tagging to latest, and pushing to registry %s - this may take a while", imageID, registry)
-	err := c.call("ServiceUse", svcUseRequest, &imageResult)
+	err := c.call("ServiceUse", svcUseRequest, &result)
 	if err != nil {
 		return "", err
 	}
-	return imageResult, nil
+	return result, nil
 }

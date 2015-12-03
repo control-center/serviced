@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/zenoss/glog"
 )
 
@@ -136,7 +135,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		r.svcRestart = noOpServiceRestart
 		r.svcMigrate = noOpServiceMigrate
 		r.svcWait = noOpServiceWait
-		r.svcUse = docker.ServiceUse
+		r.svcUse = noOpServiceUse
 	}
 
 	return r
