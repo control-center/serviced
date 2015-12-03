@@ -47,6 +47,33 @@ type messagePacket struct {
 	Statuses  map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
+type healthStatusMap struct {
+	sync.Mutex
+	statuses map[string]map[string]map[string]*domain.HealthCheckStatus
+}
+
+func NewHealthStatuses() healthStatusMap {
+	return healthStatusMap{
+		statuses: make(map[string]map[string]map[string]*domain.HealthCheckStatus),
+	}
+}
+
+// Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.
+func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[string]map[string]domain.healthCheckStatus {
+	m.RLock()
+	defer m.RUnlock()
+	//make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
+	result := make(map[string]map[string]domain.HealthCheckStatus, len(healthStatuses[serviceID]))
+	for instanceID, healthChecks := range m.statuses[serviceID] {
+		result[instanceID] = make(map[string]domain.HealthCheckStatus, len(healthChecks))
+		for hcName, hcStatus := range healthChecks {
+			result[instanceID][hcName] = *hcStatus
+		}
+	}
+	return result
+
+}
+
 // Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
 var healthStatuses = make(map[string]map[string]map[string]*domain.HealthCheckStatus)
 
@@ -55,7 +82,6 @@ var runningServices []dao.RunningService
 var exitChannel = make(chan bool)
 var lock = &sync.RWMutex{}
 
-// Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.
 func GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
 	lock.RLock()
 	defer lock.RUnlock()
