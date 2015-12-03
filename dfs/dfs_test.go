@@ -37,6 +37,7 @@ var (
 	ErrTestNoCommit                = errors.New("container not committed")
 	ErrTestNoPush                  = errors.New("image not pushed")
 	ErrTestNoPull                  = errors.New("could not pull image")
+	ErrTestNoTag                   = errors.New("could not tag image")
 	ErrTestImageNotInRegistry      = errors.New("image not in registry")
 	ErrTestImageNotRemoved         = errors.New("could not remove image")
 	ErrTestVolumeNotRemoved        = errors.New("could not remove volume")
