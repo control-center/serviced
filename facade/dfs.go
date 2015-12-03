@@ -230,6 +230,15 @@ func (f *Facade) ResetLocks(ctx datastore.Context) error {
 	return nil
 }
 
+// Download will push a specified image into the registry for the specified
+// tenant
+func (f *Facade) Download(imageID, tenantID string) error {
+	if _, err := f.dfs.Download(imageID, tenantID, true); err != nil {
+		return err
+	}
+	return nil
+}
+
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
