@@ -149,6 +149,18 @@ func (c *Server) SetClients(clients ...string) {
 	}
 }
 
+// VolumeCreated set that path of a volume that should be exported
+func (c *Server) VolumeCreated(volumePath string) error{
+	c.volumes[volumePath] = struct{}{}
+	return nil
+}
+
+// VolumeCreated set that path of a volume that should be exported
+func (c *Server) VolumeDeletionBefore(volumePath string) error{
+	delete(c.volumes, volumePath)
+	return nil
+}
+
 // Sync ensures that the nfs exports are visible to all clients
 func (c *Server) Sync() error {
 	if err := c.hostsDeny(); err != nil {
