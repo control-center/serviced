@@ -28,6 +28,7 @@ var ErrImageNotFound = errors.New("registry index: image not found")
 type RegistryIndex interface {
 	FindImage(image string) (*registry.Image, error)
 	PushImage(image, uuid string) error
+	PushImageAfterCommit(image, uuid string) error
 	RemoveImage(image string) error
 	SearchLibraryByTag(library string, tag string) ([]registry.Image, error)
 }
@@ -38,6 +39,7 @@ var _ = RegistryIndex(&RegistryIndexClient{})
 type facade interface {
 	GetRegistryImage(ctx datastore.Context, image string) (*registry.Image, error)
 	SetRegistryImage(ctx datastore.Context, rImage *registry.Image) error
+	SetRegistryImageAfterCommit(ctx datastore.Context, rImage *registry.Image) error
 	DeleteRegistryImage(ctx datastore.Context, image string) error
 	GetRegistryImages(ctx datastore.Context) ([]registry.Image, error)
 	SearchRegistryLibraryByTag(ctx datastore.Context, library, tag string) ([]registry.Image, error)
@@ -103,6 +105,25 @@ func (client *RegistryIndexClient) PushImage(image, uuid string) error {
 		UUID:    uuid,
 	}
 	return client.facade.SetRegistryImage(client.ctx, rImage)
+}
+
+//Due to an issue in docker 1.8.3 - 1.9.1, after a commit, the push will result in the master having a different imageID than the registry
+//  This code path will have to fix the issue by getting the correct imageID after the push and updating the registry index
+func (client *RegistryIndexClient) PushImageAfterCommit(image, uuid string) error {
+	imageID, err := commons.ParseImageID(image)
+	if err != nil {
+		return err
+	}
+	if imageID.IsLatest() {
+		imageID.Tag = docker.Latest
+	}
+	rImage := &registry.Image{
+		Library: imageID.User,
+		Repo:    imageID.Repo,
+		Tag:     imageID.Tag,
+		UUID:    uuid,
+	}
+	return client.facade.SetRegistryImageAfterCommit(client.ctx, rImage)
 }
 
 // RemoveImage implements RegistryIndex

@@ -48,15 +48,34 @@ func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 		return "", ErrStaleContainer
 	}
 	// commit the container
+	oldID := rImage.UUID
 	img, err := dfs.docker.CommitContainer(ctr.ID, ctr.Config.Image)
 	if err != nil {
 		glog.Errorf("Could not commit container %s: %s", ctr.ID, err)
 		return "", err
 	}
 	// push the image into the registry
-	if err := dfs.index.PushImage(rImage.String(), img.ID); err != nil {
-		glog.Errorf("Could not push image %s (%s): %s", rImage, img.ID, err)
-		return "", err
+	if (img.ID != oldID) { //If the commit produced a new ID, call PushImageAfterCommit, which will actually push the image twice to address an issue with imageIDs changing in docker 1.9.1
+		if err := dfs.index.PushImageAfterCommit(rImage.String(), img.ID); err != nil {
+			glog.Errorf("Could not push image %s (%s), re-pushing previous image ID: %s", rImage, img.ID, err)
+			//If the push failed, we need to re-tag and re-push the old ID to avoid a mismatch between the master and agents
+			if err2 := dfs.index.PushImage(rImage.String(), oldID); err2 != nil {
+				glog.Errorf("Could not re-push old image %s (%s): %s", rImage.String(), oldID, err2)
+				return "", err2
+			}
+
+			//try to delete the committed image
+			if err2 := dfs.docker.RemoveImage(img.ID); err2 != nil {
+				glog.Warningf("Could not clean up committed image %s: %s", img.ID, err2)
+			}
+
+			return "", err
+		}
+	} else {
+		if err := dfs.index.PushImage(rImage.String(), img.ID); err != nil {
+			glog.Errorf("Could not push image %s (%s): %s", rImage, img.ID, err)
+			return "", err
+		}
 	}
 	return rImage.Library, nil
 }

@@ -30,9 +30,13 @@ const (
 
 // RegistryImageNode is the registry image as it is written into the
 // coordinator.
+// AfterCommit, NewID, and AfterCommitPushFailed added to address issue where docker imageIDs change after a commit
 type RegistryImageNode struct {
 	Image    registry.Image
 	PushedAt time.Time
+	AfterCommit	bool	// true if this node is being pushed for the first time after a commit
+	NewID	string		// if the previous push was after a commit, this will contain the new ID of the image
+	AfterCommitPushFailed	bool //If the post-commit push failed, this stores the error so we can abort the commit
 	version  interface{}
 }
 
@@ -156,11 +160,32 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					if err := l.docker.TagImage(node.Image.UUID, registrypath); err != nil {
 						glog.Warningf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
 						node.PushedAt = time.Unix(0, 0)
-					} else if err := l.docker.PushImage(registrypath); err != nil {
-						glog.Warningf("Could not push %s: %s", registrypath, err)
-						node.PushedAt = time.Unix(0, 0)
 					} else {
-						node.PushedAt = time.Now().UTC()
+						var err error
+						if node.AfterCommit { //Handle the special case where this is the first push after a commit
+							glog.V(1).Infof("This is a post-commit push, so we will Push, Remove, Pull")
+							var newID	string
+							if newID, err = l.docker.PushImageAfterCommit(registrypath); err != nil {
+								glog.Errorf("Could not perform post-commit push for %s: %s", registrypath, err)
+								node.NewID = ""
+								node.AfterCommit = true
+								node.AfterCommitPushFailed = true	
+								node.PushedAt = time.Unix(0, 0)
+							} else {
+								node.NewID = newID
+								node.AfterCommit = false
+								node.AfterCommitPushFailed = false
+								node.PushedAt = time.Now().UTC()
+							}
+						} else {
+							err = l.docker.PushImage(registrypath)
+							if err != nil {
+								glog.Warningf("Could not push %s: %s", registrypath, err)
+								node.PushedAt = time.Unix(0, 0)
+							} else {
+								node.PushedAt = time.Now().UTC()
+							}
+						}
 					}
 					// The point here is to make sure the node triggers an
 					// event regardless of whether the push was successful.

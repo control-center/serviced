@@ -55,6 +55,7 @@ type Docker interface {
 	SaveImages(images []string, writer io.Writer) error
 	LoadImage(reader io.Reader) error
 	PushImage(image string) error
+	PushImageAfterCommit(image string) (string, error)
 	PullImage(image string) error
 	TagImage(oldImage, newImage string) error
 	RemoveImage(image string) error
@@ -105,6 +106,43 @@ func (d *DockerClient) PushImage(image string) error {
 	}
 	creds := d.fetchCreds(imageID.Registry())
 	return d.dc.PushImage(opts, creds)
+}
+
+//Due to an issue in docker 1.8.3 - 1.9.1, after a commit, the push will result in the master having a different imageID than the registry
+//  We work aroudn this by deleting the master's image by ID, then re-pulling it.
+func (d *DockerClient) PushImageAfterCommit(image string) (string, error) {
+
+	if err := d.PushImage(image); err != nil {
+		return "", err
+	}
+
+	//now remove the image and re-pull it
+	//first find it so we can remove by ID
+	img, err := d.FindImage(image)
+	if err != nil {
+		glog.Errorf("Error finding image %s: %s", image, err)
+		return "", err
+	}
+
+	if err = d.RemoveImage(img.ID); err != nil {
+		glog.Errorf("Error removing image %s: %s", img.ID, err)
+		return "", err
+	} 
+	
+	// Re-pull the image
+	if err = d.PullImage(image); err != nil {
+		glog.Errorf("Error re-pulling the image %s: %s", image, err)
+		return "", err
+	}
+
+	//now find it again so we can return the new ID
+	img, err = d.FindImage(image)
+	if err != nil {
+		glog.Errorf("Error re-finding image %s: %s", image, err)
+		return "", err
+	}
+
+	return img.ID, nil
 }
 
 func (d *DockerClient) PullImage(image string) error {
