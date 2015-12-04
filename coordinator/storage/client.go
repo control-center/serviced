@@ -99,9 +99,6 @@ func (c *Client) loop() {
 	var doneC chan<- string
 	var leader client.Leader
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
-	updateMonitorInterval := getDefaultDFSMonitorRemoteInterval()
-	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
-	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
 
 	doneW := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&doneW)

@@ -28,6 +28,7 @@ import (
 
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 // Server manages exporting an NFS mount.
@@ -164,18 +165,23 @@ func (c *Server) VolumeDeletionBefore(volumePath string) error{
 // Sync ensures that the nfs exports are visible to all clients
 func (c *Server) Sync() error {
 	if err := c.hostsDeny(); err != nil {
+		glog.Errorf("error writing host deny %v", err)
 		return err
 	}
 	if err := c.hostsAllow(); err != nil {
+		glog.Errorf("error writing host allow %v", err)
 		return err
 	}
 	if err := c.writeExports(); err != nil {
+		glog.Errorf("error writing exports %v", err)
 		return err
 	}
 	if err := start(); err != nil {
+		glog.Errorf("error running start %v", err)
 		return err
 	}
 	if err := reload(); err != nil {
+		glog.Errorf("error running reload %v", err)
 		return err
 	}
 	return nil
@@ -271,6 +277,8 @@ func (c *Server) writeExports() error {
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
+	// TODO: check if edir isBindMounted and if so unmount
+
 
 	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n",
 		exportsDir, network)
@@ -286,6 +294,7 @@ func (c *Server) writeExports() error {
 			exported, network)
 	}
 
+	glog.Infof("serviced exports:\n %s", serviced_exports)
 	originalContents, err := readFileIfExists(etcExports)
 	if err != nil {
 		return err
@@ -331,26 +340,35 @@ var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
-
+	glog.Infof("bindMount %s at %s", src, dst)
 	if mounted, err := isBindMounted(dst); err != nil || mounted {
 		return err
 	}
-	runMountCommand := func(options ...string) error {
+
+	if err := os.MkdirAll(dst, 0775); err != nil {
+		return err
+	}
+
+	runMountCommand := func(options ...string) ([]byte, error) {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
-		return mount.Run()
+		glog.Infof("running mount: %s %s",cmd, strings.Join(args, " "))
+		return mount.CombinedOutput()
 	}
-	returnErr := runMountCommand("bind")
+	out, returnErr := runMountCommand("bind")
 	if returnErr != nil {
 		// If the mount fails, it could be due to a stale NFS handle, signalled
 		// by a return code of 32. Stale handle can occur if e.g., the source
 		// directory has been deleted and restored (a common occurrence in the
 		// dev workflow) Try again, with remount option.
 		if exitcode, ok := utils.GetExitStatus(returnErr); ok && (exitcode&32) != 0 {
-			returnErr = runMountCommand("bind", "remount")
+			out, returnErr = runMountCommand("bind", "remount")
 		}
 	}
-	return returnErr
+	if returnErr != nil{
+		return fmt.Errorf("%s: %s", out, returnErr)
+	}
+	return nil
 }
 
 func isBindMounted(dst string) (bool, error) {
