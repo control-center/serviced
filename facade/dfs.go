@@ -230,6 +230,15 @@ func (f *Facade) ResetLocks(ctx datastore.Context) error {
 	return nil
 }
 
+// Download will push a specified image into the registry for the specified
+// tenant
+func (f *Facade) Download(imageID, tenantID string) error {
+	if _, err := f.dfs.Download(imageID, tenantID, true); err != nil {
+		return err
+	}
+	return nil
+}
+
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
@@ -258,7 +267,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 
 // UpgradeRegistry adds the images to the registry index so that they will be
 // pushed into the registry.
-func (f *Facade) UpgradeRegistry(ctx datastore.Context) error {
+func (f *Facade) UpgradeRegistry(ctx datastore.Context, registryHost string) error {
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
@@ -268,7 +277,7 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := f.dfs.UpgradeRegistry(svcs, tenantID); err != nil {
+		if err := f.dfs.UpgradeRegistry(svcs, tenantID, registryHost); err != nil {
 			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
 		}
 	}

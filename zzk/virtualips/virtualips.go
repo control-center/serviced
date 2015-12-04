@@ -163,7 +163,9 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
 	leader := zzk.NewHostLeader(l.conn, l.hostID, "", l.GetPath(ip))
-	_, err := leader.TakeLead()
+	leaderDone := make(chan struct{})
+	defer close(leaderDone)
+	_, err := leader.TakeLead(leaderDone)
 	if err != nil {
 		glog.Errorf("Error while trying to acquire a lock for %s: %s", ip, err)
 		return
@@ -186,9 +188,11 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 	}
 
 	index := l.getIndex()
+	done := make(chan struct{})
+	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
 		var vip pool.VirtualIP
-		event, err := l.conn.GetW(l.GetPath(ip), &VirtualIPNode{VirtualIP: &vip})
+		event, err := l.conn.GetW(l.GetPath(ip), &VirtualIPNode{VirtualIP: &vip}, done)
 		if err == client.ErrEmptyNode {
 			glog.Errorf("Deleting empty node for ip %s", ip)
 			RemoveVirtualIP(l.conn, ip)
@@ -233,6 +237,9 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 			}
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
 

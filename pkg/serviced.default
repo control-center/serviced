@@ -63,7 +63,7 @@
 # SERVICED_CERT_FILE=/etc/....
 
 # Set the driver type on the master for the distributed file system (rsync/btrfs/devicemapper)
-# SERVICED_FS_TYPE=rsync
+# SERVICED_FS_TYPE=devicemapper
 
 # Set the aliases for this host (use in vhost muxing)
 # SERVICED_VHOST_ALIASES=foobar.com,example.com
