@@ -11,19 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
 import os
 import sys
 import tempfile
 import unittest
+
 from cStringIO import StringIO
 from subprocess import Popen, PIPE
+from utils import ourDir
 
 import gostack
 
-
-def ourDir():
-    return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
 class BaseTestCase(unittest.TestCase):
     def setUp(self):
@@ -66,7 +64,7 @@ class ParserGood_String(TempFileTestCase):
         process = Popen(['diff', '-wB', testFile, self.tempFile.name], stdout=PIPE)
         process.communicate()
         exitCode = process.wait()
-        self.assertEqual(exitCode, 0)
+        self.assertEqual(exitCode, 0, 'Files did not match')
 
 class Capturing(list):
     def __enter__(self):
