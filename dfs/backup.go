@@ -91,7 +91,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		}
 		timer := time.NewTimer(0)
 		for _, img := range imgs {
-			timer.Reset(30 * time.Minute)
+			timer.Reset(dfs.timeout)
 			if err := dfs.reg.PullImage(timer.C, img); err != nil {
 				glog.Errorf("Could not pull image %s from registry: %s", img, err)
 				return err
