@@ -103,7 +103,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	if err := verifyExportsDir(basePath); err != nil {
 		return nil, err
 	}
-	if err := verifyExportsDir(path.Join(exportsPath, exportedName)); err != nil {
+	if err := verifyExportsDir(path.Join(exportsDir, exportedName)); err != nil {
 		return nil, err
 	}
 
@@ -262,10 +262,9 @@ func (c *Server) writeExports() error {
 
 	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n",
 		exportsDir, network)
-	for _, volume := range c.volumes {
-		volume = strings.TrimSuffix(volume, "/")
-		volParts := strings.Split(volume, "/")
-		volName := volParts[len(volParts)-1]
+	for volume := range c.volumes {
+		volume = path.Clean(volume)
+		_, volName := path.Split(volume)
 		// TODO: as is it will be /exports/serviced_var_volumes/<tenantid>
 		exported := path.Join(edir, volName)
 		if err := bindMount(volume, exported); err != nil {
