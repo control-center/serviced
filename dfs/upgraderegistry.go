@@ -14,14 +14,17 @@
 package dfs
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
 // UpgradeRegistry loads images for each service into the docker registry
-// index.
-func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID string) error {
+// index.  Also migrates images from a previous (or V1) registry at
+// registryHost (host:port).
+func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string) error {
 	imageIDs := make(map[string]struct{})
 	for _, svc := range svcs {
 		if svc.ImageID == "" {
@@ -48,6 +51,18 @@ func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenant
 		if err != nil {
 			glog.Warningf("Cannot parse image name %s under service %s (%s)", image, svc.Name, svc.ID)
 			continue
+		}
+		// download image from old registry at registryHost defined at HOST:PORT
+		// and retag it at the original registry path as defined by the service.
+		if registryHost != "" {
+			glog.Infof("Downloading image %s from %s registry", image, registryHost)
+			oldImage := fmt.Sprintf("%s/%s", registryHost, rImage)
+			if err := dfs.docker.PullImage(oldImage); err != nil {
+				glog.Warningf("Could not pull image %s from registry %s, falling back to local library: %s", image, registryHost, err)
+			} else if err := dfs.docker.TagImage(oldImage, image); err != nil {
+				glog.Errorf("Could not retag image %s as %s: %s", oldImage, image, err)
+				return err
+			}
 		}
 		// find image in docker library
 		img, err := dfs.docker.FindImage(image)
