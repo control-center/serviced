@@ -48,7 +48,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
 		MCUsername:           "scott",
 		MCPasswd:             "tiger",
-		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "rsync")),
+		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "devicemapper")),
 		ESStartupTimeout:     getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)),
 		HostAliases:          config.StringSlice("VHOST_ALIASES", []string{}),
 		Verbosity:            config.IntVal("LOG_LEVEL", 0),
