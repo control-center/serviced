@@ -37,6 +37,7 @@ type Server struct {
 	exportOptions string
 	network       string
 	clients       map[string]struct{}
+	volumes       map[string]struct{}
 }
 
 var (
@@ -51,8 +52,7 @@ var (
 )
 
 var (
-	exportsPath = "/exports"
-	procMounts  = "/proc/mounts"
+	procMounts = "/proc/mounts"
 )
 
 var (
@@ -91,7 +91,7 @@ func verifyExportsDir(path string) error {
 }
 
 // NewServer returns a nfs.Server object that manages the given nfs mounts to
-// configured clients.
+// configured clients;  basePath is the path for volumes, exportedName is the container dir to hold exported volumes
 func NewServer(basePath, exportedName, network string) (*Server, error) {
 
 	if len(exportedName) < 2 || strings.Contains(exportedName, "/") {
@@ -121,6 +121,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		exportOptions: "rw,nohide,insecure,no_subtree_check,async",
 		clients:       make(map[string]struct{}),
 		network:       network,
+		volumes:       make(map[string]struct{}),
 	}, nil
 }
 
@@ -192,7 +193,7 @@ func (c *Server) Stop() error {
 
 func (c *Server) hostsDeny() error {
 
-	s, err := readFileIfExists(hostDenyDefaults)
+	s, err := readFileIfExists(etcHostsDeny)
 	if err != nil {
 		return err
 	}
@@ -249,18 +250,29 @@ func (c *Server) writeExports() error {
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n"+
-		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async,crossmnt)",
-		exportsPath, network, exportsPath, c.exportedName, network)
+
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
 	}
-	edir := exportsDir + "/" + c.exportedName
+
+	edir := path.Join(exportsDir, c.exportedName)
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
-	if err := bindMount(c.basePath, edir); err != nil {
-		return err
+
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n",
+		exportsDir, network)
+	for _, volume := range c.volumes {
+		volume = strings.TrimSuffix(volume, "/")
+		volParts := strings.Split(volume, "/")
+		volName := volParts[len(volParts)-1]
+		// TODO: as is it will be /exports/serviced_var_volumes/<tenantid>
+		exported := path.Join(edir, volName)
+		if err := bindMount(volume, exported); err != nil {
+			return err
+		}
+		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)",
+			exported, network)
 	}
 
 	originalContents, err := readFileIfExists(etcExports)
@@ -269,7 +281,7 @@ func (c *Server) writeExports() error {
 	}
 
 	// comment out lines that conflicts with serviced exported mountpoints
-	mountpaths := map[string]bool{exportsPath: true, path.Join(exportsPath, c.exportedName): true}
+	mountpaths := map[string]bool{exportsDir: true, path.Join(exportsDir, c.exportedName): true}
 	filteredContent := ""
 	scanner := bufio.NewScanner(strings.NewReader(originalContents))
 	for scanner.Scan() {

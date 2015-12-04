@@ -44,6 +44,8 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	if err := dfs.deleteImages(tenantID, docker.Latest); err != nil {
 		return err
 	}
+
+	//TODO: do we need to stop and restart nfs for this scenario?
 	if err := dfs.net.Stop(); err != nil {
 		glog.Errorf("Could not stop nfs server: %s", err)
 		return err
@@ -52,6 +54,10 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
 		return err
+	}
+	//TODO: should this be called before it is removed?
+	if err := dfs.net.VolumeDeletionBefore(vol.Path()); err != nil {
+		glog.Warningf("Error notifying storage of deleted volume %s: %s", vol.Path(), err)
 	}
 	return nil
 }

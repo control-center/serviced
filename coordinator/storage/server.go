@@ -39,8 +39,13 @@ type StorageDriver interface {
 	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
+	//TODO: remove Restart and Stop
 	Restart() error
 	Stop() error
+	// VolumeCreated notify storage driver that a new volume has been created at path
+	VolumeCreated(path string) error
+	// VolumeDeletionBefore notify storage driver that volume at path is going to be deleted
+	VolumeDeletionBefore(path string) error
 }
 
 // NewServer returns a Server object to manage the exported file system
