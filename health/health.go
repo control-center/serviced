@@ -29,6 +29,15 @@ import (
 	"github.com/zenoss/go-json-rest"
 )
 
+var (
+	// Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
+	healthStatuses  = make(map[string]map[string]map[string]*domain.HealthCheckStatus)
+	cpDao           dao.ControlPlane
+	runningServices []dao.RunningService
+	exitChannel     = make(chan bool)
+	lock            = &sync.RWMutex{}
+)
+
 func init() {
 	// Initialize the fake isvc application.
 	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{
@@ -48,7 +57,7 @@ type messagePacket struct {
 }
 
 type healthStatusMap struct {
-	sync.Mutex
+	sync.RWMutex
 	statuses map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
@@ -59,7 +68,7 @@ func NewHealthStatuses() healthStatusMap {
 }
 
 // Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.
-func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[string]map[string]domain.healthCheckStatus {
+func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
 	m.RLock()
 	defer m.RUnlock()
 	//make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
@@ -73,14 +82,6 @@ func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[stri
 	return result
 
 }
-
-// Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
-var healthStatuses = make(map[string]map[string]map[string]*domain.HealthCheckStatus)
-
-var cpDao dao.ControlPlane
-var runningServices []dao.RunningService
-var exitChannel = make(chan bool)
-var lock = &sync.RWMutex{}
 
 func GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
 	lock.RLock()
@@ -115,45 +116,51 @@ func isService(serviceID string) bool {
 	return false
 }
 
-// Removes no longer running services and updates service start time.
-func Cleanup(shutdown <-chan interface{}) {
+// CleanupOnce removes services that are no longer running and updates service
+// start time.
+func CleanupOnce() {
 	var empty interface{}
+	if cpDao == nil {
+		return
+	}
+	err := cpDao.GetRunningServices(&empty, &runningServices)
+	if err != nil {
+		glog.Warningf("Error acquiring running services: %v", err)
+		return
+	}
+	lock.Lock()
+	for serviceID, instances := range healthStatuses {
+		if strings.HasPrefix(serviceID, "isvc-") {
+			continue
+		}
+		if !isService(serviceID) {
+			delete(healthStatuses, serviceID)
+			continue
+		}
+		for instanceID, healthChecks := range instances {
+			svc := getService(serviceID, instanceID)
+			if svc == nil {
+				delete(instances, instanceID)
+				continue
+			}
+			for _, check := range healthChecks {
+				if check.StartedAt == 0 {
+					check.StartedAt = svc.StartedAt.Unix()
+				}
+			}
+		}
+	}
+	lock.Unlock()
+}
+
+// Cleanup runs CleanupOnce on a five-second cycle.
+func Cleanup(shutdown <-chan interface{}) {
 	for {
 		select {
 		case <-shutdown:
 			return
 		case <-time.After(time.Second * 5):
-			if cpDao == nil {
-				break
-			}
-			err := cpDao.GetRunningServices(&empty, &runningServices)
-			if err != nil {
-				glog.Warningf("Error acquiring running services: %v", err)
-				continue
-			}
-			lock.Lock()
-			for serviceID, instances := range healthStatuses {
-				if strings.HasPrefix(serviceID, "isvc-") {
-					continue
-				}
-				if !isService(serviceID) {
-					delete(healthStatuses, serviceID)
-					continue
-				}
-				for instanceID, healthChecks := range instances {
-					svc := getService(serviceID, instanceID)
-					if svc == nil {
-						delete(instances, instanceID)
-						continue
-					}
-					for _, check := range healthChecks {
-						if check.StartedAt == 0 {
-							check.StartedAt = svc.StartedAt.Unix()
-						}
-					}
-				}
-			}
-			lock.Unlock()
+			CleanupOnce()
 		}
 	}
 }
@@ -186,7 +193,7 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, f *facade.Facade) {
+func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, f facade.FacadeInterface) {
 	lock.Lock()
 	defer lock.Unlock()
 	serviceStatus, ok := healthStatuses[serviceID]
