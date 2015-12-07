@@ -606,6 +606,15 @@
             $scope.update();
         };
 
+        $scope.getService = function(id) {
+            return servicesFactory.get(id);
+        }
+
+        $scope.isServiceRunning = function(id) {
+            var service = servicesFactory.get(id);
+            return service.desiredState === 1;
+        }
+
         $scope.update = function(){
             if($scope.services.current){
                 $scope.services.subservices = $scope.services.current.descendents;
