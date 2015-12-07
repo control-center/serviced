@@ -13,12 +13,11 @@
 
 package mocks
 
-import (
-	"io"
+import "github.com/stretchr/testify/mock"
 
-	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/stretchr/testify/mock"
-)
+import "io"
+
+import dockerclient "github.com/fsouza/go-dockerclient"
 
 type Docker struct {
 	mock.Mock
@@ -45,7 +44,6 @@ func (_m *Docker) FindImage(image string) (*dockerclient.Image, error) {
 
 	return r0, r1
 }
-
 func (_m *Docker) SaveImages(images []string, writer io.Writer) error {
 	ret := _m.Called(images, writer)
 
@@ -58,7 +56,6 @@ func (_m *Docker) SaveImages(images []string, writer io.Writer) error {
 
 	return r0
 }
-
 func (_m *Docker) LoadImage(reader io.Reader) error {
 	ret := _m.Called(reader)
 
@@ -71,7 +68,6 @@ func (_m *Docker) LoadImage(reader io.Reader) error {
 
 	return r0
 }
-
 func (_m *Docker) PushImage(image string) error {
 	ret := _m.Called(image)
 
@@ -84,7 +80,25 @@ func (_m *Docker) PushImage(image string) error {
 
 	return r0
 }
+func (_m *Docker) PushImageAfterCommit(image string) (string, error) {
+	ret := _m.Called(image)
 
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(image)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(image)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *Docker) PullImage(image string) error {
 	ret := _m.Called(image)
 
@@ -97,7 +111,6 @@ func (_m *Docker) PullImage(image string) error {
 
 	return r0
 }
-
 func (_m *Docker) TagImage(oldImage string, newImage string) error {
 	ret := _m.Called(oldImage, newImage)
 
@@ -110,7 +123,6 @@ func (_m *Docker) TagImage(oldImage string, newImage string) error {
 
 	return r0
 }
-
 func (_m *Docker) RemoveImage(image string) error {
 	ret := _m.Called(image)
 
@@ -123,7 +135,6 @@ func (_m *Docker) RemoveImage(image string) error {
 
 	return r0
 }
-
 func (_m *Docker) FindContainer(ctr string) (*dockerclient.Container, error) {
 	ret := _m.Called(ctr)
 
@@ -145,7 +156,6 @@ func (_m *Docker) FindContainer(ctr string) (*dockerclient.Container, error) {
 
 	return r0, r1
 }
-
 func (_m *Docker) CommitContainer(ctr string, image string) (*dockerclient.Image, error) {
 	ret := _m.Called(ctr, image)
 

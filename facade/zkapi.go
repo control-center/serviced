@@ -214,6 +214,14 @@ func (z *zkf) SetRegistryImage(image *registry.Image) error {
 	return zkimgregistry.SetRegistryImage(conn, *image)
 }
 
+func (z *zkf) SetRegistryImageAfterCommit(image *registry.Image) (string, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return "", err
+	}
+	return zkimgregistry.SetRegistryImageAfterCommit(conn, *image)
+}
+
 func (z *zkf) DeleteRegistryImage(id string) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {

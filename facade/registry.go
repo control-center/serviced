@@ -41,6 +41,28 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 	return nil
 }
 
+// SetRegistryImageAfterCommit creates/updates an image in the docker registry index.
+//  This method only gets called after a commit
+func (f *Facade) SetRegistryImageAfterCommit(ctx datastore.Context, rImage *registry.Image) error {
+	if err := f.registryStore.Put(ctx, rImage); err != nil {
+		return err
+	}
+	
+	newID, err := f.zzk.SetRegistryImageAfterCommit(rImage); 
+
+	if err != nil {
+		return err
+	}
+	
+	//If the ID changed, set again with the new ID
+	if(rImage.UUID != newID) {
+		rImage.UUID = newID
+		return f.SetRegistryImage(ctx, rImage)
+	}
+
+	return nil
+}
+
 // DeleteRegistryImage removes an image from the docker registry index.
 // e.g. DeleteRegistryImage(ctx, "library/reponame:tagname")
 func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error {

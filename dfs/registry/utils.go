@@ -16,12 +16,15 @@ package registry
 import (
 	"path"
 	"time"
+	"errors"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/zenoss/glog"
 )
+
+var ErrPushAfterCommit = errors.New("Listener failed to perform post-commit push")
 
 // GetRegistryImage returns the registry image from the coordinator index.
 func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error) {
@@ -33,8 +36,7 @@ func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error
 	return &node.Image, nil
 }
 
-// SetRegistryImage inserts a registry image into the coordinator index.
-func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
+func setRegistryImage(conn client.Connection, rImage registry.Image, afterCommit bool) error {
 	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
 	leadernode := &RegistryImageLeader{HostID: "master"}
 	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
@@ -57,6 +59,8 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 		}
 		node.Image = rImage
 		node.PushedAt = time.Unix(0, 0)
+		node.AfterCommit = afterCommit
+		node.AfterCommitPushFailed = false
 		return conn.Set(imagepath, node)
 	} else if err != nil {
 		glog.Errorf("Could not create tag path %s: %s", imagepath, err)
@@ -64,6 +68,43 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	}
 	return nil
 
+}
+
+// SetRegistryImage inserts a registry image into the coordinator index.
+func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
+	return setRegistryImage(conn, rImage, false)
+}
+
+// Due to an issue in Docker 1.8.3 - 1.9.1, pushing an image may result in the master having a different imageID than the agents.
+//  the solution is to get the new ID after the push and then pass this up to the facade for a re-push.
+func SetRegistryImageAfterCommit(conn client.Connection, rImage registry.Image) (string, error) {
+	
+	if err:=setRegistryImage(conn, rImage, true); err != nil {
+		return "", err
+	}
+
+	//wait for the image to get pushed, then return the new ID
+	imagepath := path.Join(zkregistrytags, rImage.ID())
+	for {
+		var node RegistryImageNode
+		
+		evt, err := conn.GetW(imagepath, &node)
+		if err != nil {
+			glog.Errorf("Error getting node %s: %s", imagepath, err)
+			return "", err
+		}
+
+		if(node.PushedAt.Unix() != 0) {
+			return node.NewID, nil
+		} else if node.AfterCommitPushFailed {
+			return "", ErrPushAfterCommit
+		}
+
+		glog.Infof("Waiting for the image to get pushed")
+		select {
+			case <-evt:
+		}
+	}
 }
 
 // DeleteRegistryImage removes a registry image from the coordinator index.
