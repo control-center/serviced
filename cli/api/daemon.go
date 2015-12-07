@@ -411,6 +411,22 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	}
+	//set tenant volumes on nfs storagedriver
+	glog.Infoln("Finding volumes")
+	tenantVolumes := make(map[string]struct{})
+	for _, vol := range d.disk.List() {
+		glog.Infof("getting tenant volume for %s", vol)
+		if tVol, err := d.disk.GetTenant(vol); err == nil {
+			if _, found := tenantVolumes[tVol.Path()]; !found {
+				tenantVolumes[tVol.Path()] = struct{}{}
+				glog.Infof("tenant volume %s found for export", tVol.Path())
+				d.net.AddVolume(tVol.Path())
+			}
+		} else {
+			glog.Warningf("Could not get Tenant for volume %s: %v", vol, err)
+		}
+	}
+
 	if d.storageHandler, err = storage.NewServer(d.net, thisHost, options.VolumesPath); err != nil {
 		glog.Errorf("Could not start network server: %s", err)
 		return err

@@ -20,11 +20,6 @@ import (
 
 // Destroy destroys all application data from the dfs and docker registry
 func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
-	// TODO: remove nfs exports here
-	// Right now the entirety of /var/volumes is shared on NFS, but it would
-	// make more sense to create a directory /exports/serviced and then bind
-	// mount in appication volumes individually.
-	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
 	vol, err := dfs.disk.Get(tenantID)
 	if err != nil {
 		glog.Errorf("Could not get volume for tenant %s: %s", tenantID, err)
@@ -45,19 +40,28 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		return err
 	}
 
-	//TODO: do we need to stop and restart nfs for this scenario?
 	if err := dfs.net.Stop(); err != nil {
 		glog.Errorf("Could not stop nfs server: %s", err)
 		return err
 	}
-	defer dfs.net.Restart()
+	volumeRemoveFailed := true
+	dfs.net.RemoveVolume(vol.Path()); 
+	// sync will unbind the the volume from exports dir, making it not busy
+	if err:=dfs.net.Sync(); err != nil{
+		glog.Errorf("Could not sync volume destroy for tenant %s: %s", tenantID, err)
+		return err
+	}
+	defer func(){
+		if volumeRemoveFailed {
+			dfs.net.AddVolume(vol.Path())
+			dfs.net.Sync()
+		}
+	}()
+
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
 		return err
 	}
-	//TODO: should this be called before it is removed?
-	if err := dfs.net.VolumeDeletionBefore(vol.Path()); err != nil {
-		glog.Warningf("Error notifying storage of deleted volume %s: %s", vol.Path(), err)
-	}
+	volumeRemoveFailed = false
 	return nil
 }

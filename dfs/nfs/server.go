@@ -151,13 +151,13 @@ func (c *Server) SetClients(clients ...string) {
 }
 
 // VolumeCreated set that path of a volume that should be exported
-func (c *Server) VolumeCreated(volumePath string) error{
+func (c *Server) AddVolume(volumePath string) error {
 	c.volumes[volumePath] = struct{}{}
 	return nil
 }
 
 // VolumeCreated set that path of a volume that should be exported
-func (c *Server) VolumeDeletionBefore(volumePath string) error{
+func (c *Server) RemoveVolume(volumePath string) error {
 	delete(c.volumes, volumePath)
 	return nil
 }
@@ -277,21 +277,46 @@ func (c *Server) writeExports() error {
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
-	// TODO: check if edir isBindMounted and if so unmount
-
-
+	exports := make(map[string]struct{})
 	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n",
 		exportsDir, network)
 	for volume := range c.volumes {
 		volume = path.Clean(volume)
 		_, volName := path.Split(volume)
-		// TODO: as is it will be /exports/serviced_var_volumes/<tenantid>
+		exports[volName] = struct{}{}
 		exported := path.Join(edir, volName)
 		if err := bindMount(volume, exported); err != nil {
 			return err
 		}
-		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)",
+		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n",
 			exported, network)
+	}
+
+	//umount any directories not exported
+	if dirContents, err := ioutil.ReadDir(edir); err != nil {
+		glog.Warningf("could not read contents of %s; %v", edir, err)
+	} else {
+		for _, file := range dirContents {
+			if _, found := exports[file.Name()]; !found && file.IsDir() {
+				dir := path.Join(edir, file.Name())
+				mounted, err := isBindMounted(dir)
+				if err != nil {
+					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
+					continue
+				}
+				if mounted {
+					// umount the dir
+					if err := umount(dir); err != nil {
+						glog.Warningf("Error umounting exported directory %s: %v", dir, err)
+						continue
+					}
+				}
+				//remove the direcotry
+				if err := os.RemoveAll(dir); err != nil {
+					glog.Warningf("Error removing exported directory %s: %v", dir, err)
+				}
+			}
+		}
 	}
 
 	glog.Infof("serviced exports:\n %s", serviced_exports)
@@ -352,7 +377,7 @@ func bindMountImp(src, dst string) error {
 	runMountCommand := func(options ...string) ([]byte, error) {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
-		glog.Infof("running mount: %s %s",cmd, strings.Join(args, " "))
+		glog.Infof("running mount: %s %s", cmd, strings.Join(args, " "))
 		return mount.CombinedOutput()
 	}
 	out, returnErr := runMountCommand("bind")
@@ -365,7 +390,7 @@ func bindMountImp(src, dst string) error {
 			out, returnErr = runMountCommand("bind", "remount")
 		}
 	}
-	if returnErr != nil{
+	if returnErr != nil {
 		return fmt.Errorf("%s: %s", out, returnErr)
 	}
 	return nil
@@ -433,4 +458,16 @@ func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []stri
 	}
 	args = append(args, dst)
 	return args[0], args[1:]
+}
+
+var umount = umountImp
+
+func umountImp(localPath string) error {
+	glog.Infof("Unmounting %s", localPath)
+	cmd := exec.Command("umount", "-f", localPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s (%s)", string(output), err)
+	}
+	return nil
 }

@@ -24,7 +24,7 @@ func (dfs *DistributedFilesystem) Create(tenantID string) error {
 		return err
 	}
 	glog.Infof("Volume created for %s at %s", tenantID, vol.Path())
-	if err := dfs.net.VolumeCreated(vol.Path()); err != nil {
+	if err := dfs.net.AddVolume(vol.Path()); err != nil {
 		glog.Warningf("Error notifying storage of new volume %s: %s", vol.Path(), err)
 	}
 	if err := dfs.net.Sync(); err != nil {

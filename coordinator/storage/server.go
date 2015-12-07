@@ -39,10 +39,10 @@ type StorageDriver interface {
 	//TODO: remove Restart and Stop
 	Restart() error
 	Stop() error
-	// VolumeCreated notify storage driver that a new volume has been created at path
-	VolumeCreated(path string) error
-	// VolumeDeletionBefore notify storage driver that volume at path is going to be deleted
-	VolumeDeletionBefore(path string) error
+	// AddVolume notify storage driver that volume at path is available for sharing
+	AddVolume(path string) error
+	// RemoveVolume notify storage driver that volume at path is should not be shared
+	RemoveVolume(path string) error
 }
 
 // NewServer returns a Server object to manage the exported file system
