@@ -235,6 +235,16 @@
             return location.protocol + "//" + host + port;
         };
 
+        // Returns the string "Application Not Started" (localized) for the popup
+        $scope.app_unavail = function(status) {
+            return $translate.instant('application') + " " + status;
+        };
+
+        // Return a string indicating the vhost is down.
+        $scope.vhost_down = function() {
+            return $translate.instant('container_down');
+        };
+
         $scope.indent = function(depth){
             return {'padding-left': (15*depth) + "px"};
         };

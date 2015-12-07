@@ -64,7 +64,11 @@
                 <a href="#/services/{{vhost.ApplicationId}}" class="link" ng-click="routeToService(vhost.ApplicationId, $event)">{{vhost.Application}}</a>
             </td>
             <td data-title="'vhost_service_endpoint'|translate" sortable="'ServiceEndpoint'">{{vhost.ServiceEndpoint}}</td>
-            <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'"><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
+            <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'">
+                <health-status ng-if="services.current.desiredState === 0" data-status="services.current.status" content="{{app_unavail(services.current.status.description)}}">{{vhost_url(vhost.Name)}}</health-status>
+                <health-status ng-if="services.current.desiredState === 1 && !vhost.Enabled" content="{{vhost_down()}}">{{vhost_url(vhost.Name)}}</health-status>
+                <a ng-if="services.current.desiredState === 1 && vhost.Enabled" href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a>
+            </td>
             <td data-title="'actions'|translate">
                 <button ng-class="{disabled: vhost.Enabled }" ng-click="clickVHostEnable(vhost)" class="btn btn-link action">
                     <i class="glyphicon glyphicon-play"></i>
