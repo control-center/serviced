@@ -27,7 +27,7 @@
                 "cancel": {
                     label: "Cancel",
                     icon: "glyphicon-remove",
-                    classes: "btn-link",
+                    classes: "btn-link minor",
                     action: function(){
                         this.close();
                     }
@@ -135,14 +135,14 @@
                         $buttonClone,
                         buttonContent, startWidth, endWidth;
 
-                    // button wasnt found 
+                    // button wasnt found
                     if(!$button.length){
                         return;
                     }
 
                     // explicitly set width so it can be animated
                     startWidth = $button.width();
-                    
+
                     // clone the button and set the ending text so the
                     // explicit width can be calculated
                     $buttonClone = $button.clone().width("auto").text(disabledText).appendTo("body");
@@ -166,7 +166,7 @@
                     };
                 }
             };
-            
+
 
 
 
@@ -195,7 +195,7 @@
                 // TODO - default config object
                 config.actions = config.actions || [];
                 config.onShow = config.onShow || function(){};
-                config.onHide = config.onHide || function(){}; 
+                config.onHide = config.onHide || function(){};
                 var model = config.model || {};
 
                 // if the template was provided, use that
