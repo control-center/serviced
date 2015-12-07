@@ -235,16 +235,6 @@
             return location.protocol + "//" + host + port;
         };
 
-        // Return a string indicating why the app/container link is disabled.
-        $scope.vhostDown = function(service) {
-            // If the application is down, return the app status (localized).
-            if (service.desiredState === 0) {
-                return $translate.instant('application') + " " + service.status.description;
-            }
-            // .. otherwise, the container is down.
-            return $translate.instant('container_down');
-        };
-
         $scope.indent = function(depth){
             return {'padding-left': (15*depth) + "px"};
         };
@@ -615,6 +605,15 @@
             $scope.services.current = servicesFactory.get($scope.params.serviceId);
             $scope.update();
         };
+
+        $scope.getService = function(id) {
+            return servicesFactory.get(id);
+        }
+
+        $scope.isServiceRunning = function(id) {
+            var service = servicesFactory.get(id);
+            return service.desiredState === 1;
+        }
 
         $scope.update = function(){
             if($scope.services.current){

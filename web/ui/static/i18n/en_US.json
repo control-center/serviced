@@ -360,6 +360,7 @@
     "vhost_names": "Virtual Host Names",
     "vhost_service_endpoint": "Endpoint",
     "vhost_url": "URL",
+    "vhost_unavailable" : "Endpoint unavailable",
     "view_licenses": "View Licenses",
     "warning": "Warning",
     "warning_remove_service": "This action will permanently delete the running application",

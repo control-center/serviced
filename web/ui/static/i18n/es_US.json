@@ -341,6 +341,7 @@
     "vhost_names": "Nombre", 
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
+    "vhost_unavailable" : "Punto do Destino no disponible",
     "view_licenses": "Ver licencias",
     "warning": "Aviso",
     "warning_remove_service": "Esto eliminar\u00e1 la aplicación en ejecuci\u00f3n, esta accion no podra ser revertida.",
