@@ -58,6 +58,19 @@ func (_m *MockFacade) SetRegistryImage(ctx datastore.Context, rImage *registryst
 	return r0
 }
 
+func (_m *MockFacade) SetRegistryImageAfterCommit(ctx datastore.Context, rImage *registrystore.Image) error {
+	ret := _m.Called(ctx, rImage)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, *registrystore.Image) error); ok {
+		r0 = rf(ctx, rImage)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 func (_m *MockFacade) DeleteRegistryImage(ctx datastore.Context, image string) error {
 	ret := _m.Called(ctx, image)
 

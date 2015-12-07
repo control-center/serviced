@@ -146,18 +146,6 @@ func (_m *ZZK) GetActiveHosts(poolID string, hosts *[]string) error {
 
 	return r0
 }
-func (_m *ZZK) AddResourcePool(_pool *pool.ResourcePool) error {
-	ret := _m.Called(_pool)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*pool.ResourcePool) error); ok {
-		r0 = rf(_pool)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *ZZK) UpdateResourcePool(_pool *pool.ResourcePool) error {
 	ret := _m.Called(_pool)
 
@@ -239,6 +227,25 @@ func (_m *ZZK) SetRegistryImage(rImage *registry.Image) error {
 
 	return r0
 }
+func (_m *ZZK) SetRegistryImageAfterCommit(rImage *registry.Image) (string, error) {
+	ret := _m.Called(rImage)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(*registry.Image) string); ok {
+		r0 = rf(rImage)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*registry.Image) error); ok {
+		r1 = rf(rImage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *ZZK) DeleteRegistryImage(id string) error {
 	ret := _m.Called(id)
 
@@ -251,12 +258,12 @@ func (_m *ZZK) DeleteRegistryImage(id string) error {
 
 	return r0
 }
-func (_m *ZZK) DeleteRegistryLibrary(id string) error {
-	ret := _m.Called(id)
+func (_m *ZZK) DeleteRegistryLibrary(tenantID string) error {
+	ret := _m.Called(tenantID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(id)
+		r0 = rf(tenantID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -287,8 +294,7 @@ func (_m *ZZK) UnlockServices(svcs []service.Service) error {
 
 	return r0
 }
-
-func (_m *ZZK) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error {
+func (_m *ZZK) GetServiceEndpoints(tenantID string, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error {
 	ret := _m.Called(tenantID, serviceID, endpoints)
 
 	var r0 error

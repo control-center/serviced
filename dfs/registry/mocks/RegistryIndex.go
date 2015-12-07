@@ -54,6 +54,18 @@ func (_m *RegistryIndex) PushImage(image string, uuid string) error {
 
 	return r0
 }
+func (_m *RegistryIndex) PushImageAfterCommit(image string, uuid string) error {
+	ret := _m.Called(image, uuid)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(image, uuid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *RegistryIndex) RemoveImage(image string) error {
 	ret := _m.Called(image)
 
