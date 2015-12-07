@@ -21,7 +21,7 @@
                 var statusObj = service.status;
                 var popoverObj;
                 var rollup = statusObj.statusRollup;
-                var content = undefined;
+                var content;
 
                 // If the service isn't running..
                 if (!vhost.Enabled || rollup.bad > 0 || rollup.down > 0) {
