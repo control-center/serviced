@@ -43,6 +43,9 @@ const (
 
 func (s *HealthSuite) TestRegisterAndGetHealthCheck(c *C) {
 	f := &facade_mocks.FacadeInterface{}
+	cdao := &dao_mocks.ControlPlane{}
+	hmap := health.NewHealthStatuses(cdao, f)
+
 	serviceID := "abc123def456"
 	instanceID := "0"
 	name := "health_test"
@@ -50,8 +53,8 @@ func (s *HealthSuite) TestRegisterAndGetHealthCheck(c *C) {
 	healthChecks := map[string]domain.HealthCheck{name: domain.HealthCheck{}}
 	f.On("GetHealthChecksForService", nil, serviceID).Return(healthChecks, nil)
 
-	health.RegisterHealthCheck(serviceID, instanceID, name, passed, f)
-	result := health.GetHealthStatusesForService(serviceID)
+	hmap.SetHealthStatus(serviceID, instanceID, name, passed)
+	result := hmap.GetHealthStatusesForService(serviceID)
 
 	_, ok := result[instanceID]
 	c.Assert(ok, Equals, true)
@@ -60,8 +63,8 @@ func (s *HealthSuite) TestRegisterAndGetHealthCheck(c *C) {
 	c.Assert(status.Status, Equals, passed)
 
 	invalidhealthcheck := fmt.Sprintf("%s_x", name)
-	health.RegisterHealthCheck(serviceID, instanceID, invalidhealthcheck, passed, f)
-	result = health.GetHealthStatusesForService(serviceID)
+	hmap.SetHealthStatus(serviceID, instanceID, invalidhealthcheck, passed)
+	result = hmap.GetHealthStatusesForService(serviceID)
 	_, ok = result[instanceID]
 	c.Assert(ok, Equals, true)
 	_, ok = result[instanceID][invalidhealthcheck]
@@ -70,6 +73,9 @@ func (s *HealthSuite) TestRegisterAndGetHealthCheck(c *C) {
 
 func (s *HealthSuite) TestCleanup(c *C) {
 	f := &facade_mocks.FacadeInterface{}
+	cdao := &dao_mocks.ControlPlane{}
+	hmap := health.NewHealthStatuses(cdao, f)
+
 	serviceID1 := "abc123def456"
 	serviceID2 := "ghi789jkl012"
 	instanceID := "0"
@@ -80,26 +86,22 @@ func (s *HealthSuite) TestCleanup(c *C) {
 	}
 
 	f.On("GetHealthChecksForService", nil, serviceID1).Return(healthChecks, nil)
-	health.RegisterHealthCheck(serviceID1, instanceID, name, passed, f)
+	hmap.SetHealthStatus(serviceID1, instanceID, name, passed)
 
 	f.On("GetHealthChecksForService", nil, serviceID2).Return(healthChecks, nil)
-	health.RegisterHealthCheck(serviceID2, instanceID, name, passed, f)
+	hmap.SetHealthStatus(serviceID2, instanceID, name, passed)
 
-	result1 := health.GetHealthStatusesForService(serviceID1)
+	result1 := hmap.GetHealthStatusesForService(serviceID1)
 	_, ok := result1[instanceID]
 	c.Assert(ok, Equals, true)
 	_, ok = result1[instanceID][name]
 	c.Assert(ok, Equals, true)
 
-	result2 := health.GetHealthStatusesForService(serviceID2)
+	result2 := hmap.GetHealthStatusesForService(serviceID2)
 	_, ok = result2[instanceID]
 	c.Assert(ok, Equals, true)
 	_, ok = result2[instanceID][name]
 	c.Assert(ok, Equals, true)
-
-	cdao := &dao_mocks.ControlPlane{}
-	health.SetDao(cdao)
-	defer health.SetDao(nil)
 
 	svcs := []dao.RunningService{
 		dao.RunningService{
@@ -112,13 +114,13 @@ func (s *HealthSuite) TestCleanup(c *C) {
 		*s = svcs
 	})
 
-	health.CleanupOnce()
+	hmap.CleanupOnce()
 
-	result1 = health.GetHealthStatusesForService(serviceID1)
+	result1 = hmap.GetHealthStatusesForService(serviceID1)
 	_, ok = result1[instanceID]
 	c.Assert(ok, Equals, false)
 
-	result2 = health.GetHealthStatusesForService(serviceID2)
+	result2 = hmap.GetHealthStatusesForService(serviceID2)
 	_, ok = result2[instanceID]
 	c.Assert(ok, Equals, true)
 

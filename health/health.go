@@ -31,12 +31,7 @@ import (
 )
 
 var (
-	// Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
-	healthStatuses = make(map[string]map[string]map[string]*domain.HealthCheckStatus)
-	cpDao          dao.ControlPlane
-	exitChannel    = make(chan bool)
-	lock           = &sync.RWMutex{}
-	healthMap      *HealthStatusMap
+	healthMap *HealthStatusMap
 )
 
 func now() int64 {
@@ -240,17 +235,11 @@ func (m *HealthStatusMap) Cleanup(shutdown <-chan interface{}) {
 	}
 }
 
-// Stores the dao.ControlPlane object created in daemon.go for use in this module.
-func Initialize(d dao.ControlPlane, f facade.FacadeInterface, shutdown <-chan interface{}) {
-	healthMap = NewHealthStatuses(d, f)
-	go healthMap.Cleanup(shutdown)
-}
-
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func (m *HealthStatusMap) RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	lock.RLock()
-	defer lock.RUnlock()
 	isvcNames := isvcs.Mgr.GetServiceNames()
+	m.RLock()
+	defer m.RUnlock()
 	for _, name := range isvcNames {
 		iname := "isvc-" + name
 		status, err := isvcs.Mgr.GetHealthStatus(name)
@@ -258,12 +247,22 @@ func (m *HealthStatusMap) RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Re
 			glog.Warningf("Error acquiring health status for %s: %s", name, err)
 			continue
 		}
-		healthStatuses[iname] = map[string]map[string]*domain.HealthCheckStatus{}
-		healthStatuses[iname]["0"] = map[string]*domain.HealthCheckStatus{}
+		m.statuses[iname] = map[string]map[string]*domain.HealthCheckStatus{}
+		m.statuses[iname]["0"] = map[string]*domain.HealthCheckStatus{}
 		for _, status2 := range status.HealthStatuses {
-			healthStatuses[iname]["0"][status2.Name] = &status2
+			m.statuses[iname]["0"][status2.Name] = &status2
 		}
 	}
-	packet := messagePacket{now(), healthStatuses}
+	packet := messagePacket{now(), m.statuses}
 	w.WriteJson(&packet)
+}
+
+// Stores the dao.ControlPlane object created in daemon.go for use in this module.
+func Initialize(d dao.ControlPlane, f facade.FacadeInterface, shutdown <-chan interface{}) {
+	healthMap = NewHealthStatuses(d, f)
+	go healthMap.Cleanup(shutdown)
+}
+
+func RegisterHealthCheck(serviceID, instanceID, name, passed string, _ interface{}) {
+	healthMap.SetHealthStatus(serviceID, instanceID, name, passed)
 }
