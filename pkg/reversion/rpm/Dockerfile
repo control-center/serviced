@@ -6,6 +6,10 @@ MAINTAINER Zenoss <dev@zenoss.com>
 
 RUN yum clean all
 
+# Add the docker repo
+RUN echo -e "[dockerrepo]\nname=Docker Repository\nbaseurl=https://yum.dockerproject.org/repo/main/centos/7\nenabled=1\ngpgcheck=1\ngpgkey=https://yum.dockerproject.org/gpg" > /etc/yum.repos.d/docker.repo
+RUN yum makecache fast
+
 RUN yum install -y wget rpm-build
 
 # Install the rpmrebuild tool
