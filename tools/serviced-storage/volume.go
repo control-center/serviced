@@ -14,9 +14,12 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/jessevdk/go-flags"
 	"os/exec"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/volume"
+	"github.com/jessevdk/go-flags"
+
 )
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
@@ -42,30 +45,47 @@ type VolumeRemove struct {
 		Name string `description:"Name of the volume to remove"`
 	} `positional-args:"yes" required:"yes"`
 }
-// VolumeSync is the subcommand for syncing two volumes
-type VolumeSync struct {
-	Args struct {
-		DestinationPath flags.Filename `description:"Path of the destionation" long:"destination-path" short:"p" required:"yes" `
-		SourcePath flags.Filename      `description:"Path of the source driver" long:"source" short:"s" required:"yes"`
-	}
+
+// DriverSync is the subcommand for syncing two volumes
+type DriverSync struct {
+	Create bool   `description:"Indicates that the destination driver should be created" long:"create" short:"c"`
+	Type   string `description:"Type of the destination driver (btrfs|devicemapper|rsync)" long:"type" short:"t"`
+	Args   struct {
+		SourcePath      flags.Filename `description:"Path of the source driver"`
+		DestinationPath flags.Filename `description:"Path of the destionation"`
+	} `positional-args:"yes" required:"yes"`
 }
 
 //Execute syncs to volume
-func (c *VolumeSync) Execute(args []string) error {
+func (c *DriverSync) Execute(args []string) error {
 	App.initializeLogging()
-	sourceDirectory := GetDefaultDriver(string(c.Args.SourcePath))
-	sourceDriver, err := InitDriverIfExists(sourceDirectory)
+	
+	destinationPath := string(c.Args.DestinationPath)
+	if c.Create {
+		destinationDriverType, err := volume.StringToDriverType(c.Type)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Infof("Initing driver for path %s")
+		initStatus := volume.InitDriver(destinationDriverType, destinationPath, App.Options.Options)
+		if initStatus != nil {
+			log.Fatal(initStatus)
+		}
+	}
+	destinationDirectory := GetDefaultDriver(destinationPath)
+	destinationDriver, err := InitDriverIfExists(destinationDirectory)
 	if err != nil {
 		log.Fatal(err)
 	}
-	destinationDirectory := GetDefaultDriver(string(c.Args.DestinationPath))
-	destinationDriver, err := InitDriverIfExists(destinationDirectory)
+	sourceDirectory := GetDefaultDriver(string(c.Args.SourcePath))
+	sourceDriver, err := InitDriverIfExists(sourceDirectory)
 	if err != nil {
 		log.Fatal(err)
 	}
 	sourceVolumes := sourceDriver.List()
 	for i := 0; i < len(sourceVolumes); i++ {
 		volumeName := sourceVolumes[i]
+		log.Infof("Syncing data from source volume %s", volumeName)
 		sourceVolume, err := sourceDriver.Get(volumeName)
 		if err != nil {
 			log.Fatal(err)
@@ -83,7 +103,7 @@ func rsync(sourcePath string, destinationPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	rsyncArgv := []string{"-a", sourcePath , destinationPath}
+	rsyncArgv := []string{"-a", sourcePath, destinationPath}
 	rsync := exec.Command(rsyncBin, rsyncArgv...)
 	output, err := rsync.CombinedOutput()
 	if err != nil {
@@ -106,10 +126,10 @@ func createVolume(path string, name string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	logger := log.WithFields(log.Fields {
-		"directory":  driver.Root(),
-		"type":       driver.DriverType(),
-		"volume":     name,
+	logger := log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"type":      driver.DriverType(),
+		"volume":    name,
 	})
 	logger.Info("Creating volume")
 	vol, err := driver.Create(name)
