@@ -57,28 +57,18 @@ type command interface {
 	CombinedOutput() ([]byte, error)
 }
 
-type Driver interface {
-	// Installed determines if the driver is installed on the system
-	Installed() error
-	// Info provides information about the mounted drive
-	// TODO: make output more universal
-	Info(localPath string, info *proc.NFSMountInfo) error
-	// Mount mounts the remote path to local
-	Mount(remotePath, localPath string, timeout time.Duration) error
-	// Unmount force unmounts a volume
-	Unmount(localPath string) error
-}
 
-type NFSDriver struct{}
 
-func (d *NFSDriver) Installed() error {
+// Installed determines if the driver is installed on the system
+func Installed() error {
 	if _, err := lookPath(mountNfs4); err != nil {
 		return ErrNfsMountingUnsupported
 	}
 	return nil
 }
 
-func (d *NFSDriver) Info(localPath string, info *proc.NFSMountInfo) error {
+// Info provides information about the mounted drive
+func Info(localPath string, info *proc.NFSMountInfo) error {
 	minfo, err := proc.GetNFSVolumeInfo(localPath)
 	if minfo != nil {
 		*info = *minfo
@@ -86,7 +76,8 @@ func (d *NFSDriver) Info(localPath string, info *proc.NFSMountInfo) error {
 	return err
 }
 
-func (d *NFSDriver) Mount(remotePath, localPath string, timeout time.Duration) error {
+// Mount mounts the remote path to local
+func doMount(remotePath, localPath string, timeout time.Duration) error {
 	glog.Infof("Mounting %s -> %s", remotePath, localPath)
 	cmd := commandFactory("mount.nfs4", "-o", "intr", remotePath, localPath)
 	errC := make(chan error, 1)
@@ -112,7 +103,8 @@ func (d *NFSDriver) Mount(remotePath, localPath string, timeout time.Duration) e
 	}
 }
 
-func (d *NFSDriver) Unmount(localPath string) error {
+// Unmount force unmounts a volume
+func Unmount(localPath string) error {
 	glog.Infof("Unmounting %s", localPath)
 	cmd := commandFactory("umount", "-f", localPath)
 	output, err := cmd.CombinedOutput()
@@ -123,9 +115,10 @@ func (d *NFSDriver) Unmount(localPath string) error {
 }
 
 // Mount attempts to mount the nfsPath to the localPath
-func Mount(driver Driver, remotePath, localPath string) error {
+func Mount(remotePath, localPath string) error {
+
 	// check if the driver is installed
-	if err := driver.Installed(); err != nil {
+	if err := Installed(); err != nil {
 		return err
 	}
 
@@ -148,17 +141,17 @@ func Mount(driver Driver, remotePath, localPath string) error {
 	}
 
 	var mountInfo proc.NFSMountInfo
-	mountError := driver.Info(localPath, &mountInfo)
+	mountError := Info(localPath, &mountInfo)
 	if mountError == proc.ErrMountPointNotFound {
 		// the mountpoint is not found so try to mount
 		glog.Infof("Creating new mount for %s -> %s", remotePath, localPath)
-		if err := driver.Mount(remotePath, localPath, time.Second*30); err != nil {
+		if err := doMount(remotePath, localPath, time.Second*30); err != nil {
 			glog.Errorf("Error while creating mount point for %s -> %s: %s", remotePath, localPath, err)
 			return err
 		}
 
 		// get the mount point
-		mountError = driver.Info(localPath, &mountInfo)
+		mountError = Info(localPath, &mountInfo)
 	}
 
 	if mountError != nil {
@@ -182,7 +175,7 @@ func Mount(driver Driver, remotePath, localPath string) error {
 	if verr.HasError() {
 		// the mountpoint is stale or wrong, so unmount
 		glog.Warningf("Stale mount point at %s (mounting %s)", localPath, remotePath)
-		if err := driver.Unmount(localPath); err != nil {
+		if err := Unmount(localPath); err != nil {
 			glog.Errorf("Could not unmount %s: %s", localPath, err)
 		}
 		return verr

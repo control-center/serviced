@@ -20,7 +20,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -29,6 +31,7 @@ var (
 )
 
 type NFSDriver struct {
+	sync.Mutex
 	root string
 }
 
@@ -87,6 +90,17 @@ func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 		driver: d,
 		tenant: getTenant(volumeName),
 	}
+	//actual NFS mount
+	d.Lock()
+	defer d.Unlock()
+	if storageClient, err := storage.GetClient(); err != nil {
+		return nil, err
+	} else {
+		if err = storageClient.Mount(volumeName, volumePath); err != nil {
+			return nil, err
+		}
+	}
+
 	return volume, nil
 }
 
