@@ -45,18 +45,10 @@ type VolumeRemove struct {
 // VolumeSync is the subcommand for syncing two volumes
 type VolumeSync struct {
 	Args struct {
-		DestinationPath flags.Filename	`description:"Path of the destionation" long:"destination-path" short:"p" required:"yes" `
-		SourcePath flags.Filename				`description:"Path of the source driver" long:"source" short:"s" required:"yes"`
+		DestinationPath flags.Filename `description:"Path of the destionation" long:"destination-path" short:"p" required:"yes" `
+		SourcePath flags.Filename      `description:"Path of the source driver" long:"source" short:"s" required:"yes"`
 	}
 }
-/*
-DestinationName string	 				`description:"Destination volume name" long:"destination-name" short:"dn" required:"yes"`
-DestinationPath flags.Filename	`description:"Path of the destionation" long:"destination-path" short:"dp" required:"yes" `
-SourcePath flags.Filename				`description:"Path of the source driver" long:"source" short:"s" required:"yes"`
-Create bool											`description:"Should we create the destination volume" long:"create" short:"c"`
-
-*/
-
 
 //Execute syncs to volume
 func (c *VolumeSync) Execute(args []string) error {
@@ -115,9 +107,9 @@ func createVolume(path string, name string) {
 		log.Fatal(err)
 	}
 	logger := log.WithFields(log.Fields {
-		"directory": 	driver.Root(),
-		"type": 			driver.DriverType(),
-		"volume":			name,
+		"directory":  driver.Root(),
+		"type":       driver.DriverType(),
+		"volume":     name,
 	})
 	logger.Info("Creating volume")
 	vol, err := driver.Create(name)
@@ -125,7 +117,7 @@ func createVolume(path string, name string) {
 		logger.Fatal(err)
 	}
 	log.WithFields(log.Fields{
-		"mount":	vol.Path(),
+		"mount": vol.Path(),
 	}).Info("Volume Mounted")
 }
 
