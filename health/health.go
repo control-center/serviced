@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
@@ -36,6 +37,7 @@ var (
 	runningServices []dao.RunningService
 	exitChannel     = make(chan bool)
 	lock            = &sync.RWMutex{}
+	healthMap       = NewHealthStatuses()
 )
 
 func init() {
@@ -58,20 +60,65 @@ type messagePacket struct {
 
 type healthStatusMap struct {
 	sync.RWMutex
-	statuses map[string]map[string]map[string]*domain.HealthCheckStatus
+	cpDao        dao.ControlPlane
+	facade       facade.FacadeInterface
+	serviceLocks utils.MutexMap
+	statuses     map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
-func NewHealthStatuses() healthStatusMap {
-	return healthStatusMap{
-		statuses: make(map[string]map[string]map[string]*domain.HealthCheckStatus),
+func NewHealthStatuses(cpDao dao.ControlPlane, f facade.FacadeInterface) *healthStatusMap {
+	return &healthStatusMap{
+		cpDao:        cpDao,
+		facade:       f,
+		statuses:     make(map[string]map[string]map[string]*domain.HealthCheckStatus),
+		serviceLocks: utils.NewMutexMap(),
 	}
+}
+
+func (m *healthStatusMap) SetHealthStatus(serviceID, instanceID, healthCheckName, status string, interval float64) {
+	if healthCheckName == "__instance_shutdown" {
+		m.deleteServiceInstance(serviceID, instanceID)
+		return
+	}
+	instance := m.getServiceInstance(serviceID, instanceID)
+}
+
+func (m *healthStatusMap) deleteServiceInstance(serviceID, instanceID string) {
+	m.serviceLocks.LockKey(serviceID)
+	defer m.serviceLocks.UnlockKey(serviceID)
+	serviceStatus, ok := healthStatuses[serviceID]
+	if !ok {
+		serviceStatus = make(map[string]map[string]*domain.HealthCheckStatus)
+		healthStatuses[serviceID] = serviceStatus
+	}
+	delete(serviceStatus, instanceID)
+}
+
+func (m *healthStatusMap) getServiceInstance(serviceID, instanceID string) map[string]*domain.HealthCheckStatus {
+	m.serviceLocks.LockKey(serviceID)
+	defer m.serviceLocks.UnlockKey(serviceID)
+	serviceStatus, ok := healthStatuses[serviceID]
+	if !ok {
+		serviceStatus = make(map[string]map[string]*domain.HealthCheckStatus)
+		healthStatuses[serviceID] = serviceStatus
+	}
+	instanceStatus, ok := serviceStatus[instanceID]
+	if !ok {
+		instanceStatus = make(map[string]*domain.HealthCheckStatus)
+		serviceStatus[instanceID] = instanceStatus
+	}
+	return instanceStatus
+}
+
+func (m *healthStatusMap) initializeHealthChecks(serviceID, instanceID string, f facade.FacadeInterface) {
+
 }
 
 // Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.
 func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
-	m.RLock()
-	defer m.RUnlock()
-	//make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
+	m.serviceLocks.RLockKey(serviceID)
+	defer m.serviceLocks.RUnlockKey(serviceID)
+	// Make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
 	result := make(map[string]map[string]domain.HealthCheckStatus, len(healthStatuses[serviceID]))
 	for instanceID, healthChecks := range m.statuses[serviceID] {
 		result[instanceID] = make(map[string]domain.HealthCheckStatus, len(healthChecks))
@@ -84,8 +131,6 @@ func (m *healthStatusMap) GetHealthStatusesForService(serviceID string) map[stri
 }
 
 func GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
-	lock.RLock()
-	defer lock.RUnlock()
 
 	//make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
 	result := make(map[string]map[string]domain.HealthCheckStatus, len(healthStatuses[serviceID]))
