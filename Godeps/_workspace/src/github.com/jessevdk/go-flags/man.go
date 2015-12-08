@@ -38,8 +38,12 @@ func formatForMan(wr io.Writer, s string) {
 
 func writeManPageOptions(wr io.Writer, grp *Group) {
 	grp.eachGroup(func(group *Group) {
+		if group.Hidden {
+			return
+		}
+
 		for _, opt := range group.options {
-			if !opt.canCli() {
+			if !opt.canCli() || opt.Hidden {
 				continue
 			}
 
@@ -91,10 +95,14 @@ func writeManPageOptions(wr io.Writer, grp *Group) {
 }
 
 func writeManPageSubcommands(wr io.Writer, name string, root *Command) {
-	commands := root.sortedCommands()
+	commands := root.sortedVisibleCommands()
 
 	for _, c := range commands {
 		var nn string
+
+		if c.Hidden {
+			continue
+		}
 
 		if len(name) != 0 {
 			nn = name + " " + c.Name
@@ -141,7 +149,7 @@ func writeManPageCommand(wr io.Writer, name string, root *Command, command *Comm
 	}
 
 	if len(usage) > 0 {
-		fmt.Fprintf(wr, "\n\\fBUsage\\fP: %s %s\n\n", manQuote(pre), manQuote(usage))
+		fmt.Fprintf(wr, "\n\\fBUsage\\fP: %s %s\n.TP\n", manQuote(pre), manQuote(usage))
 	}
 
 	if len(command.Aliases) > 0 {
@@ -178,7 +186,7 @@ func (p *Parser) WriteManPage(wr io.Writer) {
 
 	writeManPageOptions(wr, p.Command.Group)
 
-	if len(p.commands) > 0 {
+	if len(p.visibleCommands()) > 0 {
 		fmt.Fprintln(wr, ".SH COMMANDS")
 
 		writeManPageSubcommands(wr, "", p.Command)
