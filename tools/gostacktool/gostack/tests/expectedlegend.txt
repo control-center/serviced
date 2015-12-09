@@ -1,0 +1,64 @@
+goroutine Go1 [XXXX]:
+net.(*pollDesc).Wait(0xc2080a4ae0, 0x72, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080a4ae0, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc2080a4a80, 0x0, 0x7f906a6a13c8, 0xc2081795f0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080fc320, 0x76c1d4, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net/http.tcpKeepAliveListener.Accept(0xc2080fc320, 0x0, 0x0, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1976 +0x4c
+net/http.(*Server).Serve(0xc2081ec060, 0x7f906a6a5fa0, 0xc2080fc320, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1728 +0x92
+net/http.(*Server).ListenAndServe(0xc2081ec060, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1718 +0x154
+net/http.ListenAndServe(0xd02270, 0x6, 0x7f906a6aa6c0, 0xc20817d0c0, 0x0, 0x0)
+   /home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1808 +0xba
+github.com/control-center/serviced/cli/api.func·014()
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:672 +0xaa
+created by github.com/control-center/serviced/cli/api.(*daemon).startAgent
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:673 +0xcd8
+
+goroutine Go2 [XXXX]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070900)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine Go3 [XXXX]:
+github.com/control-center/serviced/utils.RunTTL(0x7f906a6ab210, 0x13ce028, 0xc208031380, 0xdf8475800, 0x4e94914f0000)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/utils/ttl.go:38 +0x355
+github.com/control-center/serviced/commons/docker.RunTTL(0xc208031380, 0xdf8475800, 0x4e94914f0000)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/ttl.go:28 +0x87
+github.com/control-center/serviced/node.func·010()
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:788 +0xa4
+created by github.com/control-center/serviced/node.(*HostAgent).Start
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:791 +0x2ba
+
+goroutine Go4 [XXXX]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208edd760, 0x19)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208edd760, 0x19)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine Go5 [XXXX]:
+github.com/control-center/serviced/proxy.(*TCPMux).loop(0xc20807cf40)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:92 +0x643
+created by github.com/control-center/serviced/proxy.NewTCPMux
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:47 +0x179
+
+goroutine Go6 [XXXX]:
+github.com/fsouza/go-dockerclient.(*Client).do(0xc2081b2120, 0xd0ab10, 0x4, 0xc20921db00, 0x51, 0x0, 0x0, 0x0, 0x0, 0x0, ...)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/client.go:373 +0x957
+github.com/fsouza/go-dockerclient.(*Client).WaitContainer(0xc2081b2120, 0xc209293a00, 0x40, 0x0, 0x0, 0x0)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/container.go:817 +0xf1
+github.com/control-center/serviced/commons/docker.(*Client).WaitContainer(0xc208a7a650, 0xc209293a00, 0x40, 0x13ce028, 0x0, 0x0)
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/client.go:179 +0x51
+github.com/control-center/serviced/commons/docker.func·003()
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:406 +0x65
+created by github.com/control-center/serviced/commons/docker.(*Container).Wait
+   /home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:408 +0x1ec
+
