@@ -65,7 +65,7 @@
             </td>
             <td data-title="'vhost_service_endpoint'|translate" sortable="'ServiceEndpoint'">{{vhost.ServiceEndpoint}}</td>
             <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'">
-                <health-status ng-if="!isServiceRunning(vhost.ApplicationId) || !vhost.Enabled" data-vhost="vhost" service="getService(vhost.ApplicationId)">{{vhost_url(vhost.Name)}}</health-status>
+                <health-status ng-if="!isServiceRunning(vhost.ApplicationId) || !vhost.Enabled">{{vhost_url(vhost.Name)}}</health-status>
                 <a ng-if="isServiceRunning(vhost.ApplicationId) && vhost.Enabled" href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a>
             </td>
             <td data-title="'actions'|translate">
