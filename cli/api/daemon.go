@@ -768,6 +768,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs := dfs.NewDistributedFilesystem(d.docker, index, d.reg, d.disk, d.net, time.Duration(options.MaxDFSTimeout)*time.Second)
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
+	f.SetIsvcsPath(options.IsvcsPath)
 	return f
 }
 
