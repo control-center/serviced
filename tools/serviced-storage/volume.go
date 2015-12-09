@@ -15,6 +15,8 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/volume"
+	"github.com/docker/docker/pkg/units"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -39,6 +41,15 @@ type VolumeRemove struct {
 	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
 	Args struct {
 		Name string `description:"Name of the volume to remove"`
+	} `positional-args:"yes" required:"yes"`
+}
+
+// VolumeResize is the subcommand for enlarging an existing devicemapper volume
+type VolumeResize struct {
+	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
+	Args struct {
+		Name string `description:"Name of the volume to mount"`
+		Size string `description:"New size of the volume"`
 	} `positional-args:"yes" required:"yes"`
 }
 
@@ -106,10 +117,40 @@ func (c *VolumeRemove) Execute(args []string) error {
 	if !driver.Exists(c.Args.Name) {
 		logger.Fatal("Volume does not exist")
 	}
-	logger.Info("Removeing volume")
+	logger.Info("Removing volume")
 	if err := driver.Remove(c.Args.Name); err != nil {
 		logger.Fatal(err)
 	}
 	logger.Info("Volume deleted")
+	return nil
+}
+
+// Resize increases the space available to an existing volume
+func (c *VolumeResize) Execute(args []string) error {
+	App.initializeLogging()
+	directory := GetDefaultDriver(string(c.Path))
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"volume":    c.Args.Name,
+		"type":      driver.DriverType(),
+	})
+	if driver.DriverType() != volume.DriverTypeDeviceMapper {
+		logger.Fatal("Only devicemapper volumes can be resized")
+	}
+	if !driver.Exists(c.Args.Name) {
+		logger.Fatal("Volume does not exist")
+	}
+	size, err := units.RAMInBytes(c.Args.Size)
+	if err != nil {
+		return err
+	}
+	if err := driver.Resize(c.Args.Name, uint64(size)); err != nil {
+		logger.Fatal(err)
+	}
+	logger.Info("Volume resized")
 	return nil
 }

@@ -106,6 +106,8 @@ type Driver interface {
 	// Remove removes an existing device. If the device doesn't exist, the
 	// removal is a no-op
 	Remove(volumeName string) error
+	// Resize resizes an existing volume.
+	Resize(volumeName string, size uint64) error
 	// GetTenant returns the parent volume or the volume if it is the
 	// parent.
 	GetTenant(volumeName string) (Volume, error)

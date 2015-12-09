@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/user"
 	"sort"
+	"syscall"
 
 	"github.com/zenoss/glog"
 )
@@ -107,4 +108,10 @@ func RunBtrFSCmd(sudoer bool, args ...string) ([]byte, error) {
 func IsBtrfsFilesystem(path string) bool {
 	_, err := RunBtrFSCmd(false, "filesystem", "df", path)
 	return err == nil
+}
+
+func FilesystemBytesSize(path string) int64 {
+	s := syscall.Statfs_t{}
+	syscall.Statfs(path, &s)
+	return int64(s.Bsize) * int64(s.Blocks)
 }
