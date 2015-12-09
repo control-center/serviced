@@ -20,8 +20,8 @@ type MutexMap struct {
 	locks map[string]*sync.RWMutex
 }
 
-func NewMutexMap() MutexMap {
-	return MutexMap{
+func NewMutexMap() *MutexMap {
+	return &MutexMap{
 		locks: make(map[string]*sync.RWMutex),
 	}
 }

@@ -14,6 +14,7 @@
 package health
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,7 +32,8 @@ import (
 )
 
 var (
-	healthMap *HealthStatusMap
+	healthMap                       *HealthStatusMap
+	ErrHealthRegistryNotInitialized = errors.New("health registry not initialized")
 )
 
 func now() int64 {
@@ -68,7 +70,7 @@ type HealthStatusMap struct {
 	sync.RWMutex
 	cpDao        dao.ControlPlane
 	facade       facade.FacadeInterface
-	serviceLocks utils.MutexMap
+	serviceLocks *utils.MutexMap
 	statuses     map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
@@ -263,6 +265,21 @@ func Initialize(d dao.ControlPlane, f facade.FacadeInterface, shutdown <-chan in
 	go healthMap.Cleanup(shutdown)
 }
 
-func RegisterHealthCheck(serviceID, instanceID, name, passed string, _ interface{}) {
+func RegisterHealthCheck(serviceID, instanceID, name, passed string) error {
+	if healthMap == nil {
+		return ErrHealthRegistryNotInitialized
+	}
 	healthMap.SetHealthStatus(serviceID, instanceID, name, passed)
+	return nil
+}
+
+func GetHealthStatusesForService(serviceID string) (map[string]map[string]domain.HealthCheckStatus, error) {
+	if healthMap == nil {
+		return nil, ErrHealthRegistryNotInitialized
+	}
+	return healthMap.GetHealthStatusesForService(serviceID), nil
+}
+
+func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	healthMap.RestGetHealthStatus(w, r, client)
 }
