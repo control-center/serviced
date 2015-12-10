@@ -440,8 +440,7 @@ func (d *daemon) startMaster() (err error) {
 		return err
 	}
 
-	health.SetDao(d.cpDao)
-	go health.Cleanup(d.shutdown)
+	health.Initialize(d.cpDao, d.facade, d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		glog.Errorf("Could not create default pool: %s", err)
