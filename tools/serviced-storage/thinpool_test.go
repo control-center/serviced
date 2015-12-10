@@ -95,6 +95,8 @@ func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
 	err = CreateVolumeGroup(volumeGroup, devices)
 	c.Assert(err, IsNil)
 
+	defer exec.Command("vgremove", volumeGroup)
+
 }
 
 func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
