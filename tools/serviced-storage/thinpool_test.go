@@ -16,6 +16,7 @@
 package main_test
 
 import (
+	"os/exec"
 	"testing"
 
 	. "github.com/control-center/serviced/tools/serviced-storage"
@@ -51,15 +52,20 @@ func (s *ThinpoolSuite) TearDownTest(c *C) {
 }
 
 func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
-	dev1 := s.TempDevice(c)
-	dev2 := s.TempDevice(c)
+	// Create a couple devices
+	devices := []string{
+		s.TempDevice(c).LoopDevice(),
+		s.TempDevice(c).LoopDevice(),
+	}
 
 	// First create the pvs
-	err := EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
+	err := EnsurePhysicalDevices(devices)
 	c.Assert(err, IsNil)
 
+	defer exec.Command("pvremove", devices...).Run()
+
 	// Should be idempotent
-	err = EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
+	err = EnsurePhysicalDevices(devices)
 	c.Assert(err, IsNil)
 
 	// Invalid devices should fail
@@ -68,32 +74,34 @@ func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
 }
 
 func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
-	purpose := "serviced"
+	volumeGroup := "serviced-test"
 
 	// Should fail if devices are invalid
-	err := CreateVolumeGroup(purpose, []string{"/dev/invalid1", "/dev/invalid2"})
+	err := CreateVolumeGroup(volumeGroup, []string{"/dev/invalid1", "/dev/invalid2"})
 	c.Assert(err, Not(IsNil))
 
 	// Create a couple devices
-	dev1 := s.TempDevice(c)
-	dev2 := s.TempDevice(c)
-
-	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
-
-	// Should fail if the devices aren't pvs yet
-	err = CreateVolumeGroup(purpose, devices)
-	c.Assert(err, Not(IsNil))
+	devices := []string{
+		s.TempDevice(c).LoopDevice(),
+		s.TempDevice(c).LoopDevice(),
+	}
 
 	// Ensure pvs
 	err = EnsurePhysicalDevices(devices)
 	c.Assert(err, IsNil)
+	defer exec.Command("pvremove", devices...).Run()
 
-	// Now it should succeed
-	err = CreateVolumeGroup(purpose, devices)
-	c.Assert(err, Not(IsNil))
+	// Should succeed now
+	err = CreateVolumeGroup(volumeGroup, devices)
+	c.Assert(err, IsNil)
 
 }
 
 func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
+	volumeGroup := "serviced-test"
+
+	// Should fail if the volume group is invalid
+	_, err := CreateMetadataVolume(volumeGroup)
+	c.Assert(err, Not(IsNil))
 
 }

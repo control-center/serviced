@@ -99,7 +99,7 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
-	metadataVolume, err := createMetadataVolume(volumeGroup)
+	metadataVolume, err := CreateMetadataVolume(volumeGroup)
 	if err != nil {
 		return "", err
 	}
@@ -149,17 +149,19 @@ func CreateVolumeGroup(volumeGroup string, devices []string) error {
 	args := append([]string{"vgcreate", volumeGroup}, devices...)
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, _, err := checkCommand(cmd)
+	_, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
 	}
-	log.Info(stdout)
 	return nil
 }
 
-func createMetadataVolume(volumeGroup string) (string, error) {
+func CreateMetadataVolume(volumeGroup string) (string, error) {
 	units := "s" // volume size will be measured in sectors
 	totalSize, err := getVolumeGroupSize(volumeGroup, units)
+	if err != nil {
+		return "", err
+	}
 	metadataSize := (totalSize + 999) / 1000
 	metadataName := volumeGroup + "-meta"
 
@@ -226,7 +228,10 @@ func getVolumeGroupSize(volumeGroup string, units string) (uint64, error) {
 		return 0, err
 	}
 
-	sizeString := strings.Trim(stdout, " \n")
+	sizeString := strings.TrimSpace(stdout)
+	if sizeString == "" {
+		return 0, fmt.Errorf("invalid volume group")
+	}
 	size, err := strconv.ParseUint(sizeString, 10, 64)
 	if err != nil {
 		return 0, err
