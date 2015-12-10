@@ -873,7 +873,7 @@
             };
 
             $scope.ips = {};
-            $scope.pools = {};
+            $scope.pools = [];
 
             // if the current service changes, update
             // various service controller thingies
