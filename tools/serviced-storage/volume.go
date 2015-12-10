@@ -15,11 +15,11 @@ package main
 
 import (
 	"os/exec"
+	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume"
 	"github.com/jessevdk/go-flags"
-
 )
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
@@ -59,30 +59,33 @@ type DriverSync struct {
 //Execute syncs to volume
 func (c *DriverSync) Execute(args []string) error {
 	App.initializeLogging()
-	
 	destinationPath := string(c.Args.DestinationPath)
 	if c.Create {
+		log.Infof("Determining driver type for %s", c.Type)
 		destinationDriverType, err := volume.StringToDriverType(c.Type)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Infof("Initing driver for path %s")
+		log.Infof("Creating driver at path %s of type %s", destinationPath, c.Type)
 		initStatus := volume.InitDriver(destinationDriverType, destinationPath, App.Options.Options)
 		if initStatus != nil {
 			log.Fatal(initStatus)
 		}
 	}
 	destinationDirectory := GetDefaultDriver(destinationPath)
+	log.Infof("Getting driver for %s", destinationDirectory)
 	destinationDriver, err := InitDriverIfExists(destinationDirectory)
 	if err != nil {
 		log.Fatal(err)
 	}
 	sourceDirectory := GetDefaultDriver(string(c.Args.SourcePath))
+	log.Infof("Getting driver for %s", c.Args.SourcePath)
 	sourceDriver, err := InitDriverIfExists(sourceDirectory)
 	if err != nil {
 		log.Fatal(err)
 	}
 	sourceVolumes := sourceDriver.List()
+	log.Infof("Found %d volumes in source driver", len(sourceVolumes))
 	for i := 0; i < len(sourceVolumes); i++ {
 		volumeName := sourceVolumes[i]
 		log.Infof("Syncing data from source volume %s", volumeName)
@@ -90,9 +93,11 @@ func (c *DriverSync) Execute(args []string) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		if destinationDriver.Exists(volumeName) {
-			createVolume(string(c.Args.DestinationPath), volumeName)
+		if !destinationDriver.Exists(volumeName) {
+			log.Infof("Creating destination volume at %s with name %s", destinationPath)
+			createVolume(string(destinationPath), volumeName)
 		}
+		log.Infof("using rsync to sync %s to %s", sourceVolume.Path(), c.Args.DestinationPath)
 		rsync(sourceVolume.Path(), string(c.Args.DestinationPath))
 	}
 	return nil
@@ -103,13 +108,12 @@ func rsync(sourcePath string, destinationPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	rsyncArgv := []string{"-a", sourcePath, destinationPath}
+	rsyncArgv := []string{"-a", "--progress", "--stats", "--human-readable", sourcePath, destinationPath}
 	rsync := exec.Command(rsyncBin, rsyncArgv...)
-	output, err := rsync.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Infof("Ran rysnc and got the following output %s", output)
+	log.Info("Starting rsync command")
+	rsync.Stdout = os.Stdout
+	rsync.Stderr = os.Stderr
+	rsync.Run()
 }
 
 // Execute creates a new volume on a driver
