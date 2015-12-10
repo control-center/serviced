@@ -21,24 +21,19 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/control-center/serviced/utils"
 )
-
-type testClock struct {
-	afterchan chan time.Time
-}
-
-func (c testClock) After(d time.Duration) <-chan time.Time {
-	return c.afterchan
-}
 
 func TestCache(t *testing.T) {
 
-	afterchan := make(chan time.Time)
+	clock := utils.NewTestClock()
+
 	cache := MemoryUsageCache{
 		Locks:  make(map[string]sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    time.Minute,
-		Clock:  testClock{afterchan},
+		Clock:  clock,
 	}
 
 	memusage1 := []MemoryUsageStats{
@@ -91,7 +86,7 @@ func TestCache(t *testing.T) {
 	}
 
 	// Force expiration
-	afterchan <- time.Now()
+	clock.Fire()
 
 	// Cache should no longer have a value for key, try with different getter
 	x, err = cache.Get("first", getter2)

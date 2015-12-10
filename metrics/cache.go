@@ -16,18 +16,9 @@ package metrics
 import (
 	"sync"
 	"time"
+
+	"github.com/control-center/serviced/utils"
 )
-
-// Clock is an abstraction of a clock, for testing purposes
-type Clock interface {
-	After(d time.Duration) <-chan time.Time
-}
-
-type realClock struct{}
-
-func (realClock) After(d time.Duration) <-chan time.Time {
-	return time.After(d)
-}
 
 // MemoryUsageQuery is a function that will return a value to be cached in the event of a miss
 type MemoryUsageQuery func() ([]MemoryUsageStats, error)
@@ -38,7 +29,7 @@ type MemoryUsageCache struct {
 	Locks  map[string]sync.Mutex
 	Usages map[string][]MemoryUsageStats
 	TTL    time.Duration
-	Clock  Clock
+	Clock  utils.Clock
 }
 
 // getkeylock returns a lock specifically for this key
@@ -85,6 +76,6 @@ func NewMemoryUsageCache(ttl time.Duration) *MemoryUsageCache {
 		Locks:  make(map[string]sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    ttl,
-		Clock:  realClock{},
+		Clock:  utils.RealClock,
 	}
 }

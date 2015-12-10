@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "CCUIState", "$cookies",
+    "poolsFactory", "CCUIState", "$cookies",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    CCUIState, $cookies){
+    poolsFactory, CCUIState, $cookies){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -626,6 +626,9 @@
                 // update serviceTreeState
                 $scope.serviceTreeState = CCUIState.get($cookies.ZUsername, "serviceTreeState");
 
+                // update pools
+                $scope.pools = poolsFactory.poolList;
+
                 // create an entry in tree state for the
                 // current service
                 if(!($scope.services.current.id in $scope.serviceTreeState)){
@@ -870,6 +873,7 @@
             };
 
             $scope.ips = {};
+            $scope.pools = {};
 
             // if the current service changes, update
             // various service controller thingies
@@ -894,9 +898,13 @@
             servicesFactory.activate();
             servicesFactory.update();
 
+            poolsFactory.activate();
+            poolsFactory.update();
+
             $scope.$on("$destroy", function() {
                 servicesFactory.deactivate();
                 hostsFactory.deactivate();
+                poolsFactory.deactivate();
             });
         }
 
