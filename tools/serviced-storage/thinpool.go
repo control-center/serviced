@@ -78,7 +78,7 @@ func (c *ThinPoolCreate) Execute(args []string) error {
 }
 
 func createThinPool(purpose string, devices []string) (string, error) {
-	if err := ensurePhysicalDevices(devices); err != nil {
+	if err := EnsurePhysicalDevices(devices); err != nil {
 		return "", err
 	}
 
@@ -110,7 +110,7 @@ func createThinPool(purpose string, devices []string) (string, error) {
 	return thinPoolName, nil
 }
 
-func ensurePhysicalDevices(devices []string) error {
+func EnsurePhysicalDevices(devices []string) error {
 	for _, device := range devices {
 		cmd := exec.Command("pvs", device)
 		_, _, exitCode, err := runCommand(cmd)

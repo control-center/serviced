@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	. "github.com/control-center/serviced/tools/serviced-storage"
+	"github.com/control-center/serviced/volume"
 	. "gopkg.in/check.v1"
 )
 
@@ -28,6 +29,24 @@ type ThinpoolSuite struct{}
 
 var _ = Suite(&ThinpoolSuite{})
 
-func (s *ThinpoolSuite) TestHappyPath(c *C) {
+func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
+	size := int64(100 * 1024 * 1024)
 
+	dev1, err := volume.CreateTemporaryDevice(size)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer dev1.Destroy()
+
+	dev2, err := volume.CreateTemporaryDevice(size)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer dev2.Destroy()
+
+	err = EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
+	c.Assert(err, IsNil)
+
+	err = EnsurePhysicalDevices([]string{"/not/a/device"})
+	c.Assert(err, Not(IsNil))
 }

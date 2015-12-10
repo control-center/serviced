@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -29,63 +30,145 @@ import (
 
 var (
 	ramdisks   map[string]string = make(map[string]string)
+	loopdevs   map[string]string = make(map[string]string)
 	volumeLock sync.Mutex
 )
 
-func CreateRamdisk(c *C, size int64) string {
+func CreateRamdisk(size int64) (string, error) {
 	// Make a ramdisk
 	ramdiskDir, err := ioutil.TempDir("", "serviced-test-")
-	c.Assert(err, IsNil)
-	err = os.MkdirAll(ramdiskDir, 0700)
-	c.Assert(err, IsNil)
-	err = syscall.Mount("tmpfs", ramdiskDir, "tmpfs", syscall.MS_MGC_VAL, "")
-	c.Assert(err, IsNil)
-	return ramdiskDir
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(ramdiskDir, 0700); err != nil {
+		return "", err
+	}
+	if err := syscall.Mount("tmpfs", ramdiskDir, "tmpfs", syscall.MS_MGC_VAL, ""); err != nil {
+		return "", err
+	}
+	return ramdiskDir, nil
 }
 
-func DestroyRamdisk(c *C, path string) {
+func DestroyRamdisk(path string) {
 	// Unmount the ramdisk
-	err := syscall.Unmount(path, syscall.MNT_DETACH)
-	c.Check(err, IsNil)
-
+	syscall.Unmount(path, syscall.MNT_DETACH)
 	// Clean up the mount point
-	err = os.RemoveAll(path)
-	c.Check(err, IsNil)
+	os.RemoveAll(path)
+}
+
+// AllocateLoopFile creates a file of a given size to back a loop device
+func AllocateLoopFile(path, prefix string, size int64) (string, error) {
+	loopFile := filepath.Join(path, fmt.Sprintf("%s-loop", prefix))
+	file, err := os.OpenFile(loopFile, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if err = file.Truncate(size); err != nil {
+		return "", err
+	}
+	return loopFile, nil
+}
+
+func CreateLoopDevice(path string) (string, error) {
+	nextLoop, err := exec.Command("losetup", "--find").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	trimmed := strings.TrimSpace(string(nextLoop))
+	if err := exec.Command("losetup", trimmed, path).Run(); err != nil {
+		return "", err
+	}
+	return trimmed, nil
+}
+
+func DestroyLoopDevice(device string) error {
+	syscall.Unmount(device, syscall.MNT_DETACH)
+	return exec.Command("losetup", "-d", device).Run()
+}
+
+type TemporaryDevice struct {
+	ramdisk    string
+	loopfile   string
+	loopdevice string
+}
+
+func CreateTemporaryDevice(size int64) (t *TemporaryDevice, err error) {
+	t = &TemporaryDevice{}
+	t.ramdisk, err = CreateRamdisk(size)
+	if err != nil {
+		return
+	}
+	t.loopfile, err = AllocateLoopFile(t.ramdisk, "test", size)
+	if err != nil {
+		defer DestroyRamdisk(t.ramdisk)
+		return
+	}
+	t.loopdevice, err = CreateLoopDevice(t.loopfile)
+	if err != nil {
+		defer DestroyRamdisk(t.ramdisk)
+		return
+	}
+	return
+}
+
+func (t *TemporaryDevice) Destroy() {
+	DestroyLoopDevice(t.loopdevice)
+	DestroyRamdisk(t.ramdisk)
+}
+
+func (t *TemporaryDevice) RamDisk() string {
+	return t.ramdisk
+}
+
+func (t *TemporaryDevice) LoopFile() string {
+	return t.loopfile
+}
+
+func (t *TemporaryDevice) LoopDevice() string {
+	return t.loopdevice
 }
 
 func CreateTmpVolume(c *C, size int64, fs string) string {
 	// Make a ramdisk
-	ramdiskDir := CreateRamdisk(c, size)
-	loopFile := filepath.Join(ramdiskDir, "loop")
+	ramdiskDir, err := CreateRamdisk(size)
+	c.Assert(err, IsNil)
 	mountPath := filepath.Join(ramdiskDir, "mnt")
-	err := os.MkdirAll(mountPath, 0700)
+	err = os.MkdirAll(mountPath, 0700)
 	c.Assert(err, IsNil)
 
 	// Create a sparse file of <size> bytes to back the loop device
-	file, err := os.OpenFile(loopFile, os.O_RDWR|os.O_CREATE, 0600)
+	loopFile, err := AllocateLoopFile(ramdiskDir, "serviced", size)
 	if err != nil {
-		defer DestroyRamdisk(c, ramdiskDir)
+		defer DestroyRamdisk(ramdiskDir)
 		c.Fatal(err)
 	}
-	defer file.Close()
-	if err = file.Truncate(size); err != nil {
-		defer DestroyRamdisk(c, ramdiskDir)
+
+	// Create a loop device against the file
+	loopDevice, err := CreateLoopDevice(loopFile)
+	if err != nil {
+		defer DestroyRamdisk(ramdiskDir)
 		c.Fatal(err)
 	}
-	// Create a btrfs filesystem
-	if err := exec.Command(fmt.Sprintf("mkfs.%s", fs), loopFile).Run(); err != nil {
-		defer DestroyRamdisk(c, ramdiskDir)
+
+	// Create a filesystem
+	if err := exec.Command(fmt.Sprintf("mkfs.%s", fs), loopDevice).Run(); err != nil {
+		defer DestroyRamdisk(ramdiskDir)
+		defer DestroyLoopDevice(loopDevice)
 		c.Fatal(err)
 	}
-	// Mount the loop device. System calls to get the next available loopback
-	// device are nontrivial, so just shell out, like an animal
-	if err := exec.Command("mount", "-t", fs, "-o", "loop", loopFile, mountPath).Run(); err != nil {
-		defer DestroyRamdisk(c, ramdiskDir)
+
+	// Mount the new filesystem
+	if err := exec.Command("mount", "-t", fs, loopDevice, mountPath).Run(); err != nil {
+		defer DestroyRamdisk(ramdiskDir)
+		defer DestroyLoopDevice(loopDevice)
 		c.Fatal(err)
 	}
+
 	volumeLock.Lock()
 	defer volumeLock.Unlock()
 	ramdisks[mountPath] = ramdiskDir
+	loopdevs[mountPath] = loopDevice
 	return mountPath
 }
 
@@ -110,9 +193,14 @@ func CleanupTmpVolume(c *C, fsPath string) {
 	err := syscall.Unmount(fsPath, syscall.MNT_DETACH)
 	c.Check(err, IsNil)
 
+	// Next destroy the loop device
+	loopdev := loopdevs[fsPath]
+	DestroyLoopDevice(loopdev)
+
 	// Clean up the ramdisk
-	DestroyRamdisk(c, ramdisk)
+	DestroyRamdisk(ramdisk)
 
 	// Remove the reference to the volume from our internal map
 	delete(ramdisks, fsPath)
+	delete(loopdevs, fsPath)
 }
