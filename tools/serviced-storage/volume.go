@@ -61,44 +61,59 @@ type DriverSync struct {
 func (c *DriverSync) Execute(args []string) error {
 	App.initializeLogging()
 	destinationPath := string(c.Args.DestinationPath)
+	sourcePath := string(c.Args.SourcePath)
+	logger := log.WithFields(log.Fields{
+		"destination":destinationPath,
+		"source":sourcePath})
 	if c.Create {
-		log.Infof("Determining driver type for %s", c.Type)
+		logger = logger.WithFields(log.Fields{
+			"type":c.Type,
+		})
+		logger.Info("Determining driver type for destination")
 		destinationDriverType, err := volume.StringToDriverType(c.Type)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
-		log.Infof("Creating driver at path %s of type %s", destinationPath, c.Type)
+		logger.Info("Creating driver for destination")
 		initStatus := volume.InitDriver(destinationDriverType, destinationPath, App.Options.Options)
 		if initStatus != nil {
-			log.Fatal(initStatus)
+			logger.Fatal(initStatus)
 		}
 	}
 	destinationDirectory := GetDefaultDriver(destinationPath)
-	log.Infof("Getting driver for %s", destinationDirectory)
+	logger.Info("Getting driver for destination")
 	destinationDriver, err := InitDriverIfExists(destinationDirectory)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	sourceDirectory := GetDefaultDriver(string(c.Args.SourcePath))
-	log.Infof("Getting driver for %s", c.Args.SourcePath)
+	sourceDirectory := GetDefaultDriver(string(sourcePath))
+	logger.Info("Getting driver for source")
 	sourceDriver, err := InitDriverIfExists(sourceDirectory)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	sourceVolumes := sourceDriver.List()
-	log.Infof("Found %d volumes in source driver", len(sourceVolumes))
+	logger = logger.WithFields(log.Fields{
+		"numberOfVolumes": len(sourceVolumes),
+	})
 	for i := 0; i < len(sourceVolumes); i++ {
 		volumeName := sourceVolumes[i]
-		log.Infof("Syncing data from source volume %s", volumeName)
+		volumeLogger := logger.WithFields(log.Fields{
+			"volumeName": volumeName,
+		})
+		volumeLogger.Info("Syncing data from source volume")
 		sourceVolume, err := sourceDriver.Get(volumeName)
 		if err != nil {
-			log.Fatal(err)
+			volumeLogger.Fatal(err)
 		}
 		if !destinationDriver.Exists(volumeName) {
-			log.Infof("Creating destination volume at %s with name %s", destinationPath)
+			logger.Info("Creating destination volume")
 			createVolume(string(destinationPath), volumeName)
 		}
-		log.Infof("using rsync to sync %s to %s", sourceVolume.Path(), c.Args.DestinationPath)
+		volumeLogger = volumeLogger.WithFields(log.Fields{
+			"sourcePath":sourceVolume.Path(),
+		})
+		volumeLogger.Info("using rsync to sync source to destination")
 		rsync(sourceVolume.Path(), string(c.Args.DestinationPath))
 	}
 	return nil
