@@ -17,6 +17,7 @@ package main_test
 
 import (
 	"os/exec"
+	"strings"
 	"testing"
 
 	. "github.com/control-center/serviced/tools/serviced-storage"
@@ -74,7 +75,7 @@ func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
 }
 
 func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
-	volumeGroup := "serviced-test"
+	volumeGroup := "serviced-test-1"
 
 	// Should fail if devices are invalid
 	err := CreateVolumeGroup(volumeGroup, []string{"/dev/invalid1", "/dev/invalid2"})
@@ -94,16 +95,36 @@ func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
 	// Should succeed now
 	err = CreateVolumeGroup(volumeGroup, devices)
 	c.Assert(err, IsNil)
-
-	defer exec.Command("vgremove", volumeGroup)
+	defer exec.Command("vgremove", volumeGroup).Run()
 
 }
 
 func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
-	volumeGroup := "serviced-test"
+	volumeGroup := "serviced-test-2"
 
 	// Should fail if the volume group is invalid
 	_, err := CreateMetadataVolume(volumeGroup)
 	c.Assert(err, Not(IsNil))
 
+	// Create some devices and a vg
+	devices := []string{
+		s.TempDevice(c).LoopDevice(),
+		s.TempDevice(c).LoopDevice(),
+	}
+	if err := EnsurePhysicalDevices(devices); err != nil {
+		c.Fatal(err)
+	}
+	defer exec.Command("pvremove", devices...).Run()
+	if err := CreateVolumeGroup(volumeGroup, devices); err != nil {
+		c.Fatal(err)
+	}
+	defer exec.Command("vgremove", volumeGroup).Run()
+
+	// Now the metadata volume should work fine
+	mdvol, err := CreateMetadataVolume(volumeGroup)
+	c.Assert(err, IsNil)
+	defer exec.Command("lvremove", mdvol).Run()
+
+	out, _ := exec.Command("lvs").CombinedOutput()
+	c.Assert(strings.Contains(string(out), mdvol), Equals, true)
 }
