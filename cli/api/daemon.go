@@ -765,12 +765,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
 
-	dc, err := docker.NewDockerClient()
-	if err != nil {
-		glog.Errorf("Error getting docker client: %s", err)
-	}
-
-	index := registry.NewRegistryIndexClient(f, dc)
+	index := registry.NewRegistryIndexClient(f)
 	dfs := dfs.NewDistributedFilesystem(d.docker, index, d.reg, d.disk, d.net, time.Duration(options.MaxDFSTimeout)*time.Second)
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)

@@ -190,9 +190,7 @@ func (d *DockerClient) GetImageHash(image string) (string, error) {
 	}
 
 	h := sha256.New()
-	h.Write(buffer.Bytes())
-
-	sha := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	sha := base64.URLEncoding.EncodeToString(h.Sum(buffer.Bytes()))
 
 	return sha, nil
 }
