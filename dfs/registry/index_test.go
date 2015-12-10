@@ -28,7 +28,8 @@ import (
 )
 
 var (
-	ErrTestUnknownError = errors.New("test unknown error")
+	ErrTestUnknownError   = errors.New("test unknown error")
+	ErrTestGeneratingHash = errors.New("test error generating hash")
 )
 
 func TestRegistryIndex(t *testing.T) { TestingT(t) }
@@ -37,6 +38,7 @@ type RegistryIndexSuite struct {
 	ctx    datastore.Context
 	facade *mocks.MockFacade
 	index  *RegistryIndexClient
+	dc     *mocks.Docker
 }
 
 var _ = Suite(&RegistryIndexSuite{})
@@ -44,7 +46,8 @@ var _ = Suite(&RegistryIndexSuite{})
 func (s *RegistryIndexSuite) SetUpTest(c *C) {
 	s.ctx = datastore.Get()
 	s.facade = &mocks.MockFacade{}
-	s.index = &RegistryIndexClient{s.ctx, s.facade}
+	s.dc = &mocks.Docker{}
+	s.index = &RegistryIndexClient{s.ctx, s.facade, s.dc}
 }
 
 func (s *RegistryIndexSuite) TestFindImage(c *C) {
@@ -72,16 +75,25 @@ func (s *RegistryIndexSuite) TestFindImage(c *C) {
 }
 
 func (s *RegistryIndexSuite) TestPushImage(c *C) {
+	hashValue := "123456789abcdef"
+	s.dc.On("GetImageHash", mock.AnythingOfType("string")).Return(hashValue, nil)
 	s.facade.On("SetRegistryImage", s.ctx, mock.AnythingOfType("*registry.Image")).Return(nil)
 	expected := &registry.Image{
 		Library: "libraryname",
 		Repo:    "reponame",
 		Tag:     "tagname",
 		UUID:    "uuidvalue",
+		Hash:    hashValue,
 	}
 	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
 	c.Assert(err, IsNil)
 	s.facade.AssertCalled(c, "SetRegistryImage", s.ctx, expected)
+}
+
+func (s *RegistryIndexSuite) TestPushImageHashFailed(c *C) {
+	s.dc.On("GetImageHash", mock.AnythingOfType("string")).Return("", ErrTestGeneratingHash)
+	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
+	c.Assert(err, Equals, ErrTestGeneratingHash)
 }
 
 func (s *RegistryIndexSuite) TestRemoveImage(c *C) {

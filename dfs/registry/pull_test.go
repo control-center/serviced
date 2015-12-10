@@ -16,6 +16,7 @@
 package registry
 
 import (
+	"errors"
 	"time"
 
 	"github.com/control-center/serviced/domain/registry"
@@ -24,6 +25,8 @@ import (
 
 	. "gopkg.in/check.v1"
 )
+
+var ErrTestGetImageHashFailed = errors.New("error getting image hash")
 
 func (s *RegistryListenerSuite) TestPull_NoNode(c *C) {
 	errC := make(chan error, 1)
@@ -90,6 +93,34 @@ func (s *RegistryListenerSuite) TestPull_RemoteImageFound(c *C) {
 	s.docker.AssertExpectations(c)
 }
 
+func (s *RegistryListenerSuite) TestPull_RemoteImageFoundByHash(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+			Hash:    "matchinghash",
+		},
+	}
+	_ = rImage.Create(c, s.conn)
+	rAddress := rImage.Address(s.listener.address)
+	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(dockerclient.ErrNoSuchImage).Twice()
+	s.docker.On("PullImage", rAddress).Return(nil).Once()
+	s.docker.On("GetImageHash", rAddress).Return("matchinghash", nil).Once()
+	errC := make(chan error, 1)
+	go func() {
+		errC <- s.listener.PullImage(time.After(15*time.Second), rAddress)
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within timeout!")
+	case err := <-errC:
+		c.Assert(err, IsNil)
+	}
+	s.docker.AssertExpectations(c)
+}
+
 func (s *RegistryListenerSuite) TestPull_ImagePushingTimeout(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
@@ -97,12 +128,14 @@ func (s *RegistryListenerSuite) TestPull_ImagePushingTimeout(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
+			Hash:    "matchinghash",
 		},
 	}
 	_ = rImage.Create(c, s.conn)
 	rAddress := rImage.Address(s.listener.address)
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(dockerclient.ErrNoSuchImage).Twice()
 	s.docker.On("PullImage", rAddress).Return(dockerclient.ErrNoSuchImage).Once()
+	s.docker.On("GetImageHash", rAddress).Return("unmatchinghash", nil).Once()
 	timeout := time.After(20 * time.Second)
 	errC := make(chan error, 1)
 	go func() {
@@ -124,6 +157,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushing(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
+			Hash:    "matchinghash",
 		},
 	}
 	node := rImage.Create(c, s.conn)
@@ -135,6 +169,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushing(c *C) {
 	}).Once()
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(nil).Once()
 	s.docker.On("PullImage", rAddress).Return(nil).Once()
+	s.docker.On("GetImageHash", rAddress).Return("unmatchinghash", nil).Once()
 
 	errC := make(chan error, 1)
 	go func() {
@@ -156,6 +191,7 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
+			Hash:    "matchinghash",
 		},
 	}
 	node := rImage.Create(c, s.conn)
@@ -164,6 +200,8 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 	rAddress := rImage.Address(s.listener.address)
 	s.docker.On("TagImage", rImage.Image.UUID, rAddress).Return(dockerclient.ErrNoSuchImage).Times(4)
 	s.docker.On("PullImage", rAddress).Return(dockerclient.ErrNoSuchImage).Twice()
+	s.docker.On("GetImageHash", rAddress).Return("nonmatchinghash", nil).Once()
+	s.docker.On("GetImageHash", rAddress).Return("", ErrTestGetImageHashFailed).Once()
 	imageDone := make(chan struct{})
 	defer close(imageDone)
 	evt, _ := rImage.GetW(c, s.conn, imageDone)

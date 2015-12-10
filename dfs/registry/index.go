@@ -47,13 +47,15 @@ type facade interface {
 type RegistryIndexClient struct {
 	ctx    datastore.Context
 	facade facade
+	dc     docker.Docker
 }
 
 // NewRegistryIndexClient creates a new client for the registry index.
-func NewRegistryIndexClient(f facade) *RegistryIndexClient {
+func NewRegistryIndexClient(f facade, d docker.Docker) *RegistryIndexClient {
 	return &RegistryIndexClient{
 		ctx:    datastore.Get(),
 		facade: f,
+		dc:     d,
 	}
 }
 
@@ -96,11 +98,19 @@ func (client *RegistryIndexClient) PushImage(image, uuid string) error {
 	if imageID.IsLatest() {
 		imageID.Tag = docker.Latest
 	}
+
+	//get the hash and store it in the image record
+	hash, err := client.dc.GetImageHash(uuid)
+	if err != nil {
+		return err
+	}
+
 	rImage := &registry.Image{
 		Library: imageID.User,
 		Repo:    imageID.Repo,
 		Tag:     imageID.Tag,
 		UUID:    uuid,
+		Hash:    hash,
 	}
 	return client.facade.SetRegistryImage(client.ctx, rImage)
 }

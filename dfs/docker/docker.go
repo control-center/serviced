@@ -14,6 +14,10 @@
 package docker
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -60,6 +64,7 @@ type Docker interface {
 	RemoveImage(image string) error
 	FindContainer(ctr string) (*dockerclient.Container, error)
 	CommitContainer(ctr, image string) (*dockerclient.Image, error)
+	GetImageHash(image string) (string, error)
 }
 
 type DockerClient struct {
@@ -168,4 +173,26 @@ func (d *DockerClient) fetchCreds(registry string) (auth dockerclient.AuthConfig
 		glog.V(1).Infof("Authorized as %s in registry %s", auth.Email, registry)
 	}
 	return
+}
+
+// Generates a unique hash of an image, based on its top layer (excluding the ID) and the IDs of all other layers
+// NOTE:  consider http://localhost:5000/v2/jptest/manifests/latest
+func (d *DockerClient) GetImageHash(image string) (string, error) {
+	historyList, err := d.dc.ImageHistory(image)
+	if err != nil {
+		return "", err
+	}
+
+	var buffer bytes.Buffer
+	for _, history := range historyList {
+		imageDataString := fmt.Sprintf("%d-%s-%d\n", history.Created, history.CreatedBy, history.Size)
+		buffer.WriteString(imageDataString)
+	}
+
+	h := sha256.New()
+	h.Write(buffer.Bytes())
+
+	sha := base64.URLEncoding.EncodeToString(h.Sum(nil))
+
+	return sha, nil
 }
