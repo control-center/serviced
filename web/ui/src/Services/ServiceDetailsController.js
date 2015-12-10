@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory){
+    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory, poolsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
         $scope.resourcesFactory = resourcesFactory;
@@ -530,6 +530,10 @@
 
                 // setup breadcrumbs
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
+
+                // update pools
+                $scope.pools = poolsFactory.poolList;
+
             }
 
             servicesFactory.updateHealth();
@@ -700,6 +704,7 @@
             };
 
             $scope.ips = {};
+            $scope.pools = [];
 
             // if the current service changes, update
             // various service controller thingies
@@ -724,9 +729,13 @@
             servicesFactory.activate();
             servicesFactory.update();
 
+            poolsFactory.activate();
+            poolsFactory.update();
+
             $scope.$on("$destroy", function() {
                 servicesFactory.deactivate();
                 hostsFactory.deactivate();
+                poolsFactory.deactivate();
             });
         }
 
