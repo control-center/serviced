@@ -54,6 +54,18 @@ func runCommand(cmd *exec.Cmd) (stdout string, stderr string, exitCode int, err 
 	return stdoutBuffer.String(), stderrBuffer.String(), exitCode, cmdErr
 }
 
+func checkCommand(cmd *exec.Cmd) (stdout string, stderr string, err error) {
+	stdout, stderr, exitCode, err := runCommand(cmd)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	if exitCode != 0 {
+		return stdout, stderr, fmt.Errorf("Error(%d) running command '%s':\n%s",
+			exitCode, strings.Join(cmd.Args, " "), stderr)
+	}
+	return stdout, stderr, nil
+}
+
 func (c *ThinPoolCreate) Execute(args []string) error {
 	App.initializeLogging()
 	purpose := c.Args.Purpose
@@ -82,27 +94,27 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
-	vg := purpose
-	if err := createVolumeGroup(vg, devices); err != nil {
+	volumeGroup := purpose
+	if err := createVolumeGroup(volumeGroup, devices); err != nil {
 		return "", err
 	}
 
-	metadataVolume, err := createMetadataVolume(vg)
+	metadataVolume, err := createMetadataVolume(volumeGroup)
 	if err != nil {
 		return "", err
 	}
 
-	dataVolume, err := createDataVolume(vg)
+	dataVolume, err := createDataVolume(volumeGroup)
 	if err != nil {
 		return "", err
 	}
 
-	err = convertToThinPool(vg, dataVolume, metadataVolume)
+	err = convertToThinPool(volumeGroup, dataVolume, metadataVolume)
 	if err != nil {
 		return "", err
 	}
 
-	thinPoolName, err := getThinPoolNameForLogicalVolume(vg, dataVolume)
+	thinPoolName, err := getThinPoolNameForLogicalVolume(volumeGroup, dataVolume)
 	if err != nil {
 		return "", err
 	}
@@ -124,78 +136,62 @@ func EnsurePhysicalDevices(devices []string) error {
 		args := []string{"pvcreate", device}
 		log.Info(strings.Join(args, " "))
 		cmd = exec.Command(args[0], args[1:]...)
-		stdout, stderr, exitCode, err := runCommand(cmd)
+		stdout, _, err := checkCommand(cmd)
 		if err != nil {
 			return err
-		}
-		if exitCode != 0 {
-			return fmt.Errorf("Error(%d) running '%s':\n%s",
-				exitCode, strings.Join(args, " "), stderr)
 		}
 		log.Info(stdout)
 	}
 	return nil
 }
 
-func createVolumeGroup(vg string, devices []string) error {
-	args := append([]string{"vgcreate", vg}, devices...)
+func createVolumeGroup(volumeGroup string, devices []string) error {
+	args := append([]string{"vgcreate", volumeGroup}, devices...)
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return nil
 }
 
-func createMetadataVolume(vg string) (string, error) {
+func createMetadataVolume(volumeGroup string) (string, error) {
 	units := "s" // volume size will be measured in sectors
-	totalSize, err := getVolumeGroupSize(vg, units)
+	totalSize, err := getVolumeGroupSize(volumeGroup, units)
 	metadataSize := (totalSize + 999) / 1000
-	metadataName := vg + "-meta"
+	metadataName := volumeGroup + "-meta"
 
 	args := []string{"lvcreate",
 		"--size", fmt.Sprintf("%d%s", metadataSize, units),
 		"--name", metadataName,
-		vg}
+		volumeGroup}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return "", err
-	}
-	if exitCode != 0 {
-		return "", fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return metadataName, err
 }
 
-func createDataVolume(vg string) (string, error) {
+func createDataVolume(volumeGroup string) (string, error) {
 	units := "b" // volume size will be measured in bytes
-	totalSize, err := getVolumeGroupSize(vg, units)
+	totalSize, err := getVolumeGroupSize(volumeGroup, units)
 	dataSize := (totalSize*90/100 + 511) &^ 511
-	dataName := vg + "-pool"
+	dataName := volumeGroup + "-pool"
 
 	args := []string{"lvcreate",
 		"--size", fmt.Sprintf("%d%s", dataSize, units),
 		"--name", dataName,
-		vg}
+		volumeGroup}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return "", err
-	}
-	if exitCode != 0 {
-		return "", fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return dataName, err
@@ -209,33 +205,25 @@ func convertToThinPool(volumeGroup, dataVolume string, metadataVolume string) er
 	}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return nil
 }
 
-func getVolumeGroupSize(vg string, units string) (uint64, error) {
+func getVolumeGroupSize(volumeGroup string, units string) (uint64, error) {
 	args := []string{"vgs",
 		"--noheadings",
 		"--nosuffix",
 		"--units", units,
 		"--options", "vg_free",
-		vg}
+		volumeGroup}
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return 0, err
-	}
-	if exitCode != 0 {
-		return 0, fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 
 	sizeString := strings.Trim(stdout, " \n")
@@ -254,13 +242,9 @@ func getInfoForLogicalVolume(volumeGroup string, logicalVolume string) (LogicalV
 		"--options", "lv_name,lv_kernel_major,lv_kernel_minor",
 		volumeGroup}
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return lvi, err
-	}
-	if exitCode != 0 {
-		return lvi, fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 
 	parseError := fmt.Errorf("Failed to parse command output:\n'%s'\n%s",
