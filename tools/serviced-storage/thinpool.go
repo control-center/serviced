@@ -95,7 +95,7 @@ func createThinPool(purpose string, devices []string) (string, error) {
 	}
 
 	volumeGroup := purpose
-	if err := createVolumeGroup(volumeGroup, devices); err != nil {
+	if err := CreateVolumeGroup(volumeGroup, devices); err != nil {
 		return "", err
 	}
 
@@ -145,7 +145,7 @@ func EnsurePhysicalDevices(devices []string) error {
 	return nil
 }
 
-func createVolumeGroup(volumeGroup string, devices []string) error {
+func CreateVolumeGroup(volumeGroup string, devices []string) error {
 	args := append([]string{"vgcreate", volumeGroup}, devices...)
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)

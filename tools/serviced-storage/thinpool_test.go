@@ -44,9 +44,52 @@ func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
 	}
 	defer dev2.Destroy()
 
+	// First create the pvs
 	err = EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
 	c.Assert(err, IsNil)
 
+	// Should be idempotent
+	err = EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
+	c.Assert(err, IsNil)
+
+	// Invalid devices should fail
 	err = EnsurePhysicalDevices([]string{"/not/a/device"})
 	c.Assert(err, Not(IsNil))
+}
+
+func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
+	size := int64(100 * 1024 * 1024)
+	purpose := "serviced"
+
+	// Should fail if devices are invalid
+	err := CreateVolumeGroup(purpose, []string{"/dev/invalid1", "/dev/invalid2"})
+	c.Assert(err, Not(IsNil))
+
+	// Create a couple devices
+	dev1, err := volume.CreateTemporaryDevice(size)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer dev1.Destroy()
+
+	dev2, err := volume.CreateTemporaryDevice(size)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer dev2.Destroy()
+
+	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
+
+	// Should fail if the devices aren't pvs yet
+	err = CreateVolumeGroup(purpose, devices)
+	c.Assert(err, Not(IsNil))
+
+	// Ensure pvs
+	err = EnsurePhysicalDevices(devices)
+	c.Assert(err, IsNil)
+
+	// Now it should succeed
+	err = CreateVolumeGroup(purpose, devices)
+	c.Assert(err, Not(IsNil))
+
 }
