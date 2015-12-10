@@ -365,3 +365,24 @@ func (iid *ImageID) Copy() *ImageID {
 	newImage.Tag = iid.Tag
 	return newImage
 }
+
+// Merge will merge the non-empty struct members of 'new' into the image
+// iid
+func (iid *ImageID) Merge(new *ImageID) error {
+	if new.Host != "" {
+		iid.Host = new.Host
+	}
+	if new.Port != 0 {
+		iid.Port = new.Port
+	}
+	if new.User != "" {
+		iid.User = new.User
+	}
+	if new.Repo != "" {
+		iid.Repo = new.Repo
+	}
+	if new.Tag != "" {
+		iid.Tag = new.Tag
+	}
+	return nil
+}

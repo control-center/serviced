@@ -18,6 +18,8 @@ package commons
 import (
 	"reflect"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 type ImageIDTest struct {
@@ -454,4 +456,32 @@ func DoRenameImageIdTest(t *testing.T, tests []RenameTest) {
 
 func TestRenameImageID(t *testing.T) {
 	DoRenameImageIdTest(t, renameTests)
+}
+
+type ImageIDSuite struct{}
+
+var _ = Suite(&ImageIDSuite{})
+
+func (s *ImageIDSuite) TestMerge(c *C) {
+	img1_orig := &ImageID{
+		"host",
+		1,
+		"user",
+		"repo",
+		"tag",
+	}
+
+	img1 := img1_orig.Copy()
+	img2 := &ImageID{"host2", 2, "user2", "repo2", "tag2"}
+	img1.Merge(img2)
+	c.Assert(img2, DeepEquals, img1)
+
+	img1 = img1_orig.Copy()
+	img1.Merge(&ImageID{Repo: "apples"})
+	c.Assert(img1, DeepEquals, &ImageID{"host", 1, "user", "apples", "tag"})
+
+	img1 = img1_orig.Copy()
+	img1.Merge(&ImageID{})
+	c.Assert(img1, DeepEquals, img1_orig)
+
 }

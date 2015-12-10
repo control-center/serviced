@@ -44,6 +44,15 @@ func (vs *ScriptSuite) Test_parseFile(t *C) {
 	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 11
 	use2, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/hbase:v5"})
+
+	ctx.line = "SVC_USE  zenoss/testy:5.5 zenoss/old_testy"
+	ctx.lineNum = 12
+	use3, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/testy:5.5", "zenoss/old_testy"})
+
+	ctx.line = "SVC_USE  zenoss/multi_replace:6.7 replace_me org/replace_me_too"
+	ctx.lineNum = 13
+	use4, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/multi_replace:6.7", "replace_me", "org/replace_me_too"})
+
 	expected := []node{
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
@@ -52,18 +61,20 @@ func (vs *ScriptSuite) Test_parseFile(t *C) {
 		node{lineNum: 7, cmd: SNAPSHOT, line: SNAPSHOT, args: []string{}},
 		use1,
 		use2,
-		node{lineNum: 12, cmd: SVC_START, line: "SVC_START Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
-		node{lineNum: 13, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb started 30", args: []string{"Zenoss.core/mariadb", "started", "30"}},
-		node{lineNum: 14, cmd: SVC_STOP, line: "SVC_STOP Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
-		node{lineNum: 15, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb stopped 0", args: []string{"Zenoss.core/mariadb", "stopped", "0"}},
-		node{lineNum: 16, cmd: SVC_START, line: "SVC_START Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
-		node{lineNum: 17, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb started 30", args: []string{"Zenoss.core/mariadb", "started", "30"}},
-		node{lineNum: 18, cmd: SVC_RESTART, line: "SVC_RESTART Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
+		use3,
+		use4,
+		node{lineNum: 14, cmd: SVC_START, line: "SVC_START Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
+		node{lineNum: 15, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb started 30", args: []string{"Zenoss.core/mariadb", "started", "30"}},
+		node{lineNum: 16, cmd: SVC_STOP, line: "SVC_STOP Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
+		node{lineNum: 17, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb stopped 0", args: []string{"Zenoss.core/mariadb", "stopped", "0"}},
+		node{lineNum: 18, cmd: SVC_START, line: "SVC_START Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
 		node{lineNum: 19, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb started 30", args: []string{"Zenoss.core/mariadb", "started", "30"}},
-		node{lineNum: 20, cmd: SVC_RUN, line: "SVC_RUN  Zenoss.core/Zope upgrade", args: []string{"Zenoss.core/Zope", "upgrade"}},
-		node{lineNum: 21, cmd: SVC_RUN, line: "SVC_RUN  Zenoss.core/HBase/RegionServer upgrade arg1 arg2", args: []string{"Zenoss.core/HBase/RegionServer", "upgrade", "arg1", "arg2"}},
-		node{lineNum: 22, cmd: SVC_EXEC, line: "SVC_EXEC COMMIT Zenoss.core/Zope command1", args: []string{"COMMIT", "Zenoss.core/Zope", "command1"}},
-		node{lineNum: 23, cmd: SVC_EXEC, line: "SVC_EXEC NO_COMMIT Zenoss.core/zenhub command2 with args", args: []string{"NO_COMMIT", "Zenoss.core/zenhub", "command2", "with", "args"}},
+		node{lineNum: 20, cmd: SVC_RESTART, line: "SVC_RESTART Zenoss.core/mariadb", args: []string{"Zenoss.core/mariadb"}},
+		node{lineNum: 21, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core/mariadb started 30", args: []string{"Zenoss.core/mariadb", "started", "30"}},
+		node{lineNum: 22, cmd: SVC_RUN, line: "SVC_RUN  Zenoss.core/Zope upgrade", args: []string{"Zenoss.core/Zope", "upgrade"}},
+		node{lineNum: 23, cmd: SVC_RUN, line: "SVC_RUN  Zenoss.core/HBase/RegionServer upgrade arg1 arg2", args: []string{"Zenoss.core/HBase/RegionServer", "upgrade", "arg1", "arg2"}},
+		node{lineNum: 24, cmd: SVC_EXEC, line: "SVC_EXEC COMMIT Zenoss.core/Zope command1", args: []string{"COMMIT", "Zenoss.core/Zope", "command1"}},
+		node{lineNum: 25, cmd: SVC_EXEC, line: "SVC_EXEC NO_COMMIT Zenoss.core/zenhub command2 with args", args: []string{"NO_COMMIT", "Zenoss.core/zenhub", "command2", "with", "args"}},
 	}
 	t.Assert(len(ctx.nodes), Equals, len(expected))
 

@@ -964,7 +964,11 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 
 		// set proxy addresses
-		c.setProxyAddresses(key, endpointList, endpointList[0].VirtualAddress, cc_endpoint_purpose)
+		endpointMap := make(map[int]applicationendpoint.ApplicationEndpoint)
+		for i, ep := range endpointList {
+			endpointMap[i] = ep
+		}
+		c.setProxyAddresses(key, endpointMap, endpointList[0].VirtualAddress, cc_endpoint_purpose)
 
 		// add/replace entries in importedEndpoints
 		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)

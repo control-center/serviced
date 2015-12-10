@@ -33,7 +33,7 @@ type ServiceControl func(serviceID string, recursive bool) error
 type ServiceMigrate func(serviceID string, migrationScript string, sdkVersion string) error
 
 // ServiceUse is a func used to control the state of a service
-type ServiceUse func(serviceID string, imageID string, registry string, noOp bool) (string, error)
+type ServiceUse func(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
 type ServiceState string
 
@@ -73,6 +73,10 @@ func noOpServiceRestart(serviceID string, recursive bool) error {
 
 func noOpServiceMigrate(serviceID string, migrationScript string, sdkVersion string) error {
 	return nil
+}
+
+func noOpServiceUse(serviceID string, imageID string, replaceImg string, replaceImgs []string, noOp bool) (string, error) {
+	return "no_op_image", nil
 }
 
 func noOpServiceWait(serviceID []string, serviceState ServiceState, timeout uint32) error {

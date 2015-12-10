@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -673,6 +674,14 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		return nil, nil, err
 	}
 
+	// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
+	count := rand.Intn(128)
+	fix := ""
+	for i := 0; i < count; i++ {
+		fix += "."
+	}
+	// End temp fix part 1. See immediately below for part 2.
+
 	// add arguments for environment variables
 	cfg.Env = append([]string{},
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
@@ -686,8 +695,10 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
-		// CC-1384
-		fmt.Sprintf("DOCKER_14203_FIX=%d", time.Now().UnixNano()))
+		// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
+		fmt.Sprintf("DOCKER_14203_FIX='%s'", fix),
+		// End temp fix part 2. See immediately above for part 1.
+	)
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
@@ -747,7 +758,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
 
-	conn, err := a.zkClient.GetConnection()
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return "", fmt.Errorf("Could not get zk connection for resource path: %s, %s", resourcePath, err)
 	}

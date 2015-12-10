@@ -15,4 +15,4 @@ from exceptions import ParseError
 from goroutine import Goroutine
 from parser import Parser
 from stackframe import StackFrame
-from stacktrace import StackTrace
+from stacktrace import StackTrace, CoalescedStackTrace, MonitoredStackTrace

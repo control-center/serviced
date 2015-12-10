@@ -336,7 +336,7 @@ table .btn,
 }
 
 .btn-primary{
-    background-color: #6b6b6b;
+    background-color: #325385;
     border-color: #555;
 }
 .btn-primary[disabled],
@@ -350,8 +350,8 @@ table .btn,
 .btn-primary:active,
 .btn-primary.active,
 .open .dropdown-toggle.btn-primary {
-    background-color: #8b8b8b;
-    border-color: #555;
+    border-color: #0084DB;
+    background-color: #4F83D1;
 }
 
 .details {
@@ -1021,6 +1021,9 @@ input.startup {
 }
 .btn-link:hover {
     color: #4F83D1;
+}
+.btn-link.minor {
+    color: #888;
 }
 
 .btn-danger {
