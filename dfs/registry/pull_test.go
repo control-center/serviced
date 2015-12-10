@@ -16,8 +16,8 @@
 package registry
 
 import (
-	"time"
 	"errors"
+	"time"
 
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -100,7 +100,7 @@ func (s *RegistryListenerSuite) TestPull_RemoteImageFoundByHash(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
-			Hash:	"matchinghash",
+			Hash:    "matchinghash",
 		},
 	}
 	_ = rImage.Create(c, s.conn)
@@ -128,7 +128,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushingTimeout(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
-			Hash:	 "matchinghash",
+			Hash:    "matchinghash",
 		},
 	}
 	_ = rImage.Create(c, s.conn)
@@ -157,7 +157,7 @@ func (s *RegistryListenerSuite) TestPull_ImagePushing(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
-			Hash:	 "matchinghash",
+			Hash:    "matchinghash",
 		},
 	}
 	node := rImage.Create(c, s.conn)
@@ -191,7 +191,7 @@ func (s *RegistryListenerSuite) TestPull_ImageNotPushingTimeout(c *C) {
 			Repo:    "reponame",
 			Tag:     "tagname",
 			UUID:    "uuidvalue",
-			Hash:	 "matchinghash",
+			Hash:    "matchinghash",
 		},
 	}
 	node := rImage.Create(c, s.conn)

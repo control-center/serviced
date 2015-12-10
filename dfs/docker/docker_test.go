@@ -233,4 +233,3 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	c.Assert(hash2, Not(Equals), "")
 	c.Assert(hash1, Not(Equals), hash2)
 }
-
