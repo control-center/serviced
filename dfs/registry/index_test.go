@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	ErrTestUnknownError = errors.New("test unknown error")
+	ErrTestUnknownError   = errors.New("test unknown error")
 	ErrTestGeneratingHash = errors.New("test error generating hash")
 )
 
@@ -38,7 +38,7 @@ type RegistryIndexSuite struct {
 	ctx    datastore.Context
 	facade *mocks.MockFacade
 	index  *RegistryIndexClient
-	dc	   *mocks.Docker
+	dc     *mocks.Docker
 }
 
 var _ = Suite(&RegistryIndexSuite{})
@@ -83,7 +83,7 @@ func (s *RegistryIndexSuite) TestPushImage(c *C) {
 		Repo:    "reponame",
 		Tag:     "tagname",
 		UUID:    "uuidvalue",
-		Hash:	hashValue,
+		Hash:    hashValue,
 	}
 	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
 	c.Assert(err, IsNil)

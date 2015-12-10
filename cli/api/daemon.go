@@ -765,7 +765,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
-	
+
 	dc, err := docker.NewDockerClient()
 	if err != nil {
 		glog.Errorf("Error getting docker client: %s", err)
