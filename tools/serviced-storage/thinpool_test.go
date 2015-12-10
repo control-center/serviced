@@ -23,29 +23,39 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+const (
+	size int64 = 100 * 1024 * 1024
+)
+
 func TestThinpool(t *testing.T) { TestingT(t) }
 
-type ThinpoolSuite struct{}
+type ThinpoolSuite struct {
+	devices []*volume.TemporaryDevice
+}
+
+func (s *ThinpoolSuite) TempDevice(c *C) *volume.TemporaryDevice {
+	dev, err := volume.CreateTemporaryDevice(size)
+	if err != nil {
+		c.Fatal(err)
+	}
+	s.devices = append(s.devices, dev)
+	return dev
+}
 
 var _ = Suite(&ThinpoolSuite{})
 
+func (s *ThinpoolSuite) TearDownTest(c *C) {
+	for _, dev := range s.devices {
+		dev.Destroy()
+	}
+}
+
 func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
-	size := int64(100 * 1024 * 1024)
-
-	dev1, err := volume.CreateTemporaryDevice(size)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer dev1.Destroy()
-
-	dev2, err := volume.CreateTemporaryDevice(size)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer dev2.Destroy()
+	dev1 := s.TempDevice(c)
+	dev2 := s.TempDevice(c)
 
 	// First create the pvs
-	err = EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
+	err := EnsurePhysicalDevices([]string{dev1.LoopDevice(), dev2.LoopDevice()})
 	c.Assert(err, IsNil)
 
 	// Should be idempotent
@@ -58,7 +68,6 @@ func (s *ThinpoolSuite) TestEnsurePhysicalDevices(c *C) {
 }
 
 func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
-	size := int64(100 * 1024 * 1024)
 	purpose := "serviced"
 
 	// Should fail if devices are invalid
@@ -66,17 +75,8 @@ func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
 	c.Assert(err, Not(IsNil))
 
 	// Create a couple devices
-	dev1, err := volume.CreateTemporaryDevice(size)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer dev1.Destroy()
-
-	dev2, err := volume.CreateTemporaryDevice(size)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer dev2.Destroy()
+	dev1 := s.TempDevice(c)
+	dev2 := s.TempDevice(c)
 
 	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
 
@@ -91,5 +91,9 @@ func (s *ThinpoolSuite) TestCreateVolumeGroup(c *C) {
 	// Now it should succeed
 	err = CreateVolumeGroup(purpose, devices)
 	c.Assert(err, Not(IsNil))
+
+}
+
+func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
 
 }
