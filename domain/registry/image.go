@@ -24,6 +24,7 @@ type Image struct {
 	Repo    string
 	Tag     string
 	UUID    string
+	Hash	string
 	datastore.VersionedEntity
 }
 

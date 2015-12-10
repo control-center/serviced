@@ -93,6 +93,18 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 			}
 			// was the pull successful?
 			if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
+				glog.Infof("Image not found by ID, comparing hashes")
+				//IDs may not match, so lets compare hashes
+				if localHash, err := l.docker.GetImageHash(regaddr); err != nil {
+					glog.Warningf("Error building hash of image: %s: %s", regaddr, err)
+				} else {
+					glog.V(2).Infof("For image %s, comparing local hash (%s) to master's hash (%s)", regaddr, localHash, node.Image.Hash)
+					if localHash == node.Image.Hash {
+						//if the match, the image we have is current, just return
+						return nil
+					}
+				}
+
 				if node.PushedAt.Unix() > 0 {
 					// the image is definitely not in the registry, so lets
 					// get that push started.
