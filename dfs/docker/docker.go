@@ -14,13 +14,13 @@
 package docker
 
 import (
-	"io"
-	"regexp"
-	"strings"
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"bytes"
+	"io"
+	"regexp"
+	"strings"
 
 	"github.com/control-center/serviced/commons"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -186,13 +186,13 @@ func (d *DockerClient) GetImageHash(image string) (string, error) {
 	var buffer bytes.Buffer
 	for _, history := range historyList {
 		imageDataString := fmt.Sprintf("%d-%s-%d\n", history.Created, history.CreatedBy, history.Size)
-	    buffer.WriteString(imageDataString)
+		buffer.WriteString(imageDataString)
 	}
 
-	 h := sha256.New()
-     h.Write(buffer.Bytes())
+	h := sha256.New()
+	h.Write(buffer.Bytes())
 
-     sha := base64.URLEncoding.EncodeToString(h.Sum(nil))
+	sha := base64.URLEncoding.EncodeToString(h.Sum(nil))
 
-     return sha, nil
+	return sha, nil
 }
