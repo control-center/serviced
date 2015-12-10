@@ -62,7 +62,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "testuuid",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid", "hashvalue").Return(ErrTestNoPush).Run(func(a mock.Arguments) {
@@ -91,7 +91,7 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "testuuid",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
@@ -129,7 +129,7 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "testuuid",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
@@ -168,7 +168,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "testuuid",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)

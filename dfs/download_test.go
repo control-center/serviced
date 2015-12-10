@@ -134,7 +134,7 @@ func (s *DFSTestSuite) TestDownload_Upgrade(c *C) {
 		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "testimage2",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.index.On("FindImage", "tenant/repo:latest").Return(rImage, nil)
 	img, err := s.dfs.Download("library/repo:tag", "tenant", true)
