@@ -118,7 +118,7 @@ func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
 	if err := CreateVolumeGroup(volumeGroup, devices); err != nil {
 		c.Fatal(err)
 	}
-	defer exec.Command("vgremove", volumeGroup).Run()
+	defer exec.Command("vgremove", "-f", volumeGroup).Run()
 
 	// Now the metadata volume should work fine
 	mdvol, err := CreateMetadataVolume(volumeGroup)
@@ -127,4 +127,28 @@ func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
 
 	out, _ := exec.Command("lvs").CombinedOutput()
 	c.Assert(strings.Contains(string(out), mdvol), Equals, true)
+}
+
+func (s *ThinpoolSuite) TestGetInfoForLogicalVolume(c *C) {
+	dev1 := s.TempDevice(c)
+	dev2 := s.TempDevice(c)
+	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
+	EnsurePhysicalDevices(devices)
+	volumeGroup := "serviced-test-3"
+	CreateVolumeGroup(volumeGroup, devices)
+	defer exec.Command("vgremove", "-f", volumeGroup).Run()
+	metadataVolume, _ := CreateMetadataVolume(volumeGroup)
+	dataVolume, _ := CreateDataVolume(volumeGroup)
+	ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
+
+	// Should fail if invalid logical volume
+	_, err := GetInfoForLogicalVolume("/not/a/logical/volume")
+	c.Assert(err, Not(IsNil))
+
+	// Should work for valid params
+	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
+	c.Assert(err, IsNil)
+	c.Assert(lvInfo.Name, Equals, dataVolume)
+	c.Assert(lvInfo.KernelMajor, Not(Equals), 0)
+	c.Assert(lvInfo.KernelMinor, Not(Equals), 0)
 }

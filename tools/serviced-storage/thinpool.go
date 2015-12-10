@@ -104,17 +104,17 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
-	dataVolume, err := createDataVolume(volumeGroup)
+	dataVolume, err := CreateDataVolume(volumeGroup)
 	if err != nil {
 		return "", err
 	}
 
-	err = convertToThinPool(volumeGroup, dataVolume, metadataVolume)
+	err = ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
 	if err != nil {
 		return "", err
 	}
 
-	thinPoolName, err := getThinPoolNameForLogicalVolume(volumeGroup, dataVolume)
+	thinPoolName, err := GetThinPoolNameForLogicalVolume(dataVolume)
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +179,7 @@ func CreateMetadataVolume(volumeGroup string) (string, error) {
 	return metadataName, err
 }
 
-func createDataVolume(volumeGroup string) (string, error) {
+func CreateDataVolume(volumeGroup string) (string, error) {
 	units := "b" // volume size will be measured in bytes
 	totalSize, err := getVolumeGroupSize(volumeGroup, units)
 	dataSize := (totalSize*90/100 + 511) &^ 511
@@ -199,7 +199,7 @@ func createDataVolume(volumeGroup string) (string, error) {
 	return dataName, err
 }
 
-func convertToThinPool(volumeGroup, dataVolume string, metadataVolume string) error {
+func ConvertToThinPool(volumeGroup, dataVolume string, metadataVolume string) error {
 	args := []string{"lvconvert",
 		"--zero", "n",
 		"--thinpool", fmt.Sprintf("%s/%s", volumeGroup, dataVolume),
@@ -239,13 +239,13 @@ func getVolumeGroupSize(volumeGroup string, units string) (uint64, error) {
 	return size, nil
 }
 
-func getInfoForLogicalVolume(volumeGroup string, logicalVolume string) (LogicalVolumeInfo, error) {
+func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 	lvi := LogicalVolumeInfo{}
 	args := []string{"lvs",
 		"--noheadings",
 		"--nameprefixes",
 		"--options", "lv_name,lv_kernel_major,lv_kernel_minor",
-		volumeGroup}
+	}
 	cmd := exec.Command(args[0], args[1:]...)
 	stdout, _, err := checkCommand(cmd)
 	if err != nil {
@@ -290,11 +290,11 @@ func getInfoForLogicalVolume(volumeGroup string, logicalVolume string) (LogicalV
 		return lvi, nil
 	}
 
-	return lvi, fmt.Errorf("Failed to find logical volume: '%s'", name)
+	return lvi, fmt.Errorf("Failed to find logical volume: '%s'", logicalVolume)
 }
 
-func getThinPoolNameForLogicalVolume(volumeGroup string, logicalVolume string) (string, error) {
-	info, err := getInfoForLogicalVolume(volumeGroup, logicalVolume)
+func GetThinPoolNameForLogicalVolume(logicalVolume string) (string, error) {
+	info, err := GetInfoForLogicalVolume(logicalVolume)
 	if err != nil {
 		return "", err
 	}
@@ -304,5 +304,5 @@ func getThinPoolNameForLogicalVolume(volumeGroup string, logicalVolume string) (
 	if err != nil {
 		return "", fmt.Errorf("Error reading %s: %s", filename, err)
 	}
-	return strings.Trim(string(contents), "\n"), nil
+	return "/dev/mapper/" + strings.Trim(string(contents), "\n"), nil
 }
