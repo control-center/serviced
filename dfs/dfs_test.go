@@ -53,7 +53,7 @@ var (
 	ErrTestRemoveSnapshotTagFailed = errors.New("unable to remove tag from snapshot")
 	ErrTestGetSnapshotByTagFailed  = errors.New("unable to retrieve snapshot by tag name")
 	ErrTestGeneric                 = errors.New("something went wrong")
-	ErrTestNoHash				   = errors.New("unable to get hash of image")
+	ErrTestNoHash                  = errors.New("unable to get hash of image")
 )
 
 type NopCloser struct {

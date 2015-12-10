@@ -75,7 +75,7 @@ func (s *DFSTestSuite) TestRollback_ImageNoPush(c *C) {
 		Repo:    "repo",
 		Tag:     "LABEL",
 		UUID:    "testuuid",
-		Hash:	 "hashvalue",
+		Hash:    "hashvalue",
 	}
 	s.index.On("FindImage", "BASE/repo:LABEL").Return(rImage, nil).Once()
 	s.index.On("PushImage", "BASE/repo:latest", "testuuid", "hashvalue").Return(ErrTestNoPush)
@@ -99,7 +99,7 @@ func (s *DFSTestSuite) TestRollback_Success(c *C) {
 		Repo:    "repo",
 		Tag:     "LABEL",
 		UUID:    "testuuid",
-		Hash:	"hashvalue",
+		Hash:    "hashvalue",
 	}
 	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
 	vol.On("SnapshotInfo", "BASE_LABEL").Return(vinfo, nil)
