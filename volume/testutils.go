@@ -16,6 +16,7 @@
 package volume
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -27,22 +28,36 @@ import (
 )
 
 var (
-	btrfsVolumes map[string]string = make(map[string]string)
-	volumeLock   sync.Mutex
+	ramdisks   map[string]string = make(map[string]string)
+	volumeLock sync.Mutex
 )
 
-// createBtrfsTmpVolume creates a btrfs volume of <size> bytes in a ramdisk,
-// based on a loop device. Returns the path to the mounted filesystem.
-func CreateBtrfsTmpVolume(c *C, size int64) string {
+func CreateRamdisk(c *C, size int64) string {
 	// Make a ramdisk
-	ramdiskDir, err := ioutil.TempDir("", "btrfs-ramdisk-")
+	ramdiskDir, err := ioutil.TempDir("", "serviced-test-")
 	c.Assert(err, IsNil)
 	err = os.MkdirAll(ramdiskDir, 0700)
 	c.Assert(err, IsNil)
 	err = syscall.Mount("tmpfs", ramdiskDir, "tmpfs", syscall.MS_MGC_VAL, "")
+	c.Assert(err, IsNil)
+	return ramdiskDir
+}
+
+func DestroyRamdisk(c *C, path string) {
+	// Unmount the ramdisk
+	err := syscall.Unmount(path, syscall.MNT_DETACH)
+	c.Check(err, IsNil)
+
+	// Clean up the mount point
+	os.RemoveAll(path)
+}
+
+func CreateTmpVolume(c *C, size int64, fs string) string {
+	// Make a ramdisk
+	ramdiskDir := CreateRamdisk(c, size)
 	loopFile := filepath.Join(ramdiskDir, "loop")
 	mountPath := filepath.Join(ramdiskDir, "mnt")
-	err = os.MkdirAll(mountPath, 0700)
+	err := os.MkdirAll(mountPath, 0700)
 	c.Assert(err, IsNil)
 
 	// Create a sparse file of <size> bytes to back the loop device
@@ -57,23 +72,29 @@ func CreateBtrfsTmpVolume(c *C, size int64) string {
 		c.Fatal(err)
 	}
 	// Create a btrfs filesystem
-	if err := exec.Command("mkfs.btrfs", loopFile).Run(); err != nil {
+	if err := exec.Command(fmt.Sprintf("mkfs.%s", fs), loopFile).Run(); err != nil {
 		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
 		c.Fatal(err)
 	}
 	// Mount the loop device. System calls to get the next available loopback
 	// device are nontrivial, so just shell out, like an animal
-	if err := exec.Command("mount", "-t", "btrfs", "-o", "loop", loopFile, mountPath).Run(); err != nil {
+	if err := exec.Command("mount", "-t", fs, "-o", "loop", loopFile, mountPath).Run(); err != nil {
 		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
 		c.Fatal(err)
 	}
 	volumeLock.Lock()
 	defer volumeLock.Unlock()
-	btrfsVolumes[mountPath] = ramdiskDir
+	ramdisks[mountPath] = ramdiskDir
 	return mountPath
 }
 
-func CleanupBtrfsTmpVolume(c *C, fsPath string) {
+// createBtrfsTmpVolume creates a btrfs volume of <size> bytes in a ramdisk,
+// based on a loop device. Returns the path to the mounted filesystem.
+func CreateBtrfsTmpVolume(c *C, size int64) string {
+	return CreateTmpVolume(c, size, "btrfs")
+}
+
+func CleanupTmpVolume(c *C, fsPath string) {
 	var (
 		ramdisk string
 		ok      bool
@@ -81,20 +102,16 @@ func CleanupBtrfsTmpVolume(c *C, fsPath string) {
 	volumeLock.Lock()
 	defer volumeLock.Unlock()
 
-	ramdisk, ok = btrfsVolumes[fsPath]
+	ramdisk, ok = ramdisks[fsPath]
 	c.Assert(ok, Equals, true)
 
 	// First unmount the loop device
 	err := syscall.Unmount(fsPath, syscall.MNT_DETACH)
 	c.Check(err, IsNil)
 
-	// Unmount the ramdisk
-	err = syscall.Unmount(ramdisk, syscall.MNT_DETACH)
-	c.Check(err, IsNil)
-
-	// Clean up the mount point
-	os.RemoveAll(ramdisk)
+	// Clean up the ramdisk
+	DestroyRamdisk(c, ramdisk)
 
 	// Remove the reference to the volume from our internal map
-	delete(btrfsVolumes, fsPath)
+	delete(ramdisks, fsPath)
 }
