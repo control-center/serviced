@@ -305,15 +305,24 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 	return nil
 }
 
-// PullImage pulls the image into the local repository
-func (a *HostAgent) PullImage(cancel <-chan time.Time, imageID string) error {
+// PullImage pulls the image into the local repository.  Returns 2 strings,
+// the "tenantID/repo:latest" repo descriptor and the new + current image UUID string
+func (a *HostAgent) PullImage(cancel <-chan time.Time, imageID string) (string, string, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get zk connection: %s", err)
-		return err
+		return "", "", err
 	}
 	a.pullreg.SetConnection(conn)
-	return a.pullreg.PullImage(cancel, imageID)
+	repo, err := a.pullreg.PullImage(cancel, imageID)
+	if err != nil {
+		return "", "", err
+	}
+	uuid, err := registry.GetImageUUID(conn, imageID)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to get image UUID: %s", err)
+	}
+	return repo, uuid, nil
 }
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.

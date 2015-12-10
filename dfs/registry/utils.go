@@ -17,6 +17,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
@@ -34,36 +35,66 @@ func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error
 }
 
 // SetRegistryImage inserts a registry image into the coordinator index.
-func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
+// Returns the UUID of the topmost layer of the specified image
+func SetRegistryImage(conn client.Connection, rImage registry.Image) (string, error) {
 	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
 	leadernode := &RegistryImageLeader{HostID: "master"}
 	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
 		glog.Errorf("Could not create repo path %s: %s", leaderpath, err)
-		return err
+		return "", err
 	}
 	imagepath := path.Join(zkregistrytags, rImage.ID())
 	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
+	var retErr error
 	if err := conn.Create(imagepath, node); err == client.ErrNodeExists {
 		leader := conn.NewLeader(leaderpath, leadernode)
 		leaderDone := make(chan struct{})
 		defer close(leaderDone)
 		_, err := leader.TakeLead(leaderDone)
 		if err != nil {
-			return err
+			return "", err
 		}
 		defer leader.ReleaseLead()
 		if err := conn.Get(imagepath, node); err != nil {
-			return err
+			return "", err
 		}
 		node.Image = rImage
 		node.PushedAt = time.Unix(0, 0)
-		return conn.Set(imagepath, node)
+		retErr = conn.Set(imagepath, node)
 	} else if err != nil {
 		glog.Errorf("Could not create tag path %s: %s", imagepath, err)
-		return err
+		return "", err
 	}
-	return nil
+	uuid, err := GetImageUUID(conn, rImage.String())
+	if err != nil {
+		return "", err
+	}
+	return uuid, retErr
 
+}
+
+// GetImageUUID gets an image UUID from the respective tags registry path,
+// given an image tag, ex. "kjasd8912833hddhla/core_5.0:latest"
+func GetImageUUID(conn client.Connection, tag string) (string, error) {
+	imageID, err := commons.ParseImageID(tag)
+	if err != nil {
+		return "", err
+	}
+	rImage := &registry.Image{
+		Library: imageID.User,
+		Repo:    imageID.Repo,
+		Tag:     imageID.Tag,
+	}
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
+	}
+	idpath := path.Join(zkregistrytags, rImage.ID())
+
+	var node RegistryImageNode
+	if err = conn.Get(idpath, &node); err != nil {
+		return "", err
+	}
+	return node.Image.UUID, nil
 }
 
 // DeleteRegistryImage removes a registry image from the coordinator index.

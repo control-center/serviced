@@ -55,6 +55,8 @@ type ServiceState struct {
 	HostIP     string
 	InstanceID int
 	InSync     bool
+	ImageUUID  string
+	ImageRepo  string // <tenantID>/repo:latest
 }
 
 // IsRunning returns true when a service is currently running
@@ -95,11 +97,11 @@ func (ss *ServiceState) EvalPortTemplate(portTemplate string) (uint16, error) {
 	}
 	i, err := strconv.Atoi(b.String())
 	if err != nil {
-		err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate,  b, err)
+		err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate, b, err)
 		return 0, err
 	}
 	if i < 0 {
-		err = fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", portTemplate,  i)
+		err = fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", portTemplate, i)
 		return 0, err
 	}
 	return uint16(i), nil

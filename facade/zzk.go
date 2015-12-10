@@ -27,6 +27,7 @@ type ZZK interface {
 	RemoveService(svc *service.Service) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
+	UpdateServiceState(poolID string, state *servicestate.ServiceState) error
 	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningVHost(vhost, serviceID string) error
 	AddHost(_host *host.Host) error
@@ -38,7 +39,7 @@ type ZZK interface {
 	AddVirtualIP(vip *pool.VirtualIP) error
 	RemoveVirtualIP(vip *pool.VirtualIP) error
 	GetRegistryImage(id string) (*registry.Image, error)
-	SetRegistryImage(rImage *registry.Image) error
+	SetRegistryImage(rImage *registry.Image) (string, error)
 	DeleteRegistryImage(id string) error
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error

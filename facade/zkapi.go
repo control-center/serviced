@@ -88,6 +88,17 @@ func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 	return err
 }
 
+func (zk *zkf) UpdateServiceState(poolID string, state *servicestate.ServiceState) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		return err
+	}
+	if err = zkservice.UpdateServiceState(conn, state); err != nil {
+		return fmt.Errorf("unable to update service state: %s", err)
+	}
+	return nil
+}
+
 func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
@@ -206,11 +217,12 @@ func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
 	return zkimgregistry.GetRegistryImage(conn, id)
 }
 
-func (z *zkf) SetRegistryImage(image *registry.Image) error {
+func (z *zkf) SetRegistryImage(image *registry.Image) (string, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		return err
+		return "", err
 	}
+
 	return zkimgregistry.SetRegistryImage(conn, *image)
 }
 
