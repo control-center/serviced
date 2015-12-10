@@ -96,11 +96,24 @@ func (client *RegistryIndexClient) PushImage(image, uuid string) error {
 	if imageID.IsLatest() {
 		imageID.Tag = docker.Latest
 	}
+
+	//get the hash and store it in the image record
+	dc, err := docker.NewDockerClient()
+	if err != nil {
+		return err
+	}
+
+	hash, err := dc.GetImageHash(uuid)
+	if err != nil {
+		return err
+	}
+
 	rImage := &registry.Image{
 		Library: imageID.User,
 		Repo:    imageID.Repo,
 		Tag:     imageID.Tag,
 		UUID:    uuid,
+		Hash:	 hash,
 	}
 	return client.facade.SetRegistryImage(client.ctx, rImage)
 }
