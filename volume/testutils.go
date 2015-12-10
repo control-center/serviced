@@ -49,7 +49,8 @@ func DestroyRamdisk(c *C, path string) {
 	c.Check(err, IsNil)
 
 	// Clean up the mount point
-	os.RemoveAll(path)
+	err = os.RemoveAll(path)
+	c.Check(err, IsNil)
 }
 
 func CreateTmpVolume(c *C, size int64, fs string) string {
@@ -63,23 +64,23 @@ func CreateTmpVolume(c *C, size int64, fs string) string {
 	// Create a sparse file of <size> bytes to back the loop device
 	file, err := os.OpenFile(loopFile, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		defer DestroyRamdisk(c, ramdiskDir)
 		c.Fatal(err)
 	}
 	defer file.Close()
 	if err = file.Truncate(size); err != nil {
-		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		defer DestroyRamdisk(c, ramdiskDir)
 		c.Fatal(err)
 	}
 	// Create a btrfs filesystem
 	if err := exec.Command(fmt.Sprintf("mkfs.%s", fs), loopFile).Run(); err != nil {
-		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		defer DestroyRamdisk(c, ramdiskDir)
 		c.Fatal(err)
 	}
 	// Mount the loop device. System calls to get the next available loopback
 	// device are nontrivial, so just shell out, like an animal
 	if err := exec.Command("mount", "-t", fs, "-o", "loop", loopFile, mountPath).Run(); err != nil {
-		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		defer DestroyRamdisk(c, ramdiskDir)
 		c.Fatal(err)
 	}
 	volumeLock.Lock()
