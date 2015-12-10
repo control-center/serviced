@@ -16,7 +16,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -65,55 +67,47 @@ func (c *ThinPoolCreate) Execute(args []string) error {
 	}
 
 	logger.Info("Creating thin-pool")
-	if err := createThinPool(purpose, devices); err != nil {
+	thinPoolName, err := createThinPool(purpose, devices)
+	if err != nil {
 		logger.Fatal(err)
 	}
+
+	fmt.Printf("Created thin-pool device '%s'\n", thinPoolName)
 
 	return nil
 }
 
-func createThinPool(purpose string, devices []string) error {
+func createThinPool(purpose string, devices []string) (string, error) {
 	if err := ensurePhysicalDevices(devices); err != nil {
-		return err
+		return "", err
 	}
 
 	vg := purpose
 	if err := createVolumeGroup(vg, devices); err != nil {
-		return err
+		return "", err
 	}
 
 	metadataVolume, err := createMetadataVolume(vg)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	dataVolume, err := createDataVolume(vg)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	err = convertToThinPool(vg, dataVolume, metadataVolume)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	thinPoolName, err := getThinPoolNameForLogicalVolume(vg)
+	thinPoolName, err := getThinPoolNameForLogicalVolume(vg, dataVolume)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	var msg string = ""
-	switch purpose {
-	case "docker":
-		msg = "Please add the following to /etc/default/docker, stop Docker, " +
-			"delete /var/lib/docker, and start it again:\n\n" +
-			"DOCKER_OPTS=\"${DOCKER_OPTS} --storage-opt dm.thinpooldev=" + thinPoolName + "\"\n"
-	case "serviced":
-		msg = "Please add the following to /etc/default/serviced:\n\n" +
-			"SERVICED_DM_THINPOOLDEV=\"" + thinPoolName + "\"\n"
-	}
-	fmt.Println(msg)
-	return nil
+	return thinPoolName, nil
 }
 
 func ensurePhysicalDevices(devices []string) error {
@@ -252,14 +246,15 @@ func getVolumeGroupSize(vg string, units string) (uint64, error) {
 	return size, nil
 }
 
-func getInfoForLogicalVolume(name string) (LogicalVolumeInfo, error) {
+func getInfoForLogicalVolume(volumeGroup string, logicalVolume string) (LogicalVolumeInfo, error) {
 	lvi := LogicalVolumeInfo{}
-	args := []string{"pvs",
+	args := []string{"lvs",
 		"--noheadings",
-		"--options", "lv_name,kernel_major,kernel_minor",
-		name}
+		"--nameprefixes",
+		"--options", "lv_name,lv_kernel_major,lv_kernel_minor",
+		volumeGroup}
 	cmd := exec.Command(args[0], args[1:]...)
-	_, stderr, exitCode, err := runCommand(cmd)
+	stdout, stderr, exitCode, err := runCommand(cmd)
 	if err != nil {
 		return lvi, err
 	}
@@ -267,18 +262,58 @@ func getInfoForLogicalVolume(name string) (LogicalVolumeInfo, error) {
 		return lvi, fmt.Errorf("Error(%d) running '%s':\n%s",
 			exitCode, strings.Join(args, " "), stderr)
 	}
-	// TODO: parse lines, match lv name, initialize retval fields
 
-	return lvi, nil
+	parseError := fmt.Errorf("Failed to parse command output:\n'%s'\n%s",
+		strings.Join(args, " "), stdout)
+
+	// Example command output:
+	// LVM2_LV_NAME='docker-pool' LVM2_LV_KERNEL_MAJOR='252' LVM2_LV_KERNEL_MINOR='4'
+	regexName := regexp.MustCompile("LVM2_LV_NAME='(.+?)'")
+	regexMajor := regexp.MustCompile("LVM2_LV_KERNEL_MAJOR='(.+?)'")
+	regexMinor := regexp.MustCompile("LVM2_LV_KERNEL_MINOR='(.+?)'")
+	for _, line := range strings.Split(stdout, "\n") {
+		match := regexName.FindStringSubmatch(line)
+		if len(match) != 2 || match[1] != logicalVolume {
+			continue
+		}
+
+		match = regexMajor.FindStringSubmatch(line)
+		if len(match) != 2 {
+			return lvi, parseError
+		}
+		major, err := strconv.ParseUint(match[1], 10, 32)
+		if err != nil {
+			return lvi, parseError
+		}
+
+		match = regexMinor.FindStringSubmatch(line)
+		if len(match) != 2 {
+			return lvi, parseError
+		}
+		minor, err := strconv.ParseUint(match[1], 10, 32)
+		if err != nil {
+			return lvi, parseError
+		}
+
+		lvi.Name = logicalVolume
+		lvi.KernelMajor = uint(major)
+		lvi.KernelMinor = uint(minor)
+		return lvi, nil
+	}
+
+	return lvi, fmt.Errorf("Failed to find logical volume: '%s'", name)
 }
 
-func getThinPoolNameForLogicalVolume(name string) (string, error) {
-	info, err := getInfoForLogicalVolume(name)
+func getThinPoolNameForLogicalVolume(volumeGroup string, logicalVolume string) (string, error) {
+	info, err := getInfoForLogicalVolume(volumeGroup, logicalVolume)
 	if err != nil {
 		return "", err
 	}
 	filename := fmt.Sprintf("/sys/dev/block/%d:%d/dm/name",
 		info.KernelMajor, info.KernelMinor)
-	contents := filename //TODO: read from filename
-	return contents, nil
+	contents, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return "", fmt.Errorf("Error reading %s: %s", filename, err)
+	}
+	return strings.Trim(string(contents), "\n"), nil
 }
