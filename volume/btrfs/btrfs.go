@@ -196,7 +196,7 @@ func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	rootDir := d.root
 	dfstatus, err := volume.RunBtrFSCmd(d.sudoer, "filesystem", "df", "-b", rootDir)
 	if err != nil {
-		glog.Infof("Error running df command with -b: %v. Trying without for older btrfs.", err)
+		glog.V(2).Infof("Error running df command with -b: %v. Trying without for older btrfs.", err)
 		dfstatus, err = volume.RunBtrFSCmd(d.sudoer, "filesystem", "df", rootDir)
 		if err != nil {
 			glog.Errorf("Could not get status of filestystem at %s", rootDir)
