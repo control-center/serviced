@@ -31,7 +31,6 @@ var (
 )
 
 type NFSDriver struct {
-	sync.Mutex
 	root string
 }
 
@@ -46,7 +45,7 @@ func init() {
 	volume.Register(volume.DriverTypeNFS, Init)
 }
 
-func Init(root string, _ []string) (volume.Driver, error) {
+func Init(root string, args []string) (volume.Driver, error) {
 	// TODO: Initialize the NFS mount here instead of in the HostAgent code
 	if fi, err := os.Stat(root); err != nil {
 		return nil, err
@@ -56,6 +55,16 @@ func Init(root string, _ []string) (volume.Driver, error) {
 	driver := &NFSDriver{
 		root: root,
 	}
+	if args != nil {
+		for _, arg := range args {
+			if arg == "nfs_test" {
+				mount = func(sourceVol, destination string) error {
+					return nil
+				}
+			}
+		}
+	}
+
 	return driver, nil
 }
 
@@ -91,14 +100,8 @@ func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 		tenant: getTenant(volumeName),
 	}
 	//actual NFS mount
-	d.Lock()
-	defer d.Unlock()
-	if storageClient, err := storage.GetClient(); err != nil {
+	if err := mount(volumeName, volumePath); err != nil {
 		return nil, err
-	} else {
-		if err = storageClient.Mount(volumeName, volumePath); err != nil {
-			return nil, err
-		}
 	}
 
 	return volume, nil
@@ -239,3 +242,21 @@ func (v *NFSVolume) Export(label, parent string, writer io.Writer) error {
 func (v *NFSVolume) Import(label string, reader io.Reader) error {
 	return ErrNotSupported
 }
+
+var nfsLock = &sync.Mutex{}
+
+func mountImpl(sourceVol, destination string) error {
+	//actual NFS mount
+	nfsLock.Lock()
+	defer nfsLock.Unlock()
+	if storageClient, err := storage.GetClient(); err != nil {
+		return err
+	} else {
+		if err = storageClient.Mount(sourceVol, destination); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var mount = mountImpl

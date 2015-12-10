@@ -24,6 +24,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/control-center/serviced/commons/atomicfile"
@@ -33,12 +34,14 @@ import (
 
 // Server manages exporting an NFS mount.
 type Server struct {
+	sync.Mutex
 	basePath      string
 	exportedName  string
 	exportOptions string
 	network       string
 	clients       map[string]struct{}
 	volumes       map[string]struct{}
+	exported      map[string]struct{}
 }
 
 var (
@@ -123,6 +126,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		clients:       make(map[string]struct{}),
 		network:       network,
 		volumes:       make(map[string]struct{}),
+		exported:      make(map[string]struct{}),
 	}, nil
 }
 
@@ -143,6 +147,8 @@ func (c *Server) Clients() []string {
 
 // SetClients replaces the existing clients with the new clients
 func (c *Server) SetClients(clients ...string) {
+	c.Lock()
+	defer c.Unlock()
 	c.clients = make(map[string]struct{})
 
 	for _, client := range clients {
@@ -152,18 +158,24 @@ func (c *Server) SetClients(clients ...string) {
 
 // VolumeCreated set that path of a volume that should be exported
 func (c *Server) AddVolume(volumePath string) error {
+	c.Lock()
+	defer c.Unlock()
 	c.volumes[volumePath] = struct{}{}
 	return nil
 }
 
 // VolumeCreated set that path of a volume that should be exported
 func (c *Server) RemoveVolume(volumePath string) error {
+	c.Lock()
+	defer c.Unlock()
 	delete(c.volumes, volumePath)
 	return nil
 }
 
 // Sync ensures that the nfs exports are visible to all clients
 func (c *Server) Sync() error {
+	c.Lock()
+	defer c.Unlock()
 	if err := c.hostsDeny(); err != nil {
 		glog.Errorf("error writing host deny %v", err)
 		return err
@@ -184,11 +196,14 @@ func (c *Server) Sync() error {
 		glog.Errorf("error running reload %v", err)
 		return err
 	}
+	c.cleanupBindMounts()
 	return nil
 }
 
 // Restart restarts the nfs subsystem
 func (c *Server) Restart() error {
+	c.Lock()
+	defer c.Unlock()
 	if err := c.hostsDeny(); err != nil {
 		return err
 	}
@@ -201,11 +216,14 @@ func (c *Server) Restart() error {
 	if err := restart(); err != nil {
 		return err
 	}
+	c.cleanupBindMounts()
 	return nil
 }
 
 // Stop stops the nfs subsystem
 func (c *Server) Stop() error {
+	c.Lock()
+	defer c.Unlock()
 	return stop()
 }
 
@@ -291,33 +309,7 @@ func (c *Server) writeExports() error {
 		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n",
 			exported, network)
 	}
-
-	//umount any directories not exported
-	if dirContents, err := ioutil.ReadDir(edir); err != nil {
-		glog.Warningf("could not read contents of %s; %v", edir, err)
-	} else {
-		for _, file := range dirContents {
-			if _, found := exports[file.Name()]; !found && file.IsDir() {
-				dir := path.Join(edir, file.Name())
-				mounted, err := isBindMounted(dir)
-				if err != nil {
-					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
-					continue
-				}
-				if mounted {
-					// umount the dir
-					if err := umount(dir); err != nil {
-						glog.Warningf("Error umounting exported directory %s: %v", dir, err)
-						continue
-					}
-				}
-				//remove the direcotry
-				if err := os.RemoveAll(dir); err != nil {
-					glog.Warningf("Error removing exported directory %s: %v", dir, err)
-				}
-			}
-		}
-	}
+	c.exported = exports
 
 	glog.Infof("serviced exports:\n %s", serviced_exports)
 	originalContents, err := readFileIfExists(etcExports)
@@ -357,6 +349,39 @@ func (c *Server) writeExports() error {
 	fileContents := preamble + etcExportsStartMarker + serviced_exports + etcExportsEndMarker + postamble
 
 	return atomicfile.WriteFile(etcExports, []byte(fileContents), 0664)
+}
+
+// umnount any bind mounts in exported directory if not exported
+func (c *Server) cleanupBindMounts() {
+	edir := path.Join(exportsDir, c.exportedName)
+	//umount any directories not exported
+	if dirContents, err := ioutil.ReadDir(edir); err != nil {
+		glog.Warningf("could not read contents of %s; %v", edir, err)
+	} else {
+		for _, file := range dirContents {
+			if _, found := c.exported[file.Name()]; !found && file.IsDir() {
+				dir := path.Join(edir, file.Name())
+				mounted, err := isBindMounted(dir)
+				if err != nil {
+					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
+					continue
+				}
+				if mounted {
+					// umount the dir
+					glog.V(1).Infof("umounting %s as it is no longer exported", dir)
+					if err := umount(dir); err != nil {
+						glog.Warningf("Error umounting exported directory %s: %v", dir, err)
+						continue
+					}
+				}
+				//remove the directory
+				glog.V(1).Infof("deleting dir %s as it is no longer exported", dir)
+				if err := os.RemoveAll(dir); err != nil {
+					glog.Warningf("Error removing exported directory %s: %v", dir, err)
+				}
+			}
+		}
+	}
 }
 
 type bindMountF func(string, string) error

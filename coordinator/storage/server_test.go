@@ -61,6 +61,14 @@ func (m *mockNfsDriverT) Stop() error {
 	return nil
 }
 
+func (m *mockNfsDriverT) AddVolume(path string) error {
+	return nil
+}
+
+func (m *mockNfsDriverT) RemoveVolume(path string) error {
+	return nil
+}
+
 func TestServer(t *testing.T) {
 	t.Skip() // the zookeeper part doesnt work in this test, but does work in real life
 	zzkServer := &zzktest.ZZKServer{}

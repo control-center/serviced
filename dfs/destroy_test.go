@@ -43,6 +43,10 @@ func (s *DFSTestSuite) TestDestroy_ErrSnapshots(c *C) {
 
 func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
 	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
+	s.net.On("Sync").Return(nil)
+	s.net.On("AddVolume", "testPath").Return(nil)
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
@@ -58,6 +62,9 @@ func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
 
 func (s *DFSTestSuite) TestDestroy_Success(c *C) {
 	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
+	s.net.On("Sync").Return(nil)
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)

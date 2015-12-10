@@ -96,7 +96,7 @@ func (c *Client) Close() {
 
 // Mount source  to local destination path. The source is relative to the exported path
 func (c *Client) Mount(source, destination string) error {
-	return nfsMount(path.Join(c.exportedPath, source), destination)
+	return nfsMount(&nfs.NFSDriver{}, path.Join(c.exportedPath, source), destination)
 }
 
 func (c *Client) loop() {
@@ -178,7 +178,8 @@ func (c *Client) loop() {
 
 		if leaderNode.IPAddr != c.host.IPAddr {
 			glog.Infof("check nfs supported")
-			err = nfs.Installed()
+			nfsd := &nfs.NFSDriver{}
+			err = nfsd.Installed()
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
 					glog.Errorf("install the nfs-common package: %s", err)
