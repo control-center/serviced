@@ -38,7 +38,6 @@ type RegistryIndexSuite struct {
 	ctx    datastore.Context
 	facade *mocks.MockFacade
 	index  *RegistryIndexClient
-	dc     *mocks.Docker
 }
 
 var _ = Suite(&RegistryIndexSuite{})
@@ -46,8 +45,7 @@ var _ = Suite(&RegistryIndexSuite{})
 func (s *RegistryIndexSuite) SetUpTest(c *C) {
 	s.ctx = datastore.Get()
 	s.facade = &mocks.MockFacade{}
-	s.dc = &mocks.Docker{}
-	s.index = &RegistryIndexClient{s.ctx, s.facade, s.dc}
+	s.index = &RegistryIndexClient{s.ctx, s.facade}
 }
 
 func (s *RegistryIndexSuite) TestFindImage(c *C) {
@@ -76,7 +74,6 @@ func (s *RegistryIndexSuite) TestFindImage(c *C) {
 
 func (s *RegistryIndexSuite) TestPushImage(c *C) {
 	hashValue := "123456789abcdef"
-	s.dc.On("GetImageHash", mock.AnythingOfType("string")).Return(hashValue, nil)
 	s.facade.On("SetRegistryImage", s.ctx, mock.AnythingOfType("*registry.Image")).Return(nil)
 	expected := &registry.Image{
 		Library: "libraryname",
@@ -85,15 +82,9 @@ func (s *RegistryIndexSuite) TestPushImage(c *C) {
 		UUID:    "uuidvalue",
 		Hash:    hashValue,
 	}
-	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
+	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue", hashValue)
 	c.Assert(err, IsNil)
 	s.facade.AssertCalled(c, "SetRegistryImage", s.ctx, expected)
-}
-
-func (s *RegistryIndexSuite) TestPushImageHashFailed(c *C) {
-	s.dc.On("GetImageHash", mock.AnythingOfType("string")).Return("", ErrTestGeneratingHash)
-	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
-	c.Assert(err, Equals, ErrTestGeneratingHash)
 }
 
 func (s *RegistryIndexSuite) TestRemoveImage(c *C) {

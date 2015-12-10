@@ -91,6 +91,24 @@ func (s *DFSTestSuite) TestUpgradeRegistry_DockerFindImageFail(c *C) {
 	c.Assert(err, Equals, ErrTestGeneric)
 }
 
+// error when getting the image hash
+func (s *DFSTestSuite) TestUpgradeRegistry_PushImageNoHash(c *C) {
+	imageName := "localhost:5000/goodtenant/repo"
+	svcs := []service.Service{
+		service.Service{
+			Name:    "service",
+			ID:      "service_id",
+			ImageID: imageName,
+		},
+	}
+	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
+	image := &dockerclient.Image{ID: "youyoueyedee"}
+	s.docker.On("FindImage", imageName).Return(image, nil)
+	s.docker.On("GetImageHash", image.ID).Return("", ErrTestNoHash)
+	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
+	c.Assert(err, Equals, ErrTestNoHash)
+}
+
 // image successfully pushed to registry index
 func (s *DFSTestSuite) TestUpgradeRegistry_PushImageSuccess(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
@@ -104,7 +122,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageSuccess(c *C) {
 	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
-	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(nil)
+	s.docker.On("GetImageHash", image.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee", "hashvalue").Return(nil)
 	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, IsNil)
 }
@@ -122,7 +141,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageFail(c *C) {
 	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound)
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
-	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(ErrTestNoPush)
+	s.docker.On("GetImageHash", image.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee", "hashvalue").Return(ErrTestNoPush)
 	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, Equals, ErrTestNoPush)
 }
@@ -144,7 +164,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_NoDupes(c *C) {
 	s.index.On("FindImage", imageName).Return(nil, index.ErrImageNotFound).Once()
 	image := &dockerclient.Image{ID: "youyoueyedee"}
 	s.docker.On("FindImage", imageName).Return(image, nil).Once()
-	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee").Return(nil).Once()
+	s.docker.On("GetImageHash", image.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "goodtenant/repo:latest", "youyoueyedee", "hashvalue").Return(nil).Once()
 	err := s.dfs.UpgradeRegistry(svcs, "goodtenant", "")
 	c.Assert(err, IsNil)
 }
@@ -163,7 +184,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_MigrateNoImage(c *C) {
 	s.docker.On("PullImage", "old-server:5001/tenantid/reponame:latest").Return(dockerclient.ErrNoSuchImage)
 	image := &dockerclient.Image{ID: "uuidvalue"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
-	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue").Return(nil)
+	s.docker.On("GetImageHash", image.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue", "hashvalue").Return(nil)
 	err := s.dfs.UpgradeRegistry(svcs, "tenantid", "old-server:5001")
 	c.Assert(err, IsNil)
 }
@@ -200,7 +222,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_MigrateSuccess(c *C) {
 	s.docker.On("TagImage", "old-server:5001/tenantid/reponame:latest", "test-server:5000/tenantid/reponame").Return(nil)
 	image := &dockerclient.Image{ID: "uuidvalue"}
 	s.docker.On("FindImage", imageName).Return(image, nil)
-	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue").Return(nil)
+	s.docker.On("GetImageHash", image.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "tenantid/reponame:latest", "uuidvalue", "hashvalue").Return(nil)
 	err := s.dfs.UpgradeRegistry(svcs, "tenantid", "old-server:5001")
 	c.Assert(err, IsNil)
 }

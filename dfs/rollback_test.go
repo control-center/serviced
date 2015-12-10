@@ -75,9 +75,10 @@ func (s *DFSTestSuite) TestRollback_ImageNoPush(c *C) {
 		Repo:    "repo",
 		Tag:     "LABEL",
 		UUID:    "testuuid",
+		Hash:	 "hashvalue",
 	}
 	s.index.On("FindImage", "BASE/repo:LABEL").Return(rImage, nil).Once()
-	s.index.On("PushImage", "BASE/repo:latest", "testuuid").Return(ErrTestNoPush)
+	s.index.On("PushImage", "BASE/repo:latest", "testuuid", "hashvalue").Return(ErrTestNoPush)
 	err = s.dfs.Rollback("BASE_LABEL")
 	c.Assert(err, Equals, ErrTestNoPush)
 }
@@ -98,12 +99,13 @@ func (s *DFSTestSuite) TestRollback_Success(c *C) {
 		Repo:    "repo",
 		Tag:     "LABEL",
 		UUID:    "testuuid",
+		Hash:	"hashvalue",
 	}
 	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
 	vol.On("SnapshotInfo", "BASE_LABEL").Return(vinfo, nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{vimagesbuf}, nil)
 	s.index.On("FindImage", "BASE/repo:LABEL").Return(rImage, nil)
-	s.index.On("PushImage", "BASE/repo:latest", "testuuid").Return(nil)
+	s.index.On("PushImage", "BASE/repo:latest", "testuuid", "hashvalue").Return(nil)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
 	vol.On("Rollback", "LABEL").Return(nil)

@@ -73,8 +73,15 @@ func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenant
 			glog.Errorf("Error looking up image %s for service %s (%s): %s", image, svc.Name, svc.ID, err)
 			return err
 		}
+
+		hash, err := dfs.docker.GetImageHash(img.ID)
+		if err != nil {
+			glog.Errorf("Could not get hash for image %s: %s", img.ID, err)
+			return err
+		}
+
 		// write to registry index
-		if err := dfs.index.PushImage(rImage, img.ID); err != nil {
+		if err := dfs.index.PushImage(rImage, img.ID, hash); err != nil {
 			glog.Errorf("Could not write %s (%s) to registry index: %s", rImage, img.ID, err)
 			return err
 		}

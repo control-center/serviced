@@ -27,7 +27,7 @@ var ErrImageNotFound = errors.New("registry index: image not found")
 // RegistryIndex is the index for the docker registry on the server
 type RegistryIndex interface {
 	FindImage(image string) (*registry.Image, error)
-	PushImage(image, uuid string) error
+	PushImage(image, uuid string, hash string) error
 	RemoveImage(image string) error
 	SearchLibraryByTag(library string, tag string) ([]registry.Image, error)
 }
@@ -47,15 +47,13 @@ type facade interface {
 type RegistryIndexClient struct {
 	ctx    datastore.Context
 	facade facade
-	dc     docker.Docker
 }
 
 // NewRegistryIndexClient creates a new client for the registry index.
-func NewRegistryIndexClient(f facade, d docker.Docker) *RegistryIndexClient {
+func NewRegistryIndexClient(f facade) *RegistryIndexClient {
 	return &RegistryIndexClient{
 		ctx:    datastore.Get(),
 		facade: f,
-		dc:     d,
 	}
 }
 
@@ -90,19 +88,13 @@ func (client *RegistryIndexClient) FindImage(image string) (*registry.Image, err
 }
 
 // PushImage implements RegistryIndex
-func (client *RegistryIndexClient) PushImage(image, uuid string) error {
+func (client *RegistryIndexClient) PushImage(image, uuid string, hash string) error {
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
 		return err
 	}
 	if imageID.IsLatest() {
 		imageID.Tag = docker.Latest
-	}
-
-	//get the hash and store it in the image record
-	hash, err := client.dc.GetImageHash(uuid)
-	if err != nil {
-		return err
 	}
 
 	rImage := &registry.Image{
