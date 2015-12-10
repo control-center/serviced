@@ -54,6 +54,18 @@ func runCommand(cmd *exec.Cmd) (stdout string, stderr string, exitCode int, err 
 	return stdoutBuffer.String(), stderrBuffer.String(), exitCode, cmdErr
 }
 
+func checkCommand(cmd *exec.Cmd) (stdout string, stderr string, err error) {
+	stdout, stderr, exitCode, err := runCommand(cmd)
+	if err != nil {
+		return stdout, stderr, err
+	}
+	if exitCode != 0 {
+		return stdout, stderr, fmt.Errorf("Error(%d) running command '%s':\n%s",
+			exitCode, strings.Join(cmd.Args, " "), stderr)
+	}
+	return stdout, stderr, nil
+}
+
 func (c *ThinPoolCreate) Execute(args []string) error {
 	App.initializeLogging()
 	purpose := c.Args.Purpose
@@ -124,13 +136,9 @@ func ensurePhysicalDevices(devices []string) error {
 		args := []string{"pvcreate", device}
 		log.Info(strings.Join(args, " "))
 		cmd = exec.Command(args[0], args[1:]...)
-		stdout, stderr, exitCode, err := runCommand(cmd)
+		stdout, _, err := checkCommand(cmd)
 		if err != nil {
 			return err
-		}
-		if exitCode != 0 {
-			return fmt.Errorf("Error(%d) running '%s':\n%s",
-				exitCode, strings.Join(args, " "), stderr)
 		}
 		log.Info(stdout)
 	}
@@ -141,13 +149,9 @@ func createVolumeGroup(volumeGroup string, devices []string) error {
 	args := append([]string{"vgcreate", volumeGroup}, devices...)
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return nil
@@ -165,13 +169,9 @@ func createMetadataVolume(volumeGroup string) (string, error) {
 		volumeGroup}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return "", err
-	}
-	if exitCode != 0 {
-		return "", fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return metadataName, err
@@ -189,13 +189,9 @@ func createDataVolume(volumeGroup string) (string, error) {
 		volumeGroup}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return "", err
-	}
-	if exitCode != 0 {
-		return "", fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return dataName, err
@@ -209,13 +205,9 @@ func convertToThinPool(volumeGroup, dataVolume string, metadataVolume string) er
 	}
 	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
-	}
-	if exitCode != 0 {
-		return fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 	log.Info(stdout)
 	return nil
@@ -229,13 +221,9 @@ func getVolumeGroupSize(volumeGroup string, units string) (uint64, error) {
 		"--options", "vg_free",
 		volumeGroup}
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return 0, err
-	}
-	if exitCode != 0 {
-		return 0, fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 
 	sizeString := strings.Trim(stdout, " \n")
@@ -254,13 +242,9 @@ func getInfoForLogicalVolume(volumeGroup string, logicalVolume string) (LogicalV
 		"--options", "lv_name,lv_kernel_major,lv_kernel_minor",
 		volumeGroup}
 	cmd := exec.Command(args[0], args[1:]...)
-	stdout, stderr, exitCode, err := runCommand(cmd)
+	stdout, _, err := checkCommand(cmd)
 	if err != nil {
 		return lvi, err
-	}
-	if exitCode != 0 {
-		return lvi, fmt.Errorf("Error(%d) running '%s':\n%s",
-			exitCode, strings.Join(args, " "), stderr)
 	}
 
 	parseError := fmt.Errorf("Failed to parse command output:\n'%s'\n%s",
