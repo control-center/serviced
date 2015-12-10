@@ -139,7 +139,11 @@ func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[stri
 
 	if st != nil {
 		//get all healthcheck statuses for this service
-		healthStatuses := health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
+		healthStatuses, err := health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
+		if err != nil {
+			glog.Errorf("Error getting service health checks (%s)", err)
+			return nil
+		}
 
 		//merge st with healthcheck info into *status
 		*status = make(map[string]dao.ServiceStatus, len(st))

@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -67,4 +68,6 @@ type FacadeInterface interface {
 	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
 
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
+
+	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]domain.HealthCheck, error)
 }
