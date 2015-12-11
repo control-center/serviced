@@ -159,11 +159,41 @@ func (s *DFSTestSuite) TestCommit_NoPush(c *C) {
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
 	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
 	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(img, nil)
-	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(ErrTestNoPush)
-	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2").Return(ErrTestNoPush)
+	s.docker.On("GetImageHash", img.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2", "hashvalue").Return(ErrTestNoPush)
+	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2", "hashvalue").Return(ErrTestNoPush)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
 	c.Assert(err, Equals, ErrTestNoPush)
+}
+
+func (s *DFSTestSuite) TestCommit_NoHash(c *C) {
+	ctr := &dockerclient.Container{
+		ID:    "testcontainer",
+		Image: "testimage",
+		Config: &dockerclient.Config{
+			Image: "localhost:5000/libraryname/reponame:latest",
+		},
+		State: dockerclient.State{
+			Running: false,
+		},
+	}
+	rImg := &registry.Image{
+		Library: "libraryname",
+		Repo:    "reponame",
+		Tag:     "latest",
+		UUID:    "testimage",
+	}
+	img := &dockerclient.Image{
+		ID: "testimage2",
+	}
+	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
+	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(img, nil)
+	s.docker.On("GetImageHash", img.ID).Return("", ErrTestNoHash)
+	tenantID, err := s.dfs.Commit("testcontainer")
+	c.Assert(tenantID, Equals, "")
+	c.Assert(err, Equals, ErrTestNoHash)
 }
 
 func (s *DFSTestSuite) TestCommit_Success(c *C) {
@@ -189,8 +219,9 @@ func (s *DFSTestSuite) TestCommit_Success(c *C) {
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
 	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
 	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(img, nil)
-	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(nil)
-	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2").Return(nil)
+	s.docker.On("GetImageHash", img.ID).Return("hashvalue", nil)
+	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2", "hashvalue").Return(nil)
+	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2", "hashvalue").Return(nil)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "libraryname")
 	c.Assert(err, IsNil)
