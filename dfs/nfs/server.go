@@ -122,7 +122,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	return &Server{
 		basePath:      basePath,
 		exportedName:  exportedName,
-		exportOptions: "rw,nohide,insecure,no_subtree_check,async",
+		exportOptions: "rw,insecure,no_subtree_check,async",
 		clients:       make(map[string]struct{}),
 		network:       network,
 		volumes:       make(map[string]struct{}),
@@ -132,7 +132,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 
 // ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
-	return "/" + c.exportedName
+	return path.Join(exportsDir, c.exportedName)
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -296,8 +296,7 @@ func (c *Server) writeExports() error {
 		return err
 	}
 	exports := make(map[string]struct{})
-	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n",
-		exportsDir, network)
+	serviced_exports := ""
 	for volume := range c.volumes {
 		volume = path.Clean(volume)
 		_, volName := path.Split(volume)
@@ -306,7 +305,7 @@ func (c *Server) writeExports() error {
 		if err := bindMount(volume, exported); err != nil {
 			return err
 		}
-		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n",
+		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,insecure,no_subtree_check,async)\n",
 			exported, network)
 	}
 	c.exported = exports
