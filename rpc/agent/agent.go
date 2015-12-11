@@ -25,9 +25,9 @@ import (
 func NewServer(staticIPs []string) *AgentServer {
 	// make our own copy of the slice of ips
 	ips := make([]string, len(staticIPs))
-	copy(staticIPs, ips)
+	copy(ips, staticIPs)
 	return &AgentServer{
-		staticIPs: staticIPs,
+		staticIPs: ips,
 	}
 }
 
