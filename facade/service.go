@@ -606,7 +606,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 	}
 }
 
-// GetServices will get all the services
+// GetAllServices will get all the services
 func (f *Facade) GetAllServices(ctx datastore.Context) ([]service.Service, error) {
 	svcs, err := f.getServices(ctx)
 	if err != nil {

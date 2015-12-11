@@ -32,7 +32,7 @@ var (
 // Registry performs specific docker actions based on the registry index
 type Registry interface {
 	SetConnection(conn client.Connection)
-	PullImage(cancel <-chan time.Time, image string) (string, error)
+	PullImage(cancel <-chan time.Time, image string) error
 	ImagePath(image string) (string, error)
 }
 
@@ -54,11 +54,11 @@ func (l *RegistryListener) ImagePath(image string) (string, error) {
 }
 
 // PullImage waits for an image to be available on the docker registry so it
-// can be pulled (if it does not exist locally).  Returns the repo string, eg. "tenantID/repo:latest"
-func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) (string, error) {
+// can be pulled (if it does not exist locally).
+func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) error {
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
-		return "", err
+		return err
 	}
 	rImage := &registry.Image{
 		Library: imageID.User,
@@ -80,7 +80,7 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) (str
 			if err == client.ErrNoNode {
 				glog.Errorf("Image %s not found", regaddr)
 			}
-			return "", err
+			return err
 		}
 		// check if the image exists locally
 		glog.Infof("Looking up image %s", regaddr)
@@ -89,7 +89,7 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) (str
 			glog.Infof("Pulling image %s from the docker registry", regaddr)
 			if err := l.docker.PullImage(regaddr); err != nil && !docker.IsImageNotFound(err) {
 				glog.Errorf("Could not pull %s: %s", regaddr, err)
-				return "", err
+				return err
 			}
 			// was the pull successful?
 			if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
@@ -102,27 +102,27 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) (str
 					node.PushedAt = time.Unix(0, 0)
 					if err := l.conn.Set(idpath, &node); err != nil && err != client.ErrBadVersion {
 						glog.Errorf("Image %s not found in the docker registry: %s", regaddr, err)
-						return "", err
+						return err
 					}
 				}
 			} else if err != nil {
 				glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
-				return "", err
+				return err
 			} else {
-				return rImage.String(), nil
+				return nil
 			}
 		} else if err != nil {
 			glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
-			return "", err
+			return err
 		} else {
-			return rImage.String(), nil
+			return nil
 		}
 		glog.Infof("Waiting for image %s to be uploaded into the docker registry", regaddr)
 		select {
 		case e := <-evt:
 			glog.Infof("Got an event: %s", e)
 		case <-cancel:
-			return "", ErrOpTimeout
+			return ErrOpTimeout
 		}
 
 		close(done)

@@ -35,41 +35,35 @@ func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error
 }
 
 // SetRegistryImage inserts a registry image into the coordinator index.
-// Returns the UUID of the topmost layer of the specified image
-func SetRegistryImage(conn client.Connection, rImage registry.Image) (string, error) {
+func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
 	leadernode := &RegistryImageLeader{HostID: "master"}
 	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
 		glog.Errorf("Could not create repo path %s: %s", leaderpath, err)
-		return "", err
+		return err
 	}
 	imagepath := path.Join(zkregistrytags, rImage.ID())
 	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
-	var retErr error
 	if err := conn.Create(imagepath, node); err == client.ErrNodeExists {
 		leader := conn.NewLeader(leaderpath, leadernode)
 		leaderDone := make(chan struct{})
 		defer close(leaderDone)
 		_, err := leader.TakeLead(leaderDone)
 		if err != nil {
-			return "", err
+			return err
 		}
 		defer leader.ReleaseLead()
 		if err := conn.Get(imagepath, node); err != nil {
-			return "", err
+			return err
 		}
 		node.Image = rImage
 		node.PushedAt = time.Unix(0, 0)
-		retErr = conn.Set(imagepath, node)
+		return conn.Set(imagepath, node)
 	} else if err != nil {
 		glog.Errorf("Could not create tag path %s: %s", imagepath, err)
-		return "", err
+		return err
 	}
-	uuid, err := GetImageUUID(conn, rImage.String())
-	if err != nil {
-		return "", err
-	}
-	return uuid, retErr
+	return nil
 
 }
 

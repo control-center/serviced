@@ -37,15 +37,14 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 	if err := f.registryStore.Put(ctx, rImage); err != nil {
 		return err
 	}
-	uuid, err := f.zzk.SetRegistryImage(rImage)
+	err := f.zzk.SetRegistryImage(rImage)
 	if err != nil {
 		return err
 	}
-	svcs, err := f.GetAllServices(ctx)
+	svcs, err := f.GetServicesByImage(ctx, rImage.String())
 	if err != nil {
 		return fmt.Errorf("error getting services: %s", err)
 	}
-	rImageId := rImage.String()
 	for _, svc := range svcs {
 		if svc.ID == "" {
 			continue
@@ -55,11 +54,7 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 			return fmt.Errorf("unable to retrieve service states for %s: %s", svc.ID, err)
 		}
 		for _, state := range states {
-			// Compare the image layer being used by the service to the 'current'
-			// topmost layer for that image.  A couple scenarios here
-			// 1) Repo is the same, but new layer
-			// 2) New repo (handled in service facade)
-			if state.ImageRepo == rImageId && state.ImageUUID != uuid {
+			if state.ImageUUID != rImage.UUID {
 				state.InSync = false
 				glog.V(1).Infof("Updating InSync for service %s", state.ID)
 				if err = f.zzk.UpdateServiceState(svc.PoolID, &state); err != nil {

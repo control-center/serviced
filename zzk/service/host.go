@@ -68,7 +68,7 @@ func (node *HostState) SetVersion(version interface{}) {
 
 // HostHandler is the handler for running the HostListener
 type HostStateHandler interface {
-	PullImage(cancel <-chan time.Time, imageID string) (string, string, error)
+	PullImage(cancel <-chan time.Time, imageID string) (string, error)
 	AttachService(*service.Service, *servicestate.ServiceState, func(string)) error
 	StartService(*service.Service, *servicestate.ServiceState, func(string)) error
 	PauseService(*service.Service, *servicestate.ServiceState) error
@@ -292,12 +292,12 @@ func (l *HostStateListener) startInstance(shutdown <-chan interface{}, locker sy
 		}
 	}()
 	// Pull the image
-	repo, uuid, err := l.handler.PullImage(timeoutC, svc.ImageID)
+	uuid, err := l.handler.PullImage(timeoutC, svc.ImageID)
 	if err != nil {
 		glog.Errorf("Error trying to pull image %s for service %s (%s): %s", svc.ImageID, svc.Name, svc.ID, err)
 		return nil, err
 	}
-	state.ImageRepo = repo
+	state.ImageRepo = svc.ImageID
 	state.ImageUUID = uuid
 	done := make(chan struct{})
 	locker.Lock()

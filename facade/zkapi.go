@@ -217,10 +217,10 @@ func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
 	return zkimgregistry.GetRegistryImage(conn, id)
 }
 
-func (z *zkf) SetRegistryImage(image *registry.Image) (string, error) {
+func (z *zkf) SetRegistryImage(image *registry.Image) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	return zkimgregistry.SetRegistryImage(conn, *image)

@@ -39,7 +39,7 @@ type ZZK interface {
 	AddVirtualIP(vip *pool.VirtualIP) error
 	RemoveVirtualIP(vip *pool.VirtualIP) error
 	GetRegistryImage(id string) (*registry.Image, error)
-	SetRegistryImage(rImage *registry.Image) (string, error)
+	SetRegistryImage(rImage *registry.Image) error
 	DeleteRegistryImage(id string) error
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error

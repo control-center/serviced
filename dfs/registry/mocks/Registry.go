@@ -32,24 +32,17 @@ func (_m *Registry) SetConnection(conn client.Connection) {
 	}
 	return
 }
-func (_m *Registry) PullImage(cancel <-chan time.Time, image string) (string, error) {
+func (_m *Registry) PullImage(cancel <-chan time.Time, image string) error {
 	ret := _m.Called(cancel, image)
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func(<-chan time.Time, string) string); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(<-chan time.Time, string) error); ok {
 		r0 = rf(cancel, image)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(<-chan time.Time, string) error); ok {
-		r1 = rf(cancel, image)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 func (_m *Registry) ImagePath(image string) (string, error) {
 	ret := _m.Called(image)
