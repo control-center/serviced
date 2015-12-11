@@ -206,10 +206,48 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoPush(c *C) {
 	c.Assert(err, IsNil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{ID: "someimageid"}, nil)
-	s.index.On("PushImage", "test:5000/image:now", "someimageid").Return(ErrTestNoPush)
+	s.docker.On("GetImageHash", "someimageid").Return("hashvalue", nil)
+	s.index.On("PushImage", "test:5000/image:now", "someimageid", "hashvalue").Return(ErrTestNoPush)
 	actual, err := s.dfs.Restore(buf)
 	c.Assert(actual, IsNil)
 	c.Assert(err, Equals, ErrTestNoPush)
+	s.disk.AssertExpectations(c)
+	vol.AssertExpectations(c)
+}
+
+func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
+	buf := bytes.NewBufferString("")
+	tarfile := tar.NewWriter(buf)
+	backupInfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{"some/image:now"},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Hosts: []host.Host{
+			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots: []string{"BASE_LABEL"},
+		Timestamp: time.Now().UTC(),
+	}
+	s.writeBackupInfo(c, tarfile, backupInfo)
+	err := tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL"), Size: 0})
+	c.Assert(err, IsNil)
+	tarfile.Close()
+	vol := &volumemocks.Volume{}
+	s.disk.On("Create", "BASE").Return(vol, nil)
+	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	imgbuffer := bytes.NewBufferString("")
+	err = json.NewEncoder(imgbuffer).Encode([]string{"test:5000/image:now"})
+	c.Assert(err, IsNil)
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
+	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{ID: "someimageid"}, nil)
+	s.docker.On("GetImageHash", "someimageid").Return("", ErrTestNoHash)
+	actual, err := s.dfs.Restore(buf)
+	c.Assert(actual, IsNil)
+	c.Assert(err, Equals, ErrTestNoHash)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
 }
