@@ -130,6 +130,7 @@ func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
 }
 
 func (s *ThinpoolSuite) TestGetInfoForLogicalVolume(c *C) {
+	// Set up thin pool for test
 	dev1 := s.TempDevice(c)
 	dev2 := s.TempDevice(c)
 	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
@@ -151,4 +152,31 @@ func (s *ThinpoolSuite) TestGetInfoForLogicalVolume(c *C) {
 	c.Assert(lvInfo.Name, Equals, dataVolume)
 	c.Assert(lvInfo.KernelMajor, Not(Equals), 0)
 	c.Assert(lvInfo.KernelMinor, Not(Equals), 0)
+}
+
+func (s *ThinpoolSuite) TestGetThinpoolName(c *C) {
+	// Should fail with invalid logical volume
+	lvInfo := LogicalVolumeInfo{}
+	_, err := lvInfo.GetThinpoolName()
+	c.assert(err, Not(IsNil))
+
+	// Set up thin pool for test
+	dev1 := s.TempDevice(c)
+	dev2 := s.TempDevice(c)
+	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
+	EnsurePhysicalDevices(devices)
+	volumeGroup := "serviced-test-4"
+	CreateVolumeGroup(volumeGroup, devices)
+	defer exec.Command("vgremove", "-f", volumeGroup).Run()
+	metadataVolume, _ := CreateMetadataVolume(volumeGroup)
+	dataVolume, _ := CreateDataVolume(volumeGroup)
+	ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
+	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
+
+	// Should work for valid params
+	thinpoolName, err := lvInfo.GetThinpoolName()
+	c.Assert(err, IsNil)
+	c.Assert(thinpoolName, Not(Equals), "")
+
+	//TODO: How can we test that the thinpoolName actually refers to the proper device?
 }

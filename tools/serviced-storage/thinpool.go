@@ -114,9 +114,14 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
-	thinPoolName, err := GetThinPoolNameForLogicalVolume(dataVolume)
+	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
 	if err != nil {
 		return "", err
+	}
+
+	thinPoolName, err := lvInfo.GetThinpoolName()
+	if err != nil {
+		return "", nil
 	}
 
 	return thinPoolName, nil
@@ -294,11 +299,7 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 	return lvi, fmt.Errorf("Failed to find logical volume: '%s'", logicalVolume)
 }
 
-func GetThinPoolNameForLogicalVolume(logicalVolume string) (string, error) {
-	info, err := GetInfoForLogicalVolume(logicalVolume)
-	if err != nil {
-		return "", err
-	}
+func (info *LogicalVolumeInfo) GetThinpoolName() (string, error) {
 	filename := fmt.Sprintf("/sys/dev/block/%d:%d/dm/name",
 		info.KernelMajor, info.KernelMinor)
 	contents, err := ioutil.ReadFile(filename)
