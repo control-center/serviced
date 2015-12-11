@@ -18,6 +18,8 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/pkg/units"
 	"github.com/jessevdk/go-flags"
+	"os"
+	"os/exec"
 )
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
@@ -129,6 +131,29 @@ func rsync(sourcePath string, destinationPath string) {
 	rsync.Run()
 }
 
+
+//CreateVolume creates a volume at path with name of name
+func createVolume(path string, name string) {
+	directory := GetDefaultDriver(path)
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"type":      driver.DriverType(),
+		"volume":    name,
+	})
+	logger.Info("Creating volume")
+	vol, err := driver.Create(name)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	log.WithFields(log.Fields{
+		"mount": vol.Path(),
+	}).Info("Volume Mounted")
+}
+
 // VolumeResize is the subcommand for enlarging an existing devicemapper volume
 type VolumeResize struct {
 	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
@@ -141,24 +166,7 @@ type VolumeResize struct {
 // Execute creates a new volume on a driver
 func (c *VolumeCreate) Execute(args []string) error {
 	App.initializeLogging()
-	directory := GetDefaultDriver(string(c.Path))
-	driver, err := InitDriverIfExists(directory)
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger := log.WithFields(log.Fields{
-		"directory": driver.Root(),
-		"type":      driver.DriverType(),
-		"volume":    c.Args.Name,
-	})
-	logger.Info("Creating volume")
-	vol, err := driver.Create(c.Args.Name)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	logger.WithFields(log.Fields{
-		"mount": vol.Path(),
-	}).Info("Volume mounted")
+	createVolume(string(c.Path), c.Args.Name)
 	return nil
 }
 
