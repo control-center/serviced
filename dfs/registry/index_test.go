@@ -28,7 +28,8 @@ import (
 )
 
 var (
-	ErrTestUnknownError = errors.New("test unknown error")
+	ErrTestUnknownError   = errors.New("test unknown error")
+	ErrTestGeneratingHash = errors.New("test error generating hash")
 )
 
 func TestRegistryIndex(t *testing.T) { TestingT(t) }
@@ -72,14 +73,16 @@ func (s *RegistryIndexSuite) TestFindImage(c *C) {
 }
 
 func (s *RegistryIndexSuite) TestPushImage(c *C) {
+	hashValue := "123456789abcdef"
 	s.facade.On("SetRegistryImage", s.ctx, mock.AnythingOfType("*registry.Image")).Return(nil)
 	expected := &registry.Image{
 		Library: "libraryname",
 		Repo:    "reponame",
 		Tag:     "tagname",
 		UUID:    "uuidvalue",
+		Hash:    hashValue,
 	}
-	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue")
+	err := s.index.PushImage("localhost:5000/libraryname/reponame:tagname", "uuidvalue", hashValue)
 	c.Assert(err, IsNil)
 	s.facade.AssertCalled(c, "SetRegistryImage", s.ctx, expected)
 }

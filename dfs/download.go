@@ -49,10 +49,17 @@ func (dfs *DistributedFilesystem) Download(image, tenantID string, upgrade bool)
 	if err != nil {
 		return "", err
 	}
+
+	hash, err := dfs.docker.GetImageHash(img.ID)
+	if err != nil {
+		glog.Errorf("Could not get hash for image %s: %s", img.ID, err)
+		return "", err
+	}
+
 	rimg, err := dfs.index.FindImage(rImage)
 	if err == index.ErrImageNotFound {
 		// Image does not exist in the registry, so push
-		if err := dfs.index.PushImage(rImage, img.ID); err != nil {
+		if err := dfs.index.PushImage(rImage, img.ID, hash); err != nil {
 			glog.Errorf("Could not push image %s into registry: %s", rImage, err)
 			return "", err
 		}
@@ -66,7 +73,7 @@ func (dfs *DistributedFilesystem) Download(image, tenantID string, upgrade bool)
 		if upgrade {
 			// We are upgrading the image, so overwrite the existing tag with
 			// the new UUID.
-			if err := dfs.index.PushImage(rImage, img.ID); err != nil {
+			if err := dfs.index.PushImage(rImage, img.ID, hash); err != nil {
 				glog.Errorf("Could not upgrade image %s into registry: %s", rImage, err)
 				return "", err
 			}
