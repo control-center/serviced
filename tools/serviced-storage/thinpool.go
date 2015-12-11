@@ -201,6 +201,7 @@ func CreateDataVolume(volumeGroup string) (string, error) {
 
 func ConvertToThinPool(volumeGroup, dataVolume string, metadataVolume string) error {
 	args := []string{"lvconvert",
+		"-y",
 		"--zero", "n",
 		"--thinpool", fmt.Sprintf("%s/%s", volumeGroup, dataVolume),
 		"--poolmetadata", fmt.Sprintf("%s/%s", volumeGroup, metadataVolume),
