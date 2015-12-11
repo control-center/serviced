@@ -42,7 +42,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 			return err
 		}
 		rImage.Tag = docker.Latest
-		if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
+		if err := dfs.index.PushImage(rImage.String(), rImage.UUID, rImage.Hash); err != nil {
 			glog.Errorf("Could not update image %s from snapshot %s in the registry: %s", image, snapshotID, err)
 			return err
 		}
