@@ -34,7 +34,12 @@ import (
 	"github.com/zenoss/glog"
 )
 
-var oldLocalRegistryPort = "5001"
+var (
+	oldLocalRegistryPort              = "5001"
+	oldLocalRegistryContainerNameBase = "cc-temp-registry-v%d"
+	registryRootSubdir                = "docker-registry"
+	upgradedMarkerFile                = "cc-upgraded"
+)
 
 type registryVersionInfo struct {
 	version int
@@ -306,15 +311,16 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string,
 	if len(fromRegistryHost) == 0 {
 		// Currently, we only have two registry versions to worry about: v2 (current) and v1 (previous),
 		// so it's easy to figure out what to upgrade from. In the future, we may have to expand this logic...
-		if oldExists, oldUpgraded, oldRegistryVersionInfo, err = f.LocalDockerRegistryExists(1); err != nil {
+		if oldExists, oldUpgraded, oldRegistryVersionInfo, err = f.localDockerRegistryExists(1); err != nil {
 			glog.Errorf("Could not determine whether previous Docker registry exists: %s", err)
 			return err
 		}
 
 		if !oldExists {
 			if force {
-				glog.Errorf("No previous version of the Docker registry exists on this host")
-				return err
+				msg := "No previous version of the Docker registry exists on this host"
+				glog.Errorf(msg)
+				return errors.New(msg)
 			} else {
 				return nil
 			}
@@ -367,10 +373,10 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string,
 	return nil
 }
 
-// LocalDockerRegistryExists checks whether the Docker registry of the requested version appears
+// localDockerRegistryExists checks whether the Docker registry of the requested version appears
 // to exist on this host. If so, the info about this registry version is returned. 'upgraded' is true if
 // it appears we have already migrated this registry's images to another registry.
-func (f *Facade) LocalDockerRegistryExists(version int) (exists bool, upgraded bool, versionInfo registryVersionInfo, err error) {
+func (f *Facade) localDockerRegistryExists(version int) (exists bool, upgraded bool, versionInfo registryVersionInfo, err error) {
 	var tempVersionInfo registryVersionInfo
 	var ok bool
 	if tempVersionInfo, ok = registryVersionInfos[version]; !ok {
@@ -396,7 +402,7 @@ func (f *Facade) LocalDockerRegistryExists(version int) (exists bool, upgraded b
 
 func (f *Facade) markLocalDockerRegistryUpgraded(versionInfo registryVersionInfo) error {
 	markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
-	if err := ioutil.WriteFile(markerFilePath, []byte{}, 0); err != nil {
+	if err := ioutil.WriteFile(markerFilePath, []byte{}, 0644); err != nil {
 		glog.Errorf("Could not write marker file %s: %s", markerFilePath, err)
 		return err
 	}
@@ -553,17 +559,17 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 }
 
 func (info *registryVersionInfo) getStoragePath(isvcsRoot string) string {
-	return filepath.Join(isvcsRoot, "docker-registry", info.rootDir)
+	return filepath.Join(isvcsRoot, registryRootSubdir, info.rootDir)
 }
 
 func (info *registryVersionInfo) getUpgradedMarkerPath(isvcsRoot string) string {
-	return filepath.Join(info.getStoragePath(isvcsRoot), "cc-upgraded")
+	return filepath.Join(info.getStoragePath(isvcsRoot), upgradedMarkerFile)
 }
 
 func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*docker.Container, error) {
 	var err error
 
-	containerName := fmt.Sprintf("cc-temp-registry-v%d", info.version)
+	containerName := fmt.Sprintf(oldLocalRegistryContainerNameBase, info.version)
 	storagePath := info.getStoragePath(isvcsRoot)
 	bindMount := fmt.Sprintf("%s:/tmp/registry", storagePath)
 	portBindings := make(map[dockerclient.Port][]dockerclient.PortBinding)
