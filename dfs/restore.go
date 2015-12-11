@@ -118,7 +118,14 @@ func (dfs *DistributedFilesystem) loadRegistry(images []string) error {
 			glog.Errorf("Could not load image %s into the registry: %s", image, err)
 			return err
 		}
-		if err := dfs.index.PushImage(image, img.ID); err != nil {
+
+		hash, err := dfs.docker.GetImageHash(img.ID)
+		if err != nil {
+			glog.Errorf("Could not get hash for image %s: %s", img.ID, err)
+			return err
+		}
+
+		if err := dfs.index.PushImage(image, img.ID, hash); err != nil {
 			glog.Errorf("Could not push image %s into the registry: %s", image, err)
 			return err
 		}

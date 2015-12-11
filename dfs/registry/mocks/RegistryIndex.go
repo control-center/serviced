@@ -42,12 +42,12 @@ func (_m *RegistryIndex) FindImage(image string) (*registry.Image, error) {
 
 	return r0, r1
 }
-func (_m *RegistryIndex) PushImage(image string, uuid string) error {
-	ret := _m.Called(image, uuid)
+func (_m *RegistryIndex) PushImage(image string, uuid string, hash string) error {
+	ret := _m.Called(image, uuid, hash)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(image, uuid)
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(image, uuid, hash)
 	} else {
 		r0 = ret.Error(0)
 	}

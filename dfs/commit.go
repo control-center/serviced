@@ -54,7 +54,13 @@ func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 		return "", err
 	}
 	// push the image into the registry
-	if err := dfs.index.PushImage(rImage.String(), img.ID); err != nil {
+	hash, err := dfs.docker.GetImageHash(img.ID)
+	if err != nil {
+		glog.Errorf("Could not get has for image %s: %s", img.ID, err)
+		return "", err
+	}
+
+	if err := dfs.index.PushImage(rImage.String(), img.ID, hash); err != nil {
 		glog.Errorf("Could not push image %s (%s): %s", rImage, img.ID, err)
 		return "", err
 	}

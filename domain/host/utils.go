@@ -134,7 +134,16 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 	}
 	glog.V(3).Infof("Interfaces on this host %s: %+v", hostID, ifacemap)
 
-	ips := append(staticIPs, hostIP)
+	// Get a unique list of ips from staticIPs and hostIP.
+	ips := func() []string {
+		for _, ip := range staticIPs {
+			if hostIP == ip {
+				return staticIPs
+			}
+		}
+		return append(staticIPs, hostIP)
+	}()
+
 	hostIPResources := make([]HostIPResource, len(ips))
 	for i, ip := range ips {
 		glog.Infof("Checking IP '%s'", ip)

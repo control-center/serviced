@@ -221,3 +221,15 @@ func (s *DockerSuite) TestCommitContainer(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(actual.ID, DeepEquals, expected.ID)
 }
+
+func (s *DockerSuite) TestGetImageHash(c *C) {
+	_, err := s.docker.GetImageHash("fakebox")
+	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
+	hash1, err1 := s.docker.GetImageHash("busybox")
+	hash2, err2 := s.docker.GetImageHash("registry")
+	c.Assert(err1, IsNil)
+	c.Assert(err2, IsNil)
+	c.Assert(hash1, Not(Equals), "")
+	c.Assert(hash2, Not(Equals), "")
+	c.Assert(hash1, Not(Equals), hash2)
+}
