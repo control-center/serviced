@@ -41,7 +41,7 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 			return "", err
 		}
 		rImage.Tag = label
-		if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
+		if err := dfs.index.PushImage(rImage.String(), rImage.UUID, rImage.Hash); err != nil {
 			glog.Errorf("Could not retag image %s for snapshot: %s", image, err)
 			return "", err
 		}
