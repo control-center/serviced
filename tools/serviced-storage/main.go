@@ -59,6 +59,7 @@ func init() {
 	App.Parser.AddCommand("mount", "Mount an existing volume from a driver", "Mount an existing volume from a driver", &VolumeMount{})
 	App.Parser.AddCommand("remove", "Remove an existing volume from a driver", "Remove an existing volume from a driver", &VolumeRemove{})
 	App.Parser.AddCommand("resize", "Resize an existing volume", "Resize an existing volume", &VolumeResize{})
+	App.Parser.AddCommand("sync", "Sync data from a volume to another volume", "Sync data from a volume to another volume", &DriverSync{})
 	App.Parser.AddCommand("version", "Print the version and exit", "Print the version and exit", &ServicedStorageVersion{})
 	App.Parser.AddCommand("create-thin-pool", "Create thin pool", "Create a thin pool from a set of block devices", &ThinPoolCreate{})
 }
