@@ -119,6 +119,17 @@ func newVhostKey(serviceID string, vhostName string, enabled bool) VHostKey {
 	return VHostKey(fmt.Sprintf("%s_%s_%s", state, serviceID, vhostName))
 }
 
+
+func UpdateServicesVhosts(conn client.Connection, svcs []service.Service) error {
+	for _,svc := range svcs {
+		if err := UpdateServiceVhosts(conn, &svc) ; err != nil {
+			glog.Infof("Error Updating ServiceVhosts for Service %s: %s", svc.Name, err)
+			return err
+		}
+	}
+	return nil
+}
+
 // UpdateServiceVhosts updates vhosts of a service
 func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	glog.V(2).Infof("UpdateServiceVhosts for ID:%s Name:%s", svc.ID, svc.Name)
