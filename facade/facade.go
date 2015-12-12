@@ -46,8 +46,12 @@ type Facade struct {
 
 	zzk ZZK
 	dfs dfs.DFS
+
+	isvcsPath string
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
+
+func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }

@@ -207,3 +207,15 @@ func (m *FacadeInterface) GetHealthChecksForService(ctx datastore.Context, id st
 
 	return r0, r1
 }
+func (_m *FacadeInterface) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
+	ret := _m.Called(ctx, fromRegistryHost, force)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) error); ok {
+		r0 = rf(ctx, fromRegistryHost, force)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
