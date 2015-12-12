@@ -38,7 +38,7 @@ func (c *ServicedCli) initDocker() {
 			}, {
 				Name:        "migrate-registry",
 				Usage:       "service docker migrate-registry",
-				Description: "Pull images from the provided docker registry and updates the index",
+				Description: "Upgrades the docker registry from an older or remote registry",
 				Action:      c.cmdMigrateRegistry,
 				Flags: []cli.Flag{
 					cli.StringFlag{"registry", "", "host:port where the registry is running"},
