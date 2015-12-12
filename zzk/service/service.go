@@ -65,6 +65,29 @@ type ServiceNode struct {
 	version interface{}
 }
 
+// ID implements zzk.Node
+func (node *ServiceNode) GetID() string {
+	return node.ID
+}
+
+// Create implements zzk.Node
+func (node *ServiceNode) Create(conn client.Connection) error {
+	return UpdateService(conn, *node.Service, false)
+}
+
+// Update implements zzk.Node
+func (node *ServiceNode) Update(conn client.Connection) error {
+	// We have to get the node first, so the version is set properly.
+	var tempNode ServiceNode=ServiceNode{Service:&service.Service{}}
+	svcPath := servicepath(node.ID)
+	if err := conn.Get(svcPath, &tempNode); err != nil {
+		glog.V(2).Infof("Error getting ServiceNode for %s: %s", node.ID, err)
+		return err
+	}
+	tempNode.Service = node.Service
+	return conn.Set(svcPath, &tempNode)
+}
+
 // Version implements client.Node
 func (node *ServiceNode) Version() interface{} { return node.version }
 
