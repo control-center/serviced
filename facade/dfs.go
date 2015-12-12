@@ -17,16 +17,48 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
+
+var (
+	oldLocalRegistryPort              = "5001"
+	oldLocalRegistryContainerNameBase = "cc-temp-registry-v%d"
+	registryRootSubdir                = "docker-registry"
+	upgradedMarkerFile                = "cc-upgraded"
+)
+
+type registryVersionInfo struct {
+	version int
+	rootDir string
+	imageId string
+}
+
+var registryVersionInfos = map[int]registryVersionInfo{
+	1: registryVersionInfo{
+		1,
+		"registry",
+		"registry:0.9.1",
+	},
+	2: registryVersionInfo{
+		2,
+		"v2",
+		"registry:2.2.0", // This is the registry we currently use--may change in the future
+	},
+}
 
 // Backup takes a backup of all installed applications
 func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
@@ -265,22 +297,116 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 	return nil
 }
 
-// UpgradeRegistry adds the images to the registry index so that they will be
-// pushed into the registry.
-func (f *Facade) UpgradeRegistry(ctx datastore.Context, registryHost string) error {
+// UpgradeRegistry adds the images to the registry index so that they will be pushed into the registry.
+// If fromRegistryHost is not set, search for an old registry on the local host to upgrade.
+// If force is true for a local registry, upgrade again even if previous upgrade was successful.
+// (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
+func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
+	var err error
+	var oldExists bool
+	var oldUpgraded bool
+	var oldRegistryVersionInfo registryVersionInfo
+
+	// If no remote registry is specified, upgrade from an older local registry.
+	if len(fromRegistryHost) == 0 {
+		// Currently, we only have two registry versions to worry about: v2 (current) and v1 (previous),
+		// so it's easy to figure out what to upgrade from. In the future, we may have to expand this logic...
+		if oldExists, oldUpgraded, oldRegistryVersionInfo, err = f.localDockerRegistryExists(1); err != nil {
+			glog.Errorf("Could not determine whether previous Docker registry exists: %s", err)
+			return err
+		}
+
+		if !oldExists {
+			if force {
+				msg := "No previous version of the Docker registry exists on this host"
+				glog.Errorf(msg)
+				return errors.New(msg)
+			} else {
+				return nil
+			}
+		}
+
+		// If older registry has already been upgraded and caller did not specify force, there's nothing to do here
+		if oldUpgraded && !force {
+			return nil
+		}
+
+		// At this point, an older version was found and either is not upgraded or force == true
+		glog.Infof("Found older Docker registry (v%d) to upgrade...", oldRegistryVersionInfo.version)
+		var localContainer *docker.Container
+		if localContainer, err = oldRegistryVersionInfo.start(f.isvcsPath, oldLocalRegistryPort); err != nil {
+			glog.Errorf("Could not start Docker registry v%d: %s", oldRegistryVersionInfo.version, err)
+			return err
+		}
+		defer func() {
+			glog.Infof("Stopping Docker registry v%d container %s", oldRegistryVersionInfo.version, localContainer.Name)
+			if err := localContainer.Stop(5 * time.Minute); err != nil {
+				glog.Errorf("Could not stop Docker registry v%d container %s: %s",
+					oldRegistryVersionInfo.version, localContainer.Name, err)
+			}
+		}()
+
+		fromRegistryHost = fmt.Sprintf("localhost:%s", oldLocalRegistryPort)
+	}
+
+	successful := true
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, tenantID := range tenantIDs {
+
 		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
 		if err != nil {
 			return err
 		}
-		if err := f.dfs.UpgradeRegistry(svcs, tenantID, registryHost); err != nil {
+		if err := f.dfs.UpgradeRegistry(svcs, tenantID, fromRegistryHost); err != nil {
+			successful = false
 			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
 		}
 	}
+
+	if oldExists && successful {
+		f.markLocalDockerRegistryUpgraded(oldRegistryVersionInfo)
+	}
+
+	return nil
+}
+
+// localDockerRegistryExists checks whether the Docker registry of the requested version appears
+// to exist on this host. If so, the info about this registry version is returned. 'upgraded' is true if
+// it appears we have already migrated this registry's images to another registry.
+func (f *Facade) localDockerRegistryExists(version int) (exists bool, upgraded bool, versionInfo registryVersionInfo, err error) {
+	var tempVersionInfo registryVersionInfo
+	var ok bool
+	if tempVersionInfo, ok = registryVersionInfos[version]; !ok {
+		err = errors.New(fmt.Sprintf("Unrecognized Docker registry version: %d", version))
+		return
+	}
+
+	registryPath := tempVersionInfo.getStoragePath(f.isvcsPath)
+	if _, err := os.Stat(registryPath); err == nil {
+		exists = true
+		versionInfo = tempVersionInfo
+	}
+
+	markerFilePath := tempVersionInfo.getUpgradedMarkerPath(f.isvcsPath)
+	if _, err := os.Stat(markerFilePath); err == nil {
+		upgraded = true
+	} else {
+		glog.V(2).Infof("Marker file %s not found: %s", markerFilePath, err)
+	}
+
+	return
+}
+
+func (f *Facade) markLocalDockerRegistryUpgraded(versionInfo registryVersionInfo) error {
+	markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
+	if err := ioutil.WriteFile(markerFilePath, []byte{}, 0644); err != nil {
+		glog.Errorf("Could not write marker file %s: %s", markerFilePath, err)
+		return err
+	}
+
 	return nil
 }
 
@@ -430,4 +556,94 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	}
 	glog.Infof("Successfully captured application data from tenant %s and created snapshot %s", tenantID, snapshotID)
 	return snapshotID, nil
+}
+
+func (info *registryVersionInfo) getStoragePath(isvcsRoot string) string {
+	return filepath.Join(isvcsRoot, registryRootSubdir, info.rootDir)
+}
+
+func (info *registryVersionInfo) getUpgradedMarkerPath(isvcsRoot string) string {
+	return filepath.Join(info.getStoragePath(isvcsRoot), upgradedMarkerFile)
+}
+
+func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*docker.Container, error) {
+	var err error
+
+	containerName := fmt.Sprintf(oldLocalRegistryContainerNameBase, info.version)
+	storagePath := info.getStoragePath(isvcsRoot)
+	bindMount := fmt.Sprintf("%s:/tmp/registry", storagePath)
+	portBindings := make(map[dockerclient.Port][]dockerclient.PortBinding)
+	portBindings["5000/tcp"] = []dockerclient.PortBinding{dockerclient.PortBinding{HostPort: hostPort}}
+	url := fmt.Sprintf("http://localhost:%s/", hostPort)
+
+	// See if container for old registry already exists
+	container, err := docker.FindContainer(containerName)
+	if err != nil {
+		if err != docker.ErrNoSuchContainer {
+			glog.Errorf("Could not look up container %s: %s", containerName, err)
+			return nil, err
+		}
+
+		// Not found, so make a new one
+		containerDefinition := &docker.ContainerDefinition{
+			dockerclient.CreateContainerOptions{
+				Name: containerName,
+				Config: &dockerclient.Config{
+					User:       "root",
+					WorkingDir: "/tmp/registry",
+					Image:      info.imageId,
+					Env:        []string{"SETTINGS_FLAVOR=local"},
+				},
+				// HostConfig: &dockerclient.HostConfig{
+				// 	Binds:        []string{bindMount},
+				// 	PortBindings: portBindings,
+				// },
+			},
+			dockerclient.HostConfig{},
+		}
+
+		glog.Infof("Creating container %s from image %s", containerDefinition.Name, containerDefinition.Config.Image)
+		container, err = docker.NewContainer(containerDefinition, false, 0, nil, nil)
+		if err != nil {
+			glog.Errorf("Error trying to create container %s: %s", containerDefinition.Name, err)
+			return nil, err
+		}
+	}
+
+	os.MkdirAll(storagePath, 0755)
+
+	// Make sure container is running
+	container.HostConfig.Binds = []string{bindMount}
+	container.HostConfig.PortBindings = portBindings
+	glog.Infof("Starting container %s for Docker registry v%d at %s", container.Name, info.version, url)
+	if err = container.Start(); err != nil {
+		glog.Errorf("Could not start container %s: %s", container.Name, err)
+		return nil, err
+	}
+
+	// Make sure registry is up and running (accepting connections)
+	timeout := time.After(5 * time.Minute)
+	for {
+		resp, err := http.Get(url)
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+		if err == nil {
+			break
+		} else {
+			glog.V(1).Infof("Waiting for Docker registry v%d to accept connections...", info.version)
+		}
+
+		select {
+		case <-timeout:
+			glog.Warningf("Timed out waiting for Docker registry v%d to accept connections", info.version)
+			if err := container.Stop(5 * time.Minute); err != nil {
+				glog.Errorf("After timeout, could not stop Docker registry v%d container %s: %s", info.version, container.Name, err)
+			}
+			return nil, errors.New(fmt.Sprintf("Timed out waiting for Docker registry v%d to accept connections", info.version))
+		case <-time.After(time.Second):
+		}
+	}
+
+	return container, nil
 }
