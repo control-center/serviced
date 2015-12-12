@@ -65,16 +65,6 @@ type ServiceNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *ServiceNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *ServiceNode) Create(conn client.Connection) error {
-	return UpdateService(conn, *node.Service, false, false)
-}
-
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
 	// We have to get the node first, so the version is set properly.
