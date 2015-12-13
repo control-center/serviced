@@ -186,24 +186,24 @@ func (_m *ClientInterface) GetResourcePools() ([]pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddResourcePool(pool pool.ResourcePool) error {
-	ret := _m.Called(pool)
+func (_m *ClientInterface) AddResourcePool(targetPool pool.ResourcePool) error {
+	ret := _m.Called(targetPool)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(pool)
+		r0 = rf(targetPool)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateResourcePool(pool pool.ResourcePool) error {
-	ret := _m.Called(pool)
+func (_m *ClientInterface) UpdateResourcePool(targetPool pool.ResourcePool) error {
+	ret := _m.Called(targetPool)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(pool)
+		r0 = rf(targetPool)
 	} else {
 		r0 = ret.Error(0)
 	}
