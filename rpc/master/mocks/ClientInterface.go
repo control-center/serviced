@@ -16,11 +16,12 @@ func (_m *ClientInterface) Close() error {
 	ret := _m.Called()
 
 	var r0 error
-	if rf, ok := ret.Get(1).(func() error); ok {
+	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
+
 	return r0
 }
 func (_m *ClientInterface) GetHost(hostID string) (*host.Host, error) {
@@ -86,12 +87,12 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(newHost host.Host) error {
-	ret := _m.Called(newHost)
+func (_m *ClientInterface) AddHost(targetHost host.Host) error {
+	ret := _m.Called(targetHost)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(newHost)
+		r0 = rf(targetHost)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -185,12 +186,12 @@ func (_m *ClientInterface) GetResourcePools() ([]pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddResourcePool(newPool pool.ResourcePool) error {
-	ret := _m.Called(newPool)
+func (_m *ClientInterface) AddResourcePool(targetPool pool.ResourcePool) error {
+	ret := _m.Called(targetPool)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(newPool)
+		r0 = rf(targetPool)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -267,20 +268,18 @@ func (_m *ClientInterface) RemoveVirtualIP(requestVirtualIP pool.VirtualIP) erro
 	return r0
 }
 func (_m *ClientInterface) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
-	ret := _m.Called()
+	ret := _m.Called(serviceID, imageID, registry, replaceImgs, noOp)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string, string, string, []string, bool) string); ok {
+		r0 = rf(serviceID, imageID, registry, replaceImgs, noOp)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(string)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string, string, string, []string, bool) error); ok {
+		r1 = rf(serviceID, imageID, registry, replaceImgs, noOp)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -308,12 +307,12 @@ func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
-	ret := _m.Called(serviceIDs, validate)
+func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, reportImports bool, reportExports bool, validate bool) ([]applicationendpoint.EndpointReport, error) {
+	ret := _m.Called(serviceIDs, reportImports, reportExports, validate)
 
 	var r0 []applicationendpoint.EndpointReport
-	if rf, ok := ret.Get(0).(func([]string, bool) []applicationendpoint.EndpointReport); ok {
-		r0 = rf(serviceIDs, validate)
+	if rf, ok := ret.Get(0).(func([]string, bool, bool, bool) []applicationendpoint.EndpointReport); ok {
+		r0 = rf(serviceIDs, reportImports, reportExports, validate)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]applicationendpoint.EndpointReport)
@@ -321,11 +320,47 @@ func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, reportImport
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]string, bool) error); ok {
-		r1 = rf(serviceIDs, validate)
+	if rf, ok := ret.Get(1).(func([]string, bool, bool, bool) error); ok {
+		r1 = rf(serviceIDs, reportImports, reportExports, validate)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+func (_m *ClientInterface) ResetRegistry() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) SyncRegistry() error {
+	ret := _m.Called()
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) UpgradeRegistry(endpoint string, override bool) error {
+	ret := _m.Called(endpoint, override)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(endpoint, override)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }

@@ -30,15 +30,20 @@ func (c *ServicedCli) initDocker() {
 				Usage:       "serviced docker sync",
 				Description: "sync pushes all images to local registry - allows single host to easily be made master for multi-host",
 				Action:      c.cmdRegistrySync,
-				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", "unix:///var/run/docker.sock", "docker endpoint"},
-				},
-			},
-			{
+			}, {
 				Name:        "reset-registry",
 				Usage:       "serviced docker reset-registry",
-				Description: "Migrates all the docker images into the new registry",
+				Description: "Pulls images from the docker registry and updates the index",
 				Action:      c.cmdResetRegistry,
+			}, {
+				Name:        "migrate-registry",
+				Usage:       "service docker migrate-registry",
+				Description: "Upgrades the docker registry from an older or remote registry",
+				Action:      c.cmdMigrateRegistry,
+				Flags: []cli.Flag{
+					cli.StringFlag{"registry", "", "host:port where the registry is running"},
+					cli.BoolFlag{"override, f", "overrides all existing image records"},
+				},
 			},
 		},
 	})
@@ -46,15 +51,24 @@ func (c *ServicedCli) initDocker() {
 
 // serviced docker sync
 func (c *ServicedCli) cmdRegistrySync(ctx *cli.Context) {
-
 	err := c.driver.RegistrySync()
 	if err != nil {
 		glog.Fatalf("error syncing docker images to local registry: %s", err)
 	}
 }
 
+// serviced reset-registry
 func (c *ServicedCli) cmdResetRegistry(ctx *cli.Context) {
 	if err := c.driver.ResetRegistry(); err != nil {
 		glog.Fatalf("error while resetting the registry: %s", err)
+	}
+}
+
+// serviced migrate-registry
+func (c *ServicedCli) cmdMigrateRegistry(ctx *cli.Context) {
+	endpoint := ctx.String("registry")
+	override := ctx.Bool("override")
+	if err := c.driver.UpgradeRegistry(endpoint, override); err != nil {
+		glog.Fatalf("error while upgrading the registry: %s", err)
 	}
 }

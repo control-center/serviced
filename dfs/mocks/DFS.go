@@ -310,12 +310,12 @@ func (_m *DFS) GetSnapshotWithTag(tenantID string, tagName string) (string, erro
 	return r0, r1
 }
 
-func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string) error {
-	ret := _m.Called(svcs, tenantID, registryHost)
+func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error {
+	ret := _m.Called(svcs, tenantID, registryHost, override)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service, string, string) error); ok {
-		r0 = rf(svcs, tenantID, registryHost)
+	if rf, ok := ret.Get(0).(func([]service.Service, string, string, bool) error); ok {
+		r0 = rf(svcs, tenantID, registryHost, override)
 	} else {
 		r0 = ret.Error(0)
 	}

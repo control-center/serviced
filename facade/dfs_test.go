@@ -227,8 +227,8 @@ func (fdrt *FacadeDfsRegistryTest) addServices(c *gocheck.C) {
 }
 
 // Must be called before calling Facade.UpgradeRegistry()
-func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoint string) {
-	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[0].ID, endpoint).Return(nil).Run(func(args mock.Arguments) {
+func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoint string, force bool) {
+	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[0].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
 		svcs := args.Get(0).([]service.Service)
 		c.Assert(len(svcs), gocheck.Equals, 1)
 		c.Assert(svcs[0].ID, gocheck.Equals, dfsRegistrySvcDefs[0].ID)
@@ -237,7 +237,7 @@ func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoin
 		c.Assert(svcs[0].ImageID, gocheck.Equals, dfsRegistrySvcDefs[0].ImageID)
 		c.Assert(svcs[0].PoolID, gocheck.Equals, dfsRegistrySvcDefs[0].PoolID)
 	})
-	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[1].ID, endpoint).Return(nil).Run(func(args mock.Arguments) {
+	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[1].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
 		svcs := args.Get(0).([]service.Service)
 		c.Assert(len(svcs), gocheck.Equals, 1)
 		c.Assert(svcs[0].ID, gocheck.Equals, dfsRegistrySvcDefs[1].ID)
@@ -267,7 +267,7 @@ func getOldRegistryEndpoint() string {
 // Test Cases
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeLocal(c *gocheck.C) {
-	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint())
+	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint(), false)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", false)
 
@@ -288,7 +288,7 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_SkipUpgradedLocal(c *goch
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocal(c *gocheck.C) {
 	fdrt.markOldRegistryUpgraded(c)
 
-	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint())
+	fdrt.verifyAllImagesUpgraded(c, getOldRegistryEndpoint(), true)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", true)
 
@@ -301,13 +301,13 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_ForceLocalButNoRegistry(c
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, "", true)
 
-	c.Assert(err, gocheck.NotNil) // Should report there was no registry to upgrade
+	c.Assert(err, gocheck.IsNil) // Should report there was no registry to upgrade
 	fdrt.verifyNoImagesUpgraded(c)
 	fdrt.verifyOldRegistryContainerExists(c, false)
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemote(c *gocheck.C) {
-	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint)
+	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint, false)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, remoteRegistryEndpoint, false)
 
@@ -316,7 +316,7 @@ func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemote(c *gocheck.
 }
 
 func (fdrt *FacadeDfsRegistryTest) TestUpgradeRegistry_UpgradeRemoteForce(c *gocheck.C) {
-	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint)
+	fdrt.verifyAllImagesUpgraded(c, remoteRegistryEndpoint, true)
 
 	err := fdrt.Facade.UpgradeRegistry(fdrt.CTX, remoteRegistryEndpoint, true)
 
