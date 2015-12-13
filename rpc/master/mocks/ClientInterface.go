@@ -87,24 +87,24 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(host host.Host) error {
-	ret := _m.Called(host)
+func (_m *ClientInterface) AddHost(targetHost host.Host) error {
+	ret := _m.Called(targetHost)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(host)
+		r0 = rf(targetHost)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateHost(host host.Host) error {
-	ret := _m.Called(host)
+func (_m *ClientInterface) UpdateHost(targetHost host.Host) error {
+	ret := _m.Called(targetHost)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(host)
+		r0 = rf(targetHost)
 	} else {
 		r0 = ret.Error(0)
 	}
