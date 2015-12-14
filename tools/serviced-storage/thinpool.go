@@ -14,6 +14,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -306,5 +307,24 @@ func (info *LogicalVolumeInfo) GetThinpoolName() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error reading %s: %s", filename, err)
 	}
-	return "/dev/mapper/" + strings.Trim(string(contents), "\n"), nil
+	// Get the base name
+	basename := strings.TrimSpace(string(contents))
+	// Now figure out if it's the pool itself or a subdevice called -tpool
+	out, err := exec.Command("dmsetup", "ls", "--target", "thin-pool").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	var devname string
+	for scanner.Scan() {
+		s := scanner.Text()
+		if strings.HasPrefix(s, basename) {
+			devname = strings.Fields(s)[0]
+			break
+		}
+	}
+	if devname == "" {
+		return "", fmt.Errorf("Unable to determine thin pool name")
+	}
+	return "/dev/mapper/" + devname, nil
 }
