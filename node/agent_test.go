@@ -127,7 +127,7 @@ func TestConfigureContainer_DockerLog(t *testing.T) {
 	// Create a fake HostAgent
 	fakeHostAgent := &HostAgent{
 		dockerLogDriver:      "fakejson-log",
-		dockerLogConfig:      []string{"alpha=one", "bravo=two", "charlie=three"},
+		dockerLogConfig:      map[string]string{"alpha": "one", "bravo": "two", "charlie": "three"},
 		virtualAddressSubnet: "0.0.0.0",
 		pullreg:              fakeRegistry,
 	}
