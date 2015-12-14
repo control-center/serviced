@@ -57,7 +57,7 @@ func dirExists(path string) (bool, error) {
 	return s.IsDir(), err
 }
 
-var expectedExports = "%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"
+var expectedExports = "%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n"
 
 func TestNewServer(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
