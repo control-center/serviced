@@ -358,12 +358,22 @@
     "vhost_name": "Virtual Host Name",
     "vhost_name_invalid": "Invalid virtual host name:",
     "vhost_names": "Virtual Host Names",
-    "vhost_service_endpoint": "Endpoint",
     "vhost_url": "URL",
     "vhost_unavailable" : "Endpoint unavailable",
     "view_licenses": "View Licenses",
     "warning": "Warning",
     "warning_remove_service": "This action will permanently delete the running application",
+
+    "label_public_endpoints": "Public Endpoints",
+    "label_public_endpoint": "Public Endpoint",
+    "endpoint": "Endpoint",
+    "public_endpoint_type": "Type",
+    "add_public_endpoint": "Add Public Endpoint",
+    "public_endpoint_port": "Port",
+    "public_endpoint_vhost": "VHost",
+    "remove_public_endpoint": "Remove Public Endpoint",
+    "public_endpoint_url": "URL",
+    "port_number_invalid": "Invalid port number",
 
     "one_moment": "One moment please...",
     "no_services_found": "No Services found"
