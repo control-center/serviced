@@ -16,7 +16,9 @@
 package main_test
 
 import (
+	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -129,6 +131,75 @@ func (s *ThinpoolSuite) TestCreateMetadataVolume(c *C) {
 	c.Assert(strings.Contains(string(out), mdvol), Equals, true)
 }
 
+func (s *ThinpoolSuite) TestCreateDataVolume(c *C) {
+	volumeGroup := "serviced-test-5"
+
+	// Should fail if the volume group is invalid
+	_, err := CreateDataVolume(volumeGroup)
+	c.Assert(err, Not(IsNil))
+
+	// Create some devices and a vg
+	devices := []string{
+		s.TempDevice(c).LoopDevice(),
+		s.TempDevice(c).LoopDevice(),
+	}
+	if err := EnsurePhysicalDevices(devices); err != nil {
+		c.Fatal(err)
+	}
+	if err := CreateVolumeGroup(volumeGroup, devices); err != nil {
+		c.Fatal(err)
+	}
+	defer exec.Command("vgremove", "-f", volumeGroup).Run()
+
+	// Now the data volume should work fine
+	mdvol, err := CreateDataVolume(volumeGroup)
+	c.Assert(err, IsNil)
+
+	out, _ := exec.Command("lvs").CombinedOutput()
+	c.Assert(strings.Contains(string(out), mdvol), Equals, true)
+}
+
+func (s *ThinpoolSuite) TestConvertToThinpool(c *C) {
+	// Should fail if the VG/LV's are invalid
+	err := ConvertToThinPool("NotAVolumeGroup", "NotALogicalVolume", "NotALogicalVolume")
+	c.Assert(err, Not(IsNil))
+
+	// Set up VG and LV's for test
+	dev1 := s.TempDevice(c)
+	dev2 := s.TempDevice(c)
+	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
+	EnsurePhysicalDevices(devices)
+	volumeGroup := "serviced-test-6"
+	CreateVolumeGroup(volumeGroup, devices)
+	defer exec.Command("vgremove", "-f", volumeGroup).Run()
+	metadataVolume, _ := CreateMetadataVolume(volumeGroup)
+	dataVolume, _ := CreateDataVolume(volumeGroup)
+
+	err = ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
+	c.Assert(err, IsNil)
+	out, _ := exec.Command("lvs", "-o", "lv_name,lv_attr", "--noheading", "--nameprefixes",
+		volumeGroup).CombinedOutput()
+
+	regexName := regexp.MustCompile("LVM2_LV_NAME='(.+?)'")
+	regexAttr := regexp.MustCompile("LVM2_LV_ATTR='(.+?)'")
+	for _, line := range strings.Split(string(out), "n") {
+		match := regexName.FindStringSubmatch(line)
+		if len(match) != 2 || match[1] != dataVolume {
+			continue
+		}
+
+		match = regexAttr.FindStringSubmatch(line)
+		c.Assert(len(match), Equals, 2)
+		attrs := match[1]
+		volumeType := attrs[0]
+		// Per lvs man page, volume type of "t" implies thin pool
+		c.Assert(volumeType, Equals, "t"[0])
+		return
+	}
+	// Did not find thinpool
+	c.Assert(nil, Not(IsNil))
+}
+
 func (s *ThinpoolSuite) TestGetInfoForLogicalVolume(c *C) {
 	// Set up thin pool for test
 	dev1 := s.TempDevice(c)
@@ -158,7 +229,7 @@ func (s *ThinpoolSuite) TestGetThinpoolName(c *C) {
 	// Should fail with invalid logical volume
 	lvInfo := LogicalVolumeInfo{}
 	_, err := lvInfo.GetThinpoolName()
-	c.assert(err, Not(IsNil))
+	c.Assert(err, Not(IsNil))
 
 	// Set up thin pool for test
 	dev1 := s.TempDevice(c)
@@ -171,7 +242,7 @@ func (s *ThinpoolSuite) TestGetThinpoolName(c *C) {
 	metadataVolume, _ := CreateMetadataVolume(volumeGroup)
 	dataVolume, _ := CreateDataVolume(volumeGroup)
 	ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
-	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
+	lvInfo, err = GetInfoForLogicalVolume(dataVolume)
 
 	// Should work for valid params
 	thinpoolName, err := lvInfo.GetThinpoolName()
