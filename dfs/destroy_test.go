@@ -32,11 +32,16 @@ func (s *DFSTestSuite) TestDestroy_ErrSnapshots(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, ErrTestNoSnapshots)
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
 	err := s.dfs.Destroy("Base")
 	c.Assert(err, Equals, ErrTestNoSnapshots)
 	vol = s.getVolumeFromSnapshot("Base2_Snapshot", "Base2")
 	vol.On("Snapshots").Return([]string{"Base2_Snapshot"}, nil)
 	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, ErrTestSnapshotNotFound)
+	vol.On("Path").Return("testPath")
+	s.net.On("Sync").Return(nil)
+	s.net.On("RemoveVolume", "testPath").Return(nil)
 	err = s.dfs.Destroy("Base2")
 	c.Assert(err, Equals, ErrTestSnapshotNotFound)
 }

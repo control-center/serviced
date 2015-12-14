@@ -46,7 +46,6 @@ func init() {
 }
 
 func Init(root string, args []string) (volume.Driver, error) {
-	// TODO: Initialize the NFS mount here instead of in the HostAgent code
 	if fi, err := os.Stat(root); err != nil {
 		return nil, err
 	} else if !fi.IsDir() {

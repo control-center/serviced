@@ -415,7 +415,7 @@ func (d *daemon) startMaster() (err error) {
 	glog.Infoln("Finding volumes")
 	tenantVolumes := make(map[string]struct{})
 	for _, vol := range d.disk.List() {
-		glog.V(2).Infof("getting tenant volume for %s", vol)
+		glog.V(2).Infof("Getting tenant volume for %s", vol)
 		if tVol, err := d.disk.GetTenant(vol); err == nil {
 			if _, found := tenantVolumes[tVol.Path()]; !found {
 				tenantVolumes[tVol.Path()] = struct{}{}

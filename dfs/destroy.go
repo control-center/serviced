@@ -30,6 +30,14 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		glog.Errorf("Could not get snapshots for tenant %s: %s", tenantID, err)
 		return err
 	}
+
+	dfs.net.RemoveVolume(vol.Path())
+	// sync will unbind the the volume from exports dir, making it not busy
+	if err := dfs.net.Sync(); err != nil {
+		glog.Errorf("Could not sync volume destroy for tenant %s: %s", tenantID, err)
+		return err
+	}
+
 	for _, snapshot := range snapshots {
 		if err := dfs.Delete(snapshot); err != nil {
 			glog.Errorf("Could not remove snapshot %s for tenant %s: %s", snapshot, tenantID, err)
@@ -40,24 +48,9 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		return err
 	}
 
-	volumeRemoveFailed := true
-	dfs.net.RemoveVolume(vol.Path())
-	// sync will unbind the the volume from exports dir, making it not busy
-	if err := dfs.net.Sync(); err != nil {
-		glog.Errorf("Could not sync volume destroy for tenant %s: %s", tenantID, err)
-		return err
-	}
-	defer func() {
-		if volumeRemoveFailed {
-			dfs.net.AddVolume(vol.Path())
-			dfs.net.Sync()
-		}
-	}()
-
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
 		return err
 	}
-	volumeRemoveFailed = false
 	return nil
 }

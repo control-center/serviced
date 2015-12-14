@@ -177,14 +177,14 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			glog.Infof("check nfs supported")
+			glog.Infof("Check nfs supported")
 			nfsd := &nfs.NFSDriver{}
 			err = nfsd.Installed()
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
-					glog.Errorf("install the nfs-common package: %s", err)
+					glog.Errorf("Install the nfs-common package: %s", err)
 				}
-				glog.Errorf("problem determining NFS available %s", err)
+				glog.Errorf("Problem determining NFS available %s", err)
 				continue
 			}
 
