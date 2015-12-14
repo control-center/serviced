@@ -112,8 +112,9 @@ type ServiceEndpoint struct {
 	AddressConfig       servicedefinition.AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	VHostList         []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
-	AddressAssignment addressassignment.AddressAssignment
+	VHostList           []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
+	AddressAssignment   addressassignment.AddressAssignment
+	PortList            []servicedefinition.Port  // The list of enabled/disabled ports to assign to this endpoint.
 }
 
 // IsConfigurable returns true if the endpoint is configurable
@@ -157,6 +158,7 @@ func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpo
 	sep.AddressConfig = epd.AddressConfig
 	sep.VHosts = epd.VHosts
 	sep.VHostList = epd.VHostList
+	sep.PortList = epd.PortList
 	return sep
 }
 
@@ -326,6 +328,30 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 					}
 				}
 				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName})
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// AddPort Add a port for given service, this method avoids duplicate ports
+func (s *Service) AddPort(application string, portNumber uint16) error {
+	if s.Endpoints != nil {
+
+		//find the matching endpoint
+		for i := range s.Endpoints {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				ports := make([]servicedefinition.Port, 0)
+				for _, port := range ep.PortList {
+					if port.PortNumber != portNumber {
+						ports = append(ports, port)
+					}
+				}
+				ep.PortList = append(ports, servicedefinition.Port{PortNumber:portNumber, Enabled:true})
 				return nil
 			}
 		}

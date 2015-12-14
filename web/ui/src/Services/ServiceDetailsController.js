@@ -84,7 +84,7 @@
 
                 // if port already exists
                 for (var i in $scope.publicEndpoints.data) {
-                    if (port === $scope.publicEndpoints.data[i].PortNumber) {
+                    if (+port === $scope.publicEndpoints.data[i].PortNumber) {
                        return "Port number already in use: "+ newPublicEndpoint.port;
                     }
                 }
@@ -295,7 +295,7 @@
             } else if(publicEndpoint.type === "port"){
                 // TODO - get IP
                 var host = $scope.defaultHostAlias;
-                return location.protocol + "//" + host + publicEndpoint.PortNumber;
+                return location.protocol + "//" + host + ":" + publicEndpoint.PortNumber;
             }
         };
 
@@ -490,7 +490,8 @@
         $scope.clickRemovePublicEndpoint = function(publicEndpoint) {
 
             $modalService.create({
-                template: $translate.instant("remove_public_endpoint") + " <strong>"+ publicEndpoint.Name +"</strong>",
+                template: $translate.instant("remove_public_endpoint") + ": <strong>"+ 
+                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortNumber) + "</strong>",
                 model: $scope,
                 title: "remove_public_endpoint",
                 actions: [
