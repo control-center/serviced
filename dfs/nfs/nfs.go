@@ -59,6 +59,7 @@ func reloadImpl() error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(output))
 	}
+	glog.Infof("reloaded nfs server: %s", string(output))
 	return nil
 }
 
@@ -90,7 +91,7 @@ func restartImpl() error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", err, string(output))
 	}
-	glog.Infof("started nfs server: %s", string(output))
+	glog.Infof("restarted nfs server: %s", string(output))
 	return nil
 }
 

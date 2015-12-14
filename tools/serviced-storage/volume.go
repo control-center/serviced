@@ -18,6 +18,8 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/pkg/units"
 	"github.com/jessevdk/go-flags"
+	"os"
+	"os/exec"
 )
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
@@ -44,6 +46,114 @@ type VolumeRemove struct {
 	} `positional-args:"yes" required:"yes"`
 }
 
+// DriverSync is the subcommand for syncing two volumes
+type DriverSync struct {
+	Create bool   `description:"Indicates that the destination driver should be created" long:"create" short:"c"`
+	Type   string `description:"Type of the destination driver (btrfs|devicemapper|rsync)" long:"type" short:"t"`
+	Args   struct {
+		SourcePath      flags.Filename `description:"Path of the source driver"`
+		DestinationPath flags.Filename `description:"Path of the destionation"`
+	} `positional-args:"yes" required:"yes"`
+}
+
+//Execute syncs to volume
+func (c *DriverSync) Execute(args []string) error {
+	App.initializeLogging()
+	destinationPath := string(c.Args.DestinationPath)
+	sourcePath := string(c.Args.SourcePath)
+	logger := log.WithFields(log.Fields{
+		"destination":destinationPath,
+		"source":sourcePath})
+	if c.Create {
+		logger = logger.WithFields(log.Fields{
+			"type":c.Type,
+		})
+		logger.Info("Determining driver type for destination")
+		destinationDriverType, err := volume.StringToDriverType(c.Type)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		logger.Info("Creating driver for destination")
+		initStatus := volume.InitDriver(destinationDriverType, destinationPath, App.Options.Options)
+		if initStatus != nil {
+			logger.Fatal(initStatus)
+		}
+	}
+	destinationDirectory := GetDefaultDriver(destinationPath)
+	logger.Info("Getting driver for destination")
+	destinationDriver, err := InitDriverIfExists(destinationDirectory)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	sourceDirectory := GetDefaultDriver(string(sourcePath))
+	logger.Info("Getting driver for source")
+	sourceDriver, err := InitDriverIfExists(sourceDirectory)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	sourceVolumes := sourceDriver.List()
+	logger = logger.WithFields(log.Fields{
+		"numberOfVolumes": len(sourceVolumes),
+	})
+	for i := 0; i < len(sourceVolumes); i++ {
+		volumeName := sourceVolumes[i]
+		volumeLogger := logger.WithFields(log.Fields{
+			"volumeName": volumeName,
+		})
+		volumeLogger.Info("Syncing data from source volume")
+		sourceVolume, err := sourceDriver.Get(volumeName)
+		if err != nil {
+			volumeLogger.Fatal(err)
+		}
+		if !destinationDriver.Exists(volumeName) {
+			logger.Info("Creating destination volume")
+			createVolume(string(destinationPath), volumeName)
+		}
+		volumeLogger = volumeLogger.WithFields(log.Fields{
+			"sourcePath":sourceVolume.Path(),
+		})
+		volumeLogger.Info("using rsync to sync source to destination")
+		rsync(sourceVolume.Path(), string(c.Args.DestinationPath))
+	}
+	return nil
+}
+
+func rsync(sourcePath string, destinationPath string) {
+	rsyncBin, err := exec.LookPath("rsync")
+	if err != nil {
+		log.Fatal(err)
+	}
+	rsyncArgv := []string{"-a", "--progress", "--stats", "--human-readable", sourcePath, destinationPath}
+	rsync := exec.Command(rsyncBin, rsyncArgv...)
+	log.Info("Starting rsync command")
+	rsync.Stdout = os.Stdout
+	rsync.Stderr = os.Stderr
+	rsync.Run()
+}
+
+
+//CreateVolume creates a volume at path with name of name
+func createVolume(path string, name string) {
+	directory := GetDefaultDriver(path)
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"type":      driver.DriverType(),
+		"volume":    name,
+	})
+	logger.Info("Creating volume")
+	vol, err := driver.Create(name)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	log.WithFields(log.Fields{
+		"mount": vol.Path(),
+	}).Info("Volume Mounted")
+}
+
 // VolumeResize is the subcommand for enlarging an existing devicemapper volume
 type VolumeResize struct {
 	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
@@ -56,24 +166,7 @@ type VolumeResize struct {
 // Execute creates a new volume on a driver
 func (c *VolumeCreate) Execute(args []string) error {
 	App.initializeLogging()
-	directory := GetDefaultDriver(string(c.Path))
-	driver, err := InitDriverIfExists(directory)
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger := log.WithFields(log.Fields{
-		"directory": driver.Root(),
-		"type":      driver.DriverType(),
-		"volume":    c.Args.Name,
-	})
-	logger.Info("Creating volume")
-	vol, err := driver.Create(c.Args.Name)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	logger.WithFields(log.Fields{
-		"mount": vol.Path(),
-	}).Info("Volume mounted")
+	createVolume(string(c.Path), c.Args.Name)
 	return nil
 }
 

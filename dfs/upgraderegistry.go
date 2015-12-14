@@ -24,7 +24,7 @@ import (
 // UpgradeRegistry loads images for each service into the docker registry
 // index.  Also migrates images from a previous (or V1) registry at
 // registryHost (host:port).
-func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string) error {
+func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error {
 	imageIDs := make(map[string]struct{})
 	for _, svc := range svcs {
 		if svc.ImageID == "" {
@@ -37,17 +37,19 @@ func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenant
 			continue
 		}
 		imageIDs[image] = struct{}{}
-		// is image in registry?
-		rImage, err := dfs.findImage(image, tenantID)
-		if err != nil {
-			return err
-		} else if rImage != "" {
-			// image is already in the registry
-			glog.V(2).Infof("Image %s for service %s (%s) already present in docker registry", rImage, svc.Name, svc.ID)
-			continue
+		if !override {
+			// is image in registry?
+			rImage, err := dfs.findImage(image, tenantID)
+			if err != nil {
+				return err
+			} else if rImage != "" {
+				// image is already in the registry
+				glog.V(2).Infof("Image %s for service %s (%s) already present in docker registry", rImage, svc.Name, svc.ID)
+				continue
+			}
 		}
 		// get registry image tag from image name
-		rImage, err = dfs.parseRegistryImage(image, tenantID)
+		rImage, err := dfs.parseRegistryImage(image, tenantID)
 		if err != nil {
 			glog.Warningf("Cannot parse image name %s under service %s (%s)", image, svc.Name, svc.ID)
 			continue
@@ -73,8 +75,15 @@ func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenant
 			glog.Errorf("Error looking up image %s for service %s (%s): %s", image, svc.Name, svc.ID, err)
 			return err
 		}
+
+		hash, err := dfs.docker.GetImageHash(img.ID)
+		if err != nil {
+			glog.Errorf("Could not get hash for image %s: %s", img.ID, err)
+			return err
+		}
+
 		// write to registry index
-		if err := dfs.index.PushImage(rImage, img.ID); err != nil {
+		if err := dfs.index.PushImage(rImage, img.ID, hash); err != nil {
 			glog.Errorf("Could not write %s (%s) to registry index: %s", rImage, img.ID, err)
 			return err
 		}

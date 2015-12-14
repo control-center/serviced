@@ -38,17 +38,31 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
+var Version string
+var Date string
+var Gitcommit string
+var Gitbranch string
+var Giturl string
+var Buildtag string
+
 var (
 	name    = "serviced-storage"
-	version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
 	App     = &ServicedStorage{
 		name:    name,
-		version: version,
 		Parser:  flags.NewNamedParser(name, flags.Default),
 	}
 )
 
 func init() {
+	servicedversion.Version = Version
+	servicedversion.Date = Date
+	servicedversion.Gitcommit = Gitcommit
+	servicedversion.Gitbranch = Gitbranch
+	servicedversion.Giturl = Giturl
+	servicedversion.Buildtag = Buildtag
+
+	App.version = fmt.Sprintf("%s - %s", servicedversion.Version, servicedversion.Gitcommit)
+
 	App.Parser.AddCommand("init", "Initialize a driver", "Initialize a driver", &DriverInit{})
 	App.Parser.AddCommand("set", "Set the default driver", "Set the default driver", &DriverSet{})
 	App.Parser.AddCommand("unset", "Unset the default driver", "Unset the default driver", &DriverUnset{})
@@ -59,6 +73,7 @@ func init() {
 	App.Parser.AddCommand("mount", "Mount an existing volume from a driver", "Mount an existing volume from a driver", &VolumeMount{})
 	App.Parser.AddCommand("remove", "Remove an existing volume from a driver", "Remove an existing volume from a driver", &VolumeRemove{})
 	App.Parser.AddCommand("resize", "Resize an existing volume", "Resize an existing volume", &VolumeResize{})
+	App.Parser.AddCommand("sync", "Sync data from a volume to another volume", "Sync data from a volume to another volume", &DriverSync{})
 	App.Parser.AddCommand("version", "Print the version and exit", "Print the version and exit", &ServicedStorageVersion{})
 }
 

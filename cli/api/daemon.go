@@ -456,8 +456,7 @@ func (d *daemon) startMaster() (err error) {
 		return err
 	}
 
-	health.SetDao(d.cpDao)
-	go health.Cleanup(d.shutdown)
+	health.Initialize(d.cpDao, d.facade, d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		glog.Errorf("Could not create default pool: %s", err)
@@ -785,6 +784,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs := dfs.NewDistributedFilesystem(d.docker, index, d.reg, d.disk, d.net, time.Duration(options.MaxDFSTimeout)*time.Second)
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
+	f.SetIsvcsPath(options.IsvcsPath)
 	return f
 }
 
