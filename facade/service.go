@@ -508,6 +508,37 @@ func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID stri
 	return svc.HealthChecks, nil
 }
 
+// GetServicesByImage fetches, from Elastic, all services using the supplied image ID.
+// Empty parts of the supplied image ID will not be considered.  For example,
+// "alskdjalskdjas/myImage:latest", "myImage:latest", "myImage"
+func (f *Facade) GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error) {
+	img, err := commons.ParseImageID(imageID)
+	if err != nil {
+		return nil, err
+	}
+	svcs, err := f.getServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	matchingSvcs := make([]service.Service, len(svcs))
+	for _, svc := range svcs {
+		svcImg, err := commons.ParseImageID(svc.ImageID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse image id for service %s: %s", svc.Name, err)
+		}
+		if img.User != "" && img.User != svcImg.User {
+			continue
+		} else if img.Repo != "" && img.Repo != svcImg.Repo {
+			continue
+		} else if img.Tag != "" && img.Tag != svcImg.Tag {
+			continue
+		} else {
+			matchingSvcs = append(matchingSvcs, svc)
+		}
+	}
+	return matchingSvcs, nil
+}
+
 func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service, error) {
 	glog.V(3).Infof("Facade.GetService: id=%s", id)
 	store := f.serviceStore
@@ -573,6 +604,15 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		glog.V(2).Info("Facade.GetServices: err=", err)
 		return nil, err
 	}
+}
+
+// GetAllServices will get all the services
+func (f *Facade) GetAllServices(ctx datastore.Context) ([]service.Service, error) {
+	svcs, err := f.getServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return svcs, nil
 }
 
 // GetServicesByPool looks up all services in a particular pool
@@ -1204,6 +1244,17 @@ func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registr
 		for _, svc := range svcsToUpdate {
 			if err = f.UpdateService(ctx, *svc); err != nil {
 				return fmt.Errorf("error updating service %s: %s", svc.Name, err)
+			}
+			states, err := f.GetServiceStates(ctx, svc.ID)
+			if err != nil {
+				return err
+			}
+			for _, state := range states {
+				state.InSync = false
+				glog.V(1).Infof("Updating InSync for service %s", state.ID)
+				if err = f.zzk.UpdateServiceState(svc.PoolID, &state); err != nil {
+					return err
+				}
 			}
 		}
 	}

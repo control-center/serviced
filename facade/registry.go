@@ -14,9 +14,12 @@
 package facade
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/registry"
+	"github.com/zenoss/glog"
 )
 
 // GetRegistryImage returns information about an image that is stored in the
@@ -37,6 +40,28 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 	}
 	if err := f.zzk.SetRegistryImage(rImage); err != nil {
 		return err
+	}
+	svcs, err := f.GetServicesByImage(ctx, rImage.String())
+	if err != nil {
+		return fmt.Errorf("error getting services: %s", err)
+	}
+	for _, svc := range svcs {
+		if svc.ID == "" {
+			continue
+		}
+		states, err := f.GetServiceStates(ctx, svc.ID)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve service states for %s: %s", svc.ID, err)
+		}
+		for _, state := range states {
+			if state.ImageUUID != rImage.UUID {
+				state.InSync = false
+				glog.V(1).Infof("Updating InSync for service %s", state.ID)
+				if err = f.zzk.UpdateServiceState(svc.PoolID, &state); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }

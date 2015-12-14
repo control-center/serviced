@@ -58,6 +58,17 @@ func (m *FacadeInterface) GetServices(ctx datastore.Context, request dao.EntityR
 
 	return r0, r1
 }
+func (m *FacadeInterface) GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error) {
+   ret := m.Called(ctx, imageID)
+
+   var r0 []service.Service
+   if ret.Get(0) != nil {
+       r0 = ret.Get(0).([]service.Service)
+   }
+   r1 := ret.Error(1)
+
+   return r0, r1
+}
 func (m *FacadeInterface) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
 	ret := m.Called(ctx, serviceID)
 
