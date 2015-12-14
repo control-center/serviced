@@ -106,6 +106,7 @@ type API interface {
 	// Docker
 	ResetRegistry() error
 	RegistrySync() error
+	UpgradeRegistry(endpoint string, override bool) error
 
 	// Logs
 	ExportLogs(config ExportLogsConfig) error

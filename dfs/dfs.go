@@ -65,7 +65,7 @@ type DFS interface {
 	GetSnapshotWithTag(tenantID string, tagName string) (string, error)
 	// UpgradeRegistry loads images for each service
 	// into the docker registry index
-	UpgradeRegistry(svcs []service.Service, tenantID, registryHost string) error
+	UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error
 }
 
 var _ = DFS(&DistributedFilesystem{})

@@ -34,7 +34,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
-var (
+const (
+	currentRegistryVersion            = 2
 	oldLocalRegistryPort              = "5001"
 	oldLocalRegistryContainerNameBase = "cc-temp-registry-v%d"
 	registryRootSubdir                = "docker-registry"
@@ -56,7 +57,7 @@ var registryVersionInfos = map[int]registryVersionInfo{
 	2: registryVersionInfo{
 		2,
 		"v2",
-		"registry:2.2.0", // This is the registry we currently use--may change in the future
+		"registry:2.2.0", // This is the registry we currently use--may change in the future (WILL USE ISVCS DOCKER REG)
 	},
 }
 
@@ -302,111 +303,97 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // If force is true for a local registry, upgrade again even if previous upgrade was successful.
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
-	var err error
-	var oldExists bool
-	var oldUpgraded bool
-	var oldRegistryVersionInfo registryVersionInfo
-
-	// If no remote registry is specified, upgrade from an older local registry.
-	if len(fromRegistryHost) == 0 {
-		// Currently, we only have two registry versions to worry about: v2 (current) and v1 (previous),
-		// so it's easy to figure out what to upgrade from. In the future, we may have to expand this logic...
-		if oldExists, oldUpgraded, oldRegistryVersionInfo, err = f.localDockerRegistryExists(1); err != nil {
-			glog.Errorf("Could not determine whether previous Docker registry exists: %s", err)
+	success := true // indicates a successful migration
+	if fromRegistryHost == "" {
+		// check if a local docker migration is needed
+		isMigrated, previousVersion, err := f.getPreviousRegistryVersion()
+		if err != nil {
+			glog.Errorf("Could not determine the previous docker registry to migrate: %s", err)
 			return err
 		}
-
-		if !oldExists {
-			if force {
-				msg := "No previous version of the Docker registry exists on this host"
-				glog.Errorf(msg)
-				return errors.New(msg)
-			} else {
-				return nil
-			}
-		}
-
-		// If older registry has already been upgraded and caller did not specify force, there's nothing to do here
-		if oldUpgraded && !force {
+		if previousVersion == currentRegistryVersion {
+			glog.Infof("No previous version of the docker registry exists; nothing to migrate")
 			return nil
 		}
-
-		// At this point, an older version was found and either is not upgraded or force == true
-		glog.Infof("Found older Docker registry (v%d) to upgrade...", oldRegistryVersionInfo.version)
-		var localContainer *docker.Container
-		if localContainer, err = oldRegistryVersionInfo.start(f.isvcsPath, oldLocalRegistryPort); err != nil {
-			glog.Errorf("Could not start Docker registry v%d: %s", oldRegistryVersionInfo.version, err)
-			return err
-		}
-		defer func() {
-			glog.Infof("Stopping Docker registry v%d container %s", oldRegistryVersionInfo.version, localContainer.Name)
-			if err := localContainer.Stop(5 * time.Minute); err != nil {
-				glog.Errorf("Could not stop Docker registry v%d container %s: %s",
-					oldRegistryVersionInfo.version, localContainer.Name, err)
+		if !isMigrated || force {
+			glog.Infof("Starting local docker registry v%d", previousVersion)
+			oldRegistryCtr, err := f.startDockerRegistry(previousVersion, oldLocalRegistryPort)
+			if err != nil {
+				glog.Errorf("Could not start v%d docker registry at port %s: %s", previousVersion, oldLocalRegistryPort, err)
+				return err
 			}
-		}()
-
-		fromRegistryHost = fmt.Sprintf("localhost:%s", oldLocalRegistryPort)
+			defer func() {
+				if success {
+					f.markLocalDockerRegistryUpgraded(previousVersion)
+				}
+				glog.Infof("Stopping docker registry v%d container %s", previousVersion, oldRegistryCtr.Name)
+				if err := oldRegistryCtr.Stop(5 * time.Minute); err != nil {
+					glog.Errorf("Could not stop docker registry v%d container %s: %s", previousVersion, oldRegistryCtr.Name, err)
+				}
+			}()
+			fromRegistryHost = fmt.Sprintf("localhost:%s", oldLocalRegistryPort)
+		} else {
+			glog.Infof("Registry already migrated from v%d; no action required", previousVersion)
+			return nil
+		}
 	}
-
-	successful := true
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, tenantID := range tenantIDs {
-
 		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
 		if err != nil {
 			return err
 		}
-		if err := f.dfs.UpgradeRegistry(svcs, tenantID, fromRegistryHost); err != nil {
-			successful = false
+		if err := f.dfs.UpgradeRegistry(svcs, tenantID, fromRegistryHost, force); err != nil {
+			success = false
 			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
 		}
 	}
-
-	if oldExists && successful {
-		f.markLocalDockerRegistryUpgraded(oldRegistryVersionInfo)
-	}
-
 	return nil
 }
 
-// localDockerRegistryExists checks whether the Docker registry of the requested version appears
-// to exist on this host. If so, the info about this registry version is returned. 'upgraded' is true if
-// it appears we have already migrated this registry's images to another registry.
-func (f *Facade) localDockerRegistryExists(version int) (exists bool, upgraded bool, versionInfo registryVersionInfo, err error) {
-	var tempVersionInfo registryVersionInfo
-	var ok bool
-	if tempVersionInfo, ok = registryVersionInfos[version]; !ok {
-		err = errors.New(fmt.Sprintf("Unrecognized Docker registry version: %d", version))
-		return
-	}
-
-	registryPath := tempVersionInfo.getStoragePath(f.isvcsPath)
-	if _, err := os.Stat(registryPath); err == nil {
-		exists = true
-		versionInfo = tempVersionInfo
-	}
-
-	markerFilePath := tempVersionInfo.getUpgradedMarkerPath(f.isvcsPath)
-	if _, err := os.Stat(markerFilePath); err == nil {
-		upgraded = true
-	} else {
-		glog.V(2).Infof("Marker file %s not found: %s", markerFilePath, err)
-	}
-
-	return
+// startDockerRegistry returns the old docker registry container.
+func (f *Facade) startDockerRegistry(version int, port string) (*docker.Container, error) {
+	versionInfo := registryVersionInfos[version]
+	return versionInfo.start(f.isvcsPath, port)
 }
 
-func (f *Facade) markLocalDockerRegistryUpgraded(versionInfo registryVersionInfo) error {
+// getPreviousRegistryVersion returns the next previous version of the docker
+// registry that needs migration and whether it has been previously migrated.
+func (f *Facade) getPreviousRegistryVersion() (isMigrated bool, version int, err error) {
+	for i := currentRegistryVersion - 1; i > 0; i-- {
+		glog.Infof("Checking v%d docker registry", i)
+		versionInfo := registryVersionInfos[i]
+		registryPath := versionInfo.getStoragePath(f.isvcsPath)
+		if _, err := os.Stat(registryPath); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			glog.Errorf("Could not stat v%d registry path at %s: %s", i, registryPath, err)
+			return false, 0, err
+		}
+		markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
+		if _, err := os.Stat(markerFilePath); os.IsNotExist(err) {
+			return false, i, nil
+		} else if err != nil {
+			glog.Errorf("Could not stat v%d registry marker file at %s: %s", i, markerFilePath, err)
+			return false, 0, err
+		}
+		return true, i, nil
+	}
+	return false, currentRegistryVersion, nil
+}
+
+// markLocalDockerRegistryUpgraded sets a marker file that will indicate
+// whether a registry has been previously migrated.
+func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
+	versionInfo := registryVersionInfos[version]
 	markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
 	if err := ioutil.WriteFile(markerFilePath, []byte{}, 0644); err != nil {
 		glog.Errorf("Could not write marker file %s: %s", markerFilePath, err)
 		return err
 	}
-
 	return nil
 }
 
