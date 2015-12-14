@@ -177,7 +177,7 @@
         this.depth = 0;
 
         // cache for computed values
-        this.cache = new Cache(["vhosts", "addresses", "descendents"]);
+        this.cache = new Cache(["addresses", "descendents", "publicEndpoints"]);
 
         this.resources = {
             RAMCommitment: 0,
@@ -455,14 +455,14 @@
         }
     });
 
-    // fetch vhosts for service and all descendents
-    Object.defineProperty(Service.prototype, "hosts", {
+    // fetch public endpoints for service and all descendents
+    Object.defineProperty(Service.prototype, "publicEndpoints", {
         get: function(){
-            var hosts = this.cache.getIfClean("vhosts");
+            var publicEndpoints = this.cache.getIfClean("publicEndpoints");
 
             // if valid cache, early return it
-            if(hosts){
-                return hosts;
+            if(publicEndpoints){
+                return publicEndpoints;
             }
 
             // otherwise, get some data
@@ -473,7 +473,7 @@
             services.push(this);
 
             // iterate services
-            hosts = services.reduce(function(acc, service){
+            publicEndpoints = services.reduce(function(acc, service){
 
                 var result = [];
 
@@ -489,7 +489,22 @@
                                     Application: service.name,
                                     ServiceEndpoint: endpoint.Application,
                                     ApplicationId: service.id,
-                                    Value: service.name +" - "+ endpoint.Application
+                                    Value: service.name +" - "+ endpoint.Application,
+                                    type: "vhost",
+                                });
+                            });
+                        }
+                        // if ports, iterate ports
+                        if(endpoint.PortList){
+                            endpoint.PortList.forEach(function(port){
+                                acc.push({
+                                    PortNumber: port.PortNumber,
+                                    Enabled: port.Enabled,
+                                    Application: service.name,
+                                    ServiceEndpoint: endpoint.Application,
+                                    ApplicationId: service.id,
+                                    Value: service.name +" - "+ endpoint.Application,
+                                    type: "port",
                                 });
                             });
                         }
@@ -501,9 +516,9 @@
                 return acc.concat(result);
             }, []);
 
-            Object.freeze(hosts);
-            this.cache.cache("vhosts", hosts);
-            return hosts;
+            Object.freeze(publicEndpoints);
+            this.cache.cache("publicEndpoints", publicEndpoints);
+            return publicEndpoints;
         }
     });
 

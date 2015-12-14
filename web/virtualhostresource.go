@@ -22,6 +22,7 @@ import (
 
 	"net/url"
 	"strings"
+	"strconv"
 )
 
 // json object for adding/removing a virtual host with a service
@@ -159,6 +160,155 @@ func getVHostContext(r *rest.Request,  client *node.ControlClient) (*service.Ser
 // json object for enabling/disabling a virtual host
 type virtualHostEnable struct {
 	Enable bool
+}
+
+// restVirtualHostEnable enables or disables a virtual host endpoint
+func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var request virtualHostEnable
+	err := r.DecodeJsonPayload(&request)
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	glog.V(1).Infof("Enable VHOST with %s %#v", r.URL.Path, request)
+
+	service, application, vhostname, err := getVHostContext(r, client)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+	glog.V(1).Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
+	err = service.EnableVirtualHost(application, vhostname, request.Enable)
+	if err != nil {
+		glog.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+
+}
+
+// json object for adding/removing a port with a service
+type portRequest struct {
+	ServiceID       string
+	Application     string
+	PortName        string
+}
+
+// restAddPort parses payload, adds the port to the service, then updates the service
+func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var request portRequest
+	err := r.DecodeJsonPayload(&request)
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	// Validate the port number
+  if port, err := strconv.Atoi(request.PortName); err != nil {
+		glog.Error("Port is not a number")
+		restServerError(w, err)
+		return
+	}
+
+	if port < 1024 or port > 65536 {
+		err := new error("Port must be greater than 1024 and less then 65536")
+		glog.Error(err)
+		restServerError(w, err)
+	}
+
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &services); err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	var service *service.Service
+	for _, _service := range services {
+		if _service.ID == request.ServiceID {
+			service = &_service
+			break
+		}
+	}
+
+	if service == nil {
+		glog.Errorf("Could not find service: %s", request.ServiceID)
+		restServerError(w, err)
+		return
+	}
+
+	//checkout other ports for redundancy
+	_vhost := strings.ToLower(request.PortName)
+	for _, service := range services {
+		if service.Endpoints == nil {
+			continue
+		}
+
+		for _, endpoint := range service.Endpoints {
+			for _, host := range endpoint.VHostList {
+				if host.Name == _vhost {
+					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
+					restServerError(w, err)
+					return
+				}
+			}
+		}
+	}
+
+	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
+	if err != nil {
+		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+}
+
+// restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
+func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+
+	service, application, vhostname, err := getVHostContext(r, client)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	err = service.RemoveVirtualHost(application, vhostname)
+	if err != nil {
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		restServerError(w, err)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
 }
 
 // restVirtualHostEnable enables or disables a virtual host endpoint
