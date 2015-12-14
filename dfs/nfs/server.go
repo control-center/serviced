@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/control-center/serviced/commons/atomicfile"
@@ -40,7 +41,7 @@ type Server struct {
 	exportOptions string
 	network       string
 	clients       map[string]struct{}
-	volumes       map[string]struct{}
+	volumes       map[string]int32
 	exported      map[string]struct{}
 }
 
@@ -62,6 +63,7 @@ var (
 var (
 	osMkdirAll = os.MkdirAll
 	osChmod    = os.Chmod
+	fsidIdx    int32
 )
 
 const defaultDirectoryPerm = 0755
@@ -125,14 +127,14 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		exportOptions: "rw,insecure,no_subtree_check,async",
 		clients:       make(map[string]struct{}),
 		network:       network,
-		volumes:       make(map[string]struct{}),
+		volumes:       make(map[string]int32),
 		exported:      make(map[string]struct{}),
 	}, nil
 }
 
 // ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
-	return path.Join(exportsDir, c.exportedName)
+	return path.Join("/", c.exportedName)
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -160,7 +162,8 @@ func (c *Server) SetClients(clients ...string) {
 func (c *Server) AddVolume(volumePath string) error {
 	c.Lock()
 	defer c.Unlock()
-	c.volumes[volumePath] = struct{}{}
+	fsid := atomic.AddInt32(&fsidIdx, 1)
+	c.volumes[volumePath] = fsid
 	return nil
 }
 
@@ -296,8 +299,9 @@ func (c *Server) writeExports() error {
 		return err
 	}
 	exports := make(map[string]struct{})
-	serviced_exports := ""
-	for volume := range c.volumes {
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n",
+		exportsDir, network)
+	for volume, fsid := range c.volumes {
 		volume = path.Clean(volume)
 		_, volName := path.Split(volume)
 		exports[volName] = struct{}{}
@@ -305,8 +309,8 @@ func (c *Server) writeExports() error {
 		if err := bindMount(volume, exported); err != nil {
 			return err
 		}
-		serviced_exports += fmt.Sprintf("%s\t%s(rw,no_root_squash,insecure,no_subtree_check,async)\n",
-			exported, network)
+		serviced_exports += fmt.Sprintf("%s\t%s(rw,fsid=%d,no_root_squash,insecure,no_subtree_check,async)\n",
+			exported, network, fsid)
 	}
 	c.exported = exports
 
