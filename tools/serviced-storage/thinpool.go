@@ -100,6 +100,11 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
+	// TODO: Rather than creating separate data and metadata volumes, then
+	//  converting the data volume to a thin pool, we should simplify and use
+	//  a single command to do it all:
+	//     sudo lvcreate --type thin-pool -L 20G --poolmetadatasize 1G vg0/tp1
+	// http://man7.org/linux/man-pages/man7/lvmthin.7.html
 	metadataVolume, err := CreateMetadataVolume(volumeGroup)
 	if err != nil {
 		return "", err
