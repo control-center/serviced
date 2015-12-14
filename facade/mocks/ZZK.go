@@ -38,6 +38,18 @@ func (_m *ZZK) UpdateService(svc *service.Service, locked bool) error {
 
 	return r0
 }
+func (_m *ZZK) UpdateServiceState(poolID string, state *servicestate.ServiceState) error {
+   ret := _m.Called(poolID, state)
+
+   var r0 error
+   if rf, ok := ret.Get(0).(func(string, *servicestate.ServiceState) error); ok {
+       r0 = rf(poolID, state)
+   } else {
+       r0 = ret.Error(0)
+   }
+
+   return r0
+}
 func (_m *ZZK) RemoveService(svc *service.Service) error {
 	ret := _m.Called(svc)
 
