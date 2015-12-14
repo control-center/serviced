@@ -40,10 +40,6 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		return err
 	}
 
-	if err := dfs.net.Stop(); err != nil {
-		glog.Errorf("Could not stop nfs server: %s", err)
-		return err
-	}
 	volumeRemoveFailed := true
 	dfs.net.RemoveVolume(vol.Path())
 	// sync will unbind the the volume from exports dir, making it not busy

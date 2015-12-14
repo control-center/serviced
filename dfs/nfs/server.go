@@ -491,7 +491,7 @@ func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []stri
 var umount = umountImp
 
 func umountImp(localPath string) error {
-	glog.Infof("Unmounting %s", localPath)
+	glog.V(1).Infof("Unmounting %s", localPath)
 	cmd := exec.Command("umount", "-f", localPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -17,13 +17,13 @@ import "github.com/zenoss/glog"
 
 // Create initializes an application volume on the dfs
 func (dfs *DistributedFilesystem) Create(tenantID string) error {
-	glog.Infof("creating volume for %s", tenantID)
+	glog.V(1).Infof("creating volume for %s", tenantID)
 	vol, err := dfs.disk.Create(tenantID)
 	if err != nil {
 		glog.Errorf("Could not create volume for tenant %s: %s", tenantID, err)
 		return err
 	}
-	glog.Infof("Volume created for %s at %s", tenantID, vol.Path())
+	glog.V(1).Infof("Volume created for %s at %s", tenantID, vol.Path())
 	if err := dfs.net.AddVolume(vol.Path()); err != nil {
 		glog.Warningf("Error notifying storage of new volume %s: %s", vol.Path(), err)
 	}
