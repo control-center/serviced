@@ -16,7 +16,6 @@
 package main_test
 
 import (
-	"fmt"
 	"os/exec"
 	"regexp"
 	"strings"
