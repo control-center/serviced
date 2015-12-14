@@ -26,9 +26,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master/mocks"
 
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 )
 
 var tGlobal *testing.T
@@ -183,7 +183,7 @@ func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {
 	serviceID := "test-service"
 
 	st.mockMasterClient.
-		On("GetServiceEndpoints", []string{serviceID}, true).
+		On("GetServiceEndpoints", []string{serviceID}, true, true, true).
 		Return(nil, errorStub)
 
 	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
@@ -196,7 +196,7 @@ func (st *serviceAPITest) TestGetEndpoints_works(c *C) {
 	serviceID := "test-service"
 
 	st.mockMasterClient.
-		On("GetServiceEndpoints", []string{serviceID}, true).
+		On("GetServiceEndpoints", []string{serviceID}, true, true, true).
 		Return([]applicationendpoint.EndpointReport{}, nil)
 
 	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
