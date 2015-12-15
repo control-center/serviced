@@ -111,7 +111,7 @@ func (ts *ZZKTest) TestCreateVolumeDir(t *C) {
 	}
 	v := volumeSpec{
 		hostPath:      path.Join(tmpPath, "actual_share_doc"),
-		containerPath: "/usr/share/vim", // do not use a dir with symlinks that point outside the path
+		containerPath: "/usr/share/dpkg", // do not use a dir with symlinks that point outside the path
 		image:         "ubuntu:latest",
 		user:          "games:games",
 		perm:          "755",
