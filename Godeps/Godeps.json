@@ -267,8 +267,8 @@
 		},
 		{
 			"ImportPath": "github.com/jessevdk/go-flags",
-			"Comment": "v1-302-g1acbbaf",
-			"Rev": "1acbbaff2f347c412a0c7884873bd72cc9c1f5b4"
+			"Comment": "v1-324-g0a28dbe",
+			"Rev": "0a28dbe50f23d8fce6b016975b964cfe7b97a20a"
 		},
 		{
 			"ImportPath": "github.com/kr/pretty",

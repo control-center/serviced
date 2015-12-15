@@ -44,7 +44,7 @@ func (s *BtrfsSuite) SetUpSuite(c *C) {
 }
 
 func (s *BtrfsSuite) TearDownSuite(c *C) {
-	volume.CleanupBtrfsTmpVolume(c, s.root)
+	volume.CleanupTmpVolume(c, s.root)
 }
 
 func (s *BtrfsSuite) TestBtrfsCreateEmpty(c *C) {
@@ -61,6 +61,6 @@ func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
 
 func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {
 	other_root := volume.CreateBtrfsTmpVolume(c, 32*1024*1024)
-	defer volume.CleanupBtrfsTmpVolume(c, other_root)
+	defer volume.CleanupTmpVolume(c, other_root)
 	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root, btrfsArgs)
 }
