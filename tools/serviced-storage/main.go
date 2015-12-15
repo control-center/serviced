@@ -75,6 +75,7 @@ func init() {
 	App.Parser.AddCommand("resize", "Resize an existing volume", "Resize an existing volume", &VolumeResize{})
 	App.Parser.AddCommand("sync", "Sync data from a volume to another volume", "Sync data from a volume to another volume", &DriverSync{})
 	App.Parser.AddCommand("version", "Print the version and exit", "Print the version and exit", &ServicedStorageVersion{})
+	App.Parser.AddCommand("create-thin-pool", "Create thin pool", "Create a thin pool from a set of block devices", &ThinPoolCreate{})
 }
 
 // ServicedStorageOptions are the options for ServicedStorage
