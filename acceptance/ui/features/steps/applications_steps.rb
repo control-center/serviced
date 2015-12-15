@@ -154,9 +154,10 @@ def addService(name, pool, id)
 end
 
 def addTemplate(dir)
-    id = `/capybara/serviced --endpoint #{HOST_IP}:4979 template compile #{dir} | /capybara/serviced --endpoint #{HOST_IP}:4979 template add`
+    servicedCLI = getServicedCLI()
+    id = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
     `sleep 1`
-    return `[ -z "$(/capybara/serviced template list #{id})" ] && return 1`
+    return `[ -z "$(#{servicedCLI} template list #{id})" ] && return 1`
 end
 
 def closeDeployWizard()

@@ -74,6 +74,9 @@ EnvDefault2 = env-def
 ; Option with named argument
 OptionWithArgName =
 
+; Option with choices
+OptionWithChoices =
+
 ; Option only available in ini
 only-ini =
 
@@ -132,6 +135,9 @@ EnvDefault2 = env-def
 ; Option with named argument
 ; OptionWithArgName =
 
+; Option with choices
+; OptionWithChoices =
+
 ; Option only available in ini
 ; only-ini =
 
@@ -186,6 +192,9 @@ EnvDefault2 = env-def
 
 ; Option with named argument
 ; OptionWithArgName =
+
+; Option with choices
+; OptionWithChoices =
 
 ; Option only available in ini
 ; only-ini =
@@ -661,6 +670,94 @@ func TestIniParse(t *testing.T) {
 	if opts.Value != 123 {
 		t.Fatalf("Expected Value to be \"123\" but was \"%d\"", opts.Value)
 	}
+}
+
+func TestIniCliOverrides(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+
+	if err != nil {
+		t.Fatalf("Cannot create temporary file: %s", err)
+	}
+
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString("values = 123\n")
+	_, err = file.WriteString("values = 456\n")
+
+	if err != nil {
+		t.Fatalf("Cannot write to temporary file: %s", err)
+	}
+
+	file.Close()
+
+	var opts struct {
+		Values []int `long:"values"`
+	}
+
+	p := NewParser(&opts, Default)
+	err = NewIniParser(p).ParseFile(file.Name())
+
+	if err != nil {
+		t.Fatalf("Could not parse ini: %s", err)
+	}
+
+	_, err = p.ParseArgs([]string{"--values", "111", "--values", "222"})
+
+	if err != nil {
+		t.Fatalf("Failed to parse arguments: %s", err)
+	}
+
+	if len(opts.Values) != 2 {
+		t.Fatalf("Expected Values to contain two elements, but got %d", len(opts.Values))
+	}
+
+	if opts.Values[0] != 111 {
+		t.Fatalf("Expected Values[0] to be 111, but got '%d'", opts.Values[0])
+	}
+
+	if opts.Values[1] != 222 {
+		t.Fatalf("Expected Values[0] to be 222, but got '%d'", opts.Values[1])
+	}
+}
+
+func TestIniOverrides(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+
+	if err != nil {
+		t.Fatalf("Cannot create temporary file: %s", err)
+	}
+
+	defer os.Remove(file.Name())
+
+	_, err = file.WriteString("value-with-default = \"ini-value\"\n")
+	_, err = file.WriteString("value-with-default-override-cli = \"ini-value\"\n")
+
+	if err != nil {
+		t.Fatalf("Cannot write to temporary file: %s", err)
+	}
+
+	file.Close()
+
+	var opts struct {
+		ValueWithDefault            string `long:"value-with-default" default:"value"`
+		ValueWithDefaultOverrideCli string `long:"value-with-default-override-cli" default:"value"`
+	}
+
+	p := NewParser(&opts, Default)
+	err = NewIniParser(p).ParseFile(file.Name())
+
+	if err != nil {
+		t.Fatalf("Could not parse ini: %s", err)
+	}
+
+	_, err = p.ParseArgs([]string{"--value-with-default-override-cli", "cli-value"})
+
+	if err != nil {
+		t.Fatalf("Failed to parse arguments: %s", err)
+	}
+
+	assertString(t, opts.ValueWithDefault, "ini-value")
+	assertString(t, opts.ValueWithDefaultOverrideCli, "cli-value")
 }
 
 func TestWriteFile(t *testing.T) {

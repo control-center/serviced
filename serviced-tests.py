@@ -237,7 +237,7 @@ def main(options):
                     cwd=SERVICED_ROOT,
                     **args
                 )
-        except KeyboardInterrupt:
+        except (subprocess.CalledProcessError, KeyboardInterrupt):
             sys.exit(1)
 
     if options.cover_html:
