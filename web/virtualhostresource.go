@@ -205,19 +205,50 @@ type portRequest struct {
 	PortName        string
 }
 
-func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	glog.Error("Not implemented")
-	restServerError(w, fmt.Errorf("Not implemented"))
-	return
-}
-func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	glog.Error("Not implemented")
-	restServerError(w, fmt.Errorf("Not implemented"))
-	return
+// Returns the service, application, and portnumber from the request
+func getPortContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, uint16, error) {
+	glog.V(1).Infof("in getPortContext()")
+
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		glog.Errorf("Failed getting serviceID: %v", err)
+		return nil, "", 0, err
+	}
+
+	var service service.Service
+	err = client.GetService(serviceID, &service)
+	if err != nil {
+		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
+		return nil, "", 0, err
+	}
+
+	application, err := url.QueryUnescape(r.PathParam("application"))
+	if err != nil {
+		glog.Errorf("Failed getting application: %v", err)
+		return nil, "", 0, err
+	}
+
+	// Validate the port number
+	portName, err := url.QueryUnescape(r.PathParam("portname"))
+	if err != nil {
+		err := fmt.Errorf("Failed getting port name for service (%s): %v", serviceID, err)
+		return nil, "", 0, err
+	}
+
+	// Validate the port number
+	port, err := strconv.Atoi(portName);
+  if err != nil {
+		err := fmt.Errorf("Port must be a number greater than 1024 and less then 65536")
+		return nil, "", 0, err
+	}
+
+	return &service, application, uint16(port), nil
 }
 
 // restAddPort parses payload, adds the port to the service, then updates the service
 func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	glog.V(1).Infof("Add PORT with %s %#v", r.URL.Path, r)
+
 	var request portRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
@@ -300,6 +331,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
+	glog.V(2).Infof("Port (%d) added to service (%s)", port, service.Name)
+
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
@@ -309,6 +342,86 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
+	glog.V(2).Infof("Service (%s) updated", service.Name)
+	restSuccess(w)
+}
+
+func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	glog.V(1).Infof("Remove PORT with %s %#v", r.URL.Path, r)
+
+	service, application, port, err := getPortContext(r, client)
+	if err != nil {
+		err := fmt.Errorf("Unexpected error removing port from service (%s): %v", service.Name, err)
+		glog.Error(err)
+    restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Info("Removing port %d from service (%s)", port, service.Name)
+
+	err = service.RemovePort(application, port)
+	if err != nil {
+		err := fmt.Errorf("Unexpected error removing port, %d, from service (%s): %v", port, service.Name, err)
+		glog.Error(err)
+    restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Info("Updating service (%s)", port, service.Name)
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		err := fmt.Errorf("Unexpected error removing port, %d, from service (%s): %v", port, service.Name, err)
+		glog.Error(err)
+    restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Info("Successfully added port %d to service (%s)", port, service.Name)
+
+	restSuccess(w)
+}
+
+// json object for enabling/disabling a port
+type portEnable struct {
+	Enable bool
+}
+
+func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	glog.V(1).Infof("Enable/Disable PORT with %s %#v", r.URL.Path, r)
+
+	var request portEnable
+	err := r.DecodeJsonPayload(&request)
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	service, application, port, err := getPortContext(r, client)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	err = service.EnablePort(application, port, request.Enable)
+	if err != nil {
+		glog.Errorf("Unexpected error enabling/disabling port %d on service (%s): %v", port, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Infof("Port %d for service (%s) enabled", port, service.Name)
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error updating port %d on service (%s): %v", port, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Infof("Service (%s) updated", service.Name)
 	restSuccess(w)
 }
 
