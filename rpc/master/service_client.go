@@ -14,7 +14,9 @@
 package master
 
 import (
+	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
+	"time"
 )
 
 type ServiceUseRequest struct {
@@ -23,6 +25,13 @@ type ServiceUseRequest struct {
 	ReplaceImgs []string
 	Registry    string
 	NoOp        bool
+}
+
+type WaitServiceRequest struct {
+	ServiceIDs []string
+	State      service.DesiredState
+	Timeout    time.Duration
+	Recursive  bool
 }
 
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
@@ -35,4 +44,18 @@ func (c *Client) ServiceUse(serviceID string, imageID string, registry string, r
 		return "", err
 	}
 	return result, nil
+}
+
+// WaitService will wait for the specified services to reach the specified
+// state, within the given timeout
+func (c *Client) WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error {
+	waitSvcRequest := &WaitServiceRequest{
+		ServiceIDs: serviceIDs,
+		State:      state,
+		Timeout:    timeout,
+		Recursive:  recursive,
+	}
+	throwaway := ""
+	err := c.call("WaitService", waitSvcRequest, &throwaway)
+	return err
 }

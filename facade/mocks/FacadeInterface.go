@@ -131,8 +131,8 @@ func (m *FacadeInterface) UpdateService(ctx datastore.Context, svc service.Servi
 
 	return r0
 }
-func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error {
-	ret := m.Called(ctx, dstate, timeout, serviceIDs)
+func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error {
+	ret := m.Called(ctx, dstate, timeout, recursive, serviceIDs)
 
 	r0 := ret.Error(0)
 

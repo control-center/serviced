@@ -81,6 +81,7 @@ type WaitServiceRequest struct {
 	ServiceIDs   []string             // List of service IDs to monitor
 	DesiredState service.DesiredState // State which to monitor for
 	Timeout      time.Duration        // Time to wait before cancelling the subprocess
+	Recursive    bool                 // Recursively wait for the desired state
 }
 
 type HostServiceRequest struct {

@@ -216,6 +216,22 @@ func (vs *ScriptSuite) Test_svcWait(t *C) {
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "extra"})
 	t.Assert(err, NotNil)
 
+	ctx.line = "SVC_WAIT zope started 4 recursive"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "recursive"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "SVC_WAIT zope started recursive"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "recursive"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "SVC_WAIT zope started recursive 5"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "recursive", "5"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope started 4 garbage"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "garbage"})
+	t.Assert(err, NotNil)
+
 	line = "SVC_WAIT zope mariadb started 0"
 	ctx.line = line
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
@@ -230,6 +246,10 @@ func (vs *ScriptSuite) Test_svcWait(t *C) {
 
 	line = "SVC_WAIT zope mariadb started extra"
 	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope mariadb started extra recursive"
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
 	t.Assert(err, NotNil)
 }

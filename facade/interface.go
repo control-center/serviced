@@ -53,7 +53,7 @@ type FacadeInterface interface {
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
-	WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error
+	WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error
 
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)
 
