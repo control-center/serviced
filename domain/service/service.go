@@ -311,6 +311,21 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 	return result
 }
 
+// GetServicePorts retrieves service endpoints that specify additional port(s)
+func (s *Service) GetServicePorts() []ServiceEndpoint {
+	result := []ServiceEndpoint{}
+
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if len(ep.PortList) > 0 {
+				result = append(result, ep)
+			}
+		}
+	}
+
+	return result
+}
+
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
 func (s *Service) AddVirtualHost(application, vhostName string) error {
 	if s.Endpoints != nil {
@@ -345,7 +360,7 @@ func (s *Service) AddPort(application string, portNumber uint16) error {
 			ep := &s.Endpoints[i]
 
 			if ep.Application == application && ep.Purpose == "export" {
-				ports := make([]servicedefinition.Port, 0)
+				var ports = make([]servicedefinition.Port, 0)
 				for _, port := range ep.PortList {
 					if port.PortNumber != portNumber {
 						ports = append(ports, port)
@@ -358,6 +373,70 @@ func (s *Service) AddPort(application string, portNumber uint16) error {
 	}
 
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// RemovePort Remove a port for given service
+func (s *Service) RemovePort(application string, portNumber uint16) error {
+	if s.Endpoints == nil {
+		return fmt.Errorf("Service %s has no Endpoints", s.Name)
+	}
+
+	//find the matching endpoint
+	for i := range s.Endpoints {
+		ep := &s.Endpoints[i]
+
+		if ep.Application == application && ep.Purpose == "export" {
+			if len(ep.PortList) == 0 {
+				break
+			}
+
+			found := false
+			var ports = make([]servicedefinition.Port, 0)
+			for _, port := range ep.PortList {
+				if port.PortNumber != portNumber {
+					ports = append(ports, port)
+				} else {
+					found = true
+				}
+			}
+
+			//error removing an unknown vhost
+			if !found {
+				break
+			}
+
+			ep.PortList = ports
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// EnablePort enables or disables a port for given service
+func (s *Service) EnablePort(application string, portNumber uint16, enable bool) error {
+	appFound := false
+	portFound := false
+	for _, ep := range s.GetServicePorts() {
+		if ep.Application == application {
+			appFound = true
+			for i, port := range ep.PortList {
+				if port.PortNumber == portNumber {
+					portFound = true
+					ep.PortList[i].Enabled = enable
+					glog.V(1).Infof("Enable port %d for %s %s set to %v", portNumber, s.ID, application, enable)
+				}
+			}
+		}
+	}
+	if !appFound {
+		return fmt.Errorf("port %d not found; application %s not found in service %s:%s", portNumber, application, s.ID, s.Name)
+	}
+	if !portFound {
+		return fmt.Errorf("port %d not found in service %s:%s", portNumber, s.ID, s.Name)
+	}
+
+	return nil
 }
 
 // EnableVirtualHost enable or disable a virtual host for given service
@@ -405,7 +484,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 				}
 
 				found := false
-				vhosts := make([]servicedefinition.VHost, 0)
+				var vhosts = make([]servicedefinition.VHost, 0)
 				for _, vhost := range ep.VHostList {
 					if vhost.Name != _vhostName {
 						vhosts = append(vhosts, vhost)

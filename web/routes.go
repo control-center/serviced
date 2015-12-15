@@ -86,9 +86,9 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"POST", "/services/:serviceId/endpoint/:application/vhosts/:name/enable", gz(sc.authorizedClient(restVirtualHostEnable))},
 
 		// Services (Endpoint Ports)
-		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/ports/*name", gz(sc.authorizedClient(restAddPort))},
-		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/ports/*name", gz(sc.authorizedClient(restRemovePort))},
-		rest.Route{"POST", "/services/:serviceId/endpoint/:application/ports/:name/enable", gz(sc.authorizedClient(restPortEnable))},
+		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/ports/*portname", gz(sc.authorizedClient(restAddPort))},
+		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/ports/*portname", gz(sc.authorizedClient(restRemovePort))},
+		rest.Route{"POST", "/services/:serviceId/endpoint/:application/ports/:portname/enable", gz(sc.authorizedClient(restPortEnable))},
 
 		// Services (IP)
 		rest.Route{"PUT", "/services/:serviceId/ip", gz(sc.authorizedClient(restServiceAutomaticAssignIP))},

@@ -219,8 +219,8 @@
                 //default to automatic
                 if(!$scope.ips.assign.value) {
                   $scope.ips.assign.value = options[0];
-                }
 
+                }
                 $scope.ips.assign.options = options;
 
                 $modalService.create({
@@ -384,7 +384,7 @@
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Port)
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -399,7 +399,7 @@
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Port)
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
@@ -490,7 +490,7 @@
         $scope.clickRemovePublicEndpoint = function(publicEndpoint) {
 
             $modalService.create({
-                template: $translate.instant("remove_public_endpoint") + ": <strong>"+ 
+                template: $translate.instant("remove_public_endpoint") + ": <strong>"+
                           (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortNumber) + "</strong>",
                 model: $scope,
                 title: "remove_public_endpoint",
@@ -512,7 +512,7 @@
                                         $notification.create("Remove Public Endpoint failed", data.Detail).error();
                                     });
                             } else if(publicEndpoint.type === "port"){
-                                resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortName)
+                                resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
                                     .success(() => {
                                         servicesFactory.update();
                                         $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
