@@ -58,6 +58,17 @@ func (m *FacadeInterface) GetServices(ctx datastore.Context, request dao.EntityR
 
 	return r0, r1
 }
+func (m *FacadeInterface) GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error) {
+	ret := m.Called(ctx, imageID)
+
+	var r0 []service.Service
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]service.Service)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *FacadeInterface) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
 	ret := m.Called(ctx, serviceID)
 
@@ -206,4 +217,16 @@ func (m *FacadeInterface) GetHealthChecksForService(ctx datastore.Context, id st
 	r1 := ret.Error(1)
 
 	return r0, r1
+}
+func (_m *FacadeInterface) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
+	ret := _m.Called(ctx, fromRegistryHost, force)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) error); ok {
+		r0 = rf(ctx, fromRegistryHost, force)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }

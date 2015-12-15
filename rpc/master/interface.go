@@ -96,4 +96,18 @@ type ClientInterface interface {
 
 	// GetServiceEndpoints gets the endpoints for one or more services
 	GetServiceEndpoints(serviceIDs []string, reportImports, reportExports bool, validate bool) ([]applicationendpoint.EndpointReport, error)
+
+	//--------------------------------------------------------------------------
+	// Docker Registry Management Functions
+
+	// ResetRegistry pulls images from the docker registry and updates the
+	// index.
+	ResetRegistry() error
+
+	// SyncRegistry prompts the master to push its images into the docker
+	// registry.
+	SyncRegistry() error
+
+	// UpgradeRegistry migrates images from an older or remote docker registry.
+	UpgradeRegistry(endpoint string, override bool) error
 }

@@ -17,6 +17,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
@@ -64,6 +65,30 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	}
 	return nil
 
+}
+
+// GetImageUUID gets an image UUID from the respective tags registry path,
+// given an image tag, ex. "kjasd8912833hddhla/core_5.0:latest"
+func GetImageUUID(conn client.Connection, tag string) (string, error) {
+	imageID, err := commons.ParseImageID(tag)
+	if err != nil {
+		return "", err
+	}
+	rImage := &registry.Image{
+		Library: imageID.User,
+		Repo:    imageID.Repo,
+		Tag:     imageID.Tag,
+	}
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
+	}
+	idpath := path.Join(zkregistrytags, rImage.ID())
+
+	var node RegistryImageNode
+	if err = conn.Get(idpath, &node); err != nil {
+		return "", err
+	}
+	return node.Image.UUID, nil
 }
 
 // DeleteRegistryImage removes a registry image from the coordinator index.

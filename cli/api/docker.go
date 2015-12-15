@@ -13,22 +13,30 @@
 
 package api
 
-import "github.com/control-center/serviced/dao"
-
 // ResetRegistry moves all relevant images into the new docker registry
 func (a *api) ResetRegistry() error {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
-	return client.RepairRegistry(dao.NullRequest{}, new(int))
+	return client.ResetRegistry()
 }
 
-// RegistrySync walks the service tree and syncs all images from docker to local registry
-func (a *api) RegistrySync() (err error) {
-	client, err := a.connectDAO()
+// SyncRegistry walks the service tree and syncs all images from docker to local
+// registry.
+func (a *api) RegistrySync() error {
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
-	return client.ResetRegistry(dao.NullRequest{}, new(int))
+	return client.SyncRegistry()
+}
+
+// UpgradeRegistry migrates images from an older or remote docker registry.
+func (a *api) UpgradeRegistry(endpoint string, override bool) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+	return client.UpgradeRegistry(endpoint, override)
 }
