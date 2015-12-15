@@ -96,7 +96,7 @@ func evalSvcWait(r *runner, n node) error {
 	}
 
 	var svcIDs []string
-	var stateIdx = -1
+	var stateIdx int
 	for i, arg := range n.args {
 		if arg == "started" || arg == "stopped" || arg == "paused" {
 			stateIdx = i
@@ -116,15 +116,26 @@ func evalSvcWait(r *runner, n node) error {
 	state := ServiceState(n.args[stateIdx])
 
 	timeout := uint32(0)
-	hasTimeout := len(n.args) == stateIdx+2
-	if hasTimeout {
-		var timeout64 uint64
-		var err error
-		lastArg := n.args[len(n.args)-1]
-		if timeout64, err = strconv.ParseUint(lastArg, 10, 32); err != nil {
-			return fmt.Errorf("Unable to parse timeout value %s: %s", lastArg, err)
+	recursive := false
+
+	if len(n.args) > stateIdx+1 {
+		// check optional first arg
+		if n.args[stateIdx+1] == "recursive" {
+			recursive = true
+		} else {
+			var timeout64 uint64
+			var err error
+			lastArg := n.args[len(n.args)-1]
+			if timeout64, err = strconv.ParseUint(n.args[stateIdx+1], 10, 32); err != nil {
+				return fmt.Errorf("Unable to parse timeout value %s: %s", lastArg, err)
+			}
+			timeout = uint32(timeout64)
 		}
-		timeout = uint32(timeout64)
+		// check optional second arg (data should be sanitized prior to here)
+		if len(n.args) == stateIdx+3 {
+			recursive = true
+		}
+
 	}
 
 	plural := ""
@@ -132,7 +143,7 @@ func evalSvcWait(r *runner, n node) error {
 		plural = "s"
 	}
 	glog.Infof("waiting %d for service%s %s to be %s", timeout, plural, strings.Join(n.args[:stateIdx], ", "), state)
-	if err := r.svcWait(svcIDs, state, timeout); err != nil {
+	if err := r.svcWait(svcIDs, state, timeout, recursive); err != nil {
 		return err
 	}
 

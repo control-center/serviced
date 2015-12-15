@@ -1,10 +1,13 @@
 package mocks
 
+import "time"
+
 import "github.com/stretchr/testify/mock"
 
 import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
+import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/facade"
 import "github.com/control-center/serviced/volume"
 
@@ -285,6 +288,18 @@ func (_m *ClientInterface) ServiceUse(serviceID string, imageID string, registry
 	}
 
 	return r0, r1
+}
+func (_m *ClientInterface) WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error {
+	ret := _m.Called(serviceIDs, state, timeout, recursive)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, service.DesiredState, time.Duration, bool) error); ok {
+		r0 = rf(serviceIDs, state, timeout, recursive)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 	ret := _m.Called()

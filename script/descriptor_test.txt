@@ -23,3 +23,5 @@ SVC_RUN  Zenoss.core/Zope upgrade
 SVC_RUN  Zenoss.core/HBase/RegionServer upgrade arg1 arg2
 SVC_EXEC COMMIT Zenoss.core/Zope command1
 SVC_EXEC NO_COMMIT Zenoss.core/zenhub command2 with args
+SVC_START Zenoss.core
+SVC_WAIT Zenoss.core started recursive

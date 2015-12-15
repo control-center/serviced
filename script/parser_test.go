@@ -75,6 +75,8 @@ func (vs *ScriptSuite) Test_parseFile(t *C) {
 		node{lineNum: 23, cmd: SVC_RUN, line: "SVC_RUN  Zenoss.core/HBase/RegionServer upgrade arg1 arg2", args: []string{"Zenoss.core/HBase/RegionServer", "upgrade", "arg1", "arg2"}},
 		node{lineNum: 24, cmd: SVC_EXEC, line: "SVC_EXEC COMMIT Zenoss.core/Zope command1", args: []string{"COMMIT", "Zenoss.core/Zope", "command1"}},
 		node{lineNum: 25, cmd: SVC_EXEC, line: "SVC_EXEC NO_COMMIT Zenoss.core/zenhub command2 with args", args: []string{"NO_COMMIT", "Zenoss.core/zenhub", "command2", "with", "args"}},
+		node{lineNum: 26, cmd: SVC_START, line: "SVC_START Zenoss.core", args: []string{"Zenoss.core"}},
+		node{lineNum: 27, cmd: SVC_WAIT, line: "SVC_WAIT Zenoss.core started recursive", args: []string{"Zenoss.core", "started", "recursive"}},
 	}
 	t.Assert(len(ctx.nodes), Equals, len(expected))
 

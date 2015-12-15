@@ -5,10 +5,12 @@
 package script
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain/service"
 )
 
 //Lookup a tenant ID given a service (name, id, or path)
@@ -38,11 +40,23 @@ type ServiceUse func(serviceID string, imageID string, registry string, replaceI
 type ServiceState string
 
 // Wait for a service to be in a particular state
-type ServiceWait func(serviceID []string, serviceState ServiceState, timeout uint32) error
+type ServiceWait func(serviceID []string, serviceState ServiceState, timeout uint32, recursive bool) error
 
 type execCmd func(string, ...string) error
 
 type findTenant func(string) (string, error)
+
+func ScriptStateToDesiredState(state ServiceState) (service.DesiredState, error) {
+	switch state {
+	case "stopped":
+		return service.SVCStop, nil
+	case "started":
+		return service.SVCRun, nil
+	case "paused":
+		return service.SVCPause, nil
+	}
+	return service.DesiredState(-99), fmt.Errorf("service state %s unknown", state)
+}
 
 func defaultExec(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
@@ -79,7 +93,7 @@ func noOpServiceUse(serviceID string, imageID string, replaceImg string, replace
 	return "no_op_image", nil
 }
 
-func noOpServiceWait(serviceID []string, serviceState ServiceState, timeout uint32) error {
+func noOpServiceWait(serviceID []string, serviceState ServiceState, timeout uint32, recursive bool) error {
 	return nil
 }
 

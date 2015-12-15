@@ -48,7 +48,7 @@ func init() {
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
-		SVC_WAIT:    parseWait,
+		SVC_WAIT:    require([]string{REQUIRE_SVC}, parseWaitCmd(parseArgsUntil("^started$|^stopped$|^paused$", parseArgMatch(0, "^started$|^stopped$|^paused$", false, parseArgCount(max(3), buildNode))))),
 		SVC_MIGRATE: require([]string{REQUIRE_SVC}, parseArgCount(bounds(1, 2), parseSDKVersion(buildNode))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
@@ -160,6 +160,33 @@ func parseArgMatch(argN int, pattern string, optional bool, parser lineParser) l
 	return f
 }
 
+// parseArgsUntil will consume args until a given pattern (exclusive), and then pass the
+// rest of the args to the given parser.  This differs from normal parsers in that
+// Only the args _after_ the first matched pattern will be passed on to the next parser.
+func parseArgsUntil(pattern string, parser lineParser) lineParser {
+	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
+		var passArgs []string
+		for idx, arg := range args {
+			matched, err := regexp.MatchString(pattern, arg)
+			if err != nil {
+				return node{}, fmt.Errorf("line %d: error during regex matching using %s on arg %s: %s", ctx.lineNum, pattern, arg, err)
+			}
+			if matched {
+				passArgs = args[idx:]
+				n, err := parser(ctx, cmd, passArgs)
+				if err == nil {
+					// do my processing?
+				}
+				// hijack n.args
+				n.args = args
+				return n, err
+			}
+		}
+		return node{}, fmt.Errorf("line %d: pattern %s not found in command %s", ctx.lineNum, pattern, cmd)
+	}
+	return f
+}
+
 func parseArgCount(matcher match, parser lineParser) lineParser {
 	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
 		n, err := parser(ctx, cmd, args)
@@ -194,6 +221,34 @@ func parseImageID(parser lineParser) lineParser {
 						return node{}, fmt.Errorf("image string %s should only specify a repo", tgtImg)
 					}
 				}
+			}
+		}
+		return n, err
+	}
+}
+
+// parseWaitCmd makes sure that the parsed node's timeout and 'recursive'
+// marker, if they exist, are valid
+// SVC_WAIT <svcs>+ (started|stopped|paused) (<timeout>|recursive)? (recursive)?
+func parseWaitCmd(parser lineParser) lineParser {
+	return func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			// At this point, we're guaranteed to have a valid set of args
+			stateIdx := -1
+			for i, arg := range args {
+				if arg == "started" || arg == "stopped" || arg == "paused" {
+					stateIdx = i
+					break
+				}
+			}
+			// Parse timeout/'recursive' value if exists
+			if len(args) > stateIdx+1 && (strings.Trim(args[stateIdx+1], "1234567890") != "" && args[stateIdx+1] != "recursive") {
+				return node{}, fmt.Errorf("line %d: expected integer timeout; got %s", ctx.lineNum, args[stateIdx+1])
+			}
+			// Parse 'recursive' arg
+			if len(args) == stateIdx+3 && args[stateIdx+2] != "recursive" {
+				return node{}, fmt.Errorf("line %d: invalid string for recursive identifier: %s", ctx.lineNum, args[stateIdx+2])
 			}
 		}
 		return n, err
@@ -265,34 +320,4 @@ func atMost(n int, parser lineParser) lineParser {
 		return cmdNode, err
 	}
 	return f
-}
-
-// SVC_WAIT <service_id>+ (started|stopped|paused) <timeout>?
-func parseWait(ctx *parseContext, cmd string, args []string) (node, error) {
-	stateIdx := -1
-	for i, arg := range args {
-		if arg == "started" || arg == "stopped" || arg == "paused" {
-			stateIdx = i
-			break
-		}
-	}
-
-	var err error
-	switch {
-	case stateIdx == -1:
-		err = fmt.Errorf("line %d: missing state argument (started|stopped|paused)", ctx.lineNum)
-	case stateIdx == 0:
-		err = fmt.Errorf("line %d: missing service id", ctx.lineNum)
-	case stateIdx < len(args)-2:
-		err = fmt.Errorf("line %d: too many arguments following state: %v", ctx.lineNum, args[stateIdx:])
-	case stateIdx == len(args)-2:
-		if strings.Trim(args[len(args)-1], "1234567890") != "" {
-			err = fmt.Errorf("line %d: expected integer timeout; got %s", ctx.lineNum, args[len(args)-1])
-		}
-	}
-
-	if err != nil {
-		return node{}, err
-	}
-	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }

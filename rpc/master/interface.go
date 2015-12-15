@@ -17,8 +17,10 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/volume"
+	"time"
 )
 
 // The RPC interface is the API for a serviced master.
@@ -84,6 +86,9 @@ type ClientInterface interface {
 
 	// ServiceUse will use a new image for a given service - this will pull the image and tag it
 	ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
+
+	// WaitService will wait for the specified services to reach the specified state, within the given timeout
+	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
 
 	//--------------------------------------------------------------------------
 	// Volume Management Functions
