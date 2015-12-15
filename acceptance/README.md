@@ -154,8 +154,8 @@ The primary variables used by `runUIAcceptance.sh` are:
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
  * **`DATASET`** - the JSON dataset to use as test input. You can set this variable with the `--dataset` command line option for `runUIAcceptance.sh`.
 
-Internally, the script also uses the variables `CALLER_UID` and `CALLER_GID` to capture the current user's UID and GID which are used in the container to create a `cuke` user so that
-files written to `ui/output` will have the proper owner/group information (for OSX, see Known Issues). These two variables should not be overwritten or modified. For an example of how these two variables are used, refer to the [dockerImage/build/makeCukeUser.sh](dockerImage/build/makeCukeUser.sh) script.
+Internally, the script also uses the variables `CALLER_UID` and `CALLER_GID` to capture the current user's UID and GID which are used in the container so that
+files written to `ui/output` will have the proper owner/group information (for OSX, see Known Issues). These two variables should not be overwritten or modified. For an example of how these two variables are used, refer to the [dockerImage/build/runCucumber.sh](dockerImage/build/runCucumber.sh) script.
 
 For details of how all of these variables are used, see [ui/features/support/env.rb](ui/features/support/env.rb) and [ui/features/support/application.rb](ui/features/support/application.rb)
 
@@ -263,8 +263,7 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
  * The tests don't work on Mac OSX for a variety of reasons:
    * The run script makes Linux-specific assumptions about mapping timezone definitions into the container.
    * On Mac OSX with [boot2docker](http://boot2docker.io/), if you have problems reaching archive.ubuntu.com while trying to run `dockerBuild.sh`, refer to the workaround [here](http://stackoverflow.com/questions/26424338/docker-daemon-config-file-on-boot2docker).
-   * On Mac OSX with [boot2docker](http://boot2docker.io/), you must use the `--root` option for `runUIAcceptance.sh` and
- boot2docker will automagically map the root user of the docker container to the current user of the host OS. Without the `--root` option, you will encounter permission problems trying to write files into the `ui/output` directory.
+   * On Mac OSX with [boot2docker](http://boot2docker.io/), boot2docker will automagically map the root user of the docker container to the current user of the host OS. This use-case needs more testing.
 
 ## References
 

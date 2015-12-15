@@ -14,7 +14,7 @@
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=${DIR}/serviced
-IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
 #
@@ -111,7 +111,7 @@ make mockAgent
 cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
 
-# launch cucumber/capybara
-./runUIAcceptance.sh -a https://${HOSTNAME} $*
+# launch cucumber/capybara with colorized output disabled for better readability in Jenkins
+CUCUMBER_OPTS=--no-color ./runUIAcceptance.sh -a https://${HOSTNAME} $*
 
 # "trap cleanup EXIT", above, will handle cleanup

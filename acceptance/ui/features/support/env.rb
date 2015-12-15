@@ -123,7 +123,9 @@ end
 printf "Using driver=%s\n", Capybara.default_driver
 
 HOST_IP = ENV["HOST_IP"]
-printf "Using IP Address=%s\n", HOST_IP
+TARGET_HOST = ENV["TARGET_HOST"]
+printf "Using HOST_IP=%s\n", HOST_IP
+printf "Using TARGET_HOST=%s\n", TARGET_HOST
 
 #
 # Register Chrome (Firefox is the selenium default)
