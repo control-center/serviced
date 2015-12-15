@@ -47,16 +47,24 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 			return err
 		}
 	}
-	// TODO: remove nfs exports here
-	// Right now the entirety of /var/volumes is shared on NFS, but it would
-	// make more sense to create a directory /exports/serviced and then bind
-	// mount in appication volumes individually.
-	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
-	if err := dfs.net.Stop(); err != nil {
-		glog.Errorf("Could not stop nfs server: %s", err)
+	tenantVol, err := dfs.disk.GetTenant(vol.Name())
+	if err != nil {
+		glog.Errorf("Could not get tenant volume for %s; %v", vol.Name(), err)
 		return err
 	}
-	defer dfs.net.Restart()
+
+	volPath := tenantVol.Path()
+	dfs.net.RemoveVolume(volPath)
+	defer func() {
+		dfs.net.AddVolume(volPath)
+		if err := dfs.net.Sync(); err != nil {
+			glog.Errorf("Could not sync nfs server: %s", err)
+		}
+	}()
+	if err := dfs.net.Sync(); err != nil {
+		glog.Errorf("Could not sync nfs server: %s", err)
+		return err
+	}
 	if err := vol.Rollback(info.Label); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
 		return err
