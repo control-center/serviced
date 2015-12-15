@@ -6,13 +6,9 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/mattn/go-shellwords",
-			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
-		},
-		{
 			"ImportPath": "code.google.com/p/go.net/websocket",
 			"Comment": "null-139",
-			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
+			"Rev": "'98fd1f5506373df1033b67a1881078705456e2ee'"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -280,6 +276,15 @@
 			"Rev": "6807e777504f54ad073ecef66747de158294b639"
 		},
 		{
+			"ImportPath": "github.com/mattn/go-shellwords",
+			"Comment": "v1.0.0",
+			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
+		},
+		{
+			"ImportPath": "github.com/msteinert/pam",
+			"Rev": "6534f23b3984c4b8f517feba04a7d65b4da3ca57"
+		},
+		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer/label",
 			"Comment": "v0.0.3-20-g15c709e",
 			"Rev": "15c709ed739f29cc6c67546ebe82948dc5935a11"
@@ -303,10 +308,12 @@
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.0-49-g2b15294",
 			"Rev": "2b15294402a895a4224659d181866f545991021e"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/mock",
+			"Comment": "v1.0-49-g2b15294",
 			"Rev": "2b15294402a895a4224659d181866f545991021e"
 		},
 		{
@@ -344,10 +351,6 @@
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "1dfe7915deaf3f80b962c163b918868d8a6d8974"
-		},
-		{
-			"ImportPath": "github.com/msteinert/pam",
-			"Rev": "6534f23b3984c4b8f517feba04a7d65b4da3ca57"
 		}
 	]
 }
