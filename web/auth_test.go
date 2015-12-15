@@ -42,9 +42,9 @@ type testUser struct {
 }
 
 var testUsers = map[string]testUser{
-	"gooduser":       testUser{"ztestgooduser", "ztestgooduserpass", adminGroup, false},
+	"gooduser":       testUser{"ztestgooduser", "ztestgooduserpass", "", false},
 	"nonrootuser":    testUser{"ztestplainuser", "ztestplainuserpass", "users", false},
-	"oldbutgooduser": testUser{"ztestolduser", "ztestolduserpass", adminGroup, true},
+	"oldbutgooduser": testUser{"ztestolduser", "ztestolduserpass", "", true},
 }
 
 var createdUsers = make(map[string]testUser)
@@ -52,7 +52,6 @@ var createdUsers = make(map[string]testUser)
 type testCase struct {
 	user                testUser
 	testPassword        string
-	testGroup           string
 	expectedPamResult   bool
 	expectedGroupResult bool
 	expectedResult      bool
@@ -63,7 +62,6 @@ var testCases = []testCase{
 	testCase{
 		user:                testUsers["gooduser"],
 		testPassword:        testUsers["gooduser"].password,
-		testGroup:           adminGroup,
 		expectedPamResult:   true,
 		expectedGroupResult: true,
 		expectedResult:      true,
@@ -72,7 +70,6 @@ var testCases = []testCase{
 	testCase{
 		user:                testUsers["gooduser"],
 		testPassword:        "",
-		testGroup:           adminGroup,
 		expectedPamResult:   false,
 		expectedGroupResult: true,
 		expectedResult:      false,
@@ -81,7 +78,6 @@ var testCases = []testCase{
 	testCase{
 		user:                testUsers["nonrootuser"],
 		testPassword:        testUsers["nonrootuser"].password,
-		testGroup:           adminGroup,
 		expectedPamResult:   true,
 		expectedGroupResult: false,
 		expectedResult:      false,
@@ -90,7 +86,6 @@ var testCases = []testCase{
 	testCase{
 		user:                testUsers["oldbutgooduser"],
 		testPassword:        testUsers["oldbutgooduser"].password,
-		testGroup:           adminGroup,
 		expectedPamResult:   false,
 		expectedGroupResult: true,
 		expectedResult:      false,
@@ -132,6 +127,13 @@ func createTestUser(name string, userobj *testUser) error {
 	if _, err := user.Lookup(testUserName); err == nil {
 		return ErrTestUserExists
 	}
+
+	// Defer the initialization of userobj.group entries until after the package's init() method has run
+	// so that we get the correct value of adminGroup for the current platform.
+	if userobj.group == "" {
+		userobj.group = adminGroup
+	}
+
 	encryptedPassword := crypt(userobj.password, testUserSalt)
 	cmdName := "sudo"
 	args := []string{"useradd", userobj.username, "-p", encryptedPassword, "-G", userobj.group}
