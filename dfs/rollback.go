@@ -20,6 +20,7 @@ import (
 
 // Rollback reverts an application to a previous snapshot.
 func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
+	glog.V(0).Infof("Starting rollback of %s", snapshotID)
 	vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshotID)
 	if err != nil {
 		return err
@@ -47,13 +48,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 			return err
 		}
 	}
-	tenantVol, err := dfs.disk.GetTenant(vol.Name())
-	if err != nil {
-		glog.Errorf("Could not get tenant volume for %s; %v", vol.Name(), err)
-		return err
-	}
-
-	volPath := tenantVol.Path()
+	volPath := vol.Path()
 	dfs.net.RemoveVolume(volPath)
 	defer func() {
 		dfs.net.AddVolume(volPath)
