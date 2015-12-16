@@ -17,11 +17,8 @@ package api
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 	"testing"
 
-	"github.com/control-center/serviced/dao"
 	daomocks "github.com/control-center/serviced/dao/mocks"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master/mocks"
@@ -90,29 +87,6 @@ func (st *serviceAPITest) TestGetService_fails(c *C) {
 	c.Assert(err, Equals, errorStub)
 }
 
-func (st *serviceAPITest) TestMigrateService_works(c *C) {
-	serviceID := "test-service"
-	scriptBody := "# no-op script"
-	inputScript := strings.NewReader(scriptBody)
-	expected, _ := service.NewService()
-	sdkVersion := "a.b.c"
-	st.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(nil).Run(func(a mock.Arguments) {
-		svc := a.Get(1).(*service.Service)
-		*svc = *expected
-	})
-	st.mockControlPlane.On("RunMigrationScript", mock.AnythingOfType("dao.RunMigrationScriptRequest"), mock.AnythingOfType("*int")).Return(nil).Run(func(a mock.Arguments) {
-		req := a.Get(0).(dao.RunMigrationScriptRequest)
-		c.Assert(req.ServiceID, Equals, serviceID)
-		c.Assert(req.ScriptBody, Equals, scriptBody)
-		c.Assert(req.DryRun, Equals, true)
-		c.Assert(req.SDKVersion, Equals, sdkVersion)
-	})
-	actual, err := st.api.RunMigrationScript(serviceID, inputScript, true, sdkVersion)
-	c.Assert(err, IsNil)
-	c.Assert(actual.ID, Equals, expected.ID)
-	st.mockControlPlane.AssertExpectations(c)
-}
-
 type mockInputReader struct {
 	Mock *mock.Mock
 }
@@ -120,62 +94,6 @@ type mockInputReader struct {
 func (m mockInputReader) Read(p []byte) (n int, err error) {
 	args := m.Mock.Called(p)
 	return args.Int(0), args.Error(1)
-}
-
-func (st *serviceAPITest) TestMigrateService_failsToReadScript(c *C) {
-	serviceID := "test-service"
-	errorStub := errors.New("errorStub: Read() failed")
-	mockInput := mockInputReader{Mock: &mock.Mock{}}
-	mockInput.Mock.
-		On("Read", mock.Anything).
-		Return(0, errorStub)
-
-	actual, err := st.api.RunMigrationScript(serviceID, mockInput, false, "")
-
-	c.Assert(actual, IsNil)
-	expectedError := fmt.Errorf("could not read migration script: %s", errorStub)
-	c.Assert(err.Error(), Equals, expectedError.Error())
-	/*
-
-		// RunMigrationScript should never be called if we can't read the script
-		args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
-		c.Assert(len(args), Equals, 0)
-	*/
-}
-
-func (st *serviceAPITest) TestMigrateService_failsForEmptyScript(c *C) {
-	serviceID := "test-service"
-	scriptBody := ""
-	inputScript := strings.NewReader(scriptBody)
-
-	actual, err := st.api.RunMigrationScript(serviceID, inputScript, false, "")
-
-	c.Assert(actual, IsNil)
-	expectedError := fmt.Errorf("migration failed: script is empty")
-	c.Assert(err.Error(), Equals, expectedError.Error())
-
-	/*
-		// RunMigrationScript should never be called if we can't read the script
-		args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
-		c.Assert(len(args), Equals, 0)
-	*/
-}
-
-func (st *serviceAPITest) TestMigrateService_fails(c *C) {
-	serviceID := "test-service"
-	scriptBody := "# no-op script"
-	inputScript := strings.NewReader(scriptBody)
-
-	errorStub := errors.New("errorStub: migrate failed")
-	st.mockControlPlane.
-		On("RunMigrationScript", mock.Anything, mock.Anything).
-		Return(errorStub)
-
-	actual, err := st.api.RunMigrationScript(serviceID, inputScript, false, "")
-
-	c.Assert(actual, IsNil)
-	expectedError := fmt.Errorf("migration failed: %s", errorStub)
-	c.Assert(err.Error(), Equals, expectedError.Error())
 }
 
 func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {

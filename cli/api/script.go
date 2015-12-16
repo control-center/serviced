@@ -52,7 +52,6 @@ func initConfig(config *script.Config, a *api) {
 	config.SvcStart = cliServiceControl(a.StartService)
 	config.SvcStop = cliServiceControl(a.StopService)
 	config.SvcRestart = cliServiceControl(a.RestartService)
-	config.SvcMigrate = cliServiceMigrate(a)
 	config.SvcWait = cliServiceWait(a)
 	config.Commit = func(containerID string) (string, error) {
 		return a.AddSnapshot(SnapshotConfig{DockerID: containerID})
@@ -158,14 +157,5 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 			return "", fmt.Errorf("did not find service %s", svcPath)
 		}
 		return svcID, nil
-	}
-}
-
-func cliServiceMigrate(a API) script.ServiceMigrate {
-	return func(svcID string, scriptFile string, sdkVersion string) error {
-		if _, err := a.RunEmbeddedMigrationScript(svcID, scriptFile, false, sdkVersion); err != nil {
-			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
-		}
-		return nil
 	}
 }

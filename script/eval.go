@@ -338,29 +338,6 @@ func evalSvcExec(r *runner, n node) error {
 	return nil
 }
 
-func evalSvcMigrate(r *runner, n node) error {
-	tenantID, found := r.env["TENANT_ID"]
-	if !found {
-		return fmt.Errorf("no service tenant id specified for %s", SVC_MIGRATE)
-	}
-
-	var sdkVersion string
-	if len(n.args) == 2 {
-		var err error
-		if sdkVersion, err = findSDKVersion(n.args[0]); err != nil {
-			return err
-		}
-	}
-
-	migrationScript := n.args[len(n.args)-1]
-	glog.V(0).Infof("running: service migrate %s %s", tenantID, migrationScript, sdkVersion)
-	if err := r.svcMigrate(tenantID, migrationScript, sdkVersion); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func evalDependency(r *runner, n node) error {
 	glog.V(0).Infof("checking serviced dependency: %s", n.args[0])
 	glog.V(0).Info("dependency check for serviced not implemented, skipping...")
