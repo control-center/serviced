@@ -158,7 +158,7 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 3}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add host
@@ -252,7 +252,7 @@ func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 3}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add the host
@@ -304,7 +304,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add a host
@@ -403,7 +403,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add a host
@@ -485,7 +485,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add a host
@@ -553,7 +553,7 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add a host

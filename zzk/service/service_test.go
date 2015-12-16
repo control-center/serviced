@@ -62,7 +62,7 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 		DesiredState: int(service.SVCRun),
 		Instances:    1,
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// get the instance id
@@ -154,7 +154,7 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	}
 
 	for i := range svcs {
-		err := UpdateService(conn, svcs[i], false)
+		err := UpdateService(conn, svcs[i], false, false)
 		c.Assert(err, IsNil)
 	}
 
@@ -193,7 +193,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	var wg sync.WaitGroup
@@ -252,13 +252,13 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	c.Log("Starting service with 2 instances")
 	svc.Instances = 2
 	svc.DesiredState = int(service.SVCRun)
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 	c.Assert(getInstances(), Equals, svc.Instances)
 
 	c.Log("Pause service")
 	svc.DesiredState = int(service.SVCPause)
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	for {
@@ -271,7 +271,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	}
 
 	svc.DesiredState = int(service.SVCRun)
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 	for {
 		if count := getInstances(); count < svc.Instances {
@@ -285,7 +285,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	// Stop service
 	c.Log("Stopping service")
 	svc.DesiredState = int(service.SVCStop)
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	for {
@@ -318,7 +318,7 @@ func (t *ZZKTest) TestServiceListener_getServiceStates(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
@@ -353,7 +353,7 @@ func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 		Endpoints:     make([]service.ServiceEndpoint, 1),
 		ChangeOptions: []string{"restartAllOnInstanceChanged"},
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
@@ -391,7 +391,7 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
@@ -510,7 +510,7 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
@@ -560,7 +560,7 @@ func (t *ZZKTest) TestServiceListener_pause(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
@@ -597,7 +597,7 @@ func (t *ZZKTest) TestServiceListener_stop(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
