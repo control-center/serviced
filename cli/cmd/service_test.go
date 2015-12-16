@@ -282,13 +282,6 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	return &s, nil
 }
 
-func (t ServiceAPITest) RunMigrationScript(id string, script io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
-	if t.errs["RunMigrationScript"] != nil {
-		return nil, t.errs["RunMigrationScript"]
-	}
-	return t.GetService(id)
-}
-
 func (t ServiceAPITest) RemoveService(id string) error {
 	if t.errs["RemoveService"] != nil {
 		return t.errs["RemoveService"]

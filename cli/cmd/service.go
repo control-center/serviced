@@ -657,41 +657,6 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 	}
 }
 
-// serviced service migrate SERVICEID ...
-func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) < 1 || len(args) > 2 {
-		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "migrate")
-		return
-	}
-
-	svc, err := c.searchForService(args[0])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-
-	var input *os.File
-	if len(args) == 2 {
-		filepath := args[1]
-		var err error
-		if input, err = os.Open(filepath); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		defer input.Close()
-	} else {
-		input = os.Stdin
-	}
-
-	if migratedSvc, err := c.driver.RunMigrationScript(svc.ID, input, ctx.Bool("dry-run"), ctx.String("sdk-version")); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
-	} else {
-		fmt.Println(migratedSvc.ID)
-	}
-}
-
 // serviced service remove SERVICEID ...
 func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 	args := ctx.Args()

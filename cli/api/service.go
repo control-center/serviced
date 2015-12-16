@@ -14,7 +14,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,8 +29,8 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/metrics"
 
-	"github.com/pivotal-golang/bytefmt"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/pivotal-golang/bytefmt"
 )
 
 const ()
@@ -341,50 +340,6 @@ func (a *api) CloneService(serviceID string, suffix string) (*service.Service, e
 		return nil, fmt.Errorf("copy service failed: %s", err)
 	}
 	return a.GetService(clonedServiceID)
-}
-
-// RunMigrationScript migrates an existing service using a local script
-func (a *api) RunMigrationScript(serviceID string, localScript io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
-	inputBuffer := bytes.NewBuffer(nil)
-	if _, err := io.Copy(inputBuffer, localScript); err != nil {
-		return nil, fmt.Errorf("could not read migration script: %s", err)
-	}
-
-	request := dao.RunMigrationScriptRequest{
-		ServiceID:  serviceID,
-		ScriptBody: string(inputBuffer.Bytes()),
-		DryRun:     dryRun,
-		SDKVersion: sdkVersion,
-	}
-	if len(request.ScriptBody) == 0 {
-		return nil, fmt.Errorf("migration failed: script is empty")
-	}
-
-	return a.migrateService(request)
-}
-
-// RunEmbeddedMigrationScript migrates an existing service using script embeded in the service's docker image
-func (a *api) RunEmbeddedMigrationScript(serviceID string, scriptName string, dryRun bool, sdkVersion string) (*service.Service, error) {
-	request := dao.RunMigrationScriptRequest{
-		ServiceID:  serviceID,
-		ScriptName: scriptName,
-		DryRun:     dryRun,
-		SDKVersion: sdkVersion,
-	}
-
-	return a.migrateService(request)
-}
-
-func (a *api) migrateService(request dao.RunMigrationScriptRequest) (*service.Service, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := client.RunMigrationScript(request, &unusedInt); err != nil {
-		return nil, fmt.Errorf("migration failed: %s", err)
-	}
-	return a.GetService(request.ServiceID)
 }
 
 // RemoveService removes an existing service
