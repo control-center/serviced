@@ -87,17 +87,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"suffix", "", "name to append to service name, volumes, endpoints"},
 				},
 			}, {
-				Name:         "migrate",
-				ShortName:    "mig",
-				Usage:        "Migrate an existing service",
-				Description:  "serviced service migrate SERVICEID PATH_TO_SCRIPT",
-				BashComplete: c.printServicesAll,
-				Action:       c.cmdServiceMigrate,
-				Flags: []cli.Flag{
-					cli.BoolFlag{"dry-run", "Executes the migration and validation without updating anything"},
-					cli.StringFlag{"sdk-version", "", "Overrides the default service-migration SDK version"},
-				},
-			}, {
 				Name:         "remove",
 				ShortName:    "rm",
 				Usage:        "Removes an existing service",
@@ -665,41 +654,6 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
 		fmt.Println(copiedSvc.ID)
-	}
-}
-
-// serviced service migrate SERVICEID ...
-func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) < 1 || len(args) > 2 {
-		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "migrate")
-		return
-	}
-
-	svc, err := c.searchForService(args[0])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-
-	var input *os.File
-	if len(args) == 2 {
-		filepath := args[1]
-		var err error
-		if input, err = os.Open(filepath); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		defer input.Close()
-	} else {
-		input = os.Stdin
-	}
-
-	if migratedSvc, err := c.driver.RunMigrationScript(svc.ID, input, ctx.Bool("dry-run"), ctx.String("sdk-version")); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
-	} else {
-		fmt.Println(migratedSvc.ID)
 	}
 }
 
@@ -1436,16 +1390,16 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 			}
 
 			t.AddRow(map[string]interface{}{
-				"Name":           serviceName,
-				"ServiceID":      endpoint.Endpoint.ServiceID,
-				"Endpoint":       endpoint.Endpoint.Application,
-				"Purpose":        endpoint.Endpoint.Purpose,
-				"Host":           host,
-				"HostIP":         endpoint.Endpoint.HostIP,
-				"HostPort":       hostPort,
-				"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.Endpoint.ContainerID),
-				"ContainerIP":    endpoint.Endpoint.ContainerIP,
-				"ContainerPort":  endpoint.Endpoint.ContainerPort,
+				"Name":          serviceName,
+				"ServiceID":     endpoint.Endpoint.ServiceID,
+				"Endpoint":      endpoint.Endpoint.Application,
+				"Purpose":       endpoint.Endpoint.Purpose,
+				"Host":          host,
+				"HostIP":        endpoint.Endpoint.HostIP,
+				"HostPort":      hostPort,
+				"ContainerID":   fmt.Sprintf("%-12.12s", endpoint.Endpoint.ContainerID),
+				"ContainerIP":   endpoint.Endpoint.ContainerIP,
+				"ContainerPort": endpoint.Endpoint.ContainerPort,
 			})
 		}
 		t.Print()
