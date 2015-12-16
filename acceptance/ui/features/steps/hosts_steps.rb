@@ -149,7 +149,7 @@ def addHostCLI(name, pool, commitment, hostID)
     result = `#{cmd}`
 
     hostIDValue =  getTableValue(hostID)
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
     expect(result.strip).to eq(hostIDValue.to_s)
 
     refreshPage()
@@ -172,12 +172,12 @@ def removeAllHostsCLI()
     servicedCLI = getServicedCLI()
     cmd = "#{servicedCLI} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} host rm 2>&1"
     result = `#{cmd}`
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
 
     # verify all of the hosts were really removed
     cmd = "#{servicedCLI} host list 2>&1"
     result = `#{cmd}`
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
     expect(result).to include("no hosts found")
 
     refreshPage()

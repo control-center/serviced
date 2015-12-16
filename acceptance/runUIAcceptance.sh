@@ -146,6 +146,15 @@ if [[ $HOST_IP == 127* ]]; then
 fi
 echo "Using HOST_IP=$HOST_IP"
 
+#
+# If we're running on RedHat, we need to mount the host's libdevmapper into the container
+# since the container doesn't have the same libraries
+#
+LIB_DEVMAPPER_MOUNT=""
+if [ -f /etc/redhat-release ]; then
+   LIB_DEVMAPPER_MOUNT="-v /usr/lib64/libdevmapper.so.1.02:/usr/lib/libdevmapper.so.1.02"
+fi
+
 cp -u `pwd`/../serviced `pwd`/ui
 
 trap 'docker rm -f ui_acceptance' INT
@@ -155,6 +164,7 @@ docker run --rm --name ui_acceptance \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
+    ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
     -e CAPYBARA_DRIVER=${DRIVER_NAME} \

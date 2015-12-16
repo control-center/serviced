@@ -1,3 +1,6 @@
+# FIXME: This step is a lie; need to fix this to actually deploy more than 1 application
+# Otherwise, the application_sorting tests are sorting a list of either 0 or 1 items
+# (depending on previous tests)
 Given (/^(?:|that )multiple applications and application templates have been added$/) do
     visitApplicationsPage()
     within(@applications_page.services_table) do
@@ -155,9 +158,17 @@ end
 
 def addTemplate(dir)
     servicedCLI = getServicedCLI()
-    id = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
+    result = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
+    verifyCLIExitSuccess($?, result)
+
+    # FIXME: sleeping is a hack. Is this really necessary?
     `sleep 1`
-    return `[ -z "$(#{servicedCLI} template list #{id})" ] && return 1`
+
+    templateID = result
+    result = `#{servicedCLI} template list #{templateID}`
+
+    verifyCLIExitSuccess($?, result)
+    expect(result.lines.count).not_to eq(0)
 end
 
 def closeDeployWizard()
