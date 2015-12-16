@@ -24,19 +24,25 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 // Server manages exporting an NFS mount.
 type Server struct {
+	sync.Mutex
 	basePath      string
 	exportedName  string
 	exportOptions string
 	network       string
 	clients       map[string]struct{}
+	volumes       map[string]int32
+	exported      map[string]struct{}
 }
 
 var (
@@ -51,13 +57,13 @@ var (
 )
 
 var (
-	exportsPath = "/exports"
-	procMounts  = "/proc/mounts"
+	procMounts = "/proc/mounts"
 )
 
 var (
 	osMkdirAll = os.MkdirAll
 	osChmod    = os.Chmod
+	fsidIdx    int32
 )
 
 const defaultDirectoryPerm = 0755
@@ -91,7 +97,7 @@ func verifyExportsDir(path string) error {
 }
 
 // NewServer returns a nfs.Server object that manages the given nfs mounts to
-// configured clients.
+// configured clients;  basePath is the path for volumes, exportedName is the container dir to hold exported volumes
 func NewServer(basePath, exportedName, network string) (*Server, error) {
 
 	if len(exportedName) < 2 || strings.Contains(exportedName, "/") {
@@ -103,7 +109,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	if err := verifyExportsDir(basePath); err != nil {
 		return nil, err
 	}
-	if err := verifyExportsDir(path.Join(exportsPath, exportedName)); err != nil {
+	if err := verifyExportsDir(path.Join(exportsDir, exportedName)); err != nil {
 		return nil, err
 	}
 
@@ -118,15 +124,17 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	return &Server{
 		basePath:      basePath,
 		exportedName:  exportedName,
-		exportOptions: "rw,nohide,insecure,no_subtree_check,async",
+		exportOptions: "rw,insecure,no_subtree_check,async",
 		clients:       make(map[string]struct{}),
 		network:       network,
+		volumes:       make(map[string]int32),
+		exported:      make(map[string]struct{}),
 	}, nil
 }
 
 // ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
-	return "/" + c.exportedName
+	return path.Join("/", c.exportedName)
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -141,6 +149,8 @@ func (c *Server) Clients() []string {
 
 // SetClients replaces the existing clients with the new clients
 func (c *Server) SetClients(clients ...string) {
+	c.Lock()
+	defer c.Unlock()
 	c.clients = make(map[string]struct{})
 
 	for _, client := range clients {
@@ -148,28 +158,55 @@ func (c *Server) SetClients(clients ...string) {
 	}
 }
 
+// VolumeCreated set that path of a volume that should be exported
+func (c *Server) AddVolume(volumePath string) error {
+	c.Lock()
+	defer c.Unlock()
+	fsid := atomic.AddInt32(&fsidIdx, 1)
+	c.volumes[volumePath] = fsid
+	return nil
+}
+
+// VolumeCreated set that path of a volume that should be exported
+func (c *Server) RemoveVolume(volumePath string) error {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.volumes, volumePath)
+	return nil
+}
+
 // Sync ensures that the nfs exports are visible to all clients
 func (c *Server) Sync() error {
+	c.Lock()
+	defer c.Unlock()
 	if err := c.hostsDeny(); err != nil {
+		glog.Errorf("error writing host deny %v", err)
 		return err
 	}
 	if err := c.hostsAllow(); err != nil {
+		glog.Errorf("error writing host allow %v", err)
 		return err
 	}
 	if err := c.writeExports(); err != nil {
+		glog.Errorf("error writing exports %v", err)
 		return err
 	}
 	if err := start(); err != nil {
+		glog.Errorf("error running start %v", err)
 		return err
 	}
 	if err := reload(); err != nil {
+		glog.Errorf("error running reload %v", err)
 		return err
 	}
+	c.cleanupBindMounts()
 	return nil
 }
 
 // Restart restarts the nfs subsystem
 func (c *Server) Restart() error {
+	c.Lock()
+	defer c.Unlock()
 	if err := c.hostsDeny(); err != nil {
 		return err
 	}
@@ -182,17 +219,20 @@ func (c *Server) Restart() error {
 	if err := restart(); err != nil {
 		return err
 	}
+	c.cleanupBindMounts()
 	return nil
 }
 
 // Stop stops the nfs subsystem
 func (c *Server) Stop() error {
+	c.Lock()
+	defer c.Unlock()
 	return stop()
 }
 
 func (c *Server) hostsDeny() error {
 
-	s, err := readFileIfExists(hostDenyDefaults)
+	s, err := readFileIfExists(etcHostsDeny)
 	if err != nil {
 		return err
 	}
@@ -249,27 +289,39 @@ func (c *Server) writeExports() error {
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n"+
-		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async,crossmnt)",
-		exportsPath, network, exportsPath, c.exportedName, network)
+
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
 	}
-	edir := exportsDir + "/" + c.exportedName
+
+	edir := path.Join(exportsDir, c.exportedName)
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
-	if err := bindMount(c.basePath, edir); err != nil {
-		return err
+	exports := make(map[string]struct{})
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n",
+		exportsDir, network)
+	for volume, fsid := range c.volumes {
+		volume = path.Clean(volume)
+		_, volName := path.Split(volume)
+		exports[volName] = struct{}{}
+		exported := path.Join(edir, volName)
+		if err := bindMount(volume, exported); err != nil {
+			return err
+		}
+		serviced_exports += fmt.Sprintf("%s\t%s(rw,fsid=%d,no_root_squash,insecure,no_subtree_check,async)\n",
+			exported, network, fsid)
 	}
+	c.exported = exports
 
+	glog.Infof("serviced exports:\n %s", serviced_exports)
 	originalContents, err := readFileIfExists(etcExports)
 	if err != nil {
 		return err
 	}
 
 	// comment out lines that conflicts with serviced exported mountpoints
-	mountpaths := map[string]bool{exportsPath: true, path.Join(exportsPath, c.exportedName): true}
+	mountpaths := map[string]bool{exportsDir: true, path.Join(exportsDir, c.exportedName): true}
 	filteredContent := ""
 	scanner := bufio.NewScanner(strings.NewReader(originalContents))
 	for scanner.Scan() {
@@ -302,32 +354,74 @@ func (c *Server) writeExports() error {
 	return atomicfile.WriteFile(etcExports, []byte(fileContents), 0664)
 }
 
+// umnount any bind mounts in exported directory if not exported
+func (c *Server) cleanupBindMounts() {
+	edir := path.Join(exportsDir, c.exportedName)
+	//umount any directories not exported
+	if dirContents, err := ioutil.ReadDir(edir); err != nil {
+		glog.Warningf("could not read contents of %s; %v", edir, err)
+	} else {
+		for _, file := range dirContents {
+			if _, found := c.exported[file.Name()]; !found && file.IsDir() {
+				dir := path.Join(edir, file.Name())
+				mounted, err := isBindMounted(dir)
+				if err != nil {
+					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
+					continue
+				}
+				if mounted {
+					// umount the dir
+					glog.V(1).Infof("umounting %s as it is no longer exported", dir)
+					if err := umount(dir); err != nil {
+						glog.Warningf("Error umounting exported directory %s: %v", dir, err)
+						continue
+					}
+				}
+				//remove the directory
+				glog.V(1).Infof("deleting dir %s as it is no longer exported", dir)
+				if err := os.RemoveAll(dir); err != nil {
+					glog.Warningf("Error removing exported directory %s: %v", dir, err)
+				}
+			}
+		}
+	}
+}
+
 type bindMountF func(string, string) error
 
 var bindMount = bindMountImp
 
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
-
+	glog.Infof("bindMount %s at %s", src, dst)
 	if mounted, err := isBindMounted(dst); err != nil || mounted {
 		return err
 	}
-	runMountCommand := func(options ...string) error {
+
+	if err := os.MkdirAll(dst, 0775); err != nil {
+		return err
+	}
+
+	runMountCommand := func(options ...string) ([]byte, error) {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
-		return mount.Run()
+		glog.Infof("running mount: %s %s", cmd, strings.Join(args, " "))
+		return mount.CombinedOutput()
 	}
-	returnErr := runMountCommand("bind")
+	out, returnErr := runMountCommand("bind")
 	if returnErr != nil {
 		// If the mount fails, it could be due to a stale NFS handle, signalled
 		// by a return code of 32. Stale handle can occur if e.g., the source
 		// directory has been deleted and restored (a common occurrence in the
 		// dev workflow) Try again, with remount option.
 		if exitcode, ok := utils.GetExitStatus(returnErr); ok && (exitcode&32) != 0 {
-			returnErr = runMountCommand("bind", "remount")
+			out, returnErr = runMountCommand("bind", "remount")
 		}
 	}
-	return returnErr
+	if returnErr != nil {
+		return fmt.Errorf("%s: %s", out, returnErr)
+	}
+	return nil
 }
 
 func isBindMounted(dst string) (bool, error) {
@@ -392,4 +486,16 @@ func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []stri
 	}
 	args = append(args, dst)
 	return args[0], args[1:]
+}
+
+var umount = umountImp
+
+func umountImp(localPath string) error {
+	glog.V(1).Infof("Unmounting %s", localPath)
+	cmd := exec.Command("umount", "-f", localPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s (%s)", string(output), err)
+	}
+	return nil
 }

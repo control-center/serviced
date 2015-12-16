@@ -46,55 +46,6 @@ func TestGetProcNFSFSServers(t *testing.T) {
 	}
 }
 
-func TestGetProcNFSFSVolumes(t *testing.T) {
-
-	// mock up our proc dir
-	defer func(s string) {
-		procDir = s
-	}(procDir)
-	procDir = "tstproc/"
-
-	volumes, err := GetProcNFSFSVolumes()
-	if err != nil {
-		t.Fatalf("could not get nfsfs/volumes: %s", err)
-	}
-
-	expected := []ProcNFSFSVolume{
-		{
-			Version:  "v4",
-			ServerID: "0a57d1a8",
-			Port:     "801",
-			DeviceID: "0:137",
-			FSID:     "45a148e989326106",
-			FSCache:  "no",
-		},
-		{
-			Version:  "v3",
-			ServerID: "0a57d1a8",
-			Port:     "801",
-			DeviceID: "0:138",
-			FSID:     "45a148e989326106",
-			FSCache:  "no",
-		},
-		{
-			Version:  "v4",
-			ServerID: "0a57cf54",
-			Port:     "801",
-			DeviceID: "0:36",
-			FSID:     "686440440a852c4",
-			FSCache:  "no",
-		},
-	}
-	for idx := range expected {
-		if expected[idx] != volumes[idx] {
-			t.Fatalf("expected[%d]: %+v != actual[%d]: %+v", idx, expected[idx], idx, volumes[idx])
-		}
-	}
-	if len(expected) != len(volumes) {
-		t.Fatalf("len(expected): %+v != len(actual): %+v", len(expected), len(volumes))
-	}
-}
-
 func TestGetMountInfo(t *testing.T) {
 
 	// mock up our proc dir
@@ -141,7 +92,6 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{print $3, $9, $10, $5, $NF}'"
 
 	// mock up our ReadFSIDFromMount command
-	readFSIDFromMount = func(mountpoint, serverIP string) (string, error) { return "45a148e989326106", nil }
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
 		t.Fatalf("could not get mount info: %s", err)
@@ -157,8 +107,6 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 
 	expected := NFSMountInfo{
 		MountInfo: minfo,
-
-		FSID: "45a148e989326106",
 	}
 	if expected != *actual {
 		t.Fatalf("expected: %+v != actual: %+v", expected, actual)

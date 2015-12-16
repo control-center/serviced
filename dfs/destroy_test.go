@@ -32,25 +32,32 @@ func (s *DFSTestSuite) TestDestroy_ErrSnapshots(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, ErrTestNoSnapshots)
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
 	err := s.dfs.Destroy("Base")
 	c.Assert(err, Equals, ErrTestNoSnapshots)
 	vol = s.getVolumeFromSnapshot("Base2_Snapshot", "Base2")
 	vol.On("Snapshots").Return([]string{"Base2_Snapshot"}, nil)
 	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, ErrTestSnapshotNotFound)
+	vol.On("Path").Return("testPath")
+	s.net.On("Sync").Return(nil)
+	s.net.On("RemoveVolume", "testPath").Return(nil)
 	err = s.dfs.Destroy("Base2")
 	c.Assert(err, Equals, ErrTestSnapshotNotFound)
 }
 
 func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
 	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
+	s.net.On("AddVolume", "testPath").Return(nil)
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
-	s.net.On("Stop").Return(ErrTestServerRunning).Once()
+	s.net.On("Sync").Return(ErrTestServerRunning).Once()
 	err := s.dfs.Destroy("Base")
 	c.Assert(err, Equals, ErrTestServerRunning)
-	s.net.On("Stop").Return(nil)
-	s.net.On("Restart").Return(nil)
+	s.net.On("Sync").Return(nil)
 	s.disk.On("Remove", "Base").Return(ErrTestVolumeNotRemoved)
 	err = s.dfs.Destroy("Base")
 	c.Assert(err, Equals, ErrTestVolumeNotRemoved)
@@ -58,6 +65,9 @@ func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
 
 func (s *DFSTestSuite) TestDestroy_Success(c *C) {
 	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("testPath")
+	s.net.On("RemoveVolume", "testPath").Return(nil)
+	s.net.On("Sync").Return(nil)
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)

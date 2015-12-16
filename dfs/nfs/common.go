@@ -17,9 +17,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -152,6 +152,9 @@ func Mount(driver Driver, remotePath, localPath string) error {
 	if mountError == proc.ErrMountPointNotFound {
 		// the mountpoint is not found so try to mount
 		glog.Infof("Creating new mount for %s -> %s", remotePath, localPath)
+		if err := os.MkdirAll(localPath, 0775); err != nil {
+			return err
+		}
 		if err := driver.Mount(remotePath, localPath, time.Second*30); err != nil {
 			glog.Errorf("Error while creating mount point for %s -> %s: %s", remotePath, localPath, err)
 			return err
@@ -172,12 +175,6 @@ func Mount(driver Driver, remotePath, localPath string) error {
 	verr := validation.NewValidationError()
 	verr.Add(validation.StringsEqual(remotePath, mountInfo.RemotePath, ""))
 	verr.Add(validation.StringsEqual("nfs4", mountInfo.FSType, fmt.Sprintf("%s not mounted nfs4, %s instead", mountInfo.LocalPath, mountInfo.FSType)))
-	verr.Add(func(fsid string) error {
-		if fsiduint, err := strconv.ParseUint(fsid, 16, 64); err != nil || fsiduint == 0 {
-			return fmt.Errorf("invalid fsid: %s", fsid)
-		}
-		return nil
-	}(mountInfo.FSID))
 
 	if verr.HasError() {
 		// the mountpoint is stale or wrong, so unmount
