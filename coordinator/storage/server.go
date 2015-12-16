@@ -15,8 +15,6 @@ package storage
 
 import (
 	"fmt"
-	"path"
-
 	"strconv"
 	"time"
 
@@ -28,9 +26,8 @@ import (
 
 // Server manages the exporting of a file system to clients.
 type Server struct {
-	host    *host.Host
-	driver  StorageDriver
-	monitor *Monitor
+	host   *host.Host
+	driver StorageDriver
 }
 
 // StorageDriver is an interface that storage subsystem must implement to be used
@@ -39,8 +36,13 @@ type StorageDriver interface {
 	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
+	//TODO: remove Restart and Stop
 	Restart() error
 	Stop() error
+	// AddVolume notify storage driver that volume at path is available for sharing
+	AddVolume(path string) error
+	// RemoveVolume notify storage driver that volume at path is should not be shared
+	RemoveVolume(path string) error
 }
 
 // NewServer returns a Server object to manage the exported file system
@@ -49,15 +51,9 @@ func NewServer(driver StorageDriver, host *host.Host, volumesPath string) (*Serv
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
-	monitor, err := NewMonitor(driver, getDefaultNFSMonitorMasterInterval(), volumesPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create new monitor %s", err)
-	}
-
 	s := &Server{
-		host:    host,
-		driver:  driver,
-		monitor: monitor,
+		host:   host,
+		driver: driver,
 	}
 
 	return s, nil
@@ -90,9 +86,6 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		return err
 	}
 
-	// monitor dfs; log warnings each cycle; restart dfs if needed
-	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), s.host.IPAddr, node.ExportTime, shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
-
 	defer leader.ReleaseLead()
 
 	// loop until shutdown event
@@ -105,7 +98,6 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 			return err
 		}
 
-		s.monitor.SetMonitorStorageClients(conn, storageClientsPath)
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
 			glog.Errorf("Error syncing driver: %s", err)

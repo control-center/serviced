@@ -30,7 +30,10 @@ func (s *DFSTestSuite) TestCreate_ShareNotEnabled(c *C) {
 
 func (s *DFSTestSuite) TestCreate_Success(c *C) {
 	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("testPath")
 	s.disk.On("Create", "tenantid").Return(vol, nil)
+	s.net.On("AddVolume", "testPath").Return(nil)
+	s.net.On("Sync").Return(nil)
 	err := s.dfs.Create("tenantid")
 	c.Assert(err, IsNil)
 }

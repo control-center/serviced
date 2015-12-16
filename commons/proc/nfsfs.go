@@ -14,16 +14,14 @@
 package proc
 
 import (
-	"errors"
-
-	"github.com/zenoss/glog"
-
 	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
-	"path"
 	"strings"
+
+	"github.com/zenoss/glog"
 )
 
 var ErrMountPointNotFound = errors.New("mount point not found")
@@ -41,7 +39,6 @@ type NFSMountInfo struct {
 	Version  string // nfsversion: v4, v3, ...
 	ServerID string // id of server: 0a57d1a8
 	Port     string // port on server: 801
-	FSID     string // filesystem id: 45a148e989326106
 	FSCache  string // whether fscache is used (yes/no)
 }
 
@@ -68,7 +65,6 @@ type ProcNFSFSVolume struct {
 	ServerID string // id of server: 0a57d1a8
 	Port     string // port on server: 801
 	DeviceID string // device id: 0:137
-	FSID     string // filesystem id: 45a148e989326106
 	FSCache  string // whether fscache is used (yes/no)
 }
 
@@ -114,70 +110,6 @@ func GetProcNFSFSServers() (map[string]ProcNFSFSServer, error) {
 	}
 	glog.V(4).Infof("nfsfs servers: %+v", servers)
 	return servers, nil
-}
-
-// GetProcNFSFSVolumes gets a map to the /proc/fs/nfsfs/volumes
-func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
-	// read in the file
-	data, err := ioutil.ReadFile(fmt.Sprintf(procDir+"fs/nfsfs/%s", procNFSFSVolumesFile))
-	if err != nil {
-		return nil, err
-	}
-
-	var volumes []ProcNFSFSVolume
-	scanner := bufio.NewScanner(strings.NewReader(string(data)))
-	linenum := 0
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		linenum++
-		glog.V(2).Infof("%d: %s", linenum, line)
-		if linenum < 2 {
-			continue
-		} else if strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		switch len(fields) {
-		case 6:
-			break
-		case 0:
-			continue
-		default:
-			return nil, fmt.Errorf("expected 6 fields, got %d: %s", len(fields), line)
-		}
-
-		parts := strings.Split(fields[4], ":")
-		svr := ProcNFSFSVolume{
-			Version:  fields[0],
-			ServerID: fields[1],
-			Port:     fields[2],
-			DeviceID: fields[3],
-			FSID:     parts[0],
-			FSCache:  fields[5],
-		}
-		volumes = append(volumes, svr)
-	}
-	glog.V(2).Infof("nfsfs volumes: %+v", volumes)
-	return volumes, nil
-}
-
-// GetProcNFSFSVolume gets the ProcNFSFSVolume of a deviceid from /proc/fs/nfsfs/volumes
-func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
-	volumes, err := GetProcNFSFSVolumes()
-	if err != nil {
-		return nil, err
-	}
-
-	for idx := range volumes {
-		glog.V(2).Infof("volume: %+v", volumes[idx])
-		if deviceid == volumes[idx].DeviceID {
-			return &volumes[idx], nil
-		}
-	}
-
-	return nil, fmt.Errorf("unable to find volume for deviceid %s", deviceid)
 }
 
 // GetMountInfo gets the mount info of the mountpoint
@@ -243,26 +175,9 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 		return nil, fmt.Errorf("%s is not nfs; uses %s", minfo.LocalPath, minfo.FSType)
 	}
 
-	FSID, err := readFSIDFromMount(mountpoint, minfo.ServerIP)
-	if err != nil {
-		return nil, err
-	}
-
 	info := NFSMountInfo{
 		MountInfo: *minfo,
-		FSID:      FSID,
 	}
 
 	return &info, nil
-}
-
-// readFSIDFromMount function is declared as variable so we can mock it for unit test.
-var readFSIDFromMount = func(mountpoint, serverIP string) (string, error) {
-	checkFileName := path.Join(mountpoint, "monitor", serverIP+"-fsid.txt")
-	bytes, err := ioutil.ReadFile(checkFileName)
-	if err != nil {
-		return "", fmt.Errorf("Error reading checkfile %s: %v", checkFileName, err)
-	}
-	result := string(bytes[:])
-	return result, nil
 }

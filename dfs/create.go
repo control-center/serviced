@@ -17,15 +17,19 @@ import "github.com/zenoss/glog"
 
 // Create initializes an application volume on the dfs
 func (dfs *DistributedFilesystem) Create(tenantID string) error {
-	_, err := dfs.disk.Create(tenantID)
+	glog.V(1).Infof("Creating volume for %s", tenantID)
+	vol, err := dfs.disk.Create(tenantID)
 	if err != nil {
 		glog.Errorf("Could not create volume for tenant %s: %s", tenantID, err)
 		return err
 	}
-	// TODO: set up nfs exports here
-	// Right now the entirety of /var/volumes is shared on NFS, but it would
-	// make more sense to create a directory /exports/serviced and then bind
-	// mount in appication volumes individually.
-	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
+	glog.V(1).Infof("Volume created for %s at %s", tenantID, vol.Path())
+	if err := dfs.net.AddVolume(vol.Path()); err != nil {
+		glog.Warningf("Error notifying storage of new volume %s: %s", vol.Path(), err)
+	}
+	if err := dfs.net.Sync(); err != nil {
+		glog.Warningf("Error syncing storage: %v", err)
+	}
+
 	return nil
 }

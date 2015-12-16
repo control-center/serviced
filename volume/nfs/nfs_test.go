@@ -42,7 +42,7 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 	)
 
 	root = c.MkDir()
-	d, err := Init(root, nil)
+	d, err := Init(root, []string{"nfs_test"})
 	c.Assert(err, IsNil)
 	driver = d.(*NFSDriver)
 
@@ -83,8 +83,9 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 
 	volname := "testvolume"
 	vol, err = driver.Get(volname)
-	c.Assert(vol, NotNil)
+
 	c.Assert(err, IsNil)
+	c.Assert(vol, NotNil)
 	c.Assert(vol.Path(), Equals, volpath)
 	c.Assert(vol.Name(), Equals, volname)
 	c.Assert(vol.Driver(), Equals, driver)

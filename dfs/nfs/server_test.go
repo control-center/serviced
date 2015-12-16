@@ -57,7 +57,7 @@ func dirExists(path string) (bool, error) {
 	return s.IsDir(), err
 }
 
-var expectedExports = "%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async,crossmnt)"
+var expectedExports = "%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n"
 
 func TestNewServer(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
@@ -72,13 +72,13 @@ func TestNewServer(t *testing.T) {
 	// mock out the exports directory, use stack to hold old values
 	defer func(e, hostsDeny, hostsAllow, exports, exportsd string) {
 		// restore to original values
-		exportsPath = e
+		exportsDir = e
 		etcHostsDeny = hostsDeny
 		etcHostsAllow = hostsAllow
 		etcExports = exports
 		exportsDir = exportsd
-	}(exportsPath, etcHostsDeny, etcHostsAllow, etcExports, exportsDir)
-	exportsPath = path.Join(tempDir, "exports")
+	}(exportsDir, etcHostsDeny, etcHostsAllow, etcExports, exportsDir)
+	exportsDir = path.Join(tempDir, "exports")
 	etcHostsDeny = path.Join(tempDir, "etc/hosts.deny")
 	etcHostsAllow = path.Join(tempDir, "etc/hosts.allow")
 	etcExports = path.Join(tempDir, "etc/exports")
@@ -112,7 +112,7 @@ func TestNewServer(t *testing.T) {
 	if exists, err := dirExists(baseDir); err != nil || !exists {
 		t.Fatalf("baseDir dir does not exist: %s, %s", baseDir, err)
 	}
-	exportDir := path.Join(exportsPath, "foo")
+	exportDir := path.Join(exportsDir, "foo")
 	if exists, err := dirExists(exportDir); err != nil || !exists {
 		t.Fatalf("export dir does not exist: %s, %s", exportDir, err)
 	}
@@ -141,7 +141,7 @@ func TestNewServer(t *testing.T) {
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
 	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n\n"))
 
-	expected := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network) + etcExportsEndMarker
+	expected := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsDir, network) + etcExportsEndMarker
 	assertFileContents(t, etcExports, []byte(expected))
 
 }
@@ -169,11 +169,11 @@ func TestWriteExports(t *testing.T) {
 	// mock out the exports directory, use stack to hold old values
 	defer func(e, exports, exportsd string) {
 		// restore to original values
-		exportsPath = e
+		exportsDir = e
 		etcExports = exports
 		exportsDir = exportsd
-	}(exportsPath, etcExports, exportsDir)
-	exportsPath = path.Join(tempDir, "exports")
+	}(exportsDir, etcExports, exportsDir)
+	exportsDir = path.Join(tempDir, "exports")
 	etcExports = path.Join(tempDir, "etc/exports")
 	exportsDir = path.Join(tempDir, "exports")
 
@@ -193,12 +193,12 @@ func TestWriteExports(t *testing.T) {
 		exportedName: exported,
 	}
 
-	exportBlock := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network) + etcExportsEndMarker
+	exportBlock := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsDir, network) + etcExportsEndMarker
 	dummyBlock := etcExportsStartMarker + "# Some leftover crud from the last run" + etcExportsEndMarker
 	preamble := "# Arbitrary text that occurs at the beginning\n"
 	postamble := "\n# Some other text that occurs at the end\n"
-	conflict1 := fmt.Sprintf("%s *(rw,fsid=0)\n", exportsPath)
-	conflict2 := fmt.Sprintf("%s *(rw)\n", path.Join(exportsPath, exported))
+	conflict1 := fmt.Sprintf("%s *(rw,fsid=0)\n", exportsDir)
+	conflict2 := fmt.Sprintf("%s *(rw)\n", path.Join(exportsDir, exported))
 
 	testWriteExports := func(contents, expected string) {
 		ioutil.WriteFile(etcExports, []byte(contents), 0664)
