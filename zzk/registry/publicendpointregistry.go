@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// vhostregistry is used for storing a list of public endpoints under a public endpoint key.
+// publicendpointregistry is used for storing a list of public endpoints under a public endpoint key.
 // The zookeeper structurs is:
 //    /publicendpoints
 //      /<publicendpoint key 1>
@@ -42,8 +42,8 @@ func endpointPath(nodes ...string) string {
 }
 
 // NewPublicEndpoint creates a new PublicEndpoint
-func NewPublicEndpoint(endpointName string, appEndpoint applicationendpoint.ApplicationEndpoint, eptype PublicEndpointType) PublicEndpoint {
-	return PublicEndpoint{ApplicationEndpoint: appEndpoint, EndpointName: endpointName, EndpointType: eptype}
+func NewPublicEndpoint(endpointName string, appEndpoint applicationendpoint.ApplicationEndpoint) PublicEndpoint {
+	return PublicEndpoint{ApplicationEndpoint: appEndpoint, EndpointName: endpointName}
 }
 
 // PublicEndpointType is an Enum for endpoint type (VHost or Port)
@@ -54,11 +54,10 @@ const (
 	EPTypePort  PublicEndpointType = 1
 )
 
-// PublicEndpoint contains information about a vhost
+// PublicEndpoint contains information about a public endpoint
 type PublicEndpoint struct {
 	applicationendpoint.ApplicationEndpoint
 	EndpointName string
-	EndpointType PublicEndpointType
 	version      interface{}
 }
 
@@ -78,19 +77,24 @@ func PublicEndpointRegistry(conn client.Connection) (*PublicEndpointRegistryType
 	return &PublicEndpointRegistryType{registryType{getPath: endpointPath, ephemeral: true}}, nil
 }
 
+type PublicEndpointKey string
+
+func GetPublicEndPointKey(endpointName string, epType PublicEndpointType) PublicEndpointKey {
+	return PublicEndpointKey(fmt.Sprintf("%s-%d", endpointName, epType))
+}
+
 //SetItem adds or replaces the PublicEndpoint to the key in registry.  Returns the path of the node in the registry
-func (per *PublicEndpointRegistryType) SetItem(conn client.Connection, key string, node PublicEndpoint) (string, error) {
+func (per *PublicEndpointRegistryType) SetItem(conn client.Connection, key PublicEndpointKey, node PublicEndpoint) (string, error) {
 	verr := validation.NewValidationError()
 
 	verr.Add(validation.NotEmpty("ServiceID", node.ServiceID))
 	verr.Add(validation.NotEmpty("EndpointName", node.EndpointName))
-	verr.Add(validation.IntIn(int(node.EndpointType), int(EPTypeVHost), int(EPTypePort)))
 	if verr.HasError() {
 		return "", verr
 	}
 
 	nodeID := fmt.Sprintf("%s_%s", node.ServiceID, node.EndpointName)
-	return per.setItem(conn, key, nodeID, &node)
+	return per.setItem(conn, string(key), nodeID, &node)
 }
 
 //GetItem gets PublicEndpoint at the given path.
@@ -104,15 +108,15 @@ func (per *PublicEndpointRegistryType) GetItem(conn client.Connection, path stri
 }
 
 // GetChildren gets all child paths for a tenant and endpoint
-func (per *PublicEndpointRegistryType) GetChildren(conn client.Connection, pepKey string) ([]string, error) {
-	return per.getChildren(conn, pepKey)
+func (per *PublicEndpointRegistryType) GetChildren(conn client.Connection, pepKey PublicEndpointKey) ([]string, error) {
+	return per.getChildren(conn, string(pepKey))
 }
 
 // GetPublicEndpointKeyChildren gets the ephemeral nodes of a public endpoint key (example of a key is 'hbase')
-func (per *PublicEndpointRegistryType) GetPublicEndpointKeyChildren(conn client.Connection, publicendpointkey string) ([]PublicEndpoint, error) {
+func (per *PublicEndpointRegistryType) GetPublicEndpointKeyChildren(conn client.Connection, publicendpointkey PublicEndpointKey) ([]PublicEndpoint, error) {
 	var publicEndpointEphemeralNodes []PublicEndpoint
 
-	publicEndpointChildren, err := conn.Children(endpointPath(publicendpointkey))
+	publicEndpointChildren, err := conn.Children(endpointPath(string(publicendpointkey)))
 	if err == client.ErrNoNode {
 		return publicEndpointEphemeralNodes, nil
 	}
@@ -122,7 +126,7 @@ func (per *PublicEndpointRegistryType) GetPublicEndpointKeyChildren(conn client.
 
 	for _, publicEndpointChild := range publicEndpointChildren {
 		var pep PublicEndpoint
-		if err := conn.Get(endpointPath(publicendpointkey, publicEndpointChild), &pep); err != nil {
+		if err := conn.Get(endpointPath(string(publicendpointkey), publicEndpointChild), &pep); err != nil {
 			return publicEndpointEphemeralNodes, err
 		}
 		publicEndpointEphemeralNodes = append(publicEndpointEphemeralNodes, pep)
