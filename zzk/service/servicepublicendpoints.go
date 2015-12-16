@@ -22,7 +22,10 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
+<<<<<<< HEAD
 	"github.com/control-center/serviced/zzk/registry"
+=======
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	"github.com/zenoss/glog"
 )
 
@@ -33,7 +36,21 @@ const (
 	onPrefix                 = ":peOn:"  // serviceIDs and endpoints can't have ":"
 )
 
+<<<<<<< HEAD
 func servicePublicEndpointPath(serviceID, endpointname string, enabled bool, pepType registry.PublicEndpointType) string {
+=======
+// PublicEndpointType Enum for endpoint type (VHost or Port)
+type PublicEndpointType uint8
+
+const (
+	// TypeVHost is the VHost public endpoint type constant
+	TypeVHost PublicEndpointType = 0
+	// TypePort is the Port public endpoint type constant
+	TypePort PublicEndpointType = 1
+)
+
+func servicePublicEndpointPath(serviceID, endpointname string, enabled bool, pepType PublicEndpointType) string {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	state := offPrefix
 	if enabled {
 		state = onPrefix
@@ -47,35 +64,63 @@ func servicePublicEndpointKeyPath(key string) string {
 	return path.Join(p...)
 }
 
+<<<<<<< HEAD
 // ServicePublicEndpointNode is the zookeeper client Node for public endpoints
 type ServicePublicEndpointNode struct {
 	ServiceID string
 	Name      string
 	Enabled   bool
 	Type      registry.PublicEndpointType
+=======
+// PublicEndpointNode is the zookeeper client Node for public endpoints
+type PublicEndpointNode struct {
+	ServiceID string
+	Name      string
+	Enabled   bool
+	Type      PublicEndpointType
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	version   interface{}
 }
 
 // GetID implements zzk.Node
+<<<<<<< HEAD
 func (node *ServicePublicEndpointNode) GetID() string {
+=======
+func (node *PublicEndpointNode) GetID() string {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	return fmt.Sprintf("%s_%s", node.ServiceID, node.Name)
 }
 
 // Create implements zzk.Node
+<<<<<<< HEAD
 func (node *ServicePublicEndpointNode) Create(conn client.Connection) error {
+=======
+func (node *PublicEndpointNode) Create(conn client.Connection) error {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type)
 }
 
 // Update implements zzk.Node
+<<<<<<< HEAD
 func (node *ServicePublicEndpointNode) Update(conn client.Connection) error {
+=======
+func (node *PublicEndpointNode) Update(conn client.Connection) error {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type)
 }
 
 // Version implements client.Node
+<<<<<<< HEAD
 func (node *ServicePublicEndpointNode) Version() interface{} { return node.version }
 
 // SetVersion implements client.Node
 func (node *ServicePublicEndpointNode) SetVersion(version interface{}) { node.version = version }
+=======
+func (node *PublicEndpointNode) Version() interface{} { return node.version }
+
+// SetVersion implements client.Node
+func (node *PublicEndpointNode) SetVersion(version interface{}) { node.version = version }
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 
 // PublicEndpointKey format is enabled_serviceid_name_type
 type PublicEndpointKey string
@@ -118,7 +163,11 @@ func (v PublicEndpointKey) Name() string {
 }
 
 // Type identifies whether this public endpoint is a vhost or port type
+<<<<<<< HEAD
 func (v PublicEndpointKey) Type() registry.PublicEndpointType {
+=======
+func (v PublicEndpointKey) Type() PublicEndpointType {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	if v.hasStatePrefix() {
 		parts := strings.SplitN(string(v), "_", 4)
 		return parsedType(parts[3])
@@ -129,6 +178,7 @@ func (v PublicEndpointKey) Type() registry.PublicEndpointType {
 	return parsedType(parts[2])
 }
 
+<<<<<<< HEAD
 // parsedType returns the string as a registry.PublicEndpointType.  If this isn't
 // a valid uint8 it returns registry.EPTypeVHost
 func parsedType(arg string) registry.PublicEndpointType {
@@ -146,6 +196,24 @@ func parsedType(arg string) registry.PublicEndpointType {
 }
 
 func newPublicEndpointKey(serviceID string, epName string, enabled bool, pepType registry.PublicEndpointType) PublicEndpointKey {
+=======
+// parsedType returns the string as a PublicEndpointType.  If this isn't
+// a valid uint8 it returns TypeVHost
+func parsedType(arg string) PublicEndpointType {
+	// Validate the port number
+	pepType, err := strconv.Atoi(arg)
+	if err != nil {
+		return TypeVHost
+	}
+
+	if pepType == int(TypePort) {
+		return TypePort
+	}
+	return TypeVHost
+}
+
+func newPublicEndpointKey(serviceID string, epName string, enabled bool, pepType PublicEndpointType) PublicEndpointKey {
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	state := offPrefix
 	if enabled {
 		state = onPrefix
@@ -198,13 +266,21 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// Add the VHost entries.
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
+<<<<<<< HEAD
 			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, registry.EPTypeVHost)] = struct{}{}
+=======
+			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, TypeVHost)] = struct{}{}
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 		}
 	}
 	// Add the Port entries.
 	for _, ep := range svc.GetServicePorts() {
 		for _, port := range ep.PortList {
+<<<<<<< HEAD
 			svcpublicendpoints[newPublicEndpointKey(svc.ID, fmt.Sprintf("%d", port.PortNumber), port.Enabled, registry.EPTypePort)] = struct{}{}
+=======
+			svcpublicendpoints[newPublicEndpointKey(svc.ID, string(port.PortNumber), port.Enabled, TypePort)] = struct{}{}
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 		}
 	}
 	glog.V(2).Infof("  svcpublicendpoints %+v", svcpublicendpoints)
@@ -235,9 +311,15 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 }
 
 // updateServicePublicEndpoint updates a service vhost node if it exists, otherwise creates it
+<<<<<<< HEAD
 func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool, pepType registry.PublicEndpointType) error {
 	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
 	var node ServicePublicEndpointNode
+=======
+func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool, pepType PublicEndpointType) error {
+	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
+	var node PublicEndpointNode
+>>>>>>> 5af70aa... UpdateService now pushes public endpoints (both vhosts and ports) to ZK, under the new location '/servicepublicendpoints'
 	spath := servicePublicEndpointPath(serviceID, endpointname, enabled, pepType)
 
 	// For some reason you can't just create the node with the service data
