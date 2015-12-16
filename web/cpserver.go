@@ -383,7 +383,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	}
 
 	for {
-		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
+		zkServiceVhost := service.ZKServicePublicEndpoints
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
 		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
 		if err != nil {

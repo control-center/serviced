@@ -52,7 +52,7 @@ func (zk *zkf) UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpd
 	if err != nil {
 		return err
 	}
-	return zkservice.UpdateServiceVhosts(rootconn, svc)
+	return zkservice.UpdateServicePublicEndpoints(rootconn, svc)
 }
 
 func (zk *zkf) RemoveService(svc *service.Service) error {
@@ -65,7 +65,7 @@ func (zk *zkf) RemoveService(svc *service.Service) error {
 	// remove the global list of all vhosts deployed
 	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
 		return err
-	} else if err := zkservice.RemoveServiceVhosts(rootconn, svc); err != nil {
+	} else if err := zkservice.RemoveServicePublicEndpoints(rootconn, svc); err != nil {
 		return err
 	}
 	return zkservice.RemoveService(conn, svc.ID)
