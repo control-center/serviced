@@ -82,17 +82,18 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 		update(node.ServiceState)
 		err = conn.Set(servicepath(serviceID, stateID), &node)
 		c.Assert(err, IsNil)
+
 		return *node.ServiceState
 	}
 
 	// State 0 started
 	states[stateIDs[0]] = updatestate(stateIDs[0], svc.ID, func(s *servicestate.ServiceState) {
-		s.Started = time.Now()
+		s.Started = time.Now().UTC()
 	})
 
 	// State 1 paused
 	states[stateIDs[1]] = updatestate(stateIDs[1], svc.ID, func(s *servicestate.ServiceState) {
-		s.Started = time.Now()
+		s.Started = time.Now().UTC()
 		s.Paused = true
 	})
 

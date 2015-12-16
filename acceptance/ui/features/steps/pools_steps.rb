@@ -195,7 +195,7 @@ def addPoolCLI(name, description)
 
     result = `#{cmd}`
 
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
     expect(result.strip).to eq(nameValue.to_s)
 end
 
@@ -220,11 +220,11 @@ def removeAllPoolsCLI()
     servicedCLI = getServicedCLI()
     cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
     result = `#{cmd}`
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
 
     # verify all of the hosts were really removed
     cmd = "#{servicedCLI} pool list 2>&1"
     result = `#{cmd}`
-    expect($?.exitstatus).to eq(0)
+    verifyCLIExitSuccess($?, result)
     expect(result).to include("no resource pools found")
 end
