@@ -216,6 +216,22 @@ func (vs *ScriptSuite) Test_svcWait(t *C) {
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "extra"})
 	t.Assert(err, NotNil)
 
+	ctx.line = "SVC_WAIT zope started 4 recursive"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "recursive"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "SVC_WAIT zope started recursive"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "recursive"})
+	t.Assert(err, IsNil)
+
+	ctx.line = "SVC_WAIT zope started recursive 5"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "recursive", "5"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope started 4 garbage"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "garbage"})
+	t.Assert(err, NotNil)
+
 	line = "SVC_WAIT zope mariadb started 0"
 	ctx.line = line
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
@@ -230,6 +246,10 @@ func (vs *ScriptSuite) Test_svcWait(t *C) {
 
 	line = "SVC_WAIT zope mariadb started extra"
 	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope mariadb started extra recursive"
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
 	t.Assert(err, NotNil)
 }
@@ -287,37 +307,4 @@ func (vs *ScriptSuite) Test_svcStartStopRestart(t *C) {
 
 	}
 
-}
-
-func (vs *ScriptSuite) Test_svcmigrate(t *C) {
-	ctx := newParseContext()
-	line := "SVC_MIGRATE somescript.py"
-	ctx.line = line
-	cmd, err := nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"somescript.py"})
-	t.Assert(err, IsNil)
-	t.Assert(cmd, DeepEquals, node{cmd: SVC_MIGRATE, line: line, args: []string{"somescript.py"}})
-
-	line = "SVC_MIGRATE SDK=1.2.3 somescript.py"
-	ctx.line = line
-	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"somescript.py"})
-	t.Assert(err, IsNil)
-	t.Assert(cmd, DeepEquals, node{cmd: SVC_MIGRATE, line: line, args: []string{"somescript.py"}})
-
-	line = "SVC_MIGRATE"
-	ctx.line = line
-	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, nil)
-	t.Assert(err, ErrorMatches, "line 0: expected at least 1, got 0: SVC_MIGRATE")
-
-	line = "SVC_MIGRATE SDK=1.2.3 somescript.py extraArg"
-	ctx.line = line
-	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"SDK=1.2.3", "somescript.py", "extraArg"})
-	t.Assert(err, ErrorMatches, "line 0: expected at most 2, got 3: SVC_MIGRATE SDK=1.2.3 somescript.py extraArg")
-
-	line = "SVC_MIGRATE SDK= somescript.py"
-	ctx.line = line
-	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"SDK=", "somescript.py"})
-
-	// We can't use ErrorMatches because it wants to do some kind of regex on our regex
-	t.Assert(err, NotNil)
-	t.Assert(err.Error(), Equals, "line 0: arg SDK= did not match ^SDK=([a-zA-Z0-9.\\-_]+)$")
 }

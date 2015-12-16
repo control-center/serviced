@@ -23,3 +23,9 @@ func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error 
 	*response = ""
 	return nil
 }
+
+// Wait on specified services to be in the given state
+func (s *Server) WaitService(request *WaitServiceRequest, throwaway *string) error {
+	err := s.f.WaitService(s.context(), request.State, request.Timeout, request.Recursive, request.ServiceIDs...)
+	return err
+}

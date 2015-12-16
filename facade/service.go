@@ -945,7 +945,7 @@ func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...st
 }
 
 // WaitService waits for service/s to reach a particular desired state within the designated timeout
-func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error {
+func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error {
 	glog.V(4).Infof("Facade.WaitService (%s)", dstate)
 
 	// error out if the desired state is invalid
@@ -962,9 +962,23 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 	cancel := make(chan interface{})
 	processing := make(map[string]struct{})
 	done := make(chan waitstatus)
-
 	defer close(cancel)
-	for _, serviceID := range serviceIDs {
+
+	waitSvcIds := make([]string, len(serviceIDs))
+	copy(waitSvcIds, serviceIDs)
+	if recursive {
+		// Get all child services
+		for _, svcID := range serviceIDs {
+			childSvcs, err := f.GetServiceList(ctx, svcID)
+			if err != nil {
+				return err
+			}
+			for _, childSvc := range childSvcs {
+				waitSvcIds = append(waitSvcIds, childSvc.ID)
+			}
+		}
+	}
+	for _, serviceID := range waitSvcIds {
 		// spawn a goroutine to wait for each particular service
 		svc, err := f.GetService(ctx, serviceID)
 		if err != nil {

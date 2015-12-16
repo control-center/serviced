@@ -467,7 +467,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 		}
 		serviceids[i] = svc.ID
 	}
-	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), serviceids...); err != nil {
+	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during rollback of snapshot %s: %s", service.SVCStop, snapshotID, err)
 		return err
 	}
@@ -522,7 +522,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 	}
-	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), serviceids...); err != nil {
+	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during snapshot of %s: %s", service.SVCStop, tenantID, err)
 		return "", err
 	}

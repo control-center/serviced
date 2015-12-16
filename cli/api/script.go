@@ -52,7 +52,6 @@ func initConfig(config *script.Config, a *api) {
 	config.SvcStart = cliServiceControl(a.StartService)
 	config.SvcStop = cliServiceControl(a.StopService)
 	config.SvcRestart = cliServiceControl(a.RestartService)
-	config.SvcMigrate = cliServiceMigrate(a)
 	config.SvcWait = cliServiceWait(a)
 	config.Commit = func(containerID string) (string, error) {
 		return a.AddSnapshot(SnapshotConfig{DockerID: containerID})
@@ -85,33 +84,25 @@ func cliServiceControl(svcControlMethod ServiceStateController) script.ServiceCo
 }
 
 func cliServiceWait(a *api) script.ServiceWait {
-	return func(svcIDs []string, state script.ServiceState, timeout uint32) error {
-		client, err := a.connectDAO()
+	return func(svcIDs []string, state script.ServiceState, timeout uint32, recursive bool) error {
+		if timeout == 0 {
+			timeout = math.MaxUint32
+		}
+		timeoutDur, err := time.ParseDuration(fmt.Sprintf("%ds", timeout))
+		if err != nil {
+			return err
+		}
+		desiredState, err := script.ScriptStateToDesiredState(state)
 		if err != nil {
 			return err
 		}
 
-		var desiredState service.DesiredState
-		switch state {
-		case "started":
-			desiredState = service.SVCRun
-		case "stopped":
-			desiredState = service.SVCStop
-		case "paused":
-			desiredState = service.SVCPause
-		default:
-			return fmt.Errorf("Unknown service state %s", state)
-		}
-		if timeout == 0 {
-			timeout = math.MaxUint32
-		}
-		wsr := dao.WaitServiceRequest{ServiceIDs: svcIDs,
-			DesiredState: desiredState,
-			Timeout:      time.Duration(timeout) * time.Second}
-		if err = client.WaitService(wsr, nil); err != nil {
+		client, err := a.connectMaster()
+		if err != nil {
 			return err
 		}
-		return nil
+		err = client.WaitService(svcIDs, desiredState, timeoutDur, recursive)
+		return err
 	}
 }
 
@@ -166,14 +157,5 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 			return "", fmt.Errorf("did not find service %s", svcPath)
 		}
 		return svcID, nil
-	}
-}
-
-func cliServiceMigrate(a API) script.ServiceMigrate {
-	return func(svcID string, scriptFile string, sdkVersion string) error {
-		if _, err := a.RunEmbeddedMigrationScript(svcID, scriptFile, false, sdkVersion); err != nil {
-			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
-		}
-		return nil
 	}
 }

@@ -142,7 +142,7 @@ HOST_IP=`hostname -i`
 if [[ $HOST_IP == 127* ]]; then
     # serviced won't allow us to add a loopback address, so use docker's as an alternative
     echo "Overriding default HOST_IP ($HOST_IP)"
-    HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+    HOST_IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 fi
 echo "Using HOST_IP=$HOST_IP"
 
