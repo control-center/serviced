@@ -318,3 +318,12 @@ def loginAsDefaultUser()
     # close it
     closeDeployWizard()
 end
+
+#
+# Verify that CLI exit status is 0.
+# If it fails, include the command output in the error message.
+#
+def verifyCLIExitSuccess(processStatus, output)
+    errorMsg = "CLI return code %d is not 0. Command Output=%s" % [processStatus.exitstatus, output]
+    expect(processStatus.exitstatus).to eq(0), errorMsg
+end
