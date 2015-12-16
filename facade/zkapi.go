@@ -107,7 +107,7 @@ func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
 	return zkservice.StopServiceInstance(conn, hostID, stateID)
 }
 
-func (z *zkf) CheckRunningPublicEndpoint(publicendpoint, serviceID string) error {
+func (z *zkf) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
 	rootBasedConnection, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
