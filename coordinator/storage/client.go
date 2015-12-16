@@ -14,8 +14,10 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -30,15 +32,26 @@ type nfsMountT func(string, string) error
 
 var nfsMount = nfs.Mount
 var mkdirAll = os.MkdirAll
+var storageClient *Client
+
+var ErrClientNotInitialized = errors.New("storage client not initialized")
 
 // Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
-	host      *host.Host
-	localPath string
-	closing   chan struct{}
-	mounted   chan chan<- string
-	conn      client.Connection
-	setLock   sync.Mutex
+	host         *host.Host
+	exportedPath string
+	localPath    string
+	closing      chan struct{}
+	mounted      chan chan<- string
+	conn         client.Connection
+	setLock      sync.Mutex
+}
+
+func GetClient() (*Client, error) {
+	if storageClient == nil {
+		return nil, ErrClientNotInitialized
+	}
+	return storageClient, nil
 }
 
 // NewClient returns a Client that manages remote mounts
@@ -81,6 +94,11 @@ func (c *Client) Close() {
 	close(c.closing)
 }
 
+// Mount source  to local destination path. The source is relative to the exported path
+func (c *Client) Mount(source, destination string) error {
+	return nfsMount(&nfs.NFSDriver{}, path.Join(c.exportedPath, source), destination)
+}
+
 func (c *Client) loop() {
 	var err error
 	var e <-chan client.Event
@@ -99,9 +117,6 @@ func (c *Client) loop() {
 	var doneC chan<- string
 	var leader client.Leader
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
-	updateMonitorInterval := getDefaultDFSMonitorRemoteInterval()
-	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
-	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
 
 	doneW := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&doneW)
@@ -162,12 +177,14 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			err = nfsMount(&nfs.NFSDriver{}, leaderNode.ExportPath, c.localPath)
+			glog.Infof("Check nfs supported")
+			nfsd := &nfs.NFSDriver{}
+			err = nfsd.Installed()
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
-					glog.Errorf("install the nfs-common package: %s", err)
+					glog.Errorf("Install the nfs-common package: %s", err)
 				}
-				glog.Errorf("problem mounting %s: %s", leaderNode.ExportPath, err)
+				glog.Errorf("Problem determining NFS available %s", err)
 				continue
 			}
 
@@ -177,6 +194,8 @@ func (c *Client) loop() {
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
 		case doneC <- leaderNode.ExportPath:
+			c.exportedPath = leaderNode.ExportPath
+			storageClient = c
 			// notifying someone who cares
 			doneC = nil
 		case <-c.closing:
@@ -214,25 +233,4 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 
 	glog.V(4).Infof("updated node %s: %+v", nodePath, node)
 	return nil
-}
-
-func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Connection, nodePath string, node *Node) error {
-	glog.Infof("updating DFS remote client UpdatedAt for node %s at interval %s", nodePath, updaterInterval)
-	for {
-		if node.version == nil {
-			// prevents that this go routine from starting before the initial c.setNode in client.loop()
-			glog.Infof("version is nil for node %s", nodePath)
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		glog.V(4).Infof("updating node %s: %+v", nodePath, node)
-		if err := c.setNode(nodePath, node, true); err != nil {
-			glog.Warningf("problem updating UpdatedAt for node %s: %s", nodePath, err)
-		}
-
-		select {
-		case <-time.After(updaterInterval):
-		}
-	}
 }

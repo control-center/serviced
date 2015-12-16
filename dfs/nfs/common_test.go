@@ -107,7 +107,6 @@ func TestMount_BadValidation(t *testing.T) {
 	// incompatible fs type
 	info1 := proc.NFSMountInfo{
 		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs3"},
-		FSID:      "123455",
 	}
 	d.MountInfo = &info1
 
@@ -122,7 +121,6 @@ func TestMount_BadValidation(t *testing.T) {
 	// incompatible fsid
 	info2 := proc.NFSMountInfo{
 		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
-		FSID:      "0:0",
 	}
 	if err := Mount(&d, info2.RemotePath, info2.LocalPath); err != nil {
 		if _, ok := err.(*validation.ValidationError); !ok {
@@ -139,7 +137,6 @@ func TestMount_Success(t *testing.T) {
 	// incompatible fs type
 	info := proc.NFSMountInfo{
 		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
-		FSID:      "123455abced",
 	}
 	d.MountInfo = &info
 

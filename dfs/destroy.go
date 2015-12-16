@@ -20,11 +20,6 @@ import (
 
 // Destroy destroys all application data from the dfs and docker registry
 func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
-	// TODO: remove nfs exports here
-	// Right now the entirety of /var/volumes is shared on NFS, but it would
-	// make more sense to create a directory /exports/serviced and then bind
-	// mount in appication volumes individually.
-	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
 	vol, err := dfs.disk.Get(tenantID)
 	if err != nil {
 		glog.Errorf("Could not get volume for tenant %s: %s", tenantID, err)
@@ -35,6 +30,14 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		glog.Errorf("Could not get snapshots for tenant %s: %s", tenantID, err)
 		return err
 	}
+
+	dfs.net.RemoveVolume(vol.Path())
+	// sync will unbind the the volume from exports dir, making it not busy
+	if err := dfs.net.Sync(); err != nil {
+		glog.Errorf("Could not sync volume destroy for tenant %s: %s", tenantID, err)
+		return err
+	}
+
 	for _, snapshot := range snapshots {
 		if err := dfs.Delete(snapshot); err != nil {
 			glog.Errorf("Could not remove snapshot %s for tenant %s: %s", snapshot, tenantID, err)
@@ -44,11 +47,7 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	if err := dfs.deleteImages(tenantID, docker.Latest); err != nil {
 		return err
 	}
-	if err := dfs.net.Stop(); err != nil {
-		glog.Errorf("Could not stop nfs server: %s", err)
-		return err
-	}
-	defer dfs.net.Restart()
+
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
 		return err
