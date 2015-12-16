@@ -29,9 +29,6 @@ type ServiceIDFromPath func(tenantID string, path string) (string, error)
 // ServiceControl is a func used to control the state of a service
 type ServiceControl func(serviceID string, recursive bool) error
 
-// ServiceMigrate is a func used to migrate a service
-type ServiceMigrate func(serviceID string, migrationScript string, sdkVersion string) error
-
 // ServiceUse is a func used to control the state of a service
 type ServiceUse func(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error)
 
@@ -68,10 +65,6 @@ func noOpServiceStop(serviceID string, recursive bool) error {
 }
 
 func noOpServiceRestart(serviceID string, recursive bool) error {
-	return nil
-}
-
-func noOpServiceMigrate(serviceID string, migrationScript string, sdkVersion string) error {
 	return nil
 }
 

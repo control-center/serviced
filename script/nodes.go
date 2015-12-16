@@ -26,7 +26,6 @@ var (
 	SVC_STOP    = "SVC_STOP"
 	SVC_RESTART = "SVC_RESTART"
 	SVC_WAIT    = "SVC_WAIT"
-	SVC_MIGRATE = "SVC_MIGRATE"
 	DEPENDENCY  = "DEPENDENCY"
 
 	EMPTY     = "EMPTY"
@@ -49,7 +48,6 @@ func init() {
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_WAIT:    parseWait,
-		SVC_MIGRATE: require([]string{REQUIRE_SVC}, parseArgCount(bounds(1, 2), parseSDKVersion(buildNode))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
