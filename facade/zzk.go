@@ -29,7 +29,7 @@ type ZZK interface {
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
 	UpdateServiceState(poolID string, state *servicestate.ServiceState) error
 	StopServiceInstance(poolID, hostID, stateID string) error
-	CheckRunningVHost(vhost, serviceID string) error
+	CheckRunningPublicEndpoint(publicendpoint, serviceID string) error
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error

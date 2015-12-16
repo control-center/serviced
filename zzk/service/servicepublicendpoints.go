@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 )
 
@@ -32,17 +33,7 @@ const (
 	onPrefix                 = ":peOn:"  // serviceIDs and endpoints can't have ":"
 )
 
-// PublicEndpointType Enum for endpoint type (VHost or Port)
-type PublicEndpointType uint8
-
-const (
-	// TypeVHost is the VHost public endpoint type constant
-	TypeVHost PublicEndpointType = 0
-	// TypePort is the Port public endpoint type constant
-	TypePort PublicEndpointType = 1
-)
-
-func servicePublicEndpointPath(serviceID, endpointname string, enabled bool, pepType PublicEndpointType) string {
+func servicePublicEndpointPath(serviceID, endpointname string, enabled bool, pepType registry.PublicEndpointType) string {
 	state := offPrefix
 	if enabled {
 		state = onPrefix
@@ -61,7 +52,7 @@ type PublicEndpointNode struct {
 	ServiceID string
 	Name      string
 	Enabled   bool
-	Type      PublicEndpointType
+	Type      registry.PublicEndpointType
 	version   interface{}
 }
 
@@ -127,7 +118,7 @@ func (v PublicEndpointKey) Name() string {
 }
 
 // Type identifies whether this public endpoint is a vhost or port type
-func (v PublicEndpointKey) Type() PublicEndpointType {
+func (v PublicEndpointKey) Type() registry.PublicEndpointType {
 	if v.hasStatePrefix() {
 		parts := strings.SplitN(string(v), "_", 4)
 		return parsedType(parts[3])
@@ -138,22 +129,23 @@ func (v PublicEndpointKey) Type() PublicEndpointType {
 	return parsedType(parts[2])
 }
 
-// parsedType returns the string as a PublicEndpointType.  If this isn't
-// a valid uint8 it returns TypeVHost
-func parsedType(arg string) PublicEndpointType {
+// parsedType returns the string as a registry.PublicEndpointType.  If this isn't
+// a valid uint8 it returns registry.EPTypeVHost
+func parsedType(arg string) registry.PublicEndpointType {
 	// Validate the port number
 	pepType, err := strconv.Atoi(arg)
 	if err != nil {
-		return TypeVHost
+		return registry.EPTypeVHost
 	}
 
-	if pepType == int(TypePort) {
-		return TypePort
+	if pepType == int(registry.EPTypePort) {
+		return registry.EPTypePort
 	}
-	return TypeVHost
+	return registry.EPTypeVHost
+
 }
 
-func newPublicEndpointKey(serviceID string, epName string, enabled bool, pepType PublicEndpointType) PublicEndpointKey {
+func newPublicEndpointKey(serviceID string, epName string, enabled bool, pepType registry.PublicEndpointType) PublicEndpointKey {
 	state := offPrefix
 	if enabled {
 		state = onPrefix
@@ -206,13 +198,13 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// Add the VHost entries.
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
-			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, TypeVHost)] = struct{}{}
+			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, registry.EPTypeVHost)] = struct{}{}
 		}
 	}
 	// Add the Port entries.
 	for _, ep := range svc.GetServicePorts() {
 		for _, port := range ep.PortList {
-			svcpublicendpoints[newPublicEndpointKey(svc.ID, string(port.PortNumber), port.Enabled, TypePort)] = struct{}{}
+			svcpublicendpoints[newPublicEndpointKey(svc.ID, string(port.PortNumber), port.Enabled, registry.EPTypePort)] = struct{}{}
 		}
 	}
 	glog.V(2).Infof("  svcpublicendpoints %+v", svcpublicendpoints)
@@ -243,7 +235,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 }
 
 // updateServicePublicEndpoint updates a service vhost node if it exists, otherwise creates it
-func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool, pepType PublicEndpointType) error {
+func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool, pepType registry.PublicEndpointType) error {
 	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
 	var node PublicEndpointNode
 	spath := servicePublicEndpointPath(serviceID, endpointname, enabled, pepType)
