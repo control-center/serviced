@@ -8,6 +8,7 @@ import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
+import zkregistry "github.com/control-center/serviced/zzk/registry"
 
 type ZZK struct {
 	mock.Mock
@@ -85,12 +86,12 @@ func (_m *ZZK) StopServiceInstance(poolID string, hostID string, stateID string)
 
 	return r0
 }
-func (_m *ZZK) CheckRunningVHost(vhost string, serviceID string) error {
-	ret := _m.Called(vhost, serviceID)
+func (_m *ZZK) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
+	ret := _m.Called(publicendpoint, serviceID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(vhost, serviceID)
+	if rf, ok := ret.Get(0).(func(zkregistry.PublicEndpointKey, string) error); ok {
+		r0 = rf(publicendpoint, serviceID)
 	} else {
 		r0 = ret.Error(0)
 	}

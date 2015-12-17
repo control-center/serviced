@@ -28,43 +28,43 @@ import (
 	"time"
 )
 
-func (dt *DaoTest) TestDao_VhostRegistryCreate(t *C) {
+func (dt *DaoTest) TestDao_PublicEndpointRegistryCreate(t *C) {
 
-	_, err := registry.VHostRegistry(dt.zkConn)
+	_, err := registry.PublicEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
 	//test idempotence
-	_, err = registry.VHostRegistry(dt.zkConn)
+	_, err = registry.PublicEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 }
 
-func (dt *DaoTest) TestDao_VhostRegistrySet(t *C) {
+func (dt *DaoTest) TestDao_PublicEndpointRegistrySet(t *C) {
 
-	vr, err := registry.VHostRegistry(dt.zkConn)
+	pepr, err := registry.PublicEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
-	// TODO: add tests for ephemeral nodes and remove vr.SetEphemeral(false)
-	vr.SetEphemeral(false)
+	// TODO: add tests for ephemeral nodes and remove pepr.SetEphemeral(false)
+	pepr.SetEphemeral(false)
 
-	vep := registry.VhostEndpoint{}
-	vep.EndpointName = "epn_test"
-	vep.ServiceID = "svc_id"
-	vep.HostIP = "testip"
-	path, err := vr.SetItem(dt.zkConn, "testKey", vep)
+	pep := registry.PublicEndpoint{}
+	pep.EndpointName = "epn_test"
+	pep.ServiceID = "svc_id"
+	pep.HostIP = "testip"
+	path, err := pepr.SetItem(dt.zkConn, "testKey", pep)
 	t.Assert(err, IsNil)
 	t.Assert(path, Not(Equals), 0)
 
-	var newVep *registry.VhostEndpoint
-	newVep, err = vr.GetItem(dt.zkConn, path)
+	var newPep *registry.PublicEndpoint
+	newPep, err = pepr.GetItem(dt.zkConn, path)
 	t.Assert(err, IsNil)
-	t.Assert(vep, NotNil)
+	t.Assert(pep, NotNil)
 	//remove version for equals
-	newVep.SetVersion(nil)
-	t.Assert(vep, Equals, *newVep)
+	newPep.SetVersion(nil)
+	t.Assert(pep, Equals, *newPep)
 
 	//test double add
-	glog.Infof("%+v", vep)
-	path, err = vr.SetItem(dt.zkConn, "testKey", vep)
+	glog.Infof("%+v", pep)
+	path, err = pepr.SetItem(dt.zkConn, "testKey", pep)
 	t.Assert(err, IsNil)
 }
 
