@@ -79,7 +79,7 @@ func PublicEndpointRegistry(conn client.Connection) (*PublicEndpointRegistryType
 
 type PublicEndpointKey string
 
-func GetPublicEndPointKey(endpointName string, epType PublicEndpointType) PublicEndpointKey {
+func GetPublicEndpointKey(endpointName string, epType PublicEndpointType) PublicEndpointKey {
 	return PublicEndpointKey(fmt.Sprintf("%s-%d", endpointName, epType))
 }
 
