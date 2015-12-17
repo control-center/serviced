@@ -104,7 +104,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
 		cli.StringFlag{"controller-binary", defaultOps.ControllerBinary, "path to the container controller binary"},
 		cli.StringFlag{"log-driver", defaultOps.DockerLogDriver, "log driver for docker containers"},
-		cli.StringSliceFlag{"log-config", convertToStringSlice(defaultOps.DockerLogConfig), "comma-separated list of key=value settings for docker log driver"},
+		cli.StringSliceFlag{"log-config", convertToStringSlice(defaultOps.DockerLogConfigList), "comma-separated list of key=value settings for docker log driver"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -196,7 +196,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		IsvcsZKID:            ctx.GlobalInt("isvcs-zk-id"),
 		IsvcsZKQuorum:        ctx.GlobalStringSlice("isvcs-zk-quorum"),
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
-		DockerLogConfig:      ctx.GlobalStringSlice("log-config"),
+		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
