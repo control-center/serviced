@@ -69,6 +69,33 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
+// GetPublicEndpointKey returns the registry key used for the
+// publicEndpoint:application registry (formerly vhost.go).  This is just
+// just a placeholder for the method from JH
+func GetPublicEndpointKey(name string, Type registry.PublicEndpointType) string {
+	return fmt.Sprintf("%s-%d", name, int(Type))
+}
+
+// getPublicEndpointServices returns the list of services for a given
+// public endpoint/type.
+func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, string) {
+	allvhostsLock.RLock()
+	defer allvhostsLock.RUnlock()
+	key := GetPublicEndpointKey(name, Type)
+	svcs, found := allvhosts[key]
+	return svcs, found, key
+}
+
+// getVHostServices returns the list of services for a given vhost (public endpoint)
+func getVHostServices(vhostname string) (map[string]struct{}, bool, string) {
+	return getPublicEndpointServices(vhostname, registry.EPTypeVHost)
+}
+
+// getPortServices returns the list of services for a given port (public endpoint)
+func getPortServices(port uint8) (map[string]struct{}, bool, string) {
+	return getPublicEndpointServices(fmt.Sprintf("%d", port), registry.EPTypePort)
+}
+
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the vhosthandler function.
@@ -99,24 +126,17 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler handling request: %+v", r)
 
-		getVhost := func(vhostname string) (map[string]struct{}, bool) {
-			allvhostsLock.RLock()
-			defer allvhostsLock.RUnlock()
-			svcs, found := allvhosts[vhostname]
-			return svcs, found
-		}
-
 		httphost := strings.Split(r.Host, ":")[0]
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
-		if svcIDs, found := getVhost(httphost); found {
+		if svcIDs, found, registrykey := getVHostServices(httphost); found {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, httphost, svcIDs)
-		} else if svcIDs, found := getVhost(subdomain); found {
+			sc.vhosthandler(w, r, registrykey, svcIDs)
+		} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, subdomain, svcIDs)
+			sc.vhosthandler(w, r, registrykey, svcIDs)
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
@@ -363,15 +383,17 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		newVhosts := make(map[string]map[string]struct{})
 		for _, sv := range childIDs {
 			//cast to a VHostKey so we don't have to care about the format of the key string
-			vhostKey := service.PublicEndpointKey(sv)
-			vhost := vhostKey.Name()
-			vhostServices, found := newVhosts[vhost]
-			if !found {
-				vhostServices = make(map[string]struct{})
-				newVhosts[vhost] = vhostServices
-			}
-			if vhostKey.IsEnabled() {
-				vhostServices[vhostKey.ServiceID()] = struct{}{}
+			pep := service.PublicEndpointKey(sv)
+			if pep.Type() == registry.EPTypeVHost {
+				registryKey := GetPublicEndpointKey(pep.Name(), pep.Type())
+				vhostServices, found := newVhosts[registryKey]
+				if !found {
+					vhostServices = make(map[string]struct{})
+					newVhosts[registryKey] = vhostServices
+				}
+				if pep.IsEnabled() {
+					vhostServices[pep.ServiceID()] = struct{}{}
+				}
 			}
 		}
 
