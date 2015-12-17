@@ -45,7 +45,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var services []service.Service
 	var serviceRequest dao.ServiceRequest
 	if err := client.GetServices(serviceRequest, &services); err != nil {
-		glog.Errorf("Could not get services: %v", err)
+		err := fmt.Errorf("Could not get services: %v", err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -59,7 +60,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	if service == nil {
-		glog.Errorf("Could not find service: %s", request.ServiceID)
+		err := fmt.Errorf("Could not find service: %s", request.ServiceID)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -74,7 +76,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		for _, endpoint := range service.Endpoints {
 			for _, host := range endpoint.VHostList {
 				if host.Name == _vhost {
-					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
+					err := fmt.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
+					glog.Error(err)
 					restServerError(w, err)
 					return
 				}
@@ -84,7 +87,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
 	if err != nil {
-		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		err := fmt.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -92,7 +96,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		err := fmt.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -111,7 +116,8 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 
 	err = service.RemoveVirtualHost(application, vhostname)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		err := fmt.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -119,7 +125,8 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		err := fmt.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -181,7 +188,8 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	glog.V(1).Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
 	err = service.EnableVirtualHost(application, vhostname, request.Enable)
 	if err != nil {
-		glog.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
+		err := fmt.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
@@ -189,7 +197,8 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
+		err := fmt.Errorf("Unexpected error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
