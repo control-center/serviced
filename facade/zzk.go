@@ -23,7 +23,7 @@ import (
 )
 
 type ZZK interface {
-	UpdateService(svc *service.Service, locked bool) error
+	UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
 	RemoveService(svc *service.Service) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error

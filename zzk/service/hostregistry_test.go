@@ -52,7 +52,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	// Add a service
 	addService := func(serviceID string) *service.Service {
 		svc := service.Service{ID: "test-service-1"}
-		err = UpdateService(conn, svc, false)
+		err = UpdateService(conn, svc, false, false)
 		c.Assert(err, IsNil)
 		return &svc
 	}

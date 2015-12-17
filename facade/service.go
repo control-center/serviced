@@ -64,7 +64,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err err
 	return f.addService(ctx, svc, false)
 }
 
-func (f *Facade) addService(ctx datastore.Context, svc service.Service, locked bool) error {
+func (f *Facade) addService(ctx datastore.Context, svc service.Service, setLockOnCreate bool) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
@@ -125,7 +125,7 @@ func (f *Facade) addService(ctx datastore.Context, svc service.Service, locked b
 		}
 	}
 	glog.V(2).Infof("Facade.AddService: calling zk.updateService for %s %d ConfigFiles", svc.Name, len(svc.ConfigFiles))
-	return f.zzk.UpdateService(&svc, locked)
+	return f.zzk.UpdateService(&svc, setLockOnCreate, setLockOnCreate)
 }
 
 //
@@ -145,7 +145,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 		glog.Errorf("Could not update service %s: %s", svc.ID, err)
 		return err
 	}
-	return f.zzk.UpdateService(&svc, false)
+	return f.zzk.UpdateService(&svc, false, false)
 }
 
 func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []service.Service) error {
@@ -324,7 +324,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 			if err = f.migrateService(ctx, svc); err != nil {
 				return err
 			}
-			if err = f.zzk.UpdateService(svc, false); err != nil {
+			if err = f.zzk.UpdateService(svc, false, false); err != nil {
 				return err
 			}
 		}
@@ -887,7 +887,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
-		if err := f.zzk.UpdateService(svc, locked); err != nil {
+		if err := f.zzk.UpdateService(svc, false, false); err != nil {
 			return err
 		}
 		affected++
@@ -1718,7 +1718,7 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 			// Synchronizer will eventually clean this service up
 			glog.Warningf("ZK: Could not delete service %s (%s) from pool %s: %s", svc.Name, svc.ID, oldSvc.PoolID, err)
 			oldSvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(oldSvc, false)
+			f.zzk.UpdateService(oldSvc, false, false)
 		}
 	}
 	return nil
