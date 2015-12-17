@@ -366,7 +366,7 @@ func (s *Service) AddPort(application string, portNumber uint16) error {
 						ports = append(ports, port)
 					}
 				}
-				ep.PortList = append(ports, servicedefinition.Port{PortNumber:portNumber, Enabled:true})
+				ep.PortList = append(ports, servicedefinition.Port{PortNumber:portNumber})
 				return nil
 			}
 		}
