@@ -295,7 +295,8 @@
             } else if(publicEndpoint.type === "port"){
                 // TODO - get IP
                 var host = $scope.defaultHostAlias;
-                return location.protocol + "//" + host + ":" + publicEndpoint.PortNumber;
+                // Port public endpoint port listeners are always on http
+                return "http://" + host + ":" + publicEndpoint.PortNumber;
             }
         };
 
