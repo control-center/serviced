@@ -40,12 +40,12 @@ type zkf struct {
 	f *Facade
 }
 
-func (zk *zkf) UpdateService(svc *service.Service, locked bool) error {
+func (zk *zkf) UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}
-	if err := zkservice.UpdateService(conn, *svc, locked); err != nil {
+	if err := zkservice.UpdateService(conn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		return err
 	}
 	rootconn, err := zzk.GetLocalConnection("/")
