@@ -363,8 +363,8 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		newVhosts := make(map[string]map[string]struct{})
 		for _, sv := range childIDs {
 			//cast to a VHostKey so we don't have to care about the format of the key string
-			vhostKey := service.VHostKey(sv)
-			vhost := vhostKey.VHost()
+			vhostKey := service.PublicEndpointKey(sv)
+			vhost := vhostKey.Name()
 			vhostServices, found := newVhosts[vhost]
 			if !found {
 				vhostServices = make(map[string]struct{})
