@@ -65,21 +65,6 @@ type ServiceNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *ServiceNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *ServiceNode) Create(conn client.Connection) error {
-	return UpdateService(conn, *node.Service, false)
-}
-
-// Update implements zzk.Node
-func (node *ServiceNode) Update(conn client.Connection) error {
-	return conn.Set(servicepath(node.ID), node)
-}
-
 // Version implements client.Node
 func (node *ServiceNode) Version() interface{} { return node.version }
 
@@ -417,36 +402,79 @@ func StopService(conn client.Connection, serviceID string) error {
 }
 
 // SyncServices synchronizes all services into zookeeper
-func SyncServices(conn client.Connection, services []service.Service) error {
-	nodes := make([]zzk.Node, len(services))
-	for i := range services {
-		nodes[i] = &ServiceNode{Service: &services[i]}
+func SyncServices(conn client.Connection, svcs []service.Service) error {
+	svcNodes, err := conn.Children(servicepath())
+	if err != nil {
+		glog.Errorf("Can not look up services: %s", err)
+		return err
 	}
-	return zzk.Sync(conn, nodes, servicepath())
-}
-
-// UpdateService updates a service node if it exists, otherwise creates it
-func UpdateService(conn client.Connection, svc service.Service, locked bool) error {
-	var node ServiceNode
-	spath := servicepath(svc.ID)
-
-	node.Service = &service.Service{}
-	node.Locked = locked
-	if err := conn.Get(spath, &node); err != nil {
-		if err == client.ErrNoNode {
-			// Create the service node
-			if err := conn.Create(spath, &node); err != nil {
-				glog.Errorf("Could not create node at %s: %s", spath, err)
-				return err
-			}
-		} else {
-			glog.Errorf("Could not look up node for service %s: %s", svc.ID, err)
+	svcNodeMap := make(map[string]struct{})
+	for _, svcNode := range svcNodes {
+		svcNodeMap[svcNode] = struct{}{}
+	}
+	for _, svc := range svcs {
+		if _, ok := svcNodeMap[svc.ID]; ok {
+			delete(svcNodeMap, svc.ID)
+		}
+		if err := UpdateService(conn, svc, false, false); err != nil {
+			glog.Errorf("Could not sync service %s: %s", svc.ID, err)
 			return err
 		}
 	}
-	node.Service = &svc
-	if err := conn.Set(spath, &node); err != nil {
-		glog.Errorf("Could not set node for service %s: %s", svc.ID, err)
+	for svcID := range svcNodeMap {
+		if err := conn.Delete(servicepath(svcID)); err != nil {
+			glog.Errorf("Could not remove service %s: %s", svcID, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// UpdateService updates a service node if it exists, otherwise creates it
+func UpdateService(conn client.Connection, svcData service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	// svc is the service to be marshalled into zookeeper
+	svc := &service.Service{
+		ID:            svcData.ID,
+		Name:          svcData.Name,
+		Startup:       svcData.Startup,
+		Instances:     svcData.Instances,
+		ChangeOptions: svcData.ChangeOptions,
+		ImageID:       svcData.ImageID,
+		DesiredState:  svcData.DesiredState,
+		HostPolicy:    svcData.HostPolicy,
+		Privileged:    svcData.Privileged,
+		Endpoints:     svcData.Endpoints,
+		Volumes:       svcData.Volumes,
+		Snapshot:      svcData.Snapshot,
+		RAMCommitment: svcData.RAMCommitment,
+		CPUCommitment: svcData.CPUCommitment,
+		HealthChecks:  svcData.HealthChecks,
+		MemoryLimit:   svcData.MemoryLimit,
+		CPUShares:     svcData.CPUShares,
+	}
+	svcNodePath := servicepath(svc.ID)
+	svcNode := ServiceNode{Service: &service.Service{}}
+	if err := conn.Get(svcNodePath, &svcNode); err == client.ErrNoNode {
+		// the node does not exist, so create it
+		// setLockOnCreate sets the lock as the node is created.
+		svcNode.Locked = setLockOnCreate
+		svcNode.Service = svc
+		if err := conn.Create(svcNodePath, &svcNode); err != nil {
+			glog.Errorf("Could not create node at %s: %s", svcNodePath, err)
+			return err
+		}
+	} else if err != nil {
+		glog.Errorf("Could not look up node for service %s: %s", svc.ID, err)
+		return err
+	}
+	// setLockOnUpdate sets the lock to true if enabled, otherwise it uses
+	// whatever existing value was previously set on the node.
+	if setLockOnUpdate {
+		svcNode.Locked = true
+	}
+	svcNode.Service = svc
+	if err := conn.Set(svcNodePath, &svcNode); err != nil {
+		glog.Errorf("Could not update node for service %s: %s", svc.ID, err)
 		return err
 	}
 	return nil

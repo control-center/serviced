@@ -36,7 +36,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 3}
-	err = UpdateService(conn, svc, false)
+	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
 	// Add a host

@@ -1,16 +1,3 @@
-// Copyright 2015 The Serviced Authors.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package mocks
 
 import "github.com/stretchr/testify/mock"
@@ -26,29 +13,17 @@ type ZZK struct {
 	mock.Mock
 }
 
-func (_m *ZZK) UpdateService(svc *service.Service, locked bool) error {
-	ret := _m.Called(svc, locked)
+func (_m *ZZK) UpdateService(svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
+	ret := _m.Called(svc, setLockOnCreate, setLockOnUpdate)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*service.Service, bool) error); ok {
-		r0 = rf(svc, locked)
+	if rf, ok := ret.Get(0).(func(*service.Service, bool, bool) error); ok {
+		r0 = rf(svc, setLockOnCreate, setLockOnUpdate)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
-}
-func (_m *ZZK) UpdateServiceState(poolID string, state *servicestate.ServiceState) error {
-   ret := _m.Called(poolID, state)
-
-   var r0 error
-   if rf, ok := ret.Get(0).(func(string, *servicestate.ServiceState) error); ok {
-       r0 = rf(poolID, state)
-   } else {
-       r0 = ret.Error(0)
-   }
-
-   return r0
 }
 func (_m *ZZK) RemoveService(svc *service.Service) error {
 	ret := _m.Called(svc)
@@ -80,6 +55,18 @@ func (_m *ZZK) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *[]servicestate.ServiceState, ...string) error); ok {
 		r0 = rf(poolID, states, serviceIDs...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) UpdateServiceState(poolID string, state *servicestate.ServiceState) error {
+	ret := _m.Called(poolID, state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *servicestate.ServiceState) error); ok {
+		r0 = rf(poolID, state)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -152,18 +139,6 @@ func (_m *ZZK) GetActiveHosts(poolID string, hosts *[]string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *[]string) error); ok {
 		r0 = rf(poolID, hosts)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ZZK) AddResourcePool(_pool *pool.ResourcePool) error {
-	ret := _m.Called(_pool)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*pool.ResourcePool) error); ok {
-		r0 = rf(_pool)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -263,12 +238,12 @@ func (_m *ZZK) DeleteRegistryImage(id string) error {
 
 	return r0
 }
-func (_m *ZZK) DeleteRegistryLibrary(id string) error {
-	ret := _m.Called(id)
+func (_m *ZZK) DeleteRegistryLibrary(tenantID string) error {
+	ret := _m.Called(tenantID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(id)
+		r0 = rf(tenantID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -299,8 +274,7 @@ func (_m *ZZK) UnlockServices(svcs []service.Service) error {
 
 	return r0
 }
-
-func (_m *ZZK) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error {
+func (_m *ZZK) GetServiceEndpoints(tenantID string, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error {
 	ret := _m.Called(tenantID, serviceID, endpoints)
 
 	var r0 error
