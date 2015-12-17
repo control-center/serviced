@@ -66,7 +66,7 @@ type vhostEndpointInfo struct {
 	serviceID string
 }
 
-func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
+func createvhostEndpointInfo(vep *registry.PublicEndpoint) vhostEndpointInfo {
 	return vhostEndpointInfo{
 		hostIP:    vep.HostIP,
 		epPort:    vep.ContainerPort,
@@ -148,7 +148,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 	}
 
 	glog.V(2).Infof("creating vhostRegistry")
-	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
+	vhostRegistry, err := registry.PublicEndpointRegistry(poolBasedConn)
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
 		return err
@@ -181,7 +181,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 							return
 						}
 						glog.V(1).Infof("processing vhost parent %v; children %v", parentPath, childIDs)
-						vr, err := registry.VHostRegistry(conn)
+						vr, err := registry.PublicEndpointRegistry(conn)
 						if err != nil {
 							glog.Errorf("processVhost - Error getting vhost registry: %v", err)
 							return
