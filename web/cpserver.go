@@ -81,7 +81,7 @@ func GetPublicEndpointKey(name string, Type registry.PublicEndpointType) string 
 func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, string) {
 	allvhostsLock.RLock()
 	defer allvhostsLock.RUnlock()
-	key := GetPublicEndpointKey(name, Type)
+	key := registry.GetPublicEndpointKey(name, Type)
 	svcs, found := allvhosts[key]
 	return svcs, found, key
 }
@@ -98,12 +98,12 @@ func getPortServices(port uint8) (map[string]struct{}, bool, string) {
 
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
-// Virtual host routing to zenoss web based services is done by the vhosthandler function.
+// Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
-	go sc.syncVhosts(shutdown)
+	go sc.syncPublicEndpoints(shutdown)
 	//start watching global vhosts as they are added/deleted/updated in services
 	go sc.syncAllVhosts(shutdown)
 
@@ -132,11 +132,11 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
 		if svcIDs, found, registrykey := getVHostServices(httphost); found {
-			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, registrykey, svcIDs)
+			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+			sc.publicendpointhandler(w, r, registrykey, svcIDs)
 		} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
-			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, registrykey, svcIDs)
+			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+			sc.publicendpointhandler(w, r, registrykey, svcIDs)
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
@@ -385,7 +385,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 			//cast to a VHostKey so we don't have to care about the format of the key string
 			pep := service.PublicEndpointKey(sv)
 			if pep.Type() == registry.EPTypeVHost {
-				registryKey := GetPublicEndpointKey(pep.Name(), pep.Type())
+				registryKey := registry.GetPublicEndpointKey(pep.Name(), pep.Type())
 				vhostServices, found := newVhosts[registryKey]
 				if !found {
 					vhostServices = make(map[string]struct{})
@@ -407,7 +407,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	for {
 		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
-		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
+		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
 			<-time.After(time.Second * 10)
