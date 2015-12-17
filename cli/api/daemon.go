@@ -152,7 +152,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
-	isvcs.Init(options.ESStartupTimeout)
+	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
 		glog.Fatalf("Could not set es-serviced option: %s", err)
@@ -167,7 +167,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
-	isvcs.InitServices(serviceNames)
+	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.Start(); err != nil {
 		glog.Fatalf("Could not start isvcs: %s", err)
@@ -672,7 +672,7 @@ func (d *daemon) startAgent() error {
 			ControllerBinary:     options.ControllerBinary,
 			LogstashURL:          options.LogstashURL,
 			DockerLogDriver:      options.DockerLogDriver,
-			DockerLogConfig:      options.DockerLogConfig,
+			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)

@@ -20,7 +20,7 @@ import (
 )
 
 func TestPurge(t *testing.T) {
-	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)
+	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 	Mgr.Start()
 	PurgeLogstashIndices(10, 10)
 	Mgr.Stop()
