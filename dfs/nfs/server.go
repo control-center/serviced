@@ -109,8 +109,21 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	if err := verifyExportsDir(basePath); err != nil {
 		return nil, err
 	}
-	if err := verifyExportsDir(path.Join(exportsDir, exportedName)); err != nil {
+
+	exportedNamePath := path.Join(exportsDir, exportedName)
+	if err := verifyExportsDir(exportedNamePath); err != nil {
 		return nil, err
+	}
+
+	if mounted, err := isBindMounted(exportedNamePath); err != nil {
+		glog.Infof("Could not determine if export directory %s is bind mounted, %v", exportedNamePath, err)
+		return nil, err
+	} else if mounted {
+		glog.Infof("Export directory %s is bind mounted, unmounting...", exportedNamePath)
+		if err := umount(exportedNamePath); err != nil {
+			glog.Infof("Could not umount export directory %s; %v", exportedNamePath, err)
+			return nil, err
+		}
 	}
 
 	if _, _, err := net.ParseCIDR(network); err != nil {
