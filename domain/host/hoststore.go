@@ -15,10 +15,10 @@ package host
 
 import (
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
 
-	"errors"
 	"strconv"
 	"strings"
 )
@@ -35,12 +35,11 @@ type HostStore struct {
 
 // FindHostsWithPoolID returns all hosts with the given poolid.
 func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error) {
-	id := strings.TrimSpace(poolID)
-	if id == "" {
-		return nil, errors.New("empty poolId not allowed")
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, domain.EmptyFieldNotAllowed("poolID")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("PoolID", id)
+	query := search.Query().Term("PoolID", poolID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -52,7 +51,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 // GetHostByIP looks up a host by the given ip address
 func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error) {
 	if hostIP = strings.TrimSpace(hostIP); hostIP == "" {
-		return nil, errors.New("empty hostIP not allowed")
+		return nil, domain.EmptyFieldNotAllowed("hostIP")
 	}
 
 	query := search.Query().Term("IPs.IPAddress", hostIP)
@@ -69,6 +68,26 @@ func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, e
 	} else {
 		return &hosts[0], nil
 	}
+}
+
+// GetHostInterfaceInPool returns a list of hosts that can bind to a provided
+// interface.
+func (hs *HostStore) GetHostInterfaceInPool(ctx datastore.Context, poolID, interfaceName string) ([]Host, error) {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, domain.EmptyFieldNotAllowed("poolID")
+	} else if interfaceName = strings.TrimSpace(interfaceName); interfaceName == "" {
+		return nil, domain.EmptyFieldNotAllowed("interfaceName")
+	}
+	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
+		"and",
+		search.Filter().Terms("PoolID", poolID),
+		search.Filter().Terms("IPs.InterfaceName", interfaceName),
+	)
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 // GetN returns all hosts up to limit.

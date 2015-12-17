@@ -14,10 +14,10 @@
 package registry
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 )
 
@@ -65,9 +65,9 @@ func (s *ImageRegistryStore) GetImages(ctx datastore.Context) ([]Image, error) {
 // SearchLibraryByTag looks for repos that are registered under a library and tag
 func (s *ImageRegistryStore) SearchLibraryByTag(ctx datastore.Context, library, tag string) ([]Image, error) {
 	if library = strings.TrimSpace(library); library == "" {
-		return nil, errors.New("empty library not allowed")
+		return nil, domain.EmptyFieldNotAllowed("library")
 	} else if tag = strings.TrimSpace(tag); tag == "" {
-		return nil, errors.New("empty tag not allowed")
+		return nil, domain.EmptyFieldNotAllowed("tag")
 	}
 	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
 		"and",

@@ -15,10 +15,10 @@ package service
 
 import (
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/elastigo/search"
 
-	"errors"
 	"strings"
 	"time"
 )
@@ -80,7 +80,7 @@ func (s *Store) GetUpdatedServices(ctx datastore.Context, since time.Duration) (
 //GetTaggedServices returns services with the given tags
 func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Service, error) {
 	if len(tags) == 0 {
-		return nil, errors.New("empty tags not allowed")
+		return nil, domain.EmptyFieldNotAllowed("tags")
 	}
 	qs := strings.Join(tags, " AND ")
 	return query(ctx, qs)
@@ -88,12 +88,11 @@ func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Serv
 
 //GetServicesByPool returns services with the given pool id
 func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error) {
-	id := strings.TrimSpace(poolID)
-	if id == "" {
-		return nil, errors.New("empty poolID not allowed")
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, domain.EmptyFieldNotAllowed("poolID")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("PoolID", id)
+	query := search.Query().Term("PoolID", poolID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -104,12 +103,11 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]Servi
 
 //GetServicesByDeployment returns services with the given deployment id
 func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error) {
-	id := strings.TrimSpace(deploymentID)
-	if id == "" {
-		return nil, errors.New("empty deploymentID not allowed")
+	if deploymentID = strings.TrimSpace(deploymentID); deploymentID != "" {
+		return nil, domain.EmptyFieldNotAllowed("deploymentID")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("DeploymentID", id)
+	query := search.Query().Term("DeploymentID", deploymentID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -120,12 +118,11 @@ func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID stri
 
 //GetChildServices returns services that are children of the given parent service id
 func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]Service, error) {
-	id := strings.TrimSpace(parentID)
-	if id == "" {
-		return nil, errors.New("empty parent service id not allowed")
+	if parentID = strings.TrimSpace(parentID); parentID != "" {
+		return nil, domain.EmptyFieldNotAllowed("parentID")
 	}
 	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("ParentServiceID", id)
+	query := search.Query().Term("ParentServiceID", parentID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
@@ -138,9 +135,9 @@ func (s *Store) FindChildService(ctx datastore.Context, deploymentID, parentID, 
 	parentID = strings.TrimSpace(parentID)
 
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
-		return nil, errors.New("empty deployment ID not allowed")
+		return nil, domain.EmptyFieldNotAllowed("deploymentID")
 	} else if serviceName = strings.TrimSpace(serviceName); serviceName == "" {
-		return nil, errors.New("empty service name not allowed")
+		return nil, domain.EmptyFieldNotAllowed("serviceName")
 	}
 
 	search := search.Search("controlplane").Type(kind).Filter(
@@ -169,9 +166,9 @@ func (s *Store) FindChildService(ctx datastore.Context, deploymentID, parentID, 
 // and service name
 func (s *Store) FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error) {
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
-		return nil, errors.New("empty deployment ID not allowed")
+		return nil, domain.EmptyFieldNotAllowed("deploymentID")
 	} else if name = strings.TrimSpace(name); name == "" {
-		return nil, errors.New("empty service name not allowed")
+		return nil, domain.EmptyFieldNotAllowed("serviceName")
 	}
 
 	search := search.Search("controlplane").Type(kind).Filter(

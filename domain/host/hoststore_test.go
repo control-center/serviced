@@ -16,6 +16,8 @@
 package host
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
@@ -251,4 +253,79 @@ func (s *S) Test_GetHostByIP(t *C) {
 	} else if result != nil {
 		t.Errorf("Expected nil, got %v", result)
 	}
+}
+
+func (s *S) Test_GetHostInterfaceInPool(c *C) {
+	host, err := Build("", "65535", "pool1", "", []string{}...)
+	c.Assert(err, IsNil)
+	host1 := *host
+	host1.ID = "c0c0b33f"
+	host1.PoolID = "poolid01"
+	host1.CreatedAt = time.Now()
+	host1.UpdatedAt = time.Now()
+	host1.IPs = []HostIPResource{
+		{
+			IPAddress:     "111.22.333.1",
+			InterfaceName: "i01",
+		},
+		{
+			IPAddress:     "111.22.333.2",
+			InterfaceName: "i02",
+		},
+	}
+	err = s.hs.Put(s.ctx, HostKey(host1.ID), &host1)
+	c.Assert(err, IsNil)
+	host1.DatabaseVersion++
+	defer s.hs.Delete(s.ctx, HostKey(host1.ID))
+	host2 := *host
+	host2.ID = "deadbeef"
+	host2.PoolID = "poolid01"
+	host2.CreatedAt = time.Now()
+	host2.UpdatedAt = time.Now()
+	host2.IPs = []HostIPResource{
+		{
+			IPAddress:     "111.22.333.3",
+			InterfaceName: "i02",
+		},
+	}
+	err = s.hs.Put(s.ctx, HostKey(host2.ID), &host2)
+	c.Assert(err, IsNil)
+	host2.DatabaseVersion++
+	defer s.hs.Delete(s.ctx, HostKey(host2.ID))
+	host3 := *host
+	host3.ID = "beaddadd"
+	host3.PoolID = "poolid02"
+	host3.CreatedAt = time.Now()
+	host3.UpdatedAt = time.Now()
+	host3.IPs = []HostIPResource{
+		{
+			IPAddress:     "111.22.333.4",
+			InterfaceName: "i01",
+		},
+	}
+	err = s.hs.Put(s.ctx, HostKey(host3.ID), &host3)
+	c.Assert(err, IsNil)
+	host3.DatabaseVersion++
+	defer s.hs.Delete(s.ctx, HostKey(host3.ID))
+
+	// pool not exists & interface not exists
+	results, err := s.hs.GetHostInterfaceInPool(s.ctx, "badpool", "badinterface")
+	c.Assert(err, IsNil)
+	c.Assert(results, HasLen, 0)
+	// pool not exists
+	results, err = s.hs.GetHostInterfaceInPool(s.ctx, "badpool", "i01")
+	c.Assert(err, IsNil)
+	c.Assert(results, HasLen, 0)
+	// interface not exists
+	results, err = s.hs.GetHostInterfaceInPool(s.ctx, "poolid01", "badinterface")
+	c.Assert(err, IsNil)
+	c.Assert(results, HasLen, 0)
+	// one host
+	results, err = s.hs.GetHostInterfaceInPool(s.ctx, "poolid02", "i01")
+	c.Assert(err, IsNil)
+	c.Assert(results, DeepEquals, []Host{host3})
+	// two hosts
+	results, err = s.hs.GetHostInterfaceInPool(s.ctx, "poolid01", "i02")
+	c.Assert(err, IsNil)
+	c.Assert(results, DeepEquals, []Host{host1, host2})
 }

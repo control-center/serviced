@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 )
 
@@ -60,9 +61,9 @@ func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port u
 
 func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error) {
 	if serviceID = strings.TrimSpace(serviceID); serviceID == "" {
-		return nil, fmt.Errorf("service ID cannot be empty")
+		return nil, domain.EmptyFieldNotAllowed("serviceID")
 	} else if endpointName = strings.TrimSpace(endpointName); endpointName == "" {
-		return nil, fmt.Errorf("endpoint name cannot be empty")
+		return nil, domain.EmptyFieldNotAllowed("endpointName")
 	}
 
 	search := search.Search("controlplane").Type(kind).Filter(
@@ -84,7 +85,7 @@ func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID
 
 func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, port uint16) (*AddressAssignment, error) {
 	if ipAddr = strings.TrimSpace(ipAddr); ipAddr == "" {
-		return nil, fmt.Errorf("hostIP cannot be empty")
+		return nil, domain.EmptyFieldNotAllowed("IPAddress")
 	} else if port == 0 {
 		return nil, fmt.Errorf("port must be greater than 0")
 	}

@@ -14,10 +14,10 @@
 package pool
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
 )
@@ -43,7 +43,7 @@ func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]
 	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
-		return nil, errors.New("empty realm not allowed")
+		return nil, domain.EmptyFieldNotAllowed("realm")
 	}
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Term("Realm", id)
@@ -58,9 +58,9 @@ func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]
 // HasVirtualIP returns true if there is a virtual ip found for the given pool
 func (s *Store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
-		return false, errors.New("empty pool id not allowed")
+		return false, domain.EmptyFieldNotAllowed("poolID")
 	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {
-		return false, errors.New("empty virtual ip not allowed")
+		return false, domain.EmptyFieldNotAllowed("virtualIP")
 	}
 
 	search := search.Search("controlplane").Type(kind).Filter(
