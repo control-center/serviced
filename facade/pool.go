@@ -37,10 +37,11 @@ const (
 )
 
 var (
-	ErrPoolExists    = errors.New("facade: resource pool exists")
-	ErrPoolNotExists = errors.New("facade: resource pool does not exist")
-	ErrIPExists      = errors.New("facade: ip exists in resource pool")
-	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
+	ErrPoolExists         = errors.New("facade: resource pool exists")
+	ErrPoolNotExists      = errors.New("facade: resource pool does not exist")
+	ErrIPExists           = errors.New("facade: ip exists in resource pool")
+	ErrIPNotExists        = errors.New("facade: ip does not exist in resource pool")
+	ErrInterfaceNotInPool = errors.New("facade: bind interface not found in resource pool")
 )
 
 //PoolIPs type for IP resources available in a ResourcePool
@@ -228,6 +229,14 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 		return err
 	} else if exists {
 		return ErrIPExists
+	}
+
+	// check if the interface exists on at least one of the hosts
+	hosts, err := f.hostStore.GetHostInterfaceInPool(ctx, vip.PoolID, vip.BindInterface)
+	if err != nil {
+		return err
+	} else if len(hosts) == 0 {
+		return ErrInterfaceNotInPool
 	}
 
 	// add virtual ip to zookeeper
