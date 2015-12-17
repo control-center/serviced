@@ -681,7 +681,7 @@ func (c *Controller) registerExportedEndpoints() error {
 				glog.V(1).Infof("registerExportedEndpoints: vhost epName=%s", epName)
 				//delete any existing vhost that hasn't been cleaned up
 				vhostEndpoint := registry.NewPublicEndpoint(epName, endpoint)
-				pepKey := registry.GetPublicEndPointKey(vhost, registry.EPTypeVHost)
+				pepKey := registry.GetPublicEndpointKey(vhost, registry.EPTypeVHost)
 
 				if paths, err := publicEndpointRegistry.GetChildren(conn, pepKey); err != nil {
 					glog.Errorf("error trying to get previous vhosts: %s", err)
@@ -718,7 +718,7 @@ func (c *Controller) registerExportedEndpoints() error {
 				glog.V(1).Infof("registerExportedEndpoints: vhost epName=%s", epName)
 				//delete any existing vhost that hasn't been cleaned up
 				vhostEndpoint := registry.NewPublicEndpoint(epName, endpoint)
-				pepKey := registry.GetPublicEndPointKey(portStr, registry.EPTypePort)
+				pepKey := registry.GetPublicEndpointKey(portStr, registry.EPTypePort)
 
 				if paths, err := publicEndpointRegistry.GetChildren(conn, pepKey); err != nil {
 					glog.Errorf("error trying to get previous vhosts: %s", err)
