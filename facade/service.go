@@ -1580,7 +1580,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				key := registry.GetPublicEndPointKey(vh.Name, registry.EPTypeVHost)
+				key := registry.GetPublicEndpointKey(vh.Name, registry.EPTypeVHost)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
@@ -1589,7 +1589,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 		for _, ep := range svc.GetServicePorts() {
 			for _, port := range ep.PortList {
 				//check that ports aren't already started elsewhere
-				key := registry.GetPublicEndPointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
@@ -2015,7 +2015,7 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				key := registry.GetPublicEndPointKey(vh.Name, registry.EPTypeVHost)
+				key := registry.GetPublicEndpointKey(vh.Name, registry.EPTypeVHost)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
@@ -2024,7 +2024,7 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		for _, ep := range svc.GetServicePorts() {
 			for _, port := range ep.PortList {
 				//check that ports aren't already started elsewhere
-				key := registry.GetPublicEndPointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
