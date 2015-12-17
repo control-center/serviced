@@ -21,6 +21,12 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+
+var (
+	defaultTestDockerLogDriver = "json-file"
+	defaultTestDockerLogOptions = map[string]string{"max-file": "5", "max-size": "10m"}
+)
+
 type IServiceTest interface {
 	GetService(c *C) *IService
 	Create(c *C)
@@ -35,7 +41,7 @@ type ManagerTestSuite struct {
 
 func (t *ManagerTestSuite) SetUpSuite(c *C) {
 	docker.StartKernel()
-	t.manager = NewManager(utils.LocalDir("images"), "/tmp/serviced-test")
+	t.manager = NewManager(utils.LocalDir("images"), "/tmp/serviced-test", defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 	for _, testservice := range t.testservices {
 		svc := testservice.GetService(c)
 		if err := t.manager.Register(svc); err != nil {

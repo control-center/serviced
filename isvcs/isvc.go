@@ -29,11 +29,11 @@ const (
 	ZK_IMAGE_TAG  = "v2"
 )
 
-func Init(esStartupTimeoutInSeconds int) {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string) {
 	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 	elasticsearch_logstash.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 
-	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
+	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"), dockerLogDriver, dockerLogConfig)
 
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {
 		glog.Fatalf("%s", err)
@@ -58,8 +58,8 @@ func Init(esStartupTimeoutInSeconds int) {
 	}
 }
 
-func InitServices(isvcNames []string) {
-	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
+func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string) {
+	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"), dockerLogDriver, dockerLogConfig)
 	for _, isvcName := range isvcNames {
 		switch isvcName {
 		case "zookeeper":

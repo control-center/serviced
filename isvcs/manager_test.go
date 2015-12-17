@@ -25,13 +25,14 @@ import (
 	"time"
 )
 
+
 func TestMain(m *testing.M) {
 	docker.StartKernel()
 	os.Exit(m.Run())
 }
 
 func TestManager(t *testing.T) {
-	testManager := NewManager(utils.LocalDir("images"), "/tmp")
+	testManager := NewManager(utils.LocalDir("images"), "/tmp", defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 
 	if err := testManager.Start(); err != nil {
 		t.Logf("expected no error got %s", err)
