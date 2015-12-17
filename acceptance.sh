@@ -83,14 +83,21 @@ retry() {
 }
 
 cleanup() {
-    echo "Stopping serviced and mockAgent"
+    # remove the service to free up the disk space allocated in the devicemapper pool
+    echo "Removing testsvc (if any) ..."
+    sudo ${SERVICED} service remove testsvc
+
+    echo "Stopping serviced and mockAgent ..."
     sudo pkill -9 serviced
     sudo pkill -9 mockAgent
     sudo pkill -9 startMockAgent
 
-    echo "Removing all docker containers"
+    echo "Removing all docker containers (if any) ..."
     docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 
+    # Unmount all of the devicemapper volumes so that the mount points can be deleted
+    echo "Cleaning up /tmp/serviced-root/var ..."
+    sudo umount -f /tmp/serviced-root/var/volumes/* 2>/dev/null
     sudo rm -rf /tmp/serviced-root/var
 }
 trap cleanup EXIT
