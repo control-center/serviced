@@ -822,6 +822,7 @@ func (d *daemon) initWeb() {
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
 	go cpserver.Serve(d.shutdown)
+	go cpserver.ServePublicPorts(d.shutdown)
 }
 
 func (d *daemon) startScheduler() {
