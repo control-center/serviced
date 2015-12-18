@@ -5,7 +5,9 @@ import (
 "github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
-// Tests:
+
+
+// Current test is very basic. For future work, I'd like to have the following tests:
 // Initial conditions:
 // - no servicevhosts node
 // - empty servicevhosts node
