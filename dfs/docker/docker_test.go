@@ -226,7 +226,7 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	_, err := s.docker.GetImageHash("fakebox")
 	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
 	hash1, err1 := s.docker.GetImageHash("busybox")
-	hash2, err2 := s.docker.GetImageHash("registry")
+	hash2, err2 := s.docker.GetImageHash("registry:2.1.1")
 	c.Assert(err1, IsNil)
 	c.Assert(err2, IsNil)
 	c.Assert(hash1, Not(Equals), "")
