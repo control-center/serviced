@@ -65,8 +65,6 @@ type ServiceNode struct {
 	version interface{}
 }
 
-// comment to make git rebase happy
-
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
 	// We have to get the node first, so the version is set properly.
