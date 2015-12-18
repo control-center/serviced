@@ -197,8 +197,15 @@ cluster.name: %v`, rand.Int())
 			return
 		}
 		tc.cmdLock.Unlock()
+
 		err = cmd.Wait()
-		if err != nil && !tc.shutdown {
+		if err == nil {
+			return
+		}
+
+		tc.cmdLock.Lock()
+		defer tc.cmdLock.Unlock()
+		if !tc.shutdown {
 			log.Printf("Error running elastic: %s\n", err)
 			if data, err := ioutil.ReadAll(stdout); err == nil {
 				log.Printf("Stdout: %s\n", string(data))
