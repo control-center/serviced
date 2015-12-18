@@ -123,7 +123,7 @@ func newVhostKey(serviceID string, vhostName string, enabled bool) VHostKey {
 func UpdateServicesVhosts(conn client.Connection, svcs []service.Service) error {
 	for _,svc := range svcs {
 		if err := UpdateServiceVhosts(conn, &svc) ; err != nil {
-			glog.Infof("Error Updating ServiceVhosts for Service %s: %s", svc.Name, err)
+			glog.Errorf("Error Updating ServiceVhosts for Service %s: %s", svc.Name, err)
 			return err
 		}
 	}
