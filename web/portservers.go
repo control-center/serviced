@@ -15,12 +15,12 @@ package web
 
 import (
 	"mime"
+	"net"
 	"net/http"
 	"fmt"
 	"sync"
 	"time"
-	"os"
-//	"os/exec"
+	"errors"
 
 	"github.com/gorilla/mux"
 
@@ -31,28 +31,59 @@ import (
 	"github.com/control-center/serviced/zzk/service"
 )
 
-type PublicEndpointInfo struct {
-	hostIP    string
-	epPort    uint16
-	privateIP string
-	serviceID string
+type StoppableListener struct{
+	*net.TCPListener
+	stopChan chan bool
 }
+
+func NewStoppableListener(listener net.Listener) *StoppableListener {
+	return &StoppableListener{ listener.(*net.TCPListener), make(chan bool) }
+}
+
+func (sl StoppableListener) Accept() (c net.Conn, err error) {
+	for {
+		sl.SetDeadline(time.Now().Add(time.Second))
+		select {
+			case <- sl.stopChan:
+				return nil, StoppedListenerError{errors.New("Port Closed")}
+			default:
+		}
+
+		tc, err := sl.TCPListener.AcceptTCP()
+		if err != nil {
+			return nil, err
+		}
+
+		tc.SetKeepAlive(true)
+		tc.SetKeepAlivePeriod(3 * time.Minute)
+		return tc, nil
+	}
+}
+
+func (sl StoppableListener) Stop() {
+	close(sl.stopChan)
+}
+
+type StoppedListenerError struct {
+	error
+}
+func (sle StoppedListenerError) Timeout() bool { return false }
+func (sle StoppedListenerError) Temporary() bool { return false }
 
 var (
 	allportsLock sync.RWMutex
-	allports     map[string] chan bool // map of port number to channel that destroys the server
+	allports     map[string] chan int // map of port number to channel that destroys the server
 )
 
 func init() {
-	allports = make(map[string] chan bool)
+	allports = make(map[string] chan int)
 }
 
 func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{})) {
 	go sc.syncAllPublicPorts(shutdown)
 }
 
-func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, kill <-chan bool, shutdown <-chan (interface{})) {
-	print(fmt.Sprintf("***************************************STARTING PUBLIC PORT SERVER ON: %v", publicEndpointKey))
+func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
@@ -71,17 +102,24 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 
 	go func() {
 		port := fmt.Sprintf(":%s", publicEndpointKey.Name())
-		err := http.ListenAndServe(port, r)
+		server := &http.Server{Addr: port, Handler: r}
+		listener, err := net.Listen("tcp", server.Addr)
+		stoppableListener := NewStoppableListener(listener)
 		if err != nil {
-			glog.Errorf("could not setup HTTP webserver on port %s: %s", port, err)
+			glog.Errorf("Could not setup HTTP webserver on port %s: %s", port, err)
 		}
 
-		select {
-		case <-kill:
-			print(fmt.Sprintf("***************************************KILLING PUBLIC PORT SERVER ON: %v", port))
-			os.Exit(0)
-		default:
-		}
+		glog.Infof("Listening on port %s", port)
+
+		go func() {
+			server.Serve(stoppableListener)
+		}()
+
+		<- stopChan
+		listener.Close()
+		stoppableListener.Stop()
+		glog.Infof("Closed port %s", port)
+		return
 	}()
 }
 
@@ -96,19 +134,29 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		newPorts := make(map[string] chan bool)
+		// start all servers that have been not started and enabled
+		newPorts := make(map[string] chan int)
 		for _, sv := range childIDs {
 			publicEndpointKey := service.PublicEndpointKey(sv)
-			if publicEndpointKey.Type() == registry.EPTypePort {
+			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled(){
 				port := publicEndpointKey.Name()
-				_, found := newPorts[port]
-				if !found {
-					newPorts[port] = make(chan bool)
+				stopChan, running := allports[port]
 
-					if publicEndpointKey.IsEnabled() {
-						sc.CreatePublicPortServer(publicEndpointKey, newPorts[port], shutdown)
-					}
+				if !running {
+					// recently enabled port - port should be opened
+					stopChan = make(chan int)
+					sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown)
 				}
+
+				newPorts[port] = stopChan
+			}
+		}
+
+		// stop all servers that have been deleted or disabled
+		for port, stopChan := range allports {
+			_, found := newPorts[port]
+			if !found {
+				stopChan <- 0
 			}
 		}
 
