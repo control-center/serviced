@@ -14,43 +14,49 @@
 package web
 
 import (
+	"errors"
+	"fmt"
 	"mime"
 	"net"
 	"net/http"
-	"fmt"
 	"sync"
 	"time"
-	"errors"
 
 	"github.com/gorilla/mux"
 
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 )
 
-type StoppableListener struct{
+type StoppableListener struct {
 	*net.TCPListener
 	stopChan chan bool
 }
 
 func NewStoppableListener(listener net.Listener) *StoppableListener {
-	return &StoppableListener{ listener.(*net.TCPListener), make(chan bool) }
+	return &StoppableListener{listener.(*net.TCPListener), make(chan bool)}
 }
 
 func (sl StoppableListener) Accept() (c net.Conn, err error) {
 	for {
 		sl.SetDeadline(time.Now().Add(time.Second))
 		select {
-			case <- sl.stopChan:
-				return nil, StoppedListenerError{errors.New("Port Closed")}
-			default:
+		case <-sl.stopChan:
+			return nil, StoppedListenerError{errors.New("Port Closed")}
+		default:
 		}
 
 		tc, err := sl.TCPListener.AcceptTCP()
 		if err != nil {
+			switch err := err.(type) {
+			case net.Error:
+				if err.Timeout() {
+					continue
+				}
+			}
 			return nil, err
 		}
 
@@ -67,16 +73,17 @@ func (sl StoppableListener) Stop() {
 type StoppedListenerError struct {
 	error
 }
-func (sle StoppedListenerError) Timeout() bool { return false }
+
+func (sle StoppedListenerError) Timeout() bool   { return false }
 func (sle StoppedListenerError) Temporary() bool { return false }
 
 var (
 	allportsLock sync.RWMutex
-	allports     map[string] chan int // map of port number to channel that destroys the server
+	allports     map[string]chan int // map of port number to channel that destroys the server
 )
 
 func init() {
-	allports = make(map[string] chan int)
+	allports = make(map[string]chan int)
 }
 
 func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{})) {
@@ -115,7 +122,7 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			server.Serve(stoppableListener)
 		}()
 
-		<- stopChan
+		<-stopChan
 		listener.Close()
 		stoppableListener.Stop()
 		glog.Infof("Closed port %s", port)
@@ -135,10 +142,10 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		// start all servers that have been not started and enabled
-		newPorts := make(map[string] chan int)
+		newPorts := make(map[string]chan int)
 		for _, sv := range childIDs {
 			publicEndpointKey := service.PublicEndpointKey(sv)
-			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled(){
+			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled() {
 				port := publicEndpointKey.Name()
 				stopChan, running := allports[port]
 
