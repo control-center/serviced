@@ -10,6 +10,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Rest methods for VHost and Port public endpoints
+//
 
 package web
 
@@ -87,7 +90,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		err := fmt.Errorf("Error adding vhost to service (%s): %v", service.Name, err)
 		glog.Error(err)
 		restServerError(w, err)
 		return
@@ -96,7 +99,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
+		err := fmt.Errorf("Error adding vhost to service (%s): %v", service.Name, err)
 		glog.Error(err)
 		restServerError(w, err)
 		return
@@ -116,8 +119,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 
 	err = service.RemoveVirtualHost(application, vhostname)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
-		glog.Error(err)
+		glog.Errorf("Error removing vhost, %s, from service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -125,8 +127,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
-		glog.Error(err)
+		glog.Errorf("Error removing vhost, %s, from service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -188,8 +189,7 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	glog.V(1).Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
 	err = service.EnableVirtualHost(application, vhostname, request.Enable)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -197,8 +197,7 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -334,8 +333,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 	err = service.AddPort(request.Application, uint16(port))
 	if err != nil {
-		err := fmt.Errorf("Unexpected error adding port to service (%s): %v", service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -345,8 +343,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error adding port to service (%s): %v", service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Unexpected error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -360,7 +357,7 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	service, application, port, err := getPortContext(r, client)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error removing port from service (%s): %v", service.Name, err)
+		err := fmt.Errorf("Error removing port from service (%s): %v", service.Name, err)
 		glog.Error(err)
     restServerError(w, err)
 		return
@@ -370,8 +367,7 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	err = service.RemovePort(application, port)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error removing port, %d, from service (%s): %v", port, service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error removing port, %d, from service (%s): %v", port, service.Name, err)
     restServerError(w, err)
 		return
 	}
@@ -381,8 +377,7 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		err := fmt.Errorf("Unexpected error removing port, %d, from service (%s): %v", port, service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error removing port, %d, from service (%s): %v", port, service.Name, err)
     restServerError(w, err)
 		return
 	}
@@ -415,7 +410,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	err = service.EnablePort(application, port, request.Enable)
 	if err != nil {
-		glog.Errorf("Unexpected error enabling/disabling port %d on service (%s): %v", port, service.Name, err)
+		glog.Errorf("Error enabling/disabling port %d on service (%s): %v", port, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -425,7 +420,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error updating port %d on service (%s): %v", port, service.Name, err)
+		glog.Errorf("Error updating port %d on service (%s): %v", port, service.Name, err)
 		restServerError(w, err)
 		return
 	}
