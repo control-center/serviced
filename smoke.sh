@@ -119,6 +119,15 @@ test_vhost() {
     return 0
 }
 
+test_service_port() {
+
+    # make sure it is accessible
+    wget -qO- http://${HOSTNAME}:1234 || return 1
+
+    # make sure it is accessible via ipv6
+    # wget --no-check-certificate -qO- http://[${IP6}]:1234 || return 1
+}
+
 test_assigned_ip() {
     echo "Testing assigned IP at ${IP}:1000"
     docker run zenoss/ubuntu:wget /bin/bash -c "wget ${IP}:1000 -qO- &>/dev/null" || return 1
@@ -258,21 +267,6 @@ test_service_run_command() {
         kill -0 "$sleepyPid" &>/dev/null && return 1 # make sure job is gone
     done
     set +x
-}
-
-test_service_port() {
-    # Add a port 1234 to RabbitMQ
-    serviced service edit -e $(pwd)/editServiceAddPort.sh  ${SERVICE_ID}
-
-    # Restart the service
-    serviced service restart RabbitMQ
-    sleep 10
-
-    # make sure it is accessible
-    wget http://${HOSTNAME}:1234 &>/dev/null || return 1
-
-    # make sure it is accessible via ipv6
-    wget http://[${IP6}]:1234 &>/dev/null || return 1
 }
 
 retry() {
