@@ -22,11 +22,62 @@ import (
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk/registry"
 
+	"errors"
+	"fmt"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
-	"fmt"
 )
+
+var (
+	ErrTestEPValidationFail = errors.New("Endpoint failed validation")
+)
+
+func (ft *FacadeTest) TestFacade_validateService_badServiceID(t *C) {
+	err := ft.Facade.validateService(ft.CTX, "badID", true)
+	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
+}
+
+func (ft *FacadeTest) TestFacade_validateService_validateServiceForStartingFailed(t *C) {
+	//Can't test this without mocking store
+
+	// svc, err := ft.setupServiceWithEndpoints(t)
+	// t.Assert(err, IsNil)
+
+	// expectedErr := fmt.Sprintf("service %s is missing an address assignment", svc.ID)
+	// t.Assert(err, ErrorMatches, expectedErr)
+	return
+}
+
+func (ft *FacadeTest) TestFacade_validateService_VHostFail(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(ErrTestEPValidationFail)
+
+	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
+}
+
+func (ft *FacadeTest) TestFacade_validateService_PortFail(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(ErrTestEPValidationFail)
+
+	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
+}
+
+func (ft *FacadeTest) TestFacade_validateService_Success(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(nil)
+
+	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	t.Assert(err, IsNil)
+}
 
 func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *C) {
 	svc := service.Service{
@@ -262,14 +313,14 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	serviceIDs := []string{svc.ID}
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).
 		Return(nil).Run(func(args mock.Arguments) {
-			// Mock results for 2 running instances
-			statesArg := args.Get(1).(*[]servicestate.ServiceState)
-			*statesArg = []servicestate.ServiceState{
-				{ServiceID: svc.ID, InstanceID: 0, Endpoints: svc.Endpoints},
-				{ServiceID: svc.ID, InstanceID: 1, Endpoints: svc.Endpoints},
-			}
-			t.Assert(true, Equals, true)
-		})
+		// Mock results for 2 running instances
+		statesArg := args.Get(1).(*[]servicestate.ServiceState)
+		*statesArg = []servicestate.ServiceState{
+			{ServiceID: svc.ID, InstanceID: 0, Endpoints: svc.Endpoints},
+			{ServiceID: svc.ID, InstanceID: 1, Endpoints: svc.Endpoints},
+		}
+		t.Assert(true, Equals, true)
+	})
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
@@ -302,7 +353,13 @@ func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) 
 		DesiredState: int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
 			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
+					Name: "test_ep_1", Application: "test_ep_1", Purpose: "export",
+					VHostList: []servicedefinition.VHost{servicedefinition.VHost{Name: "test_vhost_1", Enabled: true}},
+					PortList:  []servicedefinition.Port{servicedefinition.Port{PortNumber: 1234, Enabled: true}},
+				},
+			),
 		},
 	}
 
