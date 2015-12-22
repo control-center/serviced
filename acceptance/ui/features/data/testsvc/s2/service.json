@@ -6,7 +6,19 @@
               "PortNumber": 9090,
               "Protocol": "tcp",
               "Purpose": "export",
-              "VHosts": ["websvc"]
+              "VHosts": null,
+              "VHostList": [
+                {
+                  "Name": "websvc",
+                  "Enabled": true
+                }
+              ],
+              "PortList": [
+                {
+                  "PortNumber": 1234,
+                  "Enabled": true
+                }
+              ]
             }
           ],
           "ConfigFiles": {
