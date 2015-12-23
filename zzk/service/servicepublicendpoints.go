@@ -47,8 +47,8 @@ func servicePublicEndpointKeyPath(key string) string {
 	return path.Join(p...)
 }
 
-// PublicEndpointNode is the zookeeper client Node for public endpoints
-type PublicEndpointNode struct {
+// ServicePublicEndpointNode is the zookeeper client Node for public endpoints
+type ServicePublicEndpointNode struct {
 	ServiceID string
 	Name      string
 	Enabled   bool
@@ -57,25 +57,25 @@ type PublicEndpointNode struct {
 }
 
 // GetID implements zzk.Node
-func (node *PublicEndpointNode) GetID() string {
+func (node *ServicePublicEndpointNode) GetID() string {
 	return fmt.Sprintf("%s_%s", node.ServiceID, node.Name)
 }
 
 // Create implements zzk.Node
-func (node *PublicEndpointNode) Create(conn client.Connection) error {
+func (node *ServicePublicEndpointNode) Create(conn client.Connection) error {
 	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type)
 }
 
 // Update implements zzk.Node
-func (node *PublicEndpointNode) Update(conn client.Connection) error {
+func (node *ServicePublicEndpointNode) Update(conn client.Connection) error {
 	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type)
 }
 
 // Version implements client.Node
-func (node *PublicEndpointNode) Version() interface{} { return node.version }
+func (node *ServicePublicEndpointNode) Version() interface{} { return node.version }
 
 // SetVersion implements client.Node
-func (node *PublicEndpointNode) SetVersion(version interface{}) { node.version = version }
+func (node *ServicePublicEndpointNode) SetVersion(version interface{}) { node.version = version }
 
 // PublicEndpointKey format is enabled_serviceid_name_type
 type PublicEndpointKey string
@@ -237,7 +237,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 // updateServicePublicEndpoint updates a service vhost node if it exists, otherwise creates it
 func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool, pepType registry.PublicEndpointType) error {
 	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
-	var node PublicEndpointNode
+	var node ServicePublicEndpointNode
 	spath := servicePublicEndpointPath(serviceID, endpointname, enabled, pepType)
 
 	// For some reason you can't just create the node with the service data

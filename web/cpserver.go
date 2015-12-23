@@ -69,16 +69,9 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
-// GetPublicEndpointKey returns the registry key used for the
-// publicEndpoint:application registry (formerly vhost.go).  This is just
-// just a placeholder for the method from JH
-func GetPublicEndpointKey(name string, Type registry.PublicEndpointType) string {
-	return fmt.Sprintf("%s-%d", name, int(Type))
-}
-
 // getPublicEndpointServices returns the list of services for a given
 // public endpoint/type.
-func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, string) {
+func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, registry.PublicEndpointKey) {
 	allvhostsLock.RLock()
 	defer allvhostsLock.RUnlock()
 	key := registry.GetPublicEndpointKey(name, Type)
@@ -87,12 +80,12 @@ func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (m
 }
 
 // getVHostServices returns the list of services for a given vhost (public endpoint)
-func getVHostServices(vhostname string) (map[string]struct{}, bool, string) {
+func getVHostServices(vhostname string) (map[string]struct{}, bool, registry.PublicEndpointKey) {
 	return getPublicEndpointServices(vhostname, registry.EPTypeVHost)
 }
 
 // getPortServices returns the list of services for a given port (public endpoint)
-func getPortServices(port uint8) (map[string]struct{}, bool, string) {
+func getPortServices(port uint8) (map[string]struct{}, bool, registry.PublicEndpointKey) {
 	return getPublicEndpointServices(fmt.Sprintf("%d", port), registry.EPTypePort)
 }
 
@@ -362,11 +355,11 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 
 var (
 	allvhostsLock sync.RWMutex
-	allvhosts     map[string]map[string]struct{} // map of vhostname to service IDs that have the vhost enabled
+	allvhosts     map[registry.PublicEndpointKey]map[string]struct{} // map of PublicEndpointKey to service IDs that have the vhost enabled
 )
 
 func init() {
-	allvhosts = make(map[string]map[string]struct{})
+	allvhosts = make(map[registry.PublicEndpointKey]map[string]struct{})
 }
 
 func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
@@ -380,7 +373,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		newVhosts := make(map[string]map[string]struct{})
+		newVhosts := make(map[registry.PublicEndpointKey]map[string]struct{})
 		for _, sv := range childIDs {
 			//cast to a VHostKey so we don't have to care about the format of the key string
 			pep := service.PublicEndpointKey(sv)
