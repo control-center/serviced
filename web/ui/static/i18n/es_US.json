@@ -42,6 +42,7 @@
     "stop_service_name_and_children": "Detener servicio {{name}} y {{count}} sub-servicios",
     "start_service_and_children": "Iniciar servicio y {{count}} sub-servicios",
     "stop_service_and_children": "Detener servicio y {{count}} sub-servicios",
+    "requires_restart_running_instance": "*Requiere reinicio de la instancia en ejecuci\u00f3n para que surta efecto",
 
     "core_capacity": "N\u00facleos de CPU",
     "memory_capacity": "Memoria",
