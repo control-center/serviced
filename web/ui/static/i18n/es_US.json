@@ -265,6 +265,7 @@
     "placeholder_service_pool": "ej. default",
     "placeholder_service_startup": "ej. /opt/zenoss/bin/alguncomando",
     "placeholder_deployment_id": "Dev, Test, Produccion, etc.",
+    "pool": "Grupo de Recursos",
     "pools": "Grupo de Recursos",
     "pools_tbl_id": "ID",
     "pools_tbl_priority": "Prioridad",
