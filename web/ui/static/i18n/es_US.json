@@ -157,6 +157,7 @@
     "graph_tbl_cpu": "CPU",
     "graph_tbl_mem": "Memoria",
     "host": "Servidor",
+    "hosts": "Servidores",
     "info": "Info",
     "ip_addresses": "IPs",
     "ip_addresses_mac": "Direcci\u00f3n Ethernet",
