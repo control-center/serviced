@@ -72,7 +72,7 @@ end
 
 Then (/^I should see that the application has deployed$/) do
     expect(page).to have_content("App deployed successfully", wait: 120)
-    refreshPage() # workaround until apps consistently display on page without refreshing
+    #refreshPage() # workaround until apps consistently display on page without refreshing
 end
 
 Then (/^I should see that the application has not been deployed$/) do
