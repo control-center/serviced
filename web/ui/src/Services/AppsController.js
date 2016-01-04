@@ -91,26 +91,34 @@
         // aggregate vhosts for a specified service, but
         // only if the service has changed since last request
         $scope.aggregateVHosts = utils.memoize(function(service) {
-            var vHosts = [];
+            var endPoints = [];
 
             service.model.Endpoints.forEach(endpoint => {
                 if(endpoint.VHostList){
-                    endpoint.VHostList.forEach(vHost => vHosts.push(vHost));
+                    endpoint.VHostList.forEach(vHost => endPoints.push(vHost));
+                }
+                if(endpoint.PortList){
+                    endpoint.PortList.forEach(port => endPoints.push(port));
                 }
             });
 
-            vHosts.sort();
+            endPoints.sort();
 
-            return vHosts;
+            return endPoints;
         }, function(service){
             return service.id + service.model.DatabaseVersion;
         });
 
-        // given a vhost, return a url to it
-        $scope.createVHostURL = function(vhost) {
-            var port = $location.port() === "" ? "" : ":"+$location.port();
-            var host = vhost.Name.indexOf('.') === -1 ? vhost.Name + "." + $scope.defaultHostAlias : vhost.Name;
-            return $location.protocol() + "://" + host + port;
+        // given an endpoint, return a url to it
+        $scope.publicEndpointURL = function(publicEndpoint) {
+            if ("Name" in publicEndpoint){
+                var port = $location.port() === "" ? "" : ":"+$location.port();
+                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
+                return $location.protocol() + "://" + host + port;
+            } else if ("PortNumber" in publicEndpoint){
+                // Port public endpoint port listeners are always on http
+                return "http://" + $scope.defaultHostAlias + ":" + publicEndpoint.PortNumber
+            }
         };
 
         $scope.modal_removeService = function(service) {
