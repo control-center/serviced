@@ -446,6 +446,7 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 		Instances:       svcData.Instances,
 		ChangeOptions:   svcData.ChangeOptions,
 		ImageID:         svcData.ImageID,
+		LogConfigs:      svcData.LogConfigs,
 		DesiredState:    svcData.DesiredState,
 		HostPolicy:      svcData.HostPolicy,
 		Privileged:      svcData.Privileged,
