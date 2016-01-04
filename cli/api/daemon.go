@@ -87,7 +87,7 @@ import (
 	_ "net/http/pprof"
 )
 
-var minDockerVersion = version{1, 5, 0}
+var minDockerVersion = version{1, 9, 0}
 var dockerRegistry = "localhost:5000"
 
 type daemon struct {
