@@ -14,7 +14,6 @@
 package web
 
 import (
-	"errors"
 	"fmt"
 	"mime"
 	"net"
@@ -30,52 +29,6 @@ import (
 	"github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
-
-type StoppableListener struct {
-	*net.TCPListener
-	stopChan chan bool
-}
-
-func NewStoppableListener(listener net.Listener) *StoppableListener {
-	return &StoppableListener{listener.(*net.TCPListener), make(chan bool)}
-}
-
-func (sl StoppableListener) Accept() (c net.Conn, err error) {
-	for {
-		sl.SetDeadline(time.Now().Add(time.Second))
-		select {
-		case <-sl.stopChan:
-			return nil, StoppedListenerError{errors.New("Port Closed")}
-		default:
-		}
-
-		tc, err := sl.TCPListener.AcceptTCP()
-		if err != nil {
-			switch err := err.(type) {
-			case net.Error:
-				if err.Timeout() {
-					continue
-				}
-			}
-			return nil, err
-		}
-
-		tc.SetKeepAlive(true)
-		tc.SetKeepAlivePeriod(3 * time.Minute)
-		return tc, nil
-	}
-}
-
-func (sl StoppableListener) Stop() {
-	close(sl.stopChan)
-}
-
-type StoppedListenerError struct {
-	error
-}
-
-func (sle StoppedListenerError) Timeout() bool   { return false }
-func (sle StoppedListenerError) Temporary() bool { return false }
 
 var (
 	allportsLock sync.RWMutex
@@ -111,7 +64,6 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		port := fmt.Sprintf(":%s", publicEndpointKey.Name())
 		server := &http.Server{Addr: port, Handler: r}
 		listener, err := net.Listen("tcp", server.Addr)
-		stoppableListener := NewStoppableListener(listener)
 		if err != nil {
 			glog.Errorf("Could not setup HTTP webserver on port %s: %s", port, err)
 		}
@@ -119,12 +71,11 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		glog.Infof("Listening on port %s", port)
 
 		go func() {
-			server.Serve(stoppableListener)
+			server.Serve(listener)
 		}()
 
 		<-stopChan
 		listener.Close()
-		stoppableListener.Stop()
 		glog.Infof("Closed port %s", port)
 		return
 	}()
