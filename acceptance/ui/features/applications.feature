@@ -13,7 +13,7 @@ Feature: Application Management
     When I am on the applications page
     Then I should see "Application Template"
       And I should see "Deployment ID"
-      And I should see "Virtual Host Names"
+      And I should see "Public Endpoints"
       And I should see "Internal Services"
       And I should see "Description"
       And I should see "Services Map"
