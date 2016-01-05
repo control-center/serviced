@@ -109,6 +109,12 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("needsHostAlias", function(){
+        it("Checks that location.hostname is an IP", function(){
+            expect(miscUtils.needsHostAlias("127.0.0.1")).toBe(true);
+        });
+    });
+
     // FIXME: Need to refactor unauthorized so that location can be injected as illustrated below.
     // describe('unauthorized', function() {
     //     it('Sets the path to /login', function() {
