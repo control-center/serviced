@@ -50,6 +50,7 @@ type ServiceDefinition struct {
 	Snapshot          SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment     utils.EngNotation             // expected RAM commitment to use for scheduling
 	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
+	DisableShell      bool                          // disables shell commands on the service
 	Runs              map[string]string             // FIXME: This field is deprecated. Remove when possible.
 	Commands          map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
@@ -81,7 +82,7 @@ type EndpointDefinition struct {
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 	VHostList []VHost // VHost is used to request named vhost(s) for this endpoint.
-	PortList            []Port
+	PortList  []Port
 }
 
 // VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
