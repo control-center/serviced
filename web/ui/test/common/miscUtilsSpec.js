@@ -115,6 +115,25 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("parseEngineeringNotation", function(){
+        it("Checks parsing engineering notation", function(){
+            expect(miscUtils.parseEngineeringNotation("1K")).toEqual(1024);
+        });
+    });
+
+    describe("indentClass", function(){
+        it("Creates an indent class string", function(){
+            expect(miscUtils.indentClass("1")).toEqual("indent0");
+        });
+    });
+
+    describe("getModeFromFilename", function(){
+        it("Returns the mode based on filename", function(){
+            expect(miscUtils.getModeFromFilename("test.xml")).toEqual("xml");
+        });
+    });
+
+
     // FIXME: Need to refactor unauthorized so that location can be injected as illustrated below.
     // describe('unauthorized', function() {
     //     it('Sets the path to /login', function() {
