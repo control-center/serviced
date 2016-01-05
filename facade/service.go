@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"github.com/control-center/serviced/domain/service"
@@ -1569,6 +1570,10 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		if len(endpoint.VHostList) > 0 {
 			// TODO: check to see if this vhost is in use by another app
 		}
+
+		if len(endpoint.PortList) > 0 {
+			// TODO: check to see if this port is in use by another app
+		}
 	}
 
 	// add additional validation checks to the services
@@ -1588,7 +1593,17 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := f.zzk.CheckRunningVHost(vh.Name, svc.ID); err != nil {
+				key := registry.GetPublicEndpointKey(vh.Name, registry.EPTypeVHost)
+				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+					return err
+				}
+			}
+		}
+		for _, ep := range svc.GetServicePorts() {
+			for _, port := range ep.PortList {
+				//check that ports aren't already started elsewhere
+				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
 			}
@@ -2013,7 +2028,17 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := f.zzk.CheckRunningVHost(vh.Name, svc.ID); err != nil {
+				key := registry.GetPublicEndpointKey(vh.Name, registry.EPTypeVHost)
+				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+					return err
+				}
+			}
+		}
+		for _, ep := range svc.GetServicePorts() {
+			for _, port := range ep.PortList {
+				//check that ports aren't already started elsewhere
+				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
 			}

@@ -1,0 +1,20 @@
+{
+  "services": 
+  {
+    "topService": {
+      "name": "testsvc"
+    },
+
+    "childServiceNoVHosts": {
+      "name": "s1",
+      "configFile": "etc/my.cnf"
+    },
+
+    "childServiceWithVHost": {
+      "name": "s2",
+      "vhostName": "websvc",
+      "publicPortNumber": 1234,
+      "configFile": "etc/bar.txt"
+    }
+  }
+}

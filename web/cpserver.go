@@ -69,14 +69,34 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
+// getPublicEndpointServices returns the list of services for a given
+// public endpoint/type.
+func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, registry.PublicEndpointKey) {
+	allvhostsLock.RLock()
+	defer allvhostsLock.RUnlock()
+	key := registry.GetPublicEndpointKey(name, Type)
+	svcs, found := allvhosts[key]
+	return svcs, found, key
+}
+
+// getVHostServices returns the list of services for a given vhost (public endpoint)
+func getVHostServices(vhostname string) (map[string]struct{}, bool, registry.PublicEndpointKey) {
+	return getPublicEndpointServices(vhostname, registry.EPTypeVHost)
+}
+
+// getPortServices returns the list of services for a given port (public endpoint)
+func getPortServices(port uint8) (map[string]struct{}, bool, registry.PublicEndpointKey) {
+	return getPublicEndpointServices(fmt.Sprintf("%d", port), registry.EPTypePort)
+}
+
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
-// Virtual host routing to zenoss web based services is done by the vhosthandler function.
+// Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
-	go sc.syncVhosts(shutdown)
+	go sc.syncPublicEndpoints(shutdown)
 	//start watching global vhosts as they are added/deleted/updated in services
 	go sc.syncAllVhosts(shutdown)
 
@@ -99,24 +119,17 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler handling request: %+v", r)
 
-		getVhost := func(vhostname string) (map[string]struct{}, bool) {
-			allvhostsLock.RLock()
-			defer allvhostsLock.RUnlock()
-			svcs, found := allvhosts[vhostname]
-			return svcs, found
-		}
-
 		httphost := strings.Split(r.Host, ":")[0]
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
-		if svcIDs, found := getVhost(httphost); found {
-			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, httphost, svcIDs)
-		} else if svcIDs, found := getVhost(subdomain); found {
-			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, subdomain, svcIDs)
+		if svcIDs, found, registrykey := getVHostServices(httphost); found {
+			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+			sc.publicendpointhandler(w, r, registrykey, svcIDs)
+		} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
+			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+			sc.publicendpointhandler(w, r, registrykey, svcIDs)
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
@@ -342,11 +355,11 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 
 var (
 	allvhostsLock sync.RWMutex
-	allvhosts     map[string]map[string]struct{} // map of vhostname to service IDs that have the vhost enabled
+	allvhosts     map[registry.PublicEndpointKey]map[string]struct{} // map of PublicEndpointKey to service IDs that have the vhost enabled
 )
 
 func init() {
-	allvhosts = make(map[string]map[string]struct{})
+	allvhosts = make(map[registry.PublicEndpointKey]map[string]struct{})
 }
 
 func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
@@ -360,18 +373,20 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		newVhosts := make(map[string]map[string]struct{})
+		newVhosts := make(map[registry.PublicEndpointKey]map[string]struct{})
 		for _, sv := range childIDs {
 			//cast to a VHostKey so we don't have to care about the format of the key string
-			vhostKey := service.VHostKey(sv)
-			vhost := vhostKey.VHost()
-			vhostServices, found := newVhosts[vhost]
-			if !found {
-				vhostServices = make(map[string]struct{})
-				newVhosts[vhost] = vhostServices
-			}
-			if vhostKey.IsEnabled() {
-				vhostServices[vhostKey.ServiceID()] = struct{}{}
+			pep := service.PublicEndpointKey(sv)
+			if pep.Type() == registry.EPTypeVHost {
+				registryKey := registry.GetPublicEndpointKey(pep.Name(), pep.Type())
+				vhostServices, found := newVhosts[registryKey]
+				if !found {
+					vhostServices = make(map[string]struct{})
+					newVhosts[registryKey] = vhostServices
+				}
+				if pep.IsEnabled() {
+					vhostServices[pep.ServiceID()] = struct{}{}
+				}
 			}
 		}
 
@@ -383,9 +398,9 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	}
 
 	for {
-		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
+		zkServiceVhost := service.ZKServicePublicEndpoints
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
-		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
+		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
 			<-time.After(time.Second * 10)

@@ -114,7 +114,7 @@ type Controller struct {
 	importedEndpointsLock   sync.RWMutex
 	PIDFile                 string
 	exportedEndpointZKPaths []string
-	vhostZKPaths            []string
+	publicEndpointZKPaths   []string
 	exitStatus              int
 	allowDirectConn         bool
 }

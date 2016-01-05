@@ -1,0 +1,31 @@
+<label for="add_vhost_vhost" translate>public_endpoint_type</label><br>
+<div class="btn-group">
+    <label class="btn btn-primary" ng-class="{active: publicEndpoints.add.type === 'vhost'}">
+        <input type="radio" name="public_endpoint_type" value="vhost" ng-model="publicEndpoints.add.type">
+        <span translate>public_endpoint_vhost</span>
+    </label>
+    <label class="btn btn-primary" ng-class="{active: publicEndpoints.add.type === 'port'}">
+        <input type="radio" name="public_endpoint_type" value="port" ng-model="publicEndpoints.add.type">
+        <span translate>public_endpoint_port</span>
+    </label>
+</div><br><br>
+
+<div class="form-group">
+    <label for="add_vhost_application" translate>add_vhost_application_endpoint</label>
+    <select focusme id="add_vhost_application" ng-model="publicEndpoints.add.app_ep" ng-options="opt as opt.Value for opt in publicEndpoints.data"  class="form-control"></select>
+</div>
+
+<div ng-show="publicEndpoints.add.type === 'vhost'">
+    <div class="form-group">
+        <label for="add_vhost_vhost" translate>add_vhost_name</label>
+        <input type="text" id="add_vhost_vhost" ng-model="publicEndpoints.add.name" class="form-control"></input>
+    </div>
+</div>
+
+<div ng-show="publicEndpoints.add.type === 'port'">
+    <div class="form-group">
+        <label for="add_public_endpoint_port" translate>public_endpoint_port</label>
+        <input type="text" id="add_public_endpoint_port" ng-model="publicEndpoints.add.port" class="form-control"></input>
+    </div>
+</div>
+ 
