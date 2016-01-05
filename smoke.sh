@@ -119,6 +119,15 @@ test_vhost() {
     return 0
 }
 
+test_service_port() {
+
+    # make sure it is accessible
+    wget -qO- http://${HOSTNAME}:1234 || return 1
+
+    # make sure it is accessible via ipv6
+    # wget --no-check-certificate -qO- http://[${IP6}]:1234 || return 1
+}
+
 test_assigned_ip() {
     echo "Testing assigned IP at ${IP}:1000"
     docker run zenoss/ubuntu:wget /bin/bash -c "wget ${IP}:1000 -qO- &>/dev/null" || return 1
@@ -297,12 +306,13 @@ retry 10 test_vhost        && succeed "VHost is up and listening"               
 #retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
 #retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 
-retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
+retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected"   || fail "Unable to access -CONFIGS- file"
 
-retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
-retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
-test_snapshot              && succeed "Created snapshot"                         || fail "Unable to create snapshot"
-test_snapshot_errs         && succeed "Snapshot errs returned expected err code" || fail "Snapshot errs did not return expected err code"
-test_service_shell         && succeed "Service shell ran successfully"           || fail "Unable to run service shell"
-stop_service               && succeed "Stopped service"                          || fail "Unable to stop service"
+retry 10 test_attached     && succeed "Attached to container"                      || fail "Unable to attach to container"
+retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly"   || fail "Unable to connect to endpoint"
+test_snapshot              && succeed "Created snapshot"                           || fail "Unable to create snapshot"
+test_snapshot_errs         && succeed "Snapshot errs returned expected err code"   || fail "Snapshot errs did not return expected err code"
+test_service_shell         && succeed "Service shell ran successfully"             || fail "Unable to run service shell"
+test_service_port          && succeed "Accessing public endpoint via port success" || fail "Unable to access public endpoint via port"
+stop_service               && succeed "Stopped service"                            || fail "Unable to stop service"
 # "trap cleanup EXIT", above, will handle cleanup

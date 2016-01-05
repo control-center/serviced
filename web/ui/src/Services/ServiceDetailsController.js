@@ -20,10 +20,8 @@
             });
         }
 
-        //add vhost data (includes name, app & service endpoint)
-        $scope.vhosts = {
-            add: {}
-        };
+        //add Endpoint data
+        $scope.publicEndpoints = { add: {} };
 
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
@@ -33,88 +31,148 @@
             resourcesFactory.routeToHost(id);
         };
 
-        $scope.modalAddVHost = function() {
+
+        $scope.modalAddPublicEndpoint = function() {
+            // default public endpoint options
+            $scope.publicEndpoints.add = {
+                type: "vhost",
+                app_ep: $scope.publicEndpoints.data[0],
+                name: "",
+                port: ""
+            };
+
+            // returns an error string if newPublicEndpoint's vhost is invalid
+            var validateVHost = function(newPublicEndpoint){
+                var name = newPublicEndpoint.name;
+
+                // if no port
+                if(!name || !name.length){
+                    return "Missing Name";
+                }
+
+                // if name already exists
+                for (var i in $scope.publicEndpoints.data) {
+                    if (name === $scope.publicEndpoints.data[i].Name) {
+                        return "Name already exists: "+ newPublicEndpoint.name;
+                    }
+                }
+
+                // if invalid characters
+                var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
+                if(!re.test(name)){
+                    return $translate.instant("vhost_name_invalid") + " " + newPublicEndpoint.name;
+                }
+            };
+
+            // returns an error string if newPublicEndpoint's port is invalid
+            var validatePort = function(newPublicEndpoint){
+
+                var port = newPublicEndpoint.port;
+
+                // if no port
+                if(!port || !port.length){
+                    return "Missing port";
+                }
+
+                // if port already exists
+                for (var i in $scope.publicEndpoints.data) {
+                    if (+port === $scope.publicEndpoints.data[i].PortNumber) {
+                       return "Port number already in use: "+ newPublicEndpoint.port;
+                    }
+                }
+
+                if(+port < 1024){
+                    return "Port must be greater than 1024";
+                }
+                if(+port > 65536){
+                    return "Port must be less than 65536";
+                }
+
+                // TODO - add more reserved ports
+                var reservedPorts = [5000, 8080];
+                if(reservedPorts.indexOf(+port) !== -1){
+                    return "Port "+ port +" is reserved";
+                }
+            };
+
             $modalService.create({
-                templateUrl: "add-vhost.html",
+                templateUrl: "add-public-endpoint.html",
                 model: $scope,
-                title: "add_virtual_host",
+                title: "add_public_endpoint",
                 actions: [
                     {
                         role: "cancel",
                         action: function(){
-                            $scope.vhosts.add = {};
                             this.close();
                         }
                     },{
                         role: "ok",
-                        label: "add_virtual_host",
+                        label: "add_public_endpoint",
                         action: function(){
-                            if(this.validate()){
+                            var newPublicEndpoint = $scope.publicEndpoints.add;
+
+                            if(this.validate(newPublicEndpoint)){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                $scope.addVHost()
+                                $scope.addPublicEndpoint(newPublicEndpoint)
                                     .success(function(data, status){
-                                        $notification.create("Added virtual host", data.Detail).success();
+                                        $notification.create("Added public endpoint", "The " + newPublicEndpoint.app_ep.Application +
+                                           " service must be restarted before the new endpoint will be available").success();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Unable to add virtual hosts", data.Detail).error();
+                                        this.createNotification("Unable to add public endpoint", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
+
                             }
                         }
                     }
                 ],
-                validate: function(){
-                    var name = $scope.vhosts.add.name;
 
-                    // if no name
-                    if(!name || !name.length){
-                        this.createNotification("Unabled to add Virtual Host", "Missing name").error();
+                validate: function(newPublicEndpoint){
+                    // if no service endpoint selected
+                    if(!newPublicEndpoint.app_ep){
+                        this.createNotification("Unable to add Public Endpoint", "No service endpoint selected").error();
                         return false;
                     }
 
-                    // if no services to bind to
-                    if(!$scope.vhosts.data.length){
-                        this.createNotification("Unable to add Virtual Host", "No available application and service").error();
-                        return false;
-                    }
 
-                    // if name already exists
-                    for (var i in $scope.vhosts.data) {
-                        if (name === $scope.vhosts.data[i].Name) {
-                            this.createNotification("Unabled to add Virtual Host", "Name already exists: "+ $scope.vhosts.add.name).error();
+                    // perform type specific validation
+                    if(newPublicEndpoint.type === "vhost"){
+                        var err = validateVHost(newPublicEndpoint);
+                        if(err){
+                            this.createNotification("Unable to add Public Endpoint", err).error();
+                        } else {
+                            return true;
+                        }
+                    } else if(newPublicEndpoint.type === "port"){
+                        var err = validatePort(newPublicEndpoint);
+                        if(err){
+                            this.createNotification("Unable to add Public Endpoint", err).error();
                             return false;
+                        } else {
+                            return true;
                         }
                     }
-
-                    // if no endpoint selected
-                    if(!$scope.vhosts.add.app_ep){
-                        this.createNotification("Unable to add Virtual Host", "No endpoint selected").error();
-                        return false;
-                    }
-
-                    // if invalid characters
-                    var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
-                    if(!re.test(name)){
-                        this.createNotification("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
-                        return false;
-                    }
-
-                    return true;
-                }
+                },
             });
         };
 
-        $scope.addVHost = function() {
-            var name = $scope.vhosts.add.name;
-            var serviceId = $scope.vhosts.add.app_ep.ApplicationId;
-            var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
-            return resourcesFactory.addVHost( serviceId, serviceEndpoint, name)
-                .success(function(data, status){
-                    $scope.vhosts.add = {};
-                });
+
+        $scope.addPublicEndpoint = function(newPublicEndpoint) {
+            if(newPublicEndpoint.type === "vhost"){
+                var name = newPublicEndpoint.name;
+                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
+                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
+                return resourcesFactory.addVHost(serviceId, serviceEndpoint, name);
+            } else if(newPublicEndpoint.type === "port"){
+                var port = newPublicEndpoint.port;
+                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
+                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
+                return resourcesFactory.addPort(serviceId, serviceEndpoint, port);
+            }
         };
 
         // modalAssignIP opens a modal view to assign an ip address to a service
@@ -154,8 +212,8 @@
                 //default to automatic
                 if(!$scope.ips.assign.value) {
                   $scope.ips.assign.value = options[0];
-                }
 
+                }
                 $scope.ips.assign.options = options;
 
                 $modalService.create({
@@ -221,10 +279,18 @@
                 });
         };
 
-        $scope.vhost_url = function(vhost) {
-            var port = location.port === "" ? "" : ":"+location.port;
-            var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
-            return location.protocol + "//" + host + port;
+
+        $scope.publicEndpointURL = function(publicEndpoint) {
+            if(publicEndpoint.type === "vhost"){
+                var port = location.port === "" ? "" : ":"+location.port;
+                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
+                return location.protocol + "//" + host + port;
+            } else if(publicEndpoint.type === "port"){
+                // TODO - get IP
+                var host = $scope.defaultHostAlias;
+                // Port public endpoint port listeners are always on http
+                return "http://" + host + ":" + publicEndpoint.PortNumber;
+            }
         };
 
         $scope.indent = function(depth){
@@ -242,20 +308,38 @@
             utils.setServiceState($scope, app, serviceStatus, $modalService, $translate);
         };
 
-        $scope.clickVHostEnable = function(vhost){
-            resourcesFactory.enableVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
-                .error((data, status) => {
-                    $notification.create("Start Vhost failed", data.Detail).error();
-                });
+
+        $scope.clickEndpointEnable= function(publicEndpoint){
+            if(publicEndpoint.type === "vhost"){
+                resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                    .error((data, status) => {
+                        $notification.create("Enable Public Endpoint failed", data.Detail).error();
+                    });
+            } else if(publicEndpoint.type === "port"){
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                    .error((data, status) => {
+                        $notification.create("Enable Public Endpoint failed", data.Detail).error();
+                    });
+            }
         };
 
-    $scope.clickVHostDisable = function(vhost){
-        resourcesFactory.disableVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
-            .error((data, status) => {
-                $notification.create("Stop Vhost failed", data.Detail).error();
-            });
 
-    };
+        $scope.clickEndpointDisable = function(publicEndpoint){
+            if(publicEndpoint.type === "vhost"){
+                resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                    .error((data, status) => {
+                        $notification.create("Disable Public Endpoint failed", data.Detail).error();
+                    });
+            } else if(publicEndpoint.type === "port"){
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                    .error((data, status) => {
+                        $notification.create("Disable Public Endpoint failed", data.Detail).error();
+                    });
+
+            }
+
+        };
+
         $scope.clickEditContext = function() {
             //set editor options for context editing
             $scope.codemirrorOpts = {
@@ -334,28 +418,41 @@
             return storable;
         }
 
-        $scope.clickRemoveVirtualHost = function(vhost) {
+
+        $scope.clickRemovePublicEndpoint = function(publicEndpoint) {
+
             $modalService.create({
-                template: $translate.instant("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
+                template: $translate.instant("remove_public_endpoint") + ": <strong>"+
+                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortNumber) + "</strong>",
                 model: $scope,
-                title: "remove_virtual_host",
+                title: "remove_public_endpoint",
                 actions: [
                     {
                         role: "cancel"
                     },{
                         role: "ok",
-                        label: "remove_virtual_host",
+                        label: "remove_public_endpoint",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.removeVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
-                                .success(() => {
-                                    servicesFactory.update();
-                                    $notification.create("Removed VHost", vhost.Name).success();
-                                })
-                                .error((data, status) => {
-                                    $notification.create("Remove VHost failed", data.Detail).error();
-                                });
-
+                            if(publicEndpoint.type === "vhost"){
+                                resourcesFactory.removeVHost( publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                                    .success(() => {
+                                        servicesFactory.update();
+                                        $notification.create("Removed Public Endpoint", publicEndpoint.Name).success();
+                                    })
+                                    .error((data, status) => {
+                                        $notification.create("Remove Public Endpoint failed", data.Detail).error();
+                                    });
+                            } else if(publicEndpoint.type === "port"){
+                                resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                                    .success(() => {
+                                        servicesFactory.update();
+                                        $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
+                                    })
+                                    .error((data, status) => {
+                                        $notification.create("Remove Public Endpoint failed", data.Detail).error();
+                                    });
+                            }
                             this.close();
                         }
                     }
@@ -522,7 +619,7 @@
         $scope.update = function(){
             if($scope.services.current){
                 $scope.services.subservices = $scope.services.current.descendents;
-                $scope.vhosts.data = $scope.services.current.hosts;
+                $scope.publicEndpoints.data = $scope.services.current.publicEndpoints;
                 $scope.ips.data = $scope.services.current.addresses;
 
                 // update instances
@@ -651,9 +748,10 @@
                 { label: 'breadcrumb_deployed', url: '/apps' }
             ];
 
-            $scope.vhostsTable = {
+            $scope.publicEndpointsTable = {
                 sorting: {
-                    Name: "asc"
+                    Name: "asc",
+                    ServiceEndpoint: "asc"
                 }
             };
             $scope.ipsTable = {

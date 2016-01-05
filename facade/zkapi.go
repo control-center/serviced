@@ -52,7 +52,7 @@ func (zk *zkf) UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpd
 	if err != nil {
 		return err
 	}
-	return zkservice.UpdateServiceVhosts(rootconn, svc)
+	return zkservice.UpdateServicePublicEndpoints(rootconn, svc)
 }
 
 func (zk *zkf) RemoveService(svc *service.Service) error {
@@ -65,7 +65,7 @@ func (zk *zkf) RemoveService(svc *service.Service) error {
 	// remove the global list of all vhosts deployed
 	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
 		return err
-	} else if err := zkservice.RemoveServiceVhosts(rootconn, svc); err != nil {
+	} else if err := zkservice.RemoveServicePublicEndpoints(rootconn, svc); err != nil {
 		return err
 	}
 	return zkservice.RemoveService(conn, svc.ID)
@@ -107,24 +107,24 @@ func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
 	return zkservice.StopServiceInstance(conn, hostID, stateID)
 }
 
-func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
+func (z *zkf) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
 	rootBasedConnection, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
-	vr, err := zkregistry.VHostRegistry(rootBasedConnection)
+	per, err := zkregistry.PublicEndpointRegistry(rootBasedConnection)
 	if err != nil {
-		glog.Errorf("Error getting vhost registry: %v", err)
+		glog.Errorf("Error getting public endpoint registry: %v", err)
 		return err
 	}
-	vhostEphemeralNodes, err := vr.GetVHostKeyChildren(rootBasedConnection, vhostName)
+	publicEndpointEphemeralNodes, err := per.GetPublicEndpointKeyChildren(rootBasedConnection, publicendpoint)
 	if err != nil {
-		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
+		glog.Errorf("GetPublicEndpointKeyChildren failed %v: %v", publicendpoint, err)
 		return err
 	}
-	if len(vhostEphemeralNodes) > 0 {
-		if vhost := vhostEphemeralNodes[0]; vhost.ServiceID != serviceID {
-			err := fmt.Errorf("virtual host %s is already running under service %s", vhostName, vhost.ServiceID)
+	if len(publicEndpointEphemeralNodes) > 0 {
+		if publicEndpoint := publicEndpointEphemeralNodes[0]; publicEndpoint.ServiceID != serviceID {
+			err := fmt.Errorf("public end point %s is already running under service %s", publicendpoint, publicEndpoint.ServiceID)
 			return err
 		}
 	}

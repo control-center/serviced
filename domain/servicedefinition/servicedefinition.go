@@ -81,12 +81,19 @@ type EndpointDefinition struct {
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 	VHostList []VHost // VHost is used to request named vhost(s) for this endpoint.
+	PortList            []Port
 }
 
 // VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
 type VHost struct {
 	Name    string // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
 	Enabled bool   // whether the vhost should be enabled or disabled.
+}
+
+// Port is the configuration for an application endpoint port.
+type Port struct {
+	PortNumber uint16 // which port number to use for this endpoint
+	Enabled    bool   // whether the port should be enabled or disabled.
 }
 
 // Task A scheduled task
