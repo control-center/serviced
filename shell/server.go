@@ -14,6 +14,7 @@
 package shell
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -37,6 +38,8 @@ import (
 )
 
 var empty interface{}
+
+var ErrShellDisabled = errors.New("shell has been disabled for this service")
 
 const (
 	PROCESSKEY      string = "process"
@@ -347,7 +350,10 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 		glog.Errorf("unable to find service %s", cfg.ServiceID)
 		return nil, err
 	}
-
+	if svc.DisableShell {
+		glog.Errorf("Could not start shell for service %s (%s): %s", svc.Name, svc.ID, ErrShellDisabled)
+		return nil, ErrShellDisabled
+	}
 	// make sure docker image is present
 	imageID, err := commons.ParseImageID(svc.ImageID)
 	if err != nil {
