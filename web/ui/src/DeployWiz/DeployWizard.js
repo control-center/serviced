@@ -299,6 +299,7 @@
                 .success(function() {
                     servicesFactory.update().then(function(){
                         checkStatus = false;
+                        servicesFactory.update(true, false);
                         $notification.create("App deployed successfully").success();
                         closeModal();
                     });
