@@ -36,23 +36,34 @@ var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
+	store := f.templateStore
 	hash, err := serviceTemplate.Hash()
 	if err != nil {
 		return "", err
 	}
 	serviceTemplate.ID = hash
-
-	if st, _ := f.templateStore.Get(ctx, hash); st != nil {
-		// This id already exists in the system
+	// Look up the template by ID
+	if st, err := store.Get(ctx, hash); err != nil && !datastore.IsErrNoSuchEntity(err) {
+		glog.Errorf("Could not look up service template by hash %s: %s", hash, err)
+		return "", err
+	} else if st != nil {
 		glog.Infof("Not replacing existing template %s", hash)
 		return hash, nil
 	}
-
-	if err = f.templateStore.Put(ctx, serviceTemplate); err != nil {
+	// Look up the template by md5 hash
+	if tid, err := f.getServiceTemplateByMD5Sum(ctx, hash); err != nil {
+		glog.Errorf("Could not verify existance of template by md5sum %s: %s", hash, err)
+		return "", nil
+	} else if tid != "" {
+		glog.Infof("Not replacing existing template %s", tid)
+		return tid, nil
+	}
+	// Add the template to the database
+	if err := store.Put(ctx, serviceTemplate); err != nil {
+		glog.Errorf("Could not add template at %s: %s", hash, err)
 		return "", err
 	}
-
-	// this takes a while so don't block the main thread
+	// This takes a while so don't block the main thread
 	go LogstashContainerReloader(ctx, f)
 	return hash, err
 }
@@ -105,6 +116,28 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 		}
 	}
 	return nil
+}
+
+// getServiceTemplateByMD5Sum returns the id of the template that matches the
+// given md5sum (if it exists)
+func (f *Facade) getServiceTemplateByMD5Sum(ctx datastore.Context, md5Sum string) (string, error) {
+	store := f.templateStore
+	templates, err := store.GetServiceTemplates(ctx)
+	if err != nil {
+		glog.Errorf("Could not get service templates: %s", err)
+		return "", err
+	}
+	for _, t := range templates {
+		hash, err := t.Hash()
+		if err != nil {
+			glog.Errorf("Could not get md5sum for template %s: %s", t.ID, err)
+			return "", err
+		}
+		if md5Sum == hash {
+			return t.ID, nil
+		}
+	}
+	return "", nil
 }
 
 func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
