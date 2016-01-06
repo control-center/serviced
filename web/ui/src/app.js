@@ -172,9 +172,9 @@ controlplane.
             var unique = [];
 
             // Sanity check.
-            if (items.length == 0) { return items; }
+            if (items.length === 0) { return items; }
             if (typeof items[0] === 'object' && typeof field === 'undefined'){
-                throw new Error("A key field must be provided for objects")
+                throw new Error("A key field must be provided for objects");
             }
 
             // Dump the items into an array, using the field (or item) as
@@ -184,7 +184,7 @@ controlplane.
             if (typeof field !== 'undefined'){
                 // Loop the items, deduping based on field values.
                 for(var i = 0; i < items.length; i++){
-                    var item = items[i]
+                    var item = items[i];
                     var value = item[field];
                     deduped[value] = item;
                 }
@@ -193,7 +193,7 @@ controlplane.
             else{
                 // Loop the items, deduping based on each item.
                 for(var i = 0; i < items.length; i++){
-                    var item = items[i]
+                    var item = items[i];
                     deduped[item] = item;
                 }
             }
