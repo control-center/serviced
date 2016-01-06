@@ -65,13 +65,18 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		server := &http.Server{Addr: port, Handler: r}
 		listener, err := net.Listen("tcp", server.Addr)
 		if err != nil {
-			glog.Errorf("Could not setup HTTP webserver on port %s: %s", port, err)
+			glog.Errorf("Could not setup HTTP webserver - %s", err)
+			delete(allports, publicEndpointKey.Name())
+			return
 		}
-
 		glog.Infof("Listening on port %s", port)
 
 		go func() {
-			server.Serve(listener)
+			err = server.Serve(listener)
+			if err != nil {
+				listener.Close()
+				delete(allports, publicEndpointKey.Name())
+			}
 		}()
 
 		<-stopChan
@@ -89,6 +94,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	cancelChan := make(chan interface{})
+	//var deadPort string
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
@@ -115,6 +121,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 			_, found := newPorts[port]
 			if !found {
 				stopChan <- 0
+				close(stopChan)
 			}
 		}
 
