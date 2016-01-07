@@ -124,7 +124,6 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	cancelChan := make(chan interface{})
-	//var deadPort string
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
