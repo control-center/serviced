@@ -79,8 +79,12 @@ retry:
 				glog.Errorf("Could not get services: %s", err)
 				wait = time.After(minWait)
 				continue retry
-			} else if zkservice.SyncServices(conn, svcs); err != nil {
+			} else if err = zkservice.SyncServices(conn, svcs); err != nil {
 				glog.Errorf("Could not do a local sync of services: %s", err)
+				wait = time.After(minWait)
+				continue retry
+			} else if err := zkservice.UpdateServicesPublicEndpoints(rootConn, svcs); err != nil {
+				glog.Errorf("Could not sync service public endpoints: %s", err)
 				wait = time.After(minWait)
 				continue retry
 			}

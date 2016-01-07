@@ -86,7 +86,7 @@
                 }
 
                 // setup/default validation function
-                this.validateFn = config.validate || function(){ return true; };
+                this.validateFn = config.validate || function(args){ return true; };
 
                 // listen for hide event and completely remove modal
                 // after it is hidden
@@ -104,8 +104,8 @@
                     this.$el.modal("show");
                     this.disableScroll();
                 },
-                validate: function(){
-                    return this.validateFn();
+                validate: function(args){
+                    return this.validateFn(args);
                 },
                 destroy: function(){
                     this.$el.remove();

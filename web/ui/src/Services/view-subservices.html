@@ -46,45 +46,46 @@
         </div>
     </div>
 
-    <!-- Virtual Host Names -->
-  <div ng-show="!services.current.isIsvc() && anyServicesExported(services.current.model)">
-    <h3 class="pull-left" translate>label_vhost_names</h3>
-    <div class="control-buttons pull-right">
-        <span class="add-control">
-            <button class="btn-link" ng-click="modalAddVHost()">
-                <span class="glyphicon glyphicon-plus-sign"></span>
-                <span translate>modal_add_vhost</span>
-            </button>
-        </span>
+    <!-- Public Endpoints -->
+    <div ng-show="!services.current.isIsvc() && anyServicesExported(services.current.model)">
+      <h3 class="pull-left" translate>label_public_endpoints</h3>
+      <div class="control-buttons pull-right">
+          <span class="add-control">
+              <button class="btn-link" ng-click="modalAddPublicEndpoint()">
+                  <span class="glyphicon glyphicon-plus-sign"></span>
+                  <span translate>add_public_endpoint</span>
+              </button>
+          </span>
+      </div>
+
+      <table jelly-table data-data="publicEndpoints.data" data-config="publicEndpointsTable" class="table">
+          <tr ng-repeat="publicEndpoint in $data">
+              <td data-title="'vhost_application'|translate" sortable="'Application'">
+                  <a href="#/services/{{publicEndpoint.ApplicationId}}" class="link" ng-click="routeToService(publicEndpoint.ApplicationId, $event)">{{publicEndpoint.Application}}</a>
+              </td>
+              <td data-title="'endpoint'|translate" sortable="'ServiceEndpoint'">{{publicEndpoint.ServiceEndpoint}}</td>
+              <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{publicEndpoint.type}}</td>
+              <td data-title="'public_endpoint_url'|translate" sortable="'publicEndpointURL(publicEndpoint)'">
+                  <health-status ng-if="!isServiceRunning(publicEndpoint.ApplicationId) || !publicEndpoint.Enabled">{{publicEndpointURL(publicEndpoint)}}</health-status>
+                  <a ng-if="isServiceRunning(publicEndpoint.ApplicationId) && publicEndpoint.Enabled" href="{{publicEndpointURL(publicEndpoint)}}" target="_blank" class="link">{{publicEndpointURL(publicEndpoint)}}</a>
+              </td>
+              <td data-title="'actions'|translate">
+                  <button ng-class="{disabled: publicEndpoint.Enabled }" ng-click="clickEndpointEnable(publicEndpoint)" class="btn btn-link action">
+                      <i class="glyphicon glyphicon-play"></i>
+                      <span translate>start</span>
+                  </button>
+                  <button ng-class="{disabled: !publicEndpoint.Enabled }" ng-click="clickEndpointDisable(publicEndpoint)" class="btn btn-link action">
+                      <i class="glyphicon glyphicon-stop"></i>
+                      <span translate>stop</span>
+                  </button>
+                  <button ng-click="clickRemovePublicEndpoint(publicEndpoint)" class="btn btn-link action" ng-disabled="$data.length <= 1">
+                      <i class="glyphicon glyphicon-remove-sign"></i>
+                      <span translate>label_delete</span>
+                  </button>
+              </td>
+          </tr>
+      </table>
     </div>
-    <table jelly-table data-data="vhosts.data" data-config="vhostsTable" class="table">
-        <tr ng-repeat="vhost in $data">
-            <td data-title="'vhost_name'|translate" sortable="'Name'">{{vhost.Name}}</td>
-            <td data-title="'vhost_application'|translate" sortable="'Application'">
-                <a href="#/services/{{vhost.ApplicationId}}" class="link" ng-click="routeToService(vhost.ApplicationId, $event)">{{vhost.Application}}</a>
-            </td>
-            <td data-title="'vhost_service_endpoint'|translate" sortable="'ServiceEndpoint'">{{vhost.ServiceEndpoint}}</td>
-            <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'">
-                <health-status ng-if="!isServiceRunning(vhost.ApplicationId) || !vhost.Enabled">{{vhost_url(vhost.Name)}}</health-status>
-                <a ng-if="isServiceRunning(vhost.ApplicationId) && vhost.Enabled" href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a>
-            </td>
-            <td data-title="'actions'|translate">
-                <button ng-class="{disabled: vhost.Enabled }" ng-click="clickVHostEnable(vhost)" class="btn btn-link action">
-                    <i class="glyphicon glyphicon-play"></i>
-                    <span translate>start</span>
-                </button>
-                <button ng-class="{disabled: !vhost.Enabled }" ng-click="clickVHostDisable(vhost)" class="btn btn-link action">
-                    <i class="glyphicon glyphicon-stop"></i>
-                    <span translate>stop</span>
-                </button>
-                <button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="$data.length <= 1">
-                    <i class="glyphicon glyphicon-remove-sign"></i>
-                    <span translate>label_delete</span>
-                </button>
-            </td>
-        </tr>
-    </table>
-  </div>
 
     <!-- IP Assignments -->
     <div ng-show="!services.current.isIsvc()">

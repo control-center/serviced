@@ -76,6 +76,39 @@
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
+            addPort: {
+                method: "PUT",
+                url: (serviceID, endpointName, portName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
+                },
+                payload: (serviceID, endpointName, portName) => {
+                    return JSON.stringify({
+                        'ServiceID': serviceID,
+                        'Application': endpointName,
+                        'PortName': portName
+                    });
+                }
+            },
+            removePort: {
+                method: "DELETE",
+                url: (serviceID, endpointName, portName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
+                }
+            },
+            enablePort: {
+                method: "POST",
+                url: (serviceID, endpointName, portName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}/enable`;
+                },
+                payload: () => {return JSON.stringify({Enable:true});}
+            },
+            disablePort: {
+                method: "POST",
+                url: (serviceID, endpointName, portName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}/enable`;
+                },
+                payload: () => {return JSON.stringify({Enable:false});}
+            },
             getRunningServices: {
                 method: "GET",
                 url: "/running"
@@ -225,7 +258,7 @@
                 config.url = () => url;
             }
 
-            return function(/* args */){ 
+            return function(/* args */){
                 var url = config.url.apply(null, arguments),
                     payload;
 
