@@ -214,7 +214,9 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 		device := vol.Metadata.CurrentDevice()
 		mountpoint := vol.Path()
 		label := vol.Tenant()
+
 		if err := d.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
+			glog.Errorf("Error mounting device %q on %q for volume %q: %s", device, mountpoint, volumeName, err)
 			return nil, err
 		}
 		glog.V(2).Infof("Mounted device %s to %s", device, mountpoint)
@@ -290,7 +292,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	d.DeviceSet.Lock()
 	defer d.DeviceSet.Unlock()
 	if err := d.deactivateDevice(device); err != nil {
-		glog.Errorf("Error removing device (%s)", err)
+		glog.Errorf("Error removing device %s for volume %s: %s", device, volumeName, err)
 		return err
 	}
 	glog.V(2).Infof("Deactivated device")
