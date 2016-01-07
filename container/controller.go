@@ -536,13 +536,15 @@ func (c *Controller) storageHealthCheck() (chan struct{}, error) {
 }
 
 func (c *Controller) shutdown() {
-	glog.V(1).Infof("controller for %v shutting down\n", c.dockerID)
+	glog.Infof("controller for %v shutting down\n", c.dockerID)
 	//defers run in LIFO order
 	defer os.Exit(c.exitStatus)
 	defer zzk.ShutdownConnections()
 }
 
 func (c *Controller) reapZombies(close chan struct{}) {
+	glog.Infof("START reapZombies()")
+	defer glog.Infof("END reapZombies()")
 	for {
 		select {
 		case <-close:
@@ -628,9 +630,12 @@ func (c *Controller) Run() (err error) {
 	var reregister <-chan struct{}
 
 	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
+		glog.Infof("START shutdownService(%v,%v)", service, sig)
+		defer glog.Infof("END shutdownService(%v,%v)", service, sig)
 		c.options.Service.Autorestart = false
 		if sendSignal(service, sig) {
 			// nil out all other channels because we're shutting down
+			glog.Infof("Setting sigc (and other channels) to nil.")
 			sigc = nil
 			prereqsPassed = nil
 			startAfter = nil
@@ -670,6 +675,7 @@ func (c *Controller) Run() (err error) {
 			prereqsPassed = nil
 
 		case exitError := <-serviceExited:
+			glog.Infof("handling serviceExited. exitError = %v", exitError)
 			if !c.options.Service.Autorestart {
 				exitStatus, _ := utils.GetExitStatus(exitError)
 				if c.options.Logforwarder.Enabled {
@@ -696,6 +702,7 @@ func (c *Controller) Run() (err error) {
 			}
 			startAfter = nil
 		case <-reregister:
+			glog.Infof("handling reregister. Reregistering service %s with docker ID %s", c.options.Service.ID, c.dockerID)
 			reregister = registerExportedEndpoints(c, rpcDead)
 		case <-rpcDead:
 			glog.Infof("RPC Server has gone away, cleaning up service %s", c.options.Service.ID)

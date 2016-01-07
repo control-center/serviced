@@ -56,6 +56,7 @@ import (
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/virtualips"
+	"code.google.com/p/rog-go/new9p/client"
 )
 
 /*
@@ -235,16 +236,24 @@ func attachAndRun(dockerID, command string) error {
 
 // StopService terminates a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
+	startTime := time.Now()
+	//glog.Infof("---- START StopService(%v) - container: %s at %s", state, state.DockerID, startTime)
+	//Adefer func() {glog.Infof("---- END StopService(%v). Execution time: %s", state, time.Since(startTime))}()
+
 	if state == nil || state.DockerID == "" {
 		return errors.New("missing Docker ID")
 	}
-
+	glog.Infof("---- Finding container %s", state.DockerID)
 	ctr, err := docker.FindContainer(state.DockerID)
+	glog.Infof("---- Done finding container %s. %s since function start", state.DockerID, time.Since(startTime))
 	if err != nil {
 		return err
 	}
-
-	return ctr.Stop(45 * time.Second)
+	beginStop := time.Now()
+	glog.Infof("---- Calling container.stop on container %s at %s", ctr.Container.ID, beginStop)
+	result := ctr.Stop(45 * time.Second)
+	glog.Infof("---- Back from container.stop on container %s at %s. Stop took %s; time since function start %s", ctr.Container.ID, time.Now(), time.Since(beginStop), time.Since(startTime))
+	return result
 }
 
 // Get the state of the docker container given the dockerId
@@ -446,6 +455,8 @@ func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 }
 
 func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
+	glog.Info("START removeInstance(%s, %v)", stateID, *ctr)
+	defer glog.Info("END removeInstance(%s, %v)", stateID, *ctr)
 	rc, err := ctr.Wait(time.Second)
 	if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
 		// TODO: output of docker logs is potentially very large

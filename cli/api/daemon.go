@@ -353,7 +353,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
-	volume.ShutdownAll()
+//	volume.ShutdownAll()   // TODO: REMOVE THIS LINE per JP's request - should prevent issue with nfs mounts on shutdown.
 	switch sig {
 	case syscall.SIGHUP:
 		glog.Infof("Not shutting down isvcs")

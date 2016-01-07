@@ -301,6 +301,8 @@ func (c *Controller) watchRemotePorts() {
 			- deal with import regexes, i.e mysql_.*
 		- may not need to initially deal with removal of tenant endpoint
 	*/
+	glog.Infof("START watchRemotePorts for controller %v", c)
+	defer glog.Infof("END watchRemotePorts for controller %v", c)
 	cMuxPort = uint16(c.options.Mux.Port)
 	cMuxTLS = c.options.Mux.TLS
 
@@ -328,13 +330,18 @@ func (c *Controller) watchRemotePorts() {
 	//translate closing call to endpoint cancel
 	cancelEndpointWatch := make(chan interface{})
 	go func() {
+		glog.Infof(">>>>>>> START anonymous gofunc in endpoint.go")
+		defer glog.Infof(">>>>>>> END anonymous gofunc in endpoint.go")
 		select {
 		case errc := <-c.closing:
 			glog.Infof("Closing endpoint watchers")
 			select {
 			case endpointsWatchCanceller <- true:
+				glog.Infof(">>>> Sent true to endpointsWatchCanceller")
 			default:
+				glog.Infof(">>>> Default case")
 			}
+			glog.Infof(">>>> Closing channel cancelEndpointWatch")
 			close(cancelEndpointWatch)
 			errc <- nil
 		}

@@ -399,18 +399,18 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 
 	for {
 		zkServiceVhost := service.ZKServicePublicEndpoints
+		select {
+		case <-shutdown:
+			close(cancelChan)
+			return nil
+		default:
+		}
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
 		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
 			<-time.After(time.Second * 10)
 			continue
-		}
-		select {
-		case <-shutdown:
-			close(cancelChan)
-			return nil
-		default:
 		}
 	}
 }

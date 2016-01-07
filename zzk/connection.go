@@ -110,9 +110,12 @@ func Connect(path string, getConnection GetConnection) <-chan client.Connection 
 
 // ShutdownConnections closes all local and remote zookeeper connections
 func ShutdownConnections() {
+	glog.Infof("ShutdownConnections() START")
+	defer glog.Infof("ShutdownConnections() END")
 	managerLock.Lock()
 	defer managerLock.Unlock()
 	for _, client := range manager {
+		glog.Infof("Calling shutdown on client %v", client)
 		client.Shutdown()
 	}
 }
