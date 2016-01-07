@@ -757,7 +757,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		return "", fmt.Errorf("could not get subvolume %s: %s", tenantID, err)
 	}
 	resourcePath := filepath.Join(vol.Path(), volume.ResourcePath)
-	if err = os.MkdirAll(resourcePath, 0770); err != nil {
+	if err = os.MkdirAll(resourcePath, 0770); err != nil && !os.IsExist(err) {
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
 
