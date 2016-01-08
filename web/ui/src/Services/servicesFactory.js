@@ -177,7 +177,7 @@
         this.depth = 0;
 
         // cache for computed values
-        this.cache = new Cache(["addresses", "descendents", "publicEndpoints"]);
+        this.cache = new Cache(["addresses", "descendents", "publicEndpoints", "exportedServiceEndpoints"]);
 
         this.resources = {
             RAMCommitment: 0,
@@ -540,6 +540,54 @@
             Object.freeze(publicEndpoints);
             this.cache.cache("publicEndpoints", publicEndpoints);
             return publicEndpoints;
+        }
+    });
+
+    // fetch public endpoints for service and all descendents
+    Object.defineProperty(Service.prototype, "exportedServiceEndpoints", {
+        get: function(){
+            var exportedServiceEndpoints = this.cache.getIfClean("exportedServiceEndpoints");
+
+            // if valid cache, early return it
+            if(exportedServiceEndpoints){
+                return exportedServiceEndpoints;
+            }
+
+            // otherwise, get some data
+            var services = this.descendents.slice();
+
+            // we also want to see the Endpoints for this
+            // service, so add it to the list
+            services.push(this);
+
+            // iterate services
+            exportedServiceEndpoints = services.reduce(function(acc, service){
+                var result = [];
+
+                // if Endpoints, iterate Endpoints
+                if(service.model.Endpoints){
+                    result = service.model.Endpoints.reduce(function(acc, endpoint){
+
+                        // if this exports tcp, add it to our list.
+                        if(endpoint.Purpose == "export" && endpoint.Protocol == "tcp"){
+                            acc.push({
+                                Application: service.name,
+                                ServiceEndpoint: endpoint.Application,
+                                ApplicationId: service.id,
+                                Value: service.name +" - "+ endpoint.Application,
+                            });
+                        }
+
+                        return acc;
+                    }, []);
+                }
+
+                return acc.concat(result);
+            }, []);
+
+            Object.freeze(exportedServiceEndpoints);
+            this.cache.cache("exportedServiceEndpoints", exportedServiceEndpoints);
+            return exportedServiceEndpoints;
         }
     });
 
