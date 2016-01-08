@@ -316,6 +316,14 @@ func (d *daemon) run() (err error) {
 	d.startRPC()
 	d.startDockerRegistryProxy()
 
+	//Start the zookeeper client
+	localClient, err := d.initZK(options.Zookeepers)
+	if err != nil {
+		glog.Errorf("failed to create a local coordclient: %v", err)
+		return err
+	}
+	zzk.InitializeLocalClient(localClient)
+
 	if options.Master {
 		d.startISVCS()
 		if err := d.startMaster(); err != nil {
@@ -441,13 +449,6 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not initialize context: %s", err)
 		return err
 	}
-
-	localClient, err := d.initZK(options.Zookeepers)
-	if err != nil {
-		glog.Errorf("failed to create a local coordclient: %v", err)
-		return err
-	}
-	zzk.InitializeLocalClient(localClient)
 
 	d.facade = d.initFacade()
 
@@ -603,17 +604,6 @@ func (d *daemon) startAgent() error {
 		}
 
 		thisHost.PoolID = poolID
-
-		if !options.Master { //if this is also a master, we already have a zookeeper client
-			basePoolPath := "/pools/" + poolID
-			dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
-			glog.Infof("zookeeper dsn: %s", dsn)
-			zClient, err := coordclient.New("zookeeper", dsn, basePoolPath, nil)
-			if err != nil {
-				glog.Errorf("failed create a new coordclient: %v", err)
-			}
-			zzk.InitializeLocalClient(zClient)
-		}
 
 		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
