@@ -16,11 +16,17 @@
 package nfs
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/validation"
+)
+
+var (
+	ErrTestMountError   = errors.New("Error mounting volume")
+	ErrTestUnMountError = errors.New("Error un-mounting volume")
 )
 
 type mockCommand struct {
@@ -47,9 +53,11 @@ var mountTestCases = []mountTestCaseT{
 }
 
 type mockDriver struct {
-	MountInfo   *proc.NFSMountInfo
-	isInstalled bool
-	isMounted   bool
+	MountInfo    *proc.NFSMountInfo
+	isInstalled  bool
+	isMounted    bool
+	mountError   error
+	unMountError error
 }
 
 func (d *mockDriver) Installed() error {
@@ -71,12 +79,12 @@ func (d *mockDriver) Info(_ string, info *proc.NFSMountInfo) error {
 
 func (d *mockDriver) Mount(_, _ string, _ time.Duration) error {
 	d.isMounted = true
-	return nil
+	return d.mountError
 }
 
 func (d *mockDriver) Unmount(_ string) error {
 	d.isMounted = false
-	return nil
+	return d.unMountError
 }
 
 func TestMount_NotInstalled(t *testing.T) {
@@ -128,6 +136,51 @@ func TestMount_BadValidation(t *testing.T) {
 		}
 	} else {
 		t.Errorf("expected validation, got nil")
+	}
+}
+
+func TestMount_Remount_FailUnMount(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true, unMountError: ErrTestUnMountError, mountError: nil}
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	staleNFSCheck = func(string) bool { return true }
+
+	if err := Mount(&d, info.RemotePath, info.LocalPath); err != ErrTestUnMountError {
+		t.Errorf("expected error %s, got error %s", ErrTestUnMountError, err)
+	}
+}
+
+func TestMount_Remount_FailMount(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true, unMountError: nil, mountError: ErrTestMountError}
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	staleNFSCheck = func(string) bool { return true }
+
+	if err := Mount(&d, info.RemotePath, info.LocalPath); err != ErrTestMountError {
+		t.Errorf("expected error %s, got error %s", ErrTestMountError, err)
+	}
+}
+
+func TestMount_Remount_Success(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true, unMountError: nil, mountError: nil}
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	staleNFSCheck = func(string) bool { return true }
+
+	if err := Mount(&d, info.RemotePath, info.LocalPath); err != nil {
+		t.Errorf("got error %s", err)
 	}
 }
 
