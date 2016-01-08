@@ -281,6 +281,7 @@
     "pool_tbl_virtual_ip_address_bind_interface": "Interfaz",
     "pool_tbl_virtual_ip_address_action": "Acciones",
     "refresh": "Refrescar",
+    "restore": "Restaurar",
     "running_services": "Servicios ejecutandose",
     "running_tbl_actions": "Acciones",
     "running_tbl_docker_id": "ID contenedor docker",
