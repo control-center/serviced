@@ -104,3 +104,20 @@ func (a version) Compare(b version) int {
 		return 0
 	}
 }
+
+func convertStringSliceToMap(list []string) map[string]string {
+	mapValues := make(map[string]string)
+	for i, keyValuePair := range list {
+		if keyValuePair == "" {
+			glog.Warningf("Skipping empty key=value pair at index %d from list %v", i, list)
+			continue
+		}
+		keyValue := strings.SplitN(keyValuePair, "=", 2)
+		if len(keyValue) != 2 || keyValue[0] == "" {
+			glog.Warningf("Skipping invalid key=value pair %q at index %d from list %v", keyValuePair, i, list)
+			continue
+		}
+		mapValues[keyValue[0]] = keyValue[1]
+	}
+	return mapValues
+}

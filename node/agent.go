@@ -92,7 +92,7 @@ type HostAgent struct {
 	controllerBinary     string          // Path to the controller binary
 	logstashURL          string
 	dockerLogDriver      string
-	dockerLogConfig      []string
+	dockerLogConfig      map[string]string
 	pullreg              registry.Registry
 }
 
@@ -125,7 +125,7 @@ type AgentOptions struct {
 	ControllerBinary     string
 	LogstashURL          string
 	DockerLogDriver      string
-	DockerLogConfig      []string
+	DockerLogConfig      map[string]string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -744,11 +744,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	}
 
 	hcfg.LogConfig.Type = a.dockerLogDriver
-	hcfg.LogConfig.Config = make(map[string]string)
-	for _, kv := range a.dockerLogConfig {
-		keyvalue := strings.SplitN(kv, "=", 2)
-		hcfg.LogConfig.Config[keyvalue[0]] = keyvalue[1]
-	}
+	hcfg.LogConfig.Config = a.dockerLogConfig
 
 	return cfg, hcfg, nil
 }
@@ -761,7 +757,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		return "", fmt.Errorf("could not get subvolume %s: %s", tenantID, err)
 	}
 	resourcePath := filepath.Join(vol.Path(), volume.ResourcePath)
-	if err = os.MkdirAll(resourcePath, 0770); err != nil {
+	if err = os.MkdirAll(resourcePath, 0770); err != nil && !os.IsExist(err) {
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
 

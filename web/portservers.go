@@ -27,19 +27,49 @@ import (
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/dao"
+	domainService "github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
+	"strconv"
 )
 
 var (
 	allportsLock sync.RWMutex
 	allports     map[string]chan int // map of port number to channel that destroys the server
+	cpDao	dao.ControlPlane
 )
 
 func init() {
 	allports = make(map[string]chan int)
 }
 
-func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{})) {
+func disablePort(publicEndpointKey service.PublicEndpointKey){
+	uintPort, _ := strconv.ParseUint(publicEndpointKey.Name(), 10, 16)
+
+	// remove the port from our local cache
+	delete(allports, publicEndpointKey.Name())
+
+	// find the endpoint that matches this port number for this service (there will only be 1)
+	var myService domainService.Service
+	var myEndpoint domainService.ServiceEndpoint
+	var unused int
+	cpDao.GetService(publicEndpointKey.ServiceID(), &myService)
+	for _, endpoint := range(myService.Endpoints) {
+		testPort, _ := strconv.ParseUint(publicEndpointKey.Name() ,10, 16)
+		for _, endpointPort := range(endpoint.PortList) {
+			if endpointPort.PortNumber == uint16(testPort) {
+				myEndpoint = endpoint
+			}
+		}
+	}
+
+	// disable port
+	myService.EnablePort(myEndpoint.Name, uint16(uintPort), false)
+	cpDao.UpdateService(myService, &unused)
+}
+
+func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao.ControlPlane) {
+	cpDao = dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
@@ -65,13 +95,19 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		server := &http.Server{Addr: port, Handler: r}
 		listener, err := net.Listen("tcp", server.Addr)
 		if err != nil {
-			glog.Errorf("Could not setup HTTP webserver on port %s: %s", port, err)
+			glog.Errorf("Could not setup HTTP webserver - %s", err)
+			disablePort(publicEndpointKey)
+			return
 		}
 
 		glog.Infof("Listening on port %s", port)
 
 		go func() {
-			server.Serve(listener)
+			err = server.Serve(listener)
+			if err != nil {
+				disablePort(publicEndpointKey)
+				listener.Close()
+			}
 		}()
 
 		<-stopChan
