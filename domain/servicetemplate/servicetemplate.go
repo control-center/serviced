@@ -58,12 +58,14 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 }
 
 func (a *ServiceTemplate) Hash() (string, error) {
-	data, err := json.Marshal(a)
-	if err != nil {
+	tpl := *a
+	tpl.ID = ""
+	tpl.DatabaseVersion = 0
+	if data, err := json.Marshal(&tpl); err != nil {
 		return "", err
+	} else {
+		return fmt.Sprintf("%x", md5.Sum(data)), nil
 	}
-	hash := md5.Sum(data)
-	return fmt.Sprintf("%x", hash), nil
 }
 
 //FromJSON creates a ServiceTemplate from the json string

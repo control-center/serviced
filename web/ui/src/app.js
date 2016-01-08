@@ -162,6 +162,49 @@ controlplane.
             return moment(date).fromNow();
         };
     })
+    // filter items by the item or by field value.
+    // | unique
+    // | unique:'Value'
+    // Throws an error if the items are type Object and no key field is given
+    .filter('unique', function(){
+        return function(items, field){
+            var deduped = [];
+            var unique = [];
+
+            // Sanity check.
+            if (items.length === 0) { return items; }
+            if (typeof items[0] === 'object' && typeof field === 'undefined'){
+                throw new Error("A key field must be provided for objects");
+            }
+
+            // Dump the items into an array, using the field (or item) as
+            // key to remove duplicates.
+
+            // If they give the field value (ie: | unique='Value')
+            if (typeof field !== 'undefined'){
+                // Loop the items, deduping based on field values.
+                for(var i = 0; i < items.length; i++){
+                    var item = items[i];
+                    var value = item[field];
+                    deduped[value] = item;
+                }
+            }
+            // No field given, we need to compare each item (ie: | unique)
+            else{
+                // Loop the items, deduping based on each item.
+                for(var i = 0; i < items.length; i++){
+                    var item = items[i];
+                    deduped[item] = item;
+                }
+            }
+
+            // Get the values of our deduped list and return them.
+            for(var key in deduped) {
+                unique.push(deduped[key]);
+            }
+            return unique;
+        };
+    })
     .run(function($rootScope, $window, $location){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
