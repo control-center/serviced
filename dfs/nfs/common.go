@@ -35,6 +35,7 @@ var etcFstab = "/etc/fstab"
 var etcExports = "/etc/exports"
 var exportsDir = "/exports"
 var lookPath = exec.LookPath
+var staleNFSCheck = utils.IsNFSMountStale
 
 const mountNfs4 = "/sbin/mount.nfs4"
 
@@ -149,7 +150,24 @@ func Mount(driver Driver, remotePath, localPath string) error {
 
 	var mountInfo proc.NFSMountInfo
 	mountError := driver.Info(localPath, &mountInfo)
-	if mountError == proc.ErrMountPointNotFound {
+
+	needsReMount := false
+
+	if mountError == nil {
+		// we need to check for a stale NFS mount
+		if staleNFSCheck(localPath) {
+			glog.Infof("Detected stale NFS mount, re-mounting %s", localPath)
+			//unmount and re-mount
+			needsReMount = true
+			if err := driver.Unmount(localPath); err != nil {
+				glog.Errorf("Error while unmounting %s: %s", localPath, err)
+				return err
+			}
+
+		}
+	}
+
+	if mountError == proc.ErrMountPointNotFound || needsReMount {
 		// the mountpoint is not found so try to mount
 		glog.Infof("Creating new mount for %s -> %s", remotePath, localPath)
 		if err := os.MkdirAll(localPath, 0775); err != nil {
