@@ -569,7 +569,7 @@
                     result = service.model.Endpoints.reduce(function(acc, endpoint){
 
                         // if this exports tcp, add it to our list.
-                        if(endpoint.Purpose == "export" && endpoint.Protocol == "tcp"){
+                        if(endpoint.Purpose === "export" && endpoint.Protocol === "tcp"){
                             acc.push({
                                 Application: service.name,
                                 ServiceEndpoint: endpoint.Application,
