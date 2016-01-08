@@ -49,6 +49,7 @@
     "start_service_and_children": "Start Service and {{count}} Children",
     "stop_service_and_children": "Stop Service and {{count}} Children",
     "restart_service_and_children": "Restart Service and {{count}} Children",
+    "requires_restart_running_instance": "*Requires restart of running instance to take effect",
 
     "core_capacity": "CPU Cores",
     "memory_capacity": "Memory",
