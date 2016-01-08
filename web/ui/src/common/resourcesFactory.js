@@ -65,14 +65,14 @@
             enableVHost: {
                 method: "POST",
                 url: (serviceID, endpointName, vhostName) => {
-                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
+                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:true});}
             },
             disableVHost: {
                 method: "POST",
                 url: (serviceID, endpointName, vhostName) => {
-                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
+                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
