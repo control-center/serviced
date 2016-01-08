@@ -50,9 +50,9 @@
           <td data-title="'actions'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
                 <div>
-                  <button ng-class="{disabled: service.desiredState === 1}" ng-click="clickRunning(service, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-                  <button ng-class="{disabled: service.desiredState === 0}" ng-click="clickRunning(service, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
-                  <button ng-click="modal_removeService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+                  <button ng-class="{disabled: service.desiredState === 1}" ng-click="clickRunning(service, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i><span translate>start</span></button>
+                  <button ng-class="{disabled: service.desiredState === 0}" ng-click="clickRunning(service, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i><span translate>stop</span></button>
+                  <button ng-click="modal_removeService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i><span translate>delete</span></button>
                 </div>
               </span>
               <span ng-if="service.isIsvc()" class="ntsh">N/A</span>
