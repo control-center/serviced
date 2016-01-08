@@ -129,10 +129,12 @@ type IServiceDefinition struct {
 
 type IService struct {
 	IServiceDefinition
-	root         string
-	actions      chan actionrequest
-	startTime    time.Time
-	restartCount int
+	root            string
+	actions         chan actionrequest
+	startTime       time.Time
+	restartCount    int
+	dockerLogDriver string            // which log driver to use with containers
+	dockerLogConfig map[string]string // options for the log driver
 
 	channelLock *sync.RWMutex
 	exited      <-chan int
@@ -153,7 +155,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	if sd.StartupTimeout == 0 { //Initialize startup timeout to Default for all IServices if not specified
 		sd.StartupTimeout = WAIT_FOR_INITIAL_HEALTHCHECK
 	}
-	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil, &sync.RWMutex{}, nil}
+	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, "", nil, &sync.RWMutex{}, nil, &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -264,10 +266,17 @@ func (svc *IService) name() string {
 }
 
 func (svc *IService) create() (*docker.Container, error) {
+	hostConfig := dockerclient.HostConfig{}
+	hostConfig.LogConfig.Type = svc.dockerLogDriver
+	hostConfig.LogConfig.Config = svc.dockerLogConfig
+
+	glog.Infof("hostConfig.LogConfig.Type=%s", hostConfig.LogConfig.Type)
+	glog.Infof("hostConfig.LogConfig.Config=%v", hostConfig.LogConfig.Config)
+
 	var config dockerclient.Config
 	cd := &docker.ContainerDefinition{
 		dockerclient.CreateContainerOptions{Name: svc.name(), Config: &config},
-		dockerclient.HostConfig{},
+		hostConfig,
 	}
 
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)

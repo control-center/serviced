@@ -73,23 +73,27 @@ type managerRequest struct {
 
 // A manager of docker services run in ephemeral containers
 type Manager struct {
-	imagesDir   string              // local directory where images could be loaded from
-	volumesDir  string              // local directory where volumes are stored
-	requests    chan managerRequest // the main loops request channel
-	services    map[string]*IService
-	startGroups map[int][]string // map by group number of a list of service names
+	imagesDir       string              // local directory where images could be loaded from
+	volumesDir      string              // local directory where volumes are stored
+	requests        chan managerRequest // the main loops request channel
+	services        map[string]*IService
+	startGroups     map[int][]string  // map by group number of a list of service names
+	dockerLogDriver string            // which log driver to use with containers
+	dockerLogConfig map[string]string // options for the log driver
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
-func NewManager(imagesDir, volumesDir string) *Manager {
+func NewManager(imagesDir, volumesDir string, dockerLogDriver string, dockerLogConfig map[string]string) *Manager {
 	loadvolumes()
 
 	manager := &Manager{
-		imagesDir:   imagesDir,
-		volumesDir:  volumesDir,
-		requests:    make(chan managerRequest),
-		services:    make(map[string]*IService),
-		startGroups: make(map[int][]string),
+		imagesDir:       imagesDir,
+		volumesDir:      volumesDir,
+		requests:        make(chan managerRequest),
+		services:        make(map[string]*IService),
+		startGroups:     make(map[int][]string),
+		dockerLogDriver: dockerLogDriver,
+		dockerLogConfig: dockerLogConfig,
 	}
 	go manager.loop()
 	return manager
@@ -438,6 +442,9 @@ func (m *Manager) makeRequest(op managerOp) error {
 
 // Register() registers a container to be managed by the *Manager
 func (m *Manager) Register(svc *IService) error {
+	svc.dockerLogDriver = m.dockerLogDriver
+	svc.dockerLogConfig = m.dockerLogConfig
+
 	request := managerRequest{
 		op:       managerOpRegisterContainer,
 		val:      svc,

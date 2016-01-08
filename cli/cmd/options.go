@@ -70,7 +70,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
 		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
-		DockerLogConfig:      config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
+		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")
