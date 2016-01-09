@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
+	"net"
 	"net/url"
 	"strings"
 	"strconv"
@@ -392,6 +393,22 @@ type portEnable struct {
 	Enable bool
 }
 
+// Try to open the port.  If the port opens, we're good. Otherwise return error.
+func checkPort(network string, laddr string) error {
+	glog.V(2).Infof("Checking %s port %s", network, laddr)
+	listener, err := net.Listen(network, laddr)
+	if err != nil {
+		// Port isn't available.
+		glog.V(2).Infof("Port Listen failed; something else is using this port.")
+		return err
+	} else {
+		// Port was opened. Make sure we close it.
+		glog.V(2).Infof("Port Listen succeeded. Closing the listener.")
+		listener.Close()
+	}
+	return nil
+}
+
 func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	glog.V(1).Infof("Enable/Disable PORT with %s %#v", r.URL.Path, r)
 
@@ -406,6 +423,15 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	if err != nil {
 		restServerError(w, err)
 		return
+	}
+
+	// If they're trying to enable the port, check to make sure it's available.
+	if request.Enable {
+	    err = checkPort("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
 	}
 
 	err = service.EnablePort(application, port, request.Enable)
