@@ -420,7 +420,6 @@ func (v *BtrfsVolume) UntagSnapshot(tagName string) (string, error) {
 }
 
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
-// This is not implemented with btrfs
 func (v *BtrfsVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
 	// Get all the snapshots on the volume
 	snapshotLabels, err := v.Snapshots()
