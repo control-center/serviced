@@ -110,6 +110,12 @@ a:hover, a:active, a:focus,
     color: #777 !important;
 }
 
+.inline-code {
+    font-family: monospace;
+    color: #888;
+    font-size: 0.85em;
+}
+
 table > thead {
     background-color: #516685;
     color: #ffffff;
