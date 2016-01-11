@@ -28,8 +28,11 @@
             });
         }
 
-        //add Endpoint data
+        //add Public Endpoint data
         $scope.publicEndpoints = { add: {} };
+
+        //add service endpoint data
+        $scope.exportedServiceEndpoints = { };
 
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
@@ -44,7 +47,7 @@
             // default public endpoint options
             $scope.publicEndpoints.add = {
                 type: "vhost",
-                app_ep: $scope.publicEndpoints.data[0],
+                app_ep: $scope.exportedServiceEndpoints.data[0],
                 name: "",
                 port: ""
             };
@@ -712,6 +715,7 @@
             if($scope.services.current){
                 $scope.services.subservices = $scope.services.current.descendents;
                 $scope.publicEndpoints.data = $scope.services.current.publicEndpoints;
+                $scope.exportedServiceEndpoints.data = $scope.services.current.exportedServiceEndpoints;
                 $scope.ips.data = $scope.services.current.addresses;
 
                 // update instances
