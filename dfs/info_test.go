@@ -45,7 +45,7 @@ func (s *DFSTestSuite) TestInfo_NoImages(c *C) {
 	vinfo := &volume.SnapshotInfo{
 		Name:     "test-snapshot-label",
 		TenantID: "test-tenant",
-		Label:    "snaphot-label",
+		Label:    "snapshot-label",
 		Message:  "this is a snapshot",
 		Tags:     []string{"tag1", "tag2"},
 		Created:  time.Now().UTC(),
@@ -54,8 +54,8 @@ func (s *DFSTestSuite) TestInfo_NoImages(c *C) {
 	svcbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(svcbuffer).Encode([]service.Service{})
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcbuffer}, nil)
-	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
+	vol.On("ReadMetadata", "snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcbuffer}, nil)
+	vol.On("ReadMetadata", "snapshot-label", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(info, IsNil)
 	c.Assert(err, Equals, ErrTestNoImagesMetadata)
@@ -66,7 +66,7 @@ func (s *DFSTestSuite) TestInfo_NoServices(c *C) {
 	vinfo := &volume.SnapshotInfo{
 		Name:     "test-snapshot-label",
 		TenantID: "test-tenant",
-		Label:    "snaphot-label",
+		Label:    "snapshot-label",
 		Message:  "this is a snapshot",
 		Tags:     []string{"tag1", "tag2"},
 		Created:  time.Now().UTC(),
@@ -75,8 +75,8 @@ func (s *DFSTestSuite) TestInfo_NoServices(c *C) {
 	imgbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{}, ErrTestNoServicesMetadata)
-	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
+	vol.On("ReadMetadata", "snapshot-label", ServicesMetadataFile).Return(&NopCloser{}, ErrTestNoServicesMetadata)
+	vol.On("ReadMetadata", "snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(info, IsNil)
 	c.Assert(err, Equals, ErrTestNoServicesMetadata)
@@ -87,7 +87,7 @@ func (s *DFSTestSuite) TestInfo_Success(c *C) {
 	vinfo := &volume.SnapshotInfo{
 		Name:     "test-snapshot-label",
 		TenantID: "test-tenant",
-		Label:    "snaphot-label",
+		Label:    "snapshot-label",
 		Message:  "this is a snapshot",
 		Tags:     []string{"tag1", "tag2"},
 		Created:  time.Now().UTC(),
@@ -111,12 +111,12 @@ func (s *DFSTestSuite) TestInfo_Success(c *C) {
 	svcsbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(svcsbuffer).Encode(svcs)
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcsbuffer}, nil)
+	vol.On("ReadMetadata", "snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcsbuffer}, nil)
 	imgs := []string{"test-tenant/repo:snapshot-label"}
 	imgsbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgsbuffer).Encode(imgs)
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgsbuffer}, nil)
+	vol.On("ReadMetadata", "snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgsbuffer}, nil)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(err, IsNil)
 	c.Assert(info, DeepEquals, &SnapshotInfo{vinfo, imgs, svcs})

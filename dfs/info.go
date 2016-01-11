@@ -14,7 +14,6 @@
 package dfs
 
 import (
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
@@ -25,27 +24,7 @@ func (dfs *DistributedFilesystem) Info(snapshotID string) (*SnapshotInfo, error)
 	if err != nil {
 		return nil, err
 	}
-	r, err := vol.ReadMetadata(snapshotID, ImagesMetadataFile)
-	if err != nil {
-		glog.Errorf("Could not read images metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
-	}
-	var images []string
-	if err := importJSON(r, &images); err != nil {
-		glog.Errorf("Could not interpret images metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
-	}
-	r, err = vol.ReadMetadata(snapshotID, ServicesMetadataFile)
-	if err != nil {
-		glog.Errorf("Could not read services metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
-	}
-	var svcs []service.Service
-	if err := importJSON(r, &svcs); err != nil {
-		glog.Errorf("Could not interpret services metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
-	}
-	return &SnapshotInfo{info, images, svcs}, nil
+	return readSnapshotInfo(vol, info)
 }
 
 // getSnapshotVolumeAndInfo returns the parent volume and info about a snapshot.

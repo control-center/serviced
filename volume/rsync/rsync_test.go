@@ -48,6 +48,10 @@ func (s *RsyncSuite) TestRsyncSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "rsync", "", rsyncArgs)
 }
 
+func (s *RsyncSuite) TestRsyncSnapshotTags(c *C) {
+	drivertest.DriverTestSnapshotTags(c, "rsync", "", rsyncArgs)
+}
+
 func (s *RsyncSuite) TestRsyncExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "rsync", "", "", rsyncArgs)
 }

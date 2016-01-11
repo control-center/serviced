@@ -198,13 +198,13 @@ func (v *NFSVolume) Snapshot(label, message string, tags []string) (err error) {
 }
 
 // TagSnapshot implements volume.Volume.TagSnapshot
-func (v *NFSVolume) TagSnapshot(label string, tagName string) ([]string, error) {
-	return nil, ErrNotSupported
+func (v *NFSVolume) TagSnapshot(label string, tagName string) error {
+	return ErrNotSupported
 }
 
-// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
-func (v *NFSVolume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
-	return nil, ErrNotSupported
+// RemoveSnapshotTag implements volume.Volume.UntagSnapshot
+func (v *NFSVolume) UntagSnapshot(tagName string) (string, error) {
+	return "", ErrNotSupported
 }
 
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
