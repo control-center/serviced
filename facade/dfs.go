@@ -201,7 +201,7 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 func (f *Facade) TagSnapshot(snapshotID string, tagName string) error {
 	if err := f.dfs.Tag(snapshotID, tagName); err != nil {
 		glog.Errorf("Could not add tag to snapshot %s: %s", snapshotID, err)
-		return nil, err
+		return err
 	}
 	return nil
 }
