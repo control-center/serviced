@@ -318,6 +318,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 		newInfo := model.SnapshotInfo{
 			SnapshotID:  info.Name,
+			TenantID:    info.TenantID,
 			Description: info.Message,
 			Tags:        info.Tags,
 			Created:     info.Created,
@@ -375,6 +376,7 @@ func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotB
 	}
 	*snapshot = model.SnapshotInfo{
 		SnapshotID:  info.Name,
+		TenantID:    info.TenantID,
 		Description: info.Message,
 		Tags:        info.Tags,
 		Created:     info.Created,

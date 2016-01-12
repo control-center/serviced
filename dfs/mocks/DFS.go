@@ -13,6 +13,14 @@ type DFS struct {
 	mock.Mock
 }
 
+func (_m *DFS) Lock() {
+	return
+}
+
+func (_m *DFS) Unlock() {
+	return
+}
+
 func (_m *DFS) Timeout() time.Duration {
 	ret := _m.Called()
 
