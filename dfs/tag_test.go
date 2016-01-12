@@ -25,22 +25,15 @@ func (s *DFSTestSuite) TestTag_FailGetVolume(c *C) {
 	snapshotID := "SnapID"
 	tag := "tag1"
 	s.disk.On("GetTenant", snapshotID).Return(&volumemocks.Volume{}, volume.ErrVolumeNotExists).Once()
-	newTagList, err := s.dfs.Tag(snapshotID, tag)
-	c.Assert(newTagList, IsNil)
+	err := s.dfs.Tag(snapshotID, tag)
 	c.Assert(err, Equals, volume.ErrVolumeNotExists)
 }
 
 func (s *DFSTestSuite) TestTag_FailTag(c *C) {
-	snapshotID := "SnapID"
-	tag := "tag1"
-
 	vol := &volumemocks.Volume{}
-
-	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
-	vol.On("TagSnapshot", snapshotID, tag).Return(nil, ErrTestTagSnapshotFailed).Once()
-
-	newTagList, err := s.dfs.Tag(snapshotID, tag)
-	c.Assert(newTagList, IsNil)
+	s.disk.On("GetTenant", "Base_Snap").Return(vol, nil)
+	vol.On("TagSnapshot", "Base_Snap", "tagA").Return(ErrTestTagSnapshotFailed).Once()
+	err := s.dfs.Tag("Base_Snap", "tagA")
 	c.Assert(err, Equals, ErrTestTagSnapshotFailed)
 }
 
@@ -51,9 +44,8 @@ func (s *DFSTestSuite) TestTag_Success(c *C) {
 	vol := &volumemocks.Volume{}
 
 	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
-	vol.On("TagSnapshot", snapshotID, tag).Return([]string{tag}, nil).Once()
+	vol.On("TagSnapshot", snapshotID, tag).Return(nil).Once()
 
-	newTagList, err := s.dfs.Tag(snapshotID, tag)
-	c.Assert(newTagList, DeepEquals, []string{tag})
+	err := s.dfs.Tag(snapshotID, tag)
 	c.Assert(err, IsNil)
 }
