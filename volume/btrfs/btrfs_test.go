@@ -16,6 +16,7 @@
 package btrfs_test
 
 import (
+	"sort"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -23,7 +24,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/drivertest"
 	// Register the btrfs driver
-	_ "github.com/control-center/serviced/volume/btrfs"
+	. "github.com/control-center/serviced/volume/btrfs"
 )
 
 var (
@@ -57,6 +58,52 @@ func (s *BtrfsSuite) TestBtrfsCreateBase(c *C) {
 
 func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "btrfs", s.root, btrfsArgs)
+}
+
+func (s *BtrfsSuite) TestBtrfsSnapshotTags(c *C) {
+	err := volume.InitDriver("btrfs", s.root, btrfsArgs)
+	c.Assert(err, IsNil)
+	d, err := volume.GetDriver(s.root)
+	c.Assert(err, IsNil)
+	c.Assert(d, NotNil)
+
+	vol, err := d.Create("Base")
+	c.Assert(err, IsNil)
+	c.Assert(vol, NotNil)
+
+	// Take a snapshot with tags
+	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"SnapTag", "tagA"})
+	c.Assert(err, IsNil)
+	snaps, err := vol.Snapshots()
+	c.Assert(err, IsNil)
+	sort.Strings(snaps)
+	c.Assert(sort.SearchStrings(snaps, "Base_Snap") < len(snaps), Equals, true)
+
+	// Verify the tags are set
+	info, err := vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(info, NotNil)
+	c.Check(info.Name, Equals, "Base_Snap")
+	c.Check(info.Label, Equals, "Snap")
+	c.Check(info.TenantID, Equals, "Base")
+	c.Check(info.Message, Equals, "snapshot-message-0")
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagA"})
+
+	// Take another snapshot with an existing tag
+	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"tagA"})
+	c.Assert(err, Equals, volume.ErrTagAlreadyExists)
+
+	// Add a tag to an existing snapshot
+	err = vol.TagSnapshot("Base_Snap", "tagB")
+	c.Assert(err, Equals, ErrBtrfsNotSupported)
+
+	// Remove a tag from an existing snapshot
+	label, err := vol.UntagSnapshot("tagA")
+	c.Assert(err, Equals, ErrBtrfsNotSupported)
+	c.Assert(label, Equals, "")
+
+	c.Assert(d.Remove("Base"), IsNil)
+	c.Assert(d.Exists("Base"), Equals, false)
 }
 
 func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {

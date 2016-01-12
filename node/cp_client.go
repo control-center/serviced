@@ -226,16 +226,16 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 func (s *ControlClient) GetHostMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
 	return s.rpcClient.Call("ControlPlane.GetHostMemoryStats", req, stats, 5*time.Second)
 }
-func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, newTagList, 0)
+func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, unused, 0)
 }
 
-func (s *ControlClient) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, newTagList, 0)
+func (s *ControlClient) RemoveSnapshotTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, snapshotID, 0)
 }
 
-func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
-	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshotID, 0)
+func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshot *dao.SnapshotInfo) error {
+	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshot, 0)
 }
 
 func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {

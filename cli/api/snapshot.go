@@ -73,12 +73,12 @@ func (a *api) GetSnapshotByServiceIDAndTag(serviceID string, tag string) (string
 		TagName:   tag,
 	}
 
-	var snapshot string
+	var snapshot dao.SnapshotInfo
 	if err := client.GetSnapshotByServiceIDAndTag(req, &snapshot); err != nil {
 		return "", err
 	}
 
-	return snapshot, nil
+	return snapshot.SnapshotID, nil
 }
 
 // Snapshots a service
@@ -130,31 +130,32 @@ func (a *api) Rollback(snapshotID string, forceRestart bool) error {
 }
 
 // TagSnapshot tags an existing snapshot with 1 or more strings
-func (a *api) TagSnapshot(snapshotID string, tagName string) ([]string, error) {
+func (a *api) TagSnapshot(snapshotID string, tagName string) error {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	var newTagList []string
-	if err := client.TagSnapshot(dao.TagSnapshotRequest{snapshotID, tagName}, &newTagList); err != nil {
-		return newTagList, err
+	if err := client.TagSnapshot(dao.TagSnapshotRequest{snapshotID, tagName}, &unusedInt); err != nil {
+		return err
 	}
-
-	return newTagList, nil
+	return nil
 }
 
 // RemoveSnapshotTag removes a specific tag from an existing snapshot
-func (a *api) RemoveSnapshotTag(snapshotID string, tagName string) ([]string, error) {
+func (a *api) RemoveSnapshotTag(serviceID string, tagName string) (string, error) {
 	client, err := a.connectDAO()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	var newTagList []string
-	if err := client.RemoveSnapshotTag(dao.TagSnapshotRequest{snapshotID, tagName}, &newTagList); err != nil {
-		return newTagList, err
+	req := dao.SnapshotByTagRequest{
+		ServiceID: serviceID,
+		TagName:   tagName,
+	}
+	var snapshotID string
+	if err := client.RemoveSnapshotTag(req, &snapshotID); err != nil {
+		return "", err
 	}
 
-	return newTagList, nil
+	return snapshotID, nil
 }

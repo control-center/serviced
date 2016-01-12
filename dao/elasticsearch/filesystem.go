@@ -318,6 +318,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 		newInfo := model.SnapshotInfo{
 			SnapshotID:  info.Name,
+			TenantID:    info.TenantID,
 			Description: info.Message,
 			Tags:        info.Tags,
 			Created:     info.Created,
@@ -355,24 +356,30 @@ func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
 }
 
 // TagSnapshot adds a tag to an existing snapshot
-func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, newTagList *[]string) error {
-	var err error
-	*newTagList, err = dao.facade.TagSnapshot(request.SnapshotID, request.TagName)
-	return err
+func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, _ *int) error {
+	return dao.facade.TagSnapshot(request.SnapshotID, request.TagName)
 }
 
 // RemoveSnapshotTag removes a tag from an existing snapshot
-func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.TagSnapshotRequest, newTagList *[]string) error {
-	var err error
-	*newTagList, err = dao.facade.RemoveSnapshotTag(request.SnapshotID, request.TagName)
+func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.SnapshotByTagRequest, snapshotID *string) (err error) {
+	ctx := datastore.Get()
+	*snapshotID, err = dao.facade.RemoveSnapshotTag(ctx, request.ServiceID, request.TagName)
 	return err
 }
 
 // GetSnapshotByServiceIDAndTag Gets the snapshot from a specific service with a specific tag
-func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshotID *string) error {
+func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshot *model.SnapshotInfo) (err error) {
 	ctx := datastore.Get()
-
-	var err error
-	*snapshotID, err = dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
-	return err
+	info, err := dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
+	if err != nil {
+		return
+	}
+	*snapshot = model.SnapshotInfo{
+		SnapshotID:  info.Name,
+		TenantID:    info.TenantID,
+		Description: info.Message,
+		Tags:        info.Tags,
+		Created:     info.Created,
+	}
+	return nil
 }
