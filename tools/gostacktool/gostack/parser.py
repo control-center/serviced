@@ -85,12 +85,12 @@ class Parser:
             self.currentGoroutine = Goroutine()
 
             warnings = self.currentGoroutine.parseLine(line)
-            self.reportWarnings(warnings)
+            self.reportWarnings(warnings, line)
 
             self.state = State.getFunction
 
         except Exception as exc:
-            self.reportError(str(exc))
+            self.reportError(str(exc), line)
             # Skip to next goroutine
             self.finishGoroutine(False)
 
@@ -99,12 +99,12 @@ class Parser:
             self.currentStackFrame = StackFrame()
 
             warnings = self.currentStackFrame.parseFunctionLine(line)
-            self.reportWarnings(warnings)
+            self.reportWarnings(warnings, line)
 
             self.state = State.getFile
 
         except Exception as exc:
-            self.reportError(str(exc))
+            self.reportError(str(exc), line)
             # Skip to next goroutine
             self.finishStackFrame(False)
             self.finishGoroutine(True)
@@ -115,12 +115,12 @@ class Parser:
         
         try:
             warnings = self.currentStackFrame.parseFileLine(line)
-            self.reportWarnings(warnings)
+            self.reportWarnings(warnings, line)
 
             self.finishStackFrame(True) # Sets self.state
 
         except Exception as exc:
-            self.reportError(str(exc))
+            self.reportError(str(exc), line)
             # Skip to next goroutine
             self.finishStackFrame(False)
             self.finishGoroutine(True)
@@ -140,14 +140,17 @@ class Parser:
     def addLineNumber(self, msg):
         return 'Line {0}: {1}'.format(self.linenum, msg)
 
-    def reportWarnings(self, warnings):
-        for warning in warnings:
-            self.reportWarning(warning)
+    def reportWarnings(self, warnings, line):
+        if len(warnings) > 0:
+            for warning in warnings:
+                self.reportWarning(warning)
+            print('         {0}'.format(self.addLineNumber(line)))
 
     def reportWarning(self, msg):
         self.warnings += 1
         print('WARNING: {0}'.format(self.addLineNumber(msg)), file=sys.stderr)
 
-    def reportError(self, msg):
+    def reportError(self, msg, line):
         self.errors += 1
         print('ERROR  : {0}'.format(self.addLineNumber(msg)), file=sys.stderr)
+        print('       : {0}'.format(self.addLineNumber(line)))
