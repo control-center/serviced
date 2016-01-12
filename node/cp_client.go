@@ -144,7 +144,7 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 }
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices, 10 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices, 10*time.Second)
 }
 
 func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
@@ -224,27 +224,27 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 }
 
 func (s *ControlClient) GetHostMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetHostMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetHostMemoryStats", req, stats, 5*time.Second)
 }
 
 func (s *ControlClient) GetServiceMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetServiceMemoryStats", req, stats, 5*time.Second)
 }
 
 func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetInstanceMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetInstanceMemoryStats", req, stats, 5*time.Second)
 }
 
-func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, newTagList, 0)
+func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, unused, 0)
 }
 
-func (s *ControlClient) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, newTagList, 0)
+func (s *ControlClient) RemoveSnapshotTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, snapshotID, 0)
 }
 
-func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
-	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshotID, 0)
+func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshot *dao.SnapshotInfo) error {
+	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshot, 0)
 }
 
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {

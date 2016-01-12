@@ -122,6 +122,7 @@ type BackupFile struct {
 
 type SnapshotInfo struct {
 	SnapshotID  string
+	TenantID    string
 	Description string
 	Tags        []string
 	Created     time.Time

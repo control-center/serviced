@@ -104,6 +104,10 @@ func (s *DeviceMapperSuite) TestDeviceMapperSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "devicemapper", "", devmapArgs)
 }
 
+func (s *DeviceMapperSuite) TestDeviceMapperSnapshotTags(c *C) {
+	drivertest.DriverTestSnapshotTags(c, "devicemapper", "", devmapArgs)
+}
+
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
 }
