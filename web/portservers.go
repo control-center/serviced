@@ -14,7 +14,6 @@
 package web
 
 import (
-	"fmt"
 	"mime"
 	"net"
 	"net/http"
@@ -30,7 +29,6 @@ import (
 	"github.com/control-center/serviced/dao"
 	domainService "github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
-	"strconv"
 )
 
 var (
@@ -44,8 +42,6 @@ func init() {
 }
 
 func disablePort(publicEndpointKey service.PublicEndpointKey){
-	uintPort, _ := strconv.ParseUint(publicEndpointKey.Name(), 10, 16)
-
 	// remove the port from our local cache
 	delete(allports, publicEndpointKey.Name())
 
@@ -55,16 +51,15 @@ func disablePort(publicEndpointKey service.PublicEndpointKey){
 	var unused int
 	cpDao.GetService(publicEndpointKey.ServiceID(), &myService)
 	for _, endpoint := range(myService.Endpoints) {
-		testPort, _ := strconv.ParseUint(publicEndpointKey.Name() ,10, 16)
 		for _, endpointPort := range(endpoint.PortList) {
-			if endpointPort.PortNumber == uint16(testPort) {
+			if endpointPort.PortAddr == publicEndpointKey.Name(){
 				myEndpoint = endpoint
 			}
 		}
 	}
 
 	// disable port
-	myService.EnablePort(myEndpoint.Name, uint16(uintPort), false)
+	myService.EnablePort(myEndpoint.Name, publicEndpointKey.Name(), false)
 	cpDao.UpdateService(myService, &unused)
 }
 
@@ -91,7 +86,7 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 	r.HandleFunc("/{path:.*}", httphandler)
 
 	go func() {
-		port := fmt.Sprintf(":%s", publicEndpointKey.Name())
+		port := publicEndpointKey.Name()
 		server := &http.Server{Addr: port, Handler: r}
 		listener, err := net.Listen("tcp", server.Addr)
 		if err != nil {

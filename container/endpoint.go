@@ -56,7 +56,7 @@ var funcmap = template.FuncMap{
 type export struct {
 	endpoint     applicationendpoint.ApplicationEndpoint
 	vhosts       []string
-	ports        []uint16
+	ports        []string
 	endpointName string
 }
 
@@ -210,9 +210,9 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 				}
 			}
 			if len(defep.PortList) > 0 {
-				exp.ports = []uint16{}
+				exp.ports = []string{}
 				for _, port := range defep.PortList {
-					exp.ports = append(exp.ports, port.PortNumber)
+					exp.ports = append(exp.ports, port.PortAddr)
 				}
 			}
 			exp.endpointName = defep.Name
@@ -714,11 +714,10 @@ func (c *Controller) registerExportedEndpoints() error {
 
 			//register ports
 			for _, port := range export.ports {
-				portStr := fmt.Sprintf("%d", port)
 				glog.V(1).Infof("registerExportedEndpoints: vhost epName=%s", epName)
 				//delete any existing vhost that hasn't been cleaned up
 				vhostEndpoint := registry.NewPublicEndpoint(epName, endpoint)
-				pepKey := registry.GetPublicEndpointKey(portStr, registry.EPTypePort)
+				pepKey := registry.GetPublicEndpointKey(port, registry.EPTypePort)
 
 				if paths, err := publicEndpointRegistry.GetChildren(conn, pepKey); err != nil {
 					glog.Errorf("error trying to get previous vhosts: %s", err)
@@ -731,7 +730,7 @@ func (c *Controller) registerExportedEndpoints() error {
 						} else {
 							glog.V(4).Infof("checking instance id of %#v equal %v", vep, c.options.Service.InstanceID)
 							if strconv.Itoa(vep.InstanceID) == c.options.Service.InstanceID {
-								glog.V(1).Infof("Deleting stale port registration for %v at %v ", portStr, path)
+								glog.V(1).Infof("Deleting stale port registration for %v at %v ", port, path)
 								conn.Delete(path)
 							}
 						}
@@ -741,10 +740,10 @@ func (c *Controller) registerExportedEndpoints() error {
 				// TODO: avoid set if item already exist with data we want
 				var path string
 				if path, err = publicEndpointRegistry.SetItem(conn, pepKey, vhostEndpoint); err != nil {
-					glog.Errorf("could not register port %s for %s: %v", portStr, epName, err)
+					glog.Errorf("could not register port %s for %s: %v", port, epName, err)
 					return err
 				} else {
-					glog.Infof("Registered port %s for %s at %s", portStr, epName, path)
+					glog.Infof("Registered port %s for %s at %s", port, epName, path)
 					c.publicEndpointZKPaths = append(c.publicEndpointZKPaths, path)
 				}
 			}
