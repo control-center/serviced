@@ -479,10 +479,6 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 				}
 
 				_vhostName := strings.ToLower(vhostName)
-				if len(ep.VHostList) == 1 && ep.VHostList[0].Name == _vhostName {
-					return fmt.Errorf("cannot delete last vhost: %s", _vhostName)
-				}
-
 				found := false
 				var vhosts = make([]servicedefinition.VHost, 0)
 				for _, vhost := range ep.VHostList {
