@@ -175,8 +175,10 @@ func (d *DockerClient) fetchCreds(registry string) (auth dockerclient.AuthConfig
 	return
 }
 
-// Generates a unique hash of an image, based on its top layer (excluding the ID) and the IDs of all other layers
-// NOTE:  consider http://localhost:5000/v2/jptest/manifests/latest
+// Generates a unique hash of an image, based on the creation time and command of each layer.
+// CC-1750: the hash does NOT include the layer size because during HA testing we ran into
+//          an edge case where 2 copies of the same image on different machines had different
+//          layer sizes.
 func (d *DockerClient) GetImageHash(image string) (string, error) {
 	historyList, err := d.dc.ImageHistory(image)
 	if err != nil {
@@ -185,7 +187,7 @@ func (d *DockerClient) GetImageHash(image string) (string, error) {
 
 	var buffer bytes.Buffer
 	for _, history := range historyList {
-		imageDataString := fmt.Sprintf("%d-%s-%d\n", history.Created, history.CreatedBy, history.Size)
+		imageDataString := fmt.Sprintf("%d-%s\n", history.Created, history.CreatedBy)
 		buffer.WriteString(imageDataString)
 	}
 
