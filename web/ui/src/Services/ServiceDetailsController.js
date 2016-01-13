@@ -29,7 +29,7 @@
         }
 
         //add Endpoint data
-        $scope.publicEndpoints = { add: {} };
+        $scope.publicEndpoints = { add: {ip: "0.0.0.0"} };
 
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
@@ -177,9 +177,10 @@
                 return resourcesFactory.addVHost(serviceId, serviceEndpoint, name);
             } else if(newPublicEndpoint.type === "port"){
                 var port = newPublicEndpoint.port;
+                var ip = newPublicEndpoint.ip;
                 var serviceId = newPublicEndpoint.app_ep.ApplicationId;
                 var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
-                return resourcesFactory.addPort(serviceId, serviceEndpoint, port);
+                return resourcesFactory.addPort(serviceId, serviceEndpoint, port, ip);
             }
         };
 
@@ -294,10 +295,13 @@
                 var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
                 return location.protocol + "//" + host + port;
             } else if(publicEndpoint.type === "port"){
-                // TODO - get IP
-                var host = $scope.defaultHostAlias;
-                // Port public endpoint port listeners are always on http
-                return "http://" + host + ":" + publicEndpoint.PortNumber;
+                if(publicEndpoint.PortNumber.startsWith(":")){
+                    var host = $scope.defaultHostAlias;
+                    // Port public endpoint port listeners are always on http
+                    return "http://" + host + publicEndpoint.PortNumber;
+                }else{
+                    return "http://" + publicEndpoint.PortNumber;
+                }
             }
         };
 

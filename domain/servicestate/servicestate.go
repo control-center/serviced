@@ -95,7 +95,8 @@ func (ss *ServiceState) EvalPortTemplate(portTemplate string) (uint16, error) {
 		err = fmt.Errorf("Unable to interpret port template %q: %s", portTemplate, err)
 		return 0, err
 	}
-	i, err := strconv.Atoi(b.String())
+	portString := b.String()
+	i, err := strconv.Atoi(strings.Split(portString, ":")[1])
 	if err != nil {
 		err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate, b, err)
 		return 0, err

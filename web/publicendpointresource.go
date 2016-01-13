@@ -23,11 +23,11 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
+	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"strconv"
-	"fmt"
+	"strings"
 )
 
 // json object for adding/removing a virtual host with a service
@@ -136,9 +136,8 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	restSuccess(w)
 }
 
-
 // return serviceID, application and vhostname from the URL path
-func getVHostContext(r *rest.Request,  client *node.ControlClient) (*service.Service, string, string, error){
+func getVHostContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, string, error) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceID: %v", err)
@@ -209,49 +208,50 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 
 // json object for adding/removing a port with a service
 type portRequest struct {
-	ServiceID       string
-	Application     string
-	PortName        string
+	ServiceID   string
+	Application string
+	PortName    string
+	PortIP      string
 }
 
 // Returns the service, application, and portnumber from the request
-func getPortContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, uint16, error) {
+func getPortContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, string, error) {
 	glog.V(1).Infof("in getPortContext()")
 
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceID: %v", err)
-		return nil, "", 0, err
+		return nil, "", "", err
 	}
 
 	var service service.Service
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
-		return nil, "", 0, err
+		return nil, "", "", err
 	}
 
 	application, err := url.QueryUnescape(r.PathParam("application"))
 	if err != nil {
 		glog.Errorf("Failed getting application: %v", err)
-		return nil, "", 0, err
+		return nil, "", "", err
 	}
 
 	// Validate the port number
 	portName, err := url.QueryUnescape(r.PathParam("portname"))
 	if err != nil {
 		err := fmt.Errorf("Failed getting port name for service (%s): %v", serviceID, err)
-		return nil, "", 0, err
+		return nil, "", "", err
 	}
 
 	// Validate the port number
-	port, err := strconv.Atoi(portName);
-  if err != nil {
+	_, err = strconv.Atoi(strings.Split(portName, ":")[1])
+	if err != nil {
 		err := fmt.Errorf("Port must be a number greater than 1024 and less then 65536")
-		return nil, "", 0, err
+		return nil, "", "", err
 	}
 
-	return &service, application, uint16(port), nil
+	return &service, application, portName, nil
 }
 
 // restAddPort parses payload, adds the port to the service, then updates the service
@@ -266,11 +266,11 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	// Validate the port number
-	port, err := strconv.Atoi(request.PortName);
-  if err != nil {
+	port, err := strconv.Atoi(request.PortName)
+	if err != nil {
 		err := fmt.Errorf("Port must be a number greater than 1024 and less then 65536")
 		glog.Error(err)
-    restServerError(w, err)
+		restServerError(w, err)
 		return
 	}
 
@@ -281,8 +281,9 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
-  switch port {
-	case 5000: fallthrough;
+	switch port {
+	case 5000:
+		fallthrough
 	case 8080:
 		err := fmt.Errorf("Port %d is reserved", port)
 		glog.Error(err)
@@ -314,6 +315,13 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
+	var portAddr string
+	if request.PortIP == "" {
+		portAddr = fmt.Sprintf(":%v", port)
+	} else {
+		portAddr = fmt.Sprintf("%s:%v", request.PortIP, port)
+	}
+
 	//checkout other ports for redundancy
 	for _, service := range services {
 		if service.Endpoints == nil {
@@ -322,8 +330,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 		for _, endpoint := range service.Endpoints {
 			for _, epPort := range endpoint.PortList {
-				if uint16(port) == epPort.PortNumber {
-					err := fmt.Errorf("Port %d already defined for service: %s", epPort.PortNumber, service.Name)
+				if portAddr == epPort.PortAddr {
+					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
 					glog.Error(err)
 					restServerError(w, err)
 					return
@@ -332,14 +340,14 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		}
 	}
 
-	err = service.AddPort(request.Application, uint16(port))
+	err = service.AddPort(request.Application, portAddr)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(2).Infof("Port (%d) added to service (%s)", port, service.Name)
+	glog.V(2).Infof("Port (%s) added to service (%s)", portAddr, service.Name)
 
 	var unused int
 	err = client.UpdateService(*service, &unused)
@@ -360,7 +368,7 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	if err != nil {
 		err := fmt.Errorf("Error removing port from service (%s): %v", service.Name, err)
 		glog.Error(err)
-    restServerError(w, err)
+		restServerError(w, err)
 		return
 	}
 
@@ -368,8 +376,8 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	err = service.RemovePort(application, port)
 	if err != nil {
-		glog.Errorf("Error removing port, %d, from service (%s): %v", port, service.Name, err)
-    restServerError(w, err)
+		glog.Errorf("Error removing port, %s, from service (%s): %v", port, service.Name, err)
+		restServerError(w, err)
 		return
 	}
 
@@ -378,12 +386,12 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Error removing port, %d, from service (%s): %v", port, service.Name, err)
-    restServerError(w, err)
+		glog.Errorf("Error removing port, %s, from service (%s): %v", port, service.Name, err)
+		restServerError(w, err)
 		return
 	}
 
-	glog.V(2).Info("Successfully added port %d to service (%s)", port, service.Name)
+	glog.V(2).Info("Successfully added port %s to service (%s)", port, service.Name)
 
 	restSuccess(w)
 }
@@ -427,7 +435,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	// If they're trying to enable the port, check to make sure it's available.
 	if request.Enable {
-	    err = checkPort("tcp", fmt.Sprintf(":%d", port))
+		err = checkPort("tcp", fmt.Sprintf("%s", port))
 		if err != nil {
 			restServerError(w, err)
 			return
@@ -436,7 +444,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	err = service.EnablePort(application, port, request.Enable)
 	if err != nil {
-		glog.Errorf("Error enabling/disabling port %d on service (%s): %v", port, service.Name, err)
+		glog.Errorf("Error enabling/disabling port %s on service (%s): %v", port, service.Name, err)
 		restServerError(w, err)
 		return
 	}
@@ -446,7 +454,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	var unused int
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
-		glog.Errorf("Error updating port %d on service (%s): %v", port, service.Name, err)
+		glog.Errorf("Error updating port %s on service (%s): %v", port, service.Name, err)
 		restServerError(w, err)
 		return
 	}
