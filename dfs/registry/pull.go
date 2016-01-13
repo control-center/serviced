@@ -103,12 +103,9 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 						//if the match, the image we have is current, just return
 						return nil
 					}
-					glog.Infof("Image %s (%s) has different hashes", regaddr, node.Image.UUID)
 				}
 
 				if node.PushedAt.Unix() > 0 {
-					glog.Infof("For image %s (idpath=%s), requesting push", regaddr, idpath)
-
 					// the image is definitely not in the registry, so lets
 					// get that push started.
 					// also, more than one client may try to update this node

@@ -57,7 +57,6 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 			return err
 		}
 		node.Image = rImage
-		glog.Infof("Adding image %s (%s) to ZK", imagepath, node.Image.UUID)
 		node.PushedAt = time.Unix(0, 0)
 		return conn.Set(imagepath, node)
 	} else if err != nil {
