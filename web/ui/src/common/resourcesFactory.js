@@ -78,10 +78,10 @@
             },
             addPort: {
                 method: "PUT",
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, endpointName, portName, portIP) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName) => {
+                payload: (serviceID, endpointName, portName, portIP) => {
                     return JSON.stringify({
                         'ServiceID': serviceID,
                         'Application': endpointName,
@@ -98,14 +98,18 @@
             enablePort: {
                 method: "POST",
                 url: (serviceID, endpointName, portName) => {
-                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}/enable`;
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:true});}
+                payload: (serviceID, endpointName, portName, portIP) => {
+                    return JSON.stringify({
+                        'Enable': true
+                    });
+                }
             },
             disablePort: {
                 method: "POST",
                 url: (serviceID, endpointName, portName) => {
-                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}/enable`;
+                    return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
