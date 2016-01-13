@@ -93,7 +93,7 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 			}
 			// was the pull successful?
 			if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
-				glog.Infof("Image not found by ID, comparing hashes")
+				glog.Infof("Image %s not found by ID (%s), comparing hashes", regaddr, node.Image.UUID)
 				//IDs may not match, so lets compare hashes
 				if localHash, err := l.docker.GetImageHash(regaddr); err != nil {
 					glog.Warningf("Error building hash of image: %s: %s", regaddr, err)
@@ -129,7 +129,7 @@ func (l *RegistryListener) PullImage(cancel <-chan time.Time, image string) erro
 		} else {
 			return nil
 		}
-		glog.Infof("Waiting for image %s to be uploaded into the docker registry", regaddr)
+		glog.Infof("Waiting for image %s to be uploaded into the docker registry (idpath=%s)", regaddr, idpath)
 		select {
 		case e := <-evt:
 			glog.Infof("Got an event: %s", e)
