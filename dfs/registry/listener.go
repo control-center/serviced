@@ -120,6 +120,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		glog.V(1).Infof("Spawn id=%s node: %s:%s %s", id, node.Image.Repo, node.Image.Tag, node.Image.Tag)
 		if node.PushedAt.Unix() == 0 {
 			// Do I have the image?
+			glog.Infof("Checking if push required for id=%s node: %s:%s %s (UUID=%s)", id, node.Image.Repo, node.Image.Tag, node.Image.Tag, node.Image.UUID)
 			if img, err := l.docker.FindImage(node.Image.UUID); err == nil {
 				glog.V(1).Infof("Found image %s locally, acquiring lead", node.Image)
 				func() {
@@ -170,7 +171,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 				glog.Errorf("Could not find image %s: %s", node.Image.UUID, err)
 			}
 		}
-		glog.V(1).Infof("Waiting for image %s to update", node.Image)
+		glog.Infof("Waiting for image %s to update (imagepath=%s)", node.Image, imagepath)
 		select {
 		case <-evt:
 		case <-shutdown:
