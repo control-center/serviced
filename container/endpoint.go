@@ -54,10 +54,10 @@ var funcmap = template.FuncMap{
 }
 
 type export struct {
-	endpoint     applicationendpoint.ApplicationEndpoint
-	vhosts       []string
-	ports        []string
-	endpointName string
+	endpoint      applicationendpoint.ApplicationEndpoint
+	vhosts        []string
+	portAddresses []string
+	endpointName  string
 }
 
 type importedEndpoint struct {
@@ -210,9 +210,9 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 				}
 			}
 			if len(defep.PortList) > 0 {
-				exp.ports = []string{}
+				exp.portAddresses = []string{}
 				for _, port := range defep.PortList {
-					exp.ports = append(exp.ports, port.PortAddr)
+					exp.portAddresses = append(exp.portAddresses, port.PortAddr)
 				}
 			}
 			exp.endpointName = defep.Name
@@ -713,7 +713,7 @@ func (c *Controller) registerExportedEndpoints() error {
 			}
 
 			//register ports
-			for _, port := range export.ports {
+			for _, port := range export.portAddresses {
 				glog.V(1).Infof("registerExportedEndpoints: vhost epName=%s", epName)
 				//delete any existing vhost that hasn't been cleaned up
 				vhostEndpoint := registry.NewPublicEndpoint(epName, endpoint)
