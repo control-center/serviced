@@ -79,7 +79,7 @@ func (s *DFSTestSuite) TestCommit_Stale(c *C) {
 	rImg := &registry.Image{
 		Library: "libraryname",
 		Repo:    "reponame",
-		Tag:     "tagname",
+		Tag:     "tagname",		// not "latest"
 		UUID:    "testimage",
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
@@ -87,7 +87,7 @@ func (s *DFSTestSuite) TestCommit_Stale(c *C) {
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
 	c.Assert(err, Equals, ErrStaleContainer)
-	// uuid is outdated
+	// if uuids are different and the hashes are different, then the container is out of date relative to the registry
 	ctr2 := &dockerclient.Container{
 		ID:    "testcontainer2",
 		Image: "testimage",
@@ -103,8 +103,10 @@ func (s *DFSTestSuite) TestCommit_Stale(c *C) {
 		Repo:    "reponame",
 		Tag:     "latest",
 		UUID:    "testimage2",
+		Hash:    "testImage2-hash",
 	}
 	s.docker.On("FindContainer", "testcontainer2").Return(ctr2, nil)
+	s.docker.On("GetImageHash", ctr2.Image).Return("NOT testImage2-hash", nil)
 	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg2, nil)
 	tenantID, err = s.dfs.Commit("testcontainer2")
 	c.Assert(tenantID, Equals, "")
