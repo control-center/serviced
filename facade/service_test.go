@@ -63,7 +63,7 @@ func (ft *FacadeTest) TestFacade_validateService_PortFail(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(ErrTestEPValidationFail)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(ErrTestEPValidationFail)
 
 	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
 	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
@@ -73,7 +73,7 @@ func (ft *FacadeTest) TestFacade_validateService_Success(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(nil)
 
 	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
 	t.Assert(err, IsNil)
@@ -357,7 +357,7 @@ func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) 
 				servicedefinition.EndpointDefinition{
 					Name: "test_ep_1", Application: "test_ep_1", Purpose: "export",
 					VHostList: []servicedefinition.VHost{servicedefinition.VHost{Name: "test_vhost_1", Enabled: true}},
-					PortList:  []servicedefinition.Port{servicedefinition.Port{PortNumber: 1234, Enabled: true}},
+					PortList:  []servicedefinition.Port{servicedefinition.Port{PortAddr: ":1234", Enabled: true}},
 				},
 			),
 		},

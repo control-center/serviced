@@ -1602,7 +1602,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 		for _, ep := range svc.GetServicePorts() {
 			for _, port := range ep.PortList {
 				//check that ports aren't already started elsewhere
-				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				key := registry.GetPublicEndpointKey(port.PortAddr, registry.EPTypePort)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}
@@ -2037,7 +2037,7 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		for _, ep := range svc.GetServicePorts() {
 			for _, port := range ep.PortList {
 				//check that ports aren't already started elsewhere
-				key := registry.GetPublicEndpointKey(fmt.Sprintf("%d", port.PortNumber), registry.EPTypePort)
+				key := registry.GetPublicEndpointKey(port.PortAddr, registry.EPTypePort)
 				if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
 					return err
 				}

@@ -87,7 +87,7 @@
 
                 // if port already exists
                 for (var i in $scope.publicEndpoints.data) {
-                    if (+port === $scope.publicEndpoints.data[i].PortNumber) {
+                    if (+port === $scope.publicEndpoints.data[i].PortAddr) {
                        return "Port number already in use: "+ newPublicEndpoint.port;
                     }
                 }
@@ -297,10 +297,13 @@
                 var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
                 return location.protocol + "//" + host + port;
             } else if(publicEndpoint.type === "port"){
-                // TODO - get IP
-                var host = $scope.defaultHostAlias;
-                // Port public endpoint port listeners are always on http
-                return "http://" + host + ":" + publicEndpoint.PortNumber;
+                if(publicEndpoint.PortAddr.startsWith(":")){
+                    var host = $scope.defaultHostAlias;
+                    // Port public endpoint port listeners are always on http
+                    return "http://" + host + publicEndpoint.PortAddr;
+                }else{
+                    return "http://" + publicEndpoint.PortAddr;
+                }
             }
         };
 
@@ -389,7 +392,7 @@
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -404,7 +407,7 @@
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
@@ -496,7 +499,7 @@
 
             $modalService.create({
                 template: $translate.instant("remove_public_endpoint") + ": <strong>"+
-                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortNumber) + "</strong>",
+                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong>",
                 model: $scope,
                 title: "remove_public_endpoint",
                 actions: [
@@ -517,7 +520,7 @@
                                         $notification.create("Remove Public Endpoint failed", data.Detail).error();
                                     });
                             } else if(publicEndpoint.type === "port"){
-                                resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortNumber)
+                                resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                                     .success(() => {
                                         servicesFactory.update();
                                         $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
