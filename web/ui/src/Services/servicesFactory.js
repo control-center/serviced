@@ -498,7 +498,7 @@
                         if(endpoint.PortList){
                             endpoint.PortList.forEach(function(port){
                                 acc.push({
-                                    PortNumber: port.PortAddr,
+                                    PortAddr: port.PortAddr,
                                     Enabled: port.Enabled,
                                     Application: service.name,
                                     ServiceEndpoint: endpoint.Application,
