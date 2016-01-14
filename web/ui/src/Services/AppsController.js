@@ -117,7 +117,7 @@
                 return $location.protocol() + "://" + host + port;
             } else if ("PortNumber" in publicEndpoint){
                 // Port public endpoint port listeners are always on http
-                return "http://" + $scope.defaultHostAlias + ":" + publicEndpoint.PortNumber;
+                return "http://" + $scope.defaultHostAlias + publicEndpoint.PortAddr;
             }
         };
 
