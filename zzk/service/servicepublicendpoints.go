@@ -204,7 +204,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// Add the Port entries.
 	for _, ep := range svc.GetServicePorts() {
 		for _, port := range ep.PortList {
-			svcpublicendpoints[newPublicEndpointKey(svc.ID, fmt.Sprintf("%d", port.PortNumber), port.Enabled, registry.EPTypePort)] = struct{}{}
+			svcpublicendpoints[newPublicEndpointKey(svc.ID, fmt.Sprintf("%s", port.PortAddr), port.Enabled, registry.EPTypePort)] = struct{}{}
 		}
 	}
 	glog.V(2).Infof("  svcpublicendpoints %+v", svcpublicendpoints)

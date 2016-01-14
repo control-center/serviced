@@ -352,7 +352,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
-func (s *Service) AddPort(application string, portNumber uint16) error {
+func (s *Service) AddPort(application string, portAddr string) error {
 	if s.Endpoints != nil {
 
 		//find the matching endpoint
@@ -362,11 +362,11 @@ func (s *Service) AddPort(application string, portNumber uint16) error {
 			if ep.Application == application && ep.Purpose == "export" {
 				var ports = make([]servicedefinition.Port, 0)
 				for _, port := range ep.PortList {
-					if port.PortNumber != portNumber {
+					if port.PortAddr != portAddr {
 						ports = append(ports, port)
 					}
 				}
-				ep.PortList = append(ports, servicedefinition.Port{PortNumber:portNumber})
+				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr})
 				return nil
 			}
 		}
@@ -376,7 +376,7 @@ func (s *Service) AddPort(application string, portNumber uint16) error {
 }
 
 // RemovePort Remove a port for given service
-func (s *Service) RemovePort(application string, portNumber uint16) error {
+func (s *Service) RemovePort(application string, portAddr string) error {
 	if s.Endpoints == nil {
 		return fmt.Errorf("Service %s has no Endpoints", s.Name)
 	}
@@ -393,7 +393,7 @@ func (s *Service) RemovePort(application string, portNumber uint16) error {
 			found := false
 			var ports = make([]servicedefinition.Port, 0)
 			for _, port := range ep.PortList {
-				if port.PortNumber != portNumber {
+				if port.PortAddr != portAddr {
 					ports = append(ports, port)
 				} else {
 					found = true
@@ -414,26 +414,26 @@ func (s *Service) RemovePort(application string, portNumber uint16) error {
 }
 
 // EnablePort enables or disables a port for given service
-func (s *Service) EnablePort(application string, portNumber uint16, enable bool) error {
+func (s *Service) EnablePort(application string, portAddr string, enable bool) error {
 	appFound := false
 	portFound := false
 	for _, ep := range s.GetServicePorts() {
 		if ep.Application == application {
 			appFound = true
 			for i, port := range ep.PortList {
-				if port.PortNumber == portNumber {
+				if port.PortAddr == portAddr {
 					portFound = true
 					ep.PortList[i].Enabled = enable
-					glog.V(1).Infof("Enable port %d for %s %s set to %v", portNumber, s.ID, application, enable)
+					glog.V(1).Infof("Enable port %s for %s %s set to %v", portAddr, s.ID, application, enable)
 				}
 			}
 		}
 	}
 	if !appFound {
-		return fmt.Errorf("port %d not found; application %s not found in service %s:%s", portNumber, application, s.ID, s.Name)
+		return fmt.Errorf("port %s not found; application %s not found in service %s:%s", portAddr, application, s.ID, s.Name)
 	}
 	if !portFound {
-		return fmt.Errorf("port %d not found in service %s:%s", portNumber, s.ID, s.Name)
+		return fmt.Errorf("port %s not found in service %s:%s", portAddr, s.ID, s.Name)
 	}
 
 	return nil
