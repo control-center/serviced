@@ -316,6 +316,14 @@ func (d *daemon) run() (err error) {
 	d.startRPC()
 	d.startDockerRegistryProxy()
 
+	//Start the zookeeper client
+	localClient, err := d.initZK(options.Zookeepers)
+	if err != nil {
+		glog.Errorf("failed to create a local coordclient: %v", err)
+		return err
+	}
+	zzk.InitializeLocalClient(localClient)
+
 	if options.Master {
 		d.startISVCS()
 		if err := d.startMaster(); err != nil {
@@ -406,7 +414,7 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not get volume driver at %s: %s", options.VolumesPath, err)
 		return err
 	}
-	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_volumes_v2", "0.0.0.0/0"); err != nil {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	}
@@ -440,13 +448,6 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not initialize context: %s", err)
 		return err
 	}
-
-	localClient, err := d.initZK(options.Zookeepers)
-	if err != nil {
-		glog.Errorf("failed to create a local coordclient: %v", err)
-		return err
-	}
-	zzk.InitializeLocalClient(localClient)
 
 	d.facade = d.initFacade()
 
@@ -602,15 +603,6 @@ func (d *daemon) startAgent() error {
 		}
 
 		thisHost.PoolID = poolID
-
-		basePoolPath := "/pools/" + poolID
-		dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
-		glog.Infof("zookeeper dsn: %s", dsn)
-		zClient, err := coordclient.New("zookeeper", dsn, basePoolPath, nil)
-		if err != nil {
-			glog.Errorf("failed create a new coordclient: %v", err)
-		}
-		zzk.InitializeLocalClient(zClient)
 
 		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
@@ -821,7 +813,7 @@ func (d *daemon) initWeb() {
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
 	go cpserver.Serve(d.shutdown)
-	go cpserver.ServePublicPorts(d.shutdown)
+	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)
 }
 
 func (d *daemon) startScheduler() {
