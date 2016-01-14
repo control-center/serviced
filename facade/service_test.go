@@ -357,7 +357,7 @@ func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) 
 				servicedefinition.EndpointDefinition{
 					Name: "test_ep_1", Application: "test_ep_1", Purpose: "export",
 					VHostList: []servicedefinition.VHost{servicedefinition.VHost{Name: "test_vhost_1", Enabled: true}},
-					PortList:  []servicedefinition.Port{servicedefinition.Port{PortNumber: 1234, Enabled: true}},
+					PortList:  []servicedefinition.Port{servicedefinition.Port{PortAddr: 1234, Enabled: true}},
 				},
 			),
 		},
