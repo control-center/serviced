@@ -361,7 +361,6 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
-	volume.ShutdownAll()
 	switch sig {
 	case syscall.SIGHUP:
 		glog.Infof("Not shutting down isvcs")
