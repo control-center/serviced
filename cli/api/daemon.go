@@ -262,6 +262,11 @@ func (d *daemon) startDockerRegistryProxy() {
 		return
 	}
 
+	if options.Master {
+		glog.Infof("Not creating a reverse proxy for docker registry when running as a master")
+		return
+	}
+
 	glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 		Scheme: "http",
@@ -361,7 +366,6 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
-	volume.ShutdownAll()
 	switch sig {
 	case syscall.SIGHUP:
 		glog.Infof("Not shutting down isvcs")
