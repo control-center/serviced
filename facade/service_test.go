@@ -26,6 +26,7 @@ import (
 
 	"errors"
 	"fmt"
+
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -35,7 +36,7 @@ var (
 )
 
 func (ft *FacadeTest) TestFacade_validateService_badServiceID(t *C) {
-	err := ft.Facade.validateService(ft.CTX, "badID", true)
+	_, err := ft.Facade.validateServiceUpdate(ft.CTX, &service.Service{ID: "badID"})
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
 }
 
@@ -54,8 +55,7 @@ func (ft *FacadeTest) TestFacade_validateService_VHostFail(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(ErrTestEPValidationFail)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
 	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
 }
 
@@ -64,8 +64,7 @@ func (ft *FacadeTest) TestFacade_validateService_PortFail(t *C) {
 	t.Assert(err, IsNil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(ErrTestEPValidationFail)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
 	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
 }
 
@@ -74,8 +73,7 @@ func (ft *FacadeTest) TestFacade_validateService_Success(t *C) {
 	t.Assert(err, IsNil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
 	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(nil)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
+	_, err = ft.Facade.validateServiceUpdate(ft.CTX, svc)
 	t.Assert(err, IsNil)
 }
 
@@ -200,18 +198,18 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, nil)
+	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
+	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 }
 
@@ -219,8 +217,9 @@ func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
 func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
+	newSvc.ConfigFiles = nil
 
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 
 	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
@@ -233,37 +232,6 @@ func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	confs, err := ft.getConfigFiles(result)
 	t.Assert(err, IsNil)
 	t.Assert(len(confs), Equals, 0)
-}
-
-// Verify migration of configuration data when the user has changed the config files
-func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
-	t.Assert(err, IsNil)
-
-	err = ft.setupConfigCustomizations(oldSvc)
-	newSvc.DatabaseVersion = oldSvc.DatabaseVersion
-	t.Assert(err, IsNil)
-
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
-	t.Assert(err, IsNil)
-
-	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
-	t.Assert(err, IsNil)
-
-	expectedConfigFiles := make(map[string]servicedefinition.ConfigFile)
-	expectedConfigFiles["unchangedConfig"] = oldSvc.ConfigFiles["unchangedConfig"]
-	expectedConfigFiles["addedConfig"] = newSvc.OriginalConfigs["addedConfig"]
-	t.Assert(result.Description, Equals, newSvc.Description)
-	t.Assert(result.OriginalConfigs, DeepEquals, newSvc.OriginalConfigs)
-	t.Assert(result.ConfigFiles, DeepEquals, expectedConfigFiles)
-
-	confs, err := ft.getConfigFiles(result)
-	t.Assert(err, IsNil)
-	t.Assert(len(confs), Equals, 1)
-	for _, conf := range confs {
-		t.Assert(conf.ConfFile.Filename, Not(Equals), "addedConfig")
-		t.Assert(expectedConfigFiles[conf.ConfFile.Filename], Equals, conf.ConfFile)
-	}
 }
 
 func (ft *FacadeTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
@@ -417,7 +385,7 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 		svc.ConfigFiles[filename] = customizedConf
 	}
 
-	err := ft.Facade.updateService(ft.CTX, svc)
+	err := ft.Facade.updateService(ft.CTX, *svc, false, false)
 	if err != nil {
 		return err
 	}
@@ -429,7 +397,7 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 }
 
 func (ft *FacadeTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile.SvcConfigFile, error) {
-	tenantID, servicePath, err := ft.Facade.getTenantIDAndPath(ft.CTX, *svc)
+	tenantID, servicePath, err := ft.Facade.getServicePath(ft.CTX, svc.ID)
 	if err != nil {
 		return nil, err
 	}
