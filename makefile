@@ -289,6 +289,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-clea
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced-storage:$(_DESTDIR)/usr/bin/serviced-storage
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
