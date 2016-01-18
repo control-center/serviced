@@ -14,13 +14,12 @@
 package web
 
 import (
-	"mime"
 	"net"
-	"net/http"
 	"sync"
 	"time"
+	"fmt"
 
-	"github.com/gorilla/mux"
+	"github.com/control-center/serviced/proxy"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
@@ -69,43 +68,55 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 }
 
 func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) {
-	mime.AddExtensionType(".json", "application/json")
-	mime.AddExtensionType(".woff", "application/font-woff")
-
-	httphandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.V(2).Infof("httphandler handling request: %+v", r)
-		svcIds := make(map[string]struct{})
-		var emptyStruct struct{}
-		svcIds[publicEndpointKey.ServiceID()] = emptyStruct
-		registryKey := registry.GetPublicEndpointKey(publicEndpointKey.Name(), publicEndpointKey.Type())
-		sc.publicendpointhandler(w, r, registryKey, svcIds)
+	port := publicEndpointKey.Name()
+	listener, err := net.Listen("tcp", port)
+	stopChans := []chan bool{}
+	if err != nil {
+		glog.Errorf("Could not setup TCP listener - %s", err)
+		disablePort(publicEndpointKey)
+		return
 	}
-
-	r := mux.NewRouter()
-	r.HandleFunc("/", httphandler)
-	r.HandleFunc("/{path:.*}", httphandler)
+	glog.Infof("Listening on port %s", port)
 
 	go func() {
-		port := publicEndpointKey.Name()
-		server := &http.Server{Addr: port, Handler: r}
-		listener, err := net.Listen("tcp", server.Addr)
-		if err != nil {
-			glog.Errorf("Could not setup HTTP webserver - %s", err)
-			disablePort(publicEndpointKey)
-			return
-		}
-
-		glog.Infof("Listening on port %s", port)
-
-		go func() {
-			err = server.Serve(listener)
+		for {
+			pepEPInfo, err := sc.getPublicEndpoint(string(publicEndpointKey))
 			if err != nil {
+				glog.Errorf(fmt.Sprintf("%s", err))
+				return
+			}
+			remotePort := fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
+			remoteAddr, err := net.ResolveTCPAddr("tcp", remotePort)
+			if err != nil {
+				glog.Errorf("Cannot resolve remote address - %s: %s", remotePort, err)
+				return
+			}else{
+				glog.Infof("Resolved remote address - %s", remotePort)
+			}
+
+			localConn, err := listener.Accept()
+			remoteConn, err := net.DialTCP("tcp", nil, remoteAddr)
+
+			connStopChan := make(chan bool)
+			stopChans = append(stopChans, connStopChan)
+			if err != nil {
+				for _, c := range stopChans {
+					c <- true
+				}
 				disablePort(publicEndpointKey)
 				listener.Close()
 			}
-		}()
 
+			go proxy.ProxyLoop(localConn, remoteConn, connStopChan)
+		}
+	}()
+
+	go func() {
+		// Wait for shutdown, then kill all your connections
 		<-stopChan
+		for _, c := range stopChans {
+			c <- true
+		}
 		listener.Close()
 		glog.Infof("Closed port %s", port)
 		return
