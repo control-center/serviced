@@ -1506,6 +1506,8 @@ func (dt *DaoTest) assertServiceNotMigrated(t *C, svc *service.Service) bool {
 		t.Fail()
 	}
 
+	svc.CreatedAt = result.CreatedAt
+	svc.UpdatedAt = result.UpdatedAt
 	if !svc.Equals(&result) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
 		t.Fail()
