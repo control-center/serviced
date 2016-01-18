@@ -321,32 +321,7 @@ func (v *RsyncVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
 	// check the metadata directory first
 	label = v.rawSnapshotLabel(label)
 	filename := filepath.Join(v.driver.MetadataDir(), label, name)
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		// now check the snapshot volume and copy the file into the metadata dir
-		snapshotfile := filepath.Join(v.snapshotPath(label), name)
-		file, err := os.Open(snapshotfile)
-		if err != nil {
-			return nil, err
-		}
-		// if you can't create the new file return the snapshot file
-		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil && !os.IsExist(err) {
-			return file, nil
-		}
-		outfile, err := os.Create(filename)
-		if err != nil {
-			return file, nil
-		}
-		// copy the file and seek to the beginning
-		defer file.Close()
-		if _, err := io.Copy(outfile, file); err != nil {
-			return nil, err
-		} else if _, err := outfile.Seek(0, 0); err != nil {
-			return nil, err
-		}
-		return outfile, nil
-	} else if err != nil {
-		return nil, err
-	}
+
 	return os.Open(filename)
 }
 
@@ -430,7 +405,7 @@ func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error)
 	}
 	// check the tags for duplicates
 	for _, tagName := range tags {
-		if tagInfo, err := v.GetSnapshotWithTag(tagName); err != volume.ErrSnapshotDoesNotExist {
+		if tagInfo, err := v.getSnapshotWithTag(tagName, false); err != volume.ErrSnapshotDoesNotExist {
 			if err != nil {
 				glog.Errorf("Could not look up snapshot for tag %s: %s", tagName, err)
 				return err
@@ -505,7 +480,7 @@ func (v *RsyncVolume) TagSnapshot(label, tagName string) error {
 		return err
 	}
 	// verify the tag doesn't already exist
-	if tagInfo, err := v.GetSnapshotWithTag(tagName); err != volume.ErrSnapshotDoesNotExist {
+	if tagInfo, err := v.getSnapshotWithTag(tagName, false); err != volume.ErrSnapshotDoesNotExist {
 		if err != nil {
 			glog.Errorf("Could not look up snapshot for tag %s: %s", tagName, err)
 			return err
@@ -528,7 +503,7 @@ func (v *RsyncVolume) UntagSnapshot(tagName string) (string, error) {
 	v.Lock()
 	defer v.Unlock()
 	// find the snapshot with the provided tag
-	info, err := v.GetSnapshotWithTag(tagName)
+	info, err := v.getSnapshotWithTag(tagName, false)
 	if err != nil {
 		glog.Errorf("Could not find snapshot with tag %s: %s", tagName, err)
 		return "", err
@@ -550,8 +525,28 @@ func (v *RsyncVolume) UntagSnapshot(tagName string) (string, error) {
 
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
 func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
+	return v.getSnapshotWithTag(tagName, true)
+}
+
+// Snapshots implements volume.Volume.Snapshots
+func (v *RsyncVolume) Snapshots() ([]string, error) {
+	glog.Infof("Snapshots()")
+	v.Lock()
+	defer v.Unlock()
+	return v.getSnapshotList()
+}
+
+// getSnapshotWithTag internal impl without locking calls
+func (v *RsyncVolume) getSnapshotWithTag(tagName string, lock bool) (*volume.SnapshotInfo, error) {
 	// Get all snapshots on the volume
-	snapshotLabels, err := v.Snapshots()
+	var err error
+	var snapshotLabels []string
+	if lock {
+		snapshotLabels, err = v.Snapshots()
+	} else {
+		snapshotLabels, err = v.getSnapshotList()
+	}
+
 	if err != nil {
 		glog.Errorf("Could not get current snapshot list: %s", err)
 		return nil, err
@@ -572,13 +567,6 @@ func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, 
 	return nil, volume.ErrSnapshotDoesNotExist
 }
 
-// Snapshots implements volume.Volume.Snapshots
-func (v *RsyncVolume) Snapshots() ([]string, error) {
-	v.Lock()
-	defer v.Unlock()
-	return v.getSnapshotList()
-}
-
 // Internal method for retrieving the snapshot list without obtaining a lock.  Assumes caller has already obtained a lock on the volume.
 func (v *RsyncVolume) getSnapshotList() ([]string, error) {
 	files, err := ioutil.ReadDir(v.driver.MetadataDir())
@@ -587,10 +575,16 @@ func (v *RsyncVolume) getSnapshotList() ([]string, error) {
 	}
 	var labels []string
 	for _, file := range files {
-		if file.IsDir() && v.isSnapshot(file.Name()) {
+		fh, err := os.Stat(v.snapshotPath(file.Name()))
+		if err != nil {
+			glog.Info(err)
+			continue
+		}
+		if file.IsDir() && v.isSnapshot(file.Name()) && fh.IsDir() {
 			labels = append(labels, file.Name())
 		}
 	}
+
 	return labels, nil
 }
 
