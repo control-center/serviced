@@ -283,6 +283,14 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 // service at the same path
 func (f *Facade) validateServiceName(ctx datastore.Context, svc *service.Service) error {
 	store := f.serviceStore
+	if svc.ParentServiceID != "" {
+		psvc, err := store.Get(ctx, svc.ParentServiceID)
+		if err != nil {
+			glog.Errorf("Could not verify the existance of parent %s for service %s: %s", svc.ParentServiceID, svc.Name, err)
+			return err
+		}
+		svc.DeploymentID = psvc.DeploymentID
+	}
 	cursvc, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name)
 	if err != nil {
 		glog.Errorf("Could not check the service name %s for parent %s: %s", svc.Name, svc.ParentServiceID, err)
