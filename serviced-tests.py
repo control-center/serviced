@@ -218,6 +218,9 @@ def main(options):
     if usep1:
         cmd.extend(['-p', '1'])
 
+    if options.verbose:
+        cmd.append("-v")
+
     passthru = options.arguments
     if passthru and passthru[0] == "--":
         passthru = passthru[1:]
