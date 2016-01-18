@@ -24,9 +24,9 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v38"
+	IMAGE_TAG     = "v39"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v2"
+	ZK_IMAGE_TAG  = "v3"
 )
 
 func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string) {
