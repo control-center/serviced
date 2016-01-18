@@ -1881,6 +1881,11 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	svcs := make([]*service.Service, 0, 1)
 
 	err := f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
+		// Populate service config + addr info
+		if err := f.fillOutService(ctx, childService); err != nil {
+			return err
+		}
+
 		svcs = append(svcs, childService)
 		return nil
 	})
