@@ -575,7 +575,6 @@ func (v *RsyncVolume) getSnapshotList() ([]string, error) {
 	}
 	var labels []string
 	for _, file := range files {
-		glog.Infof("does snap dir exist, %s", v.snapshotPath(file.Name()))
 		fh, err := os.Stat(v.snapshotPath(file.Name()))
 		if err != nil {
 			glog.Info(err)
@@ -586,7 +585,6 @@ func (v *RsyncVolume) getSnapshotList() ([]string, error) {
 		}
 	}
 
-	glog.Infof("snapshot list %v", labels)
 	return labels, nil
 }
 
