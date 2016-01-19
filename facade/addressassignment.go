@@ -1,5 +1,15 @@
 // Copyright 2014 The Serviced Authors.
-// Use of f source code is governed by a
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package facade
 
@@ -8,9 +18,7 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
@@ -41,7 +49,7 @@ func (f *Facade) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, 
 	return store.FindAssignmentByHostPort(ctx, ipAddr, port)
 }
 
-// RemoveAddressAssignemnt Removes an AddressAssignment by id
+// RemoveAddressAssignment Removes an AddressAssignment by id
 func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error {
 	store := addressassignment.NewStore()
 	key := addressassignment.Key(id)
@@ -52,18 +60,6 @@ func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error
 	}
 
 	if err := store.Delete(ctx, key); err != nil {
-		return err
-	}
-
-	var svc *service.Service
-	var err error
-	if svc, err = f.GetService(ctx, assignment.ServiceID); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetService service=%+v err=%s", assignment.ServiceID, err)
-		return err
-	}
-
-	if err := f.updateService(ctx, svc); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.updateService service=%+v err=%s", assignment.ServiceID, err)
 		return err
 	}
 
