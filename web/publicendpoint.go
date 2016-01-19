@@ -275,11 +275,7 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 
 	pepEP, err := sc.getPublicEndpoint(string(pepKey))
 	if err != nil {
-		if err.Error() == "Endpoint not found" {
-			http.Error(w, fmt.Sprintf("service associated with public endpoint %v is not running", pepKey), http.StatusNotFound)
-		} else {
-			http.Error(w, fmt.Sprintf("no available service for public endpoint %v ", pepKey), http.StatusNotFound)
-		}
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -287,7 +283,6 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 	// This happens if more than one tenant has the same public endpoint. One tenant is off and the one that is running has
 	// has disabled this public endpoint.
 	if _, found := serviceIDs[pepEP.serviceID]; !found {
-		glog.V(4).Infof("public endpoint not enabled %s: %v", pepKey, err)
 		http.Error(w, fmt.Sprintf("public endpoint %s not available", pepKey), http.StatusNotFound)
 		return
 	}
@@ -308,8 +303,10 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 func (sc *ServiceConfig) getPublicEndpoint(pepKey string) (pepEndpointInfo, error) {
 	pepInfo, found := localpepregistry.get(pepKey)
 	if !found {
-		return pepEndpointInfo{}, errors.New("Enpoint not found")
+		glog.V(4).Infof("public endpoint not enabled %s: %v", pepKey)
+		return pepEndpointInfo{}, fmt.Errorf("service associated with public endpoint %v is not running", pepKey)
 	}
+
 	// round robin through available endpoints
 	pepEP, err := pepInfo.GetNext()
 	if err != nil {
