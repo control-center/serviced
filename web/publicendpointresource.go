@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"regexp"
 )
 
 // json object for adding/removing a virtual host with a service
@@ -265,7 +266,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	// Validate the port number
-	portParts := strings.Split(request.PortName, ":")
+	scrubbedPort := scrubPortString(request.PortName)
+	portParts := strings.Split(scrubbedPort, ":")
 	if len(portParts) <= 1 {
 		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 		glog.Error(err)
@@ -329,7 +331,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 		for _, endpoint := range service.Endpoints {
 			for _, epPort := range endpoint.PortList {
-				if request.PortName == epPort.PortAddr {
+				if scrubbedPort == epPort.PortAddr {
 					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
 					glog.Error(err)
 					restServerError(w, err)
@@ -339,7 +341,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		}
 	}
 
-	err = service.AddPort(request.Application, request.PortName)
+	err = service.AddPort(request.Application, scrubbedPort)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
@@ -460,6 +462,19 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	glog.V(2).Infof("Service (%s) updated", service.Name)
 	restSuccess(w)
+}
+
+func scrubPortString(port string) string{
+	// remove possible protocol at string beginning
+	re := regexp.MustCompile("^(.+://)")
+	scrubbed := re.ReplaceAllString(port, "")
+
+	matched, _ := regexp.MatchString("^[0-9]*$", port)
+	if  matched {
+		scrubbed = fmt.Sprintf(":%s", port)
+	}
+
+	return scrubbed
 }
 
 // Get all virtual hosts
