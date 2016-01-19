@@ -322,6 +322,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 
 	svc.Name = "name"
 	err = dt.Dao.UpdateService(*svc, &unused)
+	t.Assert(err, IsNil)
 	if err != nil {
 		t.Errorf("Failure updating service %-v with error: %s", svc, err)
 		t.Fail()
@@ -333,10 +334,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	//	  as far as I can tell this is a limitation with Go
 	result.UpdatedAt = svc.UpdatedAt
 	result.CreatedAt = svc.CreatedAt
-	if !svc.Equals(&result) {
-		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
-		t.Fail()
-	}
+	t.Assert(svc.Equals(&result), Equals, true)
 
 	svc, _ = service.NewService()
 	svc.ID = "default1"
@@ -349,10 +347,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 
 	svc.Name = "name"
 	err = dt.Dao.UpdateService(*svc, &unused)
-	if err == nil {
-		t.Errorf("Expected error updating service with same name and parent: %-v", svc)
-		t.Fail()
-	}
+	t.Assert(err, Equals, facade.ErrServiceCollision)
 }
 func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc, _ := service.NewService()
@@ -364,7 +359,6 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
-	//Conf file update shouldn't occur because original service didn't have conf files
 	confFile := servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"}
 	svc.ConfigFiles = map[string]servicedefinition.ConfigFile{"testname": confFile}
 	err = dt.Dao.UpdateService(*svc, &unused)
@@ -372,7 +366,7 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 
 	result := service.Service{}
 	dt.Dao.GetService("default", &result)
-	t.Assert(0, Equals, len(result.ConfigFiles))
+	t.Assert(1, Equals, len(result.ConfigFiles))
 
 	//test update conf file works
 	svc, _ = service.NewService()
@@ -1506,6 +1500,8 @@ func (dt *DaoTest) assertServiceNotMigrated(t *C, svc *service.Service) bool {
 		t.Fail()
 	}
 
+	svc.CreatedAt = result.CreatedAt
+	svc.UpdatedAt = result.UpdatedAt
 	if !svc.Equals(&result) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
 		t.Fail()
