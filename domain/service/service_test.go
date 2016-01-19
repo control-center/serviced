@@ -30,7 +30,7 @@ import (
 )
 
 func (s *S) TestScrubPortString(t *C) {
-	testStrings = map[string]string{
+	testStrings := map[string]string{
 		"1234": ":1234",
 		":1234": ":1234",
 		"128.0.0.1:1234": "128.0.0.1:1234",
