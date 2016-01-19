@@ -14,33 +14,33 @@
 package web
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
-	"fmt"
 
 	"github.com/control-center/serviced/proxy"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	domainService "github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/dao"
-	domainService "github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
 var (
 	allportsLock sync.RWMutex
 	allports     map[string]chan int // map of port number to channel that destroys the server
-	cpDao	dao.ControlPlane
+	cpDao        dao.ControlPlane
 )
 
 func init() {
 	allports = make(map[string]chan int)
 }
 
-func disablePort(publicEndpointKey service.PublicEndpointKey){
+func disablePort(publicEndpointKey service.PublicEndpointKey) {
 	// remove the port from our local cache
 	delete(allports, publicEndpointKey.Name())
 
@@ -49,9 +49,9 @@ func disablePort(publicEndpointKey service.PublicEndpointKey){
 	var myEndpoint domainService.ServiceEndpoint
 	var unused int
 	cpDao.GetService(publicEndpointKey.ServiceID(), &myService)
-	for _, endpoint := range(myService.Endpoints) {
-		for _, endpointPort := range(endpoint.PortList) {
-			if endpointPort.PortAddr == publicEndpointKey.Name(){
+	for _, endpoint := range myService.Endpoints {
+		for _, endpointPort := range endpoint.PortList {
+			if endpointPort.PortAddr == publicEndpointKey.Name() {
 				myEndpoint = endpoint
 			}
 		}
@@ -99,7 +99,7 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			if err != nil {
 				glog.Errorf("Cannot resolve remote address - %s: %s", remotePort, err)
 				continue
-			}else{
+			} else {
 				glog.Infof("Resolved remote address - %s", remotePort)
 			}
 
