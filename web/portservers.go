@@ -80,22 +80,34 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 
 	go func() {
 		for {
-			pepEPInfo, err := sc.getPublicEndpoint(string(publicEndpointKey))
+			// accept connection on public port
+			localConn, err := listener.Accept()
 			if err != nil {
-				glog.Errorf(fmt.Sprintf("%s", err))
+				glog.V(1).Infof("Stopping accept on port %s", port)
 				return
 			}
+
+			// lookup remote endpoint for this public port
+			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", publicEndpointKey.Name(), int(publicEndpointKey.Type())))
+			if err != nil {
+				glog.Errorf("%s", err)
+			}
+
+			// setup remote connection
 			remotePort := fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
 			remoteAddr, err := net.ResolveTCPAddr("tcp", remotePort)
 			if err != nil {
 				glog.Errorf("Cannot resolve remote address - %s: %s", remotePort, err)
-				return
+				continue
 			}else{
 				glog.Infof("Resolved remote address - %s", remotePort)
 			}
 
-			localConn, err := listener.Accept()
 			remoteConn, err := net.DialTCP("tcp", nil, remoteAddr)
+			if err != nil {
+				glog.Errorf("%s", err)
+				continue
+			}
 
 			connStopChan := make(chan bool)
 			stopChans = append(stopChans, connStopChan)
@@ -107,6 +119,7 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 				listener.Close()
 			}
 
+			// serve proxied requests/responses
 			go proxy.ProxyLoop(localConn, remoteConn, connStopChan)
 		}
 	}()
@@ -136,8 +149,8 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 
 		// start all servers that have been not started and enabled
 		newPorts := make(map[string]chan int)
-		for _, sv := range childIDs {
-			publicEndpointKey := service.PublicEndpointKey(sv)
+		for _, pepID := range childIDs {
+			publicEndpointKey := service.PublicEndpointKey(pepID)
 			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled() {
 				port := publicEndpointKey.Name()
 				stopChan, running := allports[port]
