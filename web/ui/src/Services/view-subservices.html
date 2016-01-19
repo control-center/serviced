@@ -11,7 +11,7 @@
             </h2>
 
             <div class="serviceActions" ng-hide="services.current.isIsvc()">
-                <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i><span translate>title_edit_service</span></button>
+                <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> <span translate>title_edit_service</span></button>
                 <button ng-click="clickEditContext()" class="btn btn-link action">
                     <i class="glyphicon glyphicon-edit"></i>
                     <span translate>edit_context</span>
@@ -78,7 +78,7 @@
                       <i class="glyphicon glyphicon-stop"></i>
                       <span translate>stop</span>
                   </button>
-                  <button ng-click="clickRemovePublicEndpoint(publicEndpoint)" class="btn btn-link action" ng-disabled="$data.length <= 1">
+                  <button ng-click="clickRemovePublicEndpoint(publicEndpoint)" class="btn btn-link action">
                       <i class="glyphicon glyphicon-remove-sign"></i>
                       <span translate>label_delete</span>
                   </button>

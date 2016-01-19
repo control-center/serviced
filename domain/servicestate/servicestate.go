@@ -96,19 +96,15 @@ func (ss *ServiceState) EvalPortTemplate(portTemplate string) (uint16, error) {
 		return 0, err
 	}
 
-	i := 0
-	portStringParts := strings.Split(b.String(), ":")
-	if len(portStringParts) > 1 {
-		i, err := strconv.Atoi(portStringParts[1])
+	i, err := strconv.Atoi(b.String())
 
-		if err != nil {
-			err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate, b, err)
-			return 0, err
-		}
-		if i < 0 {
-			err = fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", portTemplate, i)
-			return 0, err
-		}
+	if err != nil {
+		err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate, b, err)
+		return 0, err
+	}
+	if i < 0 {
+		err = fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", portTemplate, i)
+		return 0, err
 	}
 
 	return uint16(i), nil

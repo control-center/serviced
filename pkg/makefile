@@ -167,6 +167,7 @@ deb: stage_deb
 		-d 'docker-engine (= 1.9.0-0~trusty)' \
 		-d logrotate \
 		-d rsync \
+		-d lvm2 \
 		-t deb \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -201,6 +202,7 @@ rpm: stage_rpm
 		-d 'docker-engine = 1.9.0' \
 		-d logrotate \
 		-d rsync \
+		-d lvm2 \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
