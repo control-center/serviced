@@ -257,7 +257,7 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 				return nil, err
 			}
 		}
-		if f.validateServiceName(ctx, svc); err != nil {
+		if err := f.validateServiceName(ctx, svc); err != nil {
 			glog.Errorf("Could not validate service name for updated service %s: %s", svc.ID, err)
 			return nil, err
 		}
