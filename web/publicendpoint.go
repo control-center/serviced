@@ -273,23 +273,16 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 		glog.V(1).Infof("Time to process %s public endpoint request %v: %v", pepKey, r.URL, time.Since(start))
 	}()
 
-	pepInfo, found := localpepregistry.get(string(pepKey))
-	if !found {
-		http.Error(w, fmt.Sprintf("service associated with public endpoint %v is not running", pepKey), http.StatusNotFound)
-		return
-	}
-	// round robin through available endpoints
-	pepEP, err := pepInfo.GetNext()
+	pepEP, err := sc.getPublicEndpoint(string(pepKey))
 	if err != nil {
-		glog.V(4).Infof("no endpoint found for public endpoint %s: %v", pepKey, err)
-		http.Error(w, fmt.Sprintf("no available service for public endpoint %v ", pepKey), http.StatusNotFound)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
+
 	// check that the endpoint's service id is in the list of public endpoints that are enabled.
 	// This happens if more than one tenant has the same public endpoint. One tenant is off and the one that is running has
 	// has disabled this public endpoint.
 	if _, found := serviceIDs[pepEP.serviceID]; !found {
-		glog.V(4).Infof("public endpoint not enabled %s: %v", pepKey, err)
 		http.Error(w, fmt.Sprintf("public endpoint %s not available", pepKey), http.StatusNotFound)
 		return
 	}
@@ -305,6 +298,23 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 
 	rp.ServeHTTP(w, r)
 	return
+}
+
+func (sc *ServiceConfig) getPublicEndpoint(pepKey string) (pepEndpointInfo, error) {
+	pepInfo, found := localpepregistry.get(pepKey)
+	if !found {
+		glog.V(4).Infof("public endpoint not enabled %s: %v", pepKey)
+		return pepEndpointInfo{}, fmt.Errorf("service associated with public endpoint %v is not running", pepKey)
+	}
+
+	// round robin through available endpoints
+	pepEP, err := pepInfo.GetNext()
+	if err != nil {
+		glog.V(4).Infof("no endpoint found for public endpoint %s: %v", pepKey, err)
+		return pepEndpointInfo{}, err
+	}
+
+	return pepEP, nil
 }
 
 var reverseProxies map[string]*httputil.ReverseProxy
