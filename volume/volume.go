@@ -135,6 +135,8 @@ type Volume interface {
 	Name() string
 	// Path returns the filesystem path to this volume
 	Path() string
+	// ExportPath returns the filesystem path to any NFS exports for this volume
+	ExportPath() string
 	// Driver returns the driver managing this volume
 	Driver() Driver
 	// Snapshot snapshots the current state of this volume and stores it
