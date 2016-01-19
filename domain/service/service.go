@@ -32,6 +32,8 @@ import (
 // Desired states of services.
 type DesiredState int
 
+var protocolPrefixRegex = regexp.MustCompile("^(.+://)")
+
 func (state DesiredState) String() string {
 	switch state {
 	case SVCRestart:
@@ -447,12 +449,11 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 // Make best effort to make a port address valid
 func ScrubPortString(port string) string{
 	// remove possible protocol at string beginning
-	re := regexp.MustCompile("^(.+://)")
-	scrubbed := re.ReplaceAllString(port, "")
+	scrubbed := protocolPrefixRegex.ReplaceAllString(port, "")
 
-	matched, _ := regexp.MatchString("^[0-9]*$", port)
+	matched, _ := regexp.MatchString("^[0-9]+$", scrubbed)
 	if  matched {
-		scrubbed = fmt.Sprintf(":%s", port)
+		scrubbed = fmt.Sprintf(":%s", scrubbed)
 	}
 
 	return scrubbed
