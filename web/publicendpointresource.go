@@ -28,7 +28,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"regexp"
 )
 
 // json object for adding/removing a virtual host with a service
@@ -266,7 +265,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	// Validate the port number
-	scrubbedPort := scrubPortString(request.PortName)
+	scrubbedPort := service.ScrubPortString(request.PortName)
 	portParts := strings.Split(scrubbedPort, ":")
 	if len(portParts) <= 1 {
 		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
@@ -462,19 +461,6 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	glog.V(2).Infof("Service (%s) updated", service.Name)
 	restSuccess(w)
-}
-
-func scrubPortString(port string) string{
-	// remove possible protocol at string beginning
-	re := regexp.MustCompile("^(.+://)")
-	scrubbed := re.ReplaceAllString(port, "")
-
-	matched, _ := regexp.MatchString("^[0-9]*$", port)
-	if  matched {
-		scrubbed = fmt.Sprintf(":%s", port)
-	}
-
-	return scrubbed
 }
 
 // Get all virtual hosts

@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
+	"regexp"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -159,6 +160,11 @@ func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpo
 	sep.VHosts = epd.VHosts
 	sep.VHostList = epd.VHostList
 	sep.PortList = epd.PortList
+
+	// run public ports through scrubber to allow for "almost correct" port addresses
+	for index, port := range sep.PortList {
+		sep.PortList[index].PortAddr = ScrubPortString(port.PortAddr)
+	}
 	return sep
 }
 
@@ -354,7 +360,6 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 // AddPort Add a port for given service, this method avoids duplicate ports
 func (s *Service) AddPort(application string, portAddr string) error {
 	if s.Endpoints != nil {
-
 		//find the matching endpoint
 		for i := range s.Endpoints {
 			ep := &s.Endpoints[i]
@@ -437,6 +442,20 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 	}
 
 	return nil
+}
+
+// Make best effort to make a port address valid
+func ScrubPortString(port string) string{
+	// remove possible protocol at string beginning
+	re := regexp.MustCompile("^(.+://)")
+	scrubbed := re.ReplaceAllString(port, "")
+
+	matched, _ := regexp.MatchString("^[0-9]*$", port)
+	if  matched {
+		scrubbed = fmt.Sprintf(":%s", port)
+	}
+
+	return scrubbed
 }
 
 // EnableVirtualHost enable or disable a virtual host for given service
