@@ -265,11 +265,8 @@ func (d *DeviceMapperDriver) Cleanup() error {
 			glog.V(2).Infof("Unable to get volume %s; skipping", volname)
 			continue
 		}
-		if mounted, _ := devmapper.Mounted(vol.Path()); mounted {
-			glog.V(2).Infof("Unmounting %s", volname)
-			if err := d.Release(volname); err != nil {
-				return err
-			}
+		if err := d.Release(volname); err != nil {
+			return err
 		}
 	}
 	return d.DeviceSet.Shutdown()
@@ -283,19 +280,25 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	if err != nil {
 		return err
 	}
-	if err := vol.unmount(); err != nil {
-		glog.Errorf("Error whilst unmounting %s: %s", vol.path, err)
-		return err
+	if mounted, _ := devmapper.Mounted(vol.Path()); mounted {
+		glog.V(2).Infof("Unmounting %s", volname)
+		if err := vol.unmount(); err != nil {
+			glog.Errorf("Error whilst unmounting %s: %s", vol.path, err)
+			return err
+		}
 	}
-	device := vol.Metadata.CurrentDevice()
-	glog.V(2).Infof("Deactivating device (%s)", device)
-	d.DeviceSet.Lock()
-	defer d.DeviceSet.Unlock()
-	if err := d.deactivateDevice(device); err != nil {
-		glog.Errorf("Error removing device %s for volume %s: %s", device, volumeName, err)
-		return err
+	snaps := vol.Metadata.ListSnapshots()
+	snaps = append(snaps, vol.Metadata.CurrentDevice())
+	for _, device := range snaps {
+		glog.V(2).Infof("Deactivating device (%s)", device)
+		d.DeviceSet.Lock()
+		defer d.DeviceSet.Unlock()
+		if err := d.deactivateDevice(device); err != nil {
+			glog.Errorf("Error removing device %s for volume %s: %s", device, volumeName, err)
+			return err
+		}
+		glog.V(2).Infof("Deactivated device")
 	}
-	glog.V(2).Infof("Deactivated device")
 	return nil
 }
 
