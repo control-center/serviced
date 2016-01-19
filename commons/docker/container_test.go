@@ -16,6 +16,7 @@
 package docker
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -134,11 +135,13 @@ func TestOnContainerStop(t *testing.T) {
 	}
 
 	ec := make(chan int)
+	waitErrC := make(chan string)
 
 	ctr.OnEvent(Die, func(cid string) {
 		exitcode, err := ctr.Wait(1 * time.Second)
 		if err != nil {
-			t.Fatalf("Error waiting for container to exit: %s", err)
+			waitErrC <- fmt.Sprintf("Error waiting for container to exit: %s", err)
+			return
 		}
 		ec <- exitcode
 	})
@@ -147,6 +150,8 @@ func TestOnContainerStop(t *testing.T) {
 	defer ctr.Delete(true)
 
 	select {
+	case waitErr := <-waitErrC:
+		t.Fatal(waitErr)
 	case exitcode := <-ec:
 		t.Logf("Received exit code: %d", exitcode)
 	case <-time.After(30 * time.Second):
