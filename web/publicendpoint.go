@@ -277,7 +277,7 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		if err.Error() == "Endpoint not found" {
 			http.Error(w, fmt.Sprintf("service associated with public endpoint %v is not running", pepKey), http.StatusNotFound)
-		}else {
+		} else {
 			http.Error(w, fmt.Sprintf("no available service for public endpoint %v ", pepKey), http.StatusNotFound)
 		}
 		return
