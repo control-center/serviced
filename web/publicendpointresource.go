@@ -265,7 +265,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	// Validate the port number
-	portParts := strings.Split(request.PortName, ":")
+	scrubbedPort := service.ScrubPortString(request.PortName)
+	portParts := strings.Split(scrubbedPort, ":")
 	if len(portParts) <= 1 {
 		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 		glog.Error(err)
@@ -329,7 +330,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 		for _, endpoint := range service.Endpoints {
 			for _, epPort := range endpoint.PortList {
-				if request.PortName == epPort.PortAddr {
+				if scrubbedPort == epPort.PortAddr {
 					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
 					glog.Error(err)
 					restServerError(w, err)
@@ -339,7 +340,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		}
 	}
 
-	err = service.AddPort(request.Application, request.PortName)
+	err = service.AddPort(request.Application, scrubbedPort)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
