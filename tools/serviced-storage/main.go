@@ -36,6 +36,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/jessevdk/go-flags"
+	"github.com/zenoss/glog"
 )
 
 var Version string
@@ -116,6 +117,12 @@ func (s *ServicedStorage) initializeLogging() {
 	log.SetOutput(os.Stderr)
 	level := log.WarnLevel + log.Level(len(App.Options.Verbose))
 	log.SetLevel(level)
+
+	// Include glog output if verbosity is enabled
+	if len(App.Options.Verbose) > 0 {
+		glog.SetToStderr(true)
+		glog.SetVerbosity(len(App.Options.Verbose))
+	}
 }
 
 // Execute prints the application version to stdout and exits
