@@ -11,7 +11,7 @@ ExecStartPre=/opt/serviced/bin/serviced-systemd.sh pre-start
 ExecStart=/opt/serviced/bin/serviced $SERVICED_OPTS server
 ExecReload=/bin/pkill --signal SIGHUP -f /opt/serviced/bin/serviced
 ExecStopPost=/opt/serviced/bin/serviced-systemd.sh post-stop
-TimeoutStopSec=60
+TimeoutStopSec=120
 LimitNOFILE=1048576
 
 [Install]
