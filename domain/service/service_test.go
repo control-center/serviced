@@ -160,7 +160,7 @@ func TestScrubPortString(t *testing.T) {
 	for portString, expectedString := range testStrings {
 		scrubbedString := ScrubPortString(portString)
 		if scrubbedString != expectedString{
-			t.Fail("Port String scrubbing failed: %s != %s", scrubbedString, expectedString)
+			t.Fail()
 		}
 	}
 }
