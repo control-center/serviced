@@ -29,22 +29,6 @@ import (
 	"testing"
 )
 
-func (s *S) TestScrubPortString(t *C) {
-	testStrings := map[string]string{
-		"1234": ":1234",
-		":1234": ":1234",
-		"128.0.0.1:1234": "128.0.0.1:1234",
-		"http://128.0.0.1:1234": "128.0.0.1:1234",
-	}
-
-	for portString, expectedString := range testStrings {
-		scrubbedString := ScrubPortString(portString)
-		if scrubbedString != expectedString{
-			t.Errorf("Port String scrubbing failed: %s != %s", scrubbedString, expectedString)
-		}
-	}
-}
-
 func (s *S) TestAddVirtualHost(t *C) {
 	svc := Service{
 		Endpoints: []ServiceEndpoint{
@@ -162,5 +146,21 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 		t.Logf("expected: %+v", expected.MonitoringProfile)
 		t.Logf("actual: %+v", actual.MonitoringProfile)
 		t.Error("expected != actual")
+	}
+}
+
+func TestScrubPortString(t *testing.T) {
+	testStrings := map[string]string{
+		"1234": ":1234",
+		":1234": ":1234",
+		"128.0.0.1:1234": "128.0.0.1:1234",
+		"http://128.0.0.1:1234": "128.0.0.1:1234",
+	}
+
+	for portString, expectedString := range testStrings {
+		scrubbedString := ScrubPortString(portString)
+		if scrubbedString != expectedString{
+			t.Fail("Port String scrubbing failed: %s != %s", scrubbedString, expectedString)
+		}
 	}
 }
