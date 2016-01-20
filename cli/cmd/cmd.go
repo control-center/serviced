@@ -121,6 +121,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 
 	c.initVersion()
 	c.initPool()
+	c.initConfig()
 	c.initHealthCheck()
 	c.initHost()
 	c.initTemplate()
