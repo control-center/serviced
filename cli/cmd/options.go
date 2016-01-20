@@ -29,6 +29,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
+
 func getDefaultOptions(config utils.ConfigReader) api.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
@@ -59,6 +60,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		VirtualAddressSubnet: config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
 		MasterPoolID:         config.StringVal("MASTER_POOLID", "default"),
 		LogstashES:           config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
+		LogstashURL:          config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
 		LogstashMaxDays:      config.IntVal("LOGSTASH_MAX_DAYS", 14),
 		LogstashMaxSize:      config.IntVal("LOGSTASH_MAX_SIZE", 10),
 		DebugPort:            config.IntVal("DEBUG_PORT", 6006),
