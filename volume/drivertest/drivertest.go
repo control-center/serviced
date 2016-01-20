@@ -25,7 +25,6 @@ import (
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/volume/btrfs"
 	dm "github.com/control-center/serviced/volume/devicemapper"
 	. "gopkg.in/check.v1"
 
@@ -296,68 +295,17 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
 
-	// Tag tests:
-	var newTags []string
-
-	// Add an extra tag to a snapshot
-	newTags, err = vol.TagSnapshot("Base_Snap", "tagB")
-	if driver.DriverType() == volume.DriverTypeBtrFS {
-		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
-	} else {
-		c.Assert(err, IsNil)
-		c.Check(newTags, DeepEquals, []string{"SnapTag", "tagA", "tagB"})
-		info, err = vol.SnapshotInfo("Base_Snap")
-		c.Assert(err, IsNil)
-		c.Check(info.Tags, DeepEquals, newTags)
-	}
-
-	// Remove a tag
-	newTags, err = vol.RemoveSnapshotTag("Base_Snap", "tagA")
-	if driver.DriverType() == volume.DriverTypeBtrFS {
-		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
-	} else {
-		c.Assert(err, IsNil)
-		c.Check(newTags, DeepEquals, []string{"SnapTag", "tagB"})
-		info, err = vol.SnapshotInfo("Base_Snap")
-		c.Assert(err, IsNil)
-		c.Check(info.Tags, DeepEquals, newTags)
-	}
-
-	// Get a snapshot by tag
-	info1, err1 := vol.GetSnapshotWithTag("Snap2Tag")
-	c.Assert(err1, IsNil)
-	c.Assert(info1, NotNil)
-	info2, err2 := vol.SnapshotInfo("Base_Snap2")
-	c.Assert(err2, IsNil)
-	c.Check(info1, DeepEquals, info2)
-
-	// Try to get a snapshot with a tag that doesn't exist
-	info, err = vol.GetSnapshotWithTag("nonexistantTag")
-	c.Assert(err, IsNil)
+	// Find Tag (not found)
+	info, err = vol.GetSnapshotWithTag("noTag")
+	c.Assert(err, Equals, volume.ErrSnapshotDoesNotExist)
 	c.Assert(info, IsNil)
 
-	// Attempt to create a new snapshot with an existing tag
-	err = vol.Snapshot("Snap3", "snapshot-message-1", []string{"tagZ", "SnapTag"})
-	c.Assert(err, ErrorMatches, volume.ErrTagAlreadyExists.Error())
-
-	// Attempt to tag a snapshot that doesn't exist and make sure it errors properly
-	newTags, err = vol.TagSnapshot("nonexistantlabel", "someTag")
-	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
-	c.Assert(newTags, IsNil)
-
-	//Attempt to remove a tag from a snapshot that doesn't exist and make sure it errors properly
-	newTags, err = vol.RemoveSnapshotTag("nonexistantlabel", "someTag")
-	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
-	c.Assert(newTags, IsNil)
-
-	// Attempt to tag a snapshot using a tag that already exists and make sure it errors properly
-	newTags, err = vol.TagSnapshot("Base_Snap2", "SnapTag")
-	if driver.DriverType() == volume.DriverTypeBtrFS {
-		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
-	} else {
-		c.Assert(err, ErrorMatches, volume.ErrTagAlreadyExists.Error())
-		c.Assert(newTags, IsNil)
-	}
+	// Find Tag (found)
+	info, err = vol.GetSnapshotWithTag("tagA")
+	c.Assert(err, Equals, nil)
+	c.Assert(info, NotNil)
+	c.Check(info.Name, Equals, "Base_Snap")
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagA"})
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})
@@ -366,6 +314,75 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	// Resnapshot using the raw label and make sure it is equivalent
 	err = vol.Snapshot("Base_Snap", "snapshot-message-3", []string{"tag5", "tag6"})
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
+
+	c.Assert(driver.Remove("Base"), IsNil)
+	c.Assert(driver.Exists("Base"), Equals, false)
+}
+
+func DriverTestSnapshotTags(c *C, drivername volume.DriverType, root string, args []string) {
+	driver := newDriver(c, drivername, root, args)
+	defer cleanup(c, driver)
+
+	vol := createBase(c, driver, "Base")
+	verifyBase(c, driver, vol)
+
+	// Set some metadata on the snapshot
+	wmetadata := []byte("snap-metadata")
+	wHandle, err := vol.WriteMetadata("Snap", "lost+found/metadata")
+	c.Assert(err, IsNil)
+	c.Assert(wHandle, NotNil)
+	n, err := wHandle.Write(wmetadata)
+	c.Assert(err, IsNil)
+	c.Assert(n, Equals, len(wmetadata))
+	err = wHandle.Close()
+	c.Assert(err, IsNil)
+
+	// Snapshot the verified base to produce a new volume
+	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"SnapTag", "tagA"})
+	c.Assert(err, IsNil)
+
+	snaps, err := vol.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
+
+	info, err := vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(info, NotNil)
+	c.Check(info.Name, Equals, "Base_Snap")
+	c.Check(info.Label, Equals, "Snap")
+	c.Check(info.TenantID, Equals, "Base")
+	c.Check(info.Message, Equals, "snapshot-message-0")
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagA"})
+
+	// Add an extra tag to a snapshot (not exists)
+	err = vol.TagSnapshot("Base_Snap", "tagB")
+	c.Assert(err, IsNil)
+	info, err = vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(info, NotNil)
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagA", "tagB"})
+
+	// Add an extra tag to a snapshot (exists)
+	err = vol.TagSnapshot("Base_Snap", "tagB")
+	c.Assert(err, Equals, volume.ErrTagAlreadyExists)
+
+	// Take another snapshot with an existing tag
+	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"tagB"})
+	c.Assert(err, Equals, volume.ErrTagAlreadyExists)
+
+	// Remove Tag (not found)
+	label, err := vol.UntagSnapshot("noTag")
+	c.Assert(err, Equals, volume.ErrSnapshotDoesNotExist)
+	c.Assert(label, Equals, "")
+
+	// Remove Tag (found)
+	label, err = vol.UntagSnapshot("tagA")
+	c.Assert(err, IsNil)
+	c.Assert(label, Equals, "Snap")
+	info, err = vol.SnapshotInfo(label)
+	c.Assert(err, IsNil)
+	c.Assert(info, NotNil)
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagB"})
 
 	c.Assert(driver.Remove("Base"), IsNil)
 	c.Assert(driver.Exists("Base"), Equals, false)

@@ -17,7 +17,10 @@ import (
 	"errors"
 
 	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/domain/registry"
 	"github.com/zenoss/glog"
+
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 var (
@@ -43,8 +46,8 @@ func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 		glog.Errorf("Could not find image %s in registry for container %s: %s", ctr.Config.Image, ctr.ID, err)
 		return "", err
 	}
-	// verify that we are committing to latest (ctr.Image is the UUID)
-	if rImage.Tag != docker.Latest || rImage.UUID != ctr.Image {
+	// verify that we are committing to latest
+	if rImage.Tag != docker.Latest || !dfs.imagesIdentical(rImage, ctr) {
 		return "", ErrStaleContainer
 	}
 	// commit the container
@@ -66,3 +69,22 @@ func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 	}
 	return rImage.Library, nil
 }
+
+func (dfs *DistributedFilesystem) imagesIdentical(rImage *registry.Image, ctr *dockerclient.Container) bool {
+	// If image IDs are the same, we're done (ctr.Image is the UUID)
+	if rImage.UUID == ctr.Image {
+		return true
+	}
+
+	// If IDs do not match, the we have to compare image hashes
+	if ctrHash, err := dfs.docker.GetImageHash(ctr.Image); err == nil {
+		glog.V(2).Infof("For image %s, comparing hash (%s) to master's hash (%s)", ctr.ID, ctrHash, rImage.Hash)
+		if ctrHash == rImage.Hash {
+			return true
+		}
+	} else {
+		glog.Warningf("Error building hash of container %s (image %s): %s", ctr.ID, ctr.Image, err)
+	}
+	return false
+}
+

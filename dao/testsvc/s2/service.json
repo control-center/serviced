@@ -15,7 +15,7 @@
               ],
               "PortList": [
                 {
-                  "PortNumber": 1234,
+                  "PortAddr": ":1234",
                   "Enabled": true
                 }
               ]

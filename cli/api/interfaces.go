@@ -86,8 +86,8 @@ type API interface {
 	AddSnapshot(SnapshotConfig) (string, error)
 	RemoveSnapshot(string) error
 	Rollback(string, bool) error
-	TagSnapshot(string, string) ([]string, error)
-	RemoveSnapshotTag(string, string) ([]string, error)
+	TagSnapshot(string, string) error
+	RemoveSnapshotTag(string, string) (string, error)
 
 	// Templates
 	GetServiceTemplates() ([]template.ServiceTemplate, error)

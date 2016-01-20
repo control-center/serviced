@@ -154,9 +154,9 @@ type Volume interface {
 	// as <label>
 	Rollback(label string) error
 	// TagSnapshot adds a tagName to the snapshot's tag list
-	TagSnapshot(label string, tagName string) ([]string, error)
-	// RemoveSnapshotTag removes a tagName from the snapshot's tag list
-	RemoveSnapshotTag(label string, tagName string) ([]string, error)
+	TagSnapshot(label string, tagName string) error
+	// UntagSnapshot removes a tagName from the snapshot's tag list
+	UntagSnapshot(tagName string) (string, error)
 	// GetSnapshotWithTag returns info about the snapshot with the given tag, or nil if there isn't one
 	GetSnapshotWithTag(tagName string) (*SnapshotInfo, error)
 	// Export exports the snapshot stored as <label> to <filename>

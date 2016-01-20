@@ -675,36 +675,36 @@ func (_m *ControlPlane) ReadyDFS(serviceID string, unused *int) error {
 
 	return r0
 }
-func (_m *ControlPlane) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	ret := _m.Called(request, newTagList)
+func (_m *ControlPlane) TagSnapshot(request dao.TagSnapshotRequest, unused *int) error {
+	ret := _m.Called(request, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
-		r0 = rf(request, newTagList)
+	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *int) error); ok {
+		r0 = rf(request, unused)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ControlPlane) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	ret := _m.Called(request, newTagList)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
-		r0 = rf(request, newTagList)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+func (_m *ControlPlane) RemoveSnapshotTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
 	ret := _m.Called(request, snapshotID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.SnapshotByTagRequest, *string) error); ok {
 		r0 = rf(request, snapshotID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshot *dao.SnapshotInfo) error {
+	ret := _m.Called(request, snapshot)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.SnapshotByTagRequest, *dao.SnapshotInfo) error); ok {
+		r0 = rf(request, snapshot)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -58,11 +58,11 @@ type DFS interface {
 	// BackupInfo provides detailed info for a particular backup
 	BackupInfo(r io.Reader) (*BackupInfo, error)
 	// Tag adds a tag to an existing snapshot
-	Tag(snapshotID string, tagName string) ([]string, error)
-	// RemoveTags removes a tag from an existing snapshot
-	RemoveTag(snapshotID string, tagName string) ([]string, error)
-	// GetSnapshotWithTag finds the snapshot of the specified tenant with the specified tag.
-	GetSnapshotWithTag(tenantID string, tagName string) (string, error)
+	Tag(snapshotID string, tagName string) error
+	// Untag removes a tag from an existing snapshot
+	Untag(tenantID, tagName string) (string, error)
+	// TagInfo provides detailed info for a particular snapshot by given tag
+	TagInfo(tenantID, tagName string) (*SnapshotInfo, error)
 	// UpgradeRegistry loads images for each service
 	// into the docker registry index
 	UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error

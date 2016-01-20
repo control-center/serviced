@@ -92,7 +92,7 @@ type VHost struct {
 
 // Port is the configuration for an application endpoint port.
 type Port struct {
-	PortNumber uint16 // which port number to use for this endpoint
+	PortAddr   string // which port number to use for this endpoint
 	Enabled    bool   // whether the port should be enabled or disabled.
 }
 

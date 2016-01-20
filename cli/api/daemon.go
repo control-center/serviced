@@ -361,7 +361,6 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
-	volume.ShutdownAll()
 	switch sig {
 	case syscall.SIGHUP:
 		glog.Infof("Not shutting down isvcs")
@@ -415,7 +414,7 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not get volume driver at %s: %s", options.VolumesPath, err)
 		return err
 	}
-	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_volumes_v2", "0.0.0.0/0"); err != nil {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	}

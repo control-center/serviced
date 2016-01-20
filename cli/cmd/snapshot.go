@@ -21,7 +21,6 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/volume/btrfs"
 )
 
 // initSnapshot is the initializer for serviced snapshot
@@ -83,8 +82,8 @@ func (c *ServicedCli) initSnapshot() {
 			}, {
 				Name:         "untag",
 				Usage:        "Removes a tag from an existing snapshot",
-				Description:  "serviced snapshot untag SNAPSHOTID TAG-NAME",
-				BashComplete: c.printSnapshotsFirstThenTags,
+				Description:  "serviced snapshot untag SERVICEID TAG-NAME",
+				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotRemoveTag,
 			},
 		},
@@ -334,8 +333,7 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 	args := ctx.Args()
 
 	var (
-		newTags []string
-		err     error
+		err error
 	)
 
 	if len(args) != 2 {
@@ -344,24 +342,19 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 		return
 	}
 
-	if newTags, err = c.driver.TagSnapshot(args[0], args[1]); err != nil {
+	if err = c.driver.TagSnapshot(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if err == btrfs.ErrBtrfsModifySnapshotMetadata {
-			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
-		}
 		return
 	}
-
-	fmt.Printf("%v TAGS: %v\n", args[0], newTags)
 }
 
-// serviced snapshot untag SNAPSHOTID TAG-NAME
+// serviced snapshot untag SERVICEID TAG-NAME
 func (c *ServicedCli) cmdSnapshotRemoveTag(ctx *cli.Context) {
 	args := ctx.Args()
 
 	var (
-		newTags []string
-		err     error
+		snapshotID string
+		err        error
 	)
 
 	if len(args) != 2 {
@@ -371,13 +364,9 @@ func (c *ServicedCli) cmdSnapshotRemoveTag(ctx *cli.Context) {
 	}
 
 	//remove specified tag
-	if newTags, err = c.driver.RemoveSnapshotTag(args[0], args[1]); err != nil {
+	if snapshotID, err = c.driver.RemoveSnapshotTag(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if err == btrfs.ErrBtrfsModifySnapshotMetadata {
-			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
-		}
 		return
 	}
-
-	fmt.Printf("%v TAGS: %v\n", args[0], newTags)
+	fmt.Printf("%s\n", snapshotID)
 }

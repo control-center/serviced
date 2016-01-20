@@ -18,6 +18,9 @@ package facade
 import (
 	"strings"
 
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -26,6 +29,7 @@ import (
 
 	"errors"
 	"fmt"
+
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -34,49 +38,237 @@ var (
 	ErrTestEPValidationFail = errors.New("Endpoint failed validation")
 )
 
+func (ft *FacadeTest) TestFacade_validateServiceName(c *C) {
+	svcA := service.Service{
+		ID:           "validate-service-name-A",
+		Name:         "TestFacade_validateServiceNameA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+	svcB := service.Service{
+		ID:              "validate-service-name-B",
+		ParentServiceID: "validate-service-name-A",
+		Name:            "TestFacade_validateServiceNameB",
+		DeploymentID:    "deployment-id",
+		PoolID:          "pool-id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
+	// parent not exist
+	err := ft.Facade.validateServiceName(ft.CTX, &service.Service{
+		ID:              "validate-service-name-C",
+		ParentServiceID: "bogus-parent",
+		Name:            "TestFacade_validateServiceNameB",
+		DeploymentID:    "deployment-id",
+		PoolID:          "pool-id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	})
+	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+	// collision
+	err = ft.Facade.validateServiceName(ft.CTX, &service.Service{
+		ID:              "validate-service-name-C",
+		ParentServiceID: "validate-service-name-A",
+		Name:            "TestFacade_validateServiceNameB",
+		DeploymentID:    "deployment-id",
+		PoolID:          "pool-id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	})
+	c.Assert(err, Equals, ErrServiceCollision)
+	// success
+	err = ft.Facade.validateServiceName(ft.CTX, &service.Service{
+		ID:              "validate-service-name-C",
+		ParentServiceID: "validate-service-name-A",
+		Name:            "TestFacade_validateServiceNameC",
+		DeploymentID:    "deployment-id",
+		PoolID:          "pool-id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	})
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceTenant(c *C) {
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+	svcB := service.Service{
+		ID:              "validate-service-tenant-B",
+		ParentServiceID: "validate-service-tenant-A",
+		Name:            "TestFacade_validateServiceTenantA",
+		DeploymentID:    "deployment-id",
+		PoolID:          "pool-id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
+	svcC := service.Service{
+		ID:           "validate-service-tenant-C",
+		Name:         "TestFacade_validateServiceTenantC",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcC), IsNil)
+	// empty tenant field
+	err := ft.Facade.validateServiceTenant(ft.CTX, "", "")
+	c.Assert(err, Equals, ErrTenantDoesNotMatch)
+	err = ft.Facade.validateServiceTenant(ft.CTX, svcA.ID, "")
+	c.Assert(err, Equals, ErrTenantDoesNotMatch)
+	err = ft.Facade.validateServiceTenant(ft.CTX, "", svcB.ID)
+	c.Assert(err, Equals, ErrTenantDoesNotMatch)
+	// service not found
+	err = ft.Facade.validateServiceTenant(ft.CTX, "bogus-service", svcC.ID)
+	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+	err = ft.Facade.validateServiceTenant(ft.CTX, svcA.ID, "bogus-service")
+	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+	// not matching tenant
+	err = ft.Facade.validateServiceTenant(ft.CTX, svcB.ID, svcC.ID)
+	c.Assert(err, Equals, ErrTenantDoesNotMatch)
+	err = ft.Facade.validateServiceTenant(ft.CTX, svcA.ID, svcB.ID)
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeTest) setup_validateServiceStart(c *C, endpoints ...service.ServiceEndpoint) *service.Service {
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "test-pool"})
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:           "validate-service-start",
+		Name:         "TestFacade_validateServiceStart",
+		DeploymentID: "deployment-id",
+		PoolID:       "test-pool",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+	}
+	svc.Endpoints = endpoints
+	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
+	return &svc
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
+	// set up the endpoint with a missing address assignment
+	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep1",
+		Application: "ep1",
+		Purpose:     "export",
+		AddressConfig: servicedefinition.AddressResourceConfig{
+			Port:     1234,
+			Protocol: "tcp",
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, endpoint)
+	err := ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrServiceMissingAssignment)
+
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceStart_checkVHostFail(c *C) {
+	// set up the endpoint with an invalid vhost
+	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep2",
+		Application: "ep2",
+		Purpose:     "export",
+		VHostList: []servicedefinition.VHost{
+			{
+				Name:    "vh1",
+				Enabled: true,
+			},
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, endpoint)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("vh1-0"), svc.ID).Return(ErrTestEPValidationFail)
+	err := ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrTestEPValidationFail)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceStart_checkPortFail(c *C) {
+	// set up the endpoint with in invalid public port
+	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep3",
+		Application: "ep3",
+		Purpose:     "export",
+		PortList: []servicedefinition.Port{
+			{
+				PortAddr: ":1234",
+				Enabled:  true,
+			},
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, endpoint)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(ErrTestEPValidationFail)
+	err := ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrTestEPValidationFail)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceStart(c *C) {
+	// successfully add address assignment, vhost, and port
+	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep1",
+		Application: "ep1",
+		Purpose:     "export",
+		AddressConfig: servicedefinition.AddressResourceConfig{
+			Port:     1234,
+			Protocol: "tcp",
+		},
+	})
+	ep2 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep2",
+		Application: "ep2",
+		Purpose:     "export",
+		VHostList: []servicedefinition.VHost{
+			{
+				Name:    "vh1",
+				Enabled: true,
+			},
+		},
+	})
+	ep3 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep3",
+		Application: "ep3",
+		Purpose:     "export",
+		PortList: []servicedefinition.Port{
+			{
+				PortAddr: ":1234",
+				Enabled:  true,
+			},
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, ep1, ep2, ep3)
+	// set up an address assignment for ep1
+	err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{
+		PoolID:        svc.PoolID,
+		IP:            "192.168.22.12",
+		Netmask:       "255.255.255.0",
+		BindInterface: "eth0",
+	})
+	c.Assert(err, IsNil)
+	err = ft.Facade.AssignIPs(ft.CTX, dao.AssignmentRequest{
+		ServiceID:      svc.ID,
+		AutoAssignment: false,
+		IPAddress:      "192.168.22.12",
+	})
+	c.Assert(err, IsNil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("vh1-0"), svc.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(nil)
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, IsNil)
+}
+
 func (ft *FacadeTest) TestFacade_validateService_badServiceID(t *C) {
-	err := ft.Facade.validateService(ft.CTX, "badID", true)
+	_, err := ft.Facade.validateServiceUpdate(ft.CTX, &service.Service{ID: "badID"})
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
-}
-
-func (ft *FacadeTest) TestFacade_validateService_validateServiceForStartingFailed(t *C) {
-	//Can't test this without mocking store
-
-	// svc, err := ft.setupServiceWithEndpoints(t)
-	// t.Assert(err, IsNil)
-
-	// expectedErr := fmt.Sprintf("service %s is missing an address assignment", svc.ID)
-	// t.Assert(err, ErrorMatches, expectedErr)
-	return
-}
-
-func (ft *FacadeTest) TestFacade_validateService_VHostFail(t *C) {
-	svc, err := ft.setupServiceWithEndpoints(t)
-	t.Assert(err, IsNil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(ErrTestEPValidationFail)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
-	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
-}
-
-func (ft *FacadeTest) TestFacade_validateService_PortFail(t *C) {
-	svc, err := ft.setupServiceWithEndpoints(t)
-	t.Assert(err, IsNil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(ErrTestEPValidationFail)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
-	t.Assert(err, ErrorMatches, ErrTestEPValidationFail.Error())
-}
-
-func (ft *FacadeTest) TestFacade_validateService_Success(t *C) {
-	svc, err := ft.setupServiceWithEndpoints(t)
-	t.Assert(err, IsNil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test_vhost_1-0"), svc.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("1234-1"), svc.ID).Return(nil)
-
-	err = ft.Facade.validateService(ft.CTX, svc.ID, true)
-	t.Assert(err, IsNil)
 }
 
 func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *C) {
@@ -200,18 +392,18 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, nil)
+	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
+	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 }
 
@@ -219,8 +411,9 @@ func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
 func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
+	newSvc.ConfigFiles = nil
 
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
+	err = ft.Facade.MigrateService(ft.CTX, *newSvc)
 	t.Assert(err, IsNil)
 
 	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
@@ -233,37 +426,6 @@ func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	confs, err := ft.getConfigFiles(result)
 	t.Assert(err, IsNil)
 	t.Assert(len(confs), Equals, 0)
-}
-
-// Verify migration of configuration data when the user has changed the config files
-func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
-	t.Assert(err, IsNil)
-
-	err = ft.setupConfigCustomizations(oldSvc)
-	newSvc.DatabaseVersion = oldSvc.DatabaseVersion
-	t.Assert(err, IsNil)
-
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
-	t.Assert(err, IsNil)
-
-	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
-	t.Assert(err, IsNil)
-
-	expectedConfigFiles := make(map[string]servicedefinition.ConfigFile)
-	expectedConfigFiles["unchangedConfig"] = oldSvc.ConfigFiles["unchangedConfig"]
-	expectedConfigFiles["addedConfig"] = newSvc.OriginalConfigs["addedConfig"]
-	t.Assert(result.Description, Equals, newSvc.Description)
-	t.Assert(result.OriginalConfigs, DeepEquals, newSvc.OriginalConfigs)
-	t.Assert(result.ConfigFiles, DeepEquals, expectedConfigFiles)
-
-	confs, err := ft.getConfigFiles(result)
-	t.Assert(err, IsNil)
-	t.Assert(len(confs), Equals, 1)
-	for _, conf := range confs {
-		t.Assert(conf.ConfFile.Filename, Not(Equals), "addedConfig")
-		t.Assert(expectedConfigFiles[conf.ConfFile.Filename], Equals, conf.ConfFile)
-	}
 }
 
 func (ft *FacadeTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
@@ -357,7 +519,7 @@ func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) 
 				servicedefinition.EndpointDefinition{
 					Name: "test_ep_1", Application: "test_ep_1", Purpose: "export",
 					VHostList: []servicedefinition.VHost{servicedefinition.VHost{Name: "test_vhost_1", Enabled: true}},
-					PortList:  []servicedefinition.Port{servicedefinition.Port{PortNumber: 1234, Enabled: true}},
+					PortList:  []servicedefinition.Port{servicedefinition.Port{PortAddr: ":1234", Enabled: true}},
 				},
 			),
 		},
@@ -417,7 +579,7 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 		svc.ConfigFiles[filename] = customizedConf
 	}
 
-	err := ft.Facade.updateService(ft.CTX, svc)
+	err := ft.Facade.updateService(ft.CTX, *svc, false, false)
 	if err != nil {
 		return err
 	}
@@ -429,7 +591,7 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 }
 
 func (ft *FacadeTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile.SvcConfigFile, error) {
-	tenantID, servicePath, err := ft.Facade.getTenantIDAndPath(ft.CTX, *svc)
+	tenantID, servicePath, err := ft.Facade.getServicePath(ft.CTX, svc.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -369,7 +369,7 @@
     "endpoint": "Endpoint",
     "public_endpoint_type": "Type",
     "add_public_endpoint": "Add Public Endpoint",
-    "public_endpoint_portnumber": "Port Number",
+    "public_endpoint_portnumber": "Port Address",
     "public_endpoint_hostname": "VHost Hostname",
     "public_endpoint_vhost": "VHost",
     "public_endpoint_port": "Port",

@@ -35,12 +35,12 @@ import (
 )
 
 var (
-	ErrBtrfsInvalidFilesystem      = errors.New("not a btrfs filesystem")
-	ErrBtrfsInvalidDriver          = errors.New("invalid driver")
-	ErrBtrfsCreatingSubvolume      = errors.New("could not create subvolume")
-	ErrBtrfsInvalidLabel           = errors.New("invalid label")
-	ErrBtrfsListingSnapshots       = errors.New("couldn't list snapshots")
-	ErrBtrfsModifySnapshotMetadata = errors.New("can't modify snapshot metadata on btrfs")
+	ErrBtrfsInvalidFilesystem = errors.New("not a btrfs filesystem")
+	ErrBtrfsInvalidDriver     = errors.New("invalid driver")
+	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
+	ErrBtrfsInvalidLabel      = errors.New("invalid label")
+	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
+	ErrBtrfsNotSupported      = errors.New("operation not supported on btrfs driver")
 )
 
 func init() {
@@ -368,25 +368,25 @@ func (v *BtrfsVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
 
 // Snapshot implements volume.Volume.Snapshot
 func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
-	//make sure the label doesn't already exist
+	// make sure the label doesn't already exist
 	path := v.snapshotPath(label)
 	if ok, err := volume.IsDir(path); err != nil {
 		return err
 	} else if ok {
 		return volume.ErrSnapshotExists
 	}
-
-	//make sure none of the tags already exist
+	// check the tags for duplicates
 	for _, tagName := range tags {
-		if info, err := v.GetSnapshotWithTag(tagName); err != nil {
-			glog.Errorf("Error checking for tag conflicts: %v", err)
-			return err
-		} else if info != nil {
-			glog.Errorf("Can not create snapshot %s, tag '%s' already exists", label, tagName)
-			return volume.ErrTagAlreadyExists
+		if tagInfo, err := v.GetSnapshotWithTag(tagName); err != volume.ErrSnapshotDoesNotExist {
+			if err != nil {
+				glog.Errorf("Could not look up snapshot with tag %s: %s", tagName, err)
+				return err
+			} else {
+				glog.Errorf("Tag '%s' is already in use by snapshot %s", tagName, tagInfo.Name)
+				return volume.ErrTagAlreadyExists
+			}
 		}
 	}
-
 	v.Lock()
 	defer v.Unlock()
 	info := volume.SnapshotInfo{
@@ -405,62 +405,39 @@ func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
 }
 
 // TagSnapshot implements volume.Volume.TagSnapshot
-func (v *BtrfsVolume) TagSnapshot(label string, tagName string) ([]string, error) {
-	//make sure the snapshot exists
-	if exists, err := v.snapshotExists(label); err != nil || !exists {
-		if err != nil {
-			return nil, err
-		} else {
-			return nil, volume.ErrSnapshotDoesNotExist
-		}
-	}
-
-	//now throw an error because we can't change snapshot metadata in btrfs
-	return nil, ErrBtrfsModifySnapshotMetadata
-
+// This is not implemented with btrfs
+func (v *BtrfsVolume) TagSnapshot(label string, tagName string) error {
+	return ErrBtrfsNotSupported
 }
 
-// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
-func (v *BtrfsVolume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
-	//make sure the snapshot exists
-	if exists, err := v.snapshotExists(label); err != nil || !exists {
-		if err != nil {
-			return nil, err
-		} else {
-			return nil, volume.ErrSnapshotDoesNotExist
-		}
-	}
-
-	//now throw an error because we can't change snapshot metadata in btrfs
-	return nil, ErrBtrfsModifySnapshotMetadata
+// UntagSnapshot implements volume.Volume.RemoveSnapshotTag
+// This is not implemented with btrfs
+func (v *BtrfsVolume) UntagSnapshot(tagName string) (string, error) {
+	return "", ErrBtrfsNotSupported
 }
 
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
 func (v *BtrfsVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
-	var (
-		snaps []string
-		info  *volume.SnapshotInfo
-		err   error
-	)
-
-	if snaps, err = v.Snapshots(); err != nil {
-		glog.Errorf("Could not get current snapshot list : %v", err)
-		return nil, ErrBtrfsListingSnapshots
+	// Get all the snapshots on the volume
+	snapshotLabels, err := v.Snapshots()
+	if err != nil {
+		glog.Errorf("Could not get current snapshot list: %s", err)
+		return nil, err
 	}
-
-	for _, snaplabel := range snaps {
-		if info, err = v.SnapshotInfo(snaplabel); err != nil {
-			glog.Errorf("Could not get info for %s: %v", snaplabel, err)
+	// Get info for each snapshot and return if a matching tag is found
+	for _, snapshotLabel := range snapshotLabels {
+		info, err := v.SnapshotInfo(snapshotLabel)
+		if err != nil {
+			glog.Errorf("Could not get info for snapshot %s: %s", snapshotLabel, err)
 			return nil, err
 		}
-		for _, t := range info.Tags {
-			if t == tagName {
+		for _, tag := range info.Tags {
+			if tag == tagName {
 				return info, nil
 			}
 		}
 	}
-
-	return nil, nil
+	return nil, volume.ErrSnapshotDoesNotExist
 }
 
 // Snapshots implements volume.Volume.Snapshots
