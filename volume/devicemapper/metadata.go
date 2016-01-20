@@ -115,6 +115,15 @@ func (m *SnapshotMetadata) ListSnapshots() (snaps []string) {
 	return snaps
 }
 
+func (m *SnapshotMetadata) ListDevices() (devices []string) {
+	// Add the current device first so any device-based operations can act on it before any snapshots
+	devices = append(devices, m.CurrentDevice())
+	for _, device := range m.snapshotMetadata.Snapshots {
+		devices = append(devices, device)
+	}
+	return devices
+}
+
 func (m *SnapshotMetadata) LookupSnapshotDevice(snapshot string) (string, error) {
 	m.Lock()
 	defer m.Unlock()
