@@ -15,8 +15,6 @@ package api
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 
 	"github.com/control-center/serviced/utils"
@@ -43,37 +41,6 @@ func GetAgentIP(defaultRPCPort int) string {
 		glog.Fatalf("Failed to get IP address: %s", err)
 	}
 	return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
-}
-
-// GetDockerDNS returns the docker dns address
-func GetDockerDNS() []string {
-	if len(options.DockerDNS) > 0 {
-		return options.DockerDNS
-	}
-
-	dockerdns := os.Getenv("SERVICED_DOCKER_DNS")
-	return strings.Split(dockerdns, ",")
-}
-
-// GetESStartupTimeout returns the Elastic Search Startup Timeout
-func GetESStartupTimeout() int {
-	var timeout int
-
-	if t := options.ESStartupTimeout; t > 0 {
-		timeout = options.ESStartupTimeout
-	} else if t := os.Getenv("ES_STARTUP_TIMEOUT"); t != "" {
-		if res, err := strconv.Atoi(t); err != nil {
-			timeout = res
-		}
-	}
-
-	if timeout == 0 {
-		timeout = defaultTimeout
-	} else if timeout < minTimeout {
-		timeout = minTimeout
-	}
-
-	return timeout
 }
 
 type version []int

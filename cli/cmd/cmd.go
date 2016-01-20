@@ -198,12 +198,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
-	if os.Getenv("SERVICED_MASTER") == "1" {
-		options.Master = true
-	}
-	if os.Getenv("SERVICED_AGENT") == "1" {
-		options.Agent = true
-	}
 
 	options.Endpoint = validateEndpoint(options)
 
