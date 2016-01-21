@@ -3,7 +3,7 @@ description "Zenoss ServiceD"
 start on (filesystem and started docker and (started network-interface or started network-manager or started networking) )
 
 stop on run level [!2345]
-kill timeout 60
+kill timeout 120
 
 limit nofile 1048576 1048576
 
