@@ -66,3 +66,7 @@ func (r TestConfigReader) BoolVal(name string, dflt bool) bool {
 	}
 	return dflt
 }
+
+func (p TestConfigReader) GetConfigValues() map[string]ConfigValue {
+	return map[string]ConfigValue{}
+}
