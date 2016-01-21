@@ -33,19 +33,26 @@ func (err ParseError) Error() string {
 	return fmt.Sprintf("could not parse line: %s", err.String)
 }
 
+type ConfigValue struct {
+	Name  string
+	Value string
+}
+
 type ConfigReader interface {
 	StringVal(key, dflt string) string
 	StringSlice(key string, dflt []string) []string
 	IntVal(key string, dflt int) int
 	BoolVal(key string, dflt bool) bool
+	GetConfigValues() map[string]ConfigValue
 }
 
 type EnvironConfigReader struct {
 	prefix string
+	configValues map[string]ConfigValue
 }
 
 func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, error) {
-	r := &EnvironConfigReader{prefix}
+	r := &EnvironConfigReader{prefix, map[string]ConfigValue{}}
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -61,7 +68,7 @@ func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, erro
 // NewEnvironOnlyConfigReader creates an EnvironConfigReader without parsing
 // a file first.
 func NewEnvironOnlyConfigReader(prefix string) *EnvironConfigReader {
-	return &EnvironConfigReader{prefix}
+	return &EnvironConfigReader{prefix, map[string]ConfigValue{}}
 }
 
 // parse is a really dumb reader parser.  It maps only key values in the form
@@ -81,7 +88,7 @@ func (p *EnvironConfigReader) parse(reader io.Reader) error {
 		}
 
 		line = strings.TrimSpace(strings.Split(line, "#")[0])
-		if err := keyvalue([]byte(line)); err != nil {
+		if err := p.keyvalue([]byte(line)); err != nil {
 			return err
 		}
 	}
@@ -89,11 +96,16 @@ func (p *EnvironConfigReader) parse(reader io.Reader) error {
 }
 
 func (p *EnvironConfigReader) StringVal(name string, defaultval string) string {
-	if val := os.Getenv(p.prefix + name); val != "" {
-		return val
-	} else {
-		return defaultval
+	configValue := ConfigValue{
+		Name:  p.getFullValueName(name),
+		Value: defaultval,
 	}
+
+	if val := os.Getenv(configValue.Name); val != "" {
+		configValue.Value = val
+	}
+	p.configValues[name] = configValue
+	return configValue.Value
 }
 
 func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []string {
@@ -101,6 +113,9 @@ func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []st
 	if strval != "" {
 		return strings.Split(strval, ",")
 	}
+	entry, _ := p.configValues[name]
+	entry.Value = strings.Join(defaultval,",")
+	p.configValues[name] = entry
 	return defaultval
 }
 
@@ -111,6 +126,9 @@ func (p *EnvironConfigReader) IntVal(name string, defaultval int) int {
 			return val
 		}
 	}
+	entry, _ := p.configValues[name]
+	entry.Value = fmt.Sprintf("%d", defaultval)
+	p.configValues[name] = entry
 	return defaultval
 }
 
@@ -133,16 +151,31 @@ func (p *EnvironConfigReader) BoolVal(name string, defaultval bool) bool {
 			}
 		}
 	}
+	entry, _ := p.configValues[name]
+	entry.Value = fmt.Sprintf("%v", defaultval)
+	p.configValues[name] = entry
 	return defaultval
 }
 
-func keyvalue(line []byte) error {
+func (p *EnvironConfigReader) GetConfigValues() map[string]ConfigValue {
+	return p.configValues
+}
+
+func (p *EnvironConfigReader) keyvalue(line []byte) error {
 	pair := string(line)
 	if idx := strings.Index(pair, "="); idx >= 0 {
 		key, value := strings.TrimSpace(pair[:idx]), translate(strings.TrimSpace(pair[idx+1:]))
 		if err := os.Setenv(key, value); err != nil {
 			return err
 		}
+		configValue := ConfigValue{
+			Name: key,
+			Value: value,
+		}
+		if strings.HasPrefix(key, p.prefix) {
+			key = strings.TrimPrefix(key, p.prefix)
+		}
+		p.configValues[key] = configValue
 	} else if pair != "" {
 		return ParseError{pair}
 	}
@@ -155,4 +188,8 @@ func translate(value string) string {
 		return ""
 	}
 	return string(result)
+}
+
+func (p *EnvironConfigReader) getFullValueName(name string) string {
+	return p.prefix + name
 }
