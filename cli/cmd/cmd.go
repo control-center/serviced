@@ -208,10 +208,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.FSType = volume.DriverTypeNFS
 	}
 
-	if len(options.StorageArgs) == 0 {
-		options.StorageArgs = getDefaultStorageOptions(options.FSType)
-	}
-
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)

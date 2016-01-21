@@ -100,6 +100,8 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		options.BackupsPath = filepath.Join(varpath, "backups")
 	}
 
+	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
+
 	return options
 }
 
