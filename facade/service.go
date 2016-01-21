@@ -143,10 +143,6 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 	// set service defaults
 	svc.DesiredState = int(service.SVCStop) // new services must always be stopped
 	svc.DatabaseVersion = 0                 // create service set database version to 0
-	// clear out address assignments
-	for i := range svc.Endpoints {
-		svc.Endpoints[i].RemoveAssignment()
-	}
 	// manage service configurations
 	if svc.OriginalConfigs == nil || len(svc.OriginalConfigs) == 0 {
 		if svc.ConfigFiles != nil {
@@ -216,7 +212,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migra
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-	glog.Infof("Created service %s (%s)", svc.Name, svc.ID)
+	glog.Infof("Updated service %s (%s)", svc.Name, svc.ID)
 	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
 		glog.Warningf("Could not set configurations to service %s (%s): %s", svc.Name, svc.ID, err)
@@ -271,10 +267,6 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 			glog.Warningf("Could not validate %s for starting: %s", svc.ID, err)
 			svc.DesiredState = int(service.SVCStop)
 		}
-	}
-	// clear out address assignments
-	for i := range svc.Endpoints {
-		svc.Endpoints[i].RemoveAssignment()
 	}
 	return cursvc, nil
 }
@@ -409,7 +401,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
 				return err
 			}
-			if err := f.RestoreIPs(ctx, svc); err != nil {
+			if err := f.restoreIPs(ctx, &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 			if err := traverse(svc.ID); err != nil {
@@ -1291,36 +1283,29 @@ func (m Ports) List() (ports []uint16) {
 	return
 }
 
-func (f *Facade) RestoreIPs(ctx datastore.Context, svc service.Service) error {
+func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 	for _, ep := range svc.Endpoints {
-		if ep.AddressAssignment.IPAddr != "" {
-			if assign, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name); err != nil {
-				glog.Errorf("Could not look up address assignment %s for service %s (%s): %s", ep.Name, svc.Name, svc.ID, err)
-				return err
-			} else if assign == nil || !assign.EqualIP(ep.AddressAssignment) {
-				ip, err := f.getManualAssignment(ctx, svc.PoolID, ep.AddressAssignment.IPAddr, ep.AddressConfig.Port)
-				if err != nil {
-					glog.Warningf("Could not assign ip (%s) to endpoint %s for service %s (%s): %s", ep.AddressAssignment.IPAddr, ep.Name, svc.Name, svc.ID, err)
-					continue
-				}
-
-				assign = &addressassignment.AddressAssignment{
-					AssignmentType: ip.Type,
-					HostID:         ip.HostID,
-					PoolID:         svc.PoolID,
-					IPAddr:         ip.IP,
-					Port:           ep.AddressConfig.Port,
-					ServiceID:      svc.ID,
-					EndpointName:   ep.Name,
-				}
-				if _, err := f.assign(ctx, *assign); err != nil {
-					glog.Errorf("Could not restore address assignment for %s of service %s at %s:%d: %s", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port, err)
-					return err
-				}
-				glog.Infof("Restored address assignment for endpoint %s of service %s at %s:%d", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port)
-			} else {
-				glog.Infof("Endpoint %s for service %s (%s) already assigned; skipping", assign.EndpointName, assign.ServiceID)
+		if addrAssign := ep.AddressAssignment; addrAssign.IPAddr != "" {
+			glog.Infof("Found an address assignment at %s:%d to endpoint %s for service %s (%s)", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID)
+			ip, err := f.getManualAssignment(ctx, svc.PoolID, addrAssign.IPAddr, ep.AddressConfig.Port)
+			if err != nil {
+				glog.Warningf("Could not assign ip %s:%d to endpoint %s for service %s (%s): %s", addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, svc.Name, svc.ID, err)
+				continue
 			}
+			newAddrAssign := addressassignment.AddressAssignment{
+				AssignmentType: ip.Type,
+				HostID:         ip.HostID,
+				PoolID:         svc.PoolID,
+				IPAddr:         ip.IP,
+				Port:           ep.AddressConfig.Port,
+				ServiceID:      svc.ID,
+				EndpointName:   ep.Name,
+			}
+			if _, err := f.assign(ctx, newAddrAssign); err != nil {
+				glog.Errorf("Could not restore address assignment for service %s (%s) at %s:%d for endpoint %s: %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name, err)
+				return err
+			}
+			glog.Infof("Restored address assignment for service %s (%s) at %s:%d for endpoint %s", svc.Name, svc.ID, addrAssign.IPAddr, ep.AddressConfig.Port, ep.Name)
 		}
 	}
 	return nil
