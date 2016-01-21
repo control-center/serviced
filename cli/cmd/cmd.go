@@ -46,7 +46,6 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		glog.Fatal("Missing configuration data!")
 	}
 	defaultOps := getDefaultOptions(config)
-	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	c := &ServicedCli{
 		driver: driver,
@@ -109,7 +108,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashurl", config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)), "logstash url and port"},
+		cli.StringFlag{"logstashurl", defaultOps.LogstashURL, "logstash url and port"},
 		cli.StringFlag{"logstash-es", defaultOps.LogstashES, "host and port for logstash elastic search"},
 		cli.IntFlag{"logstash-max-days", defaultOps.LogstashMaxDays, "days to keep Logstash data"},
 		cli.IntFlag{"logstash-max-size", defaultOps.LogstashMaxSize, "max size of Logstash data to keep in gigabytes"},
@@ -122,6 +121,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 
 	c.initVersion()
 	c.initPool()
+	c.initConfig()
 	c.initHealthCheck()
 	c.initHost()
 	c.initTemplate()
@@ -214,10 +214,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.FSType = volume.DriverTypeNFS
 	}
 
-	if len(options.StorageArgs) == 0 {
-		options.StorageArgs = getDefaultStorageOptions(options.FSType)
-	}
-
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
@@ -297,7 +293,6 @@ func setLogging(ctx *cli.Context) error {
 			return err
 		}
 	}
-
 	if ctx.IsSet("vmodule") {
 		if err := glog.SetVModule(ctx.GlobalString("vmodule")); err != nil {
 			return err

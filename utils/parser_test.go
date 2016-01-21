@@ -23,7 +23,7 @@ import (
 )
 
 func TestEnvironConfigReader_parse(t *testing.T) {
-	config := EnvironConfigReader{"SERVICEDTEST_"}
+	config := EnvironConfigReader{"SERVICEDTEST_", map[string]ConfigValue{}}
 
 	// Set some environment variables
 	os.Setenv("SERVICEDTEST_STRING", "hello world")
@@ -53,6 +53,20 @@ func TestEnvironConfigReader_parse(t *testing.T) {
 	verify(t, "SERVICEDTEST_FBOOL", config.BoolVal("FBOOL", true), false)
 	verify(t, "SERVICEDTEST_DEFAULTBOOL", config.BoolVal("DEFAULTBOOL", true), true)
 
+	parsedValues := config.GetConfigValues()
+	if len(parsedValues) != 9 {
+		t.Errorf("len(parsedValues) failed: expected %d got %d", 9, len(parsedValues))
+	}
+	verifyConfigValue(t, "STRING", parsedValues, ConfigValue{"SERVICEDTEST_STRING", "hello world"})
+	verifyConfigValue(t, "DEFAULTSTRING", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTSTRING", "goodbye, world"})
+	verifyConfigValue(t, "STRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_STRINGSLICE", "apple,orange,banana"})
+	verifyConfigValue(t, "DEFAULTSTRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTSTRINGSLICE", "grapes,mangos,papayas"})
+	verifyConfigValue(t, "INT", parsedValues, ConfigValue{"SERVICEDTEST_INT", "5"})
+	verifyConfigValue(t, "DEFAULTINT", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTINT", "10"})
+	verifyConfigValue(t, "TBOOL", parsedValues, ConfigValue{"SERVICEDTEST_TBOOL", "true"})
+	verifyConfigValue(t, "FBOOL", parsedValues, ConfigValue{"SERVICEDTEST_FBOOL", "f"})
+	verifyConfigValue(t, "DEFAULTBOOL", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTBOOL", "true"})
+
 	// Parser test
 	examplefile := `
 # SERVICEDTEST_STRING=applesauce
@@ -70,10 +84,28 @@ SERVICEDTEST_BOOL=no`
 	verify(t, "SERVICEDTEST_STRINGSLICE", config.StringSlice("STRINGSLICE", []string{}), []string{"big", "red", "guava"})
 	verify(t, "SERVICEDTEST_INT", config.IntVal("INT", 0), 100)
 	verify(t, "SERVICEDTEST_BOOL", config.BoolVal("BOOL", true), false)
+
+	// There is only one new value in examplefile, so the length of parsed values should only increase by 1
+	parsedValues = config.GetConfigValues()
+	if len(parsedValues) != 10 {
+		t.Errorf("len(parsedValues) failed: expected %d got %d", 10, len(parsedValues))
+	}
+	verifyConfigValue(t, "STRING", parsedValues, ConfigValue{"SERVICEDTEST_STRING", "hello world"})
+	verifyConfigValue(t, "STRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_STRINGSLICE", "big,red,guava"})
+	verifyConfigValue(t, "INT", parsedValues, ConfigValue{"SERVICEDTEST_INT", "100"})
+	verifyConfigValue(t, "BOOL", parsedValues, ConfigValue{"SERVICEDTEST_BOOL", "no"})
 }
 
 func verify(t *testing.T, key string, actual, expected interface{}) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("Key: %v; Expected %v; Got %v", key, expected, actual)
+	}
+}
+
+func verifyConfigValue(t *testing.T, key string, parsedValues map[string]ConfigValue, expected ConfigValue) {
+	if actual, ok := parsedValues[key]; !ok {
+		t.Errorf("Could not find key %s in parsedValues", key)
+	} else if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("parsedValues[%s] incorrect; Expected %v; Got %v", key, expected, actual)
 	}
 }
