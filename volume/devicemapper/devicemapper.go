@@ -289,7 +289,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	}
 	devices := vol.Metadata.ListDevices()
 	for _, device := range devices {
-		if len(device) == 0 {
+		if device == "" {
 			// this can happen when all previously active devices have been deactivated
 			continue;
 		}
