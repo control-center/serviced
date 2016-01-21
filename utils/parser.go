@@ -88,7 +88,7 @@ func (p *EnvironConfigReader) parse(reader io.Reader) error {
 		}
 
 		line = strings.TrimSpace(strings.Split(line, "#")[0])
-		if err := keyvalue([]byte(line)); err != nil {
+		if err := p.keyvalue([]byte(line)); err != nil {
 			return err
 		}
 	}
@@ -161,13 +161,21 @@ func (p *EnvironConfigReader) GetConfigValues() map[string]ConfigValue {
 	return p.configValues
 }
 
-func keyvalue(line []byte) error {
+func (p *EnvironConfigReader) keyvalue(line []byte) error {
 	pair := string(line)
 	if idx := strings.Index(pair, "="); idx >= 0 {
 		key, value := strings.TrimSpace(pair[:idx]), translate(strings.TrimSpace(pair[idx+1:]))
 		if err := os.Setenv(key, value); err != nil {
 			return err
 		}
+		configValue := ConfigValue{
+			Name: key,
+			Value: value,
+		}
+		if strings.HasPrefix(key, p.prefix) {
+			key = strings.TrimPrefix(key, p.prefix)
+		}
+		p.configValues[key] = configValue
 	} else if pair != "" {
 		return ParseError{pair}
 	}
