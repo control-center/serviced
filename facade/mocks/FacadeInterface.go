@@ -109,13 +109,6 @@ func (m *FacadeInterface) RemoveService(ctx datastore.Context, id string) error 
 
 	return r0
 }
-func (m *FacadeInterface) RestoreIPs(ctx datastore.Context, svc service.Service) error {
-	ret := m.Called(ctx, svc)
-
-	r0 := ret.Error(0)
-
-	return r0
-}
 func (m *FacadeInterface) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
 	ret := m.Called(ctx, serviceID, autoLaunch, desiredState)
 
