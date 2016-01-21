@@ -17,28 +17,37 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"os"
 )
 
 const (
-    Cpuacct string = "cpuacct"
-    Memory string = "memory"
+	Cpuacct string = "cpuacct"
+	Memory  string = "memory"
 )
 
 // Helper function that takes a docker ID and parameter (to specify cpu or memory)
-// and returns a path to the correct stats file 
+// and returns a path to the correct stats file
 func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
-	debFile := "/sys/fs/cgroup/" + stat + "/docker/" + dockerID + "/" + stat + ".stat"
-	linFile := "/sys/fs/cgroup/" + stat + "/system.slice/docker-" + dockerID + ".scope/" + stat + ".stat"
-	if _, err := os.Stat(debFile); err == nil {
-		return debFile
+	// The location of this is dependent on the cgroup driver that docker is using, as
+	// well as the version of Docker being used.  To that end, we'll look at all the known
+	// locations, and pick the first one that's populated.
+	locations := []string{
+		// debian(all docker versions) + rhel(docker 1.10-rc1 [and presumably beyond])
+		filepath.Join("/sys/fs/cgroup/", stat, "/docker/", dockerID, stat+".stat"),
+		// rhel  (<=1.9.0)
+		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker-"+dockerID+".scope/", stat+".stat"),
+		// rhel (1.9.0 w/ '--exec-opt native.cgroupdriver=cgroupfs' flag, workaround for docker issue #17653
+		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker/", dockerID, stat+".stat"),
 	}
-	if _, err := os.Stat(linFile); err == nil {
-		return linFile
+	for _, loc := range locations {
+		if _, err := os.Stat(loc); err == nil {
+			return loc
+		}
 	}
-    return ""
+	return ""
 }
 
 // parseSSKVint64 parses a space-separated key-value pair file and returns a
