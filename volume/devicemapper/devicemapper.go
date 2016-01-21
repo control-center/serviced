@@ -289,21 +289,26 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	}
 	devices := vol.Metadata.ListDevices()
 	for _, device := range devices {
+		if len(device) == 0 {
+			// this can happen when all previously active devices have been deactivated
+			continue;
+		}
+
 		// Perversely, deactivateDevice() will not actually work unless the device is activated.
 		// GetDeviceStatus() will both verify that device is valid, and it has the side-effect of activating
 		// the device if the device is not active.
 		if status, err := d.DeviceSet.GetDeviceStatus(device); err != nil {
-			glog.Errorf("For volume %s, unable to get status for device %s: %s", volumeName, device, err)
+			glog.Errorf("For volume %s, unable to get status for device %q: %s", volumeName, device, err)
 			continue
 		} else if status == nil {
-			glog.V(2).Infof("For volume %s, no status available for device %s", volumeName, device)
+			glog.V(2).Infof("For volume %s, no status available for device %q", volumeName, device)
 		} else {
-			glog.V(2).Infof("For volume %s, status for device %s: %v", volumeName, device, status)
+			glog.V(2).Infof("For volume %s, status for device %q: %v", volumeName, device, status)
 		}
 
 		glog.V(1).Infof("Deactivating device (%s)", device)
 		if err := d.deactivateDevice(device); err != nil {
-			glog.Errorf("Error removing device %s for volume %s: %s", device, volumeName, err)
+			glog.Errorf("Error removing device %q for volume %s: %s", device, volumeName, err)
 			return err
 		}
 		glog.V(2).Infof("Deactivated device")
