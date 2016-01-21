@@ -17,26 +17,37 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"github.com/control-center/serviced/utils"
 )
 
 const (
-    Cpuacct string = "cpuacct"
-    Memory string = "memory"
+	Cpuacct string = "cpuacct"
+	Memory  string = "memory"
 )
 
 // Helper function that takes a docker ID and parameter (to specify cpu or memory)
-// and returns a path to the correct stats file 
+// and returns a path to the correct stats file
 func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
-    statsFile := ""
-    if utils.Platform == utils.Debian {
-        statsFile = "/sys/fs/cgroup/" + stat + "/docker/" + dockerID + "/" + stat + ".stat"
-    } else {
-        statsFile = "/sys/fs/cgroup/" + stat + "/system.slice/docker-" + dockerID + ".scope/" + stat + ".stat"
-    }
-    return statsFile
+	// The location of this is dependent on the cgroup driver that docker is using, as
+	// well as the version of Docker being used.  To that end, we'll look at all the known
+	// locations, and pick the first one that's populated.
+	locations := []string{
+		// debian(all docker versions) + rhel(docker 1.10-rc1 [and presumably beyond])
+		filepath.Join("/sys/fs/cgroup/", stat, "/docker/", dockerID, stat+".stat"),
+		// rhel  (<=1.9.0)
+		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker-"+dockerID+".scope/", stat+".stat"),
+		// rhel (1.9.0 w/ '--exec-opt native.cgroupdriver=cgroupfs' flag, workaround for docker issue #17653
+		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker/", dockerID, stat+".stat"),
+	}
+	for _, loc := range locations {
+		if _, err := os.Stat(loc); err == nil {
+			return loc
+		}
+	}
+	return ""
 }
 
 // parseSSKVint64 parses a space-separated key-value pair file and returns a
