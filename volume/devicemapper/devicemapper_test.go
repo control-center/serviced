@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/volume/drivertest"
 	// Register the devicemapper driver
 	_ "github.com/control-center/serviced/volume/devicemapper"
+	"github.com/zenoss/glog"
 )
 
 var (
@@ -47,6 +48,11 @@ func init() {
 	// Set Docker's logger to debug level, so we can get interesting
 	// information if -v
 	logrus.SetLevel(logrus.DebugLevel)
+
+	// Also enable glog verbosity so we get other interesting information if tests run with -v
+	glog.SetToStderr(true)
+	glog.SetVerbosity(2)
+
 }
 
 // getBaseLoopStats inspects /dev/loop0 to collect uid,gid, and mode for the
