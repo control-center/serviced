@@ -40,6 +40,9 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	fmt.Printf("Date:       %s\n", servicedversion.Date)
 	fmt.Printf("Buildtag:   %s\n", servicedversion.Buildtag)
 	fmt.Printf("Release:    %s\n", servicedversion.Release)
-	fmt.Printf("IsvcsImage: %s:%s\n", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG)
-	fmt.Printf("ZkImage:    %s:%s\n", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG)
+	images := []string{
+		fmt.Sprintf("%s:%s", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG),
+		fmt.Sprintf("%s:%s", isvcs.ZK_IMAGE_REPO, isvcs.ZK_IMAGE_TAG),
+	}
+	fmt.Printf("IsvcsImages: %v\n", images)
 }
