@@ -55,9 +55,11 @@ post-stop script
         sleep 2
     done
 
-    # stop potentially running isvcs even though serviced stopped (column 2 is IMAGEID)
+    # stop and remove potentially running isvcs even though serviced stopped (column 2 is IMAGEID)
     echo "$(date): waiting for serviced isvcs to stop"
-    docker ps --no-trunc | awk '$2 ~ /^zenoss\/serviced-isvcs/{print $1}' | while read c; do docker stop $c; done
+    for i in $(serviced version | grep IsvcsImages | awk -F'[][]' '{print $2}'); do
+        docker ps -a | awk '$2 == "'"$i"'" {print $1}' | xargs docker rm -f 2> /dev/null
+    done
 
     echo "$(date): serviced is now stopped - done with post-stop"
     echo ""  # annoying, but this line ensures above echo is in upstart serviced log
