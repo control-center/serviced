@@ -29,7 +29,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-
 func getDefaultOptions(config utils.ConfigReader) api.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
@@ -71,6 +70,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
 		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
 		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
+		TlsCiphers:           config.StringSlice("TLS_CIPHERS", utils.DEFAUlT_CIPHERS),
 		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
 		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 	}

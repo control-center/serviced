@@ -89,6 +89,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringSliceFlag{"isvcs-start", convertToStringSlice(defaultOps.StartISVCS), "isvcs to start on agent"},
 		cli.IntFlag{"isvcs-zk-id", defaultOps.IsvcsZKID, "zookeeper id when running in a cluster"},
 		cli.StringSliceFlag{"isvcs-zk-quorum", convertToStringSlice(defaultOps.IsvcsZKQuorum), "isvcs zookeeper host quorum (e.g. -isvcs-zk-quorum zk1@localhost:2888:3888)"},
+		cli.StringSliceFlag{"tls-ciphers", convertToStringSlice(defaultOps.TlsCiphers), "list of supported tls ciphers"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
@@ -230,6 +231,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Println(err)
 		return err
 	}
+
+	glog.Infof("setting supported tls ciphers %s", options.TlsCiphers)
+	if err := utils.SetCiphers(options.TlsCiphers); err != nil {
+		return fmt.Errorf("unable to set TlsCiphers %v", err)
+	}
+	options.Endpoint = validateEndpoint(options)
 
 	return nil
 }
