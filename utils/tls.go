@@ -15,25 +15,59 @@ package utils
 
 import (
 	"crypto/tls"
+	"fmt"
 )
+
+var cipherLookup map[string]uint16
+
+var tlsCiphers []uint16
+
+var defaultCiphers []string
+
+func init() {
+	cipherLookup = map[string]uint16{
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+		"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":     tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+	}
+
+	tlsCiphers = make([]uint16, 0)
+
+	for key, _ := range cipherLookup {
+		defaultCiphers = append(defaultCiphers, key)
+	}
+	SetCiphers(defaultCiphers)
+}
+
+func SetCiphers(ciphers []string) error {
+	newCiphers := make([]uint16, 0, len(ciphers))
+	for _, cipherName := range ciphers {
+		if cipher, ok := cipherLookup[cipherName]; !ok {
+			return fmt.Errorf("unknown cipher %s", cipher)
+		} else {
+			newCiphers = append(newCiphers, cipher)
+		}
+	}
+	tlsCiphers = newCiphers
+	return nil
+}
+
+// GetDefaultCiphers returns the default tls ciphers
+func GetDefaultCiphers() []string {
+	return defaultCiphers
+}
 
 func MinTLS() uint16 {
 	return tls.VersionTLS10
 }
 
 func CipherSuites() []uint16 {
-	return []uint16{
-		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-	}
+	return tlsCiphers
 }
