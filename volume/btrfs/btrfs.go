@@ -376,6 +376,10 @@ func (v *BtrfsVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo)
 
 // SnapshotInfo returns the meta info for a snapshot
 func (v *BtrfsVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	if v.isInvalidSnapshot(label) {
+		return nil, volume.ErrInvalidSnapshot
+	}
+
 	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
@@ -579,6 +583,10 @@ func getEnvMinDuration(envvar string, def, min int32) time.Duration {
 
 // Rollback implements volume.Volume.Rollback
 func (v *BtrfsVolume) Rollback(label string) error {
+	if v.isInvalidSnapshot(label) {
+		return volume.ErrInvalidSnapshot
+	}
+
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
