@@ -291,7 +291,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	for _, device := range devices {
 		if device == "" {
 			// this can happen when all previously active devices have been deactivated
-			continue;
+			continue
 		}
 
 		// Perversely, deactivateDevice() will not actually work unless the device is activated.
@@ -691,6 +691,12 @@ func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.Snapsho
 // Snapshots implements volume.Volume.Snapshots
 func (v *DeviceMapperVolume) Snapshots() ([]string, error) {
 	return v.Metadata.ListSnapshots(), nil
+}
+
+// InvalidSnapshots implements volume.Volume.InvalidSnapshots
+func (v *DeviceMapperVolume) InvalidSnapshots() ([]string, error) {
+	//TODO:  Can we have invalid snapshots in devicemapper?
+	return []string{}, nil
 }
 
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot

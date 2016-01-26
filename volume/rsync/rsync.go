@@ -536,6 +536,12 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 	return v.getSnapshotList()
 }
 
+// InvalidSnapshots implements volume.Volume.InvalidSnapshots
+func (v *RsyncVolume) InvalidSnapshots() ([]string, error) {
+	//TODO:  Can we have invalid snapshots in rsync?
+	return []string{}, nil
+}
+
 // getSnapshotWithTag internal impl without locking calls
 func (v *RsyncVolume) getSnapshotWithTag(tagName string, lock bool) (*volume.SnapshotInfo, error) {
 	// Get all snapshots on the volume
