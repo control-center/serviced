@@ -351,9 +351,31 @@ func (v *RsyncVolume) snapshotPath(label string) string {
 }
 
 // isSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
-// with the tenant prefix)
+// with the tenant prefix and has a valid metadata file
 func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
-	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			glog.Errorf("Could not read metadata for snapshot %s: %s", rawLabel, err)
+			return false
+		}
+		reader.Close()
+		return true
+	}
+	return false
+}
+
+// isInvalidSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
+// with the tenant prefix but does NOT have a valid metadata file
+func (v *RsyncVolume) isInvalidSnapshot(rawLabel string) bool {
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			return true
+		}
+		reader.Close()
+	}
+	return false
 }
 
 // writeSnapshotInfo writes metadata about a snapshot
@@ -374,6 +396,10 @@ func (v *RsyncVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo)
 
 // SnapshotInfo returns the meta info for a snapshot
 func (v *RsyncVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	if v.isInvalidSnapshot(label) {
+		return nil, volume.ErrInvalidSnapshot
+	}
+
 	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
@@ -538,8 +564,23 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 
 // InvalidSnapshots implements volume.Volume.InvalidSnapshots
 func (v *RsyncVolume) InvalidSnapshots() ([]string, error) {
-	//TODO:  Can we have invalid snapshots in rsync?
-	return []string{}, nil
+	files, err := ioutil.ReadDir(v.driver.MetadataDir())
+	if err != nil {
+		return nil, err
+	}
+	var labels []string
+	for _, file := range files {
+		fh, err := os.Stat(v.snapshotPath(file.Name()))
+		if err != nil {
+			glog.Info(err)
+			continue
+		}
+		if file.IsDir() && v.isInvalidSnapshot(file.Name()) && fh.IsDir() {
+			labels = append(labels, file.Name())
+		}
+	}
+
+	return labels, nil
 }
 
 // getSnapshotWithTag internal impl without locking calls
@@ -614,6 +655,10 @@ func (v *RsyncVolume) RemoveSnapshot(label string) error {
 
 // Rollback implements volume.Volume.Rollback
 func (v *RsyncVolume) Rollback(label string) (err error) {
+	if v.isInvalidSnapshot(label) {
+		return volume.ErrInvalidSnapshot
+	}
+
 	v.Lock()
 	defer v.Unlock()
 	src := v.snapshotPath(label)
