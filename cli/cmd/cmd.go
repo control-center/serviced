@@ -290,6 +290,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
+		TlsCiphers:           ctx.GlobalStringSlice("tls-ciphers"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true

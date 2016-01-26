@@ -16,6 +16,7 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
+	"strings"
 )
 
 var cipherLookup map[string]uint16
@@ -49,8 +50,9 @@ func init() {
 func SetCiphers(ciphers []string) error {
 	newCiphers := make([]uint16, 0, len(ciphers))
 	for _, cipherName := range ciphers {
-		if cipher, ok := cipherLookup[cipherName]; !ok {
-			return fmt.Errorf("unknown cipher %s", cipher)
+		upperCipher := strings.ToUpper(strings.TrimSpace(cipherName))
+		if cipher, ok := cipherLookup[upperCipher]; !ok {
+			return fmt.Errorf("unknown cipher %s", cipherName)
 		} else {
 			newCiphers = append(newCiphers, cipher)
 		}
