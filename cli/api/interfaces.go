@@ -83,6 +83,8 @@ type API interface {
 	GetSnapshots() ([]dao.SnapshotInfo, error)
 	GetSnapshotsByServiceID(string) ([]dao.SnapshotInfo, error)
 	GetSnapshotByServiceIDAndTag(string, string) (string, error)
+	GetInvalidSnapshots() ([]string, error)
+	GetInvalidSnapshotsByServiceID(string) ([]string, error)
 	AddSnapshot(SnapshotConfig) (string, error)
 	RemoveSnapshot(string) error
 	Rollback(string, bool) error
