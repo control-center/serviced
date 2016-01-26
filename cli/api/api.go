@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
@@ -156,6 +157,11 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+
+	glog.Infof("Setting supported tls ciphers: %s", options.TlsCiphers)
+	if err := utils.SetCiphers(options.TlsCiphers); err != nil {
+		return fmt.Errorf("unable to set TlsCiphers %v", err)
+	}
 
 	if len(options.CPUProfile) > 0 {
 		f, err := os.Create(options.CPUProfile)

@@ -233,10 +233,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return err
 	}
 
-	glog.Infof("setting supported tls ciphers %s", options.TlsCiphers)
-	if err := utils.SetCiphers(options.TlsCiphers); err != nil {
-		return fmt.Errorf("unable to set TlsCiphers %v", err)
-	}
 	options.Endpoint = validateEndpoint(options)
 
 	return nil
