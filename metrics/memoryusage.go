@@ -15,6 +15,7 @@ package metrics
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,9 +31,8 @@ type ServiceInstance struct {
 	InstanceID int
 }
 
+// Main container for stats for serviced to consume
 type MemoryUsageStats struct {
-	StartDate  time.Time
-	EndDate    time.Time
 	HostID     string
 	ServiceID  string
 	InstanceID string
@@ -41,13 +41,67 @@ type MemoryUsageStats struct {
 	Average    int64
 }
 
+// filterV2ResultsInstance will compare a result data's serviced ID and instance ID
+// to a tag map of desired serviceIDs to instanceIDs. If the result data's service ID and
+// instance ID are in the supplied mapping, then return True.
+//
+// TODO: This could be expensive on large data sets
+func filterV2ResultsInstance(result V2ResultData, svcToInstances map[string][]string) bool {
+	/*
+		tags = serviceID -> [instanceIDs]
+	*/
+	servicedID := result.Tags["controlplane_service_id"]
+	instances, ok := svcToInstances[servicedID]
+	// curr result's service ID not in our tag list
+	if !ok {
+		return false
+	}
+	// see if result's instance ID is in the instance list for the service
+	for _, instanceID := range instances {
+		if instanceID == result.Tags["controlplane_instance_id"] {
+			return true
+		}
+	}
+	return false
+}
+
+func convertV2MemoryUsage(perfData map[string]*V2PerformanceData) []MemoryUsageStats {
+	memStatsMap := make(map[string]*MemoryUsageStats) // serviceID.InstanceID
+	for agg, perf := range perfData {
+		for _, result := range perf.Series {
+			key := result.Tags["controlplane_service_id"] + "." + result.Tags["controlplane_instance_id"]
+			memStat, ok := memStatsMap[key]
+			if !ok {
+				memStat = &MemoryUsageStats{
+					HostID:     result.Tags["controlplane_host_id"],
+					ServiceID:  result.Tags["controlplane_service_id"],
+					InstanceID: result.Tags["controlplane_instance_id"],
+				}
+				memStatsMap[key] = memStat
+			}
+			// fill in memStat
+			val := int64(result.Datapoints[0].Value())
+			switch agg {
+			case "max":
+				memStat.Max = val
+			case "avg":
+				memStat.Average = val
+			case "last":
+				memStat.Last = val
+			}
+		}
+	}
+	memStats := []MemoryUsageStats{}
+	for _, memStat := range memStatsMap {
+		memStats = append(memStats, *memStat)
+	}
+	return memStats
+}
+
 func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 	mems := make([]MemoryUsageStats, len(data.Results))
 	for i, result := range data.Results {
-		mems[i] = MemoryUsageStats{
-			StartDate: time.Unix(data.StartTimeActual, 0),
-			EndDate:   time.Unix(data.EndTimeActual, 0),
-		}
+		mems[i] = MemoryUsageStats{}
 
 		for tag, value := range result.Tags {
 			switch tag {
@@ -161,34 +215,80 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 }
 
 func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
+	glog.V(2).Infof("Requesting memory stats for %d instances", len(instances))
+	secsAgo := time.Now().Sub(startDate).Seconds()
+	options := V2PerformanceOptions{
+		Start: fmt.Sprintf("%ds-ago", int(secsAgo)),
+		End:   "now",
+	}
+
+	// build a list of unique service IDs for the query
+	serviceInstanceFilterMap := make(map[string][]string)
+	servicesMap := make(map[string]struct{})
+	serviceIdTags := []string{}
+	for _, instance := range instances {
+		if _, ok := servicesMap[instance.ServiceID]; !ok {
+			servicesMap[instance.ServiceID] = struct{}{}
+			serviceIdTags = append(serviceIdTags, instance.ServiceID)
+		}
+		// fill out filter map for later use
+		tags, ok := serviceInstanceFilterMap[instance.ServiceID]
+		if !ok {
+			serviceInstanceFilterMap[instance.ServiceID] = []string{strconv.Itoa(instance.InstanceID)}
+		} else {
+			tags = append(tags, strconv.Itoa(instance.InstanceID))
+			serviceInstanceFilterMap[instance.ServiceID] = tags
+		}
+	}
+
+	query := V2MetricOptions{
+		Metric: "cgroup.memory.totalrss",
+		Tags: map[string][]string{
+			"controlplane_service_id":  serviceIdTags,
+			"controlplane_instance_id": []string{"*"},
+		},
+	}
+
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(2).Infof("Requesting memory stats for %d instances", len(instances))
-		options := PerformanceOptions{
-			Start:     startDate.Format(timeFormat),
-			End:       "now",
-			Returnset: "exact",
-		}
+		// get max + avg
+		perfDataMap := make(map[string]*V2PerformanceData)
+		for _, agg := range []string{"max", "avg"} {
+			query.Downsample = fmt.Sprintf("%ds-%s", int(secsAgo), agg)
+			options.Metrics = []V2MetricOptions{query}
+			options.Returnset = "exact"
 
-		metrics := make([]MetricOptions, len(instances))
-		for i, instance := range instances {
-			metrics[i] = MetricOptions{
-				Metric: "cgroup.memory.totalrss",
-				Name:   fmt.Sprintf("%s.%d", instance.ServiceID, instance.InstanceID),
-				Tags: map[string][]string{
-					"controlplane_service_id":  []string{instance.ServiceID},
-					"controlplane_instance_id": []string{fmt.Sprintf("%d", instance.InstanceID)},
-				},
+			result, err := c.v2performanceQuery(options)
+			if err != nil {
+				glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
+				return nil, err
 			}
+			perfDataMap[agg] = result
 		}
-		options.Metrics = metrics
 
-		result, err := c.performanceQuery(options)
+		// get curr
+		query.Downsample = ""
+		options.Metrics = []V2MetricOptions{query}
+		options.Returnset = "last"
+		result, err := c.v2performanceQuery(options)
 		if err != nil {
 			glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
 			return nil, err
 		}
+		perfDataMap["last"] = result
 
-		return convertMemoryUsage(result), nil
+		// filter out our results by service ID + Instance ID
+		for _, perfData := range perfDataMap {
+			filteredSeries := []V2ResultData{}
+			for _, result := range perfData.Series {
+				if filterV2ResultsInstance(result, serviceInstanceFilterMap) {
+					filteredSeries = append(filteredSeries, result)
+				}
+			}
+			perfData.Series = filteredSeries
+		}
+
+		// normalize results to return
+		return convertV2MemoryUsage(perfDataMap), nil
 	}
 	var keys []string
 	for _, instance := range instances {
