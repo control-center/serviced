@@ -956,24 +956,30 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 	// Output:
 	// test-service-1-snapshot-1 description 1
 	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid [INVALID]
+
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort() {
 	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "-t")
 
 	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	// Snapshot                              Description        Tags
+	// test-service-1-snapshot-1             description 1      tag-1
+	// test-service-1-snapshot-2             description 2      tag-2,tag-3
+	// test-service-1-invalid [INVALID]
+
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong() {
 	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
 
 	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	// Snapshot                              Description        Tags
+	// test-service-1-snapshot-1             description 1      tag-1
+	// test-service-1-snapshot-2             description 2      tag-2,tag-3
+	// test-service-1-invalid [INVALID]
+
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_usage() {

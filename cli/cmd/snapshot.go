@@ -187,10 +187,14 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 			for _, s := range snapshots {
 				//build a comma-delimited list of the tags
 				tags := strings.Join(s.Tags, ",")
+				snapshotID := s.SnapshotID
+				if s.Invalid {
+					snapshotID += " [INVALID]"
+				}
 
 				//make the row and add it to the table
 				row := make(map[string]interface{})
-				row["Snapshot"] = s.SnapshotID
+				row["Snapshot"] = snapshotID
 				row["Description"] = s.Description
 				row["Tags"] = tags
 				t.Padding = 6
