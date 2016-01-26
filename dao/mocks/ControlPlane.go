@@ -639,6 +639,18 @@ func (_m *ControlPlane) ListSnapshots(serviceID string, snapshots *[]dao.Snapsho
 
 	return r0
 }
+func (_m *ControlPlane) ListInvalidSnapshots(serviceID string, snapshots *[]string) error {
+	ret := _m.Called(serviceID, snapshots)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *[]string) error); ok {
+		r0 = rf(serviceID, snapshots)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ControlPlane) ResetRegistry(req dao.EntityRequest, unused *int) error {
 	ret := _m.Called(req, unused)
 
