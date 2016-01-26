@@ -21,7 +21,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -110,7 +110,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		return nil, err
 	}
 
-	exportedNamePath := path.Join(exportsDir, exportedName)
+	exportedNamePath := filepath.Join(exportsDir, exportedName)
 	if err := verifyExportsDir(exportedNamePath); err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 
 // ExportPath returns the external export name; foo for nfs export /exports/foo
 func (c *Server) ExportPath() string {
-	return path.Join("/", c.exportedName)
+	return filepath.Join("/", c.exportedName)
 }
 
 // Clients returns the IP Addresses of the current clients
@@ -307,7 +307,7 @@ func (c *Server) writeExports() error {
 		return err
 	}
 
-	edir := path.Join(exportsDir, c.exportedName)
+	edir := filepath.Join(exportsDir, c.exportedName)
 	if err := os.MkdirAll(edir, 0775); err != nil {
 		return err
 	}
@@ -315,10 +315,10 @@ func (c *Server) writeExports() error {
 	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n",
 		exportsDir, network)
 	for volume, fsid := range c.volumes {
-		volume = path.Clean(volume)
-		_, volName := path.Split(volume)
+		volume = filepath.Clean(volume)
+		_, volName := filepath.Split(volume)
 		exports[volName] = struct{}{}
-		exported := path.Join(edir, volName)
+		exported := filepath.Join(edir, volName)
 		if err := bindMount(volume, exported); err != nil {
 			return err
 		}
@@ -334,7 +334,7 @@ func (c *Server) writeExports() error {
 	}
 
 	// comment out lines that conflicts with serviced exported mountpoints
-	mountpaths := map[string]bool{exportsDir: true, path.Join(exportsDir, c.exportedName): true}
+	mountpaths := map[string]bool{exportsDir: true, filepath.Join(exportsDir, c.exportedName): true}
 	filteredContent := ""
 	scanner := bufio.NewScanner(strings.NewReader(originalContents))
 	for scanner.Scan() {
@@ -369,14 +369,14 @@ func (c *Server) writeExports() error {
 
 // umnount any bind mounts in exported directory if not exported
 func (c *Server) cleanupBindMounts() {
-	edir := path.Join(exportsDir, c.exportedName)
+	edir := filepath.Join(exportsDir, c.exportedName)
 	//umount any directories not exported
 	if dirContents, err := ioutil.ReadDir(edir); err != nil {
 		glog.Warningf("could not read contents of %s; %v", edir, err)
 	} else {
 		for _, file := range dirContents {
 			if _, found := c.exported[file.Name()]; !found && file.IsDir() {
-				dir := path.Join(edir, file.Name())
+				dir := filepath.Join(edir, file.Name())
 				mounted, err := isBindMounted(dir)
 				if err != nil {
 					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
@@ -397,6 +397,40 @@ func (c *Server) cleanupBindMounts() {
 				}
 			}
 		}
+	}
+	// CC-1816: clean up remnants of old /exports/serviced_var_volumes directory
+	removeDeprecated("/exports/serviced_var_volumes")
+}
+
+// removeDeprecated will clean up any old exports path
+func removeDeprecated(dirpath string) {
+	if dirContents, err := ioutil.ReadDir(dirpath); !os.IsNotExist(err) {
+		if err != nil {
+			glog.Warningf("Could not look up deprecated exports path %s: %s", dirpath, err)
+			return
+		}
+		// Unmount path
+		if mounted, err := isBindMounted(dirpath); err != nil {
+			glog.Warningf("Could not determine if deprecated path %s is bind mounted: %s", dirpath, err)
+		} else if mounted {
+			if err := umount(dirpath); err != nil {
+				glog.Warningf("Could not unmount deprecated path %s: %s", dirpath, err)
+			} else {
+				glog.Infof("Unmounted deprecated path %s", dirpath)
+			}
+		}
+		// recurse through the filesystem
+		for _, file := range dirContents {
+			if file.IsDir() {
+				removeDeprecated(filepath.Join(dirpath, file.Name()))
+			}
+		}
+		// remove the path
+		if err := os.RemoveAll(dirpath); err != nil {
+			glog.Warningf("Could not remove deprecated path %s: %s", dirpath, err)
+			return
+		}
+		glog.Infof("Deleted deprecated path %s", dirpath)
 	}
 }
 
