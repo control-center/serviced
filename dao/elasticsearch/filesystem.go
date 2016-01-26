@@ -329,6 +329,27 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 	return
 }
 
+// ListInvalidSnapshots returns a list of all invalid snapshots for a service.  Invalid snapshots are leftover from a previous
+//  serviced version and can be deleted
+func (dao *ControlPlaneDao) ListInvalidSnapshots(serviceID string, snapshotIDs *[]string) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	snapshots, err := dao.facade.ListInvalidSnapshots(ctx, serviceID)
+	if err != nil {
+		return err
+	}
+	*snapshotIDs = make([]string, 0)
+	for _, snapshotID := range snapshots {
+		*snapshotIDs = append(*snapshotIDs, snapshotID)
+	}
+	return
+}
+
 // ResetRegistry prompts all images to be pushed back into the docker registry
 func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err error) {
 	err = dao.facade.SyncRegistryImages(datastore.Get(), true)

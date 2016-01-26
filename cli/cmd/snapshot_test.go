@@ -37,18 +37,25 @@ var DefaultTestSnapshots = []dao.SnapshotInfo{
 	dao.SnapshotInfo{SnapshotID: "test-service-2-snapshot-1", TenantID: "test-service-2", Description: "", Tags: []string{""}},
 }
 
+var TestInvalidSnapshots = []dao.SnapshotInfo{
+	dao.SnapshotInfo{SnapshotID: "test-service-1-invalid-snapshot", TenantID: "test-service-1"},
+	dao.SnapshotInfo{SnapshotID: "test-service-2-invalid-snapshot", TenantID: "test-service-2"},
+}
+
 var (
 	ErrNoSnapshotFound = errors.New("no snapshot found")
-	ErrInvalidSnapshot = errors.New("invalid snapshot")
+	ErrBadSnapshot     = errors.New("bad snapshot")
 	ErrGetByTagFailed  = errors.New("unable to retrieve snapshot by tag name")
 )
 
 type SnapshotAPITest struct {
 	api.API
-	fail         bool
-	btrfsFail    bool
-	getByTagFail bool
-	snapshots    []dao.SnapshotInfo
+	fail             bool
+	btrfsFail        bool
+	getByTagFail     bool
+	getInvalidFail   bool
+	snapshots        []dao.SnapshotInfo
+	invalidSnapshots []dao.SnapshotInfo
 }
 
 func InitSnapshotAPITest(args ...string) {
@@ -57,9 +64,14 @@ func InitSnapshotAPITest(args ...string) {
 
 func (t SnapshotAPITest) hasSnapshot(id string) (bool, error) {
 	if t.fail {
-		return false, ErrInvalidSnapshot
+		return false, ErrBadSnapshot
 	}
 	for _, s := range t.snapshots {
+		if s.SnapshotID == id {
+			return true, nil
+		}
+	}
+	for _, s := range t.invalidSnapshots {
 		if s.SnapshotID == id {
 			return true, nil
 		}
@@ -69,14 +81,25 @@ func (t SnapshotAPITest) hasSnapshot(id string) (bool, error) {
 
 func (t SnapshotAPITest) GetSnapshots() ([]dao.SnapshotInfo, error) {
 	if t.fail {
-		return nil, ErrInvalidSnapshot
+		return nil, ErrBadSnapshot
 	}
 	return t.snapshots, nil
 }
 
+func (t SnapshotAPITest) GetInvalidSnapshots() ([]string, error) {
+	if t.getInvalidFail {
+		return nil, ErrBadSnapshot
+	}
+	var snapshots []string
+	for _, s := range t.invalidSnapshots {
+		snapshots = append(snapshots, s.SnapshotID)
+	}
+	return snapshots, nil
+}
+
 func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]dao.SnapshotInfo, error) {
 	if t.fail {
-		return nil, ErrInvalidSnapshot
+		return nil, ErrBadSnapshot
 	}
 	var snapshots []dao.SnapshotInfo
 	for _, s := range t.snapshots {
@@ -87,9 +110,22 @@ func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]dao.Snapsh
 	return snapshots, nil
 }
 
+func (t SnapshotAPITest) GetInvalidSnapshotsByServiceID(serviceID string) ([]string, error) {
+	if t.getInvalidFail {
+		return nil, ErrBadSnapshot
+	}
+	var snapshots []string
+	for _, s := range t.invalidSnapshots {
+		if s.TenantID == serviceID {
+			snapshots = append(snapshots, s.SnapshotID)
+		}
+	}
+	return snapshots, nil
+}
+
 func (t SnapshotAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 	if t.fail {
-		return "", ErrInvalidSnapshot
+		return "", ErrBadSnapshot
 	} else if config.ServiceID == NilSnapshot || config.DockerID == NilSnapshot {
 		return "", nil
 	}
@@ -130,7 +166,7 @@ func (t SnapshotAPITest) GetSnapshotByServiceIDAndTag(serviceID string, tagName 
 
 func (t SnapshotAPITest) Commit(dockerID string) (string, error) {
 	if t.fail {
-		return "", ErrInvalidSnapshot
+		return "", ErrBadSnapshot
 	} else if dockerID == NilSnapshot {
 		return "", nil
 	}
@@ -143,7 +179,7 @@ func (t SnapshotAPITest) Rollback(id string, f bool) error {
 
 func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagName string) error {
 	if t.fail {
-		return ErrInvalidSnapshot
+		return ErrBadSnapshot
 	} else if t.btrfsFail {
 		return btrfs.ErrBtrfsNotSupported
 	}
@@ -158,7 +194,7 @@ func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagName string) error {
 
 func (t SnapshotAPITest) RemoveSnapshotTag(serviceID string, tagName string) (string, error) {
 	if t.fail {
-		return "", ErrInvalidSnapshot
+		return "", ErrBadSnapshot
 	} else if t.btrfsFail {
 		return "", btrfs.ErrBtrfsNotSupported
 	}
@@ -185,6 +221,19 @@ func ExampleServicedCLI_CmdSnapshotList() {
 	// test-service-2-snapshot-1
 }
 
+func ExampleServicedCLI_CmdSnapshotListWithInvalid() {
+	DefaultSnapshotAPITest.invalidSnapshots = TestInvalidSnapshots
+	defer func() { DefaultSnapshotAPITest.invalidSnapshots = nil }()
+	InitSnapshotAPITest("serviced", "snapshot", "list")
+
+	// Output:
+	// test-service-1-snapshot-1 description 1
+	// test-service-1-snapshot-2 description 2
+	// test-service-2-snapshot-1
+	// test-service-1-invalid-snapshot (invalid - can be deleted)
+	// test-service-2-invalid-snapshot (invalid - can be deleted)
+}
+
 func ExampleServicedCLI_CmdSnapshotList_ShowTagsShort() {
 	InitSnapshotAPITest("serviced", "snapshot", "list", "-t")
 
@@ -193,6 +242,20 @@ func ExampleServicedCLI_CmdSnapshotList_ShowTagsShort() {
 	// test-service-1-snapshot-1      description 1      tag-1
 	// test-service-1-snapshot-2      description 2      tag-2,tag-3
 	// test-service-2-snapshot-1
+
+}
+
+func ExampleServicedCLI_CmdSnapshotList_ShowTagsShortWithInvalid() {
+	DefaultSnapshotAPITest.invalidSnapshots = TestInvalidSnapshots
+	defer func() { DefaultSnapshotAPITest.invalidSnapshots = nil }()
+	InitSnapshotAPITest("serviced", "snapshot", "list", "-t")
+
+	// Snapshot                       Description        Tags
+	// test-service-1-snapshot-1      description 1      tag-1
+	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	// test-service-2-snapshot-1
+	// test-service-1-invalid-snapshot (invalid - can be deleted)
+	// test-service-2-invalid-snapshot (invalid - can be deleted)
 
 }
 
@@ -214,6 +277,17 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
 	// test-service-1-snapshot-2 description 2
 }
 
+func ExampleServicedCLI_CmdSnapshotList_byServiceIDWithInvalid() {
+	DefaultSnapshotAPITest.invalidSnapshots = TestInvalidSnapshots
+	defer func() { DefaultSnapshotAPITest.invalidSnapshots = nil }()
+	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1")
+
+	// Output:
+	// test-service-1-snapshot-1 description 1
+	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid-snapshot (invalid - can be deleted)
+}
+
 func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort() {
 	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t")
 
@@ -221,6 +295,18 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort() {
 	// Snapshot                       Description        Tags
 	// test-service-1-snapshot-1      description 1      tag-1
 	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+}
+
+func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShortWithInvalid() {
+	DefaultSnapshotAPITest.invalidSnapshots = TestInvalidSnapshots
+	defer func() { DefaultSnapshotAPITest.invalidSnapshots = nil }()
+	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t")
+
+	// Output:
+	// Snapshot                       Description        Tags
+	// test-service-1-snapshot-1      description 1      tag-1
+	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	// test-service-1-invalid-snapshot (invalid - can be deleted)
 }
 
 func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong() {
@@ -245,10 +331,29 @@ func ExampleServicedCLI_CmdSnapshotList_fail() {
 	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
 
 	// Output:
-	// invalid snapshot
-	// invalid snapshot
-	// invalid snapshot
-	// invalid snapshot
+	// bad snapshot
+	// bad snapshot
+	// bad snapshot
+	// bad snapshot
+}
+
+func ExampleServicedCLI_CmdSnapshotList_failGetInvalid() {
+	DefaultSnapshotAPITest.getInvalidFail = true
+	defer func() { DefaultSnapshotAPITest.getInvalidFail = false }()
+	// failed to retrieve all snapshots
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list")
+	// failed to retrieve all snapshots by service id
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1")
+	// failed to retrieve all snapshots with tags
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
+	// failed to retrieve all snapshots with tags by service id
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
+
+	// Output:
+	// bad snapshot
+	// bad snapshot
+	// bad snapshot
+	// bad snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotList_err() {
@@ -350,6 +455,19 @@ func ExampleServicedCLI_CmdSnapshotRemove_All() {
 	// test-service-2-snapshot-1
 }
 
+func ExampleServicedCLI_CmdSnapshotRemove_All_WithInvalids() {
+	DefaultSnapshotAPITest.invalidSnapshots = TestInvalidSnapshots
+	defer func() { DefaultSnapshotAPITest.invalidSnapshots = nil }()
+	InitSnapshotAPITest("serviced", "snapshot", "remove", "-f")
+
+	// Output:
+	// test-service-1-snapshot-1
+	// test-service-1-snapshot-2
+	// test-service-2-snapshot-1
+	// test-service-1-invalid-snapshot
+	// test-service-2-invalid-snapshot
+}
+
 func ExampleServicedCLI_CmdSnapshotRemove_Tag() {
 	InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-1", "tag-1")
 
@@ -407,7 +525,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_error() {
 	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-1-snapshot-1")
 
 	// Output:
-	// invalid snapshot
+	// bad snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_errorGetByTag() {
@@ -450,7 +568,7 @@ func ExampleServicedCLI_CmdSnapshotCommit_fail() {
 	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "commit", "ABC123")
 
 	// Output:
-	// invalid snapshot
+	// bad snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotCommit_err() {
@@ -535,7 +653,7 @@ func ExampleServicedCLI_CmdSnapshotTag_fail() {
 	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A")
 
 	// Output:
-	// invalid snapshot
+	// bad snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotTag_btrfsFail() {
@@ -567,7 +685,7 @@ func ExampleServicedCLI_CmdSnapshotUntag_fail() {
 	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-1", "tag-2")
 
 	// Output:
-	// invalid snapshot
+	// bad snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotUntag_btrfsFail() {

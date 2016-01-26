@@ -103,3 +103,11 @@ func (s *DFSTestSuite) TestDelete_Success(c *C) {
 	err := s.dfs.Delete("Base_Snapshot")
 	c.Assert(err, IsNil)
 }
+
+func (s *DFSTestSuite) TestDelete_NoInfo_Success(c *C) {
+	vol := s.getVolumeFromSnapshot("Base_Snapshot", "Base")
+	vol.On("SnapshotInfo", "Base_Snapshot").Return(nil, volume.ErrInvalidSnapshot)
+	vol.On("RemoveSnapshot", "Base_Snapshot").Return(nil)
+	err := s.dfs.Delete("Base_Snapshot")
+	c.Assert(err, IsNil)
+}

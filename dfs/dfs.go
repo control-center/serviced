@@ -49,6 +49,8 @@ type DFS interface {
 	Delete(snapshotID string) error
 	// List lists snapshots for a particular application
 	List(tenantID string) (snapshots []string, err error)
+	// ListInvalid lists any invalid snapshots for a particular application
+	ListInvalid(tenantID string) (snapshots []string, err error)
 	// Info provides detailed info for a particular snapshot
 	Info(snapshotID string) (*SnapshotInfo, error)
 	// Backup saves and exports the current state of the system

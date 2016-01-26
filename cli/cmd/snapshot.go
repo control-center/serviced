@@ -161,14 +161,20 @@ func (c *ServicedCli) printSnapshotsFirstThenTags(ctx *cli.Context) {
 
 // serviced snapshot list [SERVICEID] [--show-tags]
 func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
+	snapshotsFound := false
 	showTags := ctx.Bool("show-tags")
 	var (
-		snapshots []dao.SnapshotInfo
-		err       error
+		snapshots        []dao.SnapshotInfo
+		invalidSnapshots []string
+		err              error
 	)
 	if len(ctx.Args()) > 0 {
 		serviceID := ctx.Args().First()
 		if snapshots, err = c.driver.GetSnapshotsByServiceID(serviceID); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		if invalidSnapshots, err = c.driver.GetInvalidSnapshotsByServiceID(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
@@ -177,11 +183,14 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
+		if invalidSnapshots, err = c.driver.GetInvalidSnapshots(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
 	}
 
-	if snapshots == nil || len(snapshots) == 0 {
-		fmt.Fprintln(os.Stderr, "no snapshots found")
-	} else {
+	if snapshots != nil && len(snapshots) > 0 {
+		snapshotsFound = true
 		if showTags { //print a table of snapshot, description, tag list
 			t := NewTable("Snapshot,Description,Tags")
 			for _, s := range snapshots {
@@ -204,6 +213,17 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 			}
 		}
 	}
+
+	//Now show invalid snapshots (if any)
+	for _, s := range invalidSnapshots {
+		snapshotsFound = true
+		fmt.Printf("%s (invalid - can be deleted)\n", s)
+	}
+
+	if !snapshotsFound {
+		fmt.Fprintln(os.Stderr, "no snapshots found")
+	}
+
 	return
 }
 
@@ -260,6 +280,16 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 			}
 			for _, snapshot := range snapshots {
 				snapshotsToDelete = append(snapshotsToDelete, snapshot.SnapshotID)
+			}
+
+			//add the invalid snapshots as well
+			invalidSnapshots, err := c.driver.GetInvalidSnapshots()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return
+			}
+			for _, snapshotID := range invalidSnapshots {
+				snapshotsToDelete = append(snapshotsToDelete, snapshotID)
 			}
 		}
 	} else if len(args) == 1 {

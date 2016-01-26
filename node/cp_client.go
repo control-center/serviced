@@ -302,6 +302,10 @@ func (s *ControlClient) ListSnapshots(serviceID string, snapshots *[]dao.Snapsho
 	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceID, snapshots, 0)
 }
 
+func (s *ControlClient) ListInvalidSnapshots(serviceID string, snapshotIDs *[]string) (err error) {
+	return s.rpcClient.Call("ControlPlane.ListInvalidSnapshots", serviceID, snapshotIDs, 0)
+}
+
 func (s *ControlClient) ResetRegistry(req dao.EntityRequest, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.ResetRegistry", req, unused, 0)
 }
