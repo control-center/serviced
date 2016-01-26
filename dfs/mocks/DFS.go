@@ -159,6 +159,27 @@ func (_m *DFS) List(tenantID string) ([]string, error) {
 
 	return r0, r1
 }
+func (_m *DFS) ListInvalid(tenantID string) ([]string, error) {
+	ret := _m.Called(tenantID)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = rf(tenantID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tenantID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *DFS) Info(snapshotID string) (*dfs.SnapshotInfo, error) {
 	ret := _m.Called(snapshotID)
 
