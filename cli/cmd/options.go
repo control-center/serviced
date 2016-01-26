@@ -70,7 +70,8 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
 		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
 		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
-		TlsCiphers:           config.StringSlice("TLS_CIPHERS", utils.DEFAUlT_CIPHERS),
+		TLSCiphers:           config.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers()),
+		TLSMinVersion:        config.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
 		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 	}

@@ -19,11 +19,16 @@ import (
 	"strings"
 )
 
+// DefaultTLSMinVersion minimum TLS version supported
+const DefaultTLSMinVersion = "VersionTLS10"
+
 var cipherLookup map[string]uint16
 
 var tlsCiphers []uint16
 
-var DEFAUlT_CIPHERS []string
+var tlsVersion uint16
+
+var defaultCiphers []string
 
 func init() {
 	cipherLookup = map[string]uint16{
@@ -40,31 +45,57 @@ func init() {
 	}
 
 	tlsCiphers = make([]uint16, 0)
-
-	for key, _ := range cipherLookup {
-		DEFAUlT_CIPHERS = append(DEFAUlT_CIPHERS, key)
+	for key := range cipherLookup {
+		defaultCiphers = append(defaultCiphers, key)
 	}
-	SetCiphers(DEFAUlT_CIPHERS)
+	SetCiphers(defaultCiphers)
 }
 
+// GetDefaultCiphers returns the default tls ciphers
+func GetDefaultCiphers() []string {
+	return defaultCiphers
+}
+
+// SetCiphers that can be used
 func SetCiphers(ciphers []string) error {
 	newCiphers := make([]uint16, 0, len(ciphers))
 	for _, cipherName := range ciphers {
 		upperCipher := strings.ToUpper(strings.TrimSpace(cipherName))
-		if cipher, ok := cipherLookup[upperCipher]; !ok {
+		var cipher uint16
+		var ok bool
+		if cipher, ok = cipherLookup[upperCipher]; !ok {
 			return fmt.Errorf("unknown cipher %s", cipherName)
-		} else {
-			newCiphers = append(newCiphers, cipher)
 		}
+		newCiphers = append(newCiphers, cipher)
+
 	}
 	tlsCiphers = newCiphers
 	return nil
 }
 
-func MinTLS() uint16 {
-	return tls.VersionTLS10
+// SetMinTLS the min tls that can be used
+func SetMinTLS(version string) error {
+	upperTLS := strings.ToUpper(strings.TrimSpace(version))
+	switch upperTLS {
+	case "VERSIONTLS10":
+		tlsVersion = tls.VersionTLS10
+	case "VERSIONTLS11":
+		tlsVersion = tls.VersionTLS11
+	case "VERSIONTLS12":
+		tlsVersion = tls.VersionTLS12
+	default:
+		return fmt.Errorf("Invalid TLS version %s", version)
+
+	}
+	return nil
 }
 
+// MinTLS the min tls that can be used
+func MinTLS() uint16 {
+	return tlsVersion
+}
+
+// CipherSuites the ciphers that can be sued
 func CipherSuites() []uint16 {
 	return tlsCiphers
 }

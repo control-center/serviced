@@ -89,7 +89,8 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringSliceFlag{"isvcs-start", convertToStringSlice(defaultOps.StartISVCS), "isvcs to start on agent"},
 		cli.IntFlag{"isvcs-zk-id", defaultOps.IsvcsZKID, "zookeeper id when running in a cluster"},
 		cli.StringSliceFlag{"isvcs-zk-quorum", convertToStringSlice(defaultOps.IsvcsZKQuorum), "isvcs zookeeper host quorum (e.g. -isvcs-zk-quorum zk1@localhost:2888:3888)"},
-		cli.StringSliceFlag{"tls-ciphers", convertToStringSlice(defaultOps.TlsCiphers), "list of supported tls ciphers"},
+		cli.StringSliceFlag{"tls-ciphers", convertToStringSlice(defaultOps.TLSCiphers), "list of supported tls ciphers"},
+		cli.StringFlag{"tls-min-version", string(defaultOps.TLSMinVersion), "mininum tls version"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
@@ -196,7 +197,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		StartISVCS:           ctx.GlobalStringSlice("isvcs-start"),
 		IsvcsZKID:            ctx.GlobalInt("isvcs-zk-id"),
 		IsvcsZKQuorum:        ctx.GlobalStringSlice("isvcs-zk-quorum"),
-		TlsCiphers:           ctx.GlobalStringSlice("tls-ciphers"),
+		TLSCiphers:           ctx.GlobalStringSlice("tls-ciphers"),
+		TLSMinVersion:        ctx.GlobalString("tls-min-version"),
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
