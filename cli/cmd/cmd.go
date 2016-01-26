@@ -196,6 +196,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		StartISVCS:           ctx.GlobalStringSlice("isvcs-start"),
 		IsvcsZKID:            ctx.GlobalInt("isvcs-zk-id"),
 		IsvcsZKQuorum:        ctx.GlobalStringSlice("isvcs-zk-quorum"),
+		TlsCiphers:           ctx.GlobalStringSlice("tls-ciphers"),
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
