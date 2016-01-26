@@ -100,9 +100,9 @@ type V2PerformanceData struct {
 }
 
 type V2ResultData struct {
-	Datapoints []V2Datapoint       `json:"datapoints"`
-	Metric     string              `json:"metric, omitempty"`
-	Tags       map[string][]string `json:"tags,omitempty"`
+	Datapoints []V2Datapoint     `json:"datapoints"`
+	Metric     string            `json:"metric, omitempty"`
+	Tags       map[string]string `json:"tags,omitempty"`
 }
 
 type V2Status struct {
@@ -179,7 +179,7 @@ func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, er
 	return &perfdata, nil
 }
 
-func (c *Client) v2performanceQuery(opts PerformanceOptions) (*V2PerformanceData, error) {
+func (c *Client) v2performanceQuery(opts V2PerformanceOptions) (*V2PerformanceData, error) {
 	path := "/api/v2/performance/query"
 	body, _, err := c.do("POST", path, opts)
 	if err != nil {

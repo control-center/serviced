@@ -15,6 +15,7 @@ package metrics
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ type ServiceInstance struct {
 	InstanceID int
 }
 
+// Main container for stats for serviced to consume
 type MemoryUsageStats struct {
 	HostID     string
 	ServiceID  string
@@ -42,6 +44,8 @@ type MemoryUsageStats struct {
 // filterV2ResultsInstance will compare a result data's serviced ID and instance ID
 // to a tag map of desired serviceIDs to instanceIDs. If the result data's service ID and
 // instance ID are in the supplied mapping, then return True.
+//
+// TODO: This could be expensive on large data sets
 func filterV2ResultsInstance(result V2ResultData, svcToInstances map[string][]string) bool {
 	/*
 		tags = serviceID -> [instanceIDs]
@@ -230,9 +234,9 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		// fill out filter map for later use
 		tags, ok := serviceInstanceFilterMap[instance.ServiceID]
 		if !ok {
-			serviceInstanceFilterMap[instance.ServiceID] = []string{instance.InstanceID}
+			serviceInstanceFilterMap[instance.ServiceID] = []string{strconv.Itoa(instance.InstanceID)}
 		} else {
-			tags = append(tags, instance.InstanceID)
+			tags = append(tags, strconv.Itoa(instance.InstanceID))
 			serviceInstanceFilterMap[instance.ServiceID] = tags
 		}
 	}
