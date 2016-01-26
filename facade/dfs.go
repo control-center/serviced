@@ -197,6 +197,22 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 	return snapshots, nil
 }
 
+// ListInvalidSnapshots returns a list of strings that describes  any invalid snapshots for the
+// given application.  Invalid snapshots are leftovers from an older version.  They can be deleted.
+func (f *Facade) ListInvalidSnapshots(ctx datastore.Context, serviceID string) ([]string, error) {
+	tenantID, err := f.GetTenantID(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		return nil, err
+	}
+	snapshots, err := f.dfs.ListInvalid(tenantID)
+	if err != nil {
+		glog.Errorf("Could not list invalid snapshots for tenant %s: %s", tenantID, err)
+		return nil, err
+	}
+	return snapshots, nil
+}
+
 // TagSnapshot adds tags to an existing snapshot
 func (f *Facade) TagSnapshot(snapshotID string, tagName string) error {
 	if err := f.dfs.Tag(snapshotID, tagName); err != nil {

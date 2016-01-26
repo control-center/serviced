@@ -81,6 +81,42 @@ func (a *api) GetSnapshotByServiceIDAndTag(serviceID string, tag string) (string
 	return snapshot.SnapshotID, nil
 }
 
+// Lists all invalid snapshots on the DFS
+func (a *api) GetInvalidSnapshots() ([]string, error) {
+	services, err := a.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get only unique snapshots as defined by the tenant ID
+	svcmap := NewServiceMap(services)
+	var snapshots []string
+	for _, s := range svcmap.Tree()[""] {
+		ss, err := a.GetInvalidSnapshotsByServiceID(s)
+		if err != nil {
+			return nil, fmt.Errorf("error trying to retrieve invalid snapshots for service %s: %s", s, err)
+		}
+		snapshots = append(snapshots, ss...)
+	}
+
+	return snapshots, nil
+}
+
+// Lists all invalid snapshots for a given service
+func (a *api) GetInvalidSnapshotsByServiceID(serviceID string) ([]string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshotIDs []string
+	if err := client.ListInvalidSnapshots(serviceID, &snapshotIDs); err != nil {
+		return nil, err
+	}
+
+	return snapshotIDs, nil
+}
+
 // Snapshots a service
 func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 	client, err := a.connectDAO()

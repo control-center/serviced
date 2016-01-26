@@ -85,6 +85,7 @@ var (
 	ErrBadMount                = errors.New("bad mount path")
 	ErrInsufficientPermissions = errors.New("insufficient permissions to run command")
 	ErrTagAlreadyExists        = errors.New("a snapshot with the given tag already exists")
+	ErrInvalidSnapshot         = errors.New("invalid snapshot")
 )
 
 func init() {
@@ -148,6 +149,8 @@ type Volume interface {
 	ReadMetadata(label, name string) (io.ReadCloser, error)
 	// Snapshots lists all snapshots of this volume
 	Snapshots() ([]string, error)
+	// InvalidSnapshots lists all snapshots of this volume that are no longer valid (e.g. created with an incompatible version of serviced)
+	InvalidSnapshots() ([]string, error)
 	// RemoveSnapshot removes the snapshot with name <label>
 	RemoveSnapshot(label string) error
 	// Rollback replaces the current state of the volume with that snapshotted

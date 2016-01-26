@@ -25,6 +25,18 @@ func TestListSnapshots(t *testing.T) {
 func BenchmarkListSnapshots(b *testing.B) {
 }
 
+func TestListInvalidSnapshots(t *testing.T) {
+}
+
+func BenchmarkListInvalidSnapshots(b *testing.B) {
+}
+
+func TestListInvalidSnapshotsByServiceID(t *testing.T) {
+}
+
+func BenchmarkListInvalidSnapshotsByServiceID(b *testing.B) {
+}
+
 func TestListSnapshotsByServiceID(t *testing.T) {
 }
 

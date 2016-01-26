@@ -313,6 +313,9 @@ type ControlPlane interface {
 	// ListSnapshots returns a list of all snapshots for a service
 	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) (err error)
 
+	// ListInvalidSnapshots returns a list of all invalid snapshots for a service
+	ListInvalidSnapshots(serviceID string, snapshotIDs *[]string) (err error)
+
 	// ResetRegistry prompts all images to be re-pushed into the docker
 	// registry.
 	ResetRegistry(_ EntityRequest, _ *int) (err error)

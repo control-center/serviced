@@ -331,9 +331,31 @@ func (v *BtrfsVolume) snapshotPath(label string) string {
 }
 
 // isSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
-// with the tenant prefix)
+// with the tenant prefix and has a valid metadata file
 func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
-	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			glog.Errorf("Could not read metadata for snapshot %s: %s", rawLabel, err)
+			return false
+		}
+		reader.Close()
+		return true
+	}
+	return false
+}
+
+// isInvalidSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
+// with the tenant prefix but does NOT have a valid metadata file
+func (v *BtrfsVolume) isInvalidSnapshot(rawLabel string) bool {
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			return true
+		}
+		reader.Close()
+	}
+	return false
 }
 
 // writeSnapshotInfo writes metadata about a snapshot
@@ -354,6 +376,10 @@ func (v *BtrfsVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo)
 
 // SnapshotInfo returns the meta info for a snapshot
 func (v *BtrfsVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	if v.isInvalidSnapshot(label) {
+		return nil, volume.ErrInvalidSnapshot
+	}
+
 	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
@@ -477,13 +503,53 @@ func (v *BtrfsVolume) Snapshots() ([]string, error) {
 	return labels, nil
 }
 
+// InvalidSnapshots implements volume.Volume.InvalidSnapshots
+func (v *BtrfsVolume) InvalidSnapshots() ([]string, error) {
+	v.Lock()
+	defer v.Unlock()
+
+	glog.V(2).Infof("listing snapshots of volume:%v and v.name:%s ", v.path, v.name)
+	output, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "list", "-s", v.path)
+	if err != nil {
+		glog.Errorf("Could not list subvolumes of %s: %s", v.path, err)
+		return nil, err
+	}
+
+	var files []os.FileInfo
+	for _, line := range strings.Split(string(output), "\n") {
+		glog.V(0).Infof("line: %s", line)
+		if parts := strings.Split(line, "path"); len(parts) == 2 {
+			rawLabel := strings.TrimSpace(parts[1])
+			rawLabel = strings.TrimPrefix(rawLabel, "volumes/")
+			if v.isInvalidSnapshot(rawLabel) {
+				label := v.prettySnapshotLabel(rawLabel)
+				file, err := os.Stat(filepath.Join(v.Driver().Root(), rawLabel))
+				if err != nil {
+					glog.Errorf("Could not stat snapshot %s: %s", label, err)
+					return nil, err
+				}
+				files = append(files, file)
+				glog.V(2).Infof("found snapshot:%s", label)
+			}
+		}
+	}
+	labels := volume.FileInfoSlice(files).Labels()
+	return labels, nil
+}
+
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *BtrfsVolume) RemoveSnapshot(label string) error {
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
-		} else {
-			return volume.ErrSnapshotDoesNotExist
+		} else { //check the invalid snapshot list, we can remove those as well
+			if exists, err = v.invalidSnapshotExists(label); err != nil || !exists {
+				if err != nil {
+					return err
+				} else {
+					return volume.ErrSnapshotDoesNotExist
+				}
+			}
 		}
 	}
 
@@ -517,6 +583,10 @@ func getEnvMinDuration(envvar string, def, min int32) time.Duration {
 
 // Rollback implements volume.Volume.Rollback
 func (v *BtrfsVolume) Rollback(label string) error {
+	if v.isInvalidSnapshot(label) {
+		return volume.ErrInvalidSnapshot
+	}
+
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -620,6 +690,23 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	plabel := v.prettySnapshotLabel(label)
 	if snapshots, err := v.Snapshots(); err != nil {
 		glog.Errorf("Could not get current snapshot list: %v", err)
+		return false, ErrBtrfsListingSnapshots
+	} else {
+		for _, snapLabel := range snapshots {
+			if rlabel == snapLabel || plabel == snapLabel {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// invalidSnapshotExists queries the list of invalid snapshots for the given label
+func (v *BtrfsVolume) invalidSnapshotExists(label string) (exists bool, err error) {
+	rlabel := v.rawSnapshotLabel(label)
+	plabel := v.prettySnapshotLabel(label)
+	if snapshots, err := v.InvalidSnapshots(); err != nil {
+		glog.Errorf("Could not get current invalid snapshot list: %v", err)
 		return false, ErrBtrfsListingSnapshots
 	} else {
 		for _, snapLabel := range snapshots {
