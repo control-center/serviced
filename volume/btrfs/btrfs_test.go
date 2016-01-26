@@ -16,6 +16,7 @@
 package btrfs_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -32,15 +33,6 @@ var (
 	_                  = Suite(&BtrfsSuite{})
 	btrfsArgs []string = []string{}
 )
-
-func arrayContains(array []string, element string) bool {
-	for _, x := range array {
-		if x == element {
-			return true
-		}
-	}
-	return false
-}
 
 // Wire in gocheck
 func Test(t *testing.T) { TestingT(t) }
@@ -71,65 +63,14 @@ func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
 }
 
 func (s *BtrfsSuite) TestBtrfsBadSnapshots(c *C) {
-	err := volume.InitDriver("btrfs", s.root, btrfsArgs)
-	c.Assert(err, IsNil)
-	d, err := volume.GetDriver(s.root)
-	c.Assert(err, IsNil)
-	c.Assert(d, NotNil)
+	badsnapshot := func(label string, vol volume.Volume) error {
+		//create an invalid snapshot by snapshotting and then writing garbage to .SnapshotInfo
+		badSnapshotPath := filepath.Join(s.root, fmt.Sprintf("%s_%s", vol.Name(), label))
+		_, err := volume.RunBtrFSCmd(true, "subvolume", "snapshot", "-r", vol.Path(), badSnapshotPath)
+		return err
+	}
 
-	vol, err := d.Create("Base")
-	c.Assert(err, IsNil)
-	c.Assert(vol, NotNil)
-
-	//create a subvolume that looks like a snapshot but is missing .SnapshotInfo
-	badSnapshotPath := filepath.Join(s.root, "Base_badsnapshot")
-	_, err = volume.RunBtrFSCmd(true, "subvolume", "snapshot", "-r", vol.Path(), badSnapshotPath)
-	c.Assert(err, IsNil)
-
-	// Make sure it shows up as an invalid snapshot
-	snaps, err := vol.InvalidSnapshots()
-	c.Assert(err, IsNil)
-	c.Assert(len(snaps), Equals, 1)
-	c.Assert(arrayContains(snaps, "Base_badsnapshot"), Equals, true)
-
-	// Make sure we can still list snapshots, and the bad one isn't included
-	snaps, err = vol.Snapshots()
-	c.Assert(err, IsNil)
-	c.Assert(len(snaps), Equals, 0)
-
-	// Make sure we can still add another snapshot
-	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"SnapTag", "tagA"})
-	c.Assert(err, IsNil)
-
-	// And it shows up in the list
-	snaps, err = vol.Snapshots()
-	c.Assert(err, IsNil)
-	c.Assert(len(snaps), Equals, 1)
-	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
-
-	// Trying to get info on the first snapshot fails
-	snapInfo, err := vol.SnapshotInfo("Base_badsnapshot")
-	c.Assert(err, NotNil)
-	c.Assert(snapInfo, IsNil)
-
-	// Trying to get info on the second snapshot works
-	snapInfo, err = vol.SnapshotInfo("Base_Snap")
-	c.Assert(err, IsNil)
-	c.Assert(snapInfo, NotNil)
-
-	// Trying to roll back to the bad snapshot fails
-	err = vol.Rollback("Base_badsnapshot")
-	c.Assert(err, NotNil)
-
-	// We can delete the bad snapshot
-	err = vol.RemoveSnapshot("Base_badsnapshot")
-	c.Assert(err, IsNil)
-
-	// And it is actually removed
-	snaps, err = vol.InvalidSnapshots()
-	c.Assert(err, IsNil)
-	c.Assert(len(snaps), Equals, 0)
-
+	drivertest.DriverTestBadSnapshot(c, "btrfs", s.root, badsnapshot, btrfsArgs)
 }
 
 func (s *BtrfsSuite) TestBtrfsSnapshotTags(c *C) {
