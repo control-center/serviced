@@ -16,10 +16,14 @@
 package rsync_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "gopkg.in/check.v1"
 
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/drivertest"
 	// Register the rsync driver
 	_ "github.com/control-center/serviced/volume/rsync"
@@ -28,6 +32,15 @@ import (
 var (
 	rsyncArgs []string = make([]string, 0)
 )
+
+func arrayContains(array []string, element string) bool {
+	for _, x := range array {
+		if x == element {
+			return true
+		}
+	}
+	return false
+}
 
 // Wire in gocheck
 func Test(t *testing.T) { TestingT(t) }
@@ -54,4 +67,18 @@ func (s *RsyncSuite) TestRsyncSnapshotTags(c *C) {
 
 func (s *RsyncSuite) TestRsyncExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "rsync", "", "", rsyncArgs)
+}
+
+func (s *RsyncSuite) TestRsyncBadSnapshots(c *C) {
+	badsnapshot := func(label string, vol volume.Volume) error {
+		//create an invalid snapshot by snapshotting and then removing .SnapshotInfo
+		if err := vol.Snapshot(label, "", []string{}); err != nil {
+			return err
+		}
+		filePath := filepath.Join(vol.Driver().Root(), ".rsync", "volumes", fmt.Sprintf("%s_%s", vol.Name(), label), ".SNAPSHOTINFO")
+		err := os.Remove(filePath)
+		return err
+	}
+
+	drivertest.DriverTestBadSnapshot(c, "rsync", "", badsnapshot, rsyncArgs)
 }
