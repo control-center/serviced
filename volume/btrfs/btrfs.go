@@ -331,9 +331,18 @@ func (v *BtrfsVolume) snapshotPath(label string) string {
 }
 
 // isSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
-// with the tenant prefix)
+// with the tenant prefix and has a valid metadata file
 func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
-	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			glog.Errorf("Could not read metadata for snapshot %s: %s", rawLabel, err)
+			return false
+		}
+		reader.Close()
+		return true
+	}
+	return false
 }
 
 // writeSnapshotInfo writes metadata about a snapshot
