@@ -196,7 +196,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		End:   "now",
 	}
 
-	// TODO: Do this 3 times, once each for min/max/sum
+	// build a list of unique service IDs for the query
 	servicesMap := make(map[string]struct{})
 	serviceIdTags := []string{}
 	for _, instance := range instances {
@@ -205,6 +205,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 			serviceIdTags = append(serviceIdTags, instance.ServiceID)
 		}
 	}
+
 	query := V2MetricOptions{
 		Metric: "cgroup.memory.totalrss",
 		Tags: map[string][]string{
@@ -212,6 +213,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 			"controlplane_instance_id": []string{"*"},
 		},
 	}
+
 	getter := func() ([]MemoryUsageStats, error) {
 		// get max + avg
 		perfDataMap := make(map[string]*V2PerformanceData)

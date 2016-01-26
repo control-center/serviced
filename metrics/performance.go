@@ -15,6 +15,7 @@ package metrics
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 )
 
@@ -187,6 +188,11 @@ func (c *Client) v2performanceQuery(opts PerformanceOptions) (*V2PerformanceData
 	var perfdata V2PerformanceData
 	if err = json.Unmarshal(body, &perfdata); err != nil {
 		return nil, err
+	}
+	for _, status := range perfdata.Statuses {
+		if status.Status == "ERROR" {
+			return nil, fmt.Errorf("received error requesting performance data: %s", status.Message)
+		}
 	}
 	return &perfdata, nil
 }
