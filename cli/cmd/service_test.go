@@ -956,24 +956,54 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 	// Output:
 	// test-service-1-snapshot-1 description 1
 	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid [DEPRECATED]
+
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort() {
-	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "-t")
+func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
+	expected, err := DefaultServiceAPITest.GetSnapshotsByServiceID("test-service-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	var actual []dao.SnapshotInfo
+	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "-t")
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshaling resource: %s", err)
+	}
+
+	// Did you remember to update SnapshotInfo.Equals?
+	if len(actual) != len(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+	for i, _ := range actual {
+		if !actual[i].Equals(&expected[i]) {
+			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+		}
+	}
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong() {
-	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong(t *testing.T) {
+	expected, err := DefaultServiceAPITest.GetSnapshotsByServiceID("test-service-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	var actual []dao.SnapshotInfo
+	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+	if err := json.Unmarshal(output, &actual); err != nil {
+		t.Fatalf("error unmarshaling resource: %s", err)
+	}
+
+	// Did you remember to update SnapshotInfo.Equals?
+	if len(actual) != len(expected) {
+		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+	}
+	for i, _ := range actual {
+		if !actual[i].Equals(&expected[i]) {
+			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
+		}
+	}
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
