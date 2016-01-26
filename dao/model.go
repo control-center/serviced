@@ -126,13 +126,19 @@ type SnapshotInfo struct {
 	Description string
 	Tags        []string
 	Created     time.Time
+	Invalid     bool
 }
 
 func (s SnapshotInfo) String() string {
+	snapshotID := s.SnapshotID
+	if s.Invalid {
+		snapshotID += " [INVALID]"
+	}
+
 	if s.Description == "" {
-		return s.SnapshotID
+		return snapshotID
 	} else {
-		return s.SnapshotID + " " + s.Description
+		return snapshotID + " " + s.Description
 	}
 }
 
