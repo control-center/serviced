@@ -1274,7 +1274,7 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 				tags := strings.Join(s.Tags, ",")
 				snapshotID := s.SnapshotID
 				if s.Invalid {
-					snapshotID += " [INVALID]"
+					snapshotID += " [DEPRECATED]"
 				}
 
 				//make the row and add it to the table
