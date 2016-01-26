@@ -39,6 +39,28 @@ type MemoryUsageStats struct {
 	Average    int64
 }
 
+// filterV2ResultsInstance will compare a result data's serviced ID and instance ID
+// to a tag map of desired serviceIDs to instanceIDs. If the result data's service ID and
+// instance ID are in the supplied mapping, then return True.
+func filterV2ResultsInstance(result V2ResultData, svcToInstances map[string][]string) bool {
+	/*
+		tags = serviceID -> [instanceIDs]
+	*/
+	servicedID := result.Tags["controlplane_service_id"]
+	instances, ok := svcToInstances[servicedID]
+	// curr result's service ID not in our tag list
+	if !ok {
+		return false
+	}
+	// see if result's instance ID is in the instance list for the service
+	for _, instanceID := range instances {
+		if instanceID == result.Tags["controlplane_instance_id"] {
+			return true
+		}
+	}
+	return false
+}
+
 func convertV2MemoryUsage(perfData map[string]*V2PerformanceData) []MemoryUsageStats {
 	memStatsMap := make(map[string]*MemoryUsageStats) // serviceID.InstanceID
 	for agg, perf := range perfData {
@@ -197,12 +219,21 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 	}
 
 	// build a list of unique service IDs for the query
+	serviceInstanceFilterMap := make(map[string][]string)
 	servicesMap := make(map[string]struct{})
 	serviceIdTags := []string{}
 	for _, instance := range instances {
 		if _, ok := servicesMap[instance.ServiceID]; !ok {
 			servicesMap[instance.ServiceID] = struct{}{}
 			serviceIdTags = append(serviceIdTags, instance.ServiceID)
+		}
+		// fill out filter map for later use
+		tags, ok := serviceInstanceFilterMap[instance.ServiceID]
+		if !ok {
+			serviceInstanceFilterMap[instance.ServiceID] = []string{instance.InstanceID}
+		} else {
+			tags = append(tags, instance.InstanceID)
+			serviceInstanceFilterMap[instance.ServiceID] = tags
 		}
 	}
 
@@ -241,6 +272,18 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		}
 		perfDataMap["last"] = result
 
+		// filter out our results by service ID + Instance ID
+		for _, perfData := range perfDataMap {
+			filteredSeries := []V2ResultData{}
+			for _, result := range perfData.Series {
+				if filterV2ResultsInstance(result, serviceInstanceFilterMap) {
+					filteredSeries = append(filteredSeries, result)
+				}
+			}
+			perfData.Series = filteredSeries
+		}
+
+		// normalize results to return
 		return convertV2MemoryUsage(perfDataMap), nil
 	}
 	var keys []string
