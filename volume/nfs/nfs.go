@@ -222,6 +222,12 @@ func (v *NFSVolume) Snapshots() ([]string, error) {
 	return nil, ErrNotSupported
 }
 
+// InvalidSnapshots implements volume.Volume.InvalidSnapshots
+func (v *NFSVolume) InvalidSnapshots() ([]string, error) {
+	//TODO:  Can we have invalid snapshots in devicemapper?
+	return nil, ErrNotSupported
+}
+
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *NFSVolume) RemoveSnapshot(label string) error {
 	return ErrNotSupported

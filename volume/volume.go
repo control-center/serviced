@@ -148,6 +148,8 @@ type Volume interface {
 	ReadMetadata(label, name string) (io.ReadCloser, error)
 	// Snapshots lists all snapshots of this volume
 	Snapshots() ([]string, error)
+	// InvalidSnapshots lists all snapshots of this volume that are no longer valid (e.g. created with an incompatible version of serviced)
+	InvalidSnapshots() ([]string, error)
 	// RemoveSnapshot removes the snapshot with name <label>
 	RemoveSnapshot(label string) error
 	// Rollback replaces the current state of the volume with that snapshotted

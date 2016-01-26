@@ -86,8 +86,14 @@ func (s *BtrfsSuite) TestBtrfsBadSnapshots(c *C) {
 	_, err = volume.RunBtrFSCmd(true, "subvolume", "snapshot", "-r", vol.Path(), badSnapshotPath)
 	c.Assert(err, IsNil)
 
-	// Make sure we can still list snapshots
-	snaps, err := vol.Snapshots()
+	// Make sure it shows up as an invalid snapshot
+	snaps, err := vol.InvalidSnapshots()
+	c.Assert(err, IsNil)
+	c.Assert(len(snaps), Equals, 1)
+	c.Assert(arrayContains(snaps, "Base_badsnapshot"), Equals, true)
+
+	// Make sure we can still list snapshots, and the bad one isn't included
+	snaps, err = vol.Snapshots()
 	c.Assert(err, IsNil)
 	c.Assert(len(snaps), Equals, 0)
 
@@ -110,6 +116,19 @@ func (s *BtrfsSuite) TestBtrfsBadSnapshots(c *C) {
 	snapInfo, err = vol.SnapshotInfo("Base_Snap")
 	c.Assert(err, IsNil)
 	c.Assert(snapInfo, NotNil)
+
+	// Trying to roll back to the bad snapshot fails
+	err = vol.Rollback("Base_badsnapshot")
+	c.Assert(err, NotNil)
+
+	// We can delete the bad snapshot
+	err = vol.RemoveSnapshot("Base_badsnapshot")
+	c.Assert(err, IsNil)
+
+	// And it is actually removed
+	snaps, err = vol.InvalidSnapshots()
+	c.Assert(err, IsNil)
+	c.Assert(len(snaps), Equals, 0)
 
 }
 
