@@ -74,7 +74,8 @@ type Options struct {
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 	RPCDialTimeout       int
 	SnapshotTTL          int      // hours to keep snapshots around, zero for infinity
-	TlsCiphers           []string // List of tls ciphers supported
+	TLSCiphers           []string // List of tls ciphers supported
+	TLSMinVersion        string   // Minimum TLS version supported
 }
 
 // LoadOptions overwrites the existing server options
@@ -111,9 +112,14 @@ func New() API {
 func (a *api) StartServer() error {
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
 
-	glog.Infof("Setting supported tls ciphers: %s", options.TlsCiphers)
-	if err := utils.SetCiphers(options.TlsCiphers); err != nil {
-		return fmt.Errorf("unable to set TlsCiphers %v", err)
+	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
+	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
+		return fmt.Errorf("unable to set TLS Ciphers %v", err)
+	}
+
+	glog.Infof("Setting minimum tls version: %s", options.TLSMinVersion)
+	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum TLS version %v", err)
 	}
 
 	if len(options.CPUProfile) > 0 {
