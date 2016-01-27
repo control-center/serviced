@@ -18,12 +18,14 @@ package devicemapper_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 
 	. "gopkg.in/check.v1"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/drivertest"
 	// Register the devicemapper driver
 	_ "github.com/control-center/serviced/volume/devicemapper"
@@ -124,4 +126,18 @@ func (s *DeviceMapperSuite) TestSnapShotContainerMounts(c *C) {
 
 func (s *DeviceMapperSuite) TestResize(c *C) {
 	drivertest.DriverTestResize(c, "devicemapper", "", devmapArgs)
+}
+
+func (s *DeviceMapperSuite) TestDeviceMapperBadSnapshots(c *C) {
+	badsnapshot := func(label string, vol volume.Volume) error {
+		//create an invalid snapshot by snapshotting and then removing .SnapshotInfo
+		if err := vol.Snapshot(label, "", []string{}); err != nil {
+			return err
+		}
+		filePath := filepath.Join(vol.Driver().Root(), ".devicemapper", "volumes", fmt.Sprintf("%s_%s", vol.Name(), label), ".SNAPSHOTINFO")
+		err := os.Remove(filePath)
+		return err
+	}
+
+	drivertest.DriverTestBadSnapshot(c, "devicemapper", "", badsnapshot, devmapArgs)
 }

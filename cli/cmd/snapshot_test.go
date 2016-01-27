@@ -18,6 +18,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"testing"
 
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
@@ -34,7 +36,9 @@ var DefaultSnapshotAPITest = SnapshotAPITest{snapshots: DefaultTestSnapshots}
 var DefaultTestSnapshots = []dao.SnapshotInfo{
 	dao.SnapshotInfo{SnapshotID: "test-service-1-snapshot-1", TenantID: "test-service-1", Description: "description 1", Tags: []string{"tag-1"}},
 	dao.SnapshotInfo{SnapshotID: "test-service-1-snapshot-2", TenantID: "test-service-1", Description: "description 2", Tags: []string{"tag-2", "tag-3"}},
+	dao.SnapshotInfo{SnapshotID: "test-service-1-invalid", Invalid: true},
 	dao.SnapshotInfo{SnapshotID: "test-service-2-snapshot-1", TenantID: "test-service-2", Description: "", Tags: []string{""}},
+	dao.SnapshotInfo{SnapshotID: "test-service-2-invalid", Invalid: true},
 }
 
 var (
@@ -80,7 +84,7 @@ func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]dao.Snapsh
 	}
 	var snapshots []dao.SnapshotInfo
 	for _, s := range t.snapshots {
-		if s.TenantID == serviceID {
+		if s.TenantID == serviceID || strings.HasPrefix(s.SnapshotID, serviceID) {
 			snapshots = append(snapshots, s)
 		}
 	}
@@ -182,28 +186,46 @@ func ExampleServicedCLI_CmdSnapshotList() {
 	// Output:
 	// test-service-1-snapshot-1 description 1
 	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid [DEPRECATED]
 	// test-service-2-snapshot-1
-}
-
-func ExampleServicedCLI_CmdSnapshotList_ShowTagsShort() {
-	InitSnapshotAPITest("serviced", "snapshot", "list", "-t")
-
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
-	// test-service-2-snapshot-1
+	// test-service-2-invalid [DEPRECATED]
 
 }
 
-func ExampleServicedCLI_CmdSnapshotList_ShowTagsLong() {
-	InitSnapshotAPITest("serviced", "snapshot", "list", "--show-tags")
+func TestServicedCLI_CmdSnapshotList_ShowTagsShort(t *testing.T) {
+	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]" +
+			"\ntest-service-2-snapshot-1" +
+			"\ntest-service-2-invalid [DEPRECATED]"
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
-	// test-service-2-snapshot-1
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
+}
+
+func TestServicedCLI_CmdSnapshotList_ShowTagsLong(t *testing.T) {
+	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "--show-tags")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]" +
+			"\ntest-service-2-snapshot-1" +
+			"\ntest-service-2-invalid [DEPRECATED]"
+
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
 }
 
 func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
@@ -212,24 +234,40 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
 	// Output:
 	// test-service-1-snapshot-1 description 1
 	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid [DEPRECATED]
 }
 
-func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort() {
-	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t")
+func TestServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort(t *testing.T) {
+	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
+
 }
 
-func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong() {
-	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "--show-tags")
+func TestervicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong(t *testing.T) {
+	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "--show-tags")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
 }
 
 func ExampleServicedCLI_CmdSnapshotList_fail() {
@@ -347,7 +385,10 @@ func ExampleServicedCLI_CmdSnapshotRemove_All() {
 	// Output:
 	// test-service-1-snapshot-1
 	// test-service-1-snapshot-2
+	// test-service-1-invalid
 	// test-service-2-snapshot-1
+	// test-service-2-invalid
+
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_Tag() {

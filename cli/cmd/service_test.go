@@ -956,24 +956,40 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 	// Output:
 	// test-service-1-snapshot-1 description 1
 	// test-service-1-snapshot-2 description 2
+	// test-service-1-invalid [DEPRECATED]
+
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort() {
-	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "-t")
+func TestServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
+	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "-t")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong() {
-	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+func TestServicedCLI_CmdServiceListSnapshots_ShowTagsLong(t *testing.T) {
+	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Output:
-	// Snapshot                       Description        Tags
-	// test-service-1-snapshot-1      description 1      tag-1
-	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
+	}
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_usage() {

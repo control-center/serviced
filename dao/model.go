@@ -126,14 +126,38 @@ type SnapshotInfo struct {
 	Description string
 	Tags        []string
 	Created     time.Time
+	Invalid     bool
 }
 
 func (s SnapshotInfo) String() string {
-	if s.Description == "" {
-		return s.SnapshotID
-	} else {
-		return s.SnapshotID + " " + s.Description
+	snapshotID := s.SnapshotID
+	if s.Invalid {
+		snapshotID += " [DEPRECATED]"
 	}
+
+	if s.Description == "" {
+		return snapshotID
+	} else {
+		return snapshotID + " " + s.Description
+	}
+}
+
+func (s *SnapshotInfo) Equals(s2 *SnapshotInfo) bool {
+	if len(s.Tags) != len(s2.Tags) {
+		return false
+	}
+
+	for i, _ := range s.Tags {
+		if s.Tags[i] != s2.Tags[i] {
+			return false
+		}
+	}
+
+	return s.SnapshotID == s2.SnapshotID &&
+		s.TenantID == s2.TenantID &&
+		s.Description == s2.Description &&
+		s.Created == s2.Created &&
+		s.Invalid == s2.Invalid
 }
 
 type IServiceHealthResult struct {

@@ -421,6 +421,70 @@ func DriverTestSnapshotContainerMounts(c *C, drivername volume.DriverType, root 
 	c.Assert(status, Equals, 1)
 }
 
+func DriverTestBadSnapshot(c *C, drivername volume.DriverType, root string, badsnapshot func(string, volume.Volume) error, args []string) {
+	driver := newDriver(c, drivername, root, args)
+	defer cleanup(c, driver)
+
+	vol := createBase(c, driver, "Base")
+	verifyBase(c, driver, vol)
+
+	//create the bad snapshot
+	err := badsnapshot("badsnapshot", vol)
+	c.Assert(err, IsNil)
+
+	// Make sure we can still list snapshots
+	snaps, err := vol.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(len(snaps), Equals, 1)
+	c.Assert(arrayContains(snaps, "Base_badsnapshot"), Equals, true)
+
+	// GetSnapshotWithTag still works
+	snapshot, err := vol.GetSnapshotWithTag("nonexistanttag")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
+	c.Assert(snapshot, IsNil)
+
+	// Make sure we can still add another snapshot
+	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"SnapTag", "tagA"})
+	c.Assert(err, IsNil)
+
+	// And it shows up in the list
+	snaps, err = vol.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(len(snaps), Equals, 2)
+	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
+	c.Assert(arrayContains(snaps, "Base_badsnapshot"), Equals, true)
+
+	// Trying to get info on the first snapshot fails
+	snapInfo, err := vol.SnapshotInfo("Base_badsnapshot")
+	c.Assert(err, ErrorMatches, volume.ErrInvalidSnapshot.Error())
+	c.Assert(snapInfo, IsNil)
+
+	// Trying to get info on the second snapshot works
+	snapInfo, err = vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(snapInfo, NotNil)
+
+	// Trying to roll back to the bad snapshot fails
+	err = vol.Rollback("Base_badsnapshot")
+	c.Assert(err, ErrorMatches, volume.ErrInvalidSnapshot.Error())
+
+	// We can delete the bad snapshot
+	err = vol.RemoveSnapshot("Base_badsnapshot")
+	c.Assert(err, IsNil)
+
+	// And it is actually removed
+	snaps, err = vol.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(len(snaps), Equals, 1)
+	c.Assert(arrayContains(snaps, "Base_badsnapshot"), Equals, false)
+
+	// Add the bad snapshot back and make sure we can remove the volume
+	err = badsnapshot("badsnapshot", vol)
+	c.Assert(err, IsNil)
+	c.Assert(driver.Remove("Base"), IsNil)
+	c.Assert(driver.Exists("Base"), Equals, false)
+}
+
 func DriverTestResize(c *C, drivername volume.DriverType, root string, args []string) {
 	switch drivername {
 	case volume.DriverTypeDeviceMapper:
