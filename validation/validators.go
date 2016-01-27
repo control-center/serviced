@@ -89,6 +89,21 @@ func ValidPort(port int) error {
 	return nil
 }
 
+func ValidUIAddress(addr string) error {
+	if strings.Index(addr, ":") == -1 {
+		return NewViolation(fmt.Sprintf("not a valid ui address: %s", addr))
+	}
+	s := strings.Split(addr, ":")
+	if len(s) != 2 {
+		return NewViolation(fmt.Sprintf("not a valid ui address: %s", addr))
+	}
+	i, err := strconv.Atoi(s[1])
+	if err != nil {
+		return NewViolation(fmt.Sprintf("not a valid ui address: %s", addr))
+	}
+	return ValidPort(i)
+}
+
 func IntIn(check int, others ...int) error {
 	set := make(map[int]struct{}, len(others))
 	for _, val := range others {
