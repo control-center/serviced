@@ -960,49 +960,35 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
-	expected, err := DefaultServiceAPITest.GetSnapshotsByServiceID("test-service-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
 	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "-t")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
-	}
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 }
 
-func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong(t *testing.T) {
-	expected, err := DefaultServiceAPITest.GetSnapshotsByServiceID("test-service-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestServicedCLI_CmdServiceListSnapshots_ShowTagsLong(t *testing.T) {
 	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
-	}
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 }
 
