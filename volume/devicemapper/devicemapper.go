@@ -291,7 +291,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 	for _, device := range devices {
 		if device == "" {
 			// this can happen when all previously active devices have been deactivated
-			continue;
+			continue
 		}
 
 		// Perversely, deactivateDevice() will not actually work unless the device is activated.
@@ -538,6 +538,9 @@ func (v *DeviceMapperVolume) writeSnapshotInfo(label string, info *volume.Snapsh
 
 // SnapshotInfo returns the meta info for a snapshot
 func (v *DeviceMapperVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	if v.isInvalidSnapshot(label) {
+		return nil, volume.ErrInvalidSnapshot
+	}
 	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
@@ -671,14 +674,15 @@ func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.Snapsho
 	}
 	// Get info for each snapshot and return if a matching tag is found
 	for _, snapshotLabel := range snapshotLabels {
-		info, err := v.SnapshotInfo(snapshotLabel)
-		if err != nil {
-			glog.Errorf("Could not get info for snapshot %s: %s", snapshotLabel, err)
-			return nil, err
-		}
-		for _, tag := range info.Tags {
-			if tag == tagName {
-				return info, nil
+		if info, err := v.SnapshotInfo(snapshotLabel); err != volume.ErrInvalidSnapshot {
+			if err != nil {
+				glog.Errorf("Could not get info for snapshot %s: %s", snapshotLabel, err)
+				return nil, err
+			}
+			for _, tag := range info.Tags {
+				if tag == tagName {
+					return info, nil
+				}
 			}
 		}
 	}
@@ -688,6 +692,16 @@ func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.Snapsho
 // Snapshots implements volume.Volume.Snapshots
 func (v *DeviceMapperVolume) Snapshots() ([]string, error) {
 	return v.Metadata.ListSnapshots(), nil
+}
+
+// isInvalidSnapshot checks to see if the snapshot is missing a .SNAPSHOTINFO file
+func (v *DeviceMapperVolume) isInvalidSnapshot(rawLabel string) bool {
+	reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+	if err != nil {
+		return true
+	}
+	reader.Close()
+	return false
 }
 
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
@@ -726,6 +740,10 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 
 // Rollback implements volume.Volume.Rollback
 func (v *DeviceMapperVolume) Rollback(label string) error {
+	if v.isInvalidSnapshot(label) {
+		return volume.ErrInvalidSnapshot
+	}
+
 	glog.V(2).Infof("Rollback() (%s) START", v.name)
 	defer glog.V(2).Infof("Rollback() (%s) END", v.name)
 	if !v.snapshotExists(label) {

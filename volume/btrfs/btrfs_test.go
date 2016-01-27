@@ -16,6 +16,8 @@
 package btrfs_test
 
 import (
+	"fmt"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -58,6 +60,17 @@ func (s *BtrfsSuite) TestBtrfsCreateBase(c *C) {
 
 func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "btrfs", s.root, btrfsArgs)
+}
+
+func (s *BtrfsSuite) TestBtrfsBadSnapshots(c *C) {
+	badsnapshot := func(label string, vol volume.Volume) error {
+		//create an invalid snapshot by snapshotting and then writing garbage to .SnapshotInfo
+		badSnapshotPath := filepath.Join(s.root, fmt.Sprintf("%s_%s", vol.Name(), label))
+		_, err := volume.RunBtrFSCmd(true, "subvolume", "snapshot", "-r", vol.Path(), badSnapshotPath)
+		return err
+	}
+
+	drivertest.DriverTestBadSnapshot(c, "btrfs", s.root, badsnapshot, btrfsArgs)
 }
 
 func (s *BtrfsSuite) TestBtrfsSnapshotTags(c *C) {
