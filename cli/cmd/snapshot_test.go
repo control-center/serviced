@@ -16,7 +16,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -193,49 +192,39 @@ func ExampleServicedCLI_CmdSnapshotList() {
 
 }
 
-func ExampleServicedCLI_CmdSnapshotList_ShowTagsShort(t *testing.T) {
-	expected, err := DefaultSnapshotAPITest.GetSnapshots()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestServicedCLI_CmdSnapshotList_ShowTagsShort(t *testing.T) {
 	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
-	}
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]" +
+			"\ntest-service-2-snapshot-1" +
+			"\ntest-service-2-invalid [DEPRECATED]"
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 }
 
-func ExampleServicedCLI_CmdSnapshotList_ShowTagsLong(t *testing.T) {
-	expected, err := DefaultSnapshotAPITest.GetSnapshots()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestServicedCLI_CmdSnapshotList_ShowTagsLong(t *testing.T) {
 	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "--show-tags")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
-	}
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]" +
+			"\ntest-service-2-snapshot-1" +
+			"\ntest-service-2-invalid [DEPRECATED]"
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 }
 
@@ -248,49 +237,36 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
 	// test-service-1-invalid [DEPRECATED]
 }
 
-func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort(t *testing.T) {
-	expected, err := DefaultSnapshotAPITest.GetSnapshotsByServiceID("test-service-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort(t *testing.T) {
 	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
+
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
-	}
 }
 
-func ExampleServicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong(t *testing.T) {
-	expected, err := DefaultSnapshotAPITest.GetSnapshotsByServiceID("test-service-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var actual []dao.SnapshotInfo
+func TestervicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong(t *testing.T) {
 	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "--show-tags")
-	if err := json.Unmarshal(output, &actual); err != nil {
-		t.Fatalf("error unmarshaling resource: %s", err)
-	}
+	expected :=
+		"Snapshot                                 Description        Tags" +
+			"\ntest-service-1-snapshot-1                description 1      tag-1" +
+			"\ntest-service-1-snapshot-2                description 2      tag-2,tag-3" +
+			"\ntest-service-1-invalid [DEPRECATED]"
 
-	// Did you remember to update SnapshotInfo.Equals?
-	if len(actual) != len(expected) {
-		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-	}
-	for i, _ := range actual {
-		if !actual[i].Equals(&expected[i]) {
-			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
-		}
+	outStr := TrimLines(fmt.Sprintf("%s", output))
+	expected = TrimLines(expected)
+
+	if expected != outStr {
+		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
 	}
 }
 
