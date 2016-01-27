@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/utils"
@@ -60,6 +62,13 @@ func pipeStderr(f func(...string), args ...string) {
 	w.Close()
 	os.Stderr = stderr
 	fmt.Printf("%s", <-output)
+}
+
+// Trims leading and trailing whitespace from each line of a multi-line string
+func TrimLines(valueToTrim string) string {
+	re := regexp.MustCompile("\\s*\\n\\s*")
+	trimmedOutput := re.ReplaceAllString(valueToTrim, "\n")
+	return strings.TrimSpace(trimmedOutput)
 }
 
 var DefaultAPITest = APITest{}
