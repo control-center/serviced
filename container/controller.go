@@ -755,10 +755,9 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 			failedAny := false
 			for _, script := range c.prereqs {
 				glog.Infof("Running prereq command: %s", script.Script)
-				cmd := exec.Command("sh", "-c", script.Script)
-				err := cmd.Run()
+				out, err := exec.Command("sh", "-c", script.Script).CombinedOutput()
 				if err != nil {
-					msg := fmt.Sprintf("Not starting service yet, waiting on prereq: %s", script.Name)
+					msg := fmt.Sprintf("Service %s not starting. Output: %s; error: %s", script.Name, out, err)
 					glog.Warning(msg)
 					fmt.Fprintln(os.Stderr, msg)
 					failedAny = true
