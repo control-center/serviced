@@ -126,6 +126,7 @@ func TestConfigureContainer_DockerLog(t *testing.T) {
 
 	// Create a fake HostAgent
 	fakeHostAgent := &HostAgent{
+		uiport:               ":443",
 		dockerLogDriver:      "fakejson-log",
 		dockerLogConfig:      map[string]string{"alpha": "one", "bravo": "two", "charlie": "three"},
 		virtualAddressSubnet: "0.0.0.0",
