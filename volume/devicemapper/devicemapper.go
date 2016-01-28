@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -422,25 +423,19 @@ func (d *DeviceMapperDriver) readDeviceInfo(devname string, devInfo *devInfo) er
 
 // writeDeviceInfo performs an atomic write to the device metadata file
 func (d *DeviceMapperDriver) writeDeviceInfo(devname string, devInfo devInfo) error {
-	tmpfile, err := func() (string, error) {
-		fh, err := ioutil.TempFile("", devname+"-")
-		if err != nil {
-			glog.Errorf("Could not create temp file to store updated device %s: %s", devname, err)
-			return "", err
-		}
-		defer fh.Close()
-		if err := json.NewEncoder(fh).Encode(devInfo); err != nil {
-			glog.Errorf("Could not write to temp file to store updated device %s: %s", devname, err)
-			return "", err
-		}
-		return fh.Name(), nil
-	}()
+	devInfoPath := d.deviceInfoPath(devname)
+	fs, err := os.Stat(devInfoPath)
 	if err != nil {
+		glog.Errorf("Could not stat file %s: %s", devInfoPath, err)
 		return err
 	}
-	if err := os.Rename(tmpfile, d.deviceInfoPath(devname)); err != nil {
-		defer os.Remove(tmpfile)
-		glog.Errorf("Could not overwrite info for device %s: %s", devname, err)
+	data, err := json.Marshal(devInfo)
+	if err != nil {
+		glog.Errorf("Could not marshal info for device %s: %s", devname, err)
+		return err
+	}
+	if err := atomicfile.WriteFile(devInfoPath, data, fs.Mode()); err != nil {
+		glog.Errorf("Could not update info for device %s: %s", devname, err)
 		return err
 	}
 	return nil
