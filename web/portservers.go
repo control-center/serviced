@@ -130,6 +130,8 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		for _, c := range stopChans {
 			c <- true
 		}
+
+		disablePort(publicEndpointKey)
 		listener.Close()
 		glog.Infof("Closed port %s", port)
 		return
