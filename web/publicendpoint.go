@@ -326,7 +326,7 @@ func init() {
 	reverseProxies = make(map[string]*httputil.ReverseProxy)
 	hostAddrs, err := utils.GetIPv4Addresses()
 	if err != nil {
-		panic(err)
+		glog.Fatal(err)
 	}
 	localAddrs = make(map[string]struct{})
 	for _, host := range hostAddrs {

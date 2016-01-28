@@ -353,6 +353,19 @@ func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
 	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
+// isInvalidSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
+// with the tenant prefix but does NOT have a valid metadata file
+func (v *RsyncVolume) isInvalidSnapshot(rawLabel string) bool {
+	if strings.HasPrefix(rawLabel, v.getSnapshotPrefix()) {
+		reader, err := v.ReadMetadata(rawLabel, ".SNAPSHOTINFO")
+		if err != nil {
+			return true
+		}
+		reader.Close()
+	}
+	return false
+}
+
 // writeSnapshotInfo writes metadata about a snapshot
 func (v *RsyncVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo) error {
 	writer, err := v.WriteMetadata(label, ".SNAPSHOTINFO")
@@ -371,6 +384,10 @@ func (v *RsyncVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo)
 
 // SnapshotInfo returns the meta info for a snapshot
 func (v *RsyncVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	if v.isInvalidSnapshot(label) {
+		return nil, volume.ErrInvalidSnapshot
+	}
+
 	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
@@ -550,14 +567,15 @@ func (v *RsyncVolume) getSnapshotWithTag(tagName string, lock bool) (*volume.Sna
 	}
 	// Get info for each snapshot and return if a matching tag is found
 	for _, snapshotLabel := range snapshotLabels {
-		info, err := v.SnapshotInfo(snapshotLabel)
-		if err != nil {
-			glog.Errorf("Could not get info for snaphot %s: %s", snapshotLabel, err)
-			return nil, err
-		}
-		for _, tag := range info.Tags {
-			if tag == tagName {
-				return info, nil
+		if info, err := v.SnapshotInfo(snapshotLabel); err != volume.ErrInvalidSnapshot {
+			if err != nil {
+				glog.Errorf("Could not get info for snaphot %s: %s", snapshotLabel, err)
+				return nil, err
+			}
+			for _, tag := range info.Tags {
+				if tag == tagName {
+					return info, nil
+				}
 			}
 		}
 	}
@@ -605,6 +623,10 @@ func (v *RsyncVolume) RemoveSnapshot(label string) error {
 
 // Rollback implements volume.Volume.Rollback
 func (v *RsyncVolume) Rollback(label string) (err error) {
+	if v.isInvalidSnapshot(label) {
+		return volume.ErrInvalidSnapshot
+	}
+
 	v.Lock()
 	defer v.Unlock()
 	src := v.snapshotPath(label)

@@ -24,6 +24,7 @@ import (
 
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -311,19 +312,27 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 		return err
 	}
 	for _, snapshotID := range snapshotIDs {
+		var newInfo model.SnapshotInfo
+
 		info, err := dao.facade.GetSnapshotInfo(ctx, snapshotID)
-		if err != nil {
+		if err == volume.ErrInvalidSnapshot {
+			newInfo = model.SnapshotInfo{
+				SnapshotID: snapshotID,
+				Invalid:    true,
+			}
+
+		} else if err != nil {
 			return err
+		} else {
+			newInfo = model.SnapshotInfo{
+				SnapshotID:  info.Name,
+				TenantID:    info.TenantID,
+				Description: info.Message,
+				Tags:        info.Tags,
+				Created:     info.Created,
+				Invalid:     false,
+			}
 		}
-
-		newInfo := model.SnapshotInfo{
-			SnapshotID:  info.Name,
-			TenantID:    info.TenantID,
-			Description: info.Message,
-			Tags:        info.Tags,
-			Created:     info.Created,
-		}
-
 		*snapshots = append(*snapshots, newInfo)
 	}
 	return
