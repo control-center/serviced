@@ -33,6 +33,14 @@ func init() {
 	volume.Register(volume.DriverTypeDeviceMapper, Init)
 }
 
+type devInfo struct {
+	DeviceID      int    `json:"device_id"`
+	Size          uint64 `json:"size"`
+	TransactionID uint64 `json:"transaction_id"`
+	Initialized   bool   `json:"initialized"`
+	Deleted       bool   `json:"deleted"`
+}
+
 type DeviceMapperDriver struct {
 	root         string
 	options      []string
@@ -171,27 +179,44 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 	newTable := fmt.Sprintf("%d %d %s %s", start, newSectors, targetType, params)
 	glog.V(2).Infof("Replacing old table (%s) with new table (%s)", oldTable, newTable)
 
-	// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
-	// exposed, so we'll shell out rather than muck with ioctl
-	dmsetupLoad := exec.Command("dmsetup", "load", devicename)
-	dmsetupLoad.Stdin = strings.NewReader(newTable)
-	if output, err := dmsetupLoad.CombinedOutput(); err != nil {
-		glog.Errorf("Unable to load new table (%s)", string(output))
+	// Set the device size
+	var devInfo devInfo
+	if err := d.readDeviceInfo(dev, &devInfo); err != nil {
+		glog.Errorf("Could not read info for device %s: %s", dev, err)
 		return err
 	}
-	glog.V(2).Infof("Inactive table slot updated with new size")
-
-	// "Resume" the device to load the inactive table into the active slot
-	if err := devicemapper.ResumeDevice(devicename); err != nil {
+	if err := d.resizeDevice(dev, size); err != nil {
+		glog.Errorf("Could not set size on device %s: %s", dev, err)
 		return err
 	}
-	glog.V(2).Infof("Loaded inactive table into the active slot")
+	err = func() error {
+		// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
+		// exposed, so we'll shell out rather than muck with ioctl
+		dmsetupLoad := exec.Command("dmsetup", "load", devicename)
+		dmsetupLoad.Stdin = strings.NewReader(newTable)
+		if output, err := dmsetupLoad.CombinedOutput(); err != nil {
+			glog.Errorf("Unable to load new table (%s)", string(output))
+			return err
+		}
+		glog.V(2).Infof("Inactive table slot updated with new size")
 
-	// Resize the filesystem to use the new space
-	dmDevice := fmt.Sprintf("/dev/mapper/%s", devicename)
-	resize2fs := exec.Command("resize2fs", dmDevice)
-	if output, err := resize2fs.CombinedOutput(); err != nil {
-		glog.Errorf("Unable to resize filesystem (%s)", string(output))
+		// "Resume" the device to load the inactive table into the active slot
+		if err := devicemapper.ResumeDevice(devicename); err != nil {
+			return err
+		}
+		glog.V(2).Infof("Loaded inactive table into the active slot")
+
+		// Resize the filesystem to use the new space
+		dmDevice := fmt.Sprintf("/dev/mapper/%s", devicename)
+		resize2fs := exec.Command("resize2fs", dmDevice)
+		if output, err := resize2fs.CombinedOutput(); err != nil {
+			glog.Errorf("Unable to resize filesystem (%s)", string(output))
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
+		defer d.resizeDevice(dev, devInfo.Size)
 		return err
 	}
 	newSize := volume.FilesystemBytesSize(vol.Path())
@@ -378,6 +403,66 @@ func (d *DeviceMapperDriver) deactivateDevice(devname string) error {
 	}
 
 	return err
+}
+
+// readDeviceInfo loads the device info from metadata
+func (d *DeviceMapperDriver) readDeviceInfo(devname string, devInfo *devInfo) error {
+	fh, err := os.Open(d.deviceInfoPath(devname))
+	if err != nil {
+		glog.Errorf("Could not read device info for %s: %s", devname, err)
+		return err
+	}
+	defer fh.Close()
+	if err := json.NewDecoder(fh).Decode(devInfo); err != nil {
+		glog.Errorf("Could not decode device info for %s: %s", devname, err)
+		return err
+	}
+	return nil
+}
+
+// writeDeviceInfo performs an atomic write to the device metadata file
+func (d *DeviceMapperDriver) writeDeviceInfo(devname string, devInfo devInfo) error {
+	tmpfile, err := func() (string, error) {
+		fh, err := ioutil.TempFile("", devname+"-")
+		if err != nil {
+			glog.Errorf("Could not create temp file to store updated device %s: %s", devname, err)
+			return "", err
+		}
+		defer fh.Close()
+		if err := json.NewEncoder(fh).Encode(devInfo); err != nil {
+			glog.Errorf("Could not write to temp file to store updated device %s: %s", devname, err)
+			return "", err
+		}
+		return fh.Name(), nil
+	}()
+	if err != nil {
+		return err
+	}
+	if err := os.Rename(tmpfile, d.deviceInfoPath(devname)); err != nil {
+		defer os.Remove(tmpfile)
+		glog.Errorf("Could not overwrite info for device %s: %s", devname, err)
+		return err
+	}
+	return nil
+}
+
+// resizeDevice sets the device size in its metadata property
+func (d *DeviceMapperDriver) resizeDevice(devname string, size uint64) error {
+	var devInfo devInfo
+	if err := d.readDeviceInfo(devname, &devInfo); err != nil {
+		glog.Errorf("Could not read info for device %s: %s", devname, err)
+		return err
+	}
+	devInfo.Size = size
+	if err := d.writeDeviceInfo(devname, devInfo); err != nil {
+		glog.Errorf("Could not write info for device %s: %s", devname, err)
+		return err
+	}
+	return nil
+}
+
+func (d *DeviceMapperDriver) deviceInfoPath(devname string) string {
+	return filepath.Join(d.poolDir(), "metadata", devname)
 }
 
 func (d *DeviceMapperDriver) volumeDir(volumeName string) string {
