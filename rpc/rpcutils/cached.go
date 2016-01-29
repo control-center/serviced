@@ -23,6 +23,9 @@ import (
 // RPC_CLIENT_SIZE max number of rpc clients per address
 var RPC_CLIENT_SIZE = 1
 
+//
+var RPCCertVerify = false
+
 // DiscardClientTimeout timeout for removing client from pool if a call is taking too long. Does not interrupt call.
 var DiscardClientTimeout = 30 * time.Second
 
