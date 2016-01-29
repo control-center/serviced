@@ -182,7 +182,7 @@ func (d *daemon) stopISVCS() {
 	glog.Infof("isvcs shut down")
 }
 
-func (d *daemon) startRPC() {
+func (d *daemon) startRPC() error {
 	if options.DebugPort > 0 {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
@@ -192,7 +192,12 @@ func (d *daemon) startRPC() {
 		}()
 	}
 
-	listener, err := net.Listen("tcp", options.Listen)
+	tlsConfig, err := getTLSConfig()
+	if err != nil {
+		glog.Fatalf("Unable to get TLS config: %v", err)
+	}
+
+	listener, err := tls.Listen("tcp", options.Listen, tlsConfig)
 	if err != nil {
 		glog.Fatalf("Unable to bind to port %s. Is another instance running?", options.Listen)
 	}
@@ -210,6 +215,7 @@ func (d *daemon) startRPC() {
 			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
+	return nil
 }
 
 func (d *daemon) startDockerRegistryProxy() {
@@ -500,29 +506,38 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 	return
 }
 
+func getTLSConfig() (*tls.Config, error) {
+	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
+	if err != nil {
+		return nil, err
+	}
+
+	cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
+	if err != nil {
+		glog.Error("Could not parse public/private key pair (tls.X509KeyPair): ", err)
+		return nil, err
+	}
+
+	tlsConfig := tls.Config{
+		Certificates:             []tls.Certificate{cert},
+		MinVersion:               utils.MinTLS(),
+		PreferServerCipherSuites: true,
+		CipherSuites:             utils.CipherSuites(),
+	}
+	return &tlsConfig, nil
+
+}
+
 func createMuxListener() (net.Listener, error) {
 	if options.TLS {
 		glog.V(1).Info("using TLS on mux")
 
-		proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
+		tlsConfig, err := getTLSConfig()
 		if err != nil {
 			return nil, err
-		}
-
-		cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
-		if err != nil {
-			glog.Error("ListenAndMux Error (tls.X509KeyPair): ", err)
-			return nil, err
-		}
-
-		tlsConfig := tls.Config{
-			Certificates:             []tls.Certificate{cert},
-			MinVersion:               utils.MinTLS(),
-			PreferServerCipherSuites: true,
-			CipherSuites:             utils.CipherSuites(),
 		}
 		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
-		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
+		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
 
 	}
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))

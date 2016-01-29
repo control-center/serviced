@@ -14,6 +14,7 @@
 package rpcutils
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -36,7 +37,10 @@ type connectRPCFn func(add string) (*rpc.Client, error)
 
 func connectRPC(addr string) (*rpc.Client, error) {
 	glog.V(4).Infof("Connecting to %s", addr)
-	conn, err := net.DialTimeout("tcp", addr, time.Duration(dialTimeoutSecs)*time.Second)
+
+	config := tls.Config{InsecureSkipVerify: !RPCCertVerify}
+	timeoutDialer := net.Dialer{Timeout: time.Duration(dialTimeoutSecs) * time.Second}
+	conn, err := tls.DialWithDialer(&timeoutDialer, "tcp4", addr, &config)
 	if err != nil {
 		return nil, err
 	}

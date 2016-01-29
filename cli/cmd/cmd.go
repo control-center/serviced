@@ -23,6 +23,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
@@ -102,6 +103,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
+		cli.BoolFlag{"rpc-cert-verify", "enable verification of rpc server certificate"},
 		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
 		cli.StringFlag{"controller-binary", defaultOps.ControllerBinary, "path to the container controller binary"},
 		cli.StringFlag{"log-driver", defaultOps.DockerLogDriver, "log driver for docker containers"},
@@ -191,6 +193,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		AdminGroup:           ctx.GlobalString("admin-group"),
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
+		RPCCertVerify:        ctx.GlobalBool("rpc-cert-verify"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
 		ControllerBinary:     ctx.GlobalString("controller-binary"),
@@ -202,6 +205,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
+
+	rpcutils.RPCCertVerify = options.RPCCertVerify
+
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
 	}

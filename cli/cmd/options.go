@@ -66,6 +66,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		AdminGroup:           config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
 		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
 		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
+		RPCCertVerify:        config.BoolVal("RPC_CERT_VERIFY", false),
 		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
 		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
 		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
