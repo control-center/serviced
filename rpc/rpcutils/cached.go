@@ -85,7 +85,7 @@ func setAndGetClient(addr string) (Client, error) {
 	defer addrLock.Unlock()
 	client, found := clientCache[addr]
 	if !found {
-		client, err = newClient(addr, RPC_CLIENT_SIZE, DiscardClientTimeout, connectRPC)
+		client, err = newClient(addr, RPC_CLIENT_SIZE, DiscardClientTimeout, connectRPCTLS)
 		if err != nil {
 			return nil, err
 		}
