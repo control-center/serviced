@@ -79,6 +79,10 @@ func convertV2MemoryUsage(perfData map[string]*V2PerformanceData) []MemoryUsageS
 				}
 				memStatsMap[key] = memStat
 			}
+			// fail if no datapoints in series for some reason
+			if len(result.Datapoints) < 1 {
+				continue
+			}
 			// fill in memStat
 			val := int64(result.Datapoints[0].Value())
 			switch agg {
