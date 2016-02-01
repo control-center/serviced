@@ -76,6 +76,8 @@ type Options struct {
 	AdminGroup           string // user group that can log in to control center
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 	RPCDialTimeout       int
+	RPCCertVerify        string            //  server certificate verify for rpc connections, string val of bool
+	RPCDisableTLS        string            //  Disable TLS for RPC connections, string val of bool
 	SnapshotTTL          int               // hours to keep snapshots around, zero for infinity
 	StorageArgs          []string          // command-line arguments for storage options
 	StorageOptions       map[string]string // environment arguments for storage options
