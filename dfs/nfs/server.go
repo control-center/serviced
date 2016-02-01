@@ -57,7 +57,7 @@ var (
 )
 
 var (
-	procMounts = "/proc/mounts"
+	mp = utils.GetDefaultMountProc()
 )
 
 var (
@@ -109,31 +109,20 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 	if err := verifyExportsDir(basePath); err != nil {
 		return nil, err
 	}
-
 	exportedNamePath := filepath.Join(exportsDir, exportedName)
 	if err := verifyExportsDir(exportedNamePath); err != nil {
 		return nil, err
 	}
-
-	if mounted, err := isBindMounted(exportedNamePath); err != nil {
-		glog.Infof("Could not determine if export directory %s is bind mounted, %v", exportedNamePath, err)
+	if err := mp.Unmount(exportedNamePath); err != nil {
+		glog.Errorf("Could not unmount export directory %s: %s", exportedNamePath, err)
 		return nil, err
-	} else if mounted {
-		glog.Infof("Export directory %s is bind mounted, unmounting...", exportedNamePath)
-		if err := umount(exportedNamePath); err != nil {
-			glog.Infof("Could not umount export directory %s; %v", exportedNamePath, err)
-			return nil, err
-		}
 	}
-
 	if _, _, err := net.ParseCIDR(network); err != nil {
 		return nil, ErrInvalidNetwork
 	}
-
 	if err := start(); err != nil {
 		return nil, err
 	}
-
 	return &Server{
 		basePath:      basePath,
 		exportedName:  exportedName,
@@ -377,18 +366,9 @@ func (c *Server) cleanupBindMounts() {
 		for _, file := range dirContents {
 			if _, found := c.exported[file.Name()]; !found && file.IsDir() {
 				dir := filepath.Join(edir, file.Name())
-				mounted, err := isBindMounted(dir)
-				if err != nil {
-					glog.Warningf("Could not determine if directory is bindmounted: %v", err)
+				if err := mp.Unmount(dir); err != nil {
+					glog.Warningf("Could not unmount exported directory %s: %s", dir, err)
 					continue
-				}
-				if mounted {
-					// umount the dir
-					glog.V(1).Infof("umounting %s as it is no longer exported", dir)
-					if err := umount(dir); err != nil {
-						glog.Warningf("Error umounting exported directory %s: %v", dir, err)
-						continue
-					}
 				}
 				//remove the directory
 				glog.V(1).Infof("deleting dir %s as it is no longer exported", dir)
@@ -410,14 +390,8 @@ func removeDeprecated(dirpath string) {
 			return
 		}
 		// Unmount path
-		if mounted, err := isBindMounted(dirpath); err != nil {
-			glog.Warningf("Could not determine if deprecated path %s is bind mounted: %s", dirpath, err)
-		} else if mounted {
-			if err := umount(dirpath); err != nil {
-				glog.Warningf("Could not unmount deprecated path %s: %s", dirpath, err)
-			} else {
-				glog.Infof("Unmounted deprecated path %s", dirpath)
-			}
+		if err := mp.Unmount(dirpath); err != nil {
+			glog.Warningf("Could not unmount deprecated path %s: %s", dirpath, err)
 		}
 		// recurse through the filesystem
 		for _, file := range dirContents {
@@ -441,14 +415,14 @@ var bindMount = bindMountImp
 // bindMountImp performs a bind mount of src to dst.
 func bindMountImp(src, dst string) error {
 	glog.Infof("bindMount %s at %s", src, dst)
-	if mounted, err := isBindMounted(dst); err != nil || mounted {
+	if mounted, err := mp.IsMounted(dst); err != nil {
 		return err
+	} else if mounted {
+		return nil
 	}
-
 	if err := os.MkdirAll(dst, 0775); err != nil {
 		return err
 	}
-
 	runMountCommand := func(options ...string) ([]byte, error) {
 		cmd, args := mntArgs(src, dst, "", options...)
 		mount := exec.Command(cmd, args...)
@@ -469,35 +443,6 @@ func bindMountImp(src, dst string) error {
 		return fmt.Errorf("%s: %s", out, returnErr)
 	}
 	return nil
-}
-
-func isBindMounted(dst string) (bool, error) {
-	if _, err := getMount(dst); err != nil {
-		if err.Error() == "not found" {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-func getMount(dst string) (*mountInstance, error) {
-
-	f, err := os.Open(procMounts)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	mounts, err := parseMounts(f)
-	if err != nil {
-		return nil, err
-	}
-	for i := range mounts {
-		if mounts[i].Dst == dst {
-			return &mounts[i], nil
-		}
-	}
-	return nil, fmt.Errorf("not found")
 }
 
 func doesExists(path string) (bool, error) {
@@ -533,16 +478,4 @@ func mntArgs(fs, dst, fsType string, options ...string) (cmd string, args []stri
 	}
 	args = append(args, dst)
 	return args[0], args[1:]
-}
-
-var umount = umountImp
-
-func umountImp(localPath string) error {
-	glog.V(1).Infof("Unmounting %s", localPath)
-	cmd := exec.Command("umount", "-f", localPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s (%s)", string(output), err)
-	}
-	return nil
 }
