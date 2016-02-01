@@ -211,6 +211,11 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	options.Endpoint = validateEndpoint(options)
 
+	if err := validation.ValidUIAddress(options.UIPort); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
+		return fmt.Errorf("error validating UI port: %s", err)
+	}
+
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
