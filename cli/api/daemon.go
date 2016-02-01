@@ -182,7 +182,7 @@ func (d *daemon) stopISVCS() {
 	glog.Infof("isvcs shut down")
 }
 
-func (d *daemon) startRPC() error {
+func (d *daemon) startRPC() {
 	if options.DebugPort > 0 {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
@@ -222,7 +222,6 @@ func (d *daemon) startRPC() error {
 			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
-	return nil
 }
 
 func (d *daemon) startDockerRegistryProxy() {
