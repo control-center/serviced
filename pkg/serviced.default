@@ -38,7 +38,7 @@
 # SERVICED_RPC_PORT=4979
 
 # Enable server certificate verifcation for TLS RPC request
-# SERVICED_RPC_CERT_VERIFY=falsS
+# SERVICED_RPC_CERT_VERIFY=false
 
 # Disable TLS for RPC connection, TLS is enabled by default
 # SERVICED_RPC_DISABLE_TLS=false
