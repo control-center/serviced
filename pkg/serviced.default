@@ -37,6 +37,12 @@
 # Set the RPC port to listen on
 # SERVICED_RPC_PORT=4979
 
+# Enable server certificate verifcation for TLS RPC request
+# SERVICED_RPC_CERT_VERIFY=falsS
+
+# Disable TLS for RPC connection, TLS is enabled by default
+# SERVICED_RPC_DISABLE_TLS=false
+
 # Set the UI port to use
 # SERVICED_UI_PORT=443
 

@@ -192,12 +192,19 @@ func (d *daemon) startRPC() error {
 		}()
 	}
 
-	tlsConfig, err := getTLSConfig()
-	if err != nil {
-		glog.Fatalf("Unable to get TLS config: %v", err)
-	}
+	var listener net.Listener
+	var err error
+	if rpcutils.RPCDisableTLS {
+		listener, err = net.Listen("tcp", options.Listen)
+	} else {
+		var tlsConfig *tls.Config
+		tlsConfig, err = getTLSConfig()
+		if err != nil {
+			glog.Fatalf("Unable to get TLS config: %v", err)
+		}
 
-	listener, err := tls.Listen("tcp", options.Listen, tlsConfig)
+		listener, err = tls.Listen("tcp", options.Listen, tlsConfig)
+	}
 	if err != nil {
 		glog.Fatalf("Unable to bind to port %s. Is another instance running?", options.Listen)
 	}

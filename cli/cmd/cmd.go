@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -103,7 +104,8 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
-		cli.BoolFlag{"rpc-cert-verify", "enable verification of rpc server certificate"},
+		cli.StringFlag{"rpc-cert-verify", defaultOps.RPCCertVerify, "enable verification of rpc server certificate"},
+		cli.StringFlag{"rpc-disable-tls", defaultOps.RPCDisableTLS, "disable tls for RPC connections"},
 		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
 		cli.StringFlag{"controller-binary", defaultOps.ControllerBinary, "path to the container controller binary"},
 		cli.StringFlag{"log-driver", defaultOps.DockerLogDriver, "log driver for docker containers"},
@@ -193,7 +195,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		AdminGroup:           ctx.GlobalString("admin-group"),
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
-		RPCCertVerify:        ctx.GlobalBool("rpc-cert-verify"),
+		RPCCertVerify:        ctx.GlobalString("rpc-cert-verify"),
+		RPCDisableTLS:        ctx.GlobalString("rpc-disable-tls"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
 		ControllerBinary:     ctx.GlobalString("controller-binary"),
@@ -206,7 +209,15 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
 
-	rpcutils.RPCCertVerify = options.RPCCertVerify
+	var err error
+	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
+	}
+	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
+	}
 
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
