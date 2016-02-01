@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 const DefaultProcMount = "/proc/mounts"
@@ -29,6 +29,16 @@ const DefaultProcMount = "/proc/mounts"
 var (
 	ErrParseMount = errors.New("could not parse mount data")
 )
+
+type ExecError struct {
+	Command []string
+	Output  []byte
+	Err     error
+}
+
+func (err ExecError) Error() string {
+	return fmt.Sprintf("error running command `%s` (%s): %s", strings.Join(err.Command, " "), string(err.Output), err.Err)
+}
 
 // MountInfo is the object describing the mount point
 type MountInfo struct {
@@ -116,8 +126,13 @@ func (m *LinuxMount) Unmount(path string) error {
 	if mounted, err := m.IsMounted(path); err != nil {
 		return err
 	} else if mounted {
-		if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
-			return err
+		cmd := exec.Command("umount", "-f", path)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return ExecError{
+				Command: cmd.Args,
+				Output:  out,
+				Err:     err,
+			}
 		}
 	}
 	return nil
