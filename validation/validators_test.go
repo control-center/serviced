@@ -92,6 +92,33 @@ func (vs *ValidationSuite) Test_IsValidHostID(c *C) {
 	}
 }
 
+func (vs *ValidationSuite) Test_ValidUIAddress(c *C) {
+	addrValid := []string{
+		":123",
+		"abc:123",
+	}
+
+	for _, addr := range addrValid {
+		if err := ValidUIAddress(addr); err != nil {
+			c.Fatalf("Unexpected error validating valid UI address: %s: %v", addr, err)
+		}
+	}
+
+	addrInvalid := []string{
+		"abc:",
+		":",
+		":0",
+		":65536",
+		":abc",
+	}
+
+	for _, addr := range addrInvalid {
+		if err := ValidUIAddress(addr); err == nil {
+			c.Fatalf("Unexpected lack of err validating invalid UI address: %s", addr)
+		}
+	}
+}
+
 func (vs *ValidationSuite) Test_ExcludeString(c *C) {
 	err := ExcludeChars("field", "team", "i")
 	c.Assert(err, IsNil)
