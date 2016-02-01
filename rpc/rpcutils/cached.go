@@ -23,6 +23,12 @@ import (
 // RPC_CLIENT_SIZE max number of rpc clients per address
 var RPC_CLIENT_SIZE = 1
 
+// RPCCertVerify used to enable server certificate verification
+var RPCCertVerify = false
+
+// RPCDisableTLS used to disable TLS connections
+var RPCDisableTLS = false
+
 // DiscardClientTimeout timeout for removing client from pool if a call is taking too long. Does not interrupt call.
 var DiscardClientTimeout = 30 * time.Second
 
@@ -82,7 +88,11 @@ func setAndGetClient(addr string) (Client, error) {
 	defer addrLock.Unlock()
 	client, found := clientCache[addr]
 	if !found {
-		client, err = newClient(addr, RPC_CLIENT_SIZE, DiscardClientTimeout, connectRPC)
+		connFn := connectRPCTLS
+		if RPCDisableTLS {
+			connFn = connectRPC
+		}
+		client, err = newClient(addr, RPC_CLIENT_SIZE, DiscardClientTimeout, connFn)
 		if err != nil {
 			return nil, err
 		}

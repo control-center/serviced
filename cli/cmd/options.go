@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
@@ -66,6 +67,8 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		AdminGroup:           config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
 		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
 		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
+		RPCCertVerify:        strconv.FormatBool(config.BoolVal("RPC_CERT_VERIFY", false)),
+		RPCDisableTLS:        strconv.FormatBool(config.BoolVal("RPC_DISABLE_TLS", false)),
 		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
 		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
 		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
