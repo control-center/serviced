@@ -13,22 +13,30 @@
 
 package dfs
 
+import "github.com/control-center/serviced/volume"
 import "github.com/zenoss/glog"
 
 // Delete removes application data of a particular snapshot from the dfs and
 // registry.
 func (dfs *DistributedFilesystem) Delete(snapshotID string) error {
-	vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshotID)
+	vol, err := dfs.disk.GetTenant(snapshotID)
 	if err != nil {
 		return err
 	}
-	if err := dfs.deleteImages(info.TenantID, info.Label); err != nil {
-		return err
+
+	if info, err := vol.SnapshotInfo(snapshotID); err != volume.ErrInvalidSnapshot {
+		if err != nil {
+			return err
+		} else if err := dfs.deleteImages(info.TenantID, info.Label); err != nil {
+			return err
+		}
 	}
+
 	if err := vol.RemoveSnapshot(snapshotID); err != nil {
 		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
 		return err
 	}
+
 	return nil
 }
 
