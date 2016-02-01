@@ -37,7 +37,7 @@ func (dfs *DistributedFilesystem) getSnapshotVolumeAndInfo(snapshotID string) (v
 	info, err := vol.SnapshotInfo(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
-		return vol, nil, err
+		return nil, nil, err
 	}
 	return vol, info, nil
 }
