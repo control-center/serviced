@@ -110,7 +110,7 @@
                         }
                     },{
                         role: "ok",
-                        label: "add_public_endpoint",
+                        label: "add_public_endpoint_confirm",
                         action: function(){
                             var newPublicEndpoint = $scope.publicEndpoints.add;
 
@@ -121,7 +121,7 @@
                                 $scope.addPublicEndpoint(newPublicEndpoint)
                                     .success(function(data, status){
                                         $notification.create("Added public endpoint", "The " + newPublicEndpoint.app_ep.Application +
-                                           " service must be restarted before the new endpoint will be available").success();
+                                           " service is being restarted.").success();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -429,7 +429,8 @@
 
             $modalService.create({
                 template: $translate.instant("remove_public_endpoint") + ": <strong>"+
-                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong>",
+                          (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong><br><br>"+
+                          "The <strong>" + publicEndpoint.Application + "</strong> service will have to be restarted.",
                 model: $scope,
                 title: "remove_public_endpoint",
                 actions: [
@@ -437,7 +438,7 @@
                         role: "cancel"
                     },{
                         role: "ok",
-                        label: "remove_public_endpoint",
+                        label: "remove_public_endpoint_confirm",
                         classes: "btn-danger",
                         action: function(){
                             if(publicEndpoint.type === "vhost"){
