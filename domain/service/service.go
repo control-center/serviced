@@ -361,6 +361,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 
 // AddPort Add a port for given service, this method avoids duplicate ports
 func (s *Service) AddPort(application string, portAddr string) error {
+	portAddr = ScrubPortString(portAddr)
 	if s.Endpoints != nil {
 		//find the matching endpoint
 		for i := range s.Endpoints {
