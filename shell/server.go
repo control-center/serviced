@@ -445,6 +445,9 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
 
 	uiport := os.Getenv("SERVICED_UI_PORT")
+	if uiport == "" {
+		uiport = ":443"
+	}
 	if err := validation.ValidUIAddress(uiport); err != nil {
 		glog.Errorf("Unable to validate UI address %s: %v", uiport, err)
 		return nil, err
