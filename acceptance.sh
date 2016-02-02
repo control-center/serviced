@@ -13,7 +13,10 @@
 #######################################################
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED=${DIR}/serviced
+SERVICED=$(which serviced)
+SERVICED_STORAGE=$(which serviced-storage)
+# Use a directory unique to this test to avoid collisions with other kinds of tests
+SERVICED_VARPATH=/tmp/serviced-acceptance/var
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
@@ -60,8 +63,11 @@ add_to_etc_hosts() {
 }
 
 start_serviced() {
+    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
+    #   all of to force the proper subdirectories to be created under SERVICED_VARPATH
     echo "Starting serviced..."
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${SERVICED} -master -agent server &
+    mkdir -p ${SERVICED_VARPATH}
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} -agent server &
 
     echo "Waiting 180 seconds for serviced to become the leader..."
     retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
@@ -96,9 +102,17 @@ cleanup() {
     docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 
     # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    echo "Cleaning up /tmp/serviced-root/var ..."
-    sudo umount -f /tmp/serviced-root/var/volumes/* 2>/dev/null
-    sudo rm -rf /tmp/serviced-root/var
+    echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
+    sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+
+    # Disable the DM device so that the space for the loopback device is really freed
+    # when we remove SERVICED_VARPATH/volumes
+    echo "Cleaning up serviced storage ..."
+    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VARPATH}/volumes
+
+    echo "Removing up ${SERVICED_VARPATH} ..."
+    sudo rm -rf ${SERVICED_VARPATH}
+
 }
 trap cleanup EXIT
 
