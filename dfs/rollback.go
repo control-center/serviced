@@ -20,7 +20,6 @@ import (
 
 // Rollback reverts an application to a previous snapshot.
 func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
-	glog.V(0).Infof("Starting rollback of %s", snapshotID)
 	vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshotID)
 	if err != nil {
 		return err
@@ -48,18 +47,12 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 			return err
 		}
 	}
-	volPath := vol.Path()
-	dfs.net.RemoveVolume(volPath)
-	defer func() {
-		dfs.net.AddVolume(volPath)
-		if err := dfs.net.Sync(); err != nil {
-			glog.Errorf("Could not sync nfs server: %s", err)
-		}
-	}()
-	if err := dfs.net.Sync(); err != nil {
-		glog.Errorf("Could not sync nfs server: %s", err)
+	// see CC-1840
+	if err := dfs.net.Stop(); err != nil {
+		glog.Errorf("Could not stop nfs server: %s", err)
 		return err
 	}
+	defer dfs.net.Restart()
 	if err := vol.Rollback(info.Label); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
 		return err
