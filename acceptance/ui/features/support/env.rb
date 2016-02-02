@@ -59,6 +59,7 @@ if Capybara.app_host.empty?
     Capybara.app_host = "http://localhost"
 end
 printf "Using app_host=%s\n", Capybara.app_host
+printf "Using userid=%s\n", ENV["APPLICATION_USERID"]
 
 #
 # NOTE: Cucumber does not provide an API to override the output directory
