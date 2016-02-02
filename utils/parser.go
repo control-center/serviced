@@ -15,15 +15,21 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/zenoss/glog"
 )
 
 const buffersize = 1024
+
+var ConfigWatcherErr = errors.New("unable to watch config")
 
 type ParseError struct {
 	String string
@@ -46,13 +52,16 @@ type ConfigReader interface {
 	GetConfigValues() map[string]ConfigValue
 }
 
+// A ConfigReader implementer.  NOTE that the public ConfigReader methods are
+// lazily-stored in this implementation for config values that do not initially exist.
 type EnvironConfigReader struct {
-	prefix string
+	filename     string
+	prefix       string
 	configValues map[string]ConfigValue
 }
 
 func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, error) {
-	r := &EnvironConfigReader{prefix, map[string]ConfigValue{}}
+	r := &EnvironConfigReader{filename, prefix, map[string]ConfigValue{}}
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -68,7 +77,29 @@ func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, erro
 // NewEnvironOnlyConfigReader creates an EnvironConfigReader without parsing
 // a file first.
 func NewEnvironOnlyConfigReader(prefix string) *EnvironConfigReader {
-	return &EnvironConfigReader{prefix, map[string]ConfigValue{}}
+	return &EnvironConfigReader{"", prefix, map[string]ConfigValue{}}
+}
+
+// WatchEnvironConfigReader will watch a given config reader for changes.  If changes
+// are detected, he will send a slice of changed values on the provided channel
+func WatchEnvironConfigReader(reader *EnvironConfigReader, newConfigChan chan []ConfigValue, cancelChan chan struct{}, interval int) error {
+	for {
+		select {
+		case <-time.After(time.Duration(interval) * time.Second):
+			newReader, err := NewEnvironConfigReader(reader.filename, reader.prefix)
+			if err != nil {
+				return fmt.Errorf("%s: %s", ConfigWatcherErr, err)
+			}
+			changes := reader.diff(newReader)
+			if len(changes) > 0 {
+				glog.Info("Picking up config changes: %v", changes)
+				newConfigChan <- changes
+				reader = newReader
+			}
+		case <-cancelChan:
+			return nil
+		}
+	}
 }
 
 // parse is a really dumb reader parser.  It maps only key values in the form
@@ -114,7 +145,7 @@ func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []st
 		return strings.Split(strval, ",")
 	}
 	entry, _ := p.configValues[name]
-	entry.Value = strings.Join(defaultval,",")
+	entry.Value = strings.Join(defaultval, ",")
 	p.configValues[name] = entry
 	return defaultval
 }
@@ -169,7 +200,7 @@ func (p *EnvironConfigReader) keyvalue(line []byte) error {
 			return err
 		}
 		configValue := ConfigValue{
-			Name: key,
+			Name:  key,
 			Value: value,
 		}
 		if strings.HasPrefix(key, p.prefix) {
@@ -192,4 +223,18 @@ func translate(value string) string {
 
 func (p *EnvironConfigReader) getFullValueName(name string) string {
 	return p.prefix + name
+}
+
+// diff will diff 2 EnvironConfigReaders and return a slice of the new values for the
+// updated ConfigValues.
+func (p *EnvironConfigReader) diff(q *EnvironConfigReader) []ConfigValue {
+	updatedConfigs := []ConfigValue{}
+	for name, qconfig := range q.configValues {
+		pconfig, ok := p.configValues[name]
+		// new config value or updated in q
+		if !ok || pconfig.Value != qconfig.Value {
+			updatedConfigs = append(updatedConfigs, qconfig)
+		}
+	}
+	return updatedConfigs
 }

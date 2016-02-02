@@ -17,13 +17,37 @@ package utils
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
+	"time"
+
+	. "gopkg.in/check.v1"
 )
 
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { TestingT(t) }
+
+type S struct {
+	dir string
+}
+
+var _ = Suite(&S{})
+
+func (s *S) SetUpTest(c *C) {
+	s.dir = c.MkDir()
+}
+
+func (s *S) tmpFile(name, contents string) string {
+	f, _ := ioutil.TempFile(s.dir, name)
+	_, _ = f.WriteString(contents)
+	f.Close()
+	return f.Name()
+}
+
 func TestEnvironConfigReader_parse(t *testing.T) {
-	config := EnvironConfigReader{"SERVICEDTEST_", map[string]ConfigValue{}}
+	config := EnvironConfigReader{"", "SERVICEDTEST_", map[string]ConfigValue{}}
 
 	// Set some environment variables
 	os.Setenv("SERVICEDTEST_STRING", "hello world")
@@ -94,6 +118,61 @@ SERVICEDTEST_BOOL=no`
 	verifyConfigValue(t, "STRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_STRINGSLICE", "big,red,guava"})
 	verifyConfigValue(t, "INT", parsedValues, ConfigValue{"SERVICEDTEST_INT", "100"})
 	verifyConfigValue(t, "BOOL", parsedValues, ConfigValue{"SERVICEDTEST_BOOL", "no"})
+}
+
+func (s *S) TestDiffEnvironConfigReader(c *C) {
+	path1 := s.tmpFile("orig", "AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACH")
+	reader1, err := NewEnvironConfigReader(path1, "AAA")
+	c.Assert(err, IsNil)
+	// Mutate a param
+	path2 := s.tmpFile("orig", "AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACHH")
+	reader2, err := NewEnvironConfigReader(path2, "AAA")
+	c.Assert(err, IsNil)
+	configs := reader1.diff(reader2)
+	c.Assert(configs, DeepEquals, []ConfigValue{ConfigValue{"AAA_C", "PEACHH"}})
+	// Remove a param
+	path3 := s.tmpFile("orig", "AAA_A=MARIO\nAAA_B=LUIGI")
+	reader3, err := NewEnvironConfigReader(path3, "AAA")
+	configs = reader1.diff(reader3)
+	c.Assert(len(configs), Equals, 0)
+	// Add a param
+	path4 := s.tmpFile("orig", "AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACH\nAAA_D=BOWSER")
+	reader4, err := NewEnvironConfigReader(path4, "AAA")
+	configs = reader1.diff(reader4)
+	c.Assert(configs, DeepEquals, []ConfigValue{ConfigValue{"AAA_D", "BOWSER"}})
+	// Add, delete, and mutate
+	path5 := s.tmpFile("orig", "AAA_A=MARIO\nAAA_C=PEACHH\nAAA_D=BOWSER")
+	reader5, err := NewEnvironConfigReader(path5, "AAA")
+	configs = reader1.diff(reader5)
+	c.Assert(configs, DeepEquals, []ConfigValue{ConfigValue{"AAA_C", "PEACHH"}, ConfigValue{"AAA_D", "BOWSER"}})
+}
+
+func (s *S) TestWatchEnvironConfigReader(c *C) {
+	origPath := s.tmpFile("orig", "AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACH")
+	reader, err := NewEnvironConfigReader(origPath, "AAA")
+	c.Assert(err, IsNil)
+	cancelChan := make(chan struct{}, 1)
+	configChan := make(chan []ConfigValue, 1)
+	go WatchEnvironConfigReader(reader, configChan, cancelChan, 5)
+	defer close(cancelChan)
+	// modify the file
+	err = ioutil.WriteFile(origPath, []byte("AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACHH"), 666) // add extra 'H' to PEACH
+	c.Assert(err, IsNil)
+	// see if the watcher works
+	var config []ConfigValue
+	select {
+	case config = <-configChan:
+	case <-time.After(20 * time.Second):
+	}
+	c.Assert(config, DeepEquals, []ConfigValue{ConfigValue{"AAA_C", "PEACHH"}})
+
+	err = ioutil.WriteFile(origPath, []byte("AAA_A=MARIO\nAAA_B=LUIGI\nAAA_C=PEACH"), 666) // remove H from PEACH
+	c.Assert(err, IsNil)
+	select {
+	case config = <-configChan:
+	case <-time.After(20 * time.Second):
+	}
+	c.Assert(config, DeepEquals, []ConfigValue{ConfigValue{"AAA_C", "PEACH"}})
 }
 
 func verify(t *testing.T, key string, actual, expected interface{}) {
