@@ -17,9 +17,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
-	"regexp"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -350,7 +350,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName})
+				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName, Enabled: true})
 				return nil
 			}
 		}
@@ -373,7 +373,7 @@ func (s *Service) AddPort(application string, portAddr string) error {
 						ports = append(ports, port)
 					}
 				}
-				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr})
+				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr, Enabled: true})
 				return nil
 			}
 		}
@@ -447,12 +447,12 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 }
 
 // Make best effort to make a port address valid
-func ScrubPortString(port string) string{
+func ScrubPortString(port string) string {
 	// remove possible protocol at string beginning
 	scrubbed := protocolPrefixRegex.ReplaceAllString(port, "")
 
 	matched, _ := regexp.MatchString("^[0-9]+$", scrubbed)
-	if  matched {
+	if matched {
 		scrubbed = fmt.Sprintf(":%s", scrubbed)
 	}
 
