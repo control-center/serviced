@@ -8,6 +8,9 @@
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=$(which serviced)
+SERVICED_STORAGE=$(which serviced-storage)
+# Use a home directory unique to this test to avoid collisions with other kinds of tests
+SERVICED_HOME=/tmp/serviced-smoke-test
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
@@ -54,16 +57,25 @@ cleanup() {
     docker ps -qa | xargs --no-run-if-empty docker rm -fv
 
     # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    echo "Cleaning up /tmp/serviced-root/var ..."
-    sudo umount -f /tmp/serviced-root/var/volumes/* 2>/dev/null
-    sudo rm -rf /tmp/serviced-root/var
+    echo "Unmounting ${SERVICED_HOME}/var/volumes/* ..."
+    sudo umount -f ${SERVICED_HOME}/var/volumes/* 2>/dev/null
+
+    # Disable the DM device so that the space for the loopback device is really freed
+    # when we remove SERVICED_HOME
+    echo "Cleaning up serviced storage ..."
+    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_HOME}/var/volumes
+
+    echo "Removing up ${SERVICED_HOME} ..."
+    sudo rm -rf ${SERVICED_HOME}
 }
 trap cleanup EXIT
 
 
 start_serviced() {
     echo "Starting serviced..."
-    sudo GOPATH=${GOPATH} PATH=${PATH} ${SERVICED} -master -agent server &
+    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
+    #   all of to force the proper subdirectories to be created under SERVICED_HOME
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_HOME=${SERVICED_HOME} SERVICED_MASTER=1 ${SERVICED} -agent server &
     echo "Waiting 120 seconds for serviced to become the leader..."
     retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
