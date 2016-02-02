@@ -430,7 +430,8 @@
             $modalService.create({
                 template: $translate.instant("remove_public_endpoint") + ": <strong>"+
                           (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong><br><br>"+
-                          "The <strong>" + publicEndpoint.Application + "</strong> service will be restarted.",
+                          "After the public endpoint is removed, the <strong>" + publicEndpoint.Application +
+                          "</strong> service will automatically be restarted.",
                 model: $scope,
                 title: "remove_public_endpoint",
                 actions: [
