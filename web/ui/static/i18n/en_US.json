@@ -370,11 +370,13 @@
     "endpoint": "Endpoint",
     "public_endpoint_type": "Type",
     "add_public_endpoint": "Add Public Endpoint",
+    "add_public_endpoint_confirm": "Add and Restart Service",
     "public_endpoint_portnumber": "Port Address",
     "public_endpoint_hostname": "VHost Hostname",
     "public_endpoint_vhost": "VHost",
     "public_endpoint_port": "Port",
     "remove_public_endpoint": "Remove Public Endpoint",
+    "remove_public_endpoint_confirm": "Remove and Restart Service",
     "public_endpoint_url": "URL",
     "port_number_invalid": "Invalid port number",
 
