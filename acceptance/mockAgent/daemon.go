@@ -13,8 +13,8 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
-	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
@@ -23,6 +23,8 @@ import (
 	"syscall"
 
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -62,7 +64,17 @@ func (d *daemon) run(address string) (err error) {
 }
 
 func (d *daemon) startRPC() {
-	listener, err := net.Listen("tcp", d.hostConfig.Listen)
+	cert, err := tls.X509KeyPair([]byte(proxy.InsecureCertPEM), []byte(proxy.InsecureKeyPEM))
+	if err != nil {
+		glog.Fatalf("Could not parse public/private key pair (tls.X509KeyPair): %v", err)
+	}
+
+	tlsConfig := tls.Config{
+		Certificates:             []tls.Certificate{cert},
+		PreferServerCipherSuites: true, CipherSuites: utils.CipherSuites(),
+	}
+
+	listener, err := tls.Listen("tcp", d.hostConfig.Listen, &tlsConfig)
 	if err != nil {
 		glog.Fatalf("Unable to bind to port %s. Is another instance running?", d.hostConfig.Listen)
 	}
@@ -107,7 +119,7 @@ func (d *daemon) buildHost() error {
 
 	var err error
 	glog.Infof("Outbound IP: %s", d.hostConfig.OutboundIP)
-	
+
 	d.host, err = host.Build(d.hostConfig.OutboundIP, rpcPort, d.hostConfig.PoolID, fmt.Sprintf("%d", d.hostConfig.Memory))
 	if err != nil {
 		return fmt.Errorf("Failed to build host: %v", err)

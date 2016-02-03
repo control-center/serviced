@@ -52,7 +52,7 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request: dial tcp 172.17.42.1:9999"
+      And I should see "Bad Request: dial tcp4 172.17.42.1:9999"
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid Resource Pool field

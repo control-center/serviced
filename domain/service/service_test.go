@@ -58,6 +58,10 @@ func (s *S) TestAddVirtualHost(t *C) {
 	if len(svc.Endpoints[0].VHostList) != 1 && (svc.Endpoints[0].VHostList)[0].Name != "name" {
 		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHostList)
 	}
+
+	if svc.Endpoints[0].VHostList[0].Enabled != true {
+		t.Errorf("Virtualhost %s should be enabled", svc.Endpoints[0].VHostList[0].Name)
+	}
 }
 
 func (s *S) TestRemoveVirtualHost(t *C) {
@@ -74,7 +78,7 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 
 	var err error
 	if err = svc.RemoveVirtualHost("server", "name0"); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
+		t.Errorf("Unexpected error removing vhost: %v", err)
 	}
 
 	if len(svc.Endpoints[0].VHostList) != 1 && svc.Endpoints[0].VHostList[0].Name != "name1" {
@@ -83,6 +87,67 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 
 	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
 		t.Errorf("Expected error removing vhost")
+	}
+}
+
+func (s *S) TestAddPort(t *C) {
+	svc := Service{
+		Endpoints: []ServiceEndpoint{
+			BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
+					Purpose:     "export",
+					Application: "server",
+					PortList:    nil,
+				}),
+		},
+	}
+
+	var err error
+	if err = svc.AddPort("empty_server", ":1234"); err == nil {
+		t.Errorf("Expected error adding port")
+	}
+
+	if err = svc.AddPort("server", ":1234"); err != nil {
+		t.Errorf("Unexpected error adding port: %v", err)
+	}
+
+	//no duplicate ports can be added
+	if err = svc.AddPort("server", "1234"); err != nil {
+		t.Errorf("Unexpected error adding port: %v", err)
+	}
+
+	if len(svc.Endpoints[0].PortList) != 1 && (svc.Endpoints[0].PortList)[0].PortAddr != ":1234" {
+		t.Errorf("Public port incorrect, %+v should contain port address", svc.Endpoints[0].PortList)
+	}
+
+	if svc.Endpoints[0].PortList[0].Enabled != true {
+		t.Errorf("Port %s should be enabled", svc.Endpoints[0].PortList[0].PortAddr)
+	}
+}
+
+func (s *S) TestRemovePort(t *C) {
+	svc := Service{
+		Endpoints: []ServiceEndpoint{
+			BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
+					Purpose:     "export",
+					Application: "server",
+					PortList:    []servicedefinition.Port{servicedefinition.Port{PortAddr: ":1234"}, servicedefinition.Port{PortAddr: "128.0.0.1:1234"}},
+				}),
+		},
+	}
+
+	var err error
+	if err = svc.RemovePort("server", ":1234"); err != nil {
+		t.Errorf("Unexpected error removing port: %v", err)
+	}
+
+	if len(svc.Endpoints[0].PortList) != 1 && svc.Endpoints[0].PortList[0].PortAddr != "128.0.0.1:1234" {
+		t.Errorf("PortList incorrect, %+v should contain 128.0.0.1:1234", svc.Endpoints[0].PortList)
+	}
+
+	if err = svc.RemoveVirtualHost("server", ":1234"); err == nil {
+		t.Errorf("Expected error removing port")
 	}
 }
 
@@ -151,15 +216,15 @@ func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
 
 func TestScrubPortString(t *testing.T) {
 	testStrings := map[string]string{
-		"1234": ":1234",
-		":1234": ":1234",
-		"128.0.0.1:1234": "128.0.0.1:1234",
+		"1234":                  ":1234",
+		":1234":                 ":1234",
+		"128.0.0.1:1234":        "128.0.0.1:1234",
 		"http://128.0.0.1:1234": "128.0.0.1:1234",
 	}
 
 	for portString, expectedString := range testStrings {
 		scrubbedString := ScrubPortString(portString)
-		if scrubbedString != expectedString{
+		if scrubbedString != expectedString {
 			t.Fail()
 		}
 	}

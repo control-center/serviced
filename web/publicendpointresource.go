@@ -106,6 +106,9 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
+	// Restart the service
+	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+
 	restSuccess(w)
 }
 
@@ -132,6 +135,9 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		restServerError(w, err)
 		return
 	}
+
+	// Restart the service
+	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
 
 	restSuccess(w)
 }
@@ -358,6 +364,10 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	glog.V(2).Infof("Service (%s) updated", service.Name)
+
+	// Restart the service
+	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+
 	restSuccess(w)
 }
 
@@ -391,7 +401,10 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		return
 	}
 
-	glog.V(2).Info("Successfully added port %s to service (%s)", port, service.Name)
+	glog.V(2).Info("Successfully removed port %s from service (%s)", port, service.Name)
+
+	// Restart the service
+	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
 
 	restSuccess(w)
 }
