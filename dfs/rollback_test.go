@@ -102,12 +102,16 @@ func (s *DFSTestSuite) TestRollback_Success(c *C) {
 		Hash:    "hashvalue",
 	}
 	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
+	vol.On("Path").Return("/path/to/tenantID")
 	vol.On("SnapshotInfo", "BASE_LABEL").Return(vinfo, nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{vimagesbuf}, nil)
 	s.index.On("FindImage", "BASE/repo:LABEL").Return(rImage, nil)
 	s.index.On("PushImage", "BASE/repo:latest", "testuuid", "hashvalue").Return(nil)
+	s.net.On("AddVolume", "/path/to/tenantID").Return(nil)
+	s.net.On("RemoveVolume", "/path/to/tenantID").Return(nil)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
+	s.net.On("Sync").Return(nil)
 	vol.On("Rollback", "LABEL").Return(nil)
 	err = s.dfs.Rollback("BASE_LABEL")
 	c.Assert(err, IsNil)

@@ -229,7 +229,12 @@ func (c *Server) Restart() error {
 func (c *Server) Stop() error {
 	c.Lock()
 	defer c.Unlock()
-	return stop()
+	if err := stop(); err != nil {
+		glog.Errorf("err running stop %v", err)
+		return err
+	}
+	c.cleanupBindMounts()
+	return nil
 }
 
 func (c *Server) hostsDeny() error {

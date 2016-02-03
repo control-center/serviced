@@ -24,12 +24,21 @@ func (dfs *DistributedFilesystem) Create(tenantID string) error {
 		return err
 	}
 	glog.V(1).Infof("Volume created for %s at %s", tenantID, vol.Path())
-	if err := dfs.net.AddVolume(vol.Path()); err != nil {
-		glog.Warningf("Error notifying storage of new volume %s: %s", vol.Path(), err)
+	if err := dfs.export(vol.Path()); err != nil {
+		glog.Errorf("Could not export volume at %s: %s", vol.Path(), err)
+		return err
 	}
-	if err := dfs.net.Sync(); err != nil {
-		glog.Warningf("Error syncing storage: %v", err)
-	}
+	return nil
+}
 
+// export exports a volume over a network file share
+func (dfs *DistributedFilesystem) export(path string) error {
+	if err := dfs.net.AddVolume(path); err != nil {
+		glog.Errorf("Error notifying storage of new volume %s: %s", path, err)
+		return err
+	} else if err := dfs.net.Sync(); err != nil {
+		glog.Errorf("Error syncing storage for volume %s: %s", path, err)
+		return err
+	}
 	return nil
 }

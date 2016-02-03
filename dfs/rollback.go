@@ -47,12 +47,11 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 			return err
 		}
 	}
-	// see CC-1840
-	if err := dfs.net.Stop(); err != nil {
-		glog.Errorf("Could not stop nfs server: %s", err)
+	if err := dfs.unexport(vol.Path()); err != nil {
+		glog.Errorf("Could not unexport path %s: %s", vol.Path(), err)
 		return err
 	}
-	defer dfs.net.Restart()
+	defer dfs.export(vol.Path())
 	if err := vol.Rollback(info.Label); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
 		return err

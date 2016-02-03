@@ -45,10 +45,13 @@ func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
+	vol.On("Path").Return("/path/to/tenantID")
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
+	s.net.On("RemoveVolume", "/path/to/tenantID").Return(nil)
 	s.net.On("Stop").Return(ErrTestServerRunning).Once()
 	err := s.dfs.Destroy("Base")
 	c.Assert(err, Equals, ErrTestServerRunning)
+	s.net.On("RemoveVolume", "/path/to/tenantID").Return(nil)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
 	s.disk.On("Remove", "Base").Return(ErrTestVolumeNotRemoved)
@@ -60,7 +63,9 @@ func (s *DFSTestSuite) TestDestroy_Success(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
+	vol.On("Path").Return("/path/to/tenantID")
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
+	s.net.On("RemoveVolume", "/path/to/tenantID").Return(nil)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
 	s.disk.On("Remove", "Base").Return(nil)

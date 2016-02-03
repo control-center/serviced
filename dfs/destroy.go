@@ -39,14 +39,27 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	if err := dfs.deleteImages(tenantID, docker.Latest); err != nil {
 		return err
 	}
-	// CC-1840: need to stop nfs in order to remove filepaths
-	if err := dfs.net.Stop(); err != nil {
-		glog.Errorf("Could not stop nfs server: %s", err)
+	if err := dfs.unexport(vol.Path()); err != nil {
+		glog.Errorf("Could not unexport path %s: %s", vol.Path(), err)
 		return err
 	}
-	defer dfs.net.Restart()
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
+		return err
+	}
+	return nil
+}
+
+// unexport removes an exported path from the network file share
+func (dfs *DistributedFilesystem) unexport(path string) error {
+	if err := dfs.net.RemoveVolume(path); err != nil {
+		glog.Errorf("Could not unexport volume %s: %s", path, err)
+		return err
+	} else if err := dfs.net.Stop(); err != nil {
+		glog.Errorf("Could not stop nfs server: %s", err)
+		return err
+	} else if err := dfs.net.Restart(); err != nil {
+		glog.Errorf("Could not restart nfs server: %s", err)
 		return err
 	}
 	return nil
