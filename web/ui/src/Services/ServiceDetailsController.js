@@ -120,8 +120,7 @@
 
                                 $scope.addPublicEndpoint(newPublicEndpoint)
                                     .success(function(data, status){
-                                        $notification.create("Added public endpoint", "The " + newPublicEndpoint.app_ep.Application +
-                                           " service is being restarted.").success();
+                                        $notification.create("Added public endpoint").success();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
