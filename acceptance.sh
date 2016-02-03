@@ -101,9 +101,20 @@ cleanup() {
     echo "Removing all docker containers (if any) ..."
     docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 
+    # Get a list of mounted volumes before 'set -e' because the grep exits with 1
+    # in scenarios where nothing is mounted.
+    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VARPATH}/volumes 2>/dev/null`
+
+    # By default, exit on the first error
+    if [ "$1" != "--ignore-errors" ]; then
+        set -e
+    fi
+
     # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
-    sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+    if [ ! -z "${MOUNTED_VOLUMES}" ]; then
+        echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
+        sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+    fi
 
     # Disable the DM device so that the space for the loopback device is really freed
     # when we remove SERVICED_VARPATH/volumes
@@ -116,9 +127,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-
 # Force a clean environment
-cleanup
+echo "Starting Pre-test cleanup ..."
+cleanup --ignore-errors
+echo "Pre-test cleanup complete"
 
 # Setup
 install_prereqs

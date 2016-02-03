@@ -10,7 +10,7 @@ DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=$(which serviced)
 SERVICED_STORAGE=$(which serviced-storage)
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-SERVICED_VARPATH=/tmp/serviced-acceptance/var
+SERVICED_VARPATH=/tmp/serviced-smoke/var
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
@@ -56,9 +56,20 @@ cleanup() {
     echo "Removing all docker containers ..."
     docker ps -qa | xargs --no-run-if-empty docker rm -fv
 
+    # Get a list of mounted volumes before 'set -e' because the grep exits with 1
+    # in scenarios where nothing is mounted.
+    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VARPATH}/volumes 2>/dev/null`
+
+    # By default, exit on the first error
+    if [ "$1" != "--ignore-errors" ]; then
+        set -e
+    fi
+
     # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
-    sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+    if [ ! -z "${MOUNTED_VOLUMES}" ]; then
+        echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
+        sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+    fi
 
     # Disable the DM device so that the space for the loopback device is really freed
     # when we remove SERVICED_VARPATH/volumes
@@ -298,7 +309,10 @@ retry() {
 }
 
 # Force a clean environment
-cleanup
+echo "Starting Pre-test cleanup ..."
+cleanup --ignore-errors
+echo "Pre-test cleanup complete"
+
 
 # Setup
 install_prereqs
