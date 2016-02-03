@@ -18,7 +18,7 @@ package web
 
 import (
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/service"
+	svc "github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -46,7 +46,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	var services []service.Service
+	var services []svc.Service
 	var serviceRequest dao.ServiceRequest
 	if err := client.GetServices(serviceRequest, &services); err != nil {
 		err := fmt.Errorf("Could not get services: %v", err)
@@ -55,7 +55,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	var service *service.Service
+	var service *svc.Service
 	for _, _service := range services {
 		if _service.ID == request.ServiceID {
 			service = &_service
@@ -106,8 +106,10 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	// Restart the service
-	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	// Restart the service if it is running
+	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
+		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	}
 
 	restSuccess(w)
 }
@@ -136,21 +138,23 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		return
 	}
 
-	// Restart the service
-	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	// Restart the service if it is running
+	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
+		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	}
 
 	restSuccess(w)
 }
 
 // return serviceID, application and vhostname from the URL path
-func getVHostContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, string, error) {
+func getVHostContext(r *rest.Request, client *node.ControlClient) (*svc.Service, string, string, error) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceID: %v", err)
 		return nil, "", "", err
 	}
 
-	var service service.Service
+	var service svc.Service
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
@@ -220,7 +224,7 @@ type portRequest struct {
 }
 
 // Returns the service, application, and portnumber from the request
-func getPortContext(r *rest.Request, client *node.ControlClient) (*service.Service, string, string, error) {
+func getPortContext(r *rest.Request, client *node.ControlClient) (*svc.Service, string, string, error) {
 	glog.V(1).Infof("in getPortContext()")
 
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
@@ -229,7 +233,7 @@ func getPortContext(r *rest.Request, client *node.ControlClient) (*service.Servi
 		return nil, "", "", err
 	}
 
-	var service service.Service
+	var service svc.Service
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
@@ -271,7 +275,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	// Validate the port number
-	scrubbedPort := service.ScrubPortString(request.PortName)
+	scrubbedPort := svc.ScrubPortString(request.PortName)
 	portParts := strings.Split(scrubbedPort, ":")
 	if len(portParts) <= 1 {
 		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
@@ -304,7 +308,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
-	var services []service.Service
+	var services []svc.Service
 	var serviceRequest dao.ServiceRequest
 	if err := client.GetServices(serviceRequest, &services); err != nil {
 		err := fmt.Errorf("Could not get services: %v", err)
@@ -313,7 +317,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
-	var service *service.Service
+	var service *svc.Service
 	for _, _service := range services {
 		if _service.ID == request.ServiceID {
 			service = &_service
@@ -365,8 +369,10 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 	glog.V(2).Infof("Service (%s) updated", service.Name)
 
-	// Restart the service
-	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	// Restart the service if it is running
+	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
+		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	}
 
 	restSuccess(w)
 }
@@ -403,8 +409,10 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	glog.V(2).Info("Successfully removed port %s from service (%s)", port, service.Name)
 
-	// Restart the service
-	client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	// Restart the service if it is running
+	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
+		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+	}
 
 	restSuccess(w)
 }
@@ -487,7 +495,7 @@ type virtualHost struct {
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
 func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []service.Service
+	var services []svc.Service
 	var serviceRequest dao.ServiceRequest
 	err := client.GetServices(serviceRequest, &services)
 	if err != nil {
@@ -496,7 +504,7 @@ func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.C
 		return
 	}
 
-	serviceTree := make(map[string]service.Service)
+	serviceTree := make(map[string]svc.Service)
 	for _, service := range services {
 		serviceTree[service.ID] = service
 	}
