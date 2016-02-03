@@ -333,7 +333,10 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 		}
 
 		glog.V(1).Infof("Deactivating device (%s)", device)
-		if err := d.deactivateDevice(device); err != nil {
+		d.DeviceSet.Lock()
+		err := d.deactivateDevice(device)
+		d.DeviceSet.Unlock()
+		if err != nil {
 			glog.Errorf("Error removing device %q for volume %s: %s", device, volumeName, err)
 			return err
 		}
