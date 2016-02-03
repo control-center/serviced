@@ -43,7 +43,6 @@ Feature: Host Management
       And the Host and port field should be flagged as invalid
       And I should see an empty Hosts page
 
-  @tgj
   Scenario: Add an invalid host with an invalid port
     Given there are no hosts added
     When I am on the hosts page
