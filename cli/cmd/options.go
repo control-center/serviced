@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/codegangsta/cli"
-	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
@@ -30,10 +30,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func getDefaultOptions(config utils.ConfigReader) api.Options {
+func getDefaultOptions(config utils.ConfigReader) sdcli.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
-	options := api.Options{
+	options := sdcli.Options{
 		UIPort:               config.StringVal("UI_PORT", ":443"),
 		NFSClient:            config.StringVal("NFS_CLIENT", "1"),
 		RPCPort:              config.StringVal("RPC_PORT", fmt.Sprintf("%d", defaultRPCPort)),

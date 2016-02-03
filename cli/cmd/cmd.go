@@ -21,6 +21,7 @@ import (
 	"strings"
 	"syscall"
 
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
@@ -153,7 +154,7 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-	options := api.Options{
+	options := sdcli.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
 		Endpoint:             ctx.GlobalString("endpoint"),
@@ -245,7 +246,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
 
-	api.LoadOptions(options)
+	sdcli.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
@@ -272,7 +273,7 @@ func (c *ServicedCli) exit(code int) error {
 
 // validateEndpoint gets the endpoint to use if the user did not specify one.
 // Takes other configuration options into account while determining the default.
-func validateEndpoint(options api.Options) string {
+func validateEndpoint(options sdcli.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {

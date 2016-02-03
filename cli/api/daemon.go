@@ -19,6 +19,7 @@ import (
 	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dao/elasticsearch"
@@ -129,6 +130,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 }
 
 func (d *daemon) getEsClusterName(name string) string {
+	options := cli.GetOptions()
 	var (
 		clusterName string
 		err         error
@@ -152,6 +154,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
+	options := cli.GetOptions()
 	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
@@ -167,6 +170,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
+	options := cli.GetOptions()
 	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.Start(); err != nil {
@@ -183,6 +187,7 @@ func (d *daemon) stopISVCS() {
 }
 
 func (d *daemon) startRPC() {
+	options := cli.GetOptions()
 	if options.DebugPort > 0 {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
@@ -225,6 +230,7 @@ func (d *daemon) startRPC() {
 }
 
 func (d *daemon) startDockerRegistryProxy() {
+	options := cli.GetOptions()
 	host, port, err := net.SplitHostPort(options.DockerRegistry)
 	if err != nil {
 		glog.Fatalf("Could not parse docker registry: %s", err)
@@ -298,6 +304,7 @@ func (d *daemon) startDockerRegistryProxy() {
 }
 
 func (d *daemon) run() (err error) {
+	options := cli.GetOptions()
 	if d.hostID, err = utils.HostID(); err != nil {
 		glog.Fatalf("Could not get host ID: %s", err)
 	} else if err := validation.ValidHostID(d.hostID); err != nil {
@@ -406,6 +413,7 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 }
 
 func (d *daemon) startMaster() (err error) {
+	options := cli.GetOptions()
 	agentIP := options.OutboundIP
 	if agentIP == "" {
 		agentIP, err = utils.GetIPAddress()
@@ -513,6 +521,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 }
 
 func getTLSConfig() (*tls.Config, error) {
+	options := cli.GetOptions()
 	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
@@ -535,6 +544,7 @@ func getTLSConfig() (*tls.Config, error) {
 }
 
 func createMuxListener() (net.Listener, error) {
+	options := cli.GetOptions()
 	if options.TLS {
 		glog.V(1).Info("using TLS on mux")
 
@@ -550,6 +560,7 @@ func createMuxListener() (net.Listener, error) {
 }
 
 func (d *daemon) startAgent() error {
+	options := cli.GetOptions()
 	muxListener, err := createMuxListener()
 	if err != nil {
 		glog.Errorf("Could not create mux listener: %s", err)
@@ -749,6 +760,7 @@ func (d *daemon) startAgent() error {
 }
 
 func (d *daemon) registerMasterRPC() error {
+	options := cli.GetOptions()
 	glog.V(0).Infoln("registering Master RPC services")
 
 	server := master.NewServer(d.facade)
@@ -794,6 +806,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
+	options := cli.GetOptions()
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
@@ -807,6 +820,7 @@ func (d *daemon) initFacade() *facade.Facade {
 
 // startLogstashPurger purges logstash based on days and size
 func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
+	options := cli.GetOptions()
 	// Run the first time after 10 minutes
 	select {
 	case <-d.shutdown:
@@ -824,6 +838,7 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
+	options := cli.GetOptions()
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
 		return nil, err
@@ -835,6 +850,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 }
 
 func (d *daemon) initWeb() {
+	options := cli.GetOptions()
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
@@ -883,6 +899,7 @@ func (d *daemon) addTemplates() {
 }
 
 func (d *daemon) runScheduler() {
+	options := cli.GetOptions()
 	for {
 		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL)
 		if err != nil {

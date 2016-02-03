@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/domain/service"
 	elastigo "github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
@@ -50,6 +51,7 @@ type ExportLogsConfig struct {
 // TODO: This code is racy - creating then erasing the output file does not
 // guarantee that it will be safe to write to at the end of the function
 func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
+	options := cli.GetOptions()
 	var e error
 	files := []*os.File{}
 	fileIndex := make(map[string]map[string]int) // host => filename => index

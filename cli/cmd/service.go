@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
@@ -883,7 +884,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            isTTY,
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", sdcli.GetOptionsRPCPort()),
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -956,7 +957,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		SaveAs:           uuid,
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", sdcli.GetOptionsRPCPort()),
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 
@@ -1119,7 +1120,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 			return err
 		}
 
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", sdcli.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}
@@ -1225,7 +1226,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 			return err
 		}
 
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", sdcli.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}

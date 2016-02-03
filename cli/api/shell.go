@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -97,6 +98,7 @@ func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) 
 
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
+	options := cli.GetOptions()
 	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
 	if err != nil {
 		return err
@@ -126,6 +128,7 @@ func (a *api) StartShell(config ShellConfig) error {
 
 // RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) {
+	options := cli.GetOptions()
 	client, err := a.connectDAO()
 	if err != nil {
 		return 1, err

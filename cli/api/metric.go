@@ -16,6 +16,7 @@ package api
 import (
 	"fmt"
 	"time"
+	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/stats"
 	"github.com/zenoss/glog"
@@ -23,6 +24,7 @@ import (
 
 //
 func (a *api) PostMetric(metricName string, metricValue string) (string, error) {
+	options := cli.GetOptions()
 	url := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 	timeStamp := time.Now().Unix()
 	hostId, err := utils.HostID()
