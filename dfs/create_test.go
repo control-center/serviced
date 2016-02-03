@@ -20,12 +20,29 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *DFSTestSuite) TestCreate_NoShare(c *C) {
-	// TODO: this is a placeholder for nfs sharing
+func (s *DFSTestSuite) TestCreate_VolumeNotCreated(c *C) {
+	s.disk.On("Create", "TestTenantID").Return(&volumemocks.Volume{}, ErrTestVolumeNotCreated)
+	err := s.dfs.Create("TestTenantID")
+	c.Assert(err, Equals, ErrTestVolumeNotCreated)
 }
 
-func (s *DFSTestSuite) TestCreate_ShareNotEnabled(c *C) {
-	// TODO: this is a placeholder for nfs sharing
+func (s *DFSTestSuite) TestCreate_ShareNotAdded(c *C) {
+	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("/path/to/tenantID")
+	s.disk.On("Create", "TestTenantID").Return(vol, nil)
+	s.net.On("AddVolume", "/path/to/tenantID").Return(ErrTestShareNotAdded)
+	err := s.dfs.Create("TestTenantID")
+	c.Assert(err, Equals, ErrTestShareNotAdded)
+}
+
+func (s *DFSTestSuite) TestCreate_ShareNotExported(c *C) {
+	vol := &volumemocks.Volume{}
+	vol.On("Path").Return("/path/to/tenantID")
+	s.disk.On("Create", "TestTenantID").Return(vol, nil)
+	s.net.On("AddVolume", "/path/to/tenantID").Return(nil)
+	s.net.On("Sync").Return(ErrTestShareNotSynced)
+	err := s.dfs.Create("TestTenantID")
+	c.Assert(err, Equals, ErrTestShareNotSynced)
 }
 
 func (s *DFSTestSuite) TestCreate_Success(c *C) {
