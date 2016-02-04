@@ -34,7 +34,6 @@ import (
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/validation"
 )
 
 var empty interface{}
@@ -74,10 +73,10 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	return server
 }
 
-func NewProcessExecutorServer(port, dockerRegistry, controllerBinary string) *ProcessServer {
+func NewProcessExecutorServer(port, dockerRegistry, controllerBinary, uiport string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary},
+		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary, uiport: uiport},
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
@@ -290,7 +289,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	cmd, err := StartDocker(cfg, e.dockerRegistry, e.port, e.controllerBinary)
+	cmd, err := StartDocker(cfg, e.dockerRegistry, e.port, e.controllerBinary, e.uiport)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -333,7 +332,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
-func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*exec.Cmd, error) {
+func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string, uiport string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control center client to look up the service
@@ -443,16 +442,6 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
-
-	uiport := os.Getenv("SERVICED_UI_PORT")
-	if uiport == "" {
-		uiport = ":443"
-	}
-	if err := validation.ValidUIAddress(uiport); err != nil {
-		glog.Errorf("Unable to validate UI address %s: %v", uiport, err)
-		return nil, err
-	}
-
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(uiport, ":")[1]))
 
 	argv = append(argv, image)
