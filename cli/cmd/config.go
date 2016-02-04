@@ -36,12 +36,12 @@ func (c *ServicedCli) cmdConfig(ctx *cli.Context) {
 
 	// build a sorted list of keys
 	keys := []string{}
-	for key, _ := range(configValues) {
+	for key, _ := range configValues {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 
-	for _, key := range(keys) {
+	for _, key := range keys {
 		entry, _ := configValues[key]
 		fmt.Printf("%s=%s\n", entry.Name, entry.Value)
 	}

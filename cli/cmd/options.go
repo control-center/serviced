@@ -20,8 +20,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	sdcli "github.com/control-center/serviced/cli"
 	"github.com/codegangsta/cli"
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"

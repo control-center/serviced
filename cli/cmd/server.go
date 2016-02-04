@@ -18,8 +18,8 @@ import (
 	"os"
 	"time"
 
-	sdcli "github.com/control-center/serviced/cli"
 	"github.com/codegangsta/cli"
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"

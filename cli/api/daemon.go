@@ -16,10 +16,10 @@ package api
 import (
 	"bytes"
 
+	"github.com/control-center/serviced/cli"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dao/elasticsearch"

@@ -18,12 +18,12 @@ import (
 	"os"
 	"runtime/pprof"
 
+	"github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/cli"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )

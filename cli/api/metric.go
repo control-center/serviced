@@ -16,9 +16,10 @@ package api
 import (
 	"fmt"
 	"time"
+
 	"github.com/control-center/serviced/cli"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/stats"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 

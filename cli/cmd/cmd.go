@@ -21,8 +21,8 @@ import (
 	"strings"
 	"syscall"
 
-	sdcli "github.com/control-center/serviced/cli"
 	"github.com/codegangsta/cli"
+	sdcli "github.com/control-center/serviced/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
