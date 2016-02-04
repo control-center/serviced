@@ -97,10 +97,9 @@ func LoadOptions(ops Options) {
 	}
 }
 
-// GetOptions returns a copy of the existing server options
+// GetOptions returns a shallow copy of the existing server options
 func GetOptions() Options {
-	clone := options
-	return clone
+	return options
 }
 
 // GetOptionsRPCEndpoint returns the serviced RPC endpoint from options
