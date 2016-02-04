@@ -18,7 +18,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/control-center/serviced/cli"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
@@ -47,21 +47,21 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
-	options := cli.GetOptions()
-	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+	opts := options.GetOptions()
+	glog.Infof("StartServer: %v (%d)", opts.StaticIPs, len(opts.StaticIPs))
 
-	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
-	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
+	glog.Infof("Setting supported tls ciphers: %s", opts.TLSCiphers)
+	if err := utils.SetCiphers(opts.TLSCiphers); err != nil {
 		return fmt.Errorf("unable to set TLS Ciphers %v", err)
 	}
 
-	glog.Infof("Setting minimum tls version: %s", options.TLSMinVersion)
-	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
+	glog.Infof("Setting minimum tls version: %s", opts.TLSMinVersion)
+	if err := utils.SetMinTLS(opts.TLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum TLS version %v", err)
 	}
 
-	if len(options.CPUProfile) > 0 {
-		f, err := os.Create(options.CPUProfile)
+	if len(opts.CPUProfile) > 0 {
+		f, err := os.Create(opts.CPUProfile)
 		if err != nil {
 			glog.Fatal(err)
 		}
@@ -69,7 +69,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID)
+	d, err := newDaemon(opts.Endpoint, opts.StaticIPs, opts.MasterPoolID)
 	if err != nil {
 		return err
 	}
@@ -78,10 +78,10 @@ func (a *api) StartServer() error {
 
 // Opens a connection to the master if not already connected
 func (a *api) connectMaster() (master.ClientInterface, error) {
-	options := cli.GetOptions()
+	opts := options.GetOptions()
 	if a.master == nil {
 		var err error
-		a.master, err = master.NewClient(options.Endpoint)
+		a.master, err = master.NewClient(opts.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the master: %s", err)
 		}
@@ -115,10 +115,10 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 
 // DEPRECATED: Opens a connection to the DAO if not already connected
 func (a *api) connectDAO() (dao.ControlPlane, error) {
-	options := cli.GetOptions()
+	opts := options.GetOptions()
 	if a.dao == nil {
 		var err error
-		a.dao, err = node.NewControlClient(options.Endpoint)
+		a.dao, err = node.NewControlClient(opts.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/control-center/serviced/cli"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -29,9 +29,9 @@ var (
 
 // GetAgentIP returns the agent ip address
 func GetAgentIP(defaultRPCPort int) string {
-	options := cli.GetOptions()
-	if options.Endpoint != "" {
-		return options.Endpoint
+	opts := options.GetOptions()
+	if opts.Endpoint != "" {
+		return opts.Endpoint
 	}
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {

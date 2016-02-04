@@ -13,10 +13,10 @@
 
 package master
 
-import "github.com/control-center/serviced/cli"
+import "github.com/control-center/serviced/cli/options"
 
 // GetOptions returns a selection of server options.
-func (s *Server) GetOptions(empty struct{}, hostReply *cli.Options) error {
+func (s *Server) GetOptions(empty struct{}, hostReply *options.Options) error {
 	*hostReply = s.f.GetOptions()
 	return nil
 }

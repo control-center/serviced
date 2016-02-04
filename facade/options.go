@@ -13,13 +13,13 @@
 
 package facade
 
-import "github.com/control-center/serviced/cli"
+import "github.com/control-center/serviced/cli/options"
 
 // GetOptions returns a the server options with only the specified fields
 // exposed.
-func (f *Facade) GetOptions() cli.Options {
-	opts := cli.GetOptions()
-	return cli.Options{
+func (f *Facade) GetOptions() options.Options {
+	opts := options.GetOptions()
+	return options.Options{
 		UIPort: opts.UIPort,
 	}
 }

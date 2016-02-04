@@ -16,7 +16,7 @@ package facade
 import (
 	"time"
 
-	"github.com/control-center/serviced/cli"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -72,5 +72,5 @@ type FacadeInterface interface {
 
 	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]domain.HealthCheck, error)
 
-	GetOptions() cli.Options
+	GetOptions() options.Options
 }

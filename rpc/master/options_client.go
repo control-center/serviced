@@ -13,10 +13,10 @@
 
 package master
 
-import "github.com/control-center/serviced/cli"
+import "github.com/control-center/serviced/cli/options"
 
-func (c *Client) GetOptions() (*cli.Options, error) {
-	response := cli.Options{}
+func (c *Client) GetOptions() (*options.Options, error) {
+	response := options.Options{}
 	if err := c.call("GetOptions", empty, &response); err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ import (
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/cli"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/registry"
@@ -341,11 +341,11 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	var svc service.Service
 
 	// Get the master's ui port.
-	masterClient, err := master.NewClient(cli.GetOptions().Endpoint)
+	masterClient, err := master.NewClient(options.GetOptions().Endpoint)
 	if err != nil {
 		return nil, err
 	}
-	options, err := masterClient.GetOptions()
+	opts, err := masterClient.GetOptions()
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +460,7 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(options.UIPort, ":")[1]))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(opts.UIPort, ":")[1]))
 
 	argv = append(argv, image)
 	argv = append(argv, proxycmd...)
