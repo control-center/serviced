@@ -24,8 +24,8 @@ import (
 	"testing"
 
 	"github.com/control-center/serviced/utils"
-	"reflect"
 	"github.com/control-center/serviced/volume"
+	"reflect"
 )
 
 func TestAddStorageOptionWithEmptyDefault(t *testing.T) {
@@ -111,11 +111,11 @@ func TestGetDefaultDevicemapperOptionsForThinpoolDevice(t *testing.T) {
 
 func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
 	configReader := utils.TestConfigReader(map[string]string{
-		"DM_THINPOOLDEV": "foo",
-		"DM_BASESIZE": "200G",
-		"DM_LOOPDATASIZE": "10G",
+		"DM_THINPOOLDEV":      "foo",
+		"DM_BASESIZE":         "200G",
+		"DM_LOOPDATASIZE":     "10G",
 		"DM_LOOPMETADATASIZE": "1G",
-		"DM_ARGS": "arg1=a,arg2=b,arg3=c",
+		"DM_ARGS":             "arg1=a,arg2=b,arg3=c",
 	})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
 	verifyOptions(t, options, []string{
@@ -128,7 +128,7 @@ func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
 }
 
 func verifyOptions(t *testing.T, actual []string, expected []string) {
-	if len(actual) !=len(expected) {
+	if len(actual) != len(expected) {
 		t.Errorf("length of options incorrect: expected %d got %d; options=%v", len(expected), len(actual), actual)
 	} else if len(expected) > 0 && !reflect.DeepEqual(expected, actual) {
 		t.Errorf("options incorrect: expected %v got %v", expected, actual)

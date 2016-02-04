@@ -14,8 +14,8 @@
 package cmd
 
 import (
-	"github.com/codegangsta/cli"
 	"fmt"
+	"github.com/codegangsta/cli"
 )
 
 // Initializer for serviced metric
@@ -26,10 +26,10 @@ func (c *ServicedCli) initMetric() {
 		Description: "",
 		Subcommands: []cli.Command{
 			{
-				Name:         "push",
-				Usage:        "Push a metric value",
-				Description:  "serviced metric push METRICNAME VALUE",
-				Before:       c.cmdMetric,
+				Name:        "push",
+				Usage:       "Push a metric value",
+				Description: "serviced metric push METRICNAME VALUE",
+				Before:      c.cmdMetric,
 			},
 		},
 	})
@@ -50,4 +50,3 @@ func (c *ServicedCli) cmdMetric(ctx *cli.Context) error {
 	}
 	return fmt.Errorf(message)
 }
-

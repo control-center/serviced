@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
@@ -42,8 +42,8 @@ func (c *ServicedCli) initServer() {
 
 // serviced server
 func (c *ServicedCli) cmdServer(ctx *cli.Context) {
-	master := api.GetOptionsMaster()
-	agent := api.GetOptionsAgent()
+	master := options.GetOptionsMaster()
+	agent := options.GetOptionsAgent()
 
 	// Make sure one of the configurations was specified
 	if !master && !agent {
@@ -52,25 +52,25 @@ func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 	}
 
 	// Make sure we have an endpoint to work with
-	if endpoint := api.GetOptionsRPCEndpoint(); len(endpoint) == 0 {
+	if endpoint := options.GetOptionsRPCEndpoint(); len(endpoint) == 0 {
 		if master {
 			outboundIP, err := getOutboundIP()
 			if err != nil {
 				glog.Fatal(err)
 			}
-			endpoint := fmt.Sprintf("%s:%s", outboundIP, api.GetOptionsRPCPort())
-			api.SetOptionsRPCEndpoint(endpoint)
+			endpoint := fmt.Sprintf("%s:%s", outboundIP, options.GetOptionsRPCPort())
+			options.SetOptionsRPCEndpoint(endpoint)
 		} else {
 			glog.Fatal("No endpoint to master has been configured")
 		}
 	}
 
 	if master {
-		fmt.Println("This master has been configured to be in pool: " + api.GetOptionsMasterPoolID())
+		fmt.Println("This master has been configured to be in pool: " + options.GetOptionsMasterPoolID())
 	}
 
 	// Start server mode
-	rpcutils.RPC_CLIENT_SIZE = api.GetOptionsMaxRPCClients()
+	rpcutils.RPC_CLIENT_SIZE = options.GetOptionsMaxRPCClients()
 	if err := c.driver.StartServer(); err != nil {
 		glog.Fatalf("Could not start server: %s", err)
 	}

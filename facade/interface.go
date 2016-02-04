@@ -16,6 +16,7 @@ package facade
 import (
 	"time"
 
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -70,4 +71,6 @@ type FacadeInterface interface {
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 
 	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]domain.HealthCheck, error)
+
+	GetOptions() options.Options
 }

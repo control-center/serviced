@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/domain/service"
 	elastigo "github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
@@ -50,6 +51,7 @@ type ExportLogsConfig struct {
 // TODO: This code is racy - creating then erasing the output file does not
 // guarantee that it will be safe to write to at the end of the function
 func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
+	opts := options.GetOptions()
 	var e error
 	files := []*os.File{}
 	fileIndex := make(map[string]map[string]int) // host => filename => index
@@ -95,9 +97,9 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		}
 	}
 
-	parts := strings.Split(options.LogstashES, ":")
+	parts := strings.Split(opts.LogstashES, ":")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid logstash-es host:port %s", options.LogstashES)
+		return fmt.Errorf("invalid logstash-es host:port %s", opts.LogstashES)
 	}
 	elastigo.Domain = parts[0]
 	elastigo.Port = parts[1]

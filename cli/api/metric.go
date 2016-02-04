@@ -16,14 +16,17 @@ package api
 import (
 	"fmt"
 	"time"
-	"github.com/control-center/serviced/utils"
+
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/stats"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
 //
 func (a *api) PostMetric(metricName string, metricValue string) (string, error) {
-	url := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+	opts := options.GetOptions()
+	url := fmt.Sprintf("http://%s/api/metrics/store", opts.HostStats)
 	timeStamp := time.Now().Unix()
 	hostId, err := utils.HostID()
 	if err != nil {

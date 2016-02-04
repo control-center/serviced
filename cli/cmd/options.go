@@ -21,7 +21,7 @@ import (
 	"strconv"
 
 	"github.com/codegangsta/cli"
-	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
@@ -30,10 +30,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func getDefaultOptions(config utils.ConfigReader) api.Options {
+func getDefaultOptions(config utils.ConfigReader) options.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
-	options := api.Options{
+	opts := options.Options{
 		UIPort:               config.StringVal("UI_PORT", ":443"),
 		NFSClient:            config.StringVal("NFS_CLIENT", "1"),
 		RPCPort:              config.StringVal("RPC_PORT", fmt.Sprintf("%d", defaultRPCPort)),
@@ -79,7 +79,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 	}
 
-	options.Endpoint = config.StringVal("ENDPOINT", "")
+	opts.Endpoint = config.StringVal("ENDPOINT", "")
 
 	// Set the path to the controller binary
 	dir, _, err := node.ExecPath()
@@ -88,25 +88,25 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		dir = "/opt/serviced/bin"
 	}
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
-	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
+	opts.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
 	// Set the volumePath to /tmp if running serviced as just an agent
 	homepath := config.StringVal("HOME", "")
 	varpath := config.StringVal("VARPATH", getDefaultVarPath(homepath))
-	if options.Master {
-		options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
-		options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
-		options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
+	if opts.Master {
+		opts.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
+		opts.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
+		opts.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
 	} else {
 		tmpvarpath := getDefaultVarPath("")
-		options.IsvcsPath = filepath.Join(varpath, "isvcs")
-		options.VolumesPath = filepath.Join(tmpvarpath, "volumes")
-		options.BackupsPath = filepath.Join(varpath, "backups")
+		opts.IsvcsPath = filepath.Join(varpath, "isvcs")
+		opts.VolumesPath = filepath.Join(tmpvarpath, "volumes")
+		opts.BackupsPath = filepath.Join(varpath, "backups")
 	}
 
-	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
+	opts.StorageArgs = getDefaultStorageOptions(opts.FSType, config)
 
-	return options
+	return opts
 }
 
 func getDefaultDockerRegistry() string {

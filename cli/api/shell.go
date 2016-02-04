@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -97,6 +98,7 @@ func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) 
 
 // StartShell runs a command for a given service
 func (a *api) StartShell(config ShellConfig) error {
+	opts := options.GetOptions()
 	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
 	if err != nil {
 		return err
@@ -113,7 +115,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, dockerRegistry, options.Endpoint, options.ControllerBinary)
+	cmd, err := shell.StartDocker(&cfg, dockerRegistry, opts.Endpoint, opts.ControllerBinary)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -126,6 +128,7 @@ func (a *api) StartShell(config ShellConfig) error {
 
 // RunShell runs a predefined service shell command via the service definition
 func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) {
+	opts := options.GetOptions()
 	client, err := a.connectDAO()
 	if err != nil {
 		return 1, err
@@ -189,7 +192,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, dockerRegistry, options.Endpoint, options.ControllerBinary)
+	cmd, err := shell.StartDocker(&cfg, dockerRegistry, opts.Endpoint, opts.ControllerBinary)
 	if err != nil {
 		return 1, fmt.Errorf("failed to connect to service: %s", err)
 	}

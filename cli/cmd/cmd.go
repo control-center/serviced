@@ -23,6 +23,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/cli/options"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
@@ -153,7 +154,7 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-	options := api.Options{
+	opts := options.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
 		Endpoint:             ctx.GlobalString("endpoint"),
@@ -210,42 +211,42 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	var err error
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
+	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
 	if err != nil {
 		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
 	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
+	rpcutils.RPCDisableTLS, err = strconv.ParseBool(opts.RPCDisableTLS)
 	if err != nil {
 		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
 	}
 
 	if os.Getenv("SERVICED_MASTER") == "1" {
-		options.Master = true
+		opts.Master = true
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
-		options.Agent = true
+		opts.Agent = true
 	}
 
-	options.Endpoint = validateEndpoint(options)
+	opts.Endpoint = validateEndpoint(opts)
 
-	if err := validation.ValidUIAddress(options.UIPort); err != nil {
+	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
 		return fmt.Errorf("error validating UI port: %s", err)
 	}
 
-	if options.Master {
+	if opts.Master {
 		fstype := ctx.GlobalString("fstype")
-		options.FSType = volume.DriverType(fstype)
+		opts.FSType = volume.DriverType(fstype)
 	} else {
-		options.FSType = volume.DriverTypeNFS
+		opts.FSType = volume.DriverTypeNFS
 	}
 
-	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
+	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
 
-	api.LoadOptions(options)
+	options.LoadOptions(opts)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
@@ -257,7 +258,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return err
 	}
 
-	options.Endpoint = validateEndpoint(options)
+	opts.Endpoint = validateEndpoint(opts)
 
 	return nil
 }
@@ -272,18 +273,18 @@ func (c *ServicedCli) exit(code int) error {
 
 // validateEndpoint gets the endpoint to use if the user did not specify one.
 // Takes other configuration options into account while determining the default.
-func validateEndpoint(options api.Options) string {
+func validateEndpoint(opts options.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
-	endpoint := options.Endpoint
+	endpoint := opts.Endpoint
 	if len(endpoint) == 0 {
-		if options.Master || !options.Agent {
+		if opts.Master || !opts.Agent {
 			// Master has multiple backup sources: OUTBOUND_IP or query network configuration.
 			// No role probably means user is running us on the Master and assumes we know how
 			// to connect to ourselves.
-			if len(options.OutboundIP) > 0 {
-				endpoint = fmt.Sprintf("%s:%s", options.OutboundIP, options.RPCPort)
+			if len(opts.OutboundIP) > 0 {
+				endpoint = fmt.Sprintf("%s:%s", opts.OutboundIP, opts.RPCPort)
 			} else if ip, err := utils.GetIPAddress(); err == nil {
-				endpoint = fmt.Sprintf("%s:%s", ip, options.RPCPort)
+				endpoint = fmt.Sprintf("%s:%s", ip, opts.RPCPort)
 			}
 		} else {
 			// On pure Agent, ENDPOINT is required to know where Master is (we can't just guess)
