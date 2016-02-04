@@ -93,8 +93,8 @@ type VHost struct {
 
 // Port is the configuration for an application endpoint port.
 type Port struct {
-	PortAddr   string // which port number to use for this endpoint
-	Enabled    bool   // whether the port should be enabled or disabled.
+	PortAddr string // which port number to use for this endpoint
+	Enabled  bool   // whether the port should be enabled or disabled.
 }
 
 // Task A scheduled task
@@ -223,11 +223,13 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	}
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
-		glog.Warningf("EndpointDefinition VHosts field is deprecated, see VHostList: %#v", e.VHosts)
+		if glog.V(2) {
+			glog.Warningf("EndpointDefinition VHosts field is deprecated, see VHostList: %#v", e.VHosts)
+		}
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
 		}
-		glog.Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		glog.V(2).Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
 		e.VHosts = nil
 	}
 	return nil
