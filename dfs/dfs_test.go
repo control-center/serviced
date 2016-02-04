@@ -40,6 +40,7 @@ var (
 	ErrTestNoTag                   = errors.New("could not tag image")
 	ErrTestImageNotInRegistry      = errors.New("image not in registry")
 	ErrTestImageNotRemoved         = errors.New("could not remove image")
+	ErrTestVolumeNotCreated        = errors.New("could not create volume")
 	ErrTestVolumeNotRemoved        = errors.New("could not remove volume")
 	ErrTestVolumeNotFound          = errors.New("volume not found")
 	ErrTestNoSnapshots             = errors.New("could not get snapshots")
@@ -54,6 +55,8 @@ var (
 	ErrTestGetSnapshotByTagFailed  = errors.New("unable to retrieve snapshot by tag name")
 	ErrTestGeneric                 = errors.New("something went wrong")
 	ErrTestNoHash                  = errors.New("unable to get hash of image")
+	ErrTestShareNotAdded           = errors.New("could not create share")
+	ErrTestShareNotSynced          = errors.New("could not sync shares")
 )
 
 type NopCloser struct {
