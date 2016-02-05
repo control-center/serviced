@@ -30,14 +30,6 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 		glog.Errorf("Could not get snapshots for tenant %s: %s", tenantID, err)
 		return err
 	}
-
-	dfs.net.RemoveVolume(vol.Path())
-	// sync will unbind the the volume from exports dir, making it not busy
-	if err := dfs.net.Sync(); err != nil {
-		glog.Errorf("Could not sync volume destroy for tenant %s: %s", tenantID, err)
-		return err
-	}
-
 	for _, snapshot := range snapshots {
 		if err := dfs.Delete(snapshot); err != nil {
 			glog.Errorf("Could not remove snapshot %s for tenant %s: %s", snapshot, tenantID, err)
@@ -47,9 +39,27 @@ func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	if err := dfs.deleteImages(tenantID, docker.Latest); err != nil {
 		return err
 	}
-
+	if err := dfs.unexport(vol.Path()); err != nil {
+		glog.Errorf("Could not unexport path %s: %s", vol.Path(), err)
+		return err
+	}
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
+		return err
+	}
+	return nil
+}
+
+// unexport removes an exported path from the network file share
+func (dfs *DistributedFilesystem) unexport(path string) error {
+	if err := dfs.net.RemoveVolume(path); err != nil {
+		glog.Errorf("Could not unexport volume %s: %s", path, err)
+		return err
+	} else if err := dfs.net.Stop(); err != nil {
+		glog.Errorf("Could not stop nfs server: %s", err)
+		return err
+	} else if err := dfs.net.Restart(); err != nil {
+		glog.Errorf("Could not restart nfs server: %s", err)
 		return err
 	}
 	return nil

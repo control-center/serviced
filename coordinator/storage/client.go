@@ -18,12 +18,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 )
@@ -33,6 +35,7 @@ type nfsMountT func(string, string) error
 var nfsMount = nfs.Mount
 var mkdirAll = os.MkdirAll
 var storageClient *Client
+var mp = utils.GetDefaultMountProc()
 
 var ErrClientNotInitialized = errors.New("storage client not initialized")
 
@@ -66,8 +69,24 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 		closing:   make(chan struct{}),
 		// conn:      nil,   // commented out on purpose - no need to initialize
 	}
+	removeDeprecated("/serviced_var_volumes")
 	go c.loop()
 	return c, nil
+}
+
+func removeDeprecated(path string) {
+	mounts, err := mp.ListAll()
+	if err != nil {
+		glog.Warningf("Could not get mounts: %s", err)
+		return
+	}
+	for _, mount := range mounts {
+		if strings.HasSuffix(mount.Device, ":"+path) {
+			if err := mp.Unmount(mount.Device); err != nil {
+				glog.Warningf("Could not unmount deprecated path %s (%s): %s", mount.Device, mount.MountPoint, err)
+			}
+		}
+	}
 }
 
 // Wait will block until the client is Closed() or it has mounted the remote filesystem

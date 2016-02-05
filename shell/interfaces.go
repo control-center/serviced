@@ -77,4 +77,5 @@ type Executor struct {
 	port             string
 	dockerRegistry   string
 	controllerBinary string
+	uiport           string
 }
