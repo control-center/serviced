@@ -29,7 +29,6 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 )
@@ -287,7 +286,7 @@ func (sc *ServiceConfig) publicendpointhandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	rp := getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
+	rp := sc.getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 	glog.V(1).Infof("Time to set up %s public endpoint proxy for %v: %v", pepKey, r.URL, time.Since(start))
 
 	// Set up the X-Forwarded-Proto header so that downstream servers know
@@ -319,29 +318,19 @@ func (sc *ServiceConfig) getPublicEndpoint(pepKey string) (pepEndpointInfo, erro
 
 var reverseProxies map[string]*httputil.ReverseProxy
 var reverseProxiesLock sync.Mutex
-var localAddrs map[string]struct{}
 
 func init() {
-	var err error
 	reverseProxies = make(map[string]*httputil.ReverseProxy)
-	hostAddrs, err := utils.GetIPv4Addresses()
-	if err != nil {
-		glog.Fatal(err)
-	}
-	localAddrs = make(map[string]struct{})
-	for _, host := range hostAddrs {
-		localAddrs[host] = struct{}{}
-	}
 }
 
-func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
+func (sc *ServiceConfig) getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
 
 	var remoteAddr string
 
 	reverseProxiesLock.Lock()
 	defer reverseProxiesLock.Unlock()
 
-	_, isLocalContainer := localAddrs[hostIP]
+	_, isLocalContainer := sc.localAddrs[hostIP]
 	if isLocalContainer {
 		remoteAddr = fmt.Sprintf("%s:%d", privateIP, privatePort)
 	} else {

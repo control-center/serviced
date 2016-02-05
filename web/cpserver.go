@@ -49,6 +49,7 @@ type ServiceConfig struct {
 	muxPort     int
 	certPEMFile string
 	keyPEMFile  string
+	localAddrs  map[string]struct{}
 }
 
 var defaultHostAlias string
@@ -65,6 +66,16 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		certPEMFile: certPEMFile,
 		keyPEMFile:  keyPEMFile,
 	}
+
+	hostAddrs, err := utils.GetIPv4Addresses()
+	if err != nil {
+		glog.Fatal(err)
+	}
+	cfg.localAddrs = make(map[string]struct{})
+	for _, host := range hostAddrs {
+		cfg.localAddrs[host] = struct{}{}
+	}
+
 	adminGroup = aGroup
 	return &cfg
 }
