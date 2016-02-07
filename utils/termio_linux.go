@@ -13,6 +13,6 @@
 
 package utils
 
-import "syscall
+import "syscall"
 
 const ioctlTermioFlag = syscall.TCGETS
