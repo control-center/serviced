@@ -816,7 +816,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 		select {
 		case <-time.After(interval):
 			exited := make(chan error, 1)
-			sysProcAttr := &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGTERM}
+			sysProcAttr := healthCheckProcAttr
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			cmd.SysProcAttr = sysProcAttr
 			if err := cmd.Start(); err != nil {
