@@ -15,6 +15,4 @@
 
 package volume_test
 
-import "time"
-
 const sleepTimeMsec = 100
