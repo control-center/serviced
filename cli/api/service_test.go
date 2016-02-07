@@ -18,11 +18,7 @@ package api
 import (
 	"errors"
 
-	"strings"
-
-//	"github.com/control-center/serviced/dao"
-//	"github.com/control-center/serviced/domain/service"
-
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
@@ -48,29 +44,6 @@ func (s *CliAPITestSuite) TestGetService_fails(c *C) {
 	actual, err := s.api.GetService(serviceID)
 	c.Assert(actual, IsNil)
 	c.Assert(err, Equals, errorStub)
-}
-
-func (s *CliAPITestSuite) TestMigrateService_works(c *C) {
-	serviceID := "test-service"
-	scriptBody := "# no-op script"
-	inputScript := strings.NewReader(scriptBody)
-	expected, _ := service.NewService()
-	sdkVersion := "a.b.c"
-	s.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(nil).Run(func(a mock.Arguments) {
-		svc := a.Get(1).(*service.Service)
-		*svc = *expected
-	})
-	s.mockControlPlane.On("RunMigrationScript", mock.AnythingOfType("dao.RunMigrationScriptRequest"), mock.AnythingOfType("*int")).Return(nil).Run(func(a mock.Arguments) {
-		req := a.Get(0).(dao.RunMigrationScriptRequest)
-		c.Assert(req.ServiceID, Equals, serviceID)
-		c.Assert(req.ScriptBody, Equals, scriptBody)
-		c.Assert(req.DryRun, Equals, true)
-		c.Assert(req.SDKVersion, Equals, sdkVersion)
-	})
-	actual, err := s.api.RunMigrationScript(serviceID, inputScript, true, sdkVersion)
-	c.Assert(err, IsNil)
-	c.Assert(actual.ID, Equals, expected.ID)
-	s.mockControlPlane.AssertExpectations(c)
 }
 
 type mockInputReader struct {
