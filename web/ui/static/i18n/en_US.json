@@ -344,6 +344,7 @@
     "title_edit_config": "Edit Configuration",
     "title_edit_pool": "Edit Resource Pool",
     "title_edit_service": "Edit Service",
+    "title_edit_host": "Edit Host",
     "title_log": "Log",
     "title_remove_service": "Remove Application",
     "title_services": "Services",
