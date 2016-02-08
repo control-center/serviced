@@ -67,14 +67,14 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
-func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) {
+func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) error {
 	port := publicEndpointKey.Name()
 	listener, err := net.Listen("tcp", port)
 	stopChans := []chan bool{}
 	if err != nil {
 		glog.Errorf("Could not setup TCP listener - %s", err)
 		disablePort(publicEndpointKey)
-		return
+		return err
 	}
 	glog.Infof("Listening on port %s", port)
 
@@ -136,6 +136,8 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		glog.Infof("Closed port %s", port)
 		return
 	}()
+
+	return nil
 }
 
 func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
@@ -160,7 +162,9 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 				if !running {
 					// recently enabled port - port should be opened
 					stopChan = make(chan int)
-					sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown)
+					if err := sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown); err != nil {
+						continue
+					}
 				}
 
 				newPorts[port] = stopChan
