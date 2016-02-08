@@ -70,6 +70,10 @@
             $location.path('/services/' + instance.model.ServiceID);
         };
 
+        $scope.editCurrentHost = function(){
+            console.log("TODO - edit modal");
+        };
+
         init();
 
         function init(){
@@ -95,7 +99,6 @@
                     return instancesFactory.lastUpdate;
                 }
             };
-
 
             // kick off hostsFactory updating
             // TODO - update loop here
