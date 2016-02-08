@@ -87,6 +87,11 @@ func configBool(key string, defaultVal bool) bool {
 	return defaultVal
 }
 
+func convertToStringSlice(list []string) *cli.StringSlice {
+	slice := cli.StringSlice(list)
+	return &slice
+}
+
 const defaultRPCPort = 4979
 
 func getLocalAgentEndpoint(port int) string {
@@ -162,6 +167,8 @@ func New(driver api.API) *ServicedCli {
 		defaultAdminGroup = "wheel"
 	}
 
+	defaultTlsCiphers := utils.GetDefaultCiphers()
+
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
@@ -189,7 +196,8 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
 		cli.StringFlag{"admin-group", configEnv("ADMIN_GROUP", defaultAdminGroup), "system group that can log in to control center"},
-
+		cli.StringSliceFlag{"tls-ciphers", convertToStringSlice(defaultTlsCiphers), "list of supported tls ciphers"},
+		cli.StringFlag{"tls-min-version", string(utils.DefaultTLSMinVersion), "mininum tls version"},
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", configEnv("STATS_PORT", "127.0.0.1:8443"), "container statistics for host:port"},
 		cli.IntFlag{"stats-period", configInt("STATS_PERIOD", 10), "Period (seconds) for container statistics reporting"},
@@ -283,6 +291,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
+		TLSCiphers:           ctx.GlobalStringSlice("tls-ciphers"),
+		TLSMinVersion:        ctx.GlobalString("tls-min-version"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -317,6 +327,11 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		rpcutils.RPC_CLIENT_SIZE = options.MaxRPCClients
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
+	}
+
+	glog.V(2).Infof("setting supported tls ciphers %s", options.TLSCiphers)
+	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
+		return fmt.Errorf("unable to set TLSCiphers %v", err)
 	}
 
 	return nil

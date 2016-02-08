@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/utils"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
@@ -72,7 +73,9 @@ type Options struct {
 	AdminGroup           string // user group that can log in to control center
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 	RPCDialTimeout       int
-	SnapshotTTL          int // hours to keep snapshots around, zero for infinity
+	SnapshotTTL          int      // hours to keep snapshots around, zero for infinity
+	TLSCiphers           []string // List of tls ciphers supported
+	TLSMinVersion        string   // Minimum TLS version supported
 }
 
 // LoadOptions overwrites the existing server options
@@ -108,6 +111,16 @@ func New() API {
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+
+	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
+	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
+		return fmt.Errorf("unable to set TLS Ciphers %v", err)
+	}
+
+	glog.Infof("Setting minimum tls version: %s", options.TLSMinVersion)
+	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum TLS version %v", err)
+	}
 
 	if len(options.CPUProfile) > 0 {
 		f, err := os.Create(options.CPUProfile)
