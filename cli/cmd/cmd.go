@@ -329,7 +329,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return fmt.Errorf("running server mode")
 	}
 
-	glog.Infof("setting supported tls ciphers %s", options.TLSCiphers)
+	glog.V(2).Infof("setting supported tls ciphers %s", options.TLSCiphers)
 	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
 		return fmt.Errorf("unable to set TLSCiphers %v", err)
 	}
