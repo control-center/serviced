@@ -127,6 +127,6 @@ func (a *api) SetHostMemory(config HostUpdateConfig) error {
 	if err != nil {
 		return err
 	}
-	h.RAMCommitment2 = config.Memory
+	h.RAMLimit = config.Memory
 	return client.UpdateHost(*h)
 }

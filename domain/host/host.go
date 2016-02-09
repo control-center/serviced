@@ -39,7 +39,7 @@ type Host struct {
 	Memory          uint64 // Amount of RAM (bytes) available to serviced
 	CoresCommitment int    // Number of CPU shares (cores) allocated by the user
 	RAMCommitment   uint64 // DEPRECATED: Amount of RAM (bytes) allocated by the user
-	RAMCommitment2  string // Amount of RAM (size, %) allocated by the user
+	RAMLimit        string // Amount of RAM (size, %) allocated by the user
 	PrivateNetwork  string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -60,14 +60,14 @@ type Host struct {
 }
 
 func (a *Host) TotalRAM() (mem uint64, err error) {
-	if a.RAMCommitment2 != "" {
-		if mem, err = utils.ParseEngineeringNotation(a.RAMCommitment2); err != nil {
-			if mem, err = utils.ParsePercentage(a.RAMCommitment2, a.Memory); err != nil {
+	if a.RAMLimit != "" {
+		if mem, err = utils.ParseEngineeringNotation(a.RAMLimit); err != nil {
+			if mem, err = utils.ParsePercentage(a.RAMLimit, a.Memory); err != nil {
 				return
 			}
 		}
 	} else if a.RAMCommitment > 0 {
-		a.RAMCommitment2 = fmt.Sprintf("%d", a.RAMCommitment)
+		a.RAMLimit = fmt.Sprintf("%d", a.RAMCommitment)
 		mem = a.RAMCommitment
 	}
 	a.RAMCommitment = 0
@@ -166,7 +166,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 		return nil, err
 	}
 	host.IPs = hostIPs
-	host.RAMCommitment2 = memory
+	host.RAMLimit = memory
 
 	// get embedded host information
 	host.ServiceD.Version = servicedversion.Version
