@@ -52,6 +52,11 @@ func (h *Host) ValidEntity() error {
 
 	}
 
+	if _, err := h.TotalRAM(); err != nil {
+		glog.Errorf("Could not parse RAM allocation for %s: %s", h.IPAddr, err)
+		violations.Add(err)
+	}
+
 	if len(violations.Errors) > 0 {
 		return violations
 	}
