@@ -59,8 +59,7 @@
         <div class="vertical-info">
           <label for="host_ram_commitment" translate>RAM Commitment</label>
           <div id="host_ram_commitment">
-            <span ng-show="currentHost.RAMCommitment===0">{{currentHost.model.Memory|toGB}}</span>
-            <span ng-show="currentHost.RAMCommitment!==0" ng-class="{'bad': !currentHost.resourcesGood()}" class="overcomText">{{currentHost.RAMCommitment|toGB}}</span>
+            <span ng-class="{'bad': !currentHost.resourcesGood()}" class="overcomText">{{getRamCommitment()|toGB}}</span>
           </div>
         </div>
     </div>

@@ -124,6 +124,12 @@
                 if (str === "" || str === undefined) {
                     return 0;
                 }
+
+                // if this is already a regular, boring, ol number
+                if(isFinite(+str)){
+                    return +str;
+                }
+
                 var prefix = parseFloat(str);
                 var suffix = str.slice(prefix.toString().length);
                 switch(suffix) {
