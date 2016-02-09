@@ -14,7 +14,17 @@
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=$(which serviced)
+if [ -z "${SERVICED}" ]; then
+    echo "ERROR: Can not find a serviced binary"
+    exit 1
+fi
+
 SERVICED_STORAGE=$(which serviced-storage)
+if [ -z "${SERVICED_STORAGE}" ]; then
+    echo "ERROR: Can not find a serviced-storage binary"
+    exit 1
+fi
+
 # Use a directory unique to this test to avoid collisions with other kinds of tests
 SERVICED_VARPATH=/tmp/serviced-acceptance/var
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
