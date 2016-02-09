@@ -15,6 +15,7 @@ package host
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -37,7 +38,8 @@ type Host struct {
 	Cores           int    // Number of cores available to serviced
 	Memory          uint64 // Amount of RAM (bytes) available to serviced
 	CoresCommitment int    // Number of CPU shares (cores) allocated by the user
-	RAMCommitment   uint64 // Amount of RAM (bytes) allocated by the user
+	RAMCommitment   uint64 // DEPRECATED: Amount of RAM (bytes) allocated by the user
+	RAMLimit        string // Amount of RAM (size, %) allocated by the user
 	PrivateNetwork  string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -55,6 +57,24 @@ type Host struct {
 	}
 	MonitoringProfile domain.MonitorProfile
 	datastore.VersionedEntity
+}
+
+func (a *Host) TotalRAM() (mem uint64, err error) {
+	if a.RAMLimit != "" {
+		if mem, err = utils.ParseEngineeringNotation(a.RAMLimit); err != nil {
+			if mem, err = utils.ParsePercentage(a.RAMLimit, a.Memory); err != nil {
+				return
+			}
+		}
+	} else if a.RAMCommitment > 0 {
+		a.RAMLimit = fmt.Sprintf("%d", a.RAMCommitment)
+		mem = a.RAMCommitment
+	}
+	a.RAMCommitment = 0
+	if mem <= 0 || mem > a.Memory {
+		mem = a.Memory
+	}
+	return
 }
 
 // Equals verifies whether two host objects are equal
@@ -146,15 +166,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 		return nil, err
 	}
 	host.IPs = hostIPs
-
-	// set the memory
-	if mem, err := utils.ParseEngineeringNotation(memory); err == nil {
-		host.RAMCommitment = mem
-	} else if mem, err := utils.ParsePercentage(memory, host.Memory); err == nil {
-		host.RAMCommitment = mem
-	} else {
-		return nil, err
-	}
+	host.RAMLimit = memory
 
 	// get embedded host information
 	host.ServiceD.Version = servicedversion.Version

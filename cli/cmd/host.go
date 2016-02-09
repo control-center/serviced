@@ -59,6 +59,12 @@ func (c *ServicedCli) initHost() {
 				Description:  "serviced host remove HOSTID ...",
 				BashComplete: c.printHostsAll,
 				Action:       c.cmdHostRemove,
+			}, {
+				Name:         "set-memory",
+				Usage:        "Set the memory allocation for a specific host",
+				Description:  "serviced host set-memory HOSTID ALLOCATION",
+				BashComplete: c.printHostsAll,
+				Action:       c.cmdHostSetMemory,
 			},
 		},
 	})
@@ -158,12 +164,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			} else {
 				usage = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(stats.Last)), bytefmt.ByteSize(uint64(stats.Max)), bytefmt.ByteSize(uint64(stats.Average)))
 			}
-
-			ramcommit := bytefmt.ByteSize(h.RAMCommitment)
-			if h.RAMCommitment <= 0 || h.Memory < h.RAMCommitment {
-				ramcommit = bytefmt.ByteSize(h.Memory)
-			}
-
+			ramcommit, _ := h.TotalRAM()
 			t.AddRow(map[string]interface{}{
 				"ID":          h.ID,
 				"Pool":        h.PoolID,
@@ -171,7 +172,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 				"Addr":        h.IPAddr,
 				"RPCPort":     h.RPCPort,
 				"Cores":       h.Cores,
-				"RAM":         ramcommit,
+				"RAM":         bytefmt.ByteSize(ramcommit),
 				"Cur/Max/Avg": usage,
 				"Network":     h.PrivateNetwork,
 				"Release":     h.ServiceD.Release,
@@ -240,5 +241,19 @@ func (c *ServicedCli) cmdHostRemove(ctx *cli.Context) {
 		} else {
 			fmt.Println(id)
 		}
+	}
+}
+
+// serviced host set-memory HOSTID MEMALLOC
+func (c *ServicedCli) cmdHostSetMemory(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set-memory")
+		return
+	}
+
+	if err := c.driver.SetHostMemory(api.HostUpdateConfig{args[0], args[1]}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }

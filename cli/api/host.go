@@ -31,6 +31,11 @@ type HostConfig struct {
 	IPs     []string
 }
 
+type HostUpdateConfig struct {
+	HostID string
+	Memory string
+}
+
 // Returns a list of all hosts
 func (a *api) GetHosts() ([]host.Host, error) {
 	client, err := a.connectMaster()
@@ -109,4 +114,19 @@ func (a *api) RemoveHost(id string) error {
 	}
 
 	return client.RemoveHost(id)
+}
+
+// Sets the memory allocation for an existing host
+func (a *api) SetHostMemory(config HostUpdateConfig) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	h, err := client.GetHost(config.HostID)
+	if err != nil {
+		return err
+	}
+	h.RAMLimit = config.Memory
+	return client.UpdateHost(*h)
 }
