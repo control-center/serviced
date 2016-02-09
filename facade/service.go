@@ -421,8 +421,6 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		}
 		svcAll = append(svcAll, *svc)
 	}
-	glog.Warningf("1111111111111 %#v", svcAll)
-	glog.Warningf("2222222222222 %#v", req)
 	// validate service adds
 	for _, svc := range req.Added {
 		if err := f.validateServiceAdd(ctx, svc); err != nil {
@@ -444,7 +442,6 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		svcAll = append(svcAll, svcs...)
 	}
 	// validate service migration
-	glog.Warningf("3333333333333 %#v", svcAll)
 	if err := f.validateServiceMigration(ctx, svcAll); err != nil {
 		glog.Errorf("Could not validate migration of services: %s", err)
 		return err
@@ -505,7 +502,6 @@ func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID strin
 // validateServiceMigration makes sure there are no collisions with the added/modified
 // services.
 func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.Service) error {
-	glog.Warningf("5555555555555555 %#v", svcs)
 	svcParentMapNameMap := make(map[string]map[string]struct{})
 	endpointMap := make(map[string]struct{})
 	for _, svc := range svcs {
@@ -520,9 +516,7 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 			svcParentMapNameMap[svc.ParentServiceID] = make(map[string]struct{})
 		}
 		// check for duplicate endpoints
-		glog.Warningf(":::::::::::::::::::: svc.Endpoints - %#v", svc.Endpoints)
 		for _, ep := range svc.Endpoints {
-			glog.Warningf("::::::::::::::::::::: endpoint: %#v", ep)
 			if ep.Purpose == "export" {
 				if _, ok := endpointMap[ep.Application]; ok {
 					glog.Errorf("Found a duplicate endpoint %s", ep.Application)

@@ -392,7 +392,6 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
-	t.Skip("old")
 	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
 
@@ -401,7 +400,6 @@ func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
-	t.Skip("old")
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
@@ -411,7 +409,6 @@ func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
 
 // Verify migration of configuration data when the user has not changed any config files
 func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
-	t.Skip("old")
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 	newSvc.ConfigFiles = nil
@@ -536,7 +533,6 @@ func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) 
 }
 
 func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Success(t *C) {
-	fmt.Printf(" --------- TestFacade_MigrateServices_Modify_Success --------- --------- --------- --------- ")
 	err := ft.setupMigrationTest(t)
 	t.Assert(err, IsNil)
 
@@ -558,11 +554,9 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Success(t *C) {
 	out, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
 	t.Assert(err, IsNil)
 	t.Assert(out.Description, Equals, "migrated_service")
-	fmt.Printf("////// --------- TestFacade_MigrateServices_Modify_Success --------- --------- --------- --------- ")
 }
 
 func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
-	fmt.Printf(" --------- TestFacade_MigrateServices_Modify_Fail --------- --------- --------- --------- ")
 	err := ft.setupMigrationTest(t)
 	t.Assert(err, IsNil)
 
@@ -614,29 +608,6 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	if err = ft.Facade.MigrateServices(ft.CTX, request); err == nil {
 		t.Error("unexpected lack of error when setting bad desired state for migration")
 	}
-
-	// Make sure we fail if we set a duplicate endpoint.
-	newSvc = *oldSvc
-	newSvc.Endpoints = []service.ServiceEndpoint{
-		service.BuildServiceEndpoint(
-			servicedefinition.EndpointDefinition{
-				Name:        "original_service_endpoint_name_child_1",
-				Application: "original_service_endpoint_application_child_1",
-				Purpose:     "export",
-			},
-		),
-	}
-
-	fmt.Printf("444444444444 ------------------------------------------------------------ 44444444444444444 %#v", newSvc.Endpoints)
-
-	request = dao.ServiceMigrationRequest{
-		ServiceID: newSvc.ID,
-		Modified:  []*service.Service{&newSvc},
-	}
-	if err = ft.Facade.MigrateServices(ft.CTX, request); err == nil {
-		t.Error("unexpected lack of error when setting duplicate endpoint for migration")
-	}
-	fmt.Printf("////// --------- TestFacade_MigrateServices_Modify_Fail --------- --------- --------- --------- ")
 }
 
 func (ft *FacadeTest) setupMigrationTest(t *C) error {
