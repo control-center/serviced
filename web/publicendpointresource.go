@@ -350,6 +350,14 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		}
 	}
 
+	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
+	err = checkPort("tcp", fmt.Sprintf("%s", scrubbedPort))
+	if err != nil {
+		glog.Error(err)
+		restServerError(w, err)
+		return
+	}
+
 	err = service.AddPort(request.Application, scrubbedPort)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
