@@ -88,13 +88,6 @@ func (m *FacadeInterface) GetTenantID(ctx datastore.Context, serviceID string) (
 
 	return r0, r1
 }
-func (m *FacadeInterface) RunMigrationScript(ctx datastore.Context, request dao.RunMigrationScriptRequest) error {
-	ret := m.Called(ctx, request)
-
-	r0 := ret.Error(0)
-
-	return r0
-}
 func (m *FacadeInterface) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
 	ret := m.Called(ctx, request)
 

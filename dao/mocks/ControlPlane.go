@@ -87,18 +87,6 @@ func (_m *ControlPlane) UpdateService(svc service.Service, unused *int) error {
 
 	return r0
 }
-func (_m *ControlPlane) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
-	ret := _m.Called(request, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.RunMigrationScriptRequest, *int) error); ok {
-		r0 = rf(request, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *ControlPlane) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
 	ret := _m.Called(request, unused)
 

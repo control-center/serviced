@@ -99,10 +99,6 @@ func (s *ControlClient) UpdateService(service service.Service, unused *int) (err
 	return s.rpcClient.Call("ControlPlane.UpdateService", service, unused, 0)
 }
 
-func (s *ControlClient) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RunMigrationScript", request, unused, 0)
-}
-
 func (s *ControlClient) MigrateServices(request dao.ServiceMigrationRequest, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.MigrateServices", request, unused, 0)
 }
