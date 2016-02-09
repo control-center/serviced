@@ -43,6 +43,7 @@ type API interface {
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
+	SetHostMemory(HostUpdateConfig) error
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)

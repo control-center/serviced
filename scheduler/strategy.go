@@ -99,7 +99,8 @@ func (h *StrategyHost) TotalCores() int {
 }
 
 func (h *StrategyHost) TotalMemory() uint64 {
-	return h.host.Memory
+	mem, _ := h.host.TotalRAM()
+	return mem
 }
 
 func (s *StrategyService) GetServiceID() string {
