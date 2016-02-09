@@ -67,14 +67,14 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
-func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) {
+func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) error {
 	port := publicEndpointKey.Name()
 	listener, err := net.Listen("tcp", port)
 	stopChans := []chan bool{}
 	if err != nil {
-		glog.Errorf("Could not setup TCP listener - %s", err)
+		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s - %s", port, publicEndpointKey, err)
 		disablePort(publicEndpointKey)
-		return
+		return err
 	}
 	glog.Infof("Listening on port %s", port)
 
@@ -131,11 +131,16 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			c <- true
 		}
 
+		// disablePort modifies allports, so we need a lock
+		allportsLock.Lock()
+		defer allportsLock.Unlock()
 		disablePort(publicEndpointKey)
 		listener.Close()
 		glog.Infof("Closed port %s", port)
 		return
 	}()
+
+	return nil
 }
 
 func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
@@ -147,6 +152,9 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 
 	cancelChan := make(chan interface{})
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		allportsLock.Lock()
+		defer allportsLock.Unlock()
+
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		// start all servers that have been not started and enabled
@@ -160,7 +168,9 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 				if !running {
 					// recently enabled port - port should be opened
 					stopChan = make(chan int)
-					sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown)
+					if err := sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown); err != nil {
+						continue
+					}
 				}
 
 				newPorts[port] = stopChan
@@ -176,9 +186,6 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 			}
 		}
 
-		//lock for as short a time as possible
-		allportsLock.Lock()
-		defer allportsLock.Unlock()
 		allports = newPorts
 		glog.V(1).Infof("allports: %+v", allports)
 	}
