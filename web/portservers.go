@@ -72,7 +72,7 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 	listener, err := net.Listen("tcp", port)
 	stopChans := []chan bool{}
 	if err != nil {
-		glog.Errorf("Could not setup TCP listener - %s", err)
+		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s - %s", port, publicEndpointKey, err)
 		disablePort(publicEndpointKey)
 		return err
 	}
