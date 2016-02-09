@@ -24,13 +24,13 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) { TestingT(t) }
+func TestQueue(t *testing.T) { TestingT(t) }
 
-type MySuite struct{}
+type QueueSuite struct{}
 
-var _ = Suite(&MySuite{})
+var _ = Suite(&QueueSuite{})
 
-func (s *MySuite) TestNewQueue(c *C) {
+func (s *QueueSuite) TestNewQueue(c *C) {
 	var q Queue
 	_, err := NewChannelQueue(-1)
 	c.Assert(err, NotNil)
@@ -47,7 +47,7 @@ func (s *MySuite) TestNewQueue(c *C) {
 	c.Assert(q.Capacity(), Equals, int32(math.MaxInt8))
 
 }
-func (s *MySuite) TestPutTake(c *C) {
+func (s *QueueSuite) TestPutTake(c *C) {
 	cap := 38
 	q, _ := NewChannelQueue(cap)
 
@@ -62,7 +62,7 @@ func (s *MySuite) TestPutTake(c *C) {
 	}
 }
 
-func (s *MySuite) TestOffer(c *C) {
+func (s *QueueSuite) TestOffer(c *C) {
 	cap := 32
 	q, _ := NewChannelQueue(cap)
 	if q == nil {
@@ -85,7 +85,7 @@ func (s *MySuite) TestOffer(c *C) {
 	}
 }
 
-func (s *MySuite) TestConcurrent(c *C) {
+func (s *QueueSuite) TestConcurrent(c *C) {
 	cap := 32
 	q, _ := NewChannelQueue(cap)
 	if q == nil {
