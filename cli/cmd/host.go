@@ -164,7 +164,6 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			} else {
 				usage = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(stats.Last)), bytefmt.ByteSize(uint64(stats.Max)), bytefmt.ByteSize(uint64(stats.Average)))
 			}
-			ramcommit, _ := h.TotalRAM()
 			t.AddRow(map[string]interface{}{
 				"ID":          h.ID,
 				"Pool":        h.PoolID,
@@ -172,7 +171,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 				"Addr":        h.IPAddr,
 				"RPCPort":     h.RPCPort,
 				"Cores":       h.Cores,
-				"RAM":         bytefmt.ByteSize(ramcommit),
+				"RAM":         bytefmt.ByteSize(h.TotalRAM()),
 				"Cur/Max/Avg": usage,
 				"Network":     h.PrivateNetwork,
 				"Release":     h.ServiceD.Release,
