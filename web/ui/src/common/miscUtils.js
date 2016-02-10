@@ -149,6 +149,9 @@
                     case "t":
                         prefix *= (1 << 40);
                         break;
+                    default:
+                        prefix = undefined;
+                        break;
                 }
                 return prefix;
             },

@@ -73,7 +73,7 @@
         $scope.editCurrentHost = function(){
             $scope.editableHost = {
                 Name: $scope.currentHost.name,
-                RAMCommitment: $scope.currentHost.RAMCommitment || "100%"
+                RAMLimit: $scope.currentHost.RAMLimit
             };
 
             $modalService.create({
@@ -91,41 +91,51 @@
                             angular.extend(hostModel, $scope.editableHost);
 
                             if(this.validate()){
-                                /*
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
                                 // update host with recently edited host
-                                $scope.updateHost($scope.editableHost)
+                                resourcesFactory.updateHost($scope.currentHost.id, hostModel)
                                     .success(function(data, status){
-                                        $notification.create("Updated host", $scope.editableHost.ID).success();
+                                        $notification.create("Updated host", hostModel.Name).success();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
                                         this.createNotification("Update host failed", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
-                                    */
                             }
                         }
                     }
                 ],
                 validate: function(){
-                    var isPercent = ($scope.editableHost.RAMCommitment.indexOf("%") !== -1);
+                    var isPercent = ($scope.editableHost.RAMLimit.endsWith("%"));
 
                     // if this is a percent, ensure its between 1 and 100
                     if(isPercent){
-                        let val = +$scope.editableHost.RAMCommitment.slice(0, -1);
-                        if(val > 100 || val <= 0){
-                            this.createNotification("Error", "Invalid RAM Commitment value").error();
+                        let val = +$scope.editableHost.RAMLimit.slice(0, -1);
+                        if(val > 100){
+                            this.createNotification("Error", "RAM Limit cannot exceed 100%").error();
+                            return false;
+                        }
+                        if(val <= 0){
+                            this.createNotification("Error", "RAM Limit must be at least 1%").error();
                             return false;
                         }
 
                     // if this is a byte value, ensure its less than host memory
                     } else {
-                        let val = utils.parseEngineeringNotation($scope.editableHost.RAMCommitment);
+                        let val = utils.parseEngineeringNotation($scope.editableHost.RAMLimit);
+                        if(isNaN(val) || val === undefined){
+                            this.createNotification("Error", "Invalid RAM Limit value").error();
+                            return false;
+                        }
                         if(val > $scope.currentHost.model.Memory){
-                            this.createNotification("Error", "Invalid RAM Commitment value").error();
+                            this.createNotification("Error", "RAM Limit exceeds available host memory").error();
+                            return false;
+                        }
+                        if(val === 0){
+                            this.createNotification("Error", "RAM Limit must be at least 1").error();
                             return false;
                         }
 
@@ -133,16 +143,6 @@
                     return true;
                 }
             });
-        };
-        $scope.getRamCommitment = function(){
-            if(!$scope.currentHost){
-                return;
-            }
-            if($scope.currentHost.RAMCommitment === 0){
-                return $scope.currentHost.model.Memory;
-            } else {
-                return $scope.currentHost.RAMCommitment;
-            }
         };
 
         init();
