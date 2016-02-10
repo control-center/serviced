@@ -28,6 +28,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
+var ErrSizeTooBig = errors.New("calculated memory exceeds base value")
+
+func GetRAMLimit(value string, base uint64) (mem uint64, err error) {
+	if mem, err = utils.ParseEngineeringNotation(value); err != nil {
+		mem, err = utils.ParsePercentage(value, base)
+	}
+	if mem > base {
+		return 0, ErrSizeTooBig
+	}
+	return
+}
+
 //Host that runs the control center agent.
 type Host struct {
 	ID              string // Unique identifier, default to hostid
@@ -59,22 +71,18 @@ type Host struct {
 	datastore.VersionedEntity
 }
 
-func (a *Host) TotalRAM() (mem uint64, err error) {
+func (a *Host) TotalRAM() (mem uint64) {
 	if a.RAMLimit != "" {
-		if mem, err = utils.ParseEngineeringNotation(a.RAMLimit); err != nil {
-			if mem, err = utils.ParsePercentage(a.RAMLimit, a.Memory); err != nil {
-				return
-			}
-		}
-	} else if a.RAMCommitment > 0 {
+		mem, _ = GetRAMLimit(a.RAMLimit, a.Memory)
+	} else {
 		a.RAMLimit = fmt.Sprintf("%d", a.RAMCommitment)
 		mem = a.RAMCommitment
 	}
 	a.RAMCommitment = 0
-	if mem <= 0 || mem > a.Memory {
-		mem = a.Memory
+	if mem > 0 && mem < a.Memory {
+		return
 	}
-	return
+	return a.Memory
 }
 
 // Equals verifies whether two host objects are equal
@@ -166,6 +174,9 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 		return nil, err
 	}
 	host.IPs = hostIPs
+	if _, err := GetRAMLimit(memory, host.Memory); err != nil {
+		return nil, err
+	}
 	host.RAMLimit = memory
 
 	// get embedded host information
