@@ -360,29 +360,7 @@ func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort u
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	transport.Dial = func(network, addr string) (remote net.Conn, err error) {
-		if useTLS && !isLocalContainer { // Only do TLS if connecting to a TCPMux
-			config := tls.Config{InsecureSkipVerify: true}
-			glog.V(1).Infof("public endpoint about to dial %s", remoteAddr)
-			remote, err = tls.Dial("tcp4", remoteAddr, &config)
-		} else {
-			glog.V(1).Info("public endpoint about to dial %s", remoteAddr)
-			remote, err = net.Dial("tcp4", remoteAddr)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if muxPort > 0 && !isLocalContainer {
-			//TODO: move this check to happen sooner
-			if len(privateIP) == 0 {
-				return nil, fmt.Errorf("missing endpoint")
-			}
-			muxAddr := fmt.Sprintf("%s:%d\n", privateIP, privatePort)
-			glog.V(1).Infof("public endpoint muxing to %s", muxAddr)
-			io.WriteString(remote, muxAddr)
-
-		}
-		return remote, nil
+		return sc.getRemoteConnection(remoteAddr, isLocalContainer, muxPort, privateIP, privatePort, useTLS)
 	}
 	rp := httputil.NewSingleHostReverseProxy(&rpurl)
 	rp.Transport = transport
@@ -391,4 +369,35 @@ func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort u
 	reverseProxies[key] = rp
 	return rp
 
+}
+
+func (sc *ServiceConfig) getRemoteConnection(remoteAddr string, isLocalContainer bool, muxPort int, privateIP string, privatePort uint16, useTLS bool) (net.Conn, error) {
+	var (
+		remote net.Conn
+		err    error
+	)
+
+	if useTLS && !isLocalContainer { // Only do TLS if connecting to a TCPMux
+		config := tls.Config{InsecureSkipVerify: true}
+		glog.V(1).Infof("public endpoint about to dial %s", remoteAddr)
+		remote, err = tls.Dial("tcp4", remoteAddr, &config)
+	} else {
+		glog.V(1).Info("public endpoint about to dial %s", remoteAddr)
+		remote, err = net.Dial("tcp4", remoteAddr)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if muxPort > 0 && !isLocalContainer {
+		//TODO: move this check to happen sooner
+		if len(privateIP) == 0 {
+			return nil, fmt.Errorf("missing endpoint")
+		}
+		muxAddr := fmt.Sprintf("%s:%d\n", privateIP, privatePort)
+		glog.V(1).Infof("public endpoint muxing to %s", muxAddr)
+		io.WriteString(remote, muxAddr)
+
+	}
+	return remote, nil
 }
