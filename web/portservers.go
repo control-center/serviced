@@ -96,13 +96,13 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 
 			// setup remote connection
 			var remoteAddr string
-			_, isLocalContainer := sc.localAddrs[pepEPInfo.hostIP]
+			_, isLocalContainer := localAddrs[pepEPInfo.hostIP]
 			if isLocalContainer {
 				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
 			} else {
 				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.hostIP, sc.muxPort)
 			}
-			remoteConn, err := sc.getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
+			remoteConn, err := getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
 			if err != nil {
 				glog.Errorf("Error getting remote connection for public endpoint %s: %s", publicEndpointKey, err)
 				continue

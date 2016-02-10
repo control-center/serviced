@@ -360,7 +360,7 @@ func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort u
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	transport.Dial = func(network, addr string) (remote net.Conn, err error) {
-		return sc.getRemoteConnection(remoteAddr, isLocalContainer, muxPort, privateIP, privatePort, useTLS)
+		return getRemoteConnection(remoteAddr, isLocalContainer, muxPort, privateIP, privatePort, useTLS)
 	}
 	rp := httputil.NewSingleHostReverseProxy(&rpurl)
 	rp.Transport = transport
@@ -371,7 +371,7 @@ func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort u
 
 }
 
-func (sc *ServiceConfig) getRemoteConnection(remoteAddr string, isLocalContainer bool, muxPort int, privateIP string, privatePort uint16, useTLS bool) (net.Conn, error) {
+func getRemoteConnection(remoteAddr string, isLocalContainer bool, muxPort int, privateIP string, privatePort uint16, useTLS bool) (net.Conn, error) {
 	var (
 		remote net.Conn
 		err    error
