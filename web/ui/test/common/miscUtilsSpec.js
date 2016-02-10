@@ -133,6 +133,33 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("validateRAMLimit", function(){
+        it("Validates percentage values", function(){
+            expect(miscUtils.validateRAMLimit("50%")).toBe(null);
+        });
+        it("Validates various byte values", function(){
+            expect(miscUtils.validateRAMLimit("972")).toBe(null);
+            expect(miscUtils.validateRAMLimit("972k")).toBe(null);
+            expect(miscUtils.validateRAMLimit("972K")).toBe(null);
+            expect(miscUtils.validateRAMLimit("972g")).toBe(null);
+            expect(miscUtils.validateRAMLimit("972G")).toBe(null);
+        });
+        it("Invalidates percentages greater than 100", function(){
+            expect(miscUtils.validateRAMLimit("101%")).toEqual("RAM Limit cannot exceed 100%");
+        });
+        it("Invalidates 0%", function(){
+            expect(miscUtils.validateRAMLimit("0%")).toEqual("RAM Limit must be at least 1%");
+        });
+        it("Invalidates invalid units", function(){
+            expect(miscUtils.validateRAMLimit("100Z")).toEqual("Invalid RAM Limit value");
+        });
+        it("Invalidates 0", function(){
+            expect(miscUtils.validateRAMLimit("0")).toEqual("RAM Limit must be at least 1");
+        });
+        it("Invalidates limit that exceeds available memory", function(){
+            expect(miscUtils.validateRAMLimit("64G", 32 * 1024 * 1024 * 1024)).toEqual("RAM Limit exceeds available host memory");
+        });
+    });
 
     // FIXME: Need to refactor unauthorized so that location can be injected as illustrated below.
     // describe('unauthorized', function() {
