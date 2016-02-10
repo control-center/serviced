@@ -232,8 +232,7 @@
                 }
             },
 
-
-            validateRAMLimit(limitStr, max=Infinity){
+            validateRAMLimit: function(limitStr, max=Infinity){
 
                 var isPercent = (limitStr.endsWith("%"));
 
@@ -256,7 +255,7 @@
                     if(val > max){
                         return "RAM Limit exceeds available host memory";
                     }
-                    if(val === 0){
+                    if(val <= 0){
                         return "RAM Limit must be at least 1";
                     }
 
