@@ -35,8 +35,8 @@ When (/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
     fillInResourcePool(resourcePool)
 end
 
-When (/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
-    fillInRAMCommitment(ramCommitment)
+When (/^I fill in the RAM Limit field with "(.*?)"$/) do |ramLimit|
+    fillInRAMLimit(ramLimit)
 end
 
 When (/^I click the add Host button$/) do
@@ -75,8 +75,8 @@ Then (/^I should see the Resource Pool ID field$/) do
     @hosts_page.resourcePool_input.visible?
 end
 
-Then (/^I should see the RAM Commitment field$/) do
-    @hosts_page.ramCommitment_input.visible?
+Then (/^I should see the RAM Limit field$/) do
+    @hosts_page.ramLimit_input.visible?
 end
 
 Then (/^I should see an empty Hosts page$/) do
@@ -116,11 +116,11 @@ def fillInResourcePool(pool)
     @hosts_page.resourcePool_input.select getTableValue(pool)
 end
 
-def fillInRAMCommitment(commitment)
+def fillInRAMLimit(commitment)
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
-    @hosts_page.ramCommitment_input.set getTableValue(commitment)
+    @hosts_page.ramLimit_input.set getTableValue(commitment)
 end
 
 def clickAddHostButton()
@@ -135,7 +135,7 @@ def addHostUI(name, pool, commitment)
     clickAddHostButton()
     fillInHostAndPort(name)
     fillInResourcePool(pool)
-    fillInRAMCommitment(commitment)
+    fillInRAMLimit(commitment)
     click_link_or_button("Add Host")
 end
 

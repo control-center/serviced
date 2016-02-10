@@ -16,7 +16,7 @@ Feature: Host Management
       And I should see "Active"
       And I should see "Resource Pool"
       And I should see "Memory"
-      And I should see "RAM Commitment"
+      And I should see "RAM Limit"
       And I should see an empty Hosts page
 
   Scenario: View Add Host dialog
@@ -27,8 +27,8 @@ Feature: Host Management
       And I should see the Host and port field
       And I should see "Resource Pool ID"
       And I should see the Resource Pool ID field
-      And I should see "RAM Commitment"
-      And I should see the RAM Commitment field
+      And I should see "RAM Limit"
+      And I should see the RAM Limit field
 
   Scenario: Add an invalid host with an invalid name
     Given there are no hosts added
@@ -36,7 +36,7 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "bogushost"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
@@ -49,7 +49,7 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "172.17.42.1:9999"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request: dial tcp4 172.17.42.1:9999"
@@ -60,22 +60,22 @@ Feature: Host Management
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: error verifying pool exists: empty Kind id"
       And I should see an empty Hosts page
 
-  Scenario: Add an invalid host with an invalid RAM Commitment field
+  Scenario: Add an invalid host with an invalid RAM Limit field
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "invalidentry"
+      And I fill in the RAM Limit field with "invalidentry"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request: Could not parse RAM Commitment: Parsing percentage for 'invalidentry'"
+      And I should see "Invalid RAM Limit value"
       And I should see an empty Hosts page
 
   Scenario: Fill in the hosts dialog and cancel
@@ -84,7 +84,7 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Cancel"
     Then I should see an empty Hosts page
       And I should not see "Success"
@@ -96,24 +96,24 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Success"
       And I should see "table://hosts/defaultHost/name" in the "Name" column
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
       And I should see "table://hosts/defaultHost/memoryGB" in the "Memory" column
-      And I should see "table://hosts/defaultHost/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/defaultHost/ramGB" in the "RAM Limit" column
       And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
       And I should see "Showing 1 Result"
 
-  @clean_hosts
+  @clean_hosts @broke
   Scenario: Add another valid host
     Given only the default host is added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/host2/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/host2/pool"
-      And I fill in the RAM Commitment field with "table://hosts/host2/commitment"
+      And I fill in the RAM Limit field with "table://hosts/host2/commitment"
       And I click "Add Host"
     Then I should see "Success"
       And I should see an entry for "table://hosts/host2/name" in the table
@@ -122,7 +122,7 @@ Feature: Host Management
       And I should see "table://hosts/host2/name" in the "Name" column
       And I should see "table://hosts/host2/pool" in the "Resource Pool" column
       And I should see "table://hosts/host2/memoryGB" in the "Memory" column
-      And I should see "table://hosts/host2/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host2/ramGB" in the "RAM Limit" column
       And I should see "table://hosts/host2/cores" in the "CPU Cores" column
       And I should see "table://hosts/host2/kernelVersion" in the "Kernel Version" column
       And I should see "table://hosts/host2/ccRelease" in the "CC Release" column
@@ -135,14 +135,14 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/host3/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/host3/pool"
-      And I fill in the RAM Commitment field with "table://hosts/host3/commitment"
+      And I fill in the RAM Limit field with "table://hosts/host3/commitment"
       And I click "Add Host"
     Then I should see "Success"
       And I should see an entry for "table://hosts/host3/name" in the table
       And I should see "table://hosts/host3/name" in the "Name" column
       And I should see "table://hosts/host3/pool" in the "Resource Pool" column
       And I should see "table://hosts/host3/memoryGB" in the "Memory" column
-      And I should see "table://hosts/host3/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host3/ramGB" in the "RAM Limit" column
       And I should see "table://hosts/host3/cores" in the "CPU Cores" column
       And I should see "table://hosts/host3/kernelVersion" in the "Kernel Version" column
       And I should see "table://hosts/host3/ccRelease" in the "CC Release" column
@@ -154,7 +154,7 @@ Feature: Host Management
       And I click the add Host button
       And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
-      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
@@ -205,7 +205,7 @@ Feature: Host Management
       And the details for "Kernel Release" should be "table://hosts/defaultHost/kernelRelease"
       And the details for "CC Release" should be "table://hosts/defaultHost/ccRelease"
       And the details for "IP Address" should be "table://hosts/defaultHost/outboundIP"
-      And the details for "RAM Commitment" should be "table://hosts/defaultHost/ramGB"
+      And the details for "RAM Limit" should be "table://hosts/defaultHost/ramGB"
 
   @clean_hosts
   Scenario: View Host Map

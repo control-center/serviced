@@ -16,7 +16,8 @@ var miscUtilsMock = function($provide) {
             'memoize',
             'needsHostAlias',
             'parseEngineeringNotation',
-            'countTheKids'
+            'countTheKids',
+            'validateRAMLimit'
         ]);
 
         return mock;

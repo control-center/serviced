@@ -70,6 +70,55 @@
             $location.path('/services/' + instance.model.ServiceID);
         };
 
+        $scope.editCurrentHost = function(){
+            $scope.editableHost = {
+                Name: $scope.currentHost.name,
+                RAMLimit: $scope.currentHost.RAMLimit
+            };
+
+            $modalService.create({
+                templateUrl: "edit-host.html",
+                model: $scope,
+                title: "title_edit_host",
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        label: "btn_save_changes",
+                        action: function(){
+                            var hostModel = angular.copy($scope.currentHost.model);
+                            angular.extend(hostModel, $scope.editableHost);
+
+                            if(this.validate()){
+                                // disable ok button, and store the re-enable function
+                                var enableSubmit = this.disableSubmitButton();
+
+                                // update host with recently edited host
+                                resourcesFactory.updateHost($scope.currentHost.id, hostModel)
+                                    .success(function(data, status){
+                                        $notification.create("Updated host", hostModel.Name).success();
+                                        this.close();
+                                    }.bind(this))
+                                    .error(function(data, status){
+                                        this.createNotification("Update host failed", data.Detail).error();
+                                        enableSubmit();
+                                    }.bind(this));
+                            }
+                        }
+                    }
+                ],
+                validate: function(){
+                    var err = utils.validateRAMLimit($scope.editableHost.RAMLimit, $scope.currentHost.model.Memory);
+                    if(err){
+                        this.createNotification("Error", err).error();
+                        return false;
+                    }
+                    return true;
+                }
+            });
+        };
+
         init();
 
         function init(){
@@ -95,7 +144,6 @@
                     return instancesFactory.lastUpdate;
                 }
             };
-
 
             // kick off hostsFactory updating
             // TODO - update loop here

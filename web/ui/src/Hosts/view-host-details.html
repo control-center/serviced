@@ -1,57 +1,72 @@
 <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
-<h3>{{currentHost.name}}</h3>
-<div class="details">
-  <div class="details-form">
-    <div class="vertical-info">
-      <label for="host_data_id" translate>label_host_id</label>
-      <div id="host_data_id">{{currentHost.id}}</div>
+
+<div class="serviceDetails">
+    <div class="serviceControls" sticky sticky-class="stickied">
+
+        <h2 class="serviceTitle">
+            <div ng-if="currentHost.active" class="good" style="position: absolute; top: 6px; left: 4px; height: 22px;"><i class="healthIcon glyphicon"></i></div>
+            <div ng-if="!currentHost.active" class="down" style="position: absolute; top: 6px; left: 4px; height: 22px;"><i class="healthIcon glyphicon"></i></div>
+            <span style="position: relative; top: 0; left: 35px;"> {{currentHost.name}}</span>
+        </h2>
+
+        <div class="serviceActions" ng-hide="services.current.isIsvc()">
+            <button ng-click="editCurrentHost()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> <span translate>title_edit_host</span></button>
+        </div>
+        <div class="serviceBoxGradient"></div>
     </div>
 
-    <div class="vertical-info">
-      <label for="host_data_pool" translate>label_host_pool</label>
-      <div id="host_data_pool">{{currentHost.model.PoolID}}</div>
-    </div>
+    <div class="serviceDescription" style="display: flex;">
+        <div class="vertical-info">
+          <label for="host_data_id" translate>label_host_id</label>
+          <div id="host_data_id">{{currentHost.id}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_memory" translate>label_host_memory</label>
-      <div id="host_data_memory">{{currentHost.model.Memory | toGB}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_pool" translate>label_host_pool</label>
+          <div id="host_data_pool">{{currentHost.model.PoolID}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_cpu" translate>label_host_cores</label>
-      <div id="host_data_cpu">{{currentHost.model.Cores}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_cpu" translate>label_host_cores</label>
+          <div id="host_data_cpu">{{currentHost.model.Cores}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_kernel_version" translate>label_host_kernel_version</label>
-      <div id="host_data_kernel_version">{{currentHost.model.KernelVersion}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_memory" translate>label_host_memory</label>
+          <div id="host_data_memory">{{currentHost.model.Memory | toGB}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_kernel_revision" translate>label_host_kernel_release</label>
-      <div id="host_data_kernel_revision">{{currentHost.model.KernelRelease}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_ram_commitment" translate>label_host_ram_commitment</label>
+          <div id="host_ram_commitment">
+              <span ng-class="{'bad': !currentHost.resourcesGood()}" class="overcomText">{{currentHost.RAMLimit}}</span>
+              <span ng-show="currentHost.RAMIsPercent()">({{currentHost.RAMLimitBytes|toGB}})</span>
+          </div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_serviced_release" translate>label_host_serviced_release</label>
-      <div id="host_data_serviced_release">{{currentHost.model.ServiceD.Release}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_kernel_version" translate>label_host_kernel_version</label>
+          <div id="host_data_kernel_version">{{currentHost.model.KernelVersion}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_data_ip_addr" translate>label_host_ip_addr</label>
-      <div id="host_data_ip_addr">{{currentHost.model.IPAddr}}</div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_kernel_revision" translate>label_host_kernel_release</label>
+          <div id="host_data_kernel_revision">{{currentHost.model.KernelRelease}}</div>
+        </div>
 
-    <div class="vertical-info">
-      <label for="host_ram_commitment" translate>RAM Commitment</label>
-      <div id="host_ram_commitment">
-        <span ng-show="currentHost.RAMCommitment===0">{{currentHost.model.Memory|toGB}}</span>
-        <span ng-show="currentHost.RAMCommitment!==0" ng-class="{'bad': !currentHost.resourcesGood()}" class="overcomText">{{currentHost.RAMCommitment|toGB}}</span>
-      </div>
-    </div>
+        <div class="vertical-info">
+          <label for="host_data_serviced_release" translate>label_host_serviced_release</label>
+          <div id="host_data_serviced_release">{{currentHost.model.ServiceD.Release}}</div>
+        </div>
 
-  </div>
-</div>
+        <div class="vertical-info">
+          <label for="host_data_ip_addr" translate>label_host_ip_addr</label>
+          <div id="host_data_ip_addr">{{currentHost.model.IPAddr}}</div>
+        </div>
+
+    </div>
+</div><br>
+
 
 <!-- Graphs -->
 <graph-panel ng-if="currentHost.model.MonitoringProfile.GraphConfigs" data-service-id="currentHost.id" data-graph-configs="currentHost.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>

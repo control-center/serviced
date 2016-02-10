@@ -704,12 +704,19 @@ input.startup {
 }
 
 .vertical-info {
+    flex: 1 0 auto;
     display: inline-block;
-    padding: 8px 13px;
     vertical-align: top;
+    border-right: solid 1px #EEE;
+    margin-right: 7px;
+}
+.vertical-info:last-of-type {
+    border: none;
 }
 .vertical-info > label {
     display: block;
+    margin-bottom: 0;
+    font-size: 0.9em;
 }
 
 .wizard ol {
