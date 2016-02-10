@@ -31,8 +31,10 @@ import (
 var ErrSizeTooBig = errors.New("calculated memory exceeds base value")
 
 func GetRAMLimit(value string, base uint64) (mem uint64, err error) {
-	if mem, err = utils.ParseEngineeringNotation(value); err != nil {
+	if strings.HasSuffix(strings.TrimSpace(value), "%") {
 		mem, err = utils.ParsePercentage(value, base)
+	} else {
+		mem, err = utils.ParseEngineeringNotation(value)
 	}
 	if mem > base {
 		return 0, ErrSizeTooBig
