@@ -192,6 +192,37 @@
                 }, 0);
 
                 return childCount;
+            },
+
+            validateRAMLimit(limitStr, max=Infinity){
+
+                var isPercent = (limitStr.endsWith("%"));
+
+                // if this is a percent, ensure its between 1 and 100
+                if(isPercent){
+                    let val = +limitStr.slice(0, -1);
+                    if(val > 100){
+                        return "RAM Limit cannot exceed 100%";
+                    }
+                    if(val <= 0){
+                        return "RAM Limit must be at least 1%";
+                    }
+
+                // if this is a byte value, ensure its less than host memory
+                } else {
+                    let val = utils.parseEngineeringNotation(limitStr);
+                    if(isNaN(val) || val === undefined){
+                        return "Invalid RAM Limit value";
+                    }
+                    if(val > max){
+                        return "RAM Limit exceeds available host memory";
+                    }
+                    if(val === 0){
+                        return "RAM Limit must be at least 1";
+                    }
+
+                }
+                return null;
             }
        };
 

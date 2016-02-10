@@ -107,9 +107,9 @@ func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 }
 
 type addHostRequest struct {
-	IPAddr        string
-	PoolID        string
-	RAMCommitment string
+	IPAddr   string
+	PoolID   string
+	RAMLimit string
 }
 
 //restAddHost adds a Host. Request input is host.Host
@@ -162,7 +162,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		IP:     hostIP,
 		Port:   rpcPort,
 		PoolID: payload.PoolID,
-		Memory: payload.RAMCommitment,
+		Memory: payload.RAMLimit,
 	}
 	host, err := agentClient.BuildHost(buildRequest)
 	if err != nil {

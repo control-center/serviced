@@ -45,7 +45,6 @@
     // and wraps it with extra functionality and info
     function Host(host){
         this.active = false;
-        this.RAMCommitment = 0;
         this.update(host);
     }
 
@@ -61,15 +60,11 @@
         updateHostDef: function(host){
             this.name = host.Name;
             this.id = host.ID;
-            this.RAMCommitment = host.RAMCommitment;
             this.model = Object.freeze(host);
         },
 
         resourcesGood: function() {
-            if (this.RAMCommitment === 0) {
-                return true;
-            }
-            return this.RAMAverage <= this.RAMCommitment;
+            return this.RAMAverage <= this.RAMLimitBytes;
         },
 
         RAMIsPercent: function(){
@@ -87,6 +82,10 @@
     // NOTE: RAMCommitment is deprecated
     Object.defineProperty(Host.prototype, "RAMLimit", {
         get: function() {
+            if(!this.model){
+                return undefined;
+            }
+
             if(this.model.RAMLimit){
                 return this.model.RAMLimit;
             } else {
