@@ -30,7 +30,7 @@
       </td>
       <td data-title="'label_pool_name'|translate" sortable="'model.PoolID'" ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
       <td data-title="'label_host_memory'|translate" sortable="'model.Memory'">{{host.model.Memory | toGB}}</td>
-      <td data-title="'RAM Commitment'" sortable="'RAMCommitment'">
+      <td data-title="'label_host_ram_commitment'|translate" sortable="'RAMLimitBytes'">
           <span ng-class="{'bad': !host.resourcesGood()}" class="overcomText">{{host.RAMLimit}}</span>
           <span ng-show="host.RAMIsPercent()">({{host.RAMLimitBytes|toGB}})</span>
       </td>
