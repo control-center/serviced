@@ -91,23 +91,24 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", publicEndpointKey.Name(), int(publicEndpointKey.Type())))
 			if err != nil {
 				glog.Errorf("%s", err)
+				continue
 			}
 
 			// setup remote connection
-			remotePort := fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
-			remoteAddr, err := net.ResolveTCPAddr("tcp", remotePort)
-			if err != nil {
-				glog.Errorf("Cannot resolve remote address - %s: %s", remotePort, err)
-				continue
+			var remoteAddr string
+			_, isLocalContainer := localAddrs[pepEPInfo.hostIP]
+			if isLocalContainer {
+				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
 			} else {
-				glog.Infof("Resolved remote address - %s", remotePort)
+				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.hostIP, sc.muxPort)
+			}
+			remoteConn, err := getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
+			if err != nil {
+				glog.Errorf("Error getting remote connection for public endpoint %s: %s", publicEndpointKey, err)
+				continue
 			}
 
-			remoteConn, err := net.DialTCP("tcp", nil, remoteAddr)
-			if err != nil {
-				glog.Errorf("%s", err)
-				continue
-			}
+			glog.Infof("Established remote connection to %s", remoteConn.RemoteAddr())
 
 			connStopChan := make(chan bool)
 			stopChans = append(stopChans, connStopChan)
