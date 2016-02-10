@@ -271,13 +271,17 @@ func (sr *StatsReporter) updateStats() {
 	for _, rs := range running {
 		if rs.DockerID != "" {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
+			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct); fileName == "" {
+				glog.Warningf("Couldn't find CpuacctStat file for %s", rs.DockerID)
+			} else if cpuacctStat, err := cgroup.ReadCpuacctStat(fileName); err != nil {
 				glog.V(4).Infof("Couldn't read CpuacctStat:", err)
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
 			}
-			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
+			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory); fileName == "" {
+				glog.Warningf("Couldn't find  MemoryStat file for %s", rs.DockerID)
+			} else if memoryStat, err := cgroup.ReadMemoryStat(fileName); err != nil {
 				glog.V(4).Infof("Couldn't read MemoryStat:", err)
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
