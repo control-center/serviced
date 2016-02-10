@@ -13,7 +13,7 @@
 package main
 
 import (
-  "fmt"
+	"fmt"
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/rpc/agent"
@@ -30,12 +30,12 @@ func (m *MockAgent) BuildHost(request agent.BuildHostRequest, hostResponse *host
 
 	glog.Infof("Build Host Request: %s:%d, %s, %s", request.IP, request.Port, request.PoolID, request.Memory)
 
-	if mem, err := utils.ParseEngineeringNotation(request.Memory); err == nil {
-		m.mockHost.RAMCommitment = mem
-	} else if mem, err := utils.ParsePercentage(request.Memory, m.mockHost.Memory); err == nil {
-		m.mockHost.RAMCommitment = mem
+	if _, err := utils.ParseEngineeringNotation(request.Memory); err == nil {
+		m.mockHost.RAMLimit = request.Memory
+	} else if _, err := utils.ParsePercentage(request.Memory, m.mockHost.Memory); err == nil {
+		m.mockHost.RAMLimit = request.Memory
 	} else {
-		return fmt.Errorf("Could not parse RAM Commitment: %v", err)
+		return fmt.Errorf("Could not parse RAM limit: %v", err)
 	}
 	if request.PoolID != m.mockHost.PoolID {
 		m.mockHost.PoolID = request.PoolID

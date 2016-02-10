@@ -155,6 +155,11 @@
                 url: "/hosts/add",
                 payload: host => host
             },
+            updateHost: {
+                method: "PUT",
+                url: id => `/hosts/${id}`,
+                payload: (id, host) => host
+            },
             removeHost: {
                 method: "DELETE",
                 url: id => `/hosts/${id}`

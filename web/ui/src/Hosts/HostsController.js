@@ -50,7 +50,15 @@
                             }
                         }
                     }
-                ]
+                ],
+                validate: function(){
+                    var err = utils.validateRAMLimit($scope.newHost.RAMLimit);
+                    if(err){
+                        this.createNotification("Error", err).error();
+                        return false;
+                    }
+                    return true;
+                }
             });
         };
 

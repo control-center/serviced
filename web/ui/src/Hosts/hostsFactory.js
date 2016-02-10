@@ -4,18 +4,19 @@
     'use strict';
 
     // make angular share with everybody!
-    var resourcesFactory, $q, instancesFactory;
+    var resourcesFactory, $q, instancesFactory, utils;
 
     angular.module('hostsFactory', []).
     factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory", "baseFactory", "miscUtils",
-    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, BaseFactory, utils){
+    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, BaseFactory, _utils){
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         instancesFactory = _instancesFactory;
         $q = q;
+        utils = _utils;
 
         var newFactory = new BaseFactory(Host, resourcesFactory.getHosts);
-        
+
         // alias some stuff for ease of use
         newFactory.hostList = newFactory.objArr;
         newFactory.hostMap = newFactory.objMap;
@@ -44,7 +45,6 @@
     // and wraps it with extra functionality and info
     function Host(host){
         this.active = false;
-        this.RAMCommitment = 0;
         this.update(host);
     }
 
@@ -60,21 +60,51 @@
         updateHostDef: function(host){
             this.name = host.Name;
             this.id = host.ID;
-            this.RAMCommitment = host.RAMCommitment;
             this.model = Object.freeze(host);
         },
 
         resourcesGood: function() {
-            if (this.RAMCommitment === 0) {
-                return true;
-            }
-            return this.RAMAverage <= this.RAMCommitment;
+            return this.RAMAverage <= this.RAMLimitBytes;
+        },
+
+        RAMIsPercent: function(){
+            return this.RAMLimit.endsWith("%");
         }
     };
 
     Object.defineProperty(Host.prototype, "instances", {
         get: function(){
             return instancesFactory.getByHostId(this.id);
+        }
+    });
+
+    // RAMLimit may not be set yet, so use RAMCommitment
+    // NOTE: RAMCommitment is deprecated
+    Object.defineProperty(Host.prototype, "RAMLimit", {
+        get: function() {
+            if(!this.model){
+                return undefined;
+            }
+
+            if(this.model.RAMLimit){
+                return this.model.RAMLimit;
+            } else {
+                // RAMCommitment of 0 means 100% commitment
+                return this.model.RAMCommitment || "100%";
+            }
+        }
+    });
+
+    // get the RAMLimit in bytes
+    Object.defineProperty(Host.prototype, "RAMLimitBytes", {
+        get: function() {
+            // if percentange
+            if(this.RAMIsPercent()){
+                return +this.RAMLimit.slice(0,-1) * this.model.Memory * 0.01;
+            // if stringy value
+            } else {
+                return utils.parseEngineeringNotation(this.RAMLimit);
+            }
         }
     });
 
