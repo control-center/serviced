@@ -9,6 +9,19 @@
     .factory("miscUtils", [ "$parse",
     function($parse){
 
+        //polyfill endsWith so phantomjs won't complain :/
+        if (!String.prototype.endsWith) {
+          String.prototype.endsWith = function(searchString, position) {
+              var subjectString = this.toString();
+              if (typeof position !== 'number' || !isFinite(position) || Math.floor(position) !== position || position > subjectString.length) {
+                position = subjectString.length;
+              }
+              position -= searchString.length;
+              var lastIndex = subjectString.indexOf(searchString, position);
+              return lastIndex !== -1 && lastIndex === position;
+          };
+        }
+
         var utils = {
 
             // TODO - use angular $location object to make this testable
@@ -124,6 +137,12 @@
                 if (str === "" || str === undefined) {
                     return 0;
                 }
+
+                // if this is already a regular, boring, ol number
+                if(isFinite(+str)){
+                    return +str;
+                }
+
                 var prefix = parseFloat(str);
                 var suffix = str.slice(prefix.toString().length);
                 switch(suffix) {
@@ -142,6 +161,9 @@
                     case "T":
                     case "t":
                         prefix *= (1 << 40);
+                        break;
+                    default:
+                        prefix = undefined;
                         break;
                 }
                 return prefix;
@@ -183,6 +205,37 @@
                 }, 0);
 
                 return childCount;
+            },
+
+            validateRAMLimit: function(limitStr, max=Infinity){
+
+                var isPercent = (limitStr.endsWith("%"));
+
+                // if this is a percent, ensure its between 1 and 100
+                if(isPercent){
+                    let val = +limitStr.slice(0, -1);
+                    if(val > 100){
+                        return "RAM Limit cannot exceed 100%";
+                    }
+                    if(val <= 0){
+                        return "RAM Limit must be at least 1%";
+                    }
+
+                // if this is a byte value, ensure its less than host memory
+                } else {
+                    let val = utils.parseEngineeringNotation(limitStr);
+                    if(isNaN(val) || val === undefined){
+                        return "Invalid RAM Limit value";
+                    }
+                    if(val > max){
+                        return "RAM Limit exceeds available host memory";
+                    }
+                    if(val <= 0){
+                        return "RAM Limit must be at least 1";
+                    }
+
+                }
+                return null;
             }
        };
 
