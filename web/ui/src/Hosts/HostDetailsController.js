@@ -109,36 +109,10 @@
                     }
                 ],
                 validate: function(){
-                    var isPercent = ($scope.editableHost.RAMLimit.endsWith("%"));
-
-                    // if this is a percent, ensure its between 1 and 100
-                    if(isPercent){
-                        let val = +$scope.editableHost.RAMLimit.slice(0, -1);
-                        if(val > 100){
-                            this.createNotification("Error", "RAM Limit cannot exceed 100%").error();
-                            return false;
-                        }
-                        if(val <= 0){
-                            this.createNotification("Error", "RAM Limit must be at least 1%").error();
-                            return false;
-                        }
-
-                    // if this is a byte value, ensure its less than host memory
-                    } else {
-                        let val = utils.parseEngineeringNotation($scope.editableHost.RAMLimit);
-                        if(isNaN(val) || val === undefined){
-                            this.createNotification("Error", "Invalid RAM Limit value").error();
-                            return false;
-                        }
-                        if(val > $scope.currentHost.model.Memory){
-                            this.createNotification("Error", "RAM Limit exceeds available host memory").error();
-                            return false;
-                        }
-                        if(val === 0){
-                            this.createNotification("Error", "RAM Limit must be at least 1").error();
-                            return false;
-                        }
-
+                    var err = utils.validateRAMLimit($scope.editableHost.RAMLimit, $scope.currentHost.model.Memory);
+                    if(err){
+                        this.createNotification("Error", err).error();
+                        return false;
                     }
                     return true;
                 }
