@@ -18,7 +18,7 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package cmd
+package api
 
 import (
 	"testing"

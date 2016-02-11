@@ -32,7 +32,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const defaultRPCPort = 4979
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
@@ -47,7 +46,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	if config == nil {
 		glog.Fatal("Missing configuration data!")
 	}
-	defaultOps := getDefaultOptions(config)
+	defaultOps := api.GetDefaultOptions(config)
 
 	c := &ServicedCli{
 		driver: driver,
@@ -63,11 +62,11 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", defaultOps.DockerRegistry, "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", convertToStringSlice(defaultOps.StaticIPs), "static ips for this agent to advertise"},
-		cli.StringFlag{"endpoint", defaultOps.Endpoint, fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
+		cli.StringFlag{"endpoint", defaultOps.Endpoint, fmt.Sprintf("endpoint for remote serviced (example.com:%d)", api.DefaultRPCPort)},
 		cli.StringFlag{"outbound", defaultOps.OutboundIP, "outbound ip address"},
 		cli.StringFlag{"uiport", defaultOps.UIPort, "port for ui"},
 		cli.StringFlag{"nfs-client", defaultOps.NFSClient, "establish agent as an nfs client sharing data, 0 to disable"},
-		cli.IntFlag{"listen", config.IntVal("RPC_PORT", defaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
+		cli.IntFlag{"listen", config.IntVal("RPC_PORT", api.DefaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", api.DefaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", convertToStringSlice(defaultOps.DockerDNS), "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
@@ -376,4 +375,9 @@ func setIsvcsEnv(ctx *cli.Context) error {
 func init() {
 	// Change the representation of the version flag
 	cli.VersionFlag = cli.BoolFlag{"version", "print the version"}
+}
+
+func convertToStringSlice(list []string) *cli.StringSlice {
+	slice := cli.StringSlice(list)
+	return &slice
 }
