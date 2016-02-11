@@ -162,14 +162,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	locker.Unlock()
 	glog.Infof("DFS locks are all reset")
 
-	// perform v1 to v2 registry upgrade if necessary
-	glog.Infof("Checking service images")
-	if err := s.facade.UpgradeRegistry(datastore.Get(), "", false); err != nil {
-		glog.Errorf("Could not upgrade registry: %s", err)
-		return
-	}
-	glog.Infof("Done checking service images")
-
 	// start the storage server
 	wg.Add(1)
 	go func() {
