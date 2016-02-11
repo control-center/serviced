@@ -15,10 +15,7 @@ package api
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
-
-	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // ImageMap parses docker image data
@@ -43,40 +40,3 @@ func (m *ImageMap) String() string {
 
 	return strings.Join(mapping, " ")
 }
-
-// PortMap parses remote and local port data from the command line
-type PortMap map[string]servicedefinition.EndpointDefinition
-
-// Set converts a port mapping string from the command line to a PortMap object
-func (m *PortMap) Set(value string) error {
-	parts := strings.Split(value, ":")
-	if len(parts) != 3 {
-		return fmt.Errorf("bad format: %s; must be PROTOCOL:PORTNUM:PORTNAME", value)
-	}
-	protocol := parts[0]
-	switch protocol {
-	case "tcp", "udp":
-	default:
-		return fmt.Errorf("unsupported protocol: %s (udp|tcp)", protocol)
-	}
-	portnum, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return fmt.Errorf("invalid port number: %s", parts[1])
-	}
-	portname := parts[2]
-	if portname == "" {
-		return fmt.Errorf("port name cannot be empty")
-	}
-	port := fmt.Sprintf("%s:%d", protocol, portnum)
-	(*m)[port] = servicedefinition.EndpointDefinition{Protocol: protocol, PortNumber: uint16(portnum), Application: portname}
-	return nil
-}
-
-func (m *PortMap) String() string {
-	var mapping []string
-	for _, v := range *m {
-		mapping = append(mapping, fmt.Sprintf("%s:%d:%s", v.Protocol, v.PortNumber, v.Application))
-	}
-	return strings.Join(mapping, " ")
-}
-
