@@ -14,6 +14,8 @@
 package host
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 
@@ -51,12 +53,12 @@ func (h *Host) ValidEntity() error {
 		violations.Add(errors.New("host ip can not be a loopback address"))
 
 	}
-
-	if _, err := h.TotalRAM(); err != nil {
-		glog.Errorf("Could not parse RAM allocation for %s: %s", h.IPAddr, err)
+	if _, err := GetRAMLimit(h.RAMLimit, h.Memory); err == ErrSizeTooBig {
+		h.RAMLimit = fmt.Sprintf("%d", h.Memory)
+	} else if err != nil {
+		glog.Errorf("Can not parse RAM Limit: %s", err)
 		violations.Add(err)
 	}
-
 	if len(violations.Errors) > 0 {
 		return violations
 	}
