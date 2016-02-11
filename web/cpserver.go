@@ -209,7 +209,7 @@ func (sc *ServiceConfig) ServeUI() {
 	handler.SetRoutes(routes...)
 
 	// FIXME: bubble up these errors to the caller
-	if err := http.ListenAndServe(":7878", &handler); err != nil {
+	if err := http.ListenAndServe("127.0.0.1:7878", &handler); err != nil {
 		glog.Fatalf("could not setup internal web server: %s", err)
 	}
 }
