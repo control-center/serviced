@@ -152,6 +152,53 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
+	options := getRuntimeOptions(ctx)
+
+	var err error
+	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
+	}
+	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
+	}
+
+	if err := validation.ValidUIAddress(options.UIPort); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
+		return fmt.Errorf("error validating UI port: %s", err)
+	}
+
+	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
+		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
+	}
+
+	api.LoadOptions(options)
+
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := setIsvcsEnv(ctx); err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
+func (c *ServicedCli) exit(code int) error {
+	if c.exitDisabled {
+		return fmt.Errorf("exit code %v", code)
+	}
+	os.Exit(code)
+	return nil
+}
+
+// Get all runtime options as a combination of default values, environment variable settings and
+// command line overrides
+func getRuntimeOptions(ctx *cli.Context) api.Options {
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
@@ -208,28 +255,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 	}
 
-	var err error
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
-	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
-	}
-
+	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
+	// zendev, we need to double-check the environment variables for Master/Agent after all option
+	// initialization has been done
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
-	}
-
-	options.Endpoint = validateEndpoint(options)
-
-	if err := validation.ValidUIAddress(options.UIPort); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
-		return fmt.Errorf("error validating UI port: %s", err)
 	}
 
 	if options.Master {
@@ -239,39 +272,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.FSType = volume.DriverTypeNFS
 	}
 
-	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
-		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
-	}
+	options.Endpoint = getEndpoint(options)
 
-	api.LoadOptions(options)
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
-	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	options.Endpoint = validateEndpoint(options)
-
-	return nil
+	return options
 }
 
-func (c *ServicedCli) exit(code int) error {
-	if c.exitDisabled {
-		return fmt.Errorf("exit code %v", code)
-	}
-	os.Exit(code)
-	return nil
-}
-
-// validateEndpoint gets the endpoint to use if the user did not specify one.
+// getEndpoint gets the endpoint to use if the user did not specify one.
 // Takes other configuration options into account while determining the default.
-func validateEndpoint(options api.Options) string {
+func getEndpoint(options api.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {
