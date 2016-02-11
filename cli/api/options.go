@@ -23,7 +23,9 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
@@ -105,6 +107,29 @@ func LoadOptions(ops Options) {
 		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", minTimeout)
 		options.ESStartupTimeout = minTimeout
 	}
+}
+
+func ValidateOptions(opts Options) error {
+	var err error
+	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
+	}
+	rpcutils.RPCDisableTLS, err = strconv.ParseBool(opts.RPCDisableTLS)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
+	}
+
+	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
+		return fmt.Errorf("error validating UI port: %s", err)
+	}
+
+	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
+		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
+	}
+	return nil
 }
 
 // GetOptionsRPCEndpoint returns the serviced RPC endpoint from options

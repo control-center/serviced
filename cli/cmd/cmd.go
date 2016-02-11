@@ -17,17 +17,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
@@ -153,27 +150,9 @@ func (c *ServicedCli) Run(args []string) {
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-
-	var err error
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
+	if err := api.ValidateOptions(options); err != nil {
+		return err
 	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
-	}
-
-	if err := validation.ValidUIAddress(options.UIPort); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
-		return fmt.Errorf("error validating UI port: %s", err)
-	}
-
-	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
-		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
-	}
-
 	api.LoadOptions(options)
 
 	// Set logging options
