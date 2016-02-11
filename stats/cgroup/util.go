@@ -41,6 +41,8 @@ func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
 		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker-"+dockerID+".scope/", stat+".stat"),
 		// rhel (1.9.0 w/ '--exec-opt native.cgroupdriver=cgroupfs' flag, workaround for docker issue #17653
 		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker/", dockerID, stat+".stat"),
+		// This may be the actual path needed for docker issue #17653, leaving the above for now.
+		filepath.Join("/sys/fs/cgroup/", stat, "/system.slice/docker.service/docker/", dockerID, stat+".stat"),
 	}
 	for _, loc := range locations {
 		if _, err := os.Stat(loc); err == nil {
