@@ -475,6 +475,11 @@ func (d *daemon) startMaster() (err error) {
 		return err
 	}
 
+	if err = d.facade.UpgradeRegistry(d.dsContext, "", false); err != nil {
+		glog.Errorf("Could not upgrade registry: %s", err)
+		return err
+	}
+
 	if err = d.registerMasterRPC(); err != nil {
 		glog.Errorf("Could not register master RPCs: %s", err)
 		return err
