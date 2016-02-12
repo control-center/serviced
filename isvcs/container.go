@@ -269,6 +269,14 @@ func (svc *IService) create() (*docker.Container, error) {
 	hostConfig := dockerclient.HostConfig{}
 	hostConfig.LogConfig.Type = svc.dockerLogDriver
 	hostConfig.LogConfig.Config = svc.dockerLogConfig
+	// CC-1848: set core limit to 0
+	hostConfig.Ulimits = []dockerclient.ULimit{
+		{
+			Name: "core",
+			Soft: 0,
+			Hard: 0,
+		},
+	}
 
 	glog.Infof("hostConfig.LogConfig.Type=%s", hostConfig.LogConfig.Type)
 	glog.Infof("hostConfig.LogConfig.Config=%v", hostConfig.LogConfig.Config)
