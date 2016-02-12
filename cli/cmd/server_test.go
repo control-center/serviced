@@ -47,10 +47,3 @@ func ExampleSerivcedCLI_CmdServer_good() {
 	// starting server
 	// starting server
 }
-
-func ExampleServicedCLI_CmdServer_bad() {
-	pipeStderr(InitServiceAPITest, "serviced", "server")
-
-	// Output:
-	// serviced cannot be started: no mode (master or agent) was specified
-}
