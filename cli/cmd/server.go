@@ -20,7 +20,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-
 // Initializer for serviced server
 func (c *ServicedCli) initServer() {
 	c.app.Commands = append(c.app.Commands, cli.Command{

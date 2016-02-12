@@ -31,7 +31,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-
 const (
 	DefaultRPCPort       = 4979
 	outboundIPRetryDelay = 1
@@ -132,7 +131,7 @@ func ValidateCommonOptions(opts Options) error {
 		return fmt.Errorf("error validating UI port: %s", err)
 	}
 
-	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli 
+	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
 	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
@@ -144,26 +143,26 @@ func ValidateCommonOptions(opts Options) error {
 func ValidateServerOptions() error {
 	if !options.Master && !options.Agent {
 		return fmt.Errorf("serviced cannot be started: no mode (master or agent) was specified")
-	} else 	if err := validateStorageArgs(); err != nil {
+	} else if err := validateStorageArgs(); err != nil {
 		return err
 	}
 
-        // Make sure we have an endpoint to work with
-        if len(options.Endpoint) == 0 {
-                if options.Master {
-                        outboundIP, err := getOutboundIP()
-                        if err != nil {
-                                glog.Fatal(err)
-                        }
-                        options.Endpoint = fmt.Sprintf("%s:%s", outboundIP, options.RPCPort)
-                } else {
-                        return fmt.Errorf("No endpoint to master has been configured")
-                }
-        }
+	// Make sure we have an endpoint to work with
+	if len(options.Endpoint) == 0 {
+		if options.Master {
+			outboundIP, err := getOutboundIP()
+			if err != nil {
+				glog.Fatal(err)
+			}
+			options.Endpoint = fmt.Sprintf("%s:%s", outboundIP, options.RPCPort)
+		} else {
+			return fmt.Errorf("No endpoint to master has been configured")
+		}
+	}
 
-        if options.Master {
-                glog.Infof("This master has been configured to be in pool: " + options.MasterPoolID)
-        }
+	if options.Master {
+		glog.Infof("This master has been configured to be in pool: " + options.MasterPoolID)
+	}
 	return nil
 }
 
@@ -326,10 +325,10 @@ func getOutboundIP() (string, error) {
 		} else {
 			select {
 			case <-timeout:
-			// Give up
+				// Give up
 				return "", fmt.Errorf("Gave up waiting for network (to determine our outbound IP address): %s", err)
 			default:
-			// Retry
+				// Retry
 				glog.Info("Waiting for network initialization...")
 				time.Sleep(outboundIPRetryDelay * time.Second)
 			}

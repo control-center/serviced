@@ -29,7 +29,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
 	driver       api.API

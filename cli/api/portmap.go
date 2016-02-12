@@ -56,5 +56,3 @@ func (m *PortMap) String() string {
 	}
 	return strings.Join(mapping, " ")
 }
-
-
