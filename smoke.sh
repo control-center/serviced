@@ -97,7 +97,7 @@ start_serviced() {
     #   all of to force the proper subdirectories to be created under SERVICED_VARPATH
     echo "Starting serviced..."
     mkdir -p ${SERVICED_VARPATH}
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} -agent server &
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back -agent server &
 
     echo "Waiting 120 seconds for serviced to become the leader..."
     retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
