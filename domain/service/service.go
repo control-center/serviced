@@ -115,9 +115,9 @@ type ServiceEndpoint struct {
 	AddressConfig       servicedefinition.AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
-	VHostList           []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
-	AddressAssignment   addressassignment.AddressAssignment
-	PortList            []servicedefinition.Port  // The list of enabled/disabled ports to assign to this endpoint.
+	VHostList         []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
+	AddressAssignment addressassignment.AddressAssignment
+	PortList          []servicedefinition.Port // The list of enabled/disabled ports to assign to this endpoint.
 }
 
 // IsConfigurable returns true if the endpoint is configurable
@@ -213,6 +213,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
+	svc.CPUCommitment = sd.CPUCommitment
 	svc.Runs = sd.Runs
 	svc.Commands = sd.Commands
 	svc.Actions = sd.Actions
