@@ -38,15 +38,13 @@ func InitServerAPITest(args ...string) {
 }
 
 func ExampleSerivcedCLI_CmdServer_good() {
-	InitServerAPITest("serviced", "--master", "server")
+	InitServerAPITest("serviced", "--master", "--allow-loop-back=true", "server")
 	InitServerAPITest("serviced", "--agent", "--endpoint", "10.20.30.40", "server")
-	InitServerAPITest("serviced", "--agent", "--master", "server")
+	InitServerAPITest("serviced", "--agent", "--master", "--allow-loop-back=true", "server")
 
 	// Output:
-	// This master has been configured to be in pool: default
 	// starting server
 	// starting server
-	// This master has been configured to be in pool: default
 	// starting server
 }
 
