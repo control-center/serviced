@@ -90,8 +90,12 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			// lookup remote endpoint for this public port
 			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", publicEndpointKey.Name(), int(publicEndpointKey.Type())))
 			if err != nil {
-				glog.Errorf("%s", err)
-				continue
+				glog.Errorf("Error retrieving public endpoint %s:  %s", publicEndpointKey, err)
+				for _, c := range stopChans {
+					c <- true
+				}
+				disablePort(publicEndpointKey)
+				listener.Close()
 			}
 
 			// setup remote connection
@@ -112,13 +116,6 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 
 			connStopChan := make(chan bool)
 			stopChans = append(stopChans, connStopChan)
-			if err != nil {
-				for _, c := range stopChans {
-					c <- true
-				}
-				disablePort(publicEndpointKey)
-				listener.Close()
-			}
 
 			// serve proxied requests/responses
 			go proxy.ProxyLoop(localConn, remoteConn, connStopChan)
@@ -133,9 +130,9 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 		}
 
 		// disablePort modifies allports, so we need a lock
-		allportsLock.Lock()
-		defer allportsLock.Unlock()
-		disablePort(publicEndpointKey)
+		// allportsLock.Lock()
+		// defer allportsLock.Unlock()
+		// disablePort(publicEndpointKey)
 		listener.Close()
 		glog.Infof("Closed port %s", port)
 		return
