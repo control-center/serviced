@@ -108,7 +108,9 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+		}
 	}
 
 	restSuccess(w)
@@ -140,7 +142,9 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+		}
 	}
 
 	restSuccess(w)
@@ -379,7 +383,9 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+		}
 	}
 
 	restSuccess(w)
@@ -419,7 +425,9 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused)
+		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+		}
 	}
 
 	restSuccess(w)
