@@ -147,10 +147,12 @@ func (c *ServicedCli) Run(args []string) {
 	}
 }
 
-// cmdInit starts the server if no subcommands are called
+// cmdInit is executed before EVERY CLI command/subcommand. Any messages output by this
+// method are shown to the CLI user. If this method returns an error, then CLI
+// processing is halted
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-	if err := api.ValidateOptions(options); err != nil {
+	if err := api.ValidateCommonOptions(options); err != nil {
 		return err
 	}
 	api.LoadOptions(options)
@@ -176,7 +178,7 @@ func (c *ServicedCli) exit(code int) error {
 }
 
 // Get all runtime options as a combination of default values, environment variable settings and
-// command line overrides
+// command line overrides.
 func getRuntimeOptions(ctx *cli.Context) api.Options {
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),

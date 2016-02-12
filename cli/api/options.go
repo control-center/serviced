@@ -19,6 +19,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
@@ -30,7 +31,12 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const DefaultRPCPort = 4979
+
+const (
+	DefaultRPCPort       = 4979
+	outboundIPRetryDelay = 1
+	outboundIPMaxWait    = 90
+)
 
 var options Options
 
@@ -109,7 +115,8 @@ func LoadOptions(ops Options) {
 	}
 }
 
-func ValidateOptions(opts Options) error {
+// Validate options which are common to all CLI commands
+func ValidateCommonOptions(opts Options) error {
 	var err error
 	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
 	if err != nil {
@@ -121,25 +128,45 @@ func ValidateOptions(opts Options) error {
 	}
 
 	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
 		return fmt.Errorf("error validating UI port: %s", err)
 	}
 
+	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli 
 	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
+
+	return nil
+}
+
+// Validate options which are specific to running a master and/or agent
+func ValidateServerOptions() error {
+	if !options.Master && !options.Agent {
+                return fmt.Errorf("serviced cannot be started: no mode (master or agent) was specified")
+	}
+
+        // Make sure we have an endpoint to work with
+        if len(options.Endpoint) == 0 {
+                if options.Master {
+                        outboundIP, err := getOutboundIP()
+                        if err != nil {
+                                glog.Fatal(err)
+                        }
+                        options.Endpoint = fmt.Sprintf("%s:%s", outboundIP, options.RPCPort)
+                } else {
+                        return fmt.Errorf("No endpoint to master has been configured")
+                }
+        }
+
+        if options.Master {
+                glog.Infof("This master has been configured to be in pool: " + options.MasterPoolID)
+        }
 	return nil
 }
 
 // GetOptionsRPCEndpoint returns the serviced RPC endpoint from options
 func GetOptionsRPCEndpoint() string {
 	return options.Endpoint
-}
-
-// SetOptionsRPCEndpoint sets the serviced RPC endpoint in the options
-func SetOptionsRPCEndpoint(endpoint string) {
-	options.Endpoint = endpoint
 }
 
 // GetOptionsRPCPort returns the serviced RPC port from options
@@ -282,3 +309,26 @@ func getDefaultAdminGroup() string {
 	}
 }
 
+// getOutboundIP queries the network configuration for an IP address suitable for reaching the outside world.
+// Will retry for a while if a path to the outside world is not yet available.
+func getOutboundIP() (string, error) {
+	var outboundIP string
+	var err error
+	timeout := time.After(outboundIPMaxWait * time.Second)
+	for {
+		if outboundIP, err = utils.GetIPAddress(); err == nil {
+			// Success
+			return outboundIP, nil
+		} else {
+			select {
+			case <-timeout:
+			// Give up
+				return "", fmt.Errorf("Gave up waiting for network (to determine our outbound IP address): %s", err)
+			default:
+			// Retry
+				glog.Info("Waiting for network initialization...")
+				time.Sleep(outboundIPRetryDelay * time.Second)
+			}
+		}
+	}
+}
