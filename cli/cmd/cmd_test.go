@@ -105,10 +105,10 @@ func ExampleServicedCLI_CmdInit_logerr() {
 	InitAPITest("serviced", "--master", "--log_backtrace_at", "abc", "--allow-loop-back=true", "server")
 
 	// Output:
-	// strconv.ParseInt: parsing "abc": invalid syntax
+	// Unable to set logging options: strconv.ParseInt: parsing "abc": invalid syntax
 	// starting server
-	// syntax error: expect comma-separated list of filename=N
+	// Unable to set logging options: syntax error: expect comma-separated list of filename=N
 	// starting server
-	// syntax error: expect file.go:234
+	// Unable to set logging options: syntax error: expect file.go:234
 	// starting server
 }

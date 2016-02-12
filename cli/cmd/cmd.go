@@ -149,21 +149,27 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit is executed before EVERY CLI command/subcommand. Any messages output by this
 // method are shown to the CLI user. If this method returns an error, then CLI
-// processing is halted
+// processing is halted,
+//
+// NOTE: Neither this routine, nor the methods it calls, can use glog to report problems.
+//       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
 	if err := api.ValidateCommonOptions(options); err != nil {
+		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
 	}
 	api.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
+		fmt.Printf("Unable to set logging options: %s\n", err)
 	}
 
+	// TODO: Since isvcs options are only used by server (master/agent), these settings
+	//       should be moved to api.ValidateServerOptions
 	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Println(err)
+		fmt.Printf("Unable to set isvcs options: %s\n", err)
 		return err
 	}
 	return nil
@@ -261,6 +267,9 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 
 // getEndpoint gets the endpoint to use if the user did not specify one.
 // Takes other configuration options into account while determining the default.
+//
+// TODO: This method is eerily similar to logic in api.ValidateServerOptions(). The two should be reconciled
+//       at some point to avoid duplicate/inconsistent code
 func getEndpoint(options api.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
@@ -282,15 +291,6 @@ func getEndpoint(options api.Options) string {
 }
 
 func setLogging(ctx *cli.Context) error {
-
-	if ctx.GlobalBool("master") || ctx.GlobalBool("agent") {
-		hostname, err := os.Hostname()
-		if err != nil {
-			hostname = "unknown"
-		}
-		glog.SetLogstashType("serviced-" + hostname)
-	}
-
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
@@ -298,8 +298,6 @@ func setLogging(ctx *cli.Context) error {
 	if ctx.IsSet("alsologtostderr") {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
-
-	glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))

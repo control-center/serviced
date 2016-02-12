@@ -46,6 +46,7 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
+	configureLoggingForLogstash(options.LogstashURL)
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
 
 	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
@@ -72,6 +73,15 @@ func (a *api) StartServer() error {
 		return err
 	}
 	return d.run()
+}
+
+func configureLoggingForLogstash(logstashURL string) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	glog.SetLogstashType("serviced-" + hostname)
+	glog.SetLogstashURL(logstashURL)
 }
 
 // Opens a connection to the master if not already connected

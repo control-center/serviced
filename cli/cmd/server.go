@@ -18,6 +18,8 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
+	"fmt"
+	"os"
 )
 
 // Initializer for serviced server
@@ -33,7 +35,8 @@ func (c *ServicedCli) initServer() {
 // serviced server
 func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 	if err := api.ValidateServerOptions(); err != nil {
-		glog.Fatalf("Unable to validate server options: %s", err)
+		fmt.Printf("Unable to validate server options: %s", err)
+		os.Exit(1)
 	}
 
 	// Start server mode
@@ -42,3 +45,4 @@ func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 		glog.Fatalf("Could not start server: %s", err)
 	}
 }
+
