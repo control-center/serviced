@@ -214,6 +214,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.LogConfigs = sd.LogConfigs
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
+	svc.CPUCommitment = sd.CPUCommitment
 	svc.DisableShell = sd.DisableShell
 	svc.Runs = sd.Runs
 	svc.Commands = sd.Commands
