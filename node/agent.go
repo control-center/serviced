@@ -748,6 +748,15 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	hcfg.LogConfig.Type = a.dockerLogDriver
 	hcfg.LogConfig.Config = a.dockerLogConfig
 
+	// CC-1848: set core ulimit to 0
+	hcfg.Ulimits = []dockerclient.ULimit{
+		{
+			Name: "core",
+			Soft: 0,
+			Hard: 0,
+		},
+	}
+
 	return cfg, hcfg, nil
 }
 
