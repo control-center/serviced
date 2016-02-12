@@ -702,6 +702,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
 		fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(a.uiport, ":")[1]),
+		fmt.Sprintf("SERVICED_MASTER_IP=%s", strings.Split(a.master, ":")[0]),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
 		// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
 		fmt.Sprintf("DOCKER_14203_FIX='%s'", fix),
