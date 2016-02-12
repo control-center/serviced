@@ -99,6 +99,7 @@ type Options struct {
 	TLSMinVersion        string            // Minimum TLS version supported
 	DockerLogDriver      string            // Which log driver to use with containers
 	DockerLogConfigList  []string          // List of comma-separated key=value options for docker logging
+	AllowLoopBack        string            // Allow loop back devices for DM storage, string val of bool
 }
 
 // LoadOptions overwrites the existing server options
@@ -142,7 +143,9 @@ func ValidateCommonOptions(opts Options) error {
 // Validate options which are specific to running a master and/or agent
 func ValidateServerOptions() error {
 	if !options.Master && !options.Agent {
-                return fmt.Errorf("serviced cannot be started: no mode (master or agent) was specified")
+		return fmt.Errorf("serviced cannot be started: no mode (master or agent) was specified")
+	} else 	if err := validateStorageArgs(); err != nil {
+		return err
 	}
 
         // Make sure we have an endpoint to work with
@@ -241,6 +244,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		TLSMinVersion:        config.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
 		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
+		AllowLoopBack:        strconv.FormatBool(config.BoolVal("ALLOW_LOOP_BACK", false)),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

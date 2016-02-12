@@ -119,6 +119,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
+		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
 	}
 
 	c.initVersion()
@@ -234,6 +235,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		TLSMinVersion:        ctx.GlobalString("tls-min-version"),
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
+		AllowLoopBack:        ctx.GlobalString("allow-loop-back"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs

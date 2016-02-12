@@ -13,11 +13,6 @@
 
 // +build unit
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
-
 package api
 
 import (
@@ -26,6 +21,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	"reflect"
 	"github.com/control-center/serviced/volume"
+	"strings"
 )
 
 func TestAddStorageOptionWithEmptyDefault(t *testing.T) {
@@ -127,6 +123,181 @@ func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
 	})
 }
 
+func TestThinPoolEnabledWithNoOptions(t *testing.T) {
+	options := []string{}
+
+	if thinPoolEnabled(options) {
+		t.Errorf("expectd false but got true")
+	}
+}
+
+func TestThinPoolEnabledWithoutThinPool(t *testing.T) {
+	options := []string{
+		"dm.basesize=200G",
+		"dm.loopdatasize=10G",
+		"dm.loopmetadatasize=1G",
+	}
+
+	if thinPoolEnabled(options) {
+		t.Errorf("expectd false but got true")
+	}
+}
+
+func TestThinPoolEnabledWithThinPool(t *testing.T) {
+	options := []string{
+		"dm.thinpooldev=foo",
+	}
+
+	if !thinPoolEnabled(options) {
+		t.Errorf("expectd true but got false")
+	}
+}
+
+func TestThinPoolEnabledWithBothKindsOfOptions(t *testing.T) {
+	options := []string{
+		"dm.thinpooldev=foo",
+		"dm.basesize=200G",
+		"dm.loopdatasize=10G",
+		"dm.loopmetadatasize=1G",
+	}
+
+	if !thinPoolEnabled(options) {
+		t.Errorf("expectd true but got false")
+	}
+}
+
+func TestLoopBackOptionsFoundWithNoOptions(t *testing.T) {
+	options := []string{}
+
+	if loopBackOptionsFound(options) {
+		t.Errorf("expectd false but got true")
+	}
+}
+
+func TestLoopBackOptionsFoundWithoutLoopBackOptions(t *testing.T) {
+	options := []string{
+		"dm.thinpooldev=foo",
+	}
+
+	if loopBackOptionsFound(options) {
+		t.Errorf("expectd false but got true")
+	}
+}
+
+func TestLoopBackOptionsFoundWithLoopBackOptions(t *testing.T) {
+	options := []string{
+		"dm.basesize=200G",
+		"dm.loopdatasize=10G",
+		"dm.loopmetadatasize=1G",
+	}
+
+	if !loopBackOptionsFound(options) {
+		t.Errorf("expectd true but got false")
+	}
+}
+
+func TestLoopBackOptionsFoundWithJustBaseSize(t *testing.T) {
+	options := []string{
+		"dm.basesize=200G",
+	}
+
+	if !loopBackOptionsFound(options) {
+		t.Errorf("expectd true but got false")
+	}
+}
+
+func TestLoopBackOptionsFoundWithBothKindsOfOptions(t *testing.T) {
+	options := []string{
+		"dm.thinpooldev=foo",
+		"dm.basesize=200G",
+		"dm.loopdatasize=10G",
+		"dm.loopmetadatasize=1G",
+	}
+
+	if !loopBackOptionsFound(options) {
+		t.Errorf("expectd true but got false")
+	}
+}
+
+func TestValidateStorageArgsPassBtrfs(t *testing.T) {
+	testOptions := Options{
+		Master: true,
+		FSType: volume.DriverTypeBtrFS,
+		StorageArgs: []string{},
+		AllowLoopBack: "false",
+	}
+	LoadOptions(testOptions)
+
+	if err := validateStorageArgs(); err != nil {
+		t.Errorf("expected pass, but got error: %s", err)
+	}
+}
+
+func TestValidateStorageArgsPassRsync(t *testing.T) {
+	testOptions := Options{
+		Master: true,
+		FSType: volume.DriverTypeRsync,
+		StorageArgs: []string{},
+		AllowLoopBack: "false",
+	}
+	LoadOptions(testOptions)
+
+	if err := validateStorageArgs(); err != nil {
+		t.Errorf("expected pass, but got error: %s", err)
+	}
+}
+
+func TestValidateStorageArgsPassDMWithThinpool(t *testing.T) {
+	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
+	storageArgs := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
+	testOptions := Options{
+		Master: true,
+		FSType: volume.DriverTypeDeviceMapper,
+		StorageArgs: storageArgs,
+		AllowLoopBack: "false",
+	}
+	LoadOptions(testOptions)
+
+	if err := validateStorageArgs(); err != nil {
+		t.Errorf("expected pass, but got error: %s", err)
+	}
+}
+
+func TestValidateStorageArgsFailDMWithLoopBack(t *testing.T) {
+	testOptions := setupOptionsForDMWithLoopBack()
+	testOptions.AllowLoopBack = "false"
+	LoadOptions(testOptions)
+
+	expectedError := "devicemapper loop back device is not allowed"
+	if err := validateStorageArgs(); err == nil {
+		t.Errorf("expected error, but got ni")
+	} else if !strings.Contains(err.Error(), expectedError) {
+		t.Errorf("expected error message to contain %q, but got %q", expectedError, err)
+	}
+}
+
+func TestValidateStorageArgsPassDMWithAllowLoopBack(t *testing.T) {
+	testOptions := setupOptionsForDMWithLoopBack()
+	testOptions.AllowLoopBack = "true"
+	LoadOptions(testOptions)
+
+	if err := validateStorageArgs(); err != nil {
+		t.Errorf("expected pass, but got error: %s", err)
+	}
+}
+
+func TestValidateStorageArgsDoesNotFailIfAgentOnly(t *testing.T) {
+	testOptions := setupOptionsForDMWithLoopBack()
+	testOptions.Master = false
+	testOptions.Agent = true
+	testOptions.AllowLoopBack = "false"
+	LoadOptions(testOptions)
+
+	if err := validateStorageArgs(); err != nil {
+		t.Errorf("expected pass, but got error: %s", err)
+	}
+}
+
 func verifyOptions(t *testing.T, actual []string, expected []string) {
 	if len(actual) !=len(expected) {
 		t.Errorf("length of options incorrect: expected %d got %d; options=%v", len(expected), len(actual), actual)
@@ -134,4 +305,18 @@ func verifyOptions(t *testing.T, actual []string, expected []string) {
 		t.Errorf("options incorrect: expected %v got %v", expected, actual)
 	}
 
+}
+
+func setupOptionsForDMWithLoopBack() Options {
+	// Technically speaking, we w/loopback is indicated by no DM_THINPOOLDEV, still add a loop-back option
+	// to emphasize the point
+	configReader := utils.TestConfigReader(map[string]string{"DM_LOOPDATASIZE": "1G"})
+	storageArgs := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
+	testOptions:= Options{
+		Master: true,
+		FSType: volume.DriverTypeDeviceMapper,
+		StorageArgs: storageArgs,
+	}
+
+	return testOptions
 }

@@ -14,7 +14,6 @@
 package cmd
 
 import (
-
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/rpc/rpcutils"
