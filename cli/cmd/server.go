@@ -14,20 +14,12 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/rpc/rpcutils"
-	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
-)
-
-const (
-	outboundIPRetryDelay = 1
-	outboundIPMaxWait    = 90
+	"fmt"
+	"os"
 )
 
 // Initializer for serviced server
@@ -42,31 +34,9 @@ func (c *ServicedCli) initServer() {
 
 // serviced server
 func (c *ServicedCli) cmdServer(ctx *cli.Context) {
-	master := api.GetOptionsMaster()
-	agent := api.GetOptionsAgent()
-
-	// Make sure one of the configurations was specified
-	if !master && !agent {
-		fmt.Fprintf(os.Stderr, "serviced cannot be started: no mode (master or agent) was specified\n")
-		return
-	}
-
-	// Make sure we have an endpoint to work with
-	if endpoint := api.GetOptionsRPCEndpoint(); len(endpoint) == 0 {
-		if master {
-			outboundIP, err := getOutboundIP()
-			if err != nil {
-				glog.Fatal(err)
-			}
-			endpoint := fmt.Sprintf("%s:%s", outboundIP, api.GetOptionsRPCPort())
-			api.SetOptionsRPCEndpoint(endpoint)
-		} else {
-			glog.Fatal("No endpoint to master has been configured")
-		}
-	}
-
-	if master {
-		fmt.Println("This master has been configured to be in pool: " + api.GetOptionsMasterPoolID())
+	if err := api.ValidateServerOptions(); err != nil {
+		fmt.Printf("Unable to validate server options: %s", err)
+		os.Exit(1)
 	}
 
 	// Start server mode
@@ -76,26 +46,3 @@ func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 	}
 }
 
-// getOutboundIP queries the network configuration for an IP address suitable for reaching the outside world.
-// Will retry for a while if a path to the outside world is not yet available.
-func getOutboundIP() (string, error) {
-	var outboundIP string
-	var err error
-	timeout := time.After(outboundIPMaxWait * time.Second)
-	for {
-		if outboundIP, err = utils.GetIPAddress(); err == nil {
-			// Success
-			return outboundIP, nil
-		} else {
-			select {
-			case <-timeout:
-				// Give up
-				return "", fmt.Errorf("Gave up waiting for network (to determine our outbound IP address): %s", err)
-			default:
-				// Retry
-				glog.Info("Waiting for network initialization...")
-				time.Sleep(outboundIPRetryDelay * time.Second)
-			}
-		}
-	}
-}
