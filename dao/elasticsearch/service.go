@@ -56,11 +56,6 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 }
 
 //
-func (this *ControlPlaneDao) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
-	return this.facade.RunMigrationScript(datastore.Get(), request)
-}
-
-//
 func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
 	return this.facade.MigrateServices(datastore.Get(), request)
 }
