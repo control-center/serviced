@@ -742,8 +742,119 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_FailInvalidServiceDefini
 	t.Check(strings.Contains(err.Error(), "string bogus-launch not in [auto manual]"), Equals, true)
 }
 
-func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpoint(t *C) {
-	err := ft.setupMigrationTestWithEndpoints(t)
+func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpointsWithinANewService(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	// Create a new service has two endpoints with the same name
+	newSvc := service.Service{}
+	newSvc = *oldSvc
+	newSvc.ID = oldSvc.ID + "_CLONE"
+	newSvc.Name = oldSvc.Name + "_CLONE"
+	newSvc.Endpoints = []service.ServiceEndpoint{
+		service.BuildServiceEndpoint(
+			servicedefinition.EndpointDefinition{
+				Name:        "original_service_endpoint_name_child_1",
+				Application: "original_service_endpoint_application_child_1",
+				Purpose:     "export",
+			},
+		),
+		service.BuildServiceEndpoint(
+			servicedefinition.EndpointDefinition{
+				Name:        "original_service_endpoint_name_child_1",
+				Application: "original_service_endpoint_application_child_1",
+				Purpose:     "export",
+			},
+		),
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: originalID,
+		Added:     []*service.Service{&newSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewServices(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	// Create 2 new services which have the same endpoints
+	newSvc1 := service.Service{}
+	newSvc1 = *oldSvc
+	newSvc1.ID = oldSvc.ID + "_CLONE1"
+	newSvc1.Name = oldSvc.Name + "_CLONE1"
+	newSvc1.Endpoints = []service.ServiceEndpoint{
+		service.BuildServiceEndpoint(
+			servicedefinition.EndpointDefinition{
+				Name:        "original_service_endpoint_name_child_1",
+				Application: "original_service_endpoint_application_child_1",
+				Purpose:     "export",
+			},
+		),
+	}
+	newSvc2 := service.Service{}
+	newSvc2 = *oldSvc
+	newSvc2.ID = oldSvc.ID + "_CLONE2"
+	newSvc2.Name = oldSvc.Name + "_CLONE2"
+	newSvc2.Endpoints = []service.ServiceEndpoint{newSvc1.Endpoints[0]}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: originalID,
+		Added:     []*service.Service{&newSvc1, &newSvc2},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndModifiedServices(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	newSvc1 := service.Service{}
+	newSvc1 = *oldSvc
+	newSvc1.ID = oldSvc.ID + "_CLONE1"
+	newSvc1.Name = oldSvc.Name + "_CLONE1"
+	newSvc1.Endpoints = []service.ServiceEndpoint{
+		service.BuildServiceEndpoint(
+			servicedefinition.EndpointDefinition{
+				Name:        "original_service_endpoint_name_child_1",
+				Application: "original_service_endpoint_application_child_1",
+				Purpose:     "export",
+			},
+		),
+	}
+	modSvc := service.Service{}
+	modSvc = *oldSvc
+	modSvc.Endpoints = []service.ServiceEndpoint{newSvc1.Endpoints[0]}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: originalID,
+		Added:     []*service.Service{&newSvc1},
+		Modified:  []*service.Service{&modSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpointsAcrossNewAndDeployedServices(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
 	originalID := "original_service_id_child_1"
@@ -752,9 +863,56 @@ func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeEndpoint(t *C) {
 
 	newSvc := service.Service{}
 	newSvc = *oldSvc
+	newSvc.ID = oldSvc.ID + "_CLONE1"
+	newSvc.Name = oldSvc.Name + "_CLONE1"
+	newSvc.Endpoints = []service.ServiceEndpoint{
+		service.BuildServiceEndpoint(
+			servicedefinition.EndpointDefinition{
+				Name:        "original_service_endpoint_name_child_1",
+				Application: "original_service_endpoint_application_child_1",
+				Purpose:     "export",
+			},
+		),
+	}
+
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Added:     []*service.Service{&newSvc},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_FailDupeExistingEndpoint(t *C) {
+	err := ft.setupMigrationTestWithEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	// Create a service which has an endpoint that matches an existing service
+	newSvc := service.Service{}
+	newSvc = *oldSvc
 	newSvc.ID = oldSvc.ID + "_CLONE"
 	newSvc.Name = oldSvc.Name + "_CLONE"
-	newSvc.Endpoints = append(newSvc.Endpoints, newSvc.Endpoints[0])
 
 	request := dao.ServiceMigrationRequest{
 		ServiceID: originalID,
