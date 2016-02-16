@@ -247,6 +247,10 @@
 
             validateRAMLimit: function(limitStr, max=Infinity){
 
+                if (limitStr === undefined || limitStr === '') {
+                    return "Invalid RAM Limit value";
+                }
+
                 var isPercent = (limitStr.endsWith("%"));
 
                 // if this is a percent, ensure its between 1 and 100
