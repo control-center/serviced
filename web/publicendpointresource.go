@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 	"strconv"
 	"strings"
 )
@@ -109,7 +110,14 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
 		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+			glog.Errorf("Error restarting service %s: %s. Trying again in 10 seconds.", service.Name, err)
+			time.Sleep(10 * time.Second)
+			if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+				glog.Errorf("Error restarting service %s: %s. Aborting.", service.Name, err)
+				err = fmt.Errorf("Error restarting service %s.  Service will need to be restarted manually.", service.Name)
+				restServerError(w, err)
+				return
+			}
 		}
 	}
 
@@ -143,7 +151,10 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
 		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+			glog.Errorf("Error Starting service %s: %s", service.Name, err)
+			err = fmt.Errorf("Error restarting service %s.  Service will need to be started manually.", service.Name)
+			restServerError(w, err)
+			return
 		}
 	}
 
@@ -217,7 +228,6 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 
 	restSuccess(w)
-
 }
 
 // json object for adding/removing a port with a service
@@ -384,7 +394,14 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
 		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+			glog.Errorf("Error restarting service %s: %s. Trying again in 10 seconds.", service.Name, err)
+			time.Sleep(10 * time.Second)
+			if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+				glog.Errorf("Error restarting service %s: %s. Aborting.", service.Name, err)
+				err = fmt.Errorf("Error restarting service %s.  Service will need to be restarted manually.", service.Name)
+				restServerError(w, err)
+				return
+			}
 		}
 	}
 
@@ -426,7 +443,10 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
 		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error restarting service %s: %s", service.Name, err)
+			glog.Errorf("Error Restarting service %s: %s", service.Name, err)
+			err = fmt.Errorf("Error restarting service %s.  Service will need to be started manually.", service.Name)
+			restServerError(w, err)
+			return
 		}
 	}
 
