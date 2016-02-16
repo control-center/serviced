@@ -17,22 +17,17 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
-
-const defaultRPCPort = 4979
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
@@ -47,7 +42,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	if config == nil {
 		glog.Fatal("Missing configuration data!")
 	}
-	defaultOps := getDefaultOptions(config)
+	defaultOps := api.GetDefaultOptions(config)
 
 	c := &ServicedCli{
 		driver: driver,
@@ -63,11 +58,11 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", defaultOps.DockerRegistry, "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", convertToStringSlice(defaultOps.StaticIPs), "static ips for this agent to advertise"},
-		cli.StringFlag{"endpoint", defaultOps.Endpoint, fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
+		cli.StringFlag{"endpoint", defaultOps.Endpoint, fmt.Sprintf("endpoint for remote serviced (example.com:%d)", api.DefaultRPCPort)},
 		cli.StringFlag{"outbound", defaultOps.OutboundIP, "outbound ip address"},
 		cli.StringFlag{"uiport", defaultOps.UIPort, "port for ui"},
 		cli.StringFlag{"nfs-client", defaultOps.NFSClient, "establish agent as an nfs client sharing data, 0 to disable"},
-		cli.IntFlag{"listen", config.IntVal("RPC_PORT", defaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
+		cli.IntFlag{"listen", config.IntVal("RPC_PORT", api.DefaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", api.DefaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", convertToStringSlice(defaultOps.DockerDNS), "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
@@ -123,6 +118,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
+		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
 	}
 
 	c.initVersion()
@@ -151,8 +147,45 @@ func (c *ServicedCli) Run(args []string) {
 	}
 }
 
-// cmdInit starts the server if no subcommands are called
+// cmdInit is executed before EVERY CLI command/subcommand. Any messages output by this
+// method are shown to the CLI user. If this method returns an error, then CLI
+// processing is halted,
+//
+// NOTE: Neither this routine, nor the methods it calls, can use glog to report problems.
+//       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
+	options := getRuntimeOptions(ctx)
+	if err := api.ValidateCommonOptions(options); err != nil {
+		fmt.Printf("Invalid option(s) found: %s\n", err)
+		return err
+	}
+	api.LoadOptions(options)
+
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Printf("Unable to set logging options: %s\n", err)
+	}
+
+	// TODO: Since isvcs options are only used by server (master/agent), these settings
+	//       should be moved to api.ValidateServerOptions
+	if err := setIsvcsEnv(ctx); err != nil {
+		fmt.Printf("Unable to set isvcs options: %s\n", err)
+		return err
+	}
+	return nil
+}
+
+func (c *ServicedCli) exit(code int) error {
+	if c.exitDisabled {
+		return fmt.Errorf("exit code %v", code)
+	}
+	os.Exit(code)
+	return nil
+}
+
+// Get all runtime options as a combination of default values, environment variable settings and
+// command line overrides.
+func getRuntimeOptions(ctx *cli.Context) api.Options {
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
@@ -207,30 +240,17 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		TLSMinVersion:        ctx.GlobalString("tls-min-version"),
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
+		AllowLoopBack:        ctx.GlobalString("allow-loop-back"),
 	}
 
-	var err error
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(options.RPCCertVerify)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
-	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(options.RPCDisableTLS)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
-	}
-
+	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
+	// zendev, we need to double-check the environment variables for Master/Agent after all option
+	// initialization has been done
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
-	}
-
-	options.Endpoint = validateEndpoint(options)
-
-	if err := validation.ValidUIAddress(options.UIPort); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating UI port: %s\n", err)
-		return fmt.Errorf("error validating UI port: %s", err)
 	}
 
 	if options.Master {
@@ -240,39 +260,17 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.FSType = volume.DriverTypeNFS
 	}
 
-	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
-		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
-	}
+	options.Endpoint = getEndpoint(options)
 
-	api.LoadOptions(options)
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
-	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	options.Endpoint = validateEndpoint(options)
-
-	return nil
+	return options
 }
 
-func (c *ServicedCli) exit(code int) error {
-	if c.exitDisabled {
-		return fmt.Errorf("exit code %v", code)
-	}
-	os.Exit(code)
-	return nil
-}
-
-// validateEndpoint gets the endpoint to use if the user did not specify one.
+// getEndpoint gets the endpoint to use if the user did not specify one.
 // Takes other configuration options into account while determining the default.
-func validateEndpoint(options api.Options) string {
+//
+// TODO: This method is eerily similar to logic in api.ValidateServerOptions(). The two should be reconciled
+//       at some point to avoid duplicate/inconsistent code
+func getEndpoint(options api.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {
@@ -293,15 +291,6 @@ func validateEndpoint(options api.Options) string {
 }
 
 func setLogging(ctx *cli.Context) error {
-
-	if ctx.GlobalBool("master") || ctx.GlobalBool("agent") {
-		hostname, err := os.Hostname()
-		if err != nil {
-			hostname = "unknown"
-		}
-		glog.SetLogstashType("serviced-" + hostname)
-	}
-
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
@@ -309,8 +298,6 @@ func setLogging(ctx *cli.Context) error {
 	if ctx.IsSet("alsologtostderr") {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
-
-	glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))
@@ -376,4 +363,9 @@ func setIsvcsEnv(ctx *cli.Context) error {
 func init() {
 	// Change the representation of the version flag
 	cli.VersionFlag = cli.BoolFlag{"version", "print the version"}
+}
+
+func convertToStringSlice(list []string) *cli.StringSlice {
+	slice := cli.StringSlice(list)
+	return &slice
 }
