@@ -122,7 +122,11 @@ func init() {
 			}
 		}
 	}
+}
 
+// StartKernel starts up the kernel loop that is responsible for handling all the API calls
+// in a goroutine.
+func StartKernel() {
 	client, err := getDockerClient()
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
@@ -143,6 +147,7 @@ func UseRegistry() bool {
 
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc ClientInterface, done <-chan struct{}) error {
+	debug.PrintStack()
 	if receiveEvents {
 		routeEventsToKernel(dc)
 	}
