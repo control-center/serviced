@@ -23,10 +23,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/jessevdk/go-flags"
 
-	_ "github.com/control-center/serviced/volume/btrfs"
-	_ "github.com/control-center/serviced/volume/devicemapper"
-	_ "github.com/control-center/serviced/volume/rsync"
-
 	log "github.com/Sirupsen/logrus"
 )
 

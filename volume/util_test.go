@@ -73,7 +73,7 @@ func (s *UtilsSuite) TestFileInfoSlice(c *C) {
 		if fi, err := os.Stat(file); err == nil {
 			stats = append(stats, fi)
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(sleepTimeMsec * time.Millisecond)
 	}
 
 	// Append the FileInfos in non-sorted order
