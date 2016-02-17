@@ -33,17 +33,11 @@ var Platform = determinePlatform()
 const (
    Rhel = iota
    Debian
+   Darwin
 )
 
-func determinePlatform() int {
-    if _, err := os.Stat("/etc/redhat-release"); err == nil {
-        return Rhel
-    } else {
-        return Debian
-    }
-}
 
-// HostID retreives the system's unique id, on linux this maps
+// HostID retrieves the system's unique id, on linux this maps
 // to /usr/bin/hostid.
 func HostID() (hostid string, err error) {
 	cmd := exec.Command(hostIDCmdString)
@@ -54,7 +48,7 @@ func HostID() (hostid string, err error) {
 	return strings.TrimSpace(string(stdout)), err
 }
 
-// GetIPAddress attempts to find the IP address to the default outbout interface.
+// GetIPAddress attempts to find the IP address to the default outbound interface.
 func GetIPAddress() (ip string, err error) {
 	ip, err = getIPAddrFromOutGoingConnection()
 	switch {
