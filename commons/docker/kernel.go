@@ -147,7 +147,6 @@ func UseRegistry() bool {
 
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc ClientInterface, done <-chan struct{}) error {
-	debug.PrintStack()
 	if receiveEvents {
 		routeEventsToKernel(dc)
 	}
