@@ -587,7 +587,7 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	err = ft.Facade.MigrateServices(ft.CTX, request)
 	t.Assert(err, ErrorMatches, "No such entity.*")
 
-	// Make sure we fail if we cause a name collision.
+	// Make sure we fail if we cause a name collision with an existing service
 	newSvc = *oldSvc
 	newSvc.Name = "original_service_name_child_1"
 	request = dao.ServiceMigrationRequest{
@@ -612,6 +612,35 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Modify_Fail(t *C) {
 	t.Assert(actual, Equals, expected)
 }
 
+func (ft *FacadeTest) TestFacade_MigrateServices_Modify_FailDupNew(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	oldSvc, err := ft.Facade.GetService(ft.CTX, "original_service_id_child_0")
+	t.Assert(err, IsNil)
+
+	newSvc1 := service.Service{}
+	newSvc1 = *oldSvc
+	newSvc1.Name = "ModifiedName1"
+	newSvc1.Description = "migrated_service"
+
+	oldSvc, err = ft.Facade.GetService(ft.CTX, "original_service_id_child_1")
+	t.Assert(err, IsNil)
+
+	newSvc2 := service.Service{}
+	newSvc2 = *oldSvc
+	newSvc2.Name = newSvc1.Name
+	newSvc2.Description = "migrated_service"
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: oldSvc.ParentServiceID,
+		Modified:  []*service.Service{&newSvc1, &newSvc2},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceCollision)
+}
+
 func (ft *FacadeTest) TestFacade_MigrateServices_Added_Success(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
@@ -628,7 +657,7 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Added_Success(t *C) {
 	ft.assertServiceAdded(t, newSvc)
 }
 
-func (ft *FacadeTest) TestFacade_MigrateServices_Added_Fail(t *C) {
+func (ft *FacadeTest) TestFacade_MigrateServices_Added_FailDup(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
 
@@ -638,6 +667,22 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Added_Fail(t *C) {
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
 		Added:     []*service.Service{newSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+
+	t.Assert(err, Equals, ErrServiceCollision)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_Added_FailDupNew(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	newSvc1 := ft.createNewChildService(t)
+	newSvc2 := ft.createNewChildService(t)
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Added:     []*service.Service{newSvc1, newSvc2},
 	}
 
 	err = ft.Facade.MigrateServices(ft.CTX, request)
@@ -673,6 +718,58 @@ func (ft *FacadeTest) TestFacade_MigrateServices_AddedAndModified(t *C) {
 	t.Assert(out.Description, Equals, "migrated_service")
 }
 
+func (ft *FacadeTest) TestFacade_MigrateServices_AddedAndModified_FailDup(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	newSvc := ft.createNewChildService(t)
+	oldSvc, err := ft.Facade.GetService(ft.CTX, "original_service_id_child_0")
+	t.Assert(err, IsNil)
+
+	modSvc := service.Service{}
+	modSvc = *oldSvc
+	modSvc.Name = newSvc.Name
+	modSvc.Description = "migrated_service"
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Added:     []*service.Service{newSvc},
+		Modified:  []*service.Service{&modSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+
+	t.Assert(err, Equals, ErrServiceCollision)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_AddedAndDeployed_FailDup(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	newSvc := ft.createNewChildService(t)
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = newSvc.ParentServiceID
+	deployRequest.Service.Name = newSvc.Name
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: newSvc.ParentServiceID,
+		Added:     []*service.Service{newSvc},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+
+	// Conceptually, this is the same condition as ErrServiceCollision, but since it's caught in deployment
+	//	the error value is a different string.
+	t.Assert(err, ErrorMatches, "service exists")
+}
+
 func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_Success(t *C) {
 	err := ft.setupMigrationTestWithoutEndpoints(t)
 	t.Assert(err, IsNil)
@@ -703,6 +800,59 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_Success(t *C) {
 		}
 	}
 	t.Assert(foundAddedService, Equals, true)
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_FailDup(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = "original_service_id_tenant"
+	deployRequest.Service.Name = "original_service_name_child_0"
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy: []*dao.ServiceDeploymentRequest{deployRequest},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+
+	// Conceptually, this is the same condition as ErrServiceCollision, but since it's caught in deployment
+	//	the error value is a different string.
+	t.Assert(err, ErrorMatches, "service exists")
+}
+
+func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_FailDupNew(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	deployRequest1 := ft.createServiceDeploymentRequest(t)
+	deployRequest1.ParentID = "original_service_id_tenant"
+	deployRequest1.Service.Name = "deploy_service_name"
+	deployRequest2 := ft.createServiceDeploymentRequest(t)
+	deployRequest2.ParentID = "original_service_id_tenant"
+	deployRequest2.Service.Name = deployRequest1.Service.Name
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy: []*dao.ServiceDeploymentRequest{deployRequest1, deployRequest2},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest1.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+
+	// Conceptually, this is the same condition as ErrServiceCollision, but since it's caught in deployment
+	//	the error value is a different string.
+	t.Assert(err, ErrorMatches, "service exists")
 }
 
 func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_FailInvalidParentID(t *C) {
