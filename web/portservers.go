@@ -32,15 +32,19 @@ import (
 
 var (
 	allportsLock sync.RWMutex
-	allports     map[string]chan int // map of port number to channel that destroys the server
+	allports     map[string]chan bool // map of port number to channel that destroys the server
 	cpDao        dao.ControlPlane
 )
 
 func init() {
-	allports = make(map[string]chan int)
+	allports = make(map[string]chan bool)
 }
 
+// Removes the port from our local cache and updates the service so the UI will flip to "disabled".
+//  Only needs to be called if the port is being disabled unexpectedly due to an error
 func disablePort(publicEndpointKey service.PublicEndpointKey) {
+	//TODO: Add control plane methods to enable/disable public endpoints so we don't have to do a GetService and then UpdateService
+
 	// remove the port from our local cache
 	delete(allports, publicEndpointKey.Name())
 
@@ -59,7 +63,9 @@ func disablePort(publicEndpointKey service.PublicEndpointKey) {
 
 	// disable port
 	myService.EnablePort(myEndpoint.Name, publicEndpointKey.Name(), false)
-	cpDao.UpdateService(myService, &unused)
+	if err := cpDao.UpdateService(myService, &unused); err != nil {
+		glog.Errorf("Error in disablePort(%s): %v", string(publicEndpointKey), err)
+	}
 }
 
 func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao.ControlPlane) {
@@ -67,10 +73,10 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
-func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan <-chan int, shutdown <-chan (interface{})) error {
+func (sc *ServiceConfig) createPublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan chan bool, shutdown <-chan (interface{})) error {
 	port := publicEndpointKey.Name()
 	listener, err := net.Listen("tcp", port)
-	stopChans := []chan bool{}
+
 	if err != nil {
 		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s - %s", port, publicEndpointKey, err)
 		disablePort(publicEndpointKey)
@@ -90,7 +96,12 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			// lookup remote endpoint for this public port
 			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", publicEndpointKey.Name(), int(publicEndpointKey.Type())))
 			if err != nil {
-				glog.Errorf("%s", err)
+				// This happens if an endpoint is accessed and the containers have died or not come up yet.
+				glog.Errorf("Error retrieving public endpoint %s:  %s", publicEndpointKey, err)
+				// close the accepted connection and continue waiting for connections.
+				if err := localConn.Close(); err != nil {
+					glog.Errorf("Error closing client connection: %s", err)
+				}
 				continue
 			}
 
@@ -104,38 +115,28 @@ func (sc *ServiceConfig) CreatePublicPortServer(publicEndpointKey service.Public
 			}
 			remoteConn, err := sc.getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
 			if err != nil {
-				glog.Errorf("Error getting remote connection for public endpoint %s: %s", publicEndpointKey, err)
+				glog.Errorf("Error getting remote connection for public endpoint %s: %v", publicEndpointKey, err)
 				continue
 			}
 
-			glog.Infof("Established remote connection to %s", remoteConn.RemoteAddr())
+			glog.V(2).Infof("Established remote connection to %s", remoteConn.RemoteAddr())
 
-			connStopChan := make(chan bool)
-			stopChans = append(stopChans, connStopChan)
-			if err != nil {
-				for _, c := range stopChans {
-					c <- true
-				}
-				disablePort(publicEndpointKey)
-				listener.Close()
-			}
-
-			// serve proxied requests/responses
-			go proxy.ProxyLoop(localConn, remoteConn, connStopChan)
+			// Serve proxied requests/responses.  We pass our own port stop channel so that
+			// all proxy loops end when our port is shutdown.
+			go proxy.ProxyLoop(localConn, remoteConn, stopChan)
 		}
 	}()
 
 	go func() {
 		// Wait for shutdown, then kill all your connections
-		<-stopChan
-		for _, c := range stopChans {
-			c <- true
+		select {
+		case <-shutdown:
+			// Received an application shutdown. Close the port channel to halt all proxy loops.
+			glog.Infof("Shutting down port %s", port)
+			close(stopChan)
+		case <-stopChan:
 		}
 
-		// disablePort modifies allports, so we need a lock
-		allportsLock.Lock()
-		defer allportsLock.Unlock()
-		disablePort(publicEndpointKey)
 		listener.Close()
 		glog.Infof("Closed port %s", port)
 		return
@@ -159,7 +160,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		glog.V(1).Infof("syncPorts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		// start all servers that have been not started and enabled
-		newPorts := make(map[string]chan int)
+		newPorts := make(map[string]chan bool)
 		for _, pepID := range childIDs {
 			publicEndpointKey := service.PublicEndpointKey(pepID)
 			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled() {
@@ -168,8 +169,8 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 
 				if !running {
 					// recently enabled port - port should be opened
-					stopChan = make(chan int)
-					if err := sc.CreatePublicPortServer(publicEndpointKey, stopChan, shutdown); err != nil {
+					stopChan = make(chan bool)
+					if err := sc.createPublicPortServer(publicEndpointKey, stopChan, shutdown); err != nil {
 						continue
 					}
 				}
@@ -182,13 +183,14 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		for port, stopChan := range allports {
 			_, found := newPorts[port]
 			if !found {
-				stopChan <- 0
+				glog.V(2).Infof("Stopping port server for port %s", port)
 				close(stopChan)
+				glog.Infof("Port server shut down for port %s", port)
 			}
 		}
 
 		allports = newPorts
-		glog.V(1).Infof("allports: %+v", allports)
+		glog.V(2).Infof("Portserver allports: %+v", allports)
 	}
 
 	for {
