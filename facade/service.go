@@ -505,7 +505,7 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 	svcParentMapNameMap := make(map[string]map[string]struct{})
 	endpointMap := make(map[string]struct{})
 	for _, svc := range svcs {
-		// check for name uniqueness
+		// check for name uniqueness within the set of new/modified/deployed services
 		if svcNameMap, ok := svcParentMapNameMap[svc.ParentServiceID]; ok {
 			if _, ok := svcNameMap[svc.Name]; ok {
 				glog.Errorf("Found a collision for service name %s and parent %s", svc.Name, svc.ParentServiceID)
@@ -515,15 +515,26 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 		} else {
 			svcParentMapNameMap[svc.ParentServiceID] = make(map[string]struct{})
 		}
-		// check for duplicate endpoints
+
+		// check for endpoint name uniqueness within the set of new/modified/deployed services
 		for _, ep := range svc.Endpoints {
 			if ep.Purpose == "export" {
 				if _, ok := endpointMap[ep.Application]; ok {
-					glog.Errorf("Found a duplicate endpoint %s", ep.Application)
+					glog.Errorf("Endpoint %s in migrated service %s is a duplicate of an endpoint in one of the other migrated services", svc.Name, ep.Application)
 					return ErrServiceDuplicateEndpoint
 				}
 				endpointMap[ep.Application] = struct{}{}
 			}
+		}
+
+		// check for endpoint name uniqueness btwn this migrated service and the services already defined in
+		// the parent application.
+		//
+		// Note - this is not the most performant way to do this, but migration is not a
+		// performance-critical operation, so no-harm/no-foul.
+		if err := f.validateServiceEndpoints(ctx, &svc); err != nil {
+			glog.Errorf("Migrated service %s has a duplicate endpoint: %s", svc.Name, err)
+			return ErrServiceDuplicateEndpoint
 		}
 	}
 	return nil
@@ -1727,10 +1738,10 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 	return nil
 }
 
-// validateServiceEndpoints traverses the service tree and checks for duplicate
-// endpoints
-// WARNING: This code is unused in CC 1.1, but should be added back in CC 1.2
-// (see CC-811 for more information)
+// validateServiceEndpoints traverses the service tree for given application and checks for duplicate
+// endpoints.
+// WARNING: This code is only used in CC 1.1 in the context of service migrations, but it should be
+//          added back in CC 1.2 in a more general way (see CC-811 for more information)
 func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Service) error {
 	epValidator := service.NewServiceEndpointValidator()
 	vErr := validation.NewValidationError()
