@@ -89,7 +89,7 @@ func getIPAddrFromOutGoingConnection() (ip string, err error) {
 
 // ExecPath returns the path to the currently running executable.
 func ExecPath() (string, string, error) {
-	path, err := os.Readlink("/proc/self/exe")
+	path, err := getExecPath()
 	if err != nil {
 		return "", "", err
 	}
