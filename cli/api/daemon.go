@@ -14,6 +14,7 @@
 package api
 
 import (
+	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -99,6 +100,7 @@ type daemon struct {
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
+	commonsdocker.StartKernel()
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
