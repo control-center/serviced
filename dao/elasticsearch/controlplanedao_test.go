@@ -15,6 +15,7 @@ package elasticsearch
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -80,6 +81,11 @@ func (m MockStorageDriver) Stop() error {
 	return nil
 }
 
+func TestMain(m *testing.M) {
+	docker.StartKernel()
+	os.Exit(m.Run())
+}
+ 
 // This plumbs gocheck into testing
 func Test(t *testing.T) {
 	TestingT(t)
