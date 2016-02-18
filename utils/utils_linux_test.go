@@ -24,17 +24,19 @@ import (
 	"testing"
 )
 
-// Test GetIPv4Addresses()
-func TestGetIPv4Addresses(t *testing.T) {
-	ips, err := GetIPv4Addresses()
+// Test getMemorySize()
+func TestGetMemorySize(t *testing.T) {
+
+	// alter the file getMemorySize() is looking at
+	meminfoFile = "testfiles/meminfo"
+	size, err := GetMemorySize()
 	if err != nil {
-		t.Errorf("Failed to get ipv4 addresses: %s", err)
+		t.Errorf("Failed to parse memory file: %s", err)
 		t.Fail()
 	}
-
-	expectedMinimumLen := 1
-	if len(ips) < expectedMinimumLen {
-		t.Errorf("minimum IPs expected %d > retrieved %d  ips:%v", expectedMinimumLen, len(ips), ips)
+	expectedSize := uint64(33660776448)
+	if size != expectedSize {
+		t.Errorf("expected %d, received %d ", expectedSize, size)
 		t.Fail()
 	}
 }

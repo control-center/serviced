@@ -14,19 +14,14 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 )
 
 var hostIDCmdString = "/usr/bin/hostid"
-
-// Path to meminfo file. Placed here so getMemorySize() is testable.
-var meminfoFile = "/proc/meminfo"
 
 var Platform = determinePlatform()
 
@@ -85,28 +80,7 @@ func GetIPv4Addresses() (ips []string, err error) {
 
 // GetMemorySize attempts to get the size of the installed RAM.
 func GetMemorySize() (size uint64, err error) {
-	file, err := os.Open(meminfoFile)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
-	line, err := reader.ReadString('\n')
-	for err == nil {
-		if strings.Contains(line, "MemTotal:") {
-			parts := strings.Fields(line)
-			if len(parts) < 3 {
-				return 0, err
-			}
-			size, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return 0, err
-			}
-			return uint64(size) * 1024, nil
-		}
-		line, err = reader.ReadString('\n')
-	}
-	return 0, err
+	return getMemorySize()
 }
 
 // RouteEntry represents a entry from the route command
