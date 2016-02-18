@@ -73,6 +73,7 @@ const DEFAULT_HEALTHCHECK_NAME = "running"
 const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
 const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
 
+const STARTUP_HEALTHCHECK_DELAY = time.Duration(5) * time.Second
 const WAIT_FOR_INITIAL_HEALTHCHECK = time.Duration(2) * time.Minute
 
 type actionrequest struct {
@@ -676,6 +677,9 @@ func (svc *IService) startupHealthcheck() <-chan error {
 				err <- nil
 				return
 			}
+
+			// Wait just a brief moment to give processes time to really start (particularly zookeeper)
+			time.Sleep(STARTUP_HEALTHCHECK_DELAY)
 
 			startCheck := time.Now()
 			for {
