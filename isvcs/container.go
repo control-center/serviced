@@ -870,11 +870,14 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				glog.V(4).Infof("Error making isvc stats request.")
+				// FIXME: This should be a warning, but it happens alot at startup, so let's keep it
+				// on the DL until we have some better startup coordination and/or logging mechanisms.
+				glog.V(1).Infof("Couldn't post isvc container stats: %s", err)
 				break
 			}
+			defer resp.Body.Close()
 			if strings.Contains(resp.Status, "204 No Content") == false {
-				glog.Warningf("Couldn't post stats:", resp.Status)
+				glog.Warningf("Post for isvcs container stats failed: %s", resp.Status)
 				break
 			}
 		}

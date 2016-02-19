@@ -346,13 +346,13 @@ func Post(destination string, stats []Sample) error {
 	statsreq.Header["Content-Type"] = []string{"application/json"}
 	resp, reqerr := http.DefaultClient.Do(statsreq)
 	if reqerr != nil {
-		glog.Warningf("Couldn't post stats: ", reqerr)
+		glog.Warningf("Couldn't post container stats: %s", reqerr)
 		return reqerr
 	}
+	defer resp.Body.Close()
 	if !strings.Contains(resp.Status, "200 OK") {
-		glog.Warningf("couldn't post stats: ", resp.Status)
+		glog.Warningf("Post for container stats failed: %s", resp.Status)
 		return nil
 	}
-	resp.Body.Close()
 	return nil
 }
