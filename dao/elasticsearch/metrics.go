@@ -32,7 +32,7 @@ func (dao *ControlPlaneDao) GetHostMemoryStats(req dao.MetricRequest, stats *met
 func (dao *ControlPlaneDao) GetServiceMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
 	s, err := dao.metricClient.GetServiceMemoryStats(req.StartTime, req.ServiceID)
 	if err != nil {
-		glog.Errorf("Could not get host memory stats for %s: %s", req.ServiceID, err)
+		glog.V(2).Infof("Could not get service memory stats for %s: %s", req.ServiceID, err)
 		return err
 	}
 	*stats = *s
@@ -42,7 +42,7 @@ func (dao *ControlPlaneDao) GetServiceMemoryStats(req dao.MetricRequest, stats *
 func (dao *ControlPlaneDao) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
 	s, err := dao.metricClient.GetInstanceMemoryStats(req.StartTime, req.Instances...)
 	if err != nil {
-		glog.Errorf("Could not get service instance stats for %+v: %s", req.Instances, err)
+		glog.V(2).Infof("Could not get service instance stats for %+v: %s", req.Instances, err)
 		return err
 	}
 	*stats = s

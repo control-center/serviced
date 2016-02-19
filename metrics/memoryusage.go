@@ -199,7 +199,7 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 
 		result, err := c.performanceQuery(options)
 		if err != nil {
-			glog.Errorf("Could not get performance data for service %s: %s", serviceID, err)
+			glog.V(2).Infof("Could not get performance data for service %s: %s", serviceID, err)
 			return nil, err
 		}
 
@@ -263,7 +263,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 
 			result, err := c.v2performanceQuery(options)
 			if err != nil {
-				glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
+				glog.V(2).Infof("Could not get performance data for instances %+v: %s", instances, err)
 				return nil, err
 			}
 			perfDataMap[agg] = result
@@ -275,7 +275,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		options.Returnset = "last"
 		result, err := c.v2performanceQuery(options)
 		if err != nil {
-			glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
+			glog.V(2).Infof("Could not get performance data for instances %+v: %s", instances, err)
 			return nil, err
 		}
 		perfDataMap["last"] = result
