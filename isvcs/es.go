@@ -231,11 +231,11 @@ func getESHealth(url string) <-chan esres {
 // before it is healthy
 func esHasStartedHealthCheck(port int) HealthCheckFunction {
 	return func(cancel <-chan struct{}) error {
-		httpClient := http.DefaultClient
-		httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
 		url := fmt.Sprintf("http://localhost:%d", port)
-		resp, err := httpClient.Get(url)
 
+		httpClient := *http.DefaultClient
+		httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
+		resp, err := httpClient.Get(url)
 		if err != nil {
 			glog.V(2).Infof("Startup healthcheck failed: %s", err)
 		} else if resp != nil {

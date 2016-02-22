@@ -133,11 +133,11 @@ func zkHealthCheck(halt <-chan struct{}) error {
 
 // CC-1701 - Returns nil if zookeeper has started.  Note that any HTTP response implies ZK has started.
 func zkHasStartedHealthCheck(halt <-chan struct{}) error {
-	httpClient := http.DefaultClient
-	httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
 	url := fmt.Sprintf("http://localhost:%d/exhibitor/v1/ui/index.html", ZK_EXHIBITOR_PORT)
-	resp, err := httpClient.Get(url)
 
+	httpClient := *http.DefaultClient
+	httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		glog.V(2).Infof("Startup healthcheck failed: %s", err)
 	} else if resp != nil {
