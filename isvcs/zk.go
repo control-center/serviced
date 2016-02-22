@@ -14,14 +14,23 @@
 package isvcs
 
 import (
+	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/control-center/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-
-	"time"
 )
 
 var Zookeeper IServiceDefinition
 var zookeeper *IService
+
+const (
+	ZK_CLIENT_PORT = 2181
+	ZK_EXHIBITOR_PORT = 12181
+	ZK_PEER_PORT = 2888
+	ZK_LEADER_PORT = 3888
+)
 
 func initZK() {
 	var err error
@@ -36,37 +45,43 @@ func initZK() {
 			{
 				HostIp:         "0.0.0.0",
 				HostIpOverride: "",
-				HostPort:       2181,
+				HostPort:       ZK_CLIENT_PORT,
 			},
 			// exhibitor port
 			{
 				HostIp:         "127.0.0.1",
 				HostIpOverride: "SERVICED_ISVC_ZOOKEEPER_PORT_12181_HOSTIP",
-				HostPort:       12181,
+				HostPort:       ZK_EXHIBITOR_PORT,
 			},
 			// peer port
 			{
 				HostIp:         "0.0.0.0",
 				HostIpOverride: "",
-				HostPort:       2888,
+				HostPort:       ZK_PEER_PORT,
 			},
 			// leader port
 			{
 				HostIp:         "0.0.0.0",
 				HostIpOverride: "",
-				HostPort:       3888,
+				HostPort:       ZK_LEADER_PORT,
 			},
 		},
 		Volumes: map[string]string{"data": "/var/zookeeper"},
 	}
 
+	startupHealthCheck := healthCheckDefinition{
+		HealthCheck: zkHasStartedHealthCheck,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: zkHealthCheck,
+		HealthCheck: zkHealthCheck,
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
 	Zookeeper.HealthChecks = map[string]healthCheckDefinition{
+		STARTUP_HEALTHCHECK_NAME: startupHealthCheck,
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
 
@@ -80,7 +95,7 @@ func initZK() {
 func zkHealthCheck(halt <-chan struct{}) error {
 	for {
 		// establish a zookeeper connection
-		conn, ec, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second*10)
+		conn, ec, err := zk.Connect([]string{fmt.Sprintf("127.0.0.1:%d", ZK_CLIENT_PORT)}, time.Second*10)
 		defer func() {
 			if conn != nil {
 				conn.Close()
@@ -100,7 +115,7 @@ func zkHealthCheck(halt <-chan struct{}) error {
 				case e := <-ec:
 					if e.State == zk.StateHasSession {
 						// success
-						glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+						glog.V(1).Infof("Zookeeper running, browser at http://localhost:%d/exhibitor/v1/ui/index.html", ZK_EXHIBITOR_PORT)
 						return nil
 					}
 				case <-halt:
@@ -114,4 +129,20 @@ func zkHealthCheck(halt <-chan struct{}) error {
 			}
 		}
 	}
+}
+
+// CC-1701 - Returns nil if zookeeper has started.  Note that any HTTP response implies ZK has started.
+func zkHasStartedHealthCheck(halt <-chan struct{}) error {
+	url := fmt.Sprintf("http://localhost:%d/exhibitor/v1/ui/index.html", ZK_EXHIBITOR_PORT)
+
+	httpClient := *http.DefaultClient
+	httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		glog.V(2).Infof("Startup healthcheck failed: %s", err)
+	} else if resp != nil {
+		glog.V(2).Infof("Startup healthcheck returned %s", resp.Status)
+		resp.Body.Close()
+	}
+	return err
 }

@@ -36,7 +36,7 @@ func initDockerRegistry() {
 	var err error
 
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: registryHealthCheck,
+		HealthCheck: registryHealthCheck,
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
