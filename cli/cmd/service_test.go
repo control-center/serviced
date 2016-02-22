@@ -896,7 +896,9 @@ func ExampleServicedCLI_CmdServiceRun_exec() {
 	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "hello", "-i")
 
 	// Output:
-	// echo hello world -i
+	// Command "hello" not available.
+	// Available commands for Zenoss:
+	//     No commands available.
 }
 
 /*
