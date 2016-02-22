@@ -78,12 +78,17 @@ func initElasticSearch() {
 
 	serviceName = "elasticsearch-serviced"
 
+	startupHealthCheck := healthCheckDefinition{
+		HealthCheck: esHasStartedHealthCheck(ES_SERVICED_PORT),
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
 	defaultHealthCheck := healthCheckDefinition{
 		HealthCheck: esHealthCheck(ES_SERVICED_PORT, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 	healthChecks := map[string]healthCheckDefinition{
+		STARTUP_HEALTHCHECK_NAME: startupHealthCheck,
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
 	elasticsearch_servicedPortBinding := portBinding{
@@ -118,9 +123,12 @@ func initElasticSearch() {
 	}
 
 	serviceName = "elasticsearch-logstash"
+	logStashStartupHealthCheck := startupHealthCheck
+	logStashStartupHealthCheck.HealthCheck = esHasStartedHealthCheck(ES_LOGSTASH_PORT)
 	logStashHealthCheck := defaultHealthCheck
 	logStashHealthCheck.HealthCheck = esHealthCheck(ES_LOGSTASH_PORT, ESYellow)
 	healthChecks = map[string]healthCheckDefinition{
+		STARTUP_HEALTHCHECK_NAME: logStashStartupHealthCheck,
 		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 	}
 	elasticsearch_logstashPortBinding := portBinding{
@@ -218,6 +226,26 @@ func getESHealth(url string) <-chan esres {
 	}()
 	return esresC
 }
+
+// CC-1701 - Returns nil if ES has started. Note that it may take some additional time after ES has started
+// before it is healthy
+func esHasStartedHealthCheck(port int) HealthCheckFunction {
+	return func(cancel <-chan struct{}) error {
+		httpClient := http.DefaultClient
+		httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
+		url := fmt.Sprintf("http://localhost:%d", port)
+		resp, err := httpClient.Get(url)
+
+		if err != nil {
+			glog.V(2).Infof("Startup healthcheck failed: %s", err)
+		} else if resp != nil {
+			glog.V(2).Infof("Startup healthcheck returned %s", resp.Status)
+			resp.Body.Close()
+		}
+		return err
+	}
+}
+
 
 func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 	return func(cancel <-chan struct{}) error {

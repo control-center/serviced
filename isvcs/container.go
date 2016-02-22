@@ -68,6 +68,7 @@ const (
 	restart
 )
 
+const STARTUP_HEALTHCHECK_NAME = "startup"
 const DEFAULT_HEALTHCHECK_NAME = "running"
 
 const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
@@ -663,7 +664,7 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 // repeat the healthcheck, continuing that sleep/retry pattern until
 // the healthcheck succeeds or 2 minutes has elapsed.
 //
-// An error is returned if the no healtchecks succeed in the 2 minute interval,
+// An error is returned if the no healthchecks succeed in the 2 minute interval,
 // otherwise nil is returned
 func (svc *IService) startupHealthcheck() <-chan error {
 	err := make(chan error, 1)
@@ -680,7 +681,11 @@ func (svc *IService) startupHealthcheck() <-chan error {
 			startCheck := time.Now()
 			for {
 				currentTime := time.Now()
-				result = svc.runCheckOrTimeout(checkDefinition)
+				// CC-1701 - verify the service has actually started before attempting the regular healthcheck
+				result = svc.verifyServiceStarted()
+				if result == nil {
+					result = svc.runCheckOrTimeout(checkDefinition)
+				}
 				svc.setHealthStatus(result, currentTime.Unix())
 				elapsed := time.Since(startCheck)
 				if result == nil {
@@ -702,6 +707,16 @@ func (svc *IService) startupHealthcheck() <-chan error {
 		}
 	}()
 	return err
+}
+
+func (svc *IService) verifyServiceStarted() error {
+	startupCheck, found := svc.HealthChecks[STARTUP_HEALTHCHECK_NAME]
+	if !found {
+		glog.V(2).Infof("Startup healthcheck %q not found for isvc %s", STARTUP_HEALTHCHECK_NAME, svc.Name)
+		return nil
+	}
+
+	return svc.runCheckOrTimeout(startupCheck)
 }
 
 func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {

@@ -15,6 +15,7 @@ package isvcs
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/control-center/go-zookeeper/zk"
@@ -68,6 +69,11 @@ func initZK() {
 		Volumes: map[string]string{"data": "/var/zookeeper"},
 	}
 
+	startupHealthCheck := healthCheckDefinition{
+		HealthCheck: zkHasStartedHealthCheck,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+
 	defaultHealthCheck := healthCheckDefinition{
 		HealthCheck: zkHealthCheck,
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
@@ -75,6 +81,7 @@ func initZK() {
 	}
 
 	Zookeeper.HealthChecks = map[string]healthCheckDefinition{
+		STARTUP_HEALTHCHECK_NAME: startupHealthCheck,
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
 
@@ -108,7 +115,7 @@ func zkHealthCheck(halt <-chan struct{}) error {
 				case e := <-ec:
 					if e.State == zk.StateHasSession {
 						// success
-						glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+						glog.V(1).Infof("Zookeeper running, browser at http://localhost:%d/exhibitor/v1/ui/index.html", ZK_EXHIBITOR_PORT)
 						return nil
 					}
 				case <-halt:
@@ -122,4 +129,20 @@ func zkHealthCheck(halt <-chan struct{}) error {
 			}
 		}
 	}
+}
+
+// CC-1701 - Returns nil if zookeeper has started.  Note that any HTTP response implies ZK has started.
+func zkHasStartedHealthCheck(halt <-chan struct{}) error {
+	httpClient := http.DefaultClient
+	httpClient.Timeout = time.Duration(2) * time.Second	// use a relatively short timeout
+	url := fmt.Sprintf("http://localhost:%d/exhibitor/v1/ui/index.html", ZK_EXHIBITOR_PORT)
+	resp, err := httpClient.Get(url)
+
+	if err != nil {
+		glog.V(2).Infof("Startup healthcheck failed: %s", err)
+	} else if resp != nil {
+		glog.V(2).Infof("Startup healthcheck returned %s", resp.Status)
+		resp.Body.Close()
+	}
+	return err
 }
