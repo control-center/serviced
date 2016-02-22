@@ -123,7 +123,7 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 func (c *Connection) NewTransaction() client.Transaction {
 	return &Transaction{
 		conn: c,
-		ops:  []transactionOperation{},
+		ops:  []multiReq{},
 	}
 }
 
@@ -229,7 +229,7 @@ func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struc
 				Type: client.EventType(e.Type),
 			}
 		case <-done:
-			conn.RemoveWatch(zkEvent)
+			conn.CancelEvent(zkEvent)
 		}
 	}(c.conn)
 	return echan
