@@ -36,6 +36,13 @@ const (
 	ESGreen
 )
 
+const (
+	DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240 //default startup timeout in seconds (4 minutes)
+	MIN_ES_STARTUP_TIMEOUT_SECONDS = 30      //minimum startup timeout in seconds
+	ES_LOGSTASH_PORT = 9100
+	ES_SERVICED_PORT = 9200
+)
+
 type ESHealth int
 
 func GetHealth(health string) ESHealth {
@@ -62,9 +69,6 @@ func (health ESHealth) String() string {
 	return "unknown"
 }
 
-const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240 //default startup timeout in seconds (4 minutes)
-const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30      //minimum startup timeout in seconds
-
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
 
@@ -75,7 +79,7 @@ func initElasticSearch() {
 	serviceName = "elasticsearch-serviced"
 
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: esHealthCheck(9200, ESYellow),
+		HealthCheck: esHealthCheck(ES_SERVICED_PORT, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
@@ -85,7 +89,7 @@ func initElasticSearch() {
 	elasticsearch_servicedPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
-		HostPort:       9200,
+		HostPort:       ES_SERVICED_PORT,
 	}
 
 	elasticsearch_serviced, err = NewIService(
@@ -115,14 +119,14 @@ func initElasticSearch() {
 
 	serviceName = "elasticsearch-logstash"
 	logStashHealthCheck := defaultHealthCheck
-	logStashHealthCheck.healthCheck = esHealthCheck(9100, ESYellow)
+	logStashHealthCheck.HealthCheck = esHealthCheck(ES_LOGSTASH_PORT, ESYellow)
 	healthChecks = map[string]healthCheckDefinition{
 		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 	}
 	elasticsearch_logstashPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
-		HostPort:       9100,
+		HostPort:       ES_LOGSTASH_PORT,
 	}
 
 	elasticsearch_logstash, err = NewIService(

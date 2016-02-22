@@ -84,7 +84,7 @@ type actionrequest struct {
 type HealthCheckFunction func(halt <-chan struct{}) error
 
 type healthCheckDefinition struct {
-	healthCheck HealthCheckFunction
+	HealthCheck HealthCheckFunction
 	Interval    time.Duration // The interval at which to execute the script.
 	Timeout     time.Duration // A timeout in which to complete the health check.
 }
@@ -709,7 +709,7 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	halt := make(chan struct{}, 1)
 
 	go func() {
-		finished <- checkDefinition.healthCheck(halt)
+		finished <- checkDefinition.HealthCheck(halt)
 	}()
 
 	var result error
