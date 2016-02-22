@@ -44,7 +44,6 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/scheduler"
-	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
@@ -742,13 +741,6 @@ func (d *daemon) startAgent() error {
 	if options.Master {
 		rpcutils.RegisterLocal("Agent", agentServer)
 	}
-
-	// TODO: Integrate this server into the rpc server, or something.
-	// Currently its only use is for command execution.
-	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry, options.ControllerBinary, options.UIPort)
-		http.ListenAndServe(":50000", sio)
-	}()
 
 	return nil
 }
