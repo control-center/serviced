@@ -16,8 +16,15 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
+	"sort"
 	"strings"
 )
+
+type ciphers []uint16
+
+func (c ciphers) Len() int           { return len(c) }
+func (c ciphers) Less(i, j int) bool { return c[i] < c[j] }
+func (c ciphers) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 // DefaultTLSMinVersion minimum TLS version supported
 const DefaultTLSMinVersion = "VersionTLS10"
@@ -57,9 +64,9 @@ func GetDefaultCiphers() []string {
 }
 
 // SetCiphers that can be used
-func SetCiphers(ciphers []string) error {
-	newCiphers := make([]uint16, 0, len(ciphers))
-	for _, cipherName := range ciphers {
+func SetCiphers(cipherNames []string) error {
+	newCiphers := make([]uint16, 0, len(cipherNames))
+	for _, cipherName := range cipherNames {
 		upperCipher := strings.ToUpper(strings.TrimSpace(cipherName))
 		var cipher uint16
 		var ok bool
@@ -70,6 +77,7 @@ func SetCiphers(ciphers []string) error {
 
 	}
 	tlsCiphers = newCiphers
+	sort.Sort(sort.Reverse(ciphers(tlsCiphers)))
 	return nil
 }
 
