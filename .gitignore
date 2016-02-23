@@ -10,6 +10,7 @@
 serviced
 serviced-controller/serviced-controller
 nsinit
+glide.lock
 
 # Folders
 _obj
