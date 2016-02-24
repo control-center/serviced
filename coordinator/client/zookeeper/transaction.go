@@ -73,6 +73,7 @@ func (t *Transaction) Commit() error {
 				Acl:   zklib.WorldACL(zklib.PermAll),
 				Flags: 0,
 			})
+			op.Node.SetVersion(&zklib.Stat{})
 		case multiSet:
 			stat := zklib.Stat{}
 			if vers := op.Node.Version(); vers != nil {
