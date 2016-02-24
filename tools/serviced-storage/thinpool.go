@@ -91,6 +91,11 @@ func (c *ThinPoolCreate) Execute(args []string) error {
 }
 
 func createThinPool(purpose string, devices []string) (string, error) {
+
+	if err := EnsureNotLogicalVolumes(devices); err != nil {
+		return "", err
+	}
+
 	if err := EnsurePhysicalDevices(devices); err != nil {
 		return "", err
 	}
@@ -131,6 +136,27 @@ func createThinPool(purpose string, devices []string) (string, error) {
 	}
 
 	return thinPoolName, nil
+}
+
+func EnsureNotLogicalVolumes(devices []string) error {
+	for _, device := range devices {
+		args := []string{
+			"lvs",
+			"--noheadings",
+			"--separator=,",
+			"-o",
+			"lv_name,vg_name",
+			device,
+		}
+		log.Info(strings.Join(args, " "))
+		cmd := exec.Command(args[0], args[1:]...)
+		stdout,_,_ := checkCommand(cmd)
+		lvsCheck := strings.Split(strings.Trim(stdout, " "), ",")
+		if len(lvsCheck) == 2 {
+			return fmt.Errorf("Device %s is in logical volume %s part of volume group %s", device, lvsCheck[0], lvsCheck[1])
+		}
+	}
+	return nil
 }
 
 func EnsurePhysicalDevices(devices []string) error {
