@@ -155,6 +155,7 @@ $(GLIDE):
 glide: $(GLIDE)
 	cd $(GLIDE) && git checkout $(glide_VERSION) && make build
 	rm -f $(GOBIN)/glide && ln -s $(GLIDE)/glide $(GOBIN)/glide
+	glide up
 
 
 .PHONY: go
