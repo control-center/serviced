@@ -654,17 +654,15 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			}
 			endpoint.RemoveAssignment()
 		}
-
-		// Stale services in zookeeper will eventually get cleaned up by the syncer
 		if err := f.zzk.RemoveService(svc); err != nil {
-			glog.Warningf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			return err
 		}
 
 		if err := store.Delete(ctx, svc.ID); err != nil {
 			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
-
 		return nil
 	})
 }
