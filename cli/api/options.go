@@ -257,20 +257,11 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
 	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
-	// Set the volumePath to /tmp if running serviced as just an agent
 	homepath := config.StringVal("HOME", "")
 	varpath := config.StringVal("VARPATH", getDefaultVarPath(homepath))
-	if options.Master {
-		options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
-		options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
-		options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
-	} else {
-		tmpvarpath := getDefaultVarPath("")
-		options.IsvcsPath = filepath.Join(varpath, "isvcs")
-		options.VolumesPath = filepath.Join(tmpvarpath, "volumes")
-		options.BackupsPath = filepath.Join(varpath, "backups")
-	}
-
+	options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
+	options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
+	options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
 
 	return options
