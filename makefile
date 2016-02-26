@@ -11,24 +11,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SOURCE = github.com/control-center/serviced
 VERSION := $(shell cat ./VERSION)
 DATE := '$(shell date -u)'
 
-# GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
-# assume it will get set because the above can cause network traffic on every run
+GIT_URL ?= https://$(SOURCE)/tree/$(GIT_BRANCH)
 GIT_COMMIT ?= $(shell ./gitstatus.sh)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 
 GOBUILD_TAGS  ?= $(shell bash build-tags.sh)
 GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 
-
-
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
 
-
-LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Giturl '$(GIT_URL)' -X main.Gitcommit $(GIT_COMMIT) -X main.Gitbranch $(GIT_BRANCH) -X main.Date $(DATE) -X main.Buildtag $(BUILD_TAG)"
+GOBUILD_LDFLAGS := \
+	-ldflags "-X main.Version=$(VERSION)" \
+	-ldflags "-X main.Giturl=$(GITURL)" \
+	-ldflags "-X main.Date=$(DATE)" \
+	-ldflags "-X main.Buildtag=$(BUILD_TAG)"
 
 #---------------------#
 # Macros              #
@@ -65,8 +66,7 @@ build_TARGETS = build_isvcs build_js serviced serviced-controller tools
 #
 docker_GOPATH = /go
 
-serviced_SRC            = github.com/control-center/serviced
-docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
+docker_serviced_SRC     = $(docker_GOPATH)/src/$(SOURCE)
 docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
 
 ifeq "$(GOPATH)" ""
@@ -79,23 +79,6 @@ endif
 
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
-
-#------------------------------------------------------------------------------#
-# Build Repeatability with Godeps
-#------------------------------------------------------------------------------#
-# We manage go dependencies by 'godep saving' from the current $GOPATH/src.
-# The Godeps directory is manually updated and thus requires some dev-vigilence
-# if our go imports change in name or version.
-#
-#    godep save ./...
-#
-# to generate the Godeps file based upon the src currently populated in
-# $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
-# against the generated Godeps.
-#------------------------------------------------------------------------------#
-GODEP     = $(GOBIN)/godep
-GO        = $(GODEP) go
-godep_SRC = github.com/tools/godep
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
@@ -129,21 +112,49 @@ build_js:
 mockAgent:
 	cd acceptance/mockAgent && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
-# Download godep source to $GOPATH/src/.
-$(GOSRC)/$(godep_SRC):
-	go get $(godep_SRC)
-
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
 
 #
 # FIXME: drop -composites=false to get full coverage
-GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
+GOVET_EXCLUDE_DIRS = vendor/ build/ chef/ vagrant/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet:
-	GOSRC=$(GOSRC) GOTOOLS_SRC=$(GOTOOLS_SRC) ./get_govet.sh
-	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
 	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+
+#------------------------------------------------------------------------------
+# Build Repeatability with Glide
+#------------------------------------------------------------------------------
+# We manage go dependencies by running 'glide up' from the current $GOPATH/src.
+# The vendor directory is manually updates and thus requires some dev-vigilence
+# if our go imports change in name or version.
+#
+# 	glide up
+#
+# Updates the vendor dependencies based on dependencies found in source.
+#
+# 	glide get <pkg>
+#
+# Adds the pkg to the vendor dependencies and updates the glide.yaml file.
+# When adding a new dependency, make sure to set the 'version' attribute in the
+# glide.yaml file.
+# 
+# Glide: https://github.com/Masterminds/glide
+# -----------------------------------------------------------------------------
+GO = go
+
+glide_SRC = github.com/Masterminds/glide
+glide_VERSION = 0.9.0
+GLIDE=$(GOSRC)/$(glide_SRC)
+ 
+$(GLIDE):
+	$(GO) get $(glide_SRC)
+	cd $(GLIDE) && git checkout $(glide_VERSION) && make bootstrap
+
+.PHONY: glide
+glide: $(GLIDE)
+	cd $(GLIDE) && git checkout $(glide_VERSION) && make build
+	rm -f $(GOBIN)/glide && ln -s $(GLIDE)/glide $(GOBIN)/glide
 
 .PHONY: go
 go:
@@ -166,13 +177,13 @@ docker_SRC = github.com/docker/docker
 # '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
-serviced: $(GODEP)
+serviced: glide
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
-serviced-controller: $(GODEP)
+serviced-controller: glide
 serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
@@ -180,7 +191,7 @@ serviced-controller: FORCE
 
 tools: serviced-storage
 
-serviced-storage: $(GODEP)
+serviced-storage: glide
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
@@ -241,19 +252,6 @@ docker_build: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build:$(BUILD_VERSION) \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
-
-# Make the installed godep primitive (under $GOPATH/bin/godep)
-# dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the '$(GO) install' of the
-# source.
-#
-# This requires some make fu borrowed from:
-#
-#    https://lists.gnu.org/archive/html/help-gnu-utils/2007-08/msg00019.html
-#
-missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
-$(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -445,7 +443,7 @@ docker_buildandpackage: docker_ok
         exit 1 ;\
     fi
 	docker run --rm \
-	-v `pwd`:/go/src/github.com/control-center/serviced \
+	-v `pwd`:/go/src/$(SOURCE)\
 	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
@@ -467,23 +465,25 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
+pkgs:=$(shell glide nv)
+
 .PHONY: test
 test: unit_test integration_test integration_docker_test integration_dao_test integration_zzk_test js_test
 
 unit_test: build docker_ok
-	./serviced-tests.py --unit --race --packages ./...
+	./serviced-tests.py --unit --race --no-godep --packages $(pkgs)
 
 integration_test: build docker_ok
-	./serviced-tests.py --integration --quick --race --packages ./...
+	./serviced-tests.py --integration --quick --race --no-godep --packages $(pkgs)
 
 integration_docker_test: build docker_ok
-	./serviced-tests.py --integration --race --packages ./commons/docker/...
+	./serviced-tests.py --integration --race --no-godep --packages ./commons/docker/...
 
 integration_dao_test: build docker_ok
-	./serviced-tests.py --integration --elastic --race --packages ./dao/elasticsearch/...
+	./serviced-tests.py --integration --elastic --race --no-godep --packages ./dao/elasticsearch/...
 
 integration_zzk_test: build docker_ok
-	./serviced-tests.py --integration --race --packages ./zzk/...
+	./serviced-tests.py --integration --race --no-godep --packages ./zzk/...
 
 js_test: build docker_ok
 	cd web && make "GO=$(GO)" test
@@ -508,7 +508,7 @@ clean_js:
 	cd web/ui && make clean
 
 .PHONY: clean_serviced
-clean_serviced: $(GODEP)
+clean_serviced:
 	@for target in serviced $(serviced) ;\
         do \
                 if [ -f "$${target}" ];then \
@@ -523,7 +523,7 @@ clean_pkg:
 	cd pkg && make clean
 
 .PHONY: clean_dao
-clean_dao: $(GODEP)
+clean_dao:
 	cd dao && make "GO=$(GO)" clean
 
 .PHONY: clean

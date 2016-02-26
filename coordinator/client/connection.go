@@ -40,9 +40,9 @@ type Node interface {
 }
 
 type Transaction interface {
-	Create(path string, node Node)
-	Set(path string, node Node)
-	Delete(path string)
+	Create(path string, node Node) Transaction
+	Set(path string, node Node) Transaction
+	Delete(path string) Transaction
 	Commit() error
 }
 

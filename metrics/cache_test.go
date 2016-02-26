@@ -30,7 +30,7 @@ func TestCache(t *testing.T) {
 	clock := utils.NewTestClock()
 
 	cache := MemoryUsageCache{
-		Locks:  make(map[string]sync.Mutex),
+		Locks:  make(map[string]*sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    time.Minute,
 		Clock:  clock,
@@ -85,7 +85,8 @@ func TestCache(t *testing.T) {
 		t.Errorf("Cache did not return the correct item")
 	}
 
-	// Force expiration
+	// Force expiration (because both caches are listening to the same channel)
+	clock.Fire()
 	clock.Fire()
 
 	// Cache should no longer have a value for key, try with different getter
