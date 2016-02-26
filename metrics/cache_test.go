@@ -30,7 +30,7 @@ func TestCache(t *testing.T) {
 	clock := utils.NewTestClock()
 
 	cache := MemoryUsageCache{
-		Locks:  make(map[string]sync.Mutex),
+		Locks:  make(map[string]*sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    time.Minute,
 		Clock:  clock,
@@ -87,6 +87,7 @@ func TestCache(t *testing.T) {
 
 	// Force expiration
 	clock.Fire()
+	clock.Fire() // this test clock shares one channel among all of its callers
 
 	// Cache should no longer have a value for key, try with different getter
 	x, err = cache.Get("first", getter2)
