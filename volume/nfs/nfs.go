@@ -26,12 +26,16 @@ import (
 	"github.com/control-center/serviced/volume"
 )
 
+const NetworkDisabled = "network_disabled"
+
 var (
 	ErrNotSupported = errors.New("not supported by nfs driver")
 )
 
+// TODO: name this better, since this is more of a passthrough
 type NFSDriver struct {
-	root string
+	networkDisabled bool
+	root            string
 }
 
 type NFSVolume struct {
@@ -56,10 +60,8 @@ func Init(root string, args []string) (volume.Driver, error) {
 	}
 	if args != nil {
 		for _, arg := range args {
-			if arg == "nfs_test" {
-				mount = func(sourceVol, destination string) error {
-					return nil
-				}
+			if arg == NetworkDisabled {
+				driver.networkDisabled = true
 			}
 		}
 	}
@@ -98,11 +100,12 @@ func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 		driver: d,
 		tenant: getTenant(volumeName),
 	}
-	//actual NFS mount
-	if err := mount(volumeName, volumePath); err != nil {
-		return nil, err
+	if !d.networkDisabled {
+		//actual NFS mount
+		if err := mount(volumeName, volumePath); err != nil {
+			return nil, err
+		}
 	}
-
 	return volume, nil
 }
 
