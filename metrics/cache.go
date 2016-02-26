@@ -34,6 +34,8 @@ type MemoryUsageCache struct {
 
 // getkeylock returns a lock specifically for this key
 func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
+	c.Lock()
+	defer c.Unlock()
 	if _, ok := c.Locks[key]; !ok {
 		c.Locks[key] = &sync.Mutex{}
 	}
