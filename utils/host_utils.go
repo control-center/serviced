@@ -17,11 +17,9 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
-var hostIDCmdString = "/usr/bin/hostid"
 
 var Platform = determinePlatform()
 
@@ -35,12 +33,7 @@ const (
 // HostID retrieves the system's unique id, on linux this maps
 // to /usr/bin/hostid.
 func HostID() (hostid string, err error) {
-	cmd := exec.Command(hostIDCmdString)
-	stdout, err := cmd.Output()
-	if err != nil {
-		return hostid, err
-	}
-	return strings.TrimSpace(string(stdout)), err
+	return getHostID()
 }
 
 // GetIPAddress attempts to find the IP address to the default outbound interface.
@@ -97,55 +90,7 @@ type RouteEntry struct {
 
 // RouteCmd wrapper around the route command
 func RouteCmd() (routes []RouteEntry, err error) {
-	output, err := exec.Command("/sbin/route", "-A", "inet").Output()
-	if err != nil {
-		return routes, err
-	}
-
-	columnMap := make(map[string]int)
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) < 2 {
-		return routes, fmt.Errorf("no routes found")
-	}
-	routes = make([]RouteEntry, len(lines)-2)
-	for lineNum, line := range lines {
-		line = strings.TrimSpace(line)
-		switch {
-		// skip first line
-		case lineNum == 0:
-			continue
-		case lineNum == 1:
-			for number, name := range strings.Fields(line) {
-				columnMap[name] = number
-			}
-			continue
-		default:
-			fields := strings.Fields(line)
-			metric, err := strconv.Atoi(fields[columnMap["Metric"]])
-			if err != nil {
-				return routes, err
-			}
-			ref, err := strconv.Atoi(fields[columnMap["Ref"]])
-			if err != nil {
-				return routes, err
-			}
-			use, err := strconv.Atoi(fields[columnMap["Use"]])
-			if err != nil {
-				return routes, err
-			}
-			routes[lineNum-2] = RouteEntry{
-				Destination: fields[columnMap["Destination"]],
-				Gateway:     fields[columnMap["Gateway"]],
-				Genmask:     fields[columnMap["Genmask"]],
-				Flags:       fields[columnMap["Flags"]],
-				Metric:      metric,
-				Ref:         ref,
-				Use:         use,
-				Iface:       fields[columnMap["Iface"]],
-			}
-		}
-	}
-	return routes, err
+	return getRoutes()
 }
 
 // getIPAddrFromHostname returns the ip address associated with hostname -i.
