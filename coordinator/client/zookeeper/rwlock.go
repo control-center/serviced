@@ -14,8 +14,6 @@
 package zookeeper
 
 import (
-	"errors"
-	"fmt"
 	lpath "path"
 	"strconv"
 	"strings"
@@ -41,16 +39,12 @@ type RWLock struct {
 }
 
 // NewRWLock creates a new reader/writer lock.
-func (c *Connection) NewRWLock(path string) (*RWLock, error) {
-	tmpPath := lpath.Join(c.basePath, path)
-	if tmpPath == rwLockRoot || strings.HasPrefix(tmpPath, rwLockRoot+"/") {
-		return nil, errors.New(fmt.Sprintf("Cannot lock anything under %s", rwLockRoot))
-	}
+func (c *Connection) NewRWLock(path string) *RWLock {
 	return &RWLock{
 		c:    c,
 		path: path,
 		acl:  zklib.WorldACL(zklib.PermAll),
-	}, nil
+	}
 }
 
 // RLock obtains a lock for reading.

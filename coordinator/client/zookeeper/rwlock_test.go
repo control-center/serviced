@@ -18,7 +18,6 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
-	lpath "path"
 	"testing"
 	"time"
 
@@ -89,19 +88,13 @@ func verifyBlock(conn *Connection, t *testing.T, path1 string, isWrite1 bool, pa
 	var err error
 
 	// create a lock and write-lock it
-	lock1, err := conn.NewRWLock(path1)
-	if err != nil {
-		t.Fatalf("unexpected error instantiating lock 1: %s", err)
-	}
+	lock1 := conn.NewRWLock(path1)
 	if err = obtainLock(lock1, isWrite1); err != nil {
 		t.Fatalf("unexpected error acquiring lock 1: %s", err)
 	}
 
 	// create a second lock and test that a write-locking attempt blocks
-	lock2, err := conn.NewRWLock(path2)
-	if err != nil {
-		t.Fatalf("unexpected error instantiating lock 2: %s", err)
-	}
+	lock2 := conn.NewRWLock(path2)
 	lock2Response := make(chan error)
 	go func() {
 		lock2Response <- obtainLock(lock2, isWrite2)
@@ -140,19 +133,13 @@ func verifyNoBlock(conn *Connection, t *testing.T, path1 string, lockType1 bool,
 	var err error
 
 	// create a lock and read-lock it
-	lock1, err := conn.NewRWLock(path1)
-	if err != nil {
-		t.Fatalf("unexpected error instantiating lock 1: %s", err)
-	}
+	lock1 := conn.NewRWLock(path1)
 	if err = obtainLock(lock1, false); err != nil {
 		t.Errorf("unexpected error acquiring lock 1: %s", err)
 	}
 
 	// create a second lock and test that a write-locking attempt blocks
-	lock2, err := conn.NewRWLock(path2)
-	if err != nil {
-		t.Fatalf("unexpected error instantiating lock 1: %s", err)
-	}
+	lock2 := conn.NewRWLock(path2)
 	lock2Response := make(chan error)
 	go func() {
 		lock2Response <- obtainLock(lock2, false)
@@ -292,20 +279,4 @@ func TestRWLock_LockRoot(t *testing.T) {
 	defer zzkServer.Stop()
 
 	verifyBlock(conn, t, "/", true, "/", false)
-}
-
-// Make sure /LOCKROOT, and /LOCKROOT/some/child are flagged as errors
-func TestRWLock_IllegalLocks(t *testing.T) {
-	// setup
-	conn := startZookeeper("/", t)
-	defer zzkServer.Stop()
-
-	if _, err := conn.NewRWLock(rwLockRoot); err == nil {
-		t.Fatalf("lock for %s was not flagged as an error", rwLockRoot)
-	}
-
-	lockRootChild := lpath.Join(rwLockRoot, "/child")
-	if _, err := conn.NewRWLock(lockRootChild); err == nil {
-		t.Fatalf("lock for %s was not flagged as an error", lockRootChild)
-	}
 }
