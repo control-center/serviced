@@ -28,7 +28,13 @@ GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 BUILD_TAG ?= 0
 
 
-LDFLAGS = -ldflags "-X main.Version $(VERSION) -X main.Giturl '$(GIT_URL)' -X main.Gitcommit $(GIT_COMMIT) -X main.Gitbranch $(GIT_BRANCH) -X main.Date $(DATE) -X main.Buildtag $(BUILD_TAG)"
+LDFLAGS = \
+		  -ldflags "-X main.Version=$(VERSION)" \
+		  -ldflags "-X main.Giturl='$(GIT_URL)'" \
+		  -ldflags "-X main.Gitcommit=$(GIT_COMMIT)" \
+		  -ldflags "-X main.Gitbranch=$(GIT_BRANCH)" \
+		  -ldflags "-X main.Date=$(DATE)" \
+		  -ldflags "-X main.Buildtag=$(BUILD_TAG)"
 
 #---------------------#
 # Macros              #
