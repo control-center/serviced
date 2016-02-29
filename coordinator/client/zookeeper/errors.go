@@ -14,8 +14,19 @@
 package zookeeper
 
 import (
+	"errors"
+
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
+)
+
+var (
+	// ErrDeadlock is returned when a lock is aquired twice on the same object.
+	ErrDeadlock = errors.New("zk: trying to acquire a lock twice")
+
+	// ErrNotLocked is returned when a caller attempts to release a lock that
+	// has not been aquired
+	ErrNotLocked = errors.New("zk: not locked")
 )
 
 func xlateError(err error) error {

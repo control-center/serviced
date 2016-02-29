@@ -27,13 +27,6 @@ import (
 )
 
 var (
-	// ErrDeadlock is returned when a lock is aquired twice on the same object.
-	ErrDeadlock = errors.New("zk: trying to acquire a lock twice")
-
-	// ErrNotLocked is returned when a caller attempts to release a lock that
-	// has not been aquired
-	ErrNotLocked = errors.New("zk: not locked")
-
 	// ErrNoLeaderFound is returned when a leader has not been elected
 	ErrNoLeaderFound = errors.New("zk: no leader found")
 )
