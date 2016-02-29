@@ -29,24 +29,9 @@ func getMemorySize() (size uint64, err error) {
 	var length C.size_t = 8
 	var unused unsafe.Pointer
 
-	if -1 == C.sysctl(&mib[0], 2, unsafe.Pointer(&value), &length, unused, 0) {
-		return 0, fmt.Errorf("oops")
+	if rc, errno := C.sysctl(&mib[0], 2, unsafe.Pointer(&value), &length, unused, 0); rc == -1 {
+		return 0, fmt.Errorf("unable to get memory size: errno=%d", errno)
 	}
 
 	return uint64(value), nil
 }
-
-//func getExecPath() (string, error) {
-//	var bufferSize C.uint32_t = 1024
-//	buffer := make([]C.char, bufferSize)
-//
-//	result := C._NSGetExecutablePath(&buffer[0], &bufferSize)
-//	if result == -1 {
-//		buffer := make([]C.char, bufferSize)
-//		result = C._NSGetExecutablePath(&buffer[0], &bufferSize)
-//		if result == -1 {
-//			return "", fmt.Errorf("Unable to determine path")
-//		}
-//	}
-//	return C.GoStringN(&buffer[0], C.int(bufferSize)), nil
-//}
