@@ -34,12 +34,17 @@ type MemoryUsageCache struct {
 
 // getkeylock returns a lock specifically for this key
 func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
+	var (
+		lock *sync.Mutex
+		ok   bool
+	)
 	c.Lock()
 	defer c.Unlock()
-	if _, ok := c.Locks[key]; !ok {
-		c.Locks[key] = &sync.Mutex{}
+	if lock, ok = c.Locks[key]; !ok {
+		lock = &sync.Mutex{}
+		c.Locks[key] = lock
 	}
-	return c.Locks[key]
+	return lock
 }
 
 // Get retrieves a cached value if one exists; otherwise it calls getter, caches the result, and returns it
@@ -51,6 +56,8 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []Memor
 	defer l.Unlock()
 
 	if val, ok = c.Usages[key]; !ok {
+		c.Lock()
+		defer c.Unlock()
 		if val, err = getter(); err != nil {
 			return
 		}
@@ -58,8 +65,8 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []Memor
 		// Start the expiration
 		go func() {
 			<-c.Clock.After(c.TTL)
-			l.Lock()
-			defer l.Unlock()
+			c.Lock()
+			defer c.Unlock()
 			delete(c.Usages, key)
 		}()
 	}
