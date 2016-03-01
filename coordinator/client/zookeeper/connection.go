@@ -85,34 +85,28 @@ func (c *Connection) SetOnClose(f func(int)) {
 	c.onClose = &f
 }
 
+// CreateEphemeral creates an ephemeral, sequential node.
 func (c *Connection) CreateEphemeral(path string, node client.Node) (string, error) {
 	if c.conn == nil {
 		return "", client.ErrConnectionClosed
 	}
-
-	p := join(c.basePath, path)
-
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return "", client.ErrSerialization
 	}
-
-	path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
-	if err == zklib.ErrNoNode {
-		// Create parent node.
-		parts := strings.Split(p, "/")
-		pth := ""
-		if len(parts) > 1 {
-			for _, p := range parts[1 : len(parts)-1] {
-				pth += "/" + p
-				_, err = c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-				if err != nil && err != zklib.ErrNodeExists {
-					return "", xlateError(err)
-				}
-			}
-			path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
-		}
+	err = c.EnsurePath(path)
+	if err != nil {
+		return "", err
 	}
+
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.Lock(); lockerr != nil {
+		glog.Errorf("Could not acquire write lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return "", lockerr
+	}
+	path, err = c.conn.CreateProtectedEphemeralSequential(join(c.basePath, path), bytes, zklib.WorldACL(zklib.PermAll))
+	lock.Unlock()
+
 	if err == nil {
 		node.SetVersion(&zklib.Stat{})
 	}
@@ -132,15 +126,23 @@ func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
 	}
-	p := join(c.basePath, path)
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return client.ErrSerialization
 	}
 	if err := c.EnsurePath(path); err != nil {
-		return xlateError(err)
+		return err
 	}
-	if _, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
+
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.Lock(); lockerr != nil {
+		glog.Errorf("Could not acquire write lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return lockerr
+	}
+	_, err = c.conn.Create(join(c.basePath, path), bytes, 0, zklib.WorldACL(zklib.PermAll))
+	lock.Unlock()
+
+	if err != nil {
 		return xlateError(err)
 	}
 	node.SetVersion(&zklib.Stat{})
@@ -150,24 +152,37 @@ func (c *Connection) Create(path string, node client.Node) error {
 // Creates the path up to and including the immediate parent of the
 // target node.
 func (c *Connection) EnsurePath(path string) error {
-	path = join(c.basePath, path)
-	split := strings.Split(path, "/")
-	final := strings.Join(split[:len(split)-1], "/")
-	exists, err := c.Exists(final)
+	if c.conn == nil {
+		return client.ErrConnectionClosed
+	}
+	parentPath := lpath.Dir(path)
+	exists, err := c.Exists(parentPath)
 	if err != nil {
-		glog.Errorf("Error testing existence of node %s: %s", final, err)
-		return xlateError(err)
+		glog.Errorf("Error testing existence of node %s: %s", join(c.basePath, parentPath), err)
+		return err
 	}
 	if exists {
 		return nil
 	}
+
+	split := strings.Split(join(c.basePath, parentPath), "/")
 	_path := ""
-	for _, n := range split[1 : len(split)-1] {
+	_lockPath := "/"
+	for _, n := range split[1:len(split)] {
 		_path += "/" + n
+
+		lock := c.newRWLock(_lockPath)
+		if lockerr := lock.Lock(); lockerr != nil {
+			glog.Errorf("Could not acquire write lock for %s: %s", _lockPath, lockerr)
+			return lockerr
+		}
 		_, err = c.conn.Create(_path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+		lock.Unlock()
+
 		if err != nil && err != zklib.ErrNodeExists {
 			return xlateError(err)
 		}
+		_lockPath = _path
 	}
 	return nil
 }
@@ -184,7 +199,7 @@ func (c *Connection) CreateDir(path string) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
 	}
-	return xlateError(c.Create(path, &dirNode{}))
+	return c.Create(path, &dirNode{})
 }
 
 // Exists checks if a node exists at the given path.
@@ -192,7 +207,15 @@ func (c *Connection) Exists(path string) (bool, error) {
 	if c.conn == nil {
 		return false, client.ErrConnectionClosed
 	}
+
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return false, lockerr
+	}
 	exists, _, err := c.conn.Exists(join(c.basePath, path))
+	lock.Unlock()
+
 	return exists, xlateError(err)
 }
 
@@ -201,17 +224,27 @@ func (c *Connection) Delete(path string) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
 	}
-	children, _, err := c.conn.Children(join(c.basePath, path))
+	children, err := c.Children(path)
 	if err != nil {
-		return xlateError(err)
+		return err
 	}
+
 	// recursively delete children
 	for _, child := range children {
 		err = c.Delete(join(path, child))
 		if err != nil {
-			return xlateError(err)
+			return err
 		}
 	}
+
+	// need current Version to delete properly
+	// for safety, use single write lock around both operations
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.Lock(); lockerr != nil {
+		glog.Errorf("Could not acquire write lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return lockerr
+	}
+	defer lock.Unlock()
 	_, stat, err := c.conn.Get(join(c.basePath, path))
 	if err != nil {
 		return xlateError(err)
@@ -220,7 +253,7 @@ func (c *Connection) Delete(path string) error {
 }
 
 func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struct{}) <-chan client.Event {
-	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
+	// use buffered channel so go routine doesn't block in case the other end abandoned the channel
 	echan := make(chan client.Event, 1)
 	go func(conn *zklib.Conn) {
 		select {
@@ -239,13 +272,21 @@ func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struc
 // events that will yield the next event at that node.
 func (c *Connection) ChildrenW(path string, done <-chan struct{}) (children []string, event <-chan client.Event, err error) {
 	if c.conn == nil {
-		return children, event, client.ErrConnectionClosed
+		return children, nil, client.ErrConnectionClosed
+	}
+
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return children, nil, lockerr
 	}
 	children, _, zkEvent, err := c.conn.ChildrenW(join(c.basePath, path))
+	lock.Unlock()
+
 	if err != nil {
 		return children, nil, xlateError(err)
 	}
-	return children, c.toClientEvent(zkEvent, done), xlateError(err)
+	return children, c.toClientEvent(zkEvent, done), nil
 }
 
 // GetW gets the node at the given path and returns a channel to watch for events on that node.
@@ -253,12 +294,15 @@ func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (
 	if c.conn == nil {
 		return nil, client.ErrConnectionClosed
 	}
-	return c.getW(join(c.basePath, path), node, done)
-}
 
-func (c *Connection) getW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
+	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return nil, lockerr
+	}
+	data, stat, zkEvent, err := c.conn.GetW(join(c.basePath, path))
+	lock.Unlock()
 
-	data, stat, zkEvent, err := c.conn.GetW(path)
 	if err != nil {
 		return nil, xlateError(err)
 	}
@@ -277,11 +321,19 @@ func (c *Connection) Children(path string) (children []string, err error) {
 	if c.conn == nil {
 		return children, client.ErrConnectionClosed
 	}
+
+	lock := c.NewRWLock(lpath.Dir(path))
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return children, lockerr
+	}
 	children, _, err = c.conn.Children(join(c.basePath, path))
+	lock.Unlock()
+
 	if err != nil {
 		return children, xlateError(err)
 	}
-	return children, xlateError(err)
+	return children, nil
 }
 
 // Get returns the node at the given path.
@@ -289,11 +341,15 @@ func (c *Connection) Get(path string, node client.Node) (err error) {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
 	}
-	return c.get(join(c.basePath, path), node)
-}
 
-func (c *Connection) get(path string, node client.Node) (err error) {
-	data, stat, err := c.conn.Get(path)
+	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return lockerr
+	}
+	data, stat, err := c.conn.Get(join(c.basePath, path))
+	lock.Unlock()
+
 	if err != nil {
 		return xlateError(err)
 	}
@@ -325,6 +381,14 @@ func (c *Connection) Set(path string, node client.Node) error {
 		}
 		*stat = *zstat
 	}
+
+	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're setting
+	if lockerr := lock.Lock(); lockerr != nil {
+		glog.Errorf("Could not acquire write lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return lockerr
+	}
 	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
+	lock.Unlock()
+
 	return xlateError(err)
 }
