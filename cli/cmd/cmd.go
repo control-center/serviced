@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/nfs"
 	"github.com/zenoss/glog"
 )
 
@@ -258,6 +259,9 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		options.FSType = volume.DriverType(fstype)
 	} else {
 		options.FSType = volume.DriverTypeNFS
+		if options.NFSClient == "0" {
+			options.StorageArgs = append(options.StorageArgs, nfs.NetworkDisabled)
+		}
 	}
 
 	options.Endpoint = getEndpoint(options)

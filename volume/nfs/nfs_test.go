@@ -42,7 +42,7 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 	)
 
 	root = c.MkDir()
-	d, err := Init(root, []string{"nfs_test"})
+	d, err := Init(root, []string{NetworkDisabled})
 	c.Assert(err, IsNil)
 	driver = d.(*NFSDriver)
 
