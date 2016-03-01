@@ -32,18 +32,32 @@ const (
 
 // RWLock is an implementation of a reader/writer mutual exclusion lock in zookeeper.
 type RWLock struct {
-	c        *Connection
-	path     string
-	acl      []zklib.ACL
-	lockPath string
+	c           *Connection
+	path        string
+	acl         []zklib.ACL
+	lockPath    string
+	isShortPath bool
 }
 
 // NewRWLock creates a new reader/writer lock.
+// path is relative to the connection's base path.
 func (c *Connection) NewRWLock(path string) *RWLock {
 	return &RWLock{
-		c:    c,
-		path: path,
-		acl:  zklib.WorldACL(zklib.PermAll),
+		c:           c,
+		path:        path,
+		acl:         zklib.WorldACL(zklib.PermAll),
+		isShortPath: true,
+	}
+}
+
+// newRWLock creates a new reader/writer lock.
+// fullPath is the absolute path of the node to be locked.
+func (c *Connection) newRWLock(fullPath string) *RWLock {
+	return &RWLock{
+		c:           c,
+		path:        fullPath,
+		acl:         zklib.WorldACL(zklib.PermAll),
+		isShortPath: false,
 	}
 }
 
@@ -149,7 +163,7 @@ func (l *RWLock) createLockFile(makeWriteLock bool) (string, error) {
 	var err error
 	noData := []byte{}
 
-	prefix := getPrefix(l, makeWriteLock)
+	prefix := l.getPrefix(makeWriteLock)
 	path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, noData, l.acl)
 	if err == zklib.ErrNoNode {
 		// Create parent node and try again
@@ -180,14 +194,20 @@ func (l *RWLock) createLockFile(makeWriteLock bool) (string, error) {
 }
 
 // getPrefix builds the prefix for the lock file to be created.
-func getPrefix(l *RWLock, isWriteLock bool) string {
+func (l *RWLock) getPrefix(isWriteLock bool) string {
 	var lockFilePrefix string
 	if isWriteLock {
 		lockFilePrefix = "write-"
 	} else {
 		lockFilePrefix = "read-"
 	}
-	return lpath.Join(rwLockRoot, l.c.basePath, l.path, lockFilePrefix)
+	var fullPath string
+	if l.isShortPath {
+		fullPath = lpath.Join(rwLockRoot, l.c.basePath, l.path, lockFilePrefix)
+	} else {
+		fullPath = lpath.Join(rwLockRoot, l.path, lockFilePrefix)
+	}
+	return fullPath
 }
 
 // getLockInfo breaks a lock file path down into important components.

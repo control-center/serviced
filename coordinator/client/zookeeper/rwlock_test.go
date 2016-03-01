@@ -18,6 +18,7 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
+	lpath "path"
 	"sync"
 	"testing"
 	"time"
@@ -88,13 +89,13 @@ func obtainLock(l *RWLock, isWrite bool) error {
 func verifyBlock(conn *Connection, t *testing.T, path1 string, isWrite1 bool, path2 string, isWrite2 bool) {
 	var err error
 
-	// create a lock and write-lock it
+	// create a lock and lock it
 	lock1 := conn.NewRWLock(path1)
 	if err = obtainLock(lock1, isWrite1); err != nil {
 		t.Fatalf("unexpected error acquiring lock 1: %s", err)
 	}
 
-	// create a second lock and test that a write-locking attempt blocks
+	// create a second lock and test that a locking attempt blocks
 	lock2 := conn.NewRWLock(path2)
 	lock2Response := make(chan error)
 	go func() {
@@ -133,13 +134,13 @@ func verifyBlock(conn *Connection, t *testing.T, path1 string, isWrite1 bool, pa
 func verifyNoBlock(conn *Connection, t *testing.T, path1 string, lockType1 bool, path2 string, lockType2 bool) {
 	var err error
 
-	// create a lock and read-lock it
+	// create a lock and lock it
 	lock1 := conn.NewRWLock(path1)
 	if err = obtainLock(lock1, false); err != nil {
 		t.Errorf("unexpected error acquiring lock 1: %s", err)
 	}
 
-	// create a second lock and test that a write-locking attempt blocks
+	// create a second lock and test that a locking attempt blocks
 	lock2 := conn.NewRWLock(path2)
 	lock2Response := make(chan error)
 	go func() {
@@ -271,6 +272,58 @@ func TestRWLock_ChildReadParentRead(t *testing.T) {
 	defer zzkServer.Stop()
 
 	verifyNoBlock(conn, t, "/foo/bar", false, "/foo", false)
+}
+
+// Make sure the public and private "new" methods are consistent
+// with each other.
+func TestRWLock_MixedInstantions(t *testing.T) {
+	// setup
+	conn := startZookeeper(rwlocktestIsolationRoot, t)
+	defer zzkServer.Stop()
+
+	objPath := "/a/b/c"
+	var err error
+
+	// create a lock through the public API and write-lock it
+	lock1 := conn.NewRWLock(objPath)
+	if err = lock1.Lock(); err != nil {
+		t.Fatalf("unexpected error acquiring lock 1: %s", err)
+	}
+
+	// create a second lock through the private API and test that a write-locking attempt blocks
+	lock2 := conn.newRWLock(lpath.Join(rwlocktestIsolationRoot, objPath))
+	lock2Response := make(chan error)
+	go func() {
+		lock2Response <- lock2.Lock()
+	}()
+	select {
+	case response := <-lock2Response:
+		if response != nil {
+			t.Errorf("unexpected error locking lock 2: %s", response)
+		} else {
+			t.Errorf("lock 2 did not block as expected")
+		}
+	case <-time.After(time.Second):
+		t.Log("good, lock 2 is blocking")
+	}
+
+	// free the first lock, and test if the second lock unblocks
+	if err = lock1.Unlock(); err != nil {
+		t.Fatalf("unexpected error releasing lock 1: %s", err)
+	}
+	select {
+	case response := <-lock2Response:
+		if response != nil {
+			t.Errorf("unexpected error locking lock 2: %s", response)
+		}
+	case <-time.After(time.Second * 3):
+		t.Errorf("timeout waiting for lock 2 to unblock")
+	}
+
+	// check if the second lock cleans up
+	if err = lock2.Unlock(); err != nil {
+		t.Errorf("unexpected error releasing lock 2: %s", err)
+	}
 }
 
 // Can lock the root node
