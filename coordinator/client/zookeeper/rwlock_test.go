@@ -18,6 +18,7 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -279,4 +280,164 @@ func TestRWLock_LockRoot(t *testing.T) {
 	defer zzkServer.Stop()
 
 	verifyBlock(conn, t, "/", true, "/", false)
+}
+
+// Make sure multiple read locks are all released at once
+func TestRWLock_MultipleReadLocks(t *testing.T) {
+	numGoroutines := 4
+	objectToLock := "/foo/multiread"
+
+	// setup
+	conn := startZookeeper(rwlocktestIsolationRoot, t)
+	defer zzkServer.Stop()
+
+	// get a lock so goroutines block
+	mainlock := conn.NewRWLock(objectToLock)
+	if err := mainlock.Lock(); err != nil {
+		t.Fatalf("unexpected error acquiring mainlock: %s", err)
+	}
+
+	// spin off several goroutines
+	ready := make(chan int)
+	unlock := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 1; i <= numGoroutines; i++ {
+		wg.Add(1)
+		go func(myId int) {
+			defer wg.Done() // Signal that I am done
+			// Get read lock
+			myLock := conn.NewRWLock(objectToLock)
+			if err := myLock.RLock(); err != nil {
+				t.Fatalf("unexpected error acquiring lock %d: %s", myId, err)
+			}
+			// Signal that I am unblocked
+			ready <- myId
+			// Wait for unlock signal
+			select {
+			case <-unlock:
+			}
+			// Clean up
+			if err := myLock.Unlock(); err != nil {
+				t.Errorf("unexpected error from unlock %d: %s", myId, err)
+			}
+		}(i)
+	}
+
+	// make sure all are blocked
+	numEvents := 0
+	timeout := time.NewTimer(2 * time.Second)
+	select {
+	case <-ready:
+		t.Fatalf("oee or more goroutines did not block")
+	case <-timeout.C:
+		t.Logf("good, all subroutines blocked")
+	}
+
+	// unblock the goroutines
+	if err := mainlock.Unlock(); err != nil {
+		t.Fatalf("unexpected error from unlock main: %s", err)
+	}
+
+	// wait for the subroutines to all signal they are unblocked
+	numEvents = 0
+	timeout = time.NewTimer(time.Second)
+	for numEvents < numGoroutines {
+		select {
+		case ev := <-ready:
+			t.Logf("goroutine %d is ready", ev)
+			numEvents++
+		case <-timeout.C:
+			t.Fatalf("timed out waiting for goroutines to complete")
+		}
+	}
+
+	// tell subroutines to unlock
+	close(unlock)
+	wg.Wait()
+}
+
+// Make sure multiple write locks are released one at a time
+func TestRWLock_MultipleWriteLocks(t *testing.T) {
+	numGoroutines := 4
+	objectToLock := "/foo/multiwrite"
+
+	// setup
+	conn := startZookeeper(rwlocktestIsolationRoot, t)
+	defer zzkServer.Stop()
+
+	// data to be managed by the lock
+	var listA []int
+	var listB []int
+	var listC []int
+
+	// get a lock so goroutines block
+	mainlock := conn.NewRWLock(objectToLock)
+	if err := mainlock.Lock(); err != nil {
+		t.Fatalf("unexpected error acquiring main lock: %s", err)
+	}
+
+	// spin off several goroutines
+	ready := make(chan int)
+	event := make(chan int)
+	for i := 1; i <= numGoroutines; i++ {
+		go func(myId int) {
+			defer func() { event <- myId }() // Signal that I am done
+			// Get write lock
+			ready <- myId
+			myLock := conn.NewRWLock(objectToLock)
+			if err := myLock.Lock(); err != nil {
+				t.Fatalf("unexpected error acquiring lock %d: %s", myId, err)
+			}
+			// Update the data
+			time.Sleep(250 * time.Millisecond)
+			listA = append(listA, myId)
+			time.Sleep(250 * time.Millisecond)
+			listB = append(listB, myId)
+			time.Sleep(250 * time.Millisecond)
+			listC = append(listC, myId)
+			// Unlock
+			if err := myLock.Unlock(); err != nil {
+				t.Errorf("unexpected error from unlock %d: %s", myId, err)
+			}
+		}(i)
+	}
+
+	// wait until all goroutines are spun off and obtaining their locks
+	numEvents := 0
+	timeout := time.NewTimer(2 * time.Second)
+	for numEvents < numGoroutines {
+		select {
+		case <-ready:
+			numEvents++
+		case <-timeout.C:
+			t.Fatalf("goroutines never got spun off")
+		}
+	}
+	time.Sleep(250 * time.Microsecond) // event is sent before Lock() is called
+
+	// unblock the goroutines
+	if err := mainlock.Unlock(); err != nil {
+		t.Fatalf("unexpected error from unlock main: %s", err)
+	}
+
+	// wait for the goroutines to finish (they should to one at at time as each unlocks)
+	numEvents = 0
+	timeout = time.NewTimer((time.Duration(numGoroutines) * time.Second) + (2 * time.Second))
+	for numEvents < numGoroutines {
+		select {
+		case ev := <-event:
+			t.Logf("goroutine %d is done", ev)
+			numEvents++
+		case <-timeout.C:
+			t.Fatalf("timed out waiting for goroutines to update the data")
+		}
+	}
+
+	// verify all the data lists are the same
+	t.Logf("data lists: A=%v, B=%v, C=%v", listA, listB, listC)
+	for i := 0; i < len(listA); i++ {
+		if listA[i] != listB[i] || listB[i] != listC[i] {
+			t.Fatalf("lists do not match at element %d", i)
+		}
+	}
 }
