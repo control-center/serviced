@@ -13,7 +13,6 @@
 
 package utils
 
-// #include <errno.h>
 // #include <sys/types.h>
 // #include <sys/sysctl.h>
 import "C"
@@ -22,7 +21,16 @@ import (
 	"fmt"
 	"net"
 	"unsafe"
+	"syscall"
 )
+
+const (
+	ioctlTermioFlag = syscall.TIOCGETA
+)
+
+func determinePlatform() int {
+	return Darwin
+}
 
 // getHostID retrieves the system's unique id
 func getHostID() (hostid string, err error) {
@@ -61,4 +69,23 @@ func getHostIPv4Addr() (net.IP, error) {
 	}
 	// Use the first IP (if more than one)
 	return net.ParseIP(ips[0]).To4(), nil
+}
+
+// getMemorySize attempts to get the size of the installed RAM.
+func getMemorySize() (size uint64, err error) {
+	var mib []C.int = []C.int{ C.CTL_HW, C.HW_MEMSIZE }
+	var value C.int64_t = 0
+	var length C.size_t = 8
+	var unused unsafe.Pointer
+
+	if rc, errno := C.sysctl(&mib[0], 2, unsafe.Pointer(&value), &length, unused, 0); rc == -1 {
+		return 0, fmt.Errorf("unable to get memory size: errno=%d", errno)
+	}
+
+	return uint64(value), nil
+}
+
+// Returns a list of network routes
+func getRoutes() (routes []RouteEntry, err error) {
+	return []RouteEntry{}, nil
 }

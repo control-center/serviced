@@ -13,13 +13,73 @@
 
 package utils
 
+//#include <stdlib.h>
+//extern int fd_lock(int fd, char* filepath);
+//extern int fd_unlock(int fd, char* filepath);
+import "C"
+
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
+	"syscall"
 	"strconv"
 	"strings"
 )
 
+const (
+	ioctlTermioFlag = syscall.TCGETS
+	hostIDCmdString = "/usr/bin/hostid"
+)
+
+// Path to meminfo file. Placed here so getMemorySize() is testable.
+var meminfoFile = "/proc/meminfo"
+
+func determinePlatform() int {
+	if _, err := os.Stat("/etc/redhat-release"); err == nil {
+		return Rhel
+	} else {
+		return Debian
+	}
+}
+
+// getHostID retrieves the system's unique id, on linux this maps
+// to /usr/bin/hostid.
+func getHostID() (hostid string, err error) {
+	cmd := exec.Command(hostIDCmdString)
+	stdout, err := cmd.Output()
+	if err != nil {
+		return hostid, err
+	}
+	return strings.TrimSpace(string(stdout)), err
+}
+
+// getMemorySize attempts to get the size of the installed RAM.
+func getMemorySize() (size uint64, err error) {
+	file, err := os.Open(meminfoFile)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+	reader := bufio.NewReader(file)
+	line, err := reader.ReadString('\n')
+	for err == nil {
+		if strings.Contains(line, "MemTotal:") {
+			parts := strings.Fields(line)
+			if len(parts) < 3 {
+				return 0, err
+			}
+			size, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return 0, err
+			}
+			return uint64(size) * 1024, nil
+		}
+		line, err = reader.ReadString('\n')
+	}
+	return 0, err
+}
 
 // Returns a list of network routes
 func getRoutes() (routes []RouteEntry, err error) {
