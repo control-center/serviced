@@ -16,6 +16,7 @@ package mocks
 import "github.com/stretchr/testify/mock"
 
 import "io"
+import "time"
 
 import dockerclient "github.com/fsouza/go-dockerclient"
 
@@ -171,6 +172,27 @@ func (_m *Docker) GetImageHash(image string) (string, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(image)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Docker) GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error) {
+	ret := _m.Called(containerID, timeout)
+
+	var r0 *dockerclient.Stats
+	if rf, ok := ret.Get(0).(func(string, time.Duration) *dockerclient.Stats); ok {
+		r0 = rf(containerID, timeout)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dockerclient.Stats)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, time.Duration) error); ok {
+		r1 = rf(containerID, timeout)
 	} else {
 		r1 = ret.Error(1)
 	}
