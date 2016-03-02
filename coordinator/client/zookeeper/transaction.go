@@ -98,13 +98,14 @@ func (t *Transaction) processSet(op transactionOperation) (*zklib.SetDataRequest
 }
 
 func (t *Transaction) processDelete(op transactionOperation) (*zklib.DeleteRequest, error) {
-	path := join(t.conn.basePath, op.path)
-	_, stat, err := t.conn.conn.Get(path)
+	// TODO: Can we just use version == -1 here instead of grabbing the current value?
+	// (It could change out from underneath us anyway...)
+	_, stat, err := t.conn.get(op.path)
 	if err != nil {
-		return nil, xlateError(err)
+		return nil, err
 	}
 	req := &zklib.DeleteRequest{
-		Path:    path,
+		Path:    join(t.conn.basePath, op.path),
 		Version: stat.Version,
 	}
 	return req, nil

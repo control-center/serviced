@@ -237,19 +237,13 @@ func (c *Connection) Delete(path string) error {
 		}
 	}
 
-	// need current Version to delete properly
-	// for safety, use single write lock around both operations
 	lock := c.NewRWLock(lpath.Dir(path))
 	if lockerr := lock.Lock(); lockerr != nil {
 		glog.Errorf("Could not acquire write lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
 		return lockerr
 	}
 	defer lock.Unlock()
-	_, stat, err := c.conn.Get(join(c.basePath, path))
-	if err != nil {
-		return xlateError(err)
-	}
-	return xlateError(c.conn.Delete(join(c.basePath, path), stat.Version))
+	return xlateError(c.conn.Delete(join(c.basePath, path), -1))
 }
 
 func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struct{}) <-chan client.Event {
@@ -289,22 +283,11 @@ func (c *Connection) ChildrenW(path string, done <-chan struct{}) (children []st
 	return children, c.toClientEvent(zkEvent, done), nil
 }
 
-// GetW gets the node at the given path and returns a channel to watch for events on that node.
-func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
-	if c.conn == nil {
-		return nil, client.ErrConnectionClosed
-	}
-
-	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
-	if lockerr := lock.RLock(); lockerr != nil {
-		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
-		return nil, lockerr
-	}
-	data, stat, zkEvent, err := c.conn.GetW(join(c.basePath, path))
-	lock.Unlock()
-
+// GetW gets the node at the given path and returns a buffered channel to watch for events on that node.
+func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (<-chan client.Event, error) {
+	data, stat, zkEvent, err := c.getW(path)
 	if err != nil {
-		return nil, xlateError(err)
+		return nil, err
 	}
 	if len(data) > 0 {
 		glog.V(11).Infof("got data %s", string(data))
@@ -314,6 +297,23 @@ func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (
 	}
 	node.SetVersion(stat)
 	return c.toClientEvent(zkEvent, done), xlateError(err)
+}
+
+// getW gets the node at the given path and returns an unbuffered channel to watch for events on that node.
+func (c *Connection) getW(path string) (data []byte, stat *zklib.Stat, zkEvent <-chan zklib.Event, err error) {
+	if c.conn == nil {
+		return data, stat, nil, client.ErrConnectionClosed
+	}
+
+	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return data, stat, nil, lockerr
+	}
+	data, stat, zkEvent, err = c.conn.GetW(join(c.basePath, path))
+	lock.Unlock()
+
+	return data, stat, zkEvent, xlateError(err)
 }
 
 // Children returns the children of the node at the given path.
@@ -337,21 +337,10 @@ func (c *Connection) Children(path string) (children []string, err error) {
 }
 
 // Get returns the node at the given path.
-func (c *Connection) Get(path string, node client.Node) (err error) {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
-	}
-
-	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
-	if lockerr := lock.RLock(); lockerr != nil {
-		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
-		return lockerr
-	}
-	data, stat, err := c.conn.Get(join(c.basePath, path))
-	lock.Unlock()
-
+func (c *Connection) Get(path string, node client.Node) error {
+	data, stat, err := c.get(path)
 	if err != nil {
-		return xlateError(err)
+		return err
 	}
 	if len(data) > 0 {
 		glog.V(11).Infof("got data %s", string(data))
@@ -361,6 +350,22 @@ func (c *Connection) Get(path string, node client.Node) (err error) {
 	}
 	node.SetVersion(stat)
 	return xlateError(err)
+}
+
+func (c *Connection) get(path string) (data []byte, stat *zklib.Stat, err error) {
+	if c.conn == nil {
+		return data, stat, client.ErrConnectionClosed
+	}
+
+	lock := c.NewRWLock(lpath.Dir(path)) // Lock the parent node so the one we want can't be deleted while we're getting
+	if lockerr := lock.RLock(); lockerr != nil {
+		glog.Errorf("Could not acquire read lock for %s: %s", join(c.basePath, lpath.Dir(path)), lockerr)
+		return data, stat, lockerr
+	}
+	data, stat, err = c.conn.Get(join(c.basePath, path))
+	lock.Unlock()
+
+	return data, stat, xlateError(err)
 }
 
 // Set serializes the given node and places it at the given path.
