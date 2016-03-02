@@ -18,6 +18,7 @@ package docker
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
@@ -232,4 +233,18 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	c.Assert(hash1, Not(Equals), "")
 	c.Assert(hash2, Not(Equals), "")
 	c.Assert(hash1, Not(Equals), hash2)
+}
+
+func (s *DockerSuite) TestGetContainerStats(c *C) {
+	stats, err := s.docker.GetContainerStats("fakecontainer", 30*time.Second)
+	c.Assert(err, NotNil)
+	c.Assert(stats, IsNil)
+	opts := dockerclient.CreateContainerOptions{}
+	opts.Config = &dockerclient.Config{Image: "busybox"}
+	container, err := s.dc.CreateContainer(opts)
+	c.Assert(err, IsNil)
+	defer s.dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID, RemoveVolumes: true, Force: true})
+	stats, err = s.docker.GetContainerStats(container.ID, 30*time.Second)
+	c.Assert(err, IsNil)
+	c.Assert(stats, NotNil)
 }
