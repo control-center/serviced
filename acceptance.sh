@@ -33,7 +33,7 @@ HOSTNAME=$(hostname)
 #
 # Setup of env vars required to build mockAgent
 echo ==== ENV INFO =====
-gvm use go1.4.2
+gvm use go1.6
 go version
 docker version
 echo ===================

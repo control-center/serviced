@@ -15,7 +15,7 @@ package registry
 
 import "github.com/control-center/serviced/validation"
 
-const excludeChars = " \t\r\n\v\f/:?"
+const excludeChars = " \t\r\n\v\f/?"
 
 func (image *Image) ValidEntity() error {
 	violations := validation.NewValidationError()
