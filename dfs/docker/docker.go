@@ -21,6 +21,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/commons"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -65,6 +66,7 @@ type Docker interface {
 	FindContainer(ctr string) (*dockerclient.Container, error)
 	CommitContainer(ctr, image string) (*dockerclient.Image, error)
 	GetImageHash(image string) (string, error)
+	GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error)
 }
 
 type DockerClient struct {
@@ -195,4 +197,39 @@ func (d *DockerClient) GetImageHash(image string) (string, error) {
 	sha := base64.URLEncoding.EncodeToString(h.Sum(buffer.Bytes()))
 
 	return sha, nil
+}
+
+func (d *DockerClient) GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error) {
+	var retErr error
+	statsChan := make(chan *dockerclient.Stats)
+	stopChan := make(chan bool)
+	finishedChan := make(chan bool)
+
+	opts := dockerclient.StatsOptions{
+		ID:      containerID,
+		Stats:   statsChan,
+		Stream:  false, //Pull the stats once then exit (this doesn't actually work, you still need to send a signal to Done)
+		Done:    stopChan,
+		Timeout: timeout,
+	}
+
+	// Start streaming stats
+	go func() {
+		retErr = d.dc.Stats(opts)
+		finishedChan <- true
+	}()
+
+	// Pull the first result off and then shut down
+	result := <-statsChan
+	close(stopChan)
+
+	// Wait for the api call to exit
+	_ = <-finishedChan
+
+	// Check for errors and return
+	if retErr != nil {
+		return nil, retErr
+	}
+
+	return result, nil
 }

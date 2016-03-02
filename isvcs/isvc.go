@@ -14,6 +14,7 @@
 package isvcs
 
 import (
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
@@ -29,40 +30,48 @@ const (
 	ZK_IMAGE_TAG  = "v3"
 )
 
-func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string) {
+func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
 	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 	elasticsearch_logstash.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
 
 	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"), dockerLogDriver, dockerLogConfig)
 
+	elasticsearch_serviced.docker = dockerAPI
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	elasticsearch_logstash.docker = dockerAPI
 	if err := Mgr.Register(elasticsearch_logstash); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	zookeeper.docker = dockerAPI
 	if err := Mgr.Register(zookeeper); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	logstash.docker = dockerAPI
 	if err := Mgr.Register(logstash); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	opentsdb.docker = dockerAPI
 	if err := Mgr.Register(opentsdb); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	celery.docker = dockerAPI
 	if err := Mgr.Register(celery); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	dockerRegistry.docker = dockerAPI
 	if err := Mgr.Register(dockerRegistry); err != nil {
 		glog.Fatalf("%s", err)
 	}
 }
 
-func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string) {
+func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
 	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"), dockerLogDriver, dockerLogConfig)
 	for _, isvcName := range isvcNames {
 		switch isvcName {
 		case "zookeeper":
+			zookeeper.docker = dockerAPI
 			if err := Mgr.Register(zookeeper); err != nil {
 				glog.Fatalf("%s", err)
 			}
