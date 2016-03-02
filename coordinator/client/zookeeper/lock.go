@@ -17,7 +17,7 @@ import (
 	zklib "github.com/control-center/go-zookeeper/zk"
 )
 
-// Lock creates a object to facilitate create a locking pattern in zookeeper.
+// Lock creates an object to facilitate creating a locking pattern in zookeeper.
 type Lock struct {
 	lock *zklib.Lock
 }

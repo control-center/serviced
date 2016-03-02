@@ -37,7 +37,6 @@ func IsServiceLocked(conn client.Connection) (bool, error) {
 	return len(locks) > 0, err
 }
 
-// ServiceLock sets a lock on a group of services
 type ServiceLockNode struct {
 	PoolID    string
 	ServiceID string
