@@ -36,13 +36,13 @@ type Leader struct {
 	c        *Connection
 	path     string
 	lockPath string
-	seq      uint64
+	seq      int64 // Note: ZK sequence number is actually signed int32
 	node     client.Node
 }
 
-func parseSeq(path string) (uint64, error) {
+func parseSeq(path string) (int64, error) {
 	parts := strings.Split(path, "-")
-	return strconv.ParseUint(parts[len(parts)-1], 10, 64)
+	return strconv.ParseInt(parts[len(parts)-1], 10, 64)
 }
 
 func (l *Leader) prefix() string {
@@ -58,8 +58,8 @@ func (l *Leader) Current(node client.Node) (err error) {
 		return xlateError(err)
 	}
 
-	var lowestSeq uint64
-	lowestSeq = math.MaxUint64
+	var lowestSeq int64
+	lowestSeq = math.MaxInt64
 	path := ""
 	for _, p := range children {
 		s, err := parseSeq(p)
@@ -71,7 +71,7 @@ func (l *Leader) Current(node client.Node) (err error) {
 			path = p
 		}
 	}
-	if lowestSeq == math.MaxUint64 {
+	if lowestSeq == math.MaxInt64 {
 		return ErrNoLeaderFound
 	}
 	path = fmt.Sprintf("%s/%s", l.path, path)
@@ -141,7 +141,7 @@ func (l *Leader) TakeLead(done <-chan struct{}) (echan <-chan client.Event, err 
 		}
 
 		lowestSeq := seq
-		var prevSeq uint64
+		prevSeq := int64(-1)
 		prevSeqPath := ""
 		// find the lowest sequenced node
 		for _, p := range children {
