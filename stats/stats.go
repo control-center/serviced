@@ -19,7 +19,7 @@ import (
 	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/stats/cgroup"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -45,6 +45,7 @@ type StatsReporter struct {
 	hostID              string
 	hostRegistry        metrics.Registry
 	isMasterHost        bool
+	docker              docker.Docker
 	sync.Mutex
 }
 
@@ -62,7 +63,7 @@ type registryKey struct {
 }
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
-func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, isMasterHost bool) (*StatsReporter, error) {
+func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, isMasterHost bool, dockerClient docker.Docker) (*StatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
@@ -79,6 +80,7 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 		containerRegistries: make(map[registryKey]metrics.Registry),
 		hostID:              hostID,
 		isMasterHost:        isMasterHost,
+		docker:              dockerClient,
 	}
 
 	sr.hostRegistry = metrics.NewRegistry()
@@ -271,23 +273,32 @@ func (sr *StatsReporter) updateStats() {
 	for _, rs := range running {
 		if rs.DockerID != "" {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct); fileName == "" {
-				glog.Warningf("Couldn't find CpuacctStat file for %s", rs.DockerID)
-			} else if cpuacctStat, err := cgroup.ReadCpuacctStat(fileName); err != nil {
-				glog.V(4).Infof("Couldn't read CpuacctStat:", err)
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
+			stats, err := sr.docker.GetContainerStats(rs.DockerID, 30*time.Second)
+			if err != nil {
+				glog.Warningf("Couldn't get stats for service %s instance %s: %s", rs.Name, rs.InstanceID, err)
+				continue
 			}
-			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory); fileName == "" {
-				glog.Warningf("Couldn't find  MemoryStat file for %s", rs.DockerID)
-			} else if memoryStat, err := cgroup.ReadMemoryStat(fileName); err != nil {
-				glog.V(4).Infof("Couldn't read MemoryStat:", err)
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-				metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+
+			// CPU Stats
+			systemCPU := int64(stats.CPUStats.CPUUsage.UsageInKernelmode / 10000000)
+			userCPU := int64(stats.CPUStats.CPUUsage.UsageInUsermode / 10000000)
+			if systemCPU < 0 || userCPU < 0 {
+				glog.Warningf("CPU metric value for service %s instance %s too big for int64", rs.Name, rs.InstanceID)
 			}
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(systemCPU)
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(userCPU)
+
+			// Memory Stats
+			pgFault := int64(stats.MemoryStats.Stats.Pgfault)
+			totalRSS := int64(stats.MemoryStats.Stats.TotalRss)
+			cache := int64(stats.MemoryStats.Stats.Cache)
+			if pgFault < 0 || totalRSS < 0 || cache < 0 {
+				glog.Warningf("Memory metric value for service %s instance %s too big for int64", rs.Name, rs.InstanceID)
+			}
+			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
+			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
+			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(cache)
+
 		} else {
 			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
