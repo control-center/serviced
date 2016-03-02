@@ -81,8 +81,7 @@ func (l *RWLock) Unlock() error {
 		glog.Errorf("Could not delete lock file %s: %s", l.lockPath, err)
 		return xlateError(err)
 	}
-	// DEBUG: KWW: Remove this line
-	glog.Infof("KWW: Deleted lock file: %s", l.lockPath)
+	glog.V(3).Infof("Deleted lock file: %s", l.lockPath)
 
 	l.lockPath = ""
 	return nil
@@ -126,8 +125,7 @@ func (l *RWLock) lock(getWriteLock bool) error {
 
 		// If no blocking lock, then we can proceed
 		if blockingLockFile == "" {
-			// DEBUG: KWW: Remove this line
-			glog.Infof("KWW: Obtained lock: %s", l.lockPath)
+			glog.V(3).Infof("Obtained lock: %s", l.lockPath)
 			cleanUpLockFile = false
 			return nil
 		}
@@ -136,8 +134,7 @@ func (l *RWLock) lock(getWriteLock bool) error {
 		// blocks us.
 		// TODO: If we're blocking on highest seq, why do we need to go check again?
 		var event <-chan zklib.Event
-		// DEBUG: KWW: Remove this line
-		glog.Infof("KWW: Blocking on %s...", blockingLockFile)
+		glog.V(3).Infof("Blocking on %s...", blockingLockFile)
 		if _, _, event, err = l.c.conn.GetW(lpath.Join(parentPath, blockingLockFile)); err != nil {
 			if err == zklib.ErrNoNode {
 				// It disappeared between the time we gathered the list of lock files and now
@@ -150,8 +147,7 @@ func (l *RWLock) lock(getWriteLock bool) error {
 		// TODO: Implement timeout here?
 		select {
 		case <-event:
-			// DEBUG: KWW: Remove this line
-			glog.Infof("KWW: Unblocked by %s", blockingLockFile)
+			glog.V(3).Infof("Unblocked by %s", blockingLockFile)
 			continue
 		}
 	}
@@ -171,8 +167,6 @@ func (l *RWLock) createLockFile(makeWriteLock bool) (string, error) {
 		pth := ""
 		for _, p := range parts[1 : len(parts)-1] {
 			pth += "/" + p
-			// DEBUG: KWW: Remove this line
-			glog.Infof("KWW: Creating dir: %s", pth)
 			_, err := l.c.conn.Create(pth, noData, 0, l.acl)
 			if err != nil && err != zklib.ErrNodeExists {
 				glog.Errorf("Could not create lock parent dir %s: %s", pth, err)
@@ -187,8 +181,7 @@ func (l *RWLock) createLockFile(makeWriteLock bool) (string, error) {
 		return "", err
 	}
 	l.lockPath = path
-	// DEBUG: KWW: Remove this line
-	glog.Infof("KWW: Created lock file: %s", l.lockPath)
+	glog.V(3).Infof("Created lock file: %s", l.lockPath)
 
 	return lpath.Dir(l.lockPath), nil
 }
@@ -217,9 +210,7 @@ func getLockInfo(lockPath string) (ok bool, isWriteLock bool, seq int) {
 	// Lock files should have three parts: ZK session ID, read or write, sequence number
 	parts := strings.Split(lpath.Base(lockPath), "-")
 	if len(parts) != 3 {
-		// Some other node that is not a lock file
-		// DEBUG: KWW: Convert to V(3)
-		glog.Infof("Skipping non-lock file: %s", lockPath)
+		// Not a lock file (may be a subdirectory node)
 		return
 	} else {
 		lockType := parts[len(parts)-2]
@@ -229,16 +220,12 @@ func getLockInfo(lockPath string) (ok bool, isWriteLock bool, seq int) {
 			isWriteLock = false
 		} else {
 			// Some other node that happens to have three parts--ignore it
-			// DEBUG: KWW: Convert to V(3)
-			glog.Infof("Skipping non-lock file (not read or write lock): %s", lockPath)
 			return
 		}
 
 		seqNum := parts[len(parts)-1]
 		var err error
 		if seq, err = strconv.Atoi(seqNum); err != nil {
-			// DEBUG: KWW: Convert to V(3)
-			glog.Infof("Skipping lock file with invalid sequence number: %s: %s", lockPath, err)
 			return
 		}
 	}
