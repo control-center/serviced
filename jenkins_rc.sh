@@ -14,6 +14,6 @@ function dochown {
 trap dochown EXIT
 
 . /home/jenkins/.gvm/scripts/gvm
-gvm use go1.4.2
+gvm use go1.6
 export GOPATH=$WORKSPACE/gopath
 export PATH=$WORKSPACE/gopath/bin:$PATH
