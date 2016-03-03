@@ -9,6 +9,9 @@ RUN	apt-get update -qq && apt-get install -y -q build-essential wget curl unzip 
 #
 RUN apt-get update -qq && apt-get install -y -q zlib1g-dev=1:1.2.8.dfsg-1ubuntu1 libxml2-dev=2.9.1+dfsg1-3ubuntu4.7 libxml2 libxslt1-dev
 
+# Prerequesites for capybara-webkit
+RUN apt-get install -y -q qt5-default libqt5webkit5-dev gstreamer1.0-plugins-base gstreamer1.0-tools gstreamer1.0-x
+
 #
 # Install Ruby via rvm
 #
@@ -28,6 +31,7 @@ RUN /bin/bash -lc "gem install rspec -v 3.4.0"
 RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
 RUN /bin/bash -lc "gem install site_prism -v 2.8"
 RUN /bin/bash -lc "gem install headless -v 2.2.2"
+RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
