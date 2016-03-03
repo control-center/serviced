@@ -168,6 +168,16 @@ if [ "$MOUNT_DEVMAPPER" == "true" ]; then
     LIB_DEVMAPPER_MOUNT="-v ${LIBDEVMAPPER_SOURCE}:/lib/x86_64-linux-gnu/${LIBDEVMAPPER_TARGET}"
 fi
 
+#
+# If not running in a jenkins job, provide default values for build number and job name
+#
+if [ -z "$BUILD_NUMBER" ]; then
+    BUILD_NUMBER="local-build"
+fi
+if [ -z "$JOB_NAME" ]; then
+    JOB_NAME="serviced-acceptance"
+fi
+
 cp -u `pwd`/../serviced `pwd`/ui
 
 trap 'docker rm -f ui_acceptance' INT
@@ -180,6 +190,8 @@ docker run --rm --name ui_acceptance \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
+    -e BUILD_NUMBER=${BUILD_NUMBER} \
+    -e JOB_NAME=${JOB_NAME} \
     -e CAPYBARA_DRIVER=${DRIVER_NAME} \
     -e CAPYBARA_TIMEOUT=${TIMEOUT} \
     -e DATASET=${DATASET} \
