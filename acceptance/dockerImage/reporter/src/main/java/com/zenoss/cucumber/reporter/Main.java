@@ -27,8 +27,8 @@ public class Main {
         List<String> jsonReportFiles = new ArrayList<String>();
         jsonReportFiles.add(args[1]);
 
-        String buildNumber = "";
-        String buildProjectName = "";
+        String buildNumber = System.getenv("BUILD_NUMBER");
+        String buildProjectName = System.getenv("JOB_NAME");
         Boolean skippedFails = true;   // mark the build failed for skipped tests
         Boolean pendingFails = false;   // don't mark the build failed for pending tests
         Boolean undefinedFails = true;
