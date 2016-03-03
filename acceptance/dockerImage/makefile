@@ -19,7 +19,9 @@ default: dockerBuild
 dockerBuild: reporterJar
 	docker build -t zenoss/capybara:$(VERSION) build
 
-reporterJar:
+reporterJar: build/reporter.jar
+
+build/reporter.jar: reporter/target/reporter.jar
 	cd reporter && mvn -s ./settings.xml package
 	cp reporter/target/reporter.jar build/reporter.jar
 
