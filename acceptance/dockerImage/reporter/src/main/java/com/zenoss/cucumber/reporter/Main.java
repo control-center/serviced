@@ -3,6 +3,7 @@ package com.zenoss.cucumber.reporter;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import net.masterthought.cucumber.Configuration;
 import net.masterthought.cucumber.ReportBuilder;
 
 /**
@@ -28,27 +29,18 @@ public class Main {
 
         String buildNumber = "";
         String buildProjectName = "";
-        String pluginUrlPath = "";
-        Boolean skippedFails = false;
-        Boolean undefinedFails = false;
-        Boolean flashCharts = false;
-        Boolean runWithJenkins = false;
-        Boolean artifactsEnabled = false;
-        String artifactConfig = "";
-        Boolean highCharts = false;
+        Boolean skippedFails = true;   // mark the build failed for skipped tests
+        Boolean pendingFails = false;   // don't mark the build failed for pending tests
+        Boolean undefinedFails = true;
+        Boolean missingFails = false;
 
-        ReportBuilder reportBuilder = new ReportBuilder(jsonReportFiles,
-            reportOutputDirectory,
-            pluginUrlPath,
-            buildNumber,
-            buildProjectName,
-            skippedFails,
-            undefinedFails,
-            flashCharts,
-            runWithJenkins,
-            artifactsEnabled,
-            artifactConfig,
-            highCharts);
+        Configuration configuration = new Configuration(reportOutputDirectory, buildProjectName);
+        configuration.setStatusFlags(skippedFails, pendingFails, undefinedFails, missingFails);
+        configuration.setRunWithJenkins(false);
+        configuration.setParallelTesting(false);
+        configuration.setBuildNumber(buildNumber);
+
+        ReportBuilder reportBuilder = new ReportBuilder(jsonReportFiles, configuration);
         reportBuilder.generateReports();
     }
 }
