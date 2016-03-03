@@ -18,7 +18,6 @@ package metrics
 import (
 	"errors"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -30,7 +29,6 @@ func TestCache(t *testing.T) {
 	clock := utils.NewTestClock()
 
 	cache := MemoryUsageCache{
-		Locks:  make(map[string]*sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    time.Minute,
 		Clock:  clock,
