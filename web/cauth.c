@@ -21,7 +21,7 @@
 #define _CP_MAX_GROUPS 100
 #define _CP_ROOT "root"
 
-static const max_size = 16 * 1024 * 1024;
+static const int max_size = 16 * 1024 * 1024;
 
 int getUserGID(const char *username, gid_t *pw_gid)
 {
