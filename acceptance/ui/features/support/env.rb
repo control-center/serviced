@@ -11,6 +11,7 @@ require "capybara/rspec"
 require 'capybara/poltergeist'
 require 'selenium-webdriver'
 require 'capybara-screenshot/cucumber'
+require 'capybara-webkit'
 
 def combineAllDataFiles(dir)
     data = "{"
@@ -116,6 +117,9 @@ if driver_override && driver_override.length > 0
         Capybara.default_driver = :selenium_chrome
     elsif driver_override == "poltergeist"
         Capybara.default_driver = :poltergeist
+    elsif driver_override == "webkit"
+        Capybara.default_driver = :webkit
+        Capybara.javascript_driver = :webkit
     else
         puts "ERROR: invalid value for CAPYBARA_DRIVER"
         exit 1
@@ -152,6 +156,12 @@ Capybara.register_driver :poltergeist do |app|
         :inspector => true,
     }
     Capybara::Poltergeist::Driver.new(app, options)
+end
+
+Capybara::Webkit.configure do |config|
+    # Allow loading of all external URLs
+    config.allow_url("*")
+    config.ignore_ssl_errors = true
 end
 
 Before do
