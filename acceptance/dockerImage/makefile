@@ -22,6 +22,8 @@ dockerBuild: reporterJar
 reporterJar: build/reporter.jar
 
 build/reporter.jar: reporter/target/reporter.jar
+
+reporter/target/reporter.jar:
 	cd reporter && mvn -s ./settings.xml package
 	cp reporter/target/reporter.jar build/reporter.jar
 
