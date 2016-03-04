@@ -829,6 +829,11 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	registry := metrics.NewRegistry()
 	tc := time.Tick(10 * time.Second)
 
+	// previous stats holds some of the stats gathered in the previous sample, currently used for computing CPU %
+	previousStats := make(map[string]uint64)
+	//The docker container ID the last time we gathered stats, used to detect when the container has changed to avoid invalid CPU stats
+	previousDockerID := ""
+
 	for {
 		select {
 		case <-halt:
@@ -852,14 +857,57 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				break
 			}
 
-			// CPU Stats
-			systemCPU := int64(dockerstats.CPUStats.CPUUsage.UsageInKernelmode / 10000000)
-			userCPU := int64(dockerstats.CPUStats.CPUUsage.UsageInUsermode / 10000000)
-			if systemCPU < 0 || userCPU < 0 {
-				glog.Warningf("CPU metric value for IService %s too big for int64", svc.Name)
+			// We store and check the docker ID because we can't use the previous value to compute percentage if the container has changed
+			usePreviousStats := true
+			if ctr.ID != previousDockerID {
+				usePreviousStats = false //docker ID has changed, this service was restarted
 			}
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", registry).Update(systemCPU)
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", registry).Update(userCPU)
+			previousDockerID = ctr.ID
+
+			// CPU Stats
+			var (
+				kernelCPUPercent float64
+				userCPUPercent   float64
+				totalCPUChange   uint64
+			)
+
+			kernelCPU := dockerstats.CPUStats.CPUUsage.UsageInKernelmode
+			userCPU := dockerstats.CPUStats.CPUUsage.UsageInUsermode
+			totalCPU := dockerstats.CPUStats.SystemCPUUsage
+
+			// Total CPU Cycles
+			if previousTotalCPU, found := previousStats["totalCPU"]; found && usePreviousStats {
+				totalCPUChange = totalCPU - previousTotalCPU
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["totalCPU"] = totalCPU
+
+			// CPU Cycles in Kernel mode
+			if previousKernelCPU, found := previousStats["kernelCPU"]; found && usePreviousStats {
+				kernelCPUChange := kernelCPU - previousKernelCPU
+				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["kernelCPU"] = kernelCPU
+
+			// CPU Cycles in User mode
+			if previousUserCPU, found := previousStats["userCPU"]; found && usePreviousStats {
+				userCPUChange := userCPU - previousUserCPU
+				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["userCPU"] = userCPU
+
+			// Update CPU metrics
+			if usePreviousStats {
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", registry).Update(kernelCPUPercent)
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", registry).Update(userCPUPercent)
+			} else {
+				glog.V(4).Infof("Skipping CPU stats for IService %s, no previous values to compare to", svc.Name)
+			}
 
 			// Memory Stats
 			pgFault := int64(dockerstats.MemoryStats.Stats.Pgfault)

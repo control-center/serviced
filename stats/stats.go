@@ -46,6 +46,7 @@ type StatsReporter struct {
 	hostRegistry        metrics.Registry
 	isMasterHost        bool
 	docker              docker.Docker
+	previousStats       map[string]map[string]uint64 //holds some of the stats gathered in the previous sample, currently used for computing CPU %
 	sync.Mutex
 }
 
@@ -81,6 +82,7 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 		hostID:              hostID,
 		isMasterHost:        isMasterHost,
 		docker:              dockerClient,
+		previousStats:       make(map[string]map[string]uint64),
 	}
 
 	sr.hostRegistry = metrics.NewRegistry()
@@ -104,7 +106,9 @@ func (sr *StatsReporter) getOrCreateContainerRegistry(serviceID string, instance
 func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 	// First build a list of what's actually running
 	keys := make(map[string][]int)
+	containers := make(map[string]bool)
 	for _, rs := range *running {
+		containers[rs.DockerID] = true
 		if instances, ok := keys[rs.ServiceID]; !ok {
 			instances = []int{rs.InstanceID}
 			keys[rs.ServiceID] = instances
@@ -130,6 +134,13 @@ func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 			if !seen {
 				delete(sr.containerRegistries, key)
 			}
+		}
+	}
+
+	// Now remove stale entries from our list of previous stats
+	for key, _ := range sr.previousStats {
+		if _, ok := containers[key]; !ok {
+			delete(sr.previousStats, key)
 		}
 	}
 }
@@ -272,21 +283,66 @@ func (sr *StatsReporter) updateStats() {
 
 	for _, rs := range running {
 		if rs.DockerID != "" {
+
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 			stats, err := sr.docker.GetContainerStats(rs.DockerID, 30*time.Second)
 			if err != nil {
-				glog.Warningf("Couldn't get stats for service %s instance %s: %s", rs.Name, rs.InstanceID, err)
+				glog.Warningf("Couldn't get stats for service %s instance %d: %s", rs.Name, rs.InstanceID, err)
 				continue
 			}
 
-			// CPU Stats
-			systemCPU := int64(stats.CPUStats.CPUUsage.UsageInKernelmode / 10000000)
-			userCPU := int64(stats.CPUStats.CPUUsage.UsageInUsermode / 10000000)
-			if systemCPU < 0 || userCPU < 0 {
-				glog.Warningf("CPU metric value for service %s instance %s too big for int64", rs.Name, rs.InstanceID)
+			// Check to see if we have the previous stats for this running instance
+			usePreviousStats := true
+			key := rs.DockerID
+			if _, found := sr.previousStats[key]; !found {
+				sr.previousStats[key] = make(map[string]uint64)
+				usePreviousStats = false
 			}
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(systemCPU)
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(userCPU)
+
+			// CPU Stats
+			var (
+				kernelCPUPercent float64
+				userCPUPercent   float64
+				totalCPUChange   uint64
+			)
+
+			kernelCPU := stats.CPUStats.CPUUsage.UsageInKernelmode
+			userCPU := stats.CPUStats.CPUUsage.UsageInUsermode
+			totalCPU := stats.CPUStats.SystemCPUUsage
+
+			// Total CPU Cycles
+			if previousTotalCPU, found := sr.previousStats[key]["totalCPU"]; found && usePreviousStats {
+				totalCPUChange = totalCPU - previousTotalCPU
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["totalCPU"] = totalCPU
+
+			// CPU Cycles in Kernel mode
+			if previousKernelCPU, found := sr.previousStats[key]["kernelCPU"]; found && usePreviousStats {
+				kernelCPUChange := kernelCPU - previousKernelCPU
+				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["kernelCPU"] = kernelCPU
+
+			// CPU Cycles in User mode
+			if previousUserCPU, found := sr.previousStats[key]["userCPU"]; found && usePreviousStats {
+				userCPUChange := userCPU - previousUserCPU
+				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["userCPU"] = userCPU
+
+			// Update CPU metrics
+			if usePreviousStats {
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", containerRegistry).Update(kernelCPUPercent)
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", containerRegistry).Update(userCPUPercent)
+			} else {
+				glog.V(4).Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.Name, rs.ServiceID)
+			}
 
 			// Memory Stats
 			pgFault := int64(stats.MemoryStats.Stats.Pgfault)
@@ -328,12 +384,14 @@ func (sr *StatsReporter) gatherStats(t time.Time) []Sample {
 	for key, registry := range sr.containerRegistries {
 		reg, _ := registry.(*metrics.StandardRegistry)
 		reg.Each(func(name string, i interface{}) {
+			tagmap := make(map[string]string)
+			tagmap["controlplane_service_id"] = key.serviceID
+			tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
+			tagmap["controlplane_host_id"] = sr.hostID
 			if metric, ok := i.(metrics.Gauge); ok {
-				tagmap := make(map[string]string)
-				tagmap["controlplane_service_id"] = key.serviceID
-				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
-				tagmap["controlplane_host_id"] = sr.hostID
 				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
+				stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 			}
 		})
 	}
