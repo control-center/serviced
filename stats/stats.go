@@ -19,7 +19,7 @@ import (
 	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/stats/cgroup"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -45,6 +45,8 @@ type StatsReporter struct {
 	hostID              string
 	hostRegistry        metrics.Registry
 	isMasterHost        bool
+	docker              docker.Docker
+	previousStats       map[string]map[string]uint64 //holds some of the stats gathered in the previous sample, currently used for computing CPU %
 	sync.Mutex
 }
 
@@ -62,7 +64,7 @@ type registryKey struct {
 }
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
-func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, isMasterHost bool) (*StatsReporter, error) {
+func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, isMasterHost bool, dockerClient docker.Docker) (*StatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
@@ -79,6 +81,8 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 		containerRegistries: make(map[registryKey]metrics.Registry),
 		hostID:              hostID,
 		isMasterHost:        isMasterHost,
+		docker:              dockerClient,
+		previousStats:       make(map[string]map[string]uint64),
 	}
 
 	sr.hostRegistry = metrics.NewRegistry()
@@ -102,7 +106,9 @@ func (sr *StatsReporter) getOrCreateContainerRegistry(serviceID string, instance
 func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 	// First build a list of what's actually running
 	keys := make(map[string][]int)
+	containers := make(map[string]bool)
 	for _, rs := range *running {
+		containers[rs.DockerID] = true
 		if instances, ok := keys[rs.ServiceID]; !ok {
 			instances = []int{rs.InstanceID}
 			keys[rs.ServiceID] = instances
@@ -128,6 +134,13 @@ func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 			if !seen {
 				delete(sr.containerRegistries, key)
 			}
+		}
+	}
+
+	// Now remove stale entries from our list of previous stats
+	for key, _ := range sr.previousStats {
+		if _, ok := containers[key]; !ok {
+			delete(sr.previousStats, key)
 		}
 	}
 }
@@ -270,24 +283,78 @@ func (sr *StatsReporter) updateStats() {
 
 	for _, rs := range running {
 		if rs.DockerID != "" {
+
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct); fileName == "" {
-				glog.Warningf("Couldn't find CpuacctStat file for %s", rs.DockerID)
-			} else if cpuacctStat, err := cgroup.ReadCpuacctStat(fileName); err != nil {
-				glog.V(4).Infof("Couldn't read CpuacctStat:", err)
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
+			stats, err := sr.docker.GetContainerStats(rs.DockerID, 30*time.Second)
+			if err != nil {
+				glog.Warningf("Couldn't get stats for service %s instance %d: %s", rs.Name, rs.InstanceID, err)
+				continue
 			}
-			if fileName := cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory); fileName == "" {
-				glog.Warningf("Couldn't find  MemoryStat file for %s", rs.DockerID)
-			} else if memoryStat, err := cgroup.ReadMemoryStat(fileName); err != nil {
-				glog.V(4).Infof("Couldn't read MemoryStat:", err)
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-				metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+
+			// Check to see if we have the previous stats for this running instance
+			usePreviousStats := true
+			key := rs.DockerID
+			if _, found := sr.previousStats[key]; !found {
+				sr.previousStats[key] = make(map[string]uint64)
+				usePreviousStats = false
 			}
+
+			// CPU Stats
+			var (
+				kernelCPUPercent float64
+				userCPUPercent   float64
+				totalCPUChange   uint64
+			)
+
+			kernelCPU := stats.CPUStats.CPUUsage.UsageInKernelmode
+			userCPU := stats.CPUStats.CPUUsage.UsageInUsermode
+			totalCPU := stats.CPUStats.SystemCPUUsage
+
+			// Total CPU Cycles
+			if previousTotalCPU, found := sr.previousStats[key]["totalCPU"]; found && usePreviousStats {
+				totalCPUChange = totalCPU - previousTotalCPU
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["totalCPU"] = totalCPU
+
+			// CPU Cycles in Kernel mode
+			if previousKernelCPU, found := sr.previousStats[key]["kernelCPU"]; found && usePreviousStats {
+				kernelCPUChange := kernelCPU - previousKernelCPU
+				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["kernelCPU"] = kernelCPU
+
+			// CPU Cycles in User mode
+			if previousUserCPU, found := sr.previousStats[key]["userCPU"]; found && usePreviousStats {
+				userCPUChange := userCPU - previousUserCPU
+				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			sr.previousStats[key]["userCPU"] = userCPU
+
+			// Update CPU metrics
+			if usePreviousStats {
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", containerRegistry).Update(kernelCPUPercent)
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", containerRegistry).Update(userCPUPercent)
+			} else {
+				glog.V(4).Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.Name, rs.ServiceID)
+			}
+
+			// Memory Stats
+			pgFault := int64(stats.MemoryStats.Stats.Pgfault)
+			totalRSS := int64(stats.MemoryStats.Stats.TotalRss)
+			cache := int64(stats.MemoryStats.Stats.Cache)
+			if pgFault < 0 || totalRSS < 0 || cache < 0 {
+				glog.Warningf("Memory metric value for service %s instance %s too big for int64", rs.Name, rs.InstanceID)
+			}
+			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
+			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
+			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(cache)
+
 		} else {
 			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
@@ -317,12 +384,14 @@ func (sr *StatsReporter) gatherStats(t time.Time) []Sample {
 	for key, registry := range sr.containerRegistries {
 		reg, _ := registry.(*metrics.StandardRegistry)
 		reg.Each(func(name string, i interface{}) {
+			tagmap := make(map[string]string)
+			tagmap["controlplane_service_id"] = key.serviceID
+			tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
+			tagmap["controlplane_host_id"] = sr.hostID
 			if metric, ok := i.(metrics.Gauge); ok {
-				tagmap := make(map[string]string)
-				tagmap["controlplane_service_id"] = key.serviceID
-				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
-				tagmap["controlplane_host_id"] = sr.hostID
 				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
+				stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 			}
 		})
 	}
