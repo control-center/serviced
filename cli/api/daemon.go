@@ -163,7 +163,7 @@ func (d *daemon) startISVCS() {
 	if err := isvcs.Mgr.Start(); err != nil {
 		glog.Fatalf("Could not start isvcs: %s", err)
 	}
-	go d.startLogstashPurger(10*time.Minute, time.Duration(options.LogstashCycleTime)*time.Hour)
+	go d.startLogstashPurger(10*time.Minute, 6*time.Hour)
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
