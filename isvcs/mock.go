@@ -408,7 +408,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "% CPU",
+					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
