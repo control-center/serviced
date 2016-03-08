@@ -183,7 +183,7 @@ func (p *EnvironConfigReader) keyvalue(line []byte) error {
 }
 
 func translate(value string) string {
-	result, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("echo -n \"%s\"", value)).Output()
+	result, err := exec.Command("/bin/sh", "-c", fmt.Sprintf("/bin/echo -n \"%s\"", value)).Output()
 	if err != nil {
 		return ""
 	}
