@@ -57,7 +57,7 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	host.Name = hostname
 	hostidStr, err := utils.HostID()
 	if err != nil {
-		glog.Errorf("HostID failed: %s", err)
+		glog.V(2).Infof("HostID failed: %s", err)
 		return nil, err
 	}
 
@@ -98,7 +98,7 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 
 	routes, err := utils.RouteCmd()
 	if err != nil {
-		glog.Errorf("RouteCmd failed: %s", err)
+		glog.V(2).Infof("RouteCmd failed: %s", err)
 		return nil, err
 	}
 	for _, route := range routes {

@@ -168,13 +168,13 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	}
 	host, err := currentHost(ip, rpcPort, poolid)
 	if err != nil {
-		glog.Errorf("currentHost failed: %s", err)
+		glog.V(2).Infof("currentHost failed: %s", err)
 		return nil, err
 	}
 	glog.Infof("Building host %s (%s) with ipsAddrs: %v [%d]", host.ID, host.IPAddr, ipAddrs, len(ipAddrs))
 	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
 	if err != nil {
-		glog.Errorf("getIPResources failed: %s", err)
+		glog.V(2).Infof("getIPResources failed: %s", err)
 		return nil, err
 	}
 	host.IPs = hostIPs
