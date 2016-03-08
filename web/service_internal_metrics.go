@@ -62,7 +62,7 @@ var internalCounterStats = []string{
 	"net.tx_bytes", "net.tx_carrier_errors", "net.tx_compressed",
 	"net.tx_dropped", "net.tx_errors", "net.tx_fifo_errors",
 	"net.tx_heartbeat_errors", "net.tx_packets", "net.tx_window_errors",
-	"cgroup.cpuacct.system", "cgroup.cpuacct.user", "cgroup.memory.pgmajfault",
+	"docker.usageinkernelmode", "docker.usageinusermode", "cgroup.memory.pgmajfault",
 }
 var internalGaugeStats = []string{
 	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.open_connections.tcp", "net.open_connections.udp",
@@ -104,39 +104,29 @@ func addInternalGraphConfigs(svc *service.Service) {
 			Description: "% CPU Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
-			Units:       "Time",
+			Units:       "Percent",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Format:       "%4.2f",
 					Legend:       "System",
-					Metric:       "cgroup.cpuacct.system",
+					Metric:       "docker.usageinkernelmode",
 					MetricSource: "metrics",
-					ID:           "cgroup.cpuacct.system",
+					ID:           "docker.usageinkernelmode",
 					Name:         "System",
-					Rate:         true,
-					RateOptions: &domain.DataPointRateOptions{
-						Counter: true,
-						// supress extreme outliers
-						ResetThreshold: 1,
-					},
-					Type: "area",
+					Rate:         false,
+					Type:         "area",
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Format:       "%4.2f",
 					Legend:       "User",
-					Metric:       "cgroup.cpuacct.user",
+					Metric:       "docker.usageinusermode",
 					MetricSource: "metrics",
-					ID:           "cgroup.cpuacct.user",
+					ID:           "docker.usageinusermode",
 					Name:         "User",
-					Rate:         true,
-					RateOptions: &domain.DataPointRateOptions{
-						Counter: true,
-						// supress extreme outliers
-						ResetThreshold: 1,
-					},
-					Type: "area",
+					Rate:         false,
+					Type:         "area",
 				},
 			},
 		},
