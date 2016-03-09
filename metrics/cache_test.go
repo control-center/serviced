@@ -84,6 +84,8 @@ func TestCache(t *testing.T) {
 	}
 
 	// Force expiration
+	// I know this seems crazy, but go clock.Fire() may not trigger before
+	// cache.Get is called.
 	done := make(chan struct{})
 	go func() {
 		close(done)
