@@ -81,6 +81,6 @@ func (m *TimedMutex) Unlock() {
 	select {
 	case m.ch <- struct{}{}:
 	default:
-		panic("unlock of unlocked testable mutex")
+		panic("unlock of unlocked timed-mutex")
 	}
 }
