@@ -23,42 +23,53 @@ import (
 // MemoryUsageQuery is a function that will return a value to be cached in the event of a miss
 type MemoryUsageQuery func() ([]MemoryUsageStats, error)
 
+type MemoryUsageItem struct {
+	value  []MemoryUsageStats
+	expire <-chan time.Time
+}
+
+func (item *MemoryUsageItem) Expired() bool {
+	select {
+	case <-item.expire:
+		return true
+	default:
+		return false
+	}
+}
+
 // MemoryUsageCache is a simple TTL cache for MemoryUsageStats objects
 type MemoryUsageCache struct {
-	sync.RWMutex
-	Usages map[string][]MemoryUsageStats
+	sync.Mutex
+	Usages map[string]*MemoryUsageItem
 	TTL    time.Duration
 	Clock  utils.Clock
 }
 
 // Get retrieves a cached value if one exists; otherwise it calls getter, caches the result, and returns it
 func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []MemoryUsageStats, err error) {
-	var ok bool
-	c.RLock()
-	defer c.RUnlock()
-	if val, ok = c.Usages[key]; !ok {
-		c.RUnlock()
-		defer c.RLock()
-		c.Lock()
-		defer c.Unlock()
-		if val, err = getter(); err != nil {
-			return
-		}
-		c.Usages[key] = val
-		// Start the expiration
-		go func() {
-			<-c.Clock.After(c.TTL)
-			c.Lock()
-			defer c.Unlock()
+	c.Lock()
+	defer c.Unlock()
+	item, ok := c.Usages[key]
+	if ok {
+		if item.Expired() {
 			delete(c.Usages, key)
-		}()
+		} else {
+			return item.value, nil
+		}
+	}
+	if val, err = getter(); err != nil {
+		return
+	}
+	c.Usages[key] = &MemoryUsageItem{
+		value:  val,
+		expire: c.Clock.After(c.TTL),
 	}
 	return
 }
 
 func NewMemoryUsageCache(ttl time.Duration) *MemoryUsageCache {
 	return &MemoryUsageCache{
-		Usages: make(map[string][]MemoryUsageStats),
+		Usages: make(map[string]*MemoryUsageItem),
 		TTL:    ttl,
 		Clock:  utils.RealClock,
 	}
