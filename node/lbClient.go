@@ -14,9 +14,11 @@
 package node
 
 import (
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
 
@@ -73,7 +75,7 @@ func (a *LBClient) GetService(serviceId string, service *service.Service) error 
 }
 
 // GetServiceInstance returns a service for the given service id request.
-func (a *LBClient) GetServiceInstance(req ServiceInstanceRequest, service *service.Service) error {
+func (a *LBClient) GetServiceInstance(req dao.ServiceInstanceRequest, service *service.Service) error {
 	glog.V(0).Infof("ControlPlaneAgent.GetServiceInstance()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceInstance", req, service, 0)
 }
@@ -103,10 +105,20 @@ func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) 
 	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, unused, 0)
 }
 
+func (a *LBClient) ReportHealthStatus(req health.HealthStatusRequest, unused *int) error {
+	glog.V(4).Infof("ControlPlaneAgent.ReportHealthStatus()")
+	return a.rpcClient.Call("ControlPlaneAgent.ReportHealthStatus", req, unused, 0)
+}
+
+func (a *LBClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+	glog.V(4).Infof("ControlPlaneAgent.ReportInstanceDead()")
+	return a.rpcClient.Call("ControlPlaneAgent.ReportInstanceDead", req, unused, 0)
+}
+
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
+func (a *LBClient) GetHealthCheck(req dao.ServiceInstanceRequest, healthChecks *map[string]health.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
-		return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", req, healthChecks, 0)
+	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", req, healthChecks, 0)
 }
 
 // GetHostID returns the agent's host id

@@ -17,10 +17,12 @@ import (
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
@@ -136,7 +138,7 @@ func getService(lbClientPort string, serviceID string, instanceID int) (*service
 	defer client.Close()
 
 	var svc service.Service
-	err = client.GetServiceInstance(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+	err = client.GetServiceInstance(dao.ServiceInstanceRequest{serviceID, instanceID}, &svc)
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
@@ -531,6 +533,11 @@ func (c *Controller) reapZombies(close chan struct{}) {
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
 	defer c.shutdown()
+	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
+	if err != nil {
+		glog.Errorf("Could not parse instance id %s: %s", c.options.Service.InstanceID, err)
+		return err
+	}
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -688,8 +695,10 @@ func (c *Controller) Run() (err error) {
 	}
 	defer client.Close()
 	c.Close()
-	var unused int
-	client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, "__instance_shutdown", time.Now().String(), "passed"}, &unused)
+	client.ReportInstanceDead(dao.ServiceInstanceRequest{
+		ServiceID:  c.options.Service.ID,
+		InstanceID: instanceID,
+	}, nil)
 	return nil
 }
 
@@ -753,6 +762,8 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 	}
 }
 
+// TODO: change this to use the zookeeper listener to monitor changes in health
+// checks and change this to use the new health check dao call.
 func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -760,14 +771,14 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 		return
 	}
 	defer client.Close()
-	var healthChecks map[string]domain.HealthCheck
+	var healthChecks map[string]health.HealthCheck
 
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
 		return
 	}
-	err = client.GetHealthCheck(node.HealthCheckRequest{
+	err = client.GetHealthCheck(dao.ServiceInstanceRequest{
 		c.options.Service.ID, instanceID}, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
@@ -776,72 +787,39 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 	for key, mapping := range healthChecks {
 		glog.Infof("Kicking off health check %s.", key)
 		glog.Infof("Setting up health check: %s", mapping.Script)
-		timeout := mapping.Timeout
-		if timeout == 0 {
-			timeout = time.Second * 30
+		if mapping.Timeout == 0 {
+			mapping.Timeout = time.Second * 30
 		}
-		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, timeout, healthExit)
+		k := health.HealthStatusKey{
+			ServiceID:       c.options.Service.ID,
+			InstanceID:      instanceID,
+			HealthCheckName: key,
+		}
+		go c.handleHealthCheck(healthExit, k, mapping)
 	}
 	return
 }
 
-func (c *Controller) handleHealthCheck(name string, script string, interval, timeout time.Duration, exitChannel chan struct{}) {
+func (c *Controller) handleHealthCheck(cancel <-chan struct{}, key health.HealthStatusKey, hc health.HealthCheck) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
 		return
 	}
 	defer client.Close()
-	scriptFile, err := ioutil.TempFile("", name)
-	if err != nil {
-		glog.Errorf("Error creating temporary file for health check %s: %s", name, err)
-		return
-	}
-	defer scriptFile.Close()
-	defer os.Remove(scriptFile.Name())
-	err = ioutil.WriteFile(scriptFile.Name(), []byte(script), os.FileMode(0777))
-	if err != nil {
-		glog.Errorf("Error writing script for health check %s: %s", name, err)
-		return
-	}
-	scriptFile.Close()
-	err = os.Chmod(scriptFile.Name(), os.FileMode(0777))
-	if err != nil {
-		glog.Errorf("Error setting script executable for health check %s: %s", name, err)
-		return
-	}
-	var unused int
-	sigtermTimeout := time.Second * 10
+	timer := time.NewTimer(hc.Interval)
+	defer timer.Stop()
 	for {
+		req := health.HealthStatusRequest{
+			Key:     key,
+			Value:   hc.Run(),
+			Expires: hc.Expires(),
+		}
+		client.ReportHealthStatus(req, nil)
+		timer.Reset(hc.Interval)
 		select {
-		case <-time.After(interval):
-			exited := make(chan error, 1)
-			sysProcAttr := healthCheckProcAttr
-			cmd := exec.Command("sh", "-c", scriptFile.Name())
-			cmd.SysProcAttr = sysProcAttr
-			if err := cmd.Start(); err != nil {
-				glog.Errorf("Could not run cmd %v: %s", cmd, err)
-				break
-			}
-			go func(c *exec.Cmd) { exited <- c.Wait() }(cmd)
-			select {
-			case err := <-exited:
-				if err == nil {
-					glog.V(4).Infof("Health check %q succeeded.", name)
-					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
-				} else {
-					glog.Warningf("Health check %q failed.", name, err)
-					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
-				}
-			case <-exitChannel:
-				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
-				return
-			case <-time.After(timeout):
-				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
-				glog.Warningf("Health check %s timeout.", name)
-				client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
-			}
-		case <-exitChannel:
+		case <-timer.C:
+		case <-cancel:
 			return
 		}
 	}

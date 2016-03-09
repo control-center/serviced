@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/health"
 )
 
 // assert interface
@@ -44,8 +45,9 @@ type Facade struct {
 	templateStore *servicetemplate.Store
 	serviceStore  *service.Store
 
-	zzk ZZK
-	dfs dfs.DFS
+	zzk         ZZK
+	dfs         dfs.DFS
+	healthCache *health.HealthStatusCache
 
 	isvcsPath string
 }
@@ -55,3 +57,5 @@ func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
 
 func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
+
+func (f *Facade) SetHealthCache(healthCache *health.HealthStatusCache) { f.healthCache = healthCache }

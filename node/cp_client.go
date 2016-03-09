@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
@@ -248,6 +249,18 @@ func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused, 0)
+}
+
+func (s *ControlClient) ReportHealthStatus(req health.HealthStatusRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.ReportHealthStatus", req, unused, 0)
+}
+
+func (s *ControlClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.ReportInstanceDead", req, unused, 0)
+}
+
+func (s *ControlClient) GetServicesHealth(req dao.EntityRequest, resp *map[string][]map[string]*health.HealthStatus) error {
+	return s.rpcClient.Call("ControlPlane.GetServicesHealth", req, resp, 0)
 }
 
 func (s *ControlClient) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {

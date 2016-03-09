@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
 
@@ -248,8 +249,17 @@ type ControlPlane interface {
 	//ValidateCredentials verifies if the passed in user has the correct username and password
 	ValidateCredentials(user user.User, result *bool) error
 
-	// Register a health check result
+	// Deprecated: Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	// Register a health check result
+	ReportHealthStatus(req health.HealthStatusRequest, unused *int) error
+
+	// Register a health check result
+	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
+
+	// GetHealthChecks for all services
+	GetServicesHealth(req EntityRequest, resp *map[string][]map[string]*health.HealthStatus) error
 
 	// Check the health of control center
 	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
