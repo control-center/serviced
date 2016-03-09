@@ -202,13 +202,13 @@ func (d *DockerClient) GetImageHash(image string) (string, error) {
 func (d *DockerClient) GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error) {
 	var retErr error
 	statsChan := make(chan *dockerclient.Stats)
-	stopChan := make(chan bool)
+	stopChan := make(chan bool) // unused since we are NOT streaming
 	finishedChan := make(chan bool)
 
 	opts := dockerclient.StatsOptions{
 		ID:      containerID,
 		Stats:   statsChan,
-		Stream:  false, //Pull the stats once then exit (this doesn't actually work, you still need to send a signal to Done)
+		Stream:  false, //Pull the stats once then exit
 		Done:    stopChan,
 		Timeout: timeout,
 	}
@@ -219,9 +219,8 @@ func (d *DockerClient) GetContainerStats(containerID string, timeout time.Durati
 		finishedChan <- true
 	}()
 
-	// Pull the first result off and then shut down
+	// Grab the one result
 	result := <-statsChan
-	close(stopChan)
 
 	// Wait for the api call to exit
 	_ = <-finishedChan

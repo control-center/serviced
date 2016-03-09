@@ -852,8 +852,8 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			}
 
 			dockerstats, err := svc.docker.GetContainerStats(ctr.ID, 30*time.Second)
-			if err != nil {
-				glog.Warningf("Couldn't get stats for IService %s: %s", svc.Name, err)
+			if err != nil || dockerstats == nil { //dockerstats may be nil if service is shutting down
+				glog.Warningf("Couldn't get stats for IService %s: %v", svc.Name, err)
 				break
 			}
 
