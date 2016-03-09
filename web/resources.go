@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
@@ -850,6 +851,15 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 		return
 	}
 	w.WriteJson(&simpleResponse{logs, servicesLinks()})
+}
+
+func restGetServicesHealth(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	statuses := make(map[string][]map[string]*health.HealthStatus)
+	if err := client.GetServicesHealth(dao.ServiceRequest{}, &statuses); err != nil {
+		glog.Errorf("Unexpected error getting service health checks: %s", err)
+		restServerError(w, err)
+	}
+	w.WriteJson(&statuses)
 }
 
 func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

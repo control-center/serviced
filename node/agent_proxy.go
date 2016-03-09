@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/health"
 	"github.com/zenoss/glog"
 )
 
@@ -99,7 +100,7 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 	return response.Evaluate(getSvc, findChild, 0)
 }
 
-func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+func (a *HostAgent) GetServiceInstance(req dao.ServiceInstanceRequest, response *service.Service) (err error) {
 	*response = service.Service{}
 
 	controlClient, err := NewControlClient(a.master)
@@ -157,9 +158,9 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 }
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
+func (a *HostAgent) GetHealthCheck(req dao.ServiceInstanceRequest, healthChecks *map[string]health.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
-	*healthChecks = make(map[string]domain.HealthCheck, 0)
+	*healthChecks = make(map[string]health.HealthCheck, 0)
 
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
@@ -201,6 +202,26 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 	defer controlClient.Close()
 	err = controlClient.LogHealthCheck(result, unused)
 	return err
+}
+
+func (a *HostAgent) ReportHealthStatus(req health.HealthStatusRequest, unused *int) error {
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start Control Center client: %s", err)
+		return err
+	}
+	defer client.Close()
+	return client.ReportHealthStatus(req, unused)
+}
+
+func (a *HostAgent) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start Control Center client: %s", err)
+		return err
+	}
+	defer client.Close()
+	return client.ReportInstanceDead(req, unused)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control center api

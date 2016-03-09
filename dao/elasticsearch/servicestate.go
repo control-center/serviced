@@ -17,13 +17,11 @@ import (
 	//	"errors"
 
 	"fmt"
-	"strconv"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -139,18 +137,18 @@ func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[stri
 
 	if st != nil {
 		//get all healthcheck statuses for this service
-		healthStatuses, err := health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
+		healthStatus, err := this.facade.GetServiceHealth(datastore.Get(), serviceID)
 		if err != nil {
-			glog.Errorf("Error getting service health checks (%s)", err)
+			glog.Errorf("Error getting health checks for service %s: %s", serviceID, err)
 			return nil
 		}
-
-		//merge st with healthcheck info into *status
+		healthStatusCount := len(healthStatus)
+		// merge st with healthcheck info into *status
 		*status = make(map[string]dao.ServiceStatus, len(st))
 		for stateID, instanceStatus := range st {
-			instanceID := strconv.Itoa(instanceStatus.State.InstanceID) //healthStatuses are mapped using a string for instanceID
-			instanceStatus.HealthCheckStatuses = healthStatuses[instanceID]
-
+			if i := instanceStatus.State.InstanceID; i < healthStatusCount {
+				instanceStatus.HealthCheckStatuses = healthStatus[i]
+			}
 			(*status)[stateID] = instanceStatus
 		}
 	}

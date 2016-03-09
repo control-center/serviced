@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -28,6 +29,12 @@ type NullRequest struct{}
 type User struct {
 	Name     string // the unique identifier for a user
 	Password string // no requirements on passwords yet
+}
+
+// Association between a service and its instance
+type ServiceInstanceRequest struct {
+	ServiceID  string
+	InstanceID int
 }
 
 // An association between a host and a pool.
@@ -107,7 +114,7 @@ var (
 type ServiceStatus struct {
 	State               servicestate.ServiceState
 	Status              Status
-	HealthCheckStatuses map[string]domain.HealthCheckStatus //map of healthcheck name --> healthcheck status
+	HealthCheckStatuses map[string]*health.HealthStatus //map of healthcheck name --> healthcheck status
 }
 
 // BackupFile is the structure for backup file data

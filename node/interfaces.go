@@ -23,9 +23,11 @@ package node
 import (
 	"time"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/health"
 )
 
 // Network protocol type.
@@ -86,16 +88,6 @@ type ContainerState struct {
 	VolumesRW      map[string]bool
 }
 
-type ServiceInstanceRequest struct {
-	ServiceID  string
-	InstanceID int
-}
-
-type HealthCheckRequest struct {
-	ServiceID  string
-	InstanceID int
-}
-
 // The API for a service proxy.
 type LoadBalancer interface {
 	// SendLogMessage allows the proxy to send messages/logs to the master (to be displayed on the serviced master)
@@ -113,16 +105,20 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]domain.HealthCheck) error
+	GetHealthCheck(req dao.ServiceInstanceRequest, healthCheck *map[string]health.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	ReportHealthStatus(req health.HealthStatusRequest, unused *int) error
+
+	ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error
 
 	// GetService retrieves a service object with templates evaluated.
 	GetService(serviceId string, response *service.Service) error
 
 	// GetServiceInstance retrieves a service object with templates evaluated using a
 	// given instance ID.
-	GetServiceInstance(req ServiceInstanceRequest, response *service.Service) error
+	GetServiceInstance(req dao.ServiceInstanceRequest, response *service.Service) error
 
 	// Ping waits for the specified time then returns the server time
 	Ping(waitFor time.Duration, timestamp *time.Time) error

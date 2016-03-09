@@ -375,6 +375,16 @@ func (l *ServiceListener) pause(rss []dao.RunningService) {
 	}
 }
 
+// GetService returns service data from zookeeper
+func GetService(conn client.Connection, serviceID string) (*service.Service, error) {
+	node := ServiceNode{Service: &service.Service{}}
+	path := servicepath(serviceID)
+	if err := conn.Get(path, &node); err != nil {
+		return nil, err
+	}
+	return node.Service, nil
+}
+
 // StartService schedules a service to start
 func StartService(conn client.Connection, serviceID string) error {
 	glog.Infof("Scheduling service %s to start", serviceID)
