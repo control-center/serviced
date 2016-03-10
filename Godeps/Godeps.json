@@ -348,6 +348,10 @@
 		{
 			"ImportPath": "github.com/msteinert/pam",
 			"Rev": "02ccfbfaf0cc627aa3aec8ef7ed5cfeec5b43f63"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+			"Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
 		}
 	]
 }
