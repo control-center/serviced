@@ -18,142 +18,89 @@ import (
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/zenoss/glog"
 )
 
 const (
-	transactionCreate = iota
-	transactionSet    = iota
-	transactionDelete = iota
+	multiCreate int = iota
+	multiSet
+	multiDelete
 )
 
-type transactionOperation struct {
-	op   int
-	path string
-	node client.Node
+type multiReq struct {
+	Type int
+	Path string
+	Node client.Node
 }
 
 type Transaction struct {
 	conn *Connection
-	ops  []transactionOperation
+	ops  []multiReq
 }
 
-func (t *Transaction) Create(path string, node client.Node) {
-	t.ops = append(t.ops, transactionOperation{
-		op:   transactionCreate,
-		path: path,
-		node: node,
-	})
+func (t *Transaction) Create(path string, node client.Node) client.Transaction {
+	t.ops = append(t.ops, multiReq{multiCreate, path, node})
+	return t
 }
 
-func (t *Transaction) Set(path string, node client.Node) {
-	t.ops = append(t.ops, transactionOperation{
-		op:   transactionSet,
-		path: path,
-		node: node,
-	})
+func (t *Transaction) Set(path string, node client.Node) client.Transaction {
+	t.ops = append(t.ops, multiReq{multiSet, path, node})
+	return t
 }
 
-func (t *Transaction) Delete(path string) {
-	t.ops = append(t.ops, transactionOperation{
-		op:   transactionDelete,
-		path: path,
-	})
-}
-
-func (t *Transaction) processCreate(op transactionOperation) (*zklib.CreateRequest, error) {
-	path := join(t.conn.basePath, op.path)
-	bytes, err := json.Marshal(op.node)
-	if err != nil {
-		return nil, client.ErrSerialization
-	}
-	req := &zklib.CreateRequest{
-		Path:  path,
-		Data:  bytes,
-		Acl:   zklib.WorldACL(zklib.PermAll),
-		Flags: 0,
-	}
-	return req, nil
-}
-
-func (t *Transaction) processSet(op transactionOperation) (*zklib.SetDataRequest, error) {
-	path := join(t.conn.basePath, op.path)
-	bytes, err := json.Marshal(op.node)
-	if err != nil {
-		return nil, client.ErrSerialization
-	}
-	stat := &zklib.Stat{}
-	if op.node.Version() != nil {
-		zstat, ok := op.node.Version().(*zklib.Stat)
-		if !ok {
-			return nil, client.ErrInvalidVersionObj
-		}
-		*stat = *zstat
-	}
-	req := &zklib.SetDataRequest{
-		Path:    path,
-		Data:    bytes,
-		Version: stat.Version,
-	}
-	return req, nil
-}
-
-func (t *Transaction) processDelete(op transactionOperation) (*zklib.DeleteRequest, error) {
-	path := join(t.conn.basePath, op.path)
-	_, stat, err := t.conn.conn.Get(path)
-	if err != nil {
-		return nil, xlateError(err)
-	}
-	req := &zklib.DeleteRequest{
-		Path:    path,
-		Version: stat.Version,
-	}
-	return req, nil
+func (t *Transaction) Delete(path string) client.Transaction {
+	t.ops = append(t.ops, multiReq{multiDelete, path, nil})
+	return t
 }
 
 func (t *Transaction) Commit() error {
 	if t.conn == nil {
 		return client.ErrConnectionClosed
 	}
-	zkCreate := []zklib.CreateRequest{}
-	zkDelete := []zklib.DeleteRequest{}
-	zkSetData := []zklib.SetDataRequest{}
+	var ops []interface{}
 	for _, op := range t.ops {
-		switch op.op {
-		case transactionCreate:
-			req, err := t.processCreate(op)
-			if err != nil {
-				return err
+		path := join(t.conn.basePath, op.Path)
+		data, err := json.Marshal(op.Node)
+		if err != nil {
+			glog.Errorf("Could not serialize node at path %s (%+v): %s", path, op.Node, err)
+			return client.ErrSerialization
+		}
+		switch op.Type {
+		case multiCreate:
+			ops = append(ops, &zklib.CreateRequest{
+				Path:  path,
+				Data:  data,
+				Acl:   zklib.WorldACL(zklib.PermAll),
+				Flags: 0,
+			})
+			op.Node.SetVersion(&zklib.Stat{})
+		case multiSet:
+			stat := zklib.Stat{}
+			if vers := op.Node.Version(); vers != nil {
+				if zstat, ok := vers.(*zklib.Stat); !ok {
+					glog.Errorf("Could not parse version of node at path %s (%+v): %s", path, op.Node, err)
+					return client.ErrInvalidVersionObj
+				} else {
+					stat = *zstat
+				}
 			}
-			zkCreate = append(zkCreate, *req)
-		case transactionSet:
-			req, err := t.processSet(op)
+			ops = append(ops, &zklib.SetDataRequest{
+				Path:    path,
+				Data:    data,
+				Version: stat.Version,
+			})
+		case multiDelete:
+			_, stat, err := t.conn.conn.Get(path)
 			if err != nil {
-				return err
+				glog.Errorf("Could not find path %s for delete: %s", path, err)
+				return xlateError(err)
 			}
-			zkSetData = append(zkSetData, *req)
-		case transactionDelete:
-			req, err := t.processDelete(op)
-			if err != nil {
-				return err
-			}
-			zkDelete = append(zkDelete, *req)
+			ops = append(ops, &zklib.DeleteRequest{
+				Path:    path,
+				Version: stat.Version,
+			})
 		}
 	}
-	multi := zklib.MultiOps{
-		Create:  zkCreate,
-		SetData: zkSetData,
-		Delete:  zkDelete,
-	}
-	if err := t.conn.conn.Multi(multi); err != nil {
-		return xlateError(err)
-	}
-	// I honestly have no idea why we're doing this, but we were
-	// doing it in the original Create function, so I replicate that
-	// behavior here. -RT
-	for _, op := range t.ops {
-		if op.op == transactionCreate {
-			op.node.SetVersion(&zklib.Stat{})
-		}
-	}
-	return nil
+	_, err := t.conn.conn.Multi(ops...)
+	return xlateError(err)
 }

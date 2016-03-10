@@ -34,7 +34,7 @@
 		},
 		{
 			"ImportPath": "github.com/control-center/go-zookeeper/zk",
-			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
+			"Rev": "e27504f766e308be98206f98c2f7b39a472fb7ae"
 		},
 		{
 			"ImportPath": "github.com/docker/distribution",
