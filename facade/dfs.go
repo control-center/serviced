@@ -21,10 +21,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
+	csync "github.com/control-center/serviced/commons/sync"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -167,7 +167,7 @@ func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error 
 }
 
 // DFSLock returns the locker for the dfs
-func (f *Facade) DFSLock(ctx datastore.Context) sync.Locker {
+func (f *Facade) DFSLock(ctx datastore.Context) csync.TimedLocker {
 	return f.dfs
 }
 

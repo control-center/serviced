@@ -15,9 +15,9 @@ package dfs
 
 import (
 	"io"
-	"sync"
 	"time"
 
+	csync "github.com/control-center/serviced/commons/sync"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/dfs/registry"
@@ -30,7 +30,7 @@ import (
 
 // DFS is the api for the distributed filesystem
 type DFS interface {
-	sync.Locker
+	csync.TimedLocker
 	// Timeout returns the dfs timeout setting
 	Timeout() time.Duration
 	// Create sets up a new application
@@ -98,7 +98,7 @@ type DistributedFilesystem struct {
 	// daemon
 	net     storage.StorageDriver
 	timeout time.Duration
-	locker  sync.Locker
+	locker  csync.TimedLocker
 	tmp     string // tmp directory where backups are temporarily spooled
 }
 
@@ -111,7 +111,7 @@ func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex
 		disk:    disk,
 		net:     net,
 		timeout: timeout,
-		locker:  &sync.Mutex{},
+		locker:  csync.NewTimedMutex(),
 	}
 }
 
@@ -121,8 +121,13 @@ func (dfs *DistributedFilesystem) Timeout() time.Duration {
 }
 
 // Lock is used to synchronize changes to the dfs
-func (dfs *DistributedFilesystem) Lock() {
-	dfs.locker.Lock()
+func (dfs *DistributedFilesystem) Lock(name string) {
+	dfs.locker.Lock(name)
+}
+
+// TestAndLock is used to synchronize changes to the dfs
+func (dfs *DistributedFilesystem) LockWithTimeout(name string, timeout time.Duration) (bool, string) {
+	return dfs.locker.LockWithTimeout(name, timeout)
 }
 
 // Unlock is used to synchronize changes to the dfs

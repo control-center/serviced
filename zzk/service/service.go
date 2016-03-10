@@ -403,6 +403,12 @@ func StopService(conn client.Connection, serviceID string) error {
 
 // SyncServices synchronizes all services into zookeeper
 func SyncServices(conn client.Connection, svcs []service.Service) error {
+	// TODO: KWW: Do this?
+	// if len(svcs) == 0 {
+	// 	glog.V(1).Infof("No services to sync, returning")
+	// 	return nil
+	// }
+
 	// Make sure service path exists (during upgrades, sometimes it disappears: CC-1691)
 	if err := conn.CreateDir(servicepath()); err != nil && err != client.ErrNodeExists {
 		glog.Errorf("Cannot create service path %s: %s", servicepath(), err)
