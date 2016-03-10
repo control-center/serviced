@@ -68,8 +68,11 @@ func GetVersion() ServicedVersion {
 
 // GetPackageRelease returns the release version of the installed package
 func GetPackageRelease(pkg string) (string, error) {
-	command := getCommandToGetPackageRelease(pkg)
+	if utils.Platform == utils.Darwin {
+		return "", nil
+	}
 
+	command := getCommandToGetPackageRelease(pkg)
 	thecmd := exec.Command(command[0], command[1:]...)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {

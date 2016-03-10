@@ -331,7 +331,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
+			"Rev": "4ac6e9330b9c1f1e168b3660b789729a4716c469"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",
