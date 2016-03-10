@@ -286,8 +286,8 @@ func (sr *StatsReporter) updateStats() {
 
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 			stats, err := sr.docker.GetContainerStats(rs.DockerID, 30*time.Second)
-			if err != nil {
-				glog.Warningf("Couldn't get stats for service %s instance %d: %s", rs.Name, rs.InstanceID, err)
+			if err != nil || stats == nil { //stats may be nil if service is shutting down
+				glog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.Name, rs.InstanceID, err)
 				continue
 			}
 
