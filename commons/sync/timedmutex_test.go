@@ -117,7 +117,7 @@ func TestTimedMutex_LockWithTimeoutBlocks(t *testing.T) {
 	// test that lock-with-timeout blocks
 	lock2Response := make(chan struct{})
 	go func() {
-		locker.LockWithTimeout(name2, 60000) // 1 minute
+		locker.LockWithTimeout(name2, time.Minute)
 		t.Logf("--- got lock 2, sending event")
 		lock2Response <- struct{}{}
 	}()
@@ -186,7 +186,7 @@ func TestTimedMutex_LockWithTimeoutTimesOut(t *testing.T) {
 	// test that lock-with-timeout times out
 	lock2Response := make(chan struct{})
 	go func() {
-		locker.LockWithTimeout(name2, 1000) // 1 second
+		locker.LockWithTimeout(name2, time.Second)
 		t.Logf("--- got lock 2, sending event")
 		lock2Response <- struct{}{}
 	}()
@@ -303,7 +303,7 @@ func TestTimedMutex_MultipleLockers(t *testing.T) {
 			ready <- myId
 			// Lock/block (using both lock methods)
 			if myId%2 == 0 {
-				locker.LockWithTimeout(fmt.Sprintf("goroutine %d", myId), 120000) // 2 minutes
+				locker.LockWithTimeout(fmt.Sprintf("goroutine %d", myId), 2*time.Minute)
 			} else {
 				locker.Lock(fmt.Sprintf("goroutine %d", myId))
 			}

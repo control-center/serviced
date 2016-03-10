@@ -21,7 +21,7 @@ import (
 // A TimedLocker represents an object that can be locked and unlocked.
 type TimedLocker interface {
 	Lock(string)
-	LockWithTimeout(name string, timeoutMs int) (gotLock bool, holder string)
+	LockWithTimeout(name string, timeout time.Duration) (gotLock bool, holder string)
 	Unlock()
 }
 
@@ -59,8 +59,7 @@ func (m *TimedMutex) Lock(name string) {
 //
 // The bool returned indicates whether you acquired the lock.
 // The string is the name of the current holder of the lock.
-func (m *TimedMutex) LockWithTimeout(name string, timeoutMs int) (gotLock bool, holder string) {
-	timeout := time.Duration(timeoutMs) * time.Millisecond
+func (m *TimedMutex) LockWithTimeout(name string, timeout time.Duration) (gotLock bool, holder string) {
 	select {
 	case <-m.ch:
 		m.holder.Store(name)
