@@ -187,8 +187,9 @@ serviced-storage: FORCE
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
+# Update this value before build a new version.
 #
-BUILD_VERSION = v$(VERSION)-1
+BUILD_VERSION = v1.1.2-1
 export BUILD_VERSION
 
 #
