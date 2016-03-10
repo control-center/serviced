@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,17 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
-
-package isvcs
+package api
 
 import (
-	"testing"
+// Need to do btrfs driver initializations
+	_ "github.com/control-center/serviced/volume/btrfs"
+// Need to do rsync driver initializations
+	_ "github.com/control-center/serviced/volume/rsync"
+// Need to do devicemapper driver initializations
+	_ "github.com/control-center/serviced/volume/devicemapper"
+// Need to do nfs driver initializations
+	_ "github.com/control-center/serviced/volume/nfs"
 )
-
-func TestPurge(t *testing.T) {
-	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, defaultTestDockerLogDriver, defaultTestDockerLogOptions, nil)
-	Mgr.Start()
-	PurgeLogstashIndices(10, 10)
-	Mgr.Stop()
-}

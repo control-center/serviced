@@ -50,14 +50,7 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
-	// Need to do btrfs driver initializations
-	_ "github.com/control-center/serviced/volume/btrfs"
-	// Need to do rsync driver initializations
-	_ "github.com/control-center/serviced/volume/rsync"
-	// Need to do devicemapper driver initializations
-	_ "github.com/control-center/serviced/volume/devicemapper"
-	// Need to do nfs driver initializations
-	_ "github.com/control-center/serviced/volume/nfs"
+
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
 
@@ -152,7 +145,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
-	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
+	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
 		glog.Fatalf("Could not set es-serviced option: %s", err)
@@ -167,7 +160,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
-	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
+	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.Start(); err != nil {
 		glog.Fatalf("Could not start isvcs: %s", err)
@@ -720,7 +713,7 @@ func (d *daemon) startAgent() error {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
 			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master)
+			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
 			if err != nil {
 				glog.Errorf("Error kicking off stats reporter %v", err)
 			} else {

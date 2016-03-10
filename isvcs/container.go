@@ -16,8 +16,8 @@ package isvcs
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	dfsdocker "github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/rcrowley/go-metrics"
@@ -135,6 +135,7 @@ type IService struct {
 	restartCount    int
 	dockerLogDriver string            // which log driver to use with containers
 	dockerLogConfig map[string]string // options for the log driver
+	docker          dfsdocker.Docker  // Docker API, needed to get stats
 
 	channelLock *sync.RWMutex
 	exited      <-chan int
@@ -155,7 +156,20 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	if sd.StartupTimeout == 0 { //Initialize startup timeout to Default for all IServices if not specified
 		sd.StartupTimeout = WAIT_FOR_INITIAL_HEALTHCHECK
 	}
-	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, "", nil, &sync.RWMutex{}, nil, &sync.RWMutex{}, nil}
+	svc := IService{
+		IServiceDefinition: sd,
+		root:               "",
+		actions:            make(chan actionrequest),
+		startTime:          time.Time{},
+		restartCount:       0,
+		dockerLogDriver:    "",
+		dockerLogConfig:    nil,
+		channelLock:        &sync.RWMutex{},
+		exited:             nil,
+		lock:               &sync.RWMutex{},
+		healthStatuses:     nil,
+	}
+
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -815,6 +829,11 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	registry := metrics.NewRegistry()
 	tc := time.Tick(10 * time.Second)
 
+	// previous stats holds some of the stats gathered in the previous sample, currently used for computing CPU %
+	previousStats := make(map[string]uint64)
+	//The docker container ID the last time we gathered stats, used to detect when the container has changed to avoid invalid CPU stats
+	previousDockerID := ""
+
 	for {
 		select {
 		case <-halt:
@@ -827,22 +846,80 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				break
 			}
 
-			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Cpuacct)); err != nil {
-				glog.V(2).Infof("Could not read CpuacctStat for isvc %s: %s", svc.Name, err)
+			if svc.docker == nil {
+				glog.Warningf("Docker API object has not been set yet for Isvcs %s", svc.Name)
 				break
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", registry).Update(cpuacctStat.System)
-				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", registry).Update(cpuacctStat.User)
 			}
 
-			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Memory)); err != nil {
-				glog.Warningf("Could not read MemoryStat for isvc %s: %s", svc.Name, err)
+			dockerstats, err := svc.docker.GetContainerStats(ctr.ID, 30*time.Second)
+			if err != nil || dockerstats == nil { //dockerstats may be nil if service is shutting down
+				glog.Warningf("Couldn't get stats for IService %s: %v", svc.Name, err)
 				break
-			} else {
-				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(memoryStat.Pgfault)
-				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(memoryStat.TotalRss)
-				metrics.GetOrRegisterGauge("cgroup.memory.cache", registry).Update(memoryStat.Cache)
 			}
+
+			// We store and check the docker ID because we can't use the previous value to compute percentage if the container has changed
+			usePreviousStats := true
+			if ctr.ID != previousDockerID {
+				usePreviousStats = false //docker ID has changed, this service was restarted
+			}
+			previousDockerID = ctr.ID
+
+			// CPU Stats
+			var (
+				kernelCPUPercent float64
+				userCPUPercent   float64
+				totalCPUChange   uint64
+			)
+
+			kernelCPU := dockerstats.CPUStats.CPUUsage.UsageInKernelmode
+			userCPU := dockerstats.CPUStats.CPUUsage.UsageInUsermode
+			totalCPU := dockerstats.CPUStats.SystemCPUUsage
+
+			// Total CPU Cycles
+			if previousTotalCPU, found := previousStats["totalCPU"]; found && usePreviousStats {
+				totalCPUChange = totalCPU - previousTotalCPU
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["totalCPU"] = totalCPU
+
+			// CPU Cycles in Kernel mode
+			if previousKernelCPU, found := previousStats["kernelCPU"]; found && usePreviousStats {
+				kernelCPUChange := kernelCPU - previousKernelCPU
+				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["kernelCPU"] = kernelCPU
+
+			// CPU Cycles in User mode
+			if previousUserCPU, found := previousStats["userCPU"]; found && usePreviousStats {
+				userCPUChange := userCPU - previousUserCPU
+				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+			} else {
+				usePreviousStats = false
+			}
+			previousStats["userCPU"] = userCPU
+
+			// Update CPU metrics
+			if usePreviousStats {
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", registry).Update(kernelCPUPercent)
+				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", registry).Update(userCPUPercent)
+			} else {
+				glog.V(4).Infof("Skipping CPU stats for IService %s, no previous values to compare to", svc.Name)
+			}
+
+			// Memory Stats
+			pgFault := int64(dockerstats.MemoryStats.Stats.Pgfault)
+			totalRSS := int64(dockerstats.MemoryStats.Stats.TotalRss)
+			cache := int64(dockerstats.MemoryStats.Stats.Cache)
+			if pgFault < 0 || totalRSS < 0 || cache < 0 {
+				glog.Warningf("Memory metric value for IService %s too big for int64", svc.Name)
+			}
+			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(pgFault)
+			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(totalRSS)
+			metrics.GetOrRegisterGauge("cgroup.memory.cache", registry).Update(cache)
+
 			// Gather the stats
 			stats := []containerStat{}
 			registry.Each(func(name string, i interface{}) {

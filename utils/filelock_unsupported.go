@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,17 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
+// +build !linux
 
-package isvcs
+package utils
 
 import (
-	"testing"
+	"fmt"
+	"os"
+
+	"github.com/zenoss/glog"
 )
 
-func TestPurge(t *testing.T) {
-	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, defaultTestDockerLogDriver, defaultTestDockerLogOptions, nil)
-	Mgr.Start()
-	PurgeLogstashIndices(10, 10)
-	Mgr.Stop()
+func LockFile(_ string) (*os.File, error) {
+	err := fmt.Errorf("LockFile is not supported on this platform")
+	glog.Errorf(err.Error())
+	return nil, err
 }

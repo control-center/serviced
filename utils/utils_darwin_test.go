@@ -11,17 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
+// +build unit
 
-package isvcs
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
+
+package utils
 
 import (
 	"testing"
 )
 
-func TestPurge(t *testing.T) {
-	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, defaultTestDockerLogDriver, defaultTestDockerLogOptions, nil)
-	Mgr.Start()
-	PurgeLogstashIndices(10, 10)
-	Mgr.Stop()
+// Test getMemorySize()
+func TestGetMemorySize(t *testing.T) {
+
+	size, err := GetMemorySize()
+	if err != nil {
+		t.Errorf("Failed to retrieve RAM value: %s", err)
+		t.Fail()
+	}
+	if size < 1 {
+		t.Errorf("expected non-zero value, received %d ", size)
+		t.Fail()
+	}
+	t.Logf("memory size = %d", size)
 }

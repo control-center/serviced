@@ -143,6 +143,7 @@ func Test_Build(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
+
 	if err = host.ValidEntity(); err != nil {
 		t.Errorf("Validation failed %v", err)
 	}
