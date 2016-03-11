@@ -144,6 +144,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
+				// bindPort has already been validated, so the Split/access below won't break.
 				http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
 				return
 			}
@@ -189,6 +190,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
+			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, req, fmt.Sprintf("https://%s:%s%s", req.Host, strings.Split(sc.bindPort, ":")[1], req.URL), http.StatusMovedPermanently)
 		}
 		err := http.ListenAndServe(":80", http.HandlerFunc(redirect))
