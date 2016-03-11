@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
@@ -67,19 +66,17 @@ func (r RunningServices) isService(serviceID string) bool {
 
 // HealthStatusMap
 type HealthStatusMap struct {
-	sync.RWMutex
-	cpDao        dao.ControlPlane
-	facade       facade.FacadeInterface
-	serviceLocks *utils.MutexMap
-	statuses     map[string]map[string]map[string]*domain.HealthCheckStatus
+	sync.Mutex
+	cpDao    dao.ControlPlane
+	facade   facade.FacadeInterface
+	statuses map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
 func NewHealthStatuses(cpDao dao.ControlPlane, f facade.FacadeInterface) *HealthStatusMap {
 	status := &HealthStatusMap{
-		cpDao:        cpDao,
-		facade:       f,
-		statuses:     make(map[string]map[string]map[string]*domain.HealthCheckStatus),
-		serviceLocks: utils.NewMutexMap(),
+		cpDao:    cpDao,
+		facade:   f,
+		statuses: make(map[string]map[string]map[string]*domain.HealthCheckStatus),
 	}
 	status.statuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{
 		"0": {
@@ -95,8 +92,8 @@ func NewHealthStatuses(cpDao dao.ControlPlane, f facade.FacadeInterface) *Health
 
 // deleteServiceInstance deletes a single instance from the map
 func (m *HealthStatusMap) deleteServiceInstance(serviceID, instanceID string) {
-	m.serviceLocks.LockKey(serviceID)
-	defer m.serviceLocks.UnlockKey(serviceID)
+	m.Lock()
+	defer m.Unlock()
 	serviceStatus, ok := m.statuses[serviceID]
 	if !ok {
 		serviceStatus = make(map[string]map[string]*domain.HealthCheckStatus)
@@ -107,8 +104,8 @@ func (m *HealthStatusMap) deleteServiceInstance(serviceID, instanceID string) {
 
 // deleteServiceInstance deletes an entire service from the map
 func (m *HealthStatusMap) deleteService(serviceID string) {
-	m.serviceLocks.LockKey(serviceID)
-	defer m.serviceLocks.UnlockKey(serviceID)
+	m.Lock()
+	defer m.Unlock()
 	delete(m.statuses, serviceID)
 }
 
@@ -116,9 +113,9 @@ func (m *HealthStatusMap) deleteService(serviceID string) {
 // does not exist, it creates the necessary data structures populated with
 // default values.
 func (m *HealthStatusMap) getOrCreateServiceInstance(serviceID, instanceID string) (instanceStatus map[string]*domain.HealthCheckStatus) {
+	m.Lock()
+	defer m.Unlock()
 	var ok bool
-	m.serviceLocks.LockKey(serviceID)
-	defer m.serviceLocks.UnlockKey(serviceID)
 	serviceStatus, ok := m.statuses[serviceID]
 	if !ok {
 		serviceStatus = make(map[string]map[string]*domain.HealthCheckStatus)
@@ -170,8 +167,8 @@ func (m *HealthStatusMap) SetHealthStatus(serviceID, instanceID, healthCheckName
 
 // Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.
 func (m *HealthStatusMap) GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
-	m.serviceLocks.RLockKey(serviceID)
-	defer m.serviceLocks.RUnlockKey(serviceID)
+	m.Lock()
+	defer m.Unlock()
 	// Make a copy of m.statuses[serviceID] and store the HealthCheckStatus values instead of pointers
 	result := make(map[string]map[string]domain.HealthCheckStatus, len(m.statuses[serviceID]))
 	for instanceID, healthChecks := range m.statuses[serviceID] {
@@ -239,9 +236,9 @@ func (m *HealthStatusMap) Cleanup(shutdown <-chan interface{}) {
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func (m *HealthStatusMap) RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	m.Lock()
+	defer m.Unlock()
 	isvcNames := isvcs.Mgr.GetServiceNames()
-	m.RLock()
-	defer m.RUnlock()
 	for _, name := range isvcNames {
 		iname := "isvc-" + name
 		status, err := isvcs.Mgr.GetHealthStatus(name)
