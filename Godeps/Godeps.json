@@ -303,11 +303,11 @@
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Rev": "f390dcf405f7b83c997eac1b06768bb9f44dec18"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/mock",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Rev": "f390dcf405f7b83c997eac1b06768bb9f44dec18"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/api",
