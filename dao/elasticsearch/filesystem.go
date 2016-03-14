@@ -340,6 +340,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 // ResetRegistry prompts all images to be pushed back into the docker registry
 func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err error) {
+	// Do not DFSLock here, Facade does that
 	err = dao.facade.SyncRegistryImages(datastore.Get(), true)
 	return
 }
@@ -347,6 +348,7 @@ func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err er
 // RepairRegistry will try to recover the latest image of all service images
 // from the docker registry and save it to the index.
 func (dao *ControlPlaneDao) RepairRegistry(_ model.EntityRequest, _ *int) (err error) {
+	// Do not DFSLock here, Facade does that
 	err = dao.facade.RepairRegistry(datastore.Get())
 	return
 }

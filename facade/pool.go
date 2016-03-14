@@ -43,7 +43,7 @@ var (
 	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
 )
 
-//PoolIPs type for IP resources available in a ResourcePool
+// PoolIPs type for IP resources available in a ResourcePool
 type PoolIPs struct {
 	PoolID     string
 	HostIPs    []host.HostIPResource
@@ -52,6 +52,13 @@ type PoolIPs struct {
 
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); !gotLock {
+		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		glog.Warningf("Cannot add resource pool: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	if pool, err := f.GetResourcePool(ctx, entity.ID); err != nil {
 		return err
 	} else if pool != nil {
@@ -89,6 +96,17 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 // UpdateResourcePool updates an existing resource pool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("update resource pool", userLockTimeout); !gotLock {
+		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		glog.Warningf("Cannot update resource pool: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
+	return f.updateResourcePool(ctx, entity)
+}
+
+func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	current, err := f.GetResourcePool(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -141,6 +159,7 @@ func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.Resource
 
 // RestoreResourcePools restores a bulk of resource pools, usually from a backup.
 func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	for _, pool := range pools {
 		pool.DatabaseVersion = 0
 		if err := f.AddResourcePool(ctx, &pool); err != nil {
@@ -177,7 +196,7 @@ func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (boo
 	return false, nil
 }
 
-// AddVirtualIP adds a virtualIP to a pool
+// AddVirtualIP adds a virtual IP to a pool
 func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
@@ -234,7 +253,7 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 	return f.zzk.AddVirtualIP(vip)
 }
 
-// RemoveVirtualIP removes a virtual ip from a pool
+// RemoveVirtualIP removes a virtual IP from a pool
 func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
@@ -297,9 +316,15 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 	return f.zzk.RemoveVirtualIP(&pool.VirtualIP{PoolID: poolID, IP: ipAddr})
 }
 
-// RemoveResourcePool removes a ResourcePool
+// RemoveResourcePool removes a resource pool
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
+	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("remove resource pool", userLockTimeout); !gotLock {
+		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		glog.Warningf("Cannot remove resource pool: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
 		return fmt.Errorf("could not verify hosts in pool %s: %s", id, err)
@@ -320,7 +345,7 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	return f.zzk.RemoveResourcePool(id)
 }
 
-//GetResourcePools Returns a list of all ResourcePools
+// GetResourcePools returns a list of all resource pools
 func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
@@ -336,7 +361,7 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, e
 	return pools, err
 }
 
-//GetResourcePoolsByRealm Returns a list of all ResourcePools by Realm
+// GetResourcePoolsByRealm returns a list of all resource pools by Realm
 func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePoolsByRealm(ctx, realm)
 
@@ -352,7 +377,7 @@ func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([
 	return pools, err
 }
 
-// GetResourcePool returns  an ResourcePool ip id. nil if not found
+// GetResourcePool returns a resource pool, or nil if not found
 func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
 	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
 	var entity pool.ResourcePool
@@ -369,7 +394,7 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 	return &entity, nil
 }
 
-//CreateDefaultPool creates the default pool if it does not exists, it is idempotent
+// CreateDefaultPool creates the default pool if it does not exist. It is idempotent.
 func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity, err := f.GetResourcePool(ctx, id)
 	if err != nil {
@@ -427,7 +452,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 	return err
 }
 
-// GetPoolIPs gets all IPs available to a Pool
+// GetPoolIPs gets all IPs available to a resource pool
 func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error) {
 	glog.V(0).Infof("Facade.GetPoolIPs: %+v", poolID)
 	hosts, err := f.FindHostsInPool(ctx, poolID)
