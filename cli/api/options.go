@@ -80,6 +80,7 @@ type Options struct {
 	LogstashES           string //logstatsh elasticsearch host:port
 	LogstashMaxDays      int    // Days to keep logstash indices
 	LogstashMaxSize      int    // Max size of logstash data
+	LogstashCycleTime    int    // Logstash purging cycle time in hours
 	LogstashURL          string
 	DebugPort            int    // Port to listen for profile clients
 	AdminGroup           string // user group that can log in to control center
@@ -229,6 +230,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		LogstashURL:          config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
 		LogstashMaxDays:      config.IntVal("LOGSTASH_MAX_DAYS", 14),
 		LogstashMaxSize:      config.IntVal("LOGSTASH_MAX_SIZE", 10),
+		LogstashCycleTime:    config.IntVal("LOGSTASH_CYCLE_TIME", 6),
 		DebugPort:            config.IntVal("DEBUG_PORT", 6006),
 		AdminGroup:           config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
 		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
