@@ -13,7 +13,7 @@ import (
 )
 
 func TestAuthLegacyConfig(t *testing.T) {
-	auth := base64.StdEncoding.EncodeToString([]byte("user:pass"))
+	auth := base64.StdEncoding.EncodeToString([]byte("user:pa:ss"))
 	read := strings.NewReader(fmt.Sprintf(`{"docker.io":{"auth":"%s","email":"user@example.com"}}`, auth))
 	ac, err := NewAuthConfigurations(read)
 	if err != nil {
@@ -29,7 +29,7 @@ func TestAuthLegacyConfig(t *testing.T) {
 	if got, want := c.Username, "user"; got != want {
 		t.Errorf(`AuthConfigurations.Configs["docker.io"].Username: wrong result. Want %q. Got %q`, want, got)
 	}
-	if got, want := c.Password, "pass"; got != want {
+	if got, want := c.Password, "pa:ss"; got != want {
 		t.Errorf(`AuthConfigurations.Configs["docker.io"].Password: wrong result. Want %q. Got %q`, want, got)
 	}
 	if got, want := c.ServerAddress, "docker.io"; got != want {
@@ -41,7 +41,7 @@ func TestAuthBadConfig(t *testing.T) {
 	auth := base64.StdEncoding.EncodeToString([]byte("userpass"))
 	read := strings.NewReader(fmt.Sprintf(`{"docker.io":{"auth":"%s","email":"user@example.com"}}`, auth))
 	ac, err := NewAuthConfigurations(read)
-	if err != AuthParseError {
+	if err != ErrCannotParseDockercfg {
 		t.Errorf("Incorrect error returned %v\n", err)
 	}
 	if ac != nil {
