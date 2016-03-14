@@ -392,6 +392,10 @@ func (svc *IService) attach() (*docker.Container, error) {
 			glog.Infof("isvc %s found but not running; removing container %s", svc.name(), ctr.ID)
 			go svc.remove(notify)
 		} else if !svc.checkVolumes(ctr) {
+			// CC-1550: A reload causes CC to re-read its configuration, which means that the host volumes
+			//          mounted into the isvcs containers might change. If that happens, we cannot simply
+			//          attach to the existing containers. Instead, we need to stop them and create new ones
+			//          using the revised configuration.
 			glog.Infof("isvc %s found but volumes are missing or incomplete; removing container %s", svc.name(), ctr.ID)
 			ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
 			svc.stop()
