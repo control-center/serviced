@@ -391,7 +391,11 @@ func (svc *IService) attach() (*docker.Container, error) {
 		if !ctr.IsRunning() {
 			glog.Infof("isvc %s found but not running; removing container %s", svc.name(), ctr.ID)
 			go svc.remove(notify)
-		} else if !svc.checkvolumes(ctr) {
+		} else if !svc.checkVolumes(ctr) {
+			// CC-1550: A reload causes CC to re-read its configuration, which means that the host volumes
+			//          mounted into the isvcs containers might change. If that happens, we cannot simply
+			//          attach to the existing containers. Instead, we need to stop them and create new ones
+			//          using the revised configuration.
 			glog.Infof("isvc %s found but volumes are missing or incomplete; removing container %s", svc.name(), ctr.ID)
 			ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
 			svc.stop()
@@ -638,20 +642,27 @@ func (svc *IService) isFlapping() bool {
 	return svc.restartCount >= FLAPPING_THRESHOLD
 }
 
-func (svc *IService) checkvolumes(ctr *docker.Container) bool {
+func (svc *IService) checkVolumes(ctr *docker.Container) bool {
 	dctr, err := ctr.Inspect()
 	if err != nil {
+		glog.Errorf("Unable to inspect container %s: %s", ctr.ID, err)
 		return false
 	}
 
+	glog.V(2).Infof("checkVolumes for isvcs %s containerID=%s:\ndctr=%#v", svc.Name, ctr.ID, dctr)
+
 	if svc.Volumes != nil {
 		for src, dest := range svc.Volumes {
-			if p, ok := dctr.Volumes[dest]; ok {
-				src, _ = filepath.EvalSymlinks(svc.getResourcePath(src))
-				if rel, _ := filepath.Rel(filepath.Clean(src), p); rel != "." {
-					return false
-				}
-			} else {
+			var mount *dockerclient.Mount
+			if mount = findContainerMount(dctr, dest); mount == nil {
+				glog.V(2).Infof("checkVolumes for isvcs %s, volume %s not found in containerID=%s", svc.Name, dest, ctr.ID)
+				return false
+			}
+
+			expectedSrc, _ := filepath.EvalSymlinks(svc.getResourcePath(src))
+			if rel, _ := filepath.Rel(filepath.Clean(expectedSrc), mount.Source); rel != "." {
+				glog.V(2).Infof("checkVolumes for isvcs %s, the mount for volume %s has changed in containerID=%s; expected %s, found %s",
+					svc.Name, dest, ctr.ID, expectedSrc, mount.Source)
 				return false
 			}
 		}
@@ -659,11 +670,15 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 
 	if isvcsVolumes != nil {
 		for src, dest := range isvcsVolumes {
-			if p, ok := dctr.Volumes[dest]; ok {
-				if rel, _ := filepath.Rel(src, p); rel != "." {
-					return false
-				}
-			} else {
+			var mount *dockerclient.Mount
+			if mount = findContainerMount(dctr, dest); mount == nil {
+				glog.V(2).Infof("checkVolumes for isvcs %s, global volume %s not found in containerID=%s", svc.Name, dest, ctr.ID)
+				return false
+			}
+
+			if rel, _ := filepath.Rel(src, mount.Source); rel != "." {
+				glog.V(2).Infof("checkVolumes for isvcs %s, the mount for global volume %s has changed in containerID=%s; expected %s, found %s",
+					svc.Name, dest, ctr.ID, src, mount.Source)
 				return false
 			}
 		}
@@ -971,3 +986,13 @@ func getHostIp(binding portBinding) string {
 	}
 	return hostIp
 }
+
+func findContainerMount(dctr *dockerclient.Container, dest string) *dockerclient.Mount {
+	for _, mount := range dctr.Mounts {
+		if mount.Destination == dest {
+			return &mount
+		}
+	}
+	return nil
+}
+
