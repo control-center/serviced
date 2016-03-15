@@ -27,7 +27,7 @@ type Lock interface {
 
 // Leader is the interface that a Leaer implementation must implement
 type Leader interface {
-	TakeLead(<-chan struct{}) (<-chan Event, error)
+	TakeLead(node Node, done <-chan struct{}) (<-chan Event, error)
 	ReleaseLead() error
 	Current(node Node) error
 }
@@ -56,14 +56,13 @@ type Connection interface {
 	Create(path string, node Node) error
 	CreateDir(path string) error
 	CreateEphemeral(path string, node Node) (string, error)
-	EnsurePath(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
-	ChildrenW(path string, done <-chan struct{}) (children []string, event <-chan Event, err error)
+	ChildrenW(path string, done <-chan struct{}) (children []string, ev <-chan Event, err error)
 	Children(path string) (children []string, err error)
 	Get(path string, node Node) error
 	GetW(path string, node Node, done <-chan struct{}) (<-chan Event, error)
 	Set(path string, node Node) error
-	NewLock(path string) Lock
-	NewLeader(path string, data Node) Leader
+	NewLock(path string) (Lock, error)
+	NewLeader(path string) (Leader, error)
 }

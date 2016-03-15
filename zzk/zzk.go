@@ -45,11 +45,6 @@ func (node *HostLeader) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *HostLeader) SetVersion(version interface{}) { node.version = version }
 
-// NewHostLeader initializes a new host leader
-func NewHostLeader(conn client.Connection, hostID, realm, path string) client.Leader {
-	return conn.NewLeader(path, &HostLeader{HostID: hostID, Realm: realm})
-}
-
 // GetHostID finds the host of a led node
 func GetHostID(leader client.Leader) (string, error) {
 	var hl HostLeader
@@ -65,8 +60,10 @@ func MonitorRealm(shutdown <-chan interface{}, conn client.Connection, path stri
 	go func() {
 		defer close(realmC)
 		var realm string
-		leader := conn.NewLeader(path, &HostLeader{})
-
+		leader, err := conn.NewLeader(path)
+		if err != nil {
+			return
+		}
 		done := make(chan struct{})
 		defer func(channel *chan struct{}) { close(*channel) }(&done)
 		for {

@@ -15,6 +15,7 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"path"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
@@ -54,12 +55,14 @@ func (t *Transaction) Delete(path string) client.Transaction {
 }
 
 func (t *Transaction) Commit() error {
-	if t.conn == nil {
-		return client.ErrConnectionClosed
+	t.conn.RLock()
+	defer t.conn.RUnlock()
+	if err := t.conn.isClosed(); err != nil {
+		return err
 	}
 	var ops []interface{}
 	for _, op := range t.ops {
-		path := join(t.conn.basePath, op.Path)
+		path := path.Join(t.conn.basePath, op.Path)
 		data, err := json.Marshal(op.Node)
 		if err != nil {
 			glog.Errorf("Could not serialize node at path %s (%+v): %s", path, op.Node, err)

@@ -115,7 +115,11 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		}
 		repopath := path.Join(zkregistryrepos, node.Image.Library, node.Image.Repo)
 		reponode := &RegistryImageLeader{HostID: l.hostid}
-		leader := l.conn.NewLeader(repopath, reponode)
+		leader, err := l.conn.NewLeader(repopath)
+		if err != nil {
+			glog.Errorf("Could not set up leader for %s: %s", repopath, err)
+			return
+		}
 		// Has the image been pushed?
 		glog.V(1).Infof("Spawn id=%s node: %s:%s %s", id, node.Image.Repo, node.Image.Tag, node.Image.Tag)
 		if node.PushedAt.Unix() == 0 {
@@ -127,7 +131,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// Become the leader so I can push the image
 					leaderDone := make(chan struct{})
 					defer close(leaderDone)
-					_, err := leader.TakeLead(leaderDone)
+					_, err := leader.TakeLead(reponode, leaderDone)
 					if err != nil {
 						glog.Errorf("Could not take lead %s: %s", imagepath, err)
 						return
