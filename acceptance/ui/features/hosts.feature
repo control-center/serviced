@@ -23,8 +23,10 @@ Feature: Host Management
     When I am on the hosts page
       And I click the add Host button
     Then I should see the Add Host dialog
-      And I should see "Host and port"
-      And I should see the Host and port field
+      And I should see "Host"
+      And I should see the Host field
+      And I should see "Port"
+      And I should see the Port field
       And I should see "Resource Pool ID"
       And I should see the Resource Pool ID field
       And I should see "RAM Limit"
@@ -34,20 +36,22 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "bogushost"
+      And I fill in the Host field with "host"
+      And I fill in the Port field with "bogusport"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
-      And the Host and port field should be flagged as invalid
+      And the Port field should be flagged as invalid
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid port
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "172.17.42.1:9999"
+      And I fill in the Host field with "172.17.42.1"
+      And I fill in the Port field with "9999"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
@@ -59,7 +63,8 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Host field with "table://hosts/defaultHost/hostName"
+      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
@@ -70,7 +75,8 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Host field with "table://hosts/defaultHost/hostName"
+      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "invalidentry"
       And I click "Add Host"
@@ -82,7 +88,8 @@ Feature: Host Management
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Host field with "table://hosts/defaultHost/hostName"
+      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Cancel"
@@ -90,11 +97,12 @@ Feature: Host Management
       And I should not see "Success"
 
   @clean_hosts
-  Scenario: Add an valid host
+  Scenario: Add a valid host
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Host field with "table://hosts/defaultHost/hostName"
+      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
@@ -111,7 +119,8 @@ Feature: Host Management
     Given only the default host is added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/host2/nameAndPort"
+      And I fill in the Host field with "table://hosts/host2/hostName"
+      And I fill in the Port field with "table://hosts/host2/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/host2/pool"
       And I fill in the RAM Limit field with "table://hosts/host2/commitment"
       And I click "Add Host"
@@ -133,7 +142,8 @@ Feature: Host Management
     Given that the "table://hosts/host3/pool" pool is added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/host3/nameAndPort"
+      And I fill in the Host field with "table://hosts/host3/hostName"
+      And I fill in the Port field with "table://hosts/host3/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/host3/pool"
       And I fill in the RAM Limit field with "table://hosts/host3/commitment"
       And I click "Add Host"
@@ -152,7 +162,8 @@ Feature: Host Management
     Given only the default host is added
     When I am on the hosts page
       And I click the add Host button
-      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Host field with "table://hosts/defaultHost/hostName"
+      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"

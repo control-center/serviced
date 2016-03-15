@@ -2,7 +2,8 @@
   "hosts":
   {
     "defaultHost": {
-      "nameAndPort": "%{local_ip}:4981",
+      "hostName": "%{local_ip}",
+      "hostPort": "4981",
       "name": "defaultHost",
       "rpcPort": 4981,
       "hostID": 4981,
@@ -19,7 +20,8 @@
     },
 
     "host2": {
-      "nameAndPort": "%{local_ip}:4982",
+      "hostName": "%{local_ip}",
+      "hostPort": "4982",
       "name": "secondHost",
       "rpcPort": 4982,
       "hostID": 4982,
@@ -36,7 +38,8 @@
     },
 
     "host3": {
-      "nameAndPort": "%{local_ip}:4983",
+      "hostName": "%{local_ip}",
+      "hostPort": "4983",
       "name": "thirdHost",
       "rpcPort": 4983,
       "hostID": 4983,
@@ -53,7 +56,8 @@
     },
 
     "host4": {
-      "nameAndPort": "%{local_ip}:4984",
+      "hostName": "%{local_ip}",
+      "hostPort": "4984",
       "name": "fourthHost",
       "rpcPort": 4984,
       "hostID": 4984,
@@ -70,7 +74,8 @@
     },
 
     "host5": {
-      "nameAndPort": "%{local_ip}:4985",
+      "hostName": "%{local_ip}",
+      "hostPort": "4985",
       "name": "fifthHost",
       "rpcPort": 4985,
       "hostID": 4985,
