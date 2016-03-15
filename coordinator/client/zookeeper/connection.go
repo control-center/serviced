@@ -204,6 +204,9 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 	if err := c.isClosed(); err != nil {
 		return "", err
 	}
+	if err := c.ensurePath(path); err != nil {
+		return "", err
+	}
 	return c.createEphemeral(path, node)
 }
 
@@ -212,12 +215,9 @@ func (c *Connection) createEphemeral(p string, node client.Node) (string, error)
 	if err != nil {
 		return "", client.ErrSerialization
 	}
-	if err := c.ensurePath(p); err != nil {
-		return "", err
-	}
-	p = path.Join(c.basePath, p)
-	pth, err := c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
-	return pth, xlateError(err)
+	pth := path.Join(c.basePath, p)
+	epth, err := c.conn.CreateProtectedEphemeralSequential(pth, bytes, zklib.WorldACL(zklib.PermAll))
+	return epth, xlateError(err)
 }
 
 // Set assigns a value to an existing node at a given path
