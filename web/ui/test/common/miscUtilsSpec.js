@@ -195,13 +195,10 @@ describe('miscUtils', function() {
             expect(miscUtils.validateRAMLimit("0%")).toEqual("RAM Limit must be at least 1%");
         });
         it("Invalidates invalid units", function(){
-            expect(miscUtils.validateRAMLimit("100Z")).toEqual("Invalid RAM Limit value");
+            expect(miscUtils.validateRAMLimit("100Z")).toEqual("Invalid RAM Limit value, must specify % or unit");
         });
         it("Invalidates missing units or percent", function(){
             expect(miscUtils.validateRAMLimit("100")).toEqual("Invalid RAM Limit value, must specify % or unit");
-        });
-        it("Invalidates 0", function(){
-            expect(miscUtils.validateRAMLimit("0")).toEqual("RAM Limit must be at least 1");
         });
         it("Invalidates limit that exceeds available memory", function(){
             expect(miscUtils.validateRAMLimit("64G", 32 * 1024 * 1024 * 1024)).toEqual("RAM Limit exceeds available host memory");
