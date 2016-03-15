@@ -251,7 +251,7 @@
 		},
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "c0187cbf588c59709e8881fd2bba082b02231356"
+			"Rev": "cec3f19b1d800de38185ec0e08446156254ec463"
 		},
 		{
 			"ImportPath": "github.com/googollee/go-socket.io",
@@ -303,11 +303,11 @@
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Rev": "f390dcf405f7b83c997eac1b06768bb9f44dec18"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/mock",
-			"Rev": "2b15294402a895a4224659d181866f545991021e"
+			"Rev": "f390dcf405f7b83c997eac1b06768bb9f44dec18"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/api",
@@ -348,6 +348,10 @@
 		{
 			"ImportPath": "github.com/msteinert/pam",
 			"Rev": "02ccfbfaf0cc627aa3aec8ef7ed5cfeec5b43f63"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+			"Rev": "4f90aeace3a26ad7021961c297b22c42160c7b25"
 		}
 	]
 }

@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fsouza/go-dockerclient/external/github.com/hashicorp/go-cleanhttp"
 )
 
 func TestStateString(t *testing.T) {
@@ -238,7 +240,9 @@ func TestInspectContainer(t *testing.T) {
                "PublishAllPorts": false,
                "CgroupParent": "/mesos",
                "Memory": 17179869184,
-               "MemorySwap": 34359738368
+               "MemorySwap": 34359738368,
+               "GroupAdd": ["fake", "12345"],
+               "OomScoreAdj": 642
              }
 }`
 	var expected Container
@@ -260,6 +264,233 @@ func TestInspectContainer(t *testing.T) {
 	if gotPath := fakeRT.requests[0].URL.Path; gotPath != expectedURL.Path {
 		t.Errorf("InspectContainer(%q): Wrong path in request. Want %q. Got %q.", id, expectedURL.Path, gotPath)
 	}
+}
+
+func TestInspectContainerNetwork(t *testing.T) {
+	jsonContainer := `{
+            "Id": "81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c",
+            "Created": "2015-11-12T14:54:04.791485659Z",
+            "Path": "consul-template",
+            "Args": [
+                "-config=/tmp/haproxy.json",
+                "-consul=192.168.99.120:8500"
+            ],
+            "State": {
+                "Status": "running",
+                "Running": true,
+                "Paused": false,
+                "Restarting": false,
+                "OOMKilled": false,
+                "Dead": false,
+                "Pid": 3196,
+                "ExitCode": 0,
+                "Error": "",
+                "StartedAt": "2015-11-12T14:54:05.026747471Z",
+                "FinishedAt": "0001-01-01T00:00:00Z"
+            },
+            "Image": "4921c5917fc117df3dec32f4c1976635dc6c56ccd3336fe1db3477f950e78bf7",
+            "ResolvConfPath": "/mnt/sda1/var/lib/docker/containers/81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c/resolv.conf",
+            "HostnamePath": "/mnt/sda1/var/lib/docker/containers/81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c/hostname",
+            "HostsPath": "/mnt/sda1/var/lib/docker/containers/81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c/hosts",
+            "LogPath": "/mnt/sda1/var/lib/docker/containers/81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c/81e1bbe20b5508349e1c804eb08b7b6ca8366751dbea9f578b3ea0773fa66c1c-json.log",
+            "Node": {
+                "ID": "AUIB:LFOT:3LSF:SCFS:OYDQ:NLXD:JZNE:4INI:3DRC:ZFBB:GWCY:DWJK",
+                "IP": "192.168.99.121",
+                "Addr": "192.168.99.121:2376",
+                "Name": "swl-demo1",
+                "Cpus": 1,
+                "Memory": 2099945472,
+                "Labels": {
+                    "executiondriver": "native-0.2",
+                    "kernelversion": "4.1.12-boot2docker",
+                    "operatingsystem": "Boot2Docker 1.9.0 (TCL 6.4); master : 16e4a2a - Tue Nov  3 19:49:22 UTC 2015",
+                    "provider": "virtualbox",
+                    "storagedriver": "aufs"
+                }
+            },
+            "Name": "/docker-proxy.swl-demo1",
+            "RestartCount": 0,
+            "Driver": "aufs",
+            "ExecDriver": "native-0.2",
+            "MountLabel": "",
+            "ProcessLabel": "",
+            "AppArmorProfile": "",
+            "ExecIDs": null,
+            "HostConfig": {
+                "Binds": null,
+                "ContainerIDFile": "",
+                "LxcConf": [],
+                "Memory": 0,
+                "MemoryReservation": 0,
+                "MemorySwap": 0,
+                "KernelMemory": 0,
+                "CpuShares": 0,
+                "CpuPeriod": 0,
+                "CpusetCpus": "",
+                "CpusetMems": "",
+                "CpuQuota": 0,
+                "BlkioWeight": 0,
+                "OomKillDisable": false,
+                "MemorySwappiness": -1,
+                "Privileged": false,
+                "PortBindings": {
+                    "443/tcp": [
+                        {
+                            "HostIp": "",
+                            "HostPort": "443"
+                        }
+                    ]
+                },
+                "Links": null,
+                "PublishAllPorts": false,
+                "Dns": null,
+                "DnsOptions": null,
+                "DnsSearch": null,
+                "ExtraHosts": null,
+                "VolumesFrom": null,
+                "Devices": [],
+                "NetworkMode": "swl-net",
+                "IpcMode": "",
+                "PidMode": "",
+                "UTSMode": "",
+                "CapAdd": null,
+                "CapDrop": null,
+                "GroupAdd": null,
+                "RestartPolicy": {
+                    "Name": "no",
+                    "MaximumRetryCount": 0
+                },
+                "SecurityOpt": null,
+                "ReadonlyRootfs": false,
+                "Ulimits": null,
+                "LogConfig": {
+                    "Type": "json-file",
+                    "Config": {}
+                },
+                "CgroupParent": "",
+                "ConsoleSize": [
+                    0,
+                    0
+                ],
+                "VolumeDriver": ""
+            },
+            "GraphDriver": {
+                "Name": "aufs",
+                "Data": null
+            },
+            "Mounts": [],
+            "Config": {
+                "Hostname": "81e1bbe20b55",
+                "Domainname": "",
+                "User": "",
+                "AttachStdin": false,
+                "AttachStdout": false,
+                "AttachStderr": false,
+                "ExposedPorts": {
+                    "443/tcp": {}
+                },
+                "Tty": false,
+                "OpenStdin": false,
+                "StdinOnce": false,
+                "Env": [
+                    "DOMAIN=local.auto",
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "CONSUL_TEMPLATE_VERSION=0.11.1"
+                ],
+                "Cmd": [
+                    "-consul=192.168.99.120:8500"
+                ],
+                "Image": "docker-proxy:latest",
+                "Volumes": null,
+                "WorkingDir": "",
+                "Entrypoint": [
+                    "consul-template",
+                    "-config=/tmp/haproxy.json"
+                ],
+                "OnBuild": null,
+                "Labels": {},
+                "StopSignal": "SIGTERM"
+            },
+            "NetworkSettings": {
+                "Bridge": "",
+                "SandboxID": "c6b903dc5c1a96113a22dbc44709e30194079bd2d262eea1eb4f38d85821f6e1",
+                "HairpinMode": false,
+                "LinkLocalIPv6Address": "",
+                "LinkLocalIPv6PrefixLen": 0,
+                "Ports": {
+                    "443/tcp": [
+                        {
+                            "HostIp": "192.168.99.121",
+                            "HostPort": "443"
+                        }
+                    ]
+                },
+                "SandboxKey": "/var/run/docker/netns/c6b903dc5c1a",
+                "SecondaryIPAddresses": null,
+                "SecondaryIPv6Addresses": null,
+                "EndpointID": "",
+                "Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "IPAddress": "",
+                "IPPrefixLen": 0,
+                "IPv6Gateway": "",
+                "MacAddress": "",
+                "Networks": {
+                    "swl-net": {
+                        "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
+                        "EndpointID": "683e3092275782a53c3b0968cc7e3a10f23264022ded9cb20490902f96fc5981",
+                        "Gateway": "",
+                        "IPAddress": "10.0.0.3",
+                        "IPPrefixLen": 24,
+                        "IPv6Gateway": "",
+                        "GlobalIPv6Address": "",
+                        "GlobalIPv6PrefixLen": 0,
+                        "MacAddress": "02:42:0a:00:00:03"
+                    }
+                }
+            }
+}`
+
+	fakeRT := &FakeRoundTripper{message: jsonContainer, status: http.StatusOK}
+	client := newTestClient(fakeRT)
+	id := "81e1bbe20b55"
+	expIP := "10.0.0.3"
+	expNetworkID := "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812"
+
+	container, err := client.InspectContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := reflect.Indirect(reflect.ValueOf(container.NetworkSettings))
+	networks := s.FieldByName("Networks")
+	if networks.IsValid() {
+		var ip string
+		for _, net := range networks.MapKeys() {
+			if net.Interface().(string) == container.HostConfig.NetworkMode {
+				ip = networks.MapIndex(net).FieldByName("IPAddress").Interface().(string)
+				t.Logf("%s %v", net, ip)
+			}
+		}
+		if ip != expIP {
+			t.Errorf("InspectContainerNetworks(%q): Expected %#v. Got %#v.", id, expIP, ip)
+		}
+
+		var networkID string
+		for _, net := range networks.MapKeys() {
+			if net.Interface().(string) == container.HostConfig.NetworkMode {
+				networkID = networks.MapIndex(net).FieldByName("NetworkID").Interface().(string)
+				t.Logf("%s %v", net, networkID)
+			}
+		}
+		if networkID != expNetworkID {
+			t.Errorf("InspectContainerNetworks(%q): Expected %#v. Got %#v.", id, expNetworkID, networkID)
+		}
+	} else {
+		t.Errorf("InspectContainerNetworks(%q): No method Networks for NetworkSettings", id)
+	}
+
 }
 
 func TestInspectContainerNegativeSwap(t *testing.T) {
@@ -507,6 +738,36 @@ func TestCreateContainerWithHostConfig(t *testing.T) {
 	}
 	if _, ok := gotBody["HostConfig"]; !ok {
 		t.Errorf("CreateContainer: wrong body. HostConfig was not serialized")
+	}
+}
+
+func TestUpdateContainer(t *testing.T) {
+	fakeRT := &FakeRoundTripper{message: "", status: http.StatusOK}
+	client := newTestClient(fakeRT)
+	id := "4fa6e0f0c6786287e131c3852c58a2e01cc697a68231826813597e4994f1d6e2"
+	update := UpdateContainerOptions{Memory: 12345, CpusetMems: "0,1"}
+	err := client.UpdateContainer(id, update)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := fakeRT.requests[0]
+	if req.Method != "POST" {
+		t.Errorf("UpdateContainer: wrong HTTP method. Want %q. Got %q.", "POST", req.Method)
+	}
+	expectedURL, _ := url.Parse(client.getURL("/containers/" + id + "/update"))
+	if gotPath := req.URL.Path; gotPath != expectedURL.Path {
+		t.Errorf("UpdateContainer: Wrong path in request. Want %q. Got %q.", expectedURL.Path, gotPath)
+	}
+	expectedContentType := "application/json"
+	if contentType := req.Header.Get("Content-Type"); contentType != expectedContentType {
+		t.Errorf("UpdateContainer: Wrong content-type in request. Want %q. Got %q.", expectedContentType, contentType)
+	}
+	var out UpdateContainerOptions
+	if err := json.NewDecoder(req.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(out, update) {
+		t.Errorf("UpdateContainer: wrong body, got: %#v, want %#v", out, update)
 	}
 }
 
@@ -864,7 +1125,7 @@ func TestCommitContainerParams(t *testing.T) {
 		{CommitContainerOptions{Container: "44c004db4b17"}, map[string][]string{"container": {"44c004db4b17"}}, nil},
 		{
 			CommitContainerOptions{Container: "44c004db4b17", Repository: "tsuru/python", Message: "something"},
-			map[string][]string{"container": {"44c004db4b17"}, "repo": {"tsuru/python"}, "m": {"something"}},
+			map[string][]string{"container": {"44c004db4b17"}, "repo": {"tsuru/python"}, "comment": {"something"}},
 			nil,
 		},
 		{
@@ -1085,6 +1346,52 @@ func TestAttachToContainerNilStderr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestAttachToContainerStdinOnly(t *testing.T) {
+	var reader = strings.NewReader("send value")
+	serverFinished := make(chan struct{})
+	clientFinished := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("cannot hijack server connection")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// wait for client to indicate it's finished
+		<-clientFinished
+		// inform test that the server has finished
+		close(serverFinished)
+		conn.Close()
+	}))
+	defer server.Close()
+	client, _ := NewClient(server.URL)
+	client.SkipServerVersionCheck = true
+	success := make(chan struct{})
+	opts := AttachToContainerOptions{
+		Container:   "a123456",
+		InputStream: reader,
+		Stdin:       true,
+		Stdout:      false,
+		Stderr:      false,
+		Stream:      true,
+		RawTerminal: false,
+		Success:     success,
+	}
+	go func() {
+		if err := client.AttachToContainer(opts); err != nil {
+			t.Error(err)
+		}
+		// client's attach session is over
+		close(clientFinished)
+	}()
+	success <- <-success
+	// wait for server to finish handling attach
+	<-serverFinished
 }
 
 func TestAttachToContainerRawTerminalFalse(t *testing.T) {
@@ -1370,7 +1677,8 @@ func TestExportContainerViaUnixSocket(t *testing.T) {
 	endpoint := "unix://" + tempSocket
 	u, _ := parseEndpoint(endpoint, false)
 	client := Client{
-		HTTPClient:             http.DefaultClient,
+		HTTPClient:             cleanhttp.DefaultClient(),
+		Dialer:                 &net.Dialer{},
 		endpoint:               endpoint,
 		endpointURL:            u,
 		SkipServerVersionCheck: true,
@@ -1426,17 +1734,60 @@ func TestExportContainerNoId(t *testing.T) {
 	}
 }
 
+func TestUploadToContainer(t *testing.T) {
+	content := "File content"
+	in := stdinMock{bytes.NewBufferString(content)}
+	fakeRT := &FakeRoundTripper{status: http.StatusOK}
+	client := newTestClient(fakeRT)
+	opts := UploadToContainerOptions{
+		Path:        "abc",
+		InputStream: in,
+	}
+	err := client.UploadToContainer("a123456", opts)
+	if err != nil {
+		t.Errorf("UploadToContainer: caught error %#v while uploading archive to container, expected nil", err)
+	}
+
+	req := fakeRT.requests[0]
+
+	if req.Method != "PUT" {
+		t.Errorf("UploadToContainer{Path:abc}: Wrong HTTP method.  Want PUT. Got %s", req.Method)
+	}
+
+	if pathParam := req.URL.Query().Get("path"); pathParam != "abc" {
+		t.Errorf("ListImages({Path:abc}): Wrong parameter. Want path=abc.  Got path=%s", pathParam)
+	}
+
+}
+
+func TestDownloadFromContainer(t *testing.T) {
+	filecontent := "File content"
+	client := newTestClient(&FakeRoundTripper{message: filecontent, status: http.StatusOK})
+
+	var out bytes.Buffer
+	opts := DownloadFromContainerOptions{
+		OutputStream: &out,
+	}
+	err := client.DownloadFromContainer("a123456", opts)
+	if err != nil {
+		t.Errorf("DownloadFromContainer: caught error %#v while downloading from container, expected nil", err.Error())
+	}
+	if out.String() != filecontent {
+		t.Errorf("DownloadFromContainer: wrong stdout. Want %#v. Got %#v.", filecontent, out.String())
+	}
+}
+
 func TestCopyFromContainer(t *testing.T) {
 	content := "File content"
 	out := stdoutMock{bytes.NewBufferString(content)}
 	client := newTestClient(&FakeRoundTripper{status: http.StatusOK})
 	opts := CopyFromContainerOptions{
 		Container:    "a123456",
-		OutputStream: out,
+		OutputStream: &out,
 	}
 	err := client.CopyFromContainer(opts)
 	if err != nil {
-		t.Errorf("CopyFromContainer: caugh error %#v while copying from container, expected nil", err.Error())
+		t.Errorf("CopyFromContainer: caught error %#v while copying from container, expected nil", err.Error())
 	}
 	if out.String() != content {
 		t.Errorf("CopyFromContainer: wrong stdout. Want %#v. Got %#v.", content, out.String())
@@ -1584,7 +1935,6 @@ func TestTopContainerWithPsArgs(t *testing.T) {
 }
 
 func TestStatsTimeout(t *testing.T) {
-
 	l, err := net.Listen("unix", "/tmp/docker_test.sock")
 	if err != nil {
 		t.Fatal(err)
@@ -1594,7 +1944,7 @@ func TestStatsTimeout(t *testing.T) {
 	go func() {
 		l.Accept()
 		received = true
-		time.Sleep(time.Millisecond * 250)
+		time.Sleep(time.Second)
 	}()
 	client, _ := NewClient("unix:///tmp/docker_test.sock")
 	client.SkipServerVersionCheck = true
@@ -1628,6 +1978,18 @@ func TestStats(t *testing.T) {
           "tx_errors" : 0,
           "tx_bytes" : 648
        },
+	   "networks" : {
+		   "eth0":{
+			   "rx_dropped" : 0,
+			   "rx_bytes" : 648,
+			   "rx_errors" : 0,
+			   "tx_packets" : 8,
+			   "tx_dropped" : 0,
+			   "rx_packets" : 8,
+			   "tx_errors" : 0,
+			   "tx_bytes" : 648
+		   }
+	   },
        "memory_stats" : {
           "stats" : {
              "total_pgmajfault" : 0,
@@ -1658,7 +2020,9 @@ func TestStats(t *testing.T) {
              "active_file" : 0,
              "pgfault" : 964,
              "inactive_file" : 0,
-             "total_pgpgin" : 477
+             "total_pgpgin" : 477,
+             "swap" : 47312896,
+             "hierarchical_memsw_limit" : 1610612736
           },
           "max_usage" : 6651904,
           "usage" : 6537216,
@@ -1733,17 +2097,19 @@ func TestStats(t *testing.T) {
 	// 1 second later, cache is 100
 	jsonStats2 := `{
        "read" : "2015-01-08T22:57:32.547920715Z",
-       "network" : {
-          "rx_dropped" : 0,
-          "rx_bytes" : 648,
-          "rx_errors" : 0,
-          "tx_packets" : 8,
-          "tx_dropped" : 0,
-          "rx_packets" : 8,
-          "tx_errors" : 0,
-          "tx_bytes" : 648
-       },
-       "memory_stats" : {
+	   "networks" : {
+		   "eth0":{
+			   "rx_dropped" : 0,
+			   "rx_bytes" : 648,
+			   "rx_errors" : 0,
+			   "tx_packets" : 8,
+			   "tx_dropped" : 0,
+			   "rx_packets" : 8,
+			   "tx_errors" : 0,
+			   "tx_bytes" : 648
+		   }
+	   },
+	   "memory_stats" : {
           "stats" : {
              "total_pgmajfault" : 0,
              "cache" : 100,
@@ -1772,7 +2138,9 @@ func TestStats(t *testing.T) {
              "active_file" : 0,
              "pgfault" : 964,
              "inactive_file" : 0,
-             "total_pgpgin" : 477
+             "total_pgpgin" : 477,
+             "swap" : 47312896,
+             "hierarchical_memsw_limit" : 1610612736
           },
           "max_usage" : 6651904,
           "usage" : 6537216,
