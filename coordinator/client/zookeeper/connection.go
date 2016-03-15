@@ -208,7 +208,6 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 }
 
 func (c *Connection) createEphemeral(p string, node client.Node) (string, error) {
-	p = path.Join(c.basePath, p)
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return "", client.ErrSerialization
@@ -216,6 +215,7 @@ func (c *Connection) createEphemeral(p string, node client.Node) (string, error)
 	if err := c.ensurePath(p); err != nil {
 		return "", err
 	}
+	p = path.Join(c.basePath, p)
 	pth, err := c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
 	return pth, xlateError(err)
 }
