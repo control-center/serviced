@@ -23,7 +23,7 @@ type Lock struct {
 }
 
 // Lock attempts to acquire the lock.
-func (l *Lock) Lock() (err error) {
+func (l *Lock) Lock() error {
 	return xlateError(l.lock.Lock())
 }
 

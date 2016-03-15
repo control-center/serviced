@@ -96,7 +96,5 @@ func (driver *Driver) GetConnection(dsn, basePath string) (client.Connection, er
 	return &Connection{
 		basePath: basePath,
 		conn:     conn,
-		servers:  dsnVal.Servers,
-		timeout:  dsnVal.Timeout,
 	}, nil
 }
