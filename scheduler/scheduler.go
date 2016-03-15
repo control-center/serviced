@@ -117,10 +117,14 @@ func (s *scheduler) Start() {
 // mainloop acquires the leader lock and initializes the listener
 func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// become the leader
-	leader := zzk.NewHostLeader(conn, s.instance_id, s.realm, "/scheduler")
+	leader, err := conn.NewLeader("/scheduler")
+	if err != nil {
+		glog.Errorf("Could not initialize leader node for scheduler: %s", err)
+		return
+	}
 	leaderDone := make(chan struct{})
 	defer close(leaderDone)
-	event, err := leader.TakeLead(leaderDone)
+	event, err := leader.TakeLead(&zzk.HostLeader{HostID: s.instance_id, Realm: s.realm}, leaderDone)
 	if err != nil {
 		glog.Errorf("Could not become the leader: %s", err)
 		return

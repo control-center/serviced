@@ -45,10 +45,14 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	imagepath := path.Join(zkregistrytags, rImage.ID())
 	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
 	if err := conn.Create(imagepath, node); err == client.ErrNodeExists {
-		leader := conn.NewLeader(leaderpath, leadernode)
+		leader, err := conn.NewLeader(leaderpath)
+		if err != nil {
+			glog.Errorf("Could not establish leader at path %s: %s", leaderpath, err)
+			return err
+		}
 		leaderDone := make(chan struct{})
 		defer close(leaderDone)
-		_, err := leader.TakeLead(leaderDone)
+		_, err = leader.TakeLead(leadernode, leaderDone)
 		if err != nil {
 			return err
 		}
