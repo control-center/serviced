@@ -11,6 +11,7 @@
 
         $scope.indent = utils.indentClass;
         $scope.newHost = {};
+        $scope.newHost.RAMLimit = "100%";
 
         $scope.modalAddHost = function() {
             $modalService.create({
@@ -22,6 +23,7 @@
                         role: "cancel",
                         action: function(){
                             $scope.newHost = {};
+                            $scope.newHost.RAMLimit = "100%";
                             this.close();
                         }
                     },{
