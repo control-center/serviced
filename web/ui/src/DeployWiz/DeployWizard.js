@@ -72,6 +72,8 @@
                 return false;
             }
 
+            $scope.newHost.IPAddr = $scope.newHost.host + ':' + $scope.newHost.port;
+
             resourcesFactory.addHost($scope.newHost)
                 .success(function(){
                     step += 1;
@@ -113,7 +115,9 @@
             // if there is not at least one host, add an
             // "add host" step to the wizard
             if(hostsFactory.hostList.length === 0){
-                $scope.newHost = {};
+                $scope.newHost = {
+                    port: '4979'
+                };
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
                     label: 'add_host',
@@ -210,7 +214,9 @@
         };
 
         $scope.addHostStart = function() {
-            $scope.newHost = {};
+            $scope.newHost = {
+                port: '4979'
+            };
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
         };
 

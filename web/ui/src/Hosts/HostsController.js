@@ -10,7 +10,9 @@
         authService.checkLogin($scope);
 
         $scope.indent = utils.indentClass;
-        $scope.newHost = {};
+        $scope.newHost = {
+            port: '4979'
+        };
 
         $scope.modalAddHost = function() {
             $modalService.create({
@@ -31,6 +33,8 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
+
+                                $scope.newHost.IPAddr = $scope.newHost.host + ':' + $scope.newHost.port;
 
                                 resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
