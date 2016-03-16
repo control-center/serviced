@@ -31,6 +31,9 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
+                                if ($scope.newHost.RAMLimit === undefined || $scope.newHost.RAMLimit === '') {
+                                    $scope.newHost.RAMLimit = "100%";
+                                }
 
                                 resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
