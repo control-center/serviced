@@ -50,7 +50,7 @@ func (c *ServicedCli) initDocker() {
 			}, {
 				Name:        "override",
 				Usage:       "Replace an image in the registry with a new image",
-				Description: "serviced docker override NEWIMAGE OLDIMAGE",
+				Description: "serviced docker override OLDIMAGE NEWIMAGE",
 				Action:      c.cmdDockerOverride,
 			},
 		},
@@ -91,7 +91,10 @@ func (c *ServicedCli) cmdDockerOverride(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.DockerOverride(args[0], args[1]); err != nil {
+	oldImage := args[0]
+	newImage := args[1]
+
+	if err := c.driver.DockerOverride(newImage, oldImage); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
