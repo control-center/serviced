@@ -14,6 +14,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
 )
@@ -44,6 +46,11 @@ func (c *ServicedCli) initDocker() {
 					cli.StringFlag{"registry", "", "host:port where the registry is running"},
 					cli.BoolFlag{"override, f", "overrides all existing image records"},
 				},
+			}, {
+				Name:        "override",
+				Usage:       "Replace an image in the registry with a new image",
+				Description: "serviced docker override NEWIMAGE OLDIMAGE",
+				Action:      c.cmdDockerOverride,
 			},
 		},
 	})
@@ -70,5 +77,20 @@ func (c *ServicedCli) cmdMigrateRegistry(ctx *cli.Context) {
 	override := ctx.Bool("override")
 	if err := c.driver.UpgradeRegistry(endpoint, override); err != nil {
 		glog.Fatalf("error while upgrading the registry: %s", err)
+	}
+}
+
+// serviced docker override NEWIMAGE OLDIMAGE
+func (c *ServicedCli) cmdDockerOverride(ctx *cli.Context) {
+	args := ctx.Args()
+
+	if len(args) != 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "override")
+		return
+	}
+
+	if err := c.driver.DockerOverride(args[0], args[1]); err != nil {
+		glog.Fatalf("error while overriding images in the registry: %s", err)
 	}
 }
