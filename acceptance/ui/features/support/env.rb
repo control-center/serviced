@@ -11,6 +11,7 @@ require "capybara/rspec"
 require 'capybara/poltergeist'
 require 'selenium-webdriver'
 require 'capybara-screenshot/cucumber'
+require 'capybara-webkit'
 
 def combineAllDataFiles(dir)
     data = "{"
@@ -48,7 +49,7 @@ end
 
 #
 # Set defaults
-Capybara.default_wait_time = 10
+Capybara.default_max_wait_time = 10
 Capybara.default_driver = :selenium
 Capybara::Screenshot.prune_strategy = :keep_last_run
 
@@ -104,9 +105,9 @@ printf "Using template directory=%s\n", template_dir
 
 timeout_override = ENV["CAPYBARA_TIMEOUT"]
 if timeout_override && timeout_override.length > 0
-    Capybara.default_wait_time = timeout_override.to_i
+    Capybara.default_max_wait_time = timeout_override.to_i
 end
-printf "Using default_wait_time=%d\n", Capybara.default_wait_time
+printf "Using default_max_wait_time=%d\n", Capybara.default_max_wait_time
 
 driver_override = ENV["CAPYBARA_DRIVER"]
 if driver_override && driver_override.length > 0
@@ -116,6 +117,9 @@ if driver_override && driver_override.length > 0
         Capybara.default_driver = :selenium_chrome
     elsif driver_override == "poltergeist"
         Capybara.default_driver = :poltergeist
+    elsif driver_override == "webkit"
+        Capybara.default_driver = :webkit
+        Capybara.javascript_driver = :webkit
     else
         puts "ERROR: invalid value for CAPYBARA_DRIVER"
         exit 1
@@ -127,6 +131,7 @@ HOST_IP = ENV["HOST_IP"]
 TARGET_HOST = ENV["TARGET_HOST"]
 printf "Using HOST_IP=%s\n", HOST_IP
 printf "Using TARGET_HOST=%s\n", TARGET_HOST
+printf "Using DISPLAY=%s\n", ENV["DISPLAY"]
 
 #
 # Register Chrome (Firefox is the selenium default)
@@ -136,7 +141,7 @@ Capybara.register_driver :selenium_chrome do |app|
     # and refuses to start. So you must either run the docker container w/--privileged or run chrome as
     # a non-root user with sandboxing disabled. The later seems most secure
     args = %w(--no-sandbox)
-    Capybara::Selenium::Driver.new(app, :browser => :chrome, :args => ["--no-sandbox", "--ignore-certificate-errors"])
+    Capybara::Selenium::Driver.new(app, :browser => :chrome, :args => ["--no-sandbox", "--ignore-certificate-errors", "--user-data-dir=/tmp"])
 end
 
 #
@@ -144,13 +149,28 @@ end
 Capybara.register_driver :poltergeist do |app|
     options = {
     	:ignore_ssl_errors => true,
-        :js_errors => false,
-        :timeout => 120,
+        :js_errors => true,
         :debug => false,
+        :timeout => 120,
         :phantomjs_options => ['--load-images=no', '--disk-cache=false', '--ignore-ssl-errors=true'],
         :inspector => true,
     }
     Capybara::Poltergeist::Driver.new(app, options)
+end
+
+Capybara::Webkit.configure do |config|
+    # Allow loading of all external URLs
+    config.allow_url("*")
+    config.ignore_ssl_errors = true
+end
+
+Before do
+  if Capybara.current_driver == :selenium || Capybara.current_driver == :selenium_chrome
+    require 'headless'
+
+    headless = Headless.new
+    headless.start
+  end
 end
 
 #
