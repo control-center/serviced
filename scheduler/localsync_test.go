@@ -124,14 +124,12 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 	}
 
 	// Spin off local sync
-	shutdown := make(chan interface{})
 	go func() {
 		time.Sleep(250 * time.Millisecond)
 		c.Logf("Calling doSync")
 		defer c.Logf("doSync returned")
 		lst.scheduler.doSync(lst.zkConn)
 	}()
-	defer close(shutdown)
 
 	// Delete all pools
 	allPools, err := lst.facade.GetResourcePools(lst.CTX)
