@@ -18,7 +18,7 @@
             if ($scope.pools.length > 0){
                 $scope.newHost.PoolID = $scope.pools[0].id;
             }
-        }
+        };
 
         $scope.modalAddHost = function() {
             $modalService.create({
