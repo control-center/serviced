@@ -23,7 +23,7 @@ import (
 	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 )
 
@@ -117,6 +117,22 @@ func TestZkDriver(t *testing.T) {
 	err = conn.Delete("/foo")
 	if err != nil {
 		t.Fatalf("delete of /foo should work: %s", err)
+	}
+
+	err = conn.CreateDir("/fum/bar/baz/echo/p/q")
+	if err != nil {
+		t.Fatalf("creating /fum/bar/baz/echo/p/q should work")
+	}
+	exists, err = conn.Exists("/fum/bar/baz/echo/p/q")
+	if err != nil {
+		t.Fatalf("could not call exists: %s", err)
+	}
+	if !exists {
+		t.Fatal("/fum/bar/baz/echo/p/q should exist")
+	}
+	err = conn.Delete("/fum")
+	if err != nil {
+		t.Fatalf("delete of /fum should work: %s", err)
 	}
 
 	conn.Close()
@@ -401,6 +417,10 @@ func TestZkDriver_Watch(t *testing.T) {
 	err = conn.CreateDir("/foo")
 	if err != nil {
 		t.Fatalf("creating /foo should work: %s", err)
+	}
+	err = conn.Get("/foo", &testNodeT{})
+	if err != coordclient.ErrEmptyNode {
+		t.Fatalf("expected empty node, got %s", err)
 	}
 
 	childWDone1 := make(chan struct{})
