@@ -47,10 +47,5 @@ func (a *api) DockerOverride(newImage string, oldImage string) error {
 	if err != nil {
 		return err
 	}
-
-	if err := client.DockerOverride(newImage, oldImage); err != nil {
-		return err
-	}
-
-	return nil
+	return client.DockerOverride(newImage, oldImage)
 }
