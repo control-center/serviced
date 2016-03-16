@@ -38,12 +38,12 @@ func (dfs *DistributedFilesystem) Override(newimg, oldimg string) error {
 	// push the image into the registry
 	hash, err := dfs.docker.GetImageHash(newImage.ID)
 	if err != nil {
-		glog.Errorf("Could not get has for image %s: %s", newimg, err)
+		glog.Errorf("Could not get hash for image %s: %s", newimg, err)
 		return err
 	}
 
 	if err := dfs.index.PushImage(oldImage.String(), newImage.ID, hash); err != nil {
-		glog.Errorf("Could not push image %s (%s): %s", oldImage, newImage.ID, err)
+		glog.Errorf("Could not replace image %s with %s (%s): %s", oldImage, newimg, newImage.ID, err)
 		return err
 	}
 	return nil
