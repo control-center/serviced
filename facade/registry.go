@@ -126,3 +126,9 @@ func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	}
 	return nil
 }
+
+// DockerOverride will replace a docker image in the registry with a new image for all services that use
+//  it under the given tenant
+func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
+	return f.dfs.Override(newImageName, oldImageName)
+}
