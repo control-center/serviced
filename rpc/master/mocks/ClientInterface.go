@@ -7,6 +7,7 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/facade"
 import "github.com/control-center/serviced/volume"
+import "time"
 
 type ClientInterface struct {
 	mock.Mock
@@ -358,6 +359,18 @@ func (_m *ClientInterface) UpgradeRegistry(endpoint string, override bool) error
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
 		r0 = rf(endpoint, override)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) DockerOverride(newImage string, oldImage string) error {
+	ret := _m.Called(newImage, oldImage)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(newImage, oldImage)
 	} else {
 		r0 = ret.Error(0)
 	}
