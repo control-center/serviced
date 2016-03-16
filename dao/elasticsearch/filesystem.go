@@ -303,7 +303,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock("list shapshots")
+	dfslocker.Lock("list snapshots")
 	defer dfslocker.Unlock()
 
 	*snapshots = make([]model.SnapshotInfo, 0)
