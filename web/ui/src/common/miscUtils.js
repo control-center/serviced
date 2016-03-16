@@ -267,10 +267,15 @@
             validateRAMLimit: function(limitStr, max=Infinity){
 
                 if (limitStr === undefined || limitStr === '') {
-                    return "Invalid RAM Limit value";
+                    return null;
                 }
 
                 var isPercent = (limitStr.endsWith("%"));
+                var isEngineeringNotation = /.*[KkMmGgTt]$/.test(limitStr);
+
+                if (!isPercent && !isEngineeringNotation) {
+                    return "Invalid RAM Limit value, must specify % or unit of K, M, G, or T";
+                }
 
                 // if this is a percent, ensure its between 1 and 100
                 if(isPercent){

@@ -249,7 +249,7 @@
     "no_data": "No se encontraron datos",
     "placeholder_host_and_port": "ej. localhost:4979",
     "placeholder_host_parent": "ej. default",
-    "placeholder_host_ram_commitment": "ej. 1G o 50%",
+    "placeholder_host_ram_commitment": "ej. 1G o 50%, dejar en blanco para 100%",
     "placeholder_hosts_search": "Buscar",
     "placeholder_pool_core_limit": "M\u00e1ximo n\u00famero de n\u00facleos de CPU a asignar",
     "placeholder_pool_memory_limit": "M\u00e1xima RAM a asignar",
