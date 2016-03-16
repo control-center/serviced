@@ -154,21 +154,17 @@ func (c *Connection) CreateDir(path string) error {
 func (c *Connection) createDir(p string) error {
 	pth := path.Join(c.basePath, p)
 	_, err := c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-	return err
+	return xlateError(err)
 }
 
 func (c *Connection) ensurePath(p string) error {
 	dp := path.Dir(p)
-	if ok, err := c.exists(dp); err != nil {
+	if p == "" || p == "/" {
+		return nil
+	} else if err := c.ensurePath(dp); err != nil {
 		return err
-	} else if !ok {
-		if p == "" || p == "/" {
-			return nil
-		} else if err := c.ensurePath(dp); err != nil {
-			return err
-		} else if err := c.createDir(dp); err != client.ErrNodeExists {
-			return err
-		}
+	} else if err := c.createDir(dp); err != client.ErrNodeExists {
+		return err
 	}
 	return nil
 }
