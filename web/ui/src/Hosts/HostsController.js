@@ -10,9 +10,15 @@
         authService.checkLogin($scope);
 
         $scope.indent = utils.indentClass;
-        $scope.newHost = {
-            port: $translate.instant('placeholder_port')
-        };
+
+        $scope.resetNewHost = function(){
+            $scope.newHost = {
+                port: $translate.instant('placeholder_port')
+            };
+            if ($scope.pools.length > 0){
+                $scope.newHost.PoolID = $scope.pools[0].id;
+            }
+        }
 
         $scope.modalAddHost = function() {
             $modalService.create({
@@ -23,9 +29,7 @@
                     {
                         role: "cancel",
                         action: function(){
-                            $scope.newHost = {
-                                port: $translate.instant('placeholder_port')                                
-                            };
+                            $scope.resetNewHost();
                             this.close();
                         }
                     },{
@@ -42,9 +46,6 @@
                                     .success(function(data, status){
                                         $notification.create("", data.Detail).success();
                                         this.close();
-                                        $scope.newHost = {
-                                            poolID: $scope.params.poolID
-                                        };
                                         update();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -58,7 +59,8 @@
                     }
                 ],
                 validate: function(){
-                    var err = utils.validateHostName($scope.newHost.host) ||
+                    var err = utils.validateHostName($scope.newHost.host, $translate) ||
+                        utils.validatePortNumber($scope.newHost.port, $translate) ||
                         utils.validateRAMLimit($scope.newHost.RAMLimit);
                     if(err){
                         this.createNotification("Error", err).error();
@@ -117,6 +119,7 @@
             poolsFactory.update()
                 .then(() => {
                     $scope.pools = poolsFactory.poolList;
+                    $scope.resetNewHost();
                 });
         }
 

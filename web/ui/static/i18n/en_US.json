@@ -381,6 +381,7 @@
     "remove_public_endpoint_confirm": "Remove and Restart Service",
     "public_endpoint_url": "URL",
     "port_number_invalid": "Invalid port number",
+    "port_number_invalid_range": "The port number must be between 1 and 65535",
 
     "one_moment": "One moment please...",
     "no_services_found": "No Services found"

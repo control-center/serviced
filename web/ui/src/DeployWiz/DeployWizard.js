@@ -67,7 +67,8 @@
         };
 
         var validHost = function(){
-            var err = utils.validateHostName($scope.newHost.host) ||
+            var err = utils.validateHostName($scope.newHost.host, $translate) ||
+                utils.validatePortNumber($scope.newHost.port, $translate) ||
                 utils.validateRAMLimit($scope.newHost.RAMLimit);
             if(err){
                 showError(err);
@@ -120,6 +121,9 @@
                 $scope.newHost = {
                     port: $translate.instant('placeholder_port')
                 };
+                if ($scope.pools.length > 0){
+                    $scope.newHost.PoolID = $scope.pools[0].id;
+                }
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
                     label: 'add_host',
@@ -217,8 +221,11 @@
 
         $scope.addHostStart = function() {
             $scope.newHost = {
-                port: '4979'
+                port: $translate.instant('placeholder_port')
             };
+            if ($scope.pools.length > 0){
+                $scope.newHost.PoolID = $scope.pools[0].id;
+            }
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
         };
 
