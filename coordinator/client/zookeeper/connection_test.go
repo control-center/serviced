@@ -119,6 +119,22 @@ func TestZkDriver(t *testing.T) {
 		t.Fatalf("delete of /foo should work: %s", err)
 	}
 
+	err = conn.CreateDir("/fum/bar/baz/echo/p/q")
+	if err != nil {
+		t.Fatalf("creating /fum/bar/baz/echo/p/q should work")
+	}
+	exists, err = conn.Exists("/fum/bar/baz/echo/p/q")
+	if err != nil {
+		t.Fatalf("could not call exists: %s", err)
+	}
+	if !exists {
+		t.Fatal("/fum/bar/baz/echo/p/q should exist")
+	}
+	err = conn.Delete("/fum")
+	if err != nil {
+		t.Fatalf("delete of /fum should work: %s", err)
+	}
+
 	conn.Close()
 }
 
