@@ -14,7 +14,6 @@
 package facade
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -105,7 +104,7 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 // enabled, all images are reset.
 func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot sync registry images: %s", err)
 		return err
 	}

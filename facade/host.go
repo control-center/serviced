@@ -14,8 +14,6 @@
 package facade
 
 import (
-	"errors"
-
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
@@ -43,7 +41,7 @@ const (
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot add host: %s", err)
 		return err
 	}
@@ -97,7 +95,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("update host", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot update host: %s", err)
 		return err
 	}
@@ -175,7 +173,7 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("remove host", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot remove host: %s", err)
 		return err
 	}

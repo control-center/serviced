@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/control-center/serviced/datastore"
@@ -21,8 +22,7 @@ import (
 )
 
 const (
-	userLockTimeout        = time.Second
-	userLockTimeoutMessage = "Cannot interrupt system operation (%s). Try again later."
+	userLockTimeout = time.Second
 )
 
 type eventContext map[string]interface{}
@@ -42,6 +42,14 @@ func (f *Facade) afterEvent(event afterEvent, eventCtx eventContext, entity inte
 
 type beforeEvent string
 type afterEvent string
+
+type ErrSystemBusy struct {
+	blocker string
+}
+
+func (e ErrSystemBusy) Error() string {
+	return fmt.Sprintf("Cannot interrupt system operation (%s). Try again later.", e.blocker)
+}
 
 // delete common code for removing an entity and publishes events
 func (f *Facade) delete(ctx datastore.Context, ds datastore.EntityStore, key datastore.Key, be beforeEvent, ae afterEvent) error {

@@ -283,7 +283,7 @@ func (f *Facade) Download(imageID, tenantID string) error {
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot reset registry: %s", err)
 		return err
 	}
@@ -318,7 +318,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
 	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot migrate registry: %s", err)
 		return err
 	}

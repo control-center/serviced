@@ -67,7 +67,7 @@ func (lst *LocalSyncTest) SetUpSuite(c *C) {
 		c.Fatalf("Could not get zk connection: %s", err)
 	}
 
-	// Init ElasticTest
+	// Init ElasticTest (starts elasticsearch)
 	lst.Port = 9202
 	lst.MappingsFile = "testmappings.json"
 	lst.Index = "controlplane"

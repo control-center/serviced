@@ -14,7 +14,6 @@
 package elasticsearch
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -25,14 +24,21 @@ import (
 )
 
 const (
-	userLockTimeout        = time.Second
-	userLockTimeoutMessage = "Cannot interrupt system operation (%s). Try again later."
+	userLockTimeout = time.Second
 )
+
+type ErrSystemBusy struct {
+	blocker string
+}
+
+func (e ErrSystemBusy) Error() string {
+	return fmt.Sprintf("Cannot interrupt system operation (%s). Try again later.", e.blocker)
+}
 
 // AddService adds a new service. Returns an error if service already exists.
 func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) error {
 	if gotLock, blocker := this.facade.DFSLock(datastore.Get()).LockWithTimeout("add service", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot add service: %s", err)
 		return err
 	}
@@ -52,7 +58,7 @@ func (this *ControlPlaneDao) addService(svc service.Service, serviceId *string) 
 // CloneService clones a service. Returns an error if given serviceID is not found.
 func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clonedServiceId *string) error {
 	if gotLock, blocker := this.facade.DFSLock(datastore.Get()).LockWithTimeout("clone service", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot clone service: %s", err)
 		return err
 	}
@@ -80,7 +86,7 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
 	if gotLock, blocker := this.facade.DFSLock(datastore.Get()).LockWithTimeout("update service", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot update service: %s", err)
 		return err
 	}
@@ -92,7 +98,7 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 //
 func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
 	if gotLock, blocker := this.facade.DFSLock(datastore.Get()).LockWithTimeout("migrate service", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot migrate service: %s", err)
 		return err
 	}
@@ -117,7 +123,7 @@ func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]servic
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	if gotLock, blocker := this.facade.DFSLock(datastore.Get()).LockWithTimeout("remove service", userLockTimeout); !gotLock {
-		err := errors.New(fmt.Sprintf(userLockTimeoutMessage, blocker))
+		err := ErrSystemBusy{blocker}
 		glog.Warningf("Cannot remove service: %s", err)
 		return err
 	}
