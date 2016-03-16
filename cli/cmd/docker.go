@@ -15,6 +15,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
@@ -91,6 +92,6 @@ func (c *ServicedCli) cmdDockerOverride(ctx *cli.Context) {
 	}
 
 	if err := c.driver.DockerOverride(args[0], args[1]); err != nil {
-		glog.Fatalf("error while overriding images in the registry: %s", err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
