@@ -22,13 +22,6 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 )
 
-type dir struct {
-	version interface{}
-}
-
-func (n *dir) SetVersion(version interface{}) { n.version = version }
-func (n *dir) Version() interface{}           { return n.version }
-
 // Connection is a Zookeeper based implementation of client.Connection.
 type Connection struct {
 	sync.RWMutex
@@ -159,41 +152,30 @@ func (c *Connection) CreateDir(path string) error {
 }
 
 func (c *Connection) createDir(p string) error {
-	return c.create(p, &dir{})
+	pth := path.Join(c.basePath, p)
+	_, err := c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+	return xlateError(err)
 }
 
 func (c *Connection) ensurePath(p string) error {
 	dp := path.Dir(p)
-	if ok, err := c.exists(dp); err != nil {
+	// check p instead of dp because if the path is /a/b, we still need to make
+	// sure /a is created and if we return nil because the dirpath is root and
+	// not the node itself, then the node will not get created below.
+	if p == "/" || p == "" {
+		return nil
+	}
+	if exists, err := c.exists(dp); err != nil {
 		return err
-	} else if !ok {
-		if p == "" || p == "/" {
-			return nil
-		} else if err := c.ensurePath(dp); err != nil {
-			return err
-		} else if err := c.createDir(dp); err != client.ErrNodeExists {
-			return err
-		}
+	} else if exists {
+		return nil
+	}
+	if err := c.ensurePath(dp); err != nil {
+		return err
+	} else if err := c.createDir(dp); err != client.ErrNodeExists {
+		return err
 	}
 	return nil
-}
-
-// Exists returns true if the path exists
-func (c *Connection) Exists(path string) (bool, error) {
-	c.RLock()
-	defer c.RUnlock()
-	if err := c.isClosed(); err != nil {
-		return false, err
-	}
-	return c.exists(path)
-}
-
-func (c *Connection) exists(p string) (bool, error) {
-	exists, _, err := c.conn.Exists(path.Join(c.basePath, p))
-	if err == zklib.ErrNoNode {
-		return false, nil
-	}
-	return exists, xlateError(err)
 }
 
 // CreateEphemeral creates a node whose existance depends on the persistence of
@@ -275,6 +257,24 @@ func (c *Connection) delete(p string) error {
 		return xlateError(err)
 	}
 	return xlateError(c.conn.Delete(pth, stat.Version))
+}
+
+// Exists returns true if the path exists
+func (c *Connection) Exists(path string) (bool, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return false, err
+	}
+	return c.exists(path)
+}
+
+func (c *Connection) exists(p string) (bool, error) {
+	exists, _, err := c.conn.Exists(path.Join(c.basePath, p))
+	if err == zklib.ErrNoNode {
+		return false, nil
+	}
+	return exists, xlateError(err)
 }
 
 // Get returns the node at the given path.
