@@ -67,8 +67,10 @@
         };
 
         var validHost = function(){
-            if($("#new_host_name").val() === ""){
-                showError($translate.instant("content_wizard_invalid_host"));
+            var err = utils.validateHostName($scope.newHost.host) ||
+                utils.validateRAMLimit($scope.newHost.RAMLimit);
+            if(err){
+                showError(err);
                 return false;
             }
 
@@ -116,7 +118,7 @@
             // "add host" step to the wizard
             if(hostsFactory.hostList.length === 0){
                 $scope.newHost = {
-                    port: '4979'
+                    port: $translate.instant('placeholder_port')
                 };
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',

@@ -11,7 +11,7 @@
 
         $scope.indent = utils.indentClass;
         $scope.newHost = {
-            port: '4979'
+            port: $translate.instant('placeholder_port')
         };
 
         $scope.modalAddHost = function() {
@@ -23,7 +23,9 @@
                     {
                         role: "cancel",
                         action: function(){
-                            $scope.newHost = {};
+                            $scope.newHost = {
+                                port: $translate.instant('placeholder_port')                                
+                            };
                             this.close();
                         }
                     },{
@@ -56,7 +58,8 @@
                     }
                 ],
                 validate: function(){
-                    var err = utils.validateRAMLimit($scope.newHost.RAMLimit);
+                    var err = utils.validateHostName($scope.newHost.host) ||
+                        utils.validateRAMLimit($scope.newHost.RAMLimit);
                     if(err){
                         this.createNotification("Error", err).error();
                         return false;

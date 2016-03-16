@@ -6,8 +6,8 @@
     "use strict";
 
     angular.module("miscUtils", [])
-    .factory("miscUtils", [ "$parse",
-    function($parse){
+    .factory("miscUtils", [ "$parse", "$translate",
+    function($parse, $translate){
 
         //polyfill endsWith so phantomjs won't complain :/
         if (!String.prototype.endsWith) {
@@ -205,6 +205,14 @@
                 }, 0);
 
                 return childCount;
+            },
+
+            validateHostName: function(hostStr){
+                if (hostStr === undefined || hostStr === '') {
+                    return $translate.instant("content_wizard_invalid_host");
+                }
+
+                return null;
             },
 
             validateRAMLimit: function(limitStr, max=Infinity){
