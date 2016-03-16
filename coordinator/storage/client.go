@@ -164,7 +164,10 @@ func (c *Client) loop() {
 			if err != nil {
 				continue
 			}
-			leader = c.conn.NewLeader("/storage/leader", leaderNode)
+			leader, err = c.conn.NewLeader("/storage/leader")
+			if err != nil {
+				continue
+			}
 		}
 
 		glog.Infof("creating %s", nodePath)

@@ -15,316 +15,381 @@ package zookeeper
 
 import (
 	"encoding/json"
-	lpath "path"
-	"strings"
-	"time"
+	"path"
+	"sync"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/zenoss/glog"
 )
 
-var join = lpath.Join
+type dir struct {
+	version interface{}
+}
+
+func (n *dir) SetVersion(version interface{}) { n.version = version }
+func (n *dir) Version() interface{}           { return n.version }
 
 // Connection is a Zookeeper based implementation of client.Connection.
 type Connection struct {
-	basePath string
+	sync.RWMutex
 	conn     *zklib.Conn
-	servers  []string
-	timeout  time.Duration
-	onClose  *func(int)
+	basePath string
+	onClose  func(int)
 	id       int
 }
 
 // Assert that Connection implements client.Connection.
 var _ client.Connection = &Connection{}
 
-// NewLock returns a managed lock object at the given path bound to the current
-// connection.
-func (c *Connection) NewLock(path string) client.Lock {
-	return &Lock{
-		lock: zklib.NewLock(c.conn, join(c.basePath, path), zklib.WorldACL(zklib.PermAll)),
+// IsClosed returns connection closed error if true, otherwise returns nil.
+func (c *Connection) isClosed() error {
+	if c.conn == nil {
+		return client.ErrConnectionClosed
 	}
+	return nil
 }
 
-// ID returns the ID of the connection.
-func (c *Connection) ID() int {
-	return c.id
-}
-
-// SetID sets the ID of a connection.
-func (c *Connection) SetID(id int) {
-	c.id = id
-}
-
-// NewLeader returns a managed leader object at the given path bound to the current
-// connection.
-func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
-	return &Leader{
-		c:    c,
-		path: join(c.basePath, path),
-		node: node,
-	}
-}
-
-// Close the zk connection. Calling close() twice will result in a panic.
+// Close closes the client connection to zookeeper. Calling close twice will
+// result in a no-op.
 func (c *Connection) Close() {
+	c.Lock()
+	defer c.Unlock()
 	if c.conn != nil {
 		c.conn.Close()
 		c.conn = nil
 		if c.onClose != nil {
-			f := *c.onClose
+			c.onClose(c.id)
 			c.onClose = nil
-			f(c.id)
 		}
 	}
 }
 
-// SetOnClose sets the callback f to be called when Close is called on c.
-func (c *Connection) SetOnClose(f func(int)) {
-	c.onClose = &f
+// SetID sets the connection ID
+func (c *Connection) SetID(i int) {
+	c.Lock()
+	defer c.Unlock()
+	c.id = i
 }
 
-func (c *Connection) CreateEphemeral(path string, node client.Node) (string, error) {
-	if c.conn == nil {
-		return "", client.ErrConnectionClosed
-	}
-
-	p := join(c.basePath, path)
-
-	bytes, err := json.Marshal(node)
-	if err != nil {
-		return "", client.ErrSerialization
-	}
-
-	path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
-	if err == zklib.ErrNoNode {
-		// Create parent node.
-		parts := strings.Split(p, "/")
-		pth := ""
-		if len(parts) > 1 {
-			for _, p := range parts[1 : len(parts)-1] {
-				pth += "/" + p
-				_, err = c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-				if err != nil && err != zklib.ErrNodeExists {
-					return "", xlateError(err)
-				}
-			}
-			path, err = c.conn.CreateProtectedEphemeralSequential(p, bytes, zklib.WorldACL(zklib.PermAll))
-		}
-	}
-	if err == nil {
-		node.SetVersion(&zklib.Stat{})
-	}
-	return path, xlateError(err)
+// ID gets the connection ID
+func (c *Connection) ID() int {
+	c.RLock()
+	defer c.RUnlock()
+	return c.id
 }
 
-// Create a Transaction object.
+// SetOnClose performs cleanup when a connection is closed
+func (c *Connection) SetOnClose(onClose func(int)) {
+	c.Lock()
+	defer c.Unlock()
+	if err := c.isClosed(); err == nil {
+		c.onClose = onClose
+	}
+}
+
+// NewTransaction creates a new transaction object
 func (c *Connection) NewTransaction() client.Transaction {
 	return &Transaction{
 		conn: c,
-		ops:  []transactionOperation{},
+		ops:  []multiReq{},
 	}
 }
 
-// Create places data at the node at the given path.
-func (c *Connection) Create(path string, node client.Node) error {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
+// NewLock creates a new lock object
+func (c *Connection) NewLock(p string) (client.Lock, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return nil, err
 	}
-	p := join(c.basePath, path)
+	lock := &Lock{
+		lock: zklib.NewLock(c.conn, path.Join(c.basePath, p), zklib.WorldACL(zklib.PermAll)),
+	}
+	return lock, nil
+}
+
+// NewLeader returns a managed leader object at the given path bound to the
+// current connection.
+func (c *Connection) NewLeader(p string) (client.Leader, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return nil, err
+	}
+	return NewLeader(c.conn, path.Join(path.Join(c.basePath, p))), nil
+}
+
+// Create adds a node at the specified path
+func (c *Connection) Create(path string, node client.Node) error {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
+	}
+	if err := c.ensurePath(path); err != nil {
+		return err
+	}
+	return c.create(path, node)
+}
+
+func (c *Connection) create(p string, node client.Node) error {
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return client.ErrSerialization
 	}
-	if err := c.EnsurePath(path); err != nil {
-		return xlateError(err)
-	}
-	if _, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
+	pth := path.Join(c.basePath, p)
+	if _, err := c.conn.Create(pth, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
 		return xlateError(err)
 	}
 	node.SetVersion(&zklib.Stat{})
 	return nil
 }
 
-// Creates the path up to and including the immediate parent of the
-// target node.
-func (c *Connection) EnsurePath(path string) error {
-	path = join(c.basePath, path)
-	split := strings.Split(path, "/")
-	final := strings.Join(split[:len(split)-1], "/")
-	exists, err := c.Exists(final)
-	if err != nil {
-		glog.Errorf("Error testing existence of node %s: %s", final, err)
-		return xlateError(err)
+// CreateDir adds a dir at the specified path
+func (c *Connection) CreateDir(path string) error {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
 	}
-	if exists {
-		return nil
+	if err := c.ensurePath(path); err != nil {
+		return err
 	}
-	_path := ""
-	for _, n := range split[1 : len(split)-1] {
-		_path += "/" + n
-		_, err = c.conn.Create(_path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-		if err != nil && err != zklib.ErrNodeExists {
-			return xlateError(err)
+	return c.createDir(path)
+}
+
+func (c *Connection) createDir(p string) error {
+	return c.create(p, &dir{})
+}
+
+func (c *Connection) ensurePath(p string) error {
+	dp := path.Dir(p)
+	if ok, err := c.exists(dp); err != nil {
+		return err
+	} else if !ok {
+		if p == "" || p == "/" {
+			return nil
+		} else if err := c.ensurePath(dp); err != nil {
+			return err
+		} else if err := c.createDir(dp); err != client.ErrNodeExists {
+			return err
 		}
 	}
 	return nil
 }
 
-type dirNode struct {
-	version interface{}
-}
-
-func (d *dirNode) Version() interface{}     { return d.version }
-func (d *dirNode) SetVersion(v interface{}) { d.version = v }
-
-// CreateDir creates an empty node at the given path.
-func (c *Connection) CreateDir(path string) error {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
-	}
-	return xlateError(c.Create(path, &dirNode{}))
-}
-
-// Exists checks if a node exists at the given path.
+// Exists returns true if the path exists
 func (c *Connection) Exists(path string) (bool, error) {
-	if c.conn == nil {
-		return false, client.ErrConnectionClosed
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return false, err
 	}
-	exists, _, err := c.conn.Exists(join(c.basePath, path))
+	return c.exists(path)
+}
+
+func (c *Connection) exists(p string) (bool, error) {
+	exists, _, err := c.conn.Exists(path.Join(c.basePath, p))
+	if err == zklib.ErrNoNode {
+		return false, nil
+	}
 	return exists, xlateError(err)
 }
 
-// Delete will delete all nodes at the given path or any subpath
+// CreateEphemeral creates a node whose existance depends on the persistence of
+// the connection.
+func (c *Connection) CreateEphemeral(path string, node client.Node) (string, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return "", err
+	}
+	if err := c.ensurePath(path); err != nil {
+		return "", err
+	}
+	return c.createEphemeral(path, node)
+}
+
+func (c *Connection) createEphemeral(p string, node client.Node) (string, error) {
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		return "", client.ErrSerialization
+	}
+	pth := path.Join(c.basePath, p)
+	epth, err := c.conn.CreateProtectedEphemeralSequential(pth, bytes, zklib.WorldACL(zklib.PermAll))
+	return epth, xlateError(err)
+}
+
+// Set assigns a value to an existing node at a given path
+func (c *Connection) Set(path string, node client.Node) error {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
+	}
+	return c.set(path, node)
+}
+
+func (c *Connection) set(p string, node client.Node) error {
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		return client.ErrSerialization
+	}
+	stat := &zklib.Stat{}
+	if version := node.Version(); version != nil {
+		var ok bool
+		if stat, ok = version.(*zklib.Stat); !ok {
+			return client.ErrInvalidVersionObj
+		}
+	}
+	pth := path.Join(c.basePath, p)
+	if _, err := c.conn.Set(pth, bytes, stat.Version); err != nil {
+		return xlateError(err)
+	}
+	return nil
+}
+
+// Delete recursively removes a path and its children
 func (c *Connection) Delete(path string) error {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
 	}
-	children, _, err := c.conn.Children(join(c.basePath, path))
+	return c.delete(path)
+}
+
+func (c *Connection) delete(p string) error {
+	children, err := c.children(p)
 	if err != nil {
-		return xlateError(err)
+		return err
 	}
-	// recursively delete children
 	for _, child := range children {
-		err = c.Delete(join(path, child))
-		if err != nil {
-			return xlateError(err)
+		if err := c.delete(path.Join(p, child)); err != nil {
+			return err
 		}
 	}
-	_, stat, err := c.conn.Get(join(c.basePath, path))
+	pth := path.Join(c.basePath, p)
+	_, stat, err := c.conn.Get(pth)
 	if err != nil {
 		return xlateError(err)
 	}
-	return xlateError(c.conn.Delete(join(c.basePath, path), stat.Version))
-}
-
-func (c *Connection) toClientEvent(zkEvent <-chan zklib.Event, done <-chan struct{}) <-chan client.Event {
-	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
-	echan := make(chan client.Event, 1)
-	go func(conn *zklib.Conn) {
-		select {
-		case e := <-zkEvent:
-			echan <- client.Event{
-				Type: client.EventType(e.Type),
-			}
-		case <-done:
-			conn.RemoveWatch(zkEvent)
-		}
-	}(c.conn)
-	return echan
-}
-
-// ChildrenW returns the children of the node at the given path and a channel of
-// events that will yield the next event at that node.
-func (c *Connection) ChildrenW(path string, done <-chan struct{}) (children []string, event <-chan client.Event, err error) {
-	if c.conn == nil {
-		return children, event, client.ErrConnectionClosed
-	}
-	children, _, zkEvent, err := c.conn.ChildrenW(join(c.basePath, path))
-	if err != nil {
-		return children, nil, xlateError(err)
-	}
-	return children, c.toClientEvent(zkEvent, done), xlateError(err)
-}
-
-// GetW gets the node at the given path and returns a channel to watch for events on that node.
-func (c *Connection) GetW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
-	if c.conn == nil {
-		return nil, client.ErrConnectionClosed
-	}
-	return c.getW(join(c.basePath, path), node, done)
-}
-
-func (c *Connection) getW(path string, node client.Node, done <-chan struct{}) (event <-chan client.Event, err error) {
-
-	data, stat, zkEvent, err := c.conn.GetW(path)
-	if err != nil {
-		return nil, xlateError(err)
-	}
-	if len(data) > 0 {
-		glog.V(11).Infof("got data %s", string(data))
-		err = json.Unmarshal(data, node)
-	} else {
-		err = client.ErrEmptyNode
-	}
-	node.SetVersion(stat)
-	return c.toClientEvent(zkEvent, done), xlateError(err)
-}
-
-// Children returns the children of the node at the given path.
-func (c *Connection) Children(path string) (children []string, err error) {
-	if c.conn == nil {
-		return children, client.ErrConnectionClosed
-	}
-	children, _, err = c.conn.Children(join(c.basePath, path))
-	if err != nil {
-		return children, xlateError(err)
-	}
-	return children, xlateError(err)
+	return xlateError(c.conn.Delete(pth, stat.Version))
 }
 
 // Get returns the node at the given path.
-func (c *Connection) Get(path string, node client.Node) (err error) {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
+func (c *Connection) Get(path string, node client.Node) error {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
 	}
-	return c.get(join(c.basePath, path), node)
+	return c.get(path, node)
 }
 
-func (c *Connection) get(path string, node client.Node) (err error) {
-	data, stat, err := c.conn.Get(path)
+func (c *Connection) get(p string, node client.Node) error {
+	p = path.Join(c.basePath, p)
+	bytes, stat, err := c.conn.Get(p)
 	if err != nil {
 		return xlateError(err)
 	}
-	if len(data) > 0 {
-		glog.V(11).Infof("got data %s", string(data))
-		err = json.Unmarshal(data, node)
-	} else {
-		err = client.ErrEmptyNode
+	if len(bytes) == 0 {
+		return client.ErrEmptyNode
+	}
+	if err := json.Unmarshal(bytes, node); err != nil {
+		return client.ErrSerialization
 	}
 	node.SetVersion(stat)
-	return xlateError(err)
+	return nil
 }
 
-// Set serializes the given node and places it at the given path.
-func (c *Connection) Set(path string, node client.Node) error {
-	if c.conn == nil {
-		return client.ErrConnectionClosed
+// GetW returns the node at the given path as well as a channel to watch for
+// events on that node.
+func (c *Connection) GetW(path string, node client.Node, cancel <-chan struct{}) (<-chan client.Event, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return nil, err
 	}
-	data, err := json.Marshal(node)
-	if err != nil {
-		return xlateError(err)
-	}
+	return c.getW(path, node, cancel)
+}
 
-	stat := &zklib.Stat{}
-	if node.Version() != nil {
-		zstat, ok := node.Version().(*zklib.Stat)
-		if !ok {
-			return client.ErrInvalidVersionObj
-		}
-		*stat = *zstat
+func (c *Connection) getW(p string, node client.Node, cancel <-chan struct{}) (<-chan client.Event, error) {
+	p = path.Join(c.basePath, p)
+	bytes, stat, ch, err := c.conn.GetW(p)
+	if err != nil {
+		return nil, xlateError(err)
 	}
-	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
-	return xlateError(err)
+	if len(bytes) == 0 {
+		return nil, client.ErrEmptyNode
+	} else if err := json.Unmarshal(bytes, node); err != nil {
+		return nil, client.ErrSerialization
+	}
+	node.SetVersion(stat)
+	return c.toClientEvent(ch, cancel), nil
+}
+
+func (c *Connection) toClientEvent(ch <-chan zklib.Event, cancel <-chan struct{}) <-chan client.Event {
+	evCh := make(chan client.Event, 1)
+	go func() {
+		select {
+		case zkev := <-ch:
+			ev := client.Event{Type: client.EventType(zkev.Type)}
+			select {
+			case evCh <- ev:
+			case <-cancel:
+			}
+		case <-cancel:
+			c.cancelEvent(ch)
+		}
+	}()
+	return evCh
+}
+
+func (c *Connection) cancelEvent(ch <-chan zklib.Event) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return
+	}
+	c.conn.CancelEvent(ch)
+}
+
+// Children returns the children of the node at the given path.
+func (c *Connection) Children(path string) ([]string, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return []string{}, err
+	}
+	return c.children(path)
+}
+
+func (c *Connection) children(p string) ([]string, error) {
+	pth := path.Join(c.basePath, p)
+	children, _, err := c.conn.Children(pth)
+	if err != nil {
+		return []string{}, xlateError(err)
+	}
+	return children, nil
+}
+
+// ChildrenW returns the children of the node at the given path as well as a
+// channel to watch for events on that node.
+func (c *Connection) ChildrenW(path string, cancel <-chan struct{}) ([]string, <-chan client.Event, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return []string{}, nil, err
+	}
+	return c.childrenW(path, cancel)
+}
+
+func (c *Connection) childrenW(p string, cancel <-chan struct{}) ([]string, <-chan client.Event, error) {
+	p = path.Join(c.basePath, p)
+	children, _, ch, err := c.conn.ChildrenW(p)
+	if err != nil {
+		return []string{}, nil, xlateError(err)
+	}
+	return children, c.toClientEvent(ch, cancel), nil
 }
