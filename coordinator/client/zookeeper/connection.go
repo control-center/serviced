@@ -159,9 +159,16 @@ func (c *Connection) createDir(p string) error {
 
 func (c *Connection) ensurePath(p string) error {
 	dp := path.Dir(p)
-	if p == "" || p == "/" {
+	// path.Dir returns "." if the argument is ""
+	if dp == "/" || dp == "." {
 		return nil
-	} else if err := c.ensurePath(dp); err != nil {
+	}
+	if exists, err := c.exists(dp); err != nil && err != client.ErrNoNode {
+		return err
+	} else if exists {
+		return nil
+	}
+	if err := c.ensurePath(dp); err != nil {
 		return err
 	} else if err := c.createDir(dp); err != client.ErrNodeExists {
 		return err
