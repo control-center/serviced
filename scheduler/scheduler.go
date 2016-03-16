@@ -272,7 +272,7 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	for {
 		var node zkservice.PoolNode
 		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node, doneW)
-		if err != nil && err != client.ErrEmptyNode {
+		if err != nil && err != coordclient.ErrEmptyNode {
 			glog.Errorf("Error while monitoring pool %s: %s", poolID, err)
 			return
 		}
