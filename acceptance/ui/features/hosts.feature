@@ -32,7 +32,7 @@ Feature: Host Management
       And I should see "RAM Limit"
       And I should see the RAM Limit field
 
-  Scenario: Add an invalid host with an invalid name
+  Scenario: Add an invalid host with an invalid port
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
@@ -42,11 +42,23 @@ Feature: Host Management
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request"
+      And I should see "Invalid port number"
       And the Port field should be flagged as invalid
       And I should see an empty Hosts page
 
-  Scenario: Add an invalid host with an invalid port
+  Scenario: Add an invalid host with an empty host
+    Given there are no hosts added
+    When I am on the hosts page
+      And I click the add Host button
+      And I fill in the Port field with "4979"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+      And I click "Add Host"
+    Then I should see "Error"
+      And I should see "Please enter a valid host name"
+      And I should see an empty Hosts page
+
+  Scenario: Add an invalid host with an invalid host name
     Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
@@ -59,8 +71,22 @@ Feature: Host Management
       And I should see "Bad Request: dial tcp4 172.17.42.1:9999"
       And I should see an empty Hosts page
 
+  Scenario: Add an invalid host with a port out of range
+    Given there are no hosts added
+    When I am on the hosts page
+      And I click the add Host button
+      And I fill in the Host field with "172.17.42.1"
+      And I fill in the Port field with "75000"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
+      And I click "Add Host"
+    Then I should see "Error"
+      And I should see "The port number must be between 1 and 65535"
+      And I should see an empty Hosts page
+
   Scenario: Add an invalid host with an invalid Resource Pool field
     Given there are no hosts added
+      And I remove all resource pools
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/defaultHost/hostName"

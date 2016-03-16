@@ -58,6 +58,10 @@ When (/^I am on the resource pool page$/) do
     visitPoolsPage()
 end
 
+When (/^I remove all resource pools$/) do
+    removeAllPoolsCLI()
+end
+
 When (/^I click the add Resource Pool button$/) do
     clickAddPoolButton()
 end
@@ -205,6 +209,10 @@ end
 
 def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
+end
+
+def removeAllPools()
+    removeAllPoolsCLI()
 end
 
 def removeAllPoolsExceptDefault()
