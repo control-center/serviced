@@ -107,6 +107,7 @@ func (l *Leader) TakeLead(node client.Node, cancel <-chan struct{}) (<-chan clie
 		if err != nil && err != zklib.ErrNoNode {
 			return nil, xlateError(err)
 		} else if !exists {
+			l.c.CancelEvent(ch)
 			continue
 		}
 		if leader == l.lockPath {
