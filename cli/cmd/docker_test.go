@@ -62,13 +62,13 @@ func ExampleServicedCLI_CmdDockerOverride_usage() {
 	//    command override [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced docker override NEWIMAGE OLDIMAGE
+	//    serviced docker override OLDIMAGE NEWIMAGE
 	//
 	// OPTIONS:
 }
 
 func ExampleServicedCli_cmdDockerOverride_fail() {
-	pipeStderr(InitDockerAPITest, "serviced", "docker", "override", OverrideFail, "anything")
+	pipeStderr(InitDockerAPITest, "serviced", "docker", "override", "anything", OverrideFail)
 
 	// Output:
 	// override failed
