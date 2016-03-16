@@ -31,7 +31,7 @@
       "kernelRelease": "Kernel Release test 2",
       "ccRelease": "CC Release test 2",
       "pool": "default",
-      "commitment": "5737418240",
+      "commitment": "5602947K",
       "outboundIP": "%{local_ip}"
     },
 
