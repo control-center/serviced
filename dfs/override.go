@@ -1,4 +1,4 @@
-// Copyright 2015 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -27,10 +27,6 @@ func (dfs *DistributedFilesystem) Override(newimg, oldimg string) error {
 		glog.Errorf("Could not find image %s in registry: %s", oldimg, err)
 		return err
 	}
-	// // verify that we are committing to latest
-	// if oldImage.Tag != docker.Latest {
-	// 	return "", ErrStaleContainer
-	// }
 
 	// make sure the new image exists
 	newImage, err := dfs.docker.FindImage(newimg)
