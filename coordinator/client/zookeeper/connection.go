@@ -22,13 +22,6 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 )
 
-type dir struct {
-	version interface{}
-}
-
-func (n *dir) SetVersion(version interface{}) { n.version = version }
-func (n *dir) Version() interface{}           { return n.version }
-
 // Connection is a Zookeeper based implementation of client.Connection.
 type Connection struct {
 	sync.RWMutex
@@ -159,7 +152,9 @@ func (c *Connection) CreateDir(path string) error {
 }
 
 func (c *Connection) createDir(p string) error {
-	return c.create(p, &dir{})
+	pth := path.Join(c.basePath, p)
+	_, err := c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+	return err
 }
 
 func (c *Connection) ensurePath(p string) error {
@@ -176,24 +171,6 @@ func (c *Connection) ensurePath(p string) error {
 		}
 	}
 	return nil
-}
-
-// Exists returns true if the path exists
-func (c *Connection) Exists(path string) (bool, error) {
-	c.RLock()
-	defer c.RUnlock()
-	if err := c.isClosed(); err != nil {
-		return false, err
-	}
-	return c.exists(path)
-}
-
-func (c *Connection) exists(p string) (bool, error) {
-	exists, _, err := c.conn.Exists(path.Join(c.basePath, p))
-	if err == zklib.ErrNoNode {
-		return false, nil
-	}
-	return exists, xlateError(err)
 }
 
 // CreateEphemeral creates a node whose existance depends on the persistence of
@@ -275,6 +252,24 @@ func (c *Connection) delete(p string) error {
 		return xlateError(err)
 	}
 	return xlateError(c.conn.Delete(pth, stat.Version))
+}
+
+// Exists returns true if the path exists
+func (c *Connection) Exists(path string) (bool, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return false, err
+	}
+	return c.exists(path)
+}
+
+func (c *Connection) exists(p string) (bool, error) {
+	exists, _, err := c.conn.Exists(path.Join(c.basePath, p))
+	if err == zklib.ErrNoNode {
+		return false, nil
+	}
+	return exists, xlateError(err)
 }
 
 // Get returns the node at the given path.

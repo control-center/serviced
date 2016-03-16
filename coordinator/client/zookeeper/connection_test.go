@@ -23,7 +23,7 @@ import (
 	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 )
 
@@ -401,6 +401,10 @@ func TestZkDriver_Watch(t *testing.T) {
 	err = conn.CreateDir("/foo")
 	if err != nil {
 		t.Fatalf("creating /foo should work: %s", err)
+	}
+	err = conn.Get("/foo", &testNodeT{})
+	if err != coordclient.ErrEmptyNode {
+		t.Fatalf("expected empty node, got %s", err)
 	}
 
 	childWDone1 := make(chan struct{})

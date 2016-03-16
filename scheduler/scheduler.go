@@ -272,12 +272,13 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	for {
 		var node zkservice.PoolNode
 		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node, doneW)
-		if err != nil {
+		if err != nil && err != client.ErrEmptyNode {
 			glog.Errorf("Error while monitoring pool %s: %s", poolID, err)
 			return
 		}
 
-		if node.Realm == s.realm {
+		// CC-2020: workaround to prevent churn on empty pool node
+		if node.ResourcePool != nil && node.Realm == s.realm {
 			if done == nil {
 				cancel = make(chan interface{})
 				done = make(chan struct{})
