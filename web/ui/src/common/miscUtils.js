@@ -207,6 +207,25 @@
                 return childCount;
             },
 
+            validateHostName: function(hostStr, $translate){
+                if (hostStr === undefined || hostStr === '') {
+                    return $translate.instant("content_wizard_invalid_host");
+                }
+
+                return null;
+            },
+
+            validatePortNumber: function(port, $translate){
+                if (port === undefined || port === '') {
+                    return $translate.instant("port_number_invalid");
+                }
+                if(+port < 1 || +port > 65535){
+                    return $translate.instant("port_number_invalid_range");
+                }
+
+                return null;
+            },
+
             validateRAMLimit: function(limitStr, max=Infinity){
 
                 if (limitStr === undefined || limitStr === '') {
