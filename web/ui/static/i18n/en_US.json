@@ -193,7 +193,7 @@
     "label_bind_interface": "Interface",
     "label_clear": "Clear",
     "label_delete": "Delete",
-    "label_host_and_port": "Host and port",
+    "label_host": "Host",
     "label_host_cores": "CPU Cores",
     "label_host_graphs": "Graphs",
     "label_host_id": "Name",
@@ -271,7 +271,8 @@
     "nav_backuprestore": "Backup / Restore",
     "no_backups": "No Backup Files found",
     "no_data": "No Data Found",
-    "placeholder_host_and_port": "example.com:4979",
+    "placeholder_host": "example.com",
+    "placeholder_port": "4979",
     "placeholder_host_parent": "default",
     "placeholder_host_ram_commitment": "e.g. 1G or 50%",
     "placeholder_hosts_search": "Search",
@@ -379,6 +380,7 @@
     "remove_public_endpoint_confirm": "Remove and Restart Service",
     "public_endpoint_url": "URL",
     "port_number_invalid": "Invalid port number",
+    "port_number_invalid_range": "The port number must be between 1 and 65535",
 
     "one_moment": "One moment please...",
     "no_services_found": "No Services found"
