@@ -164,7 +164,7 @@ fi
 LIB_DEVMAPPER_MOUNT=""
 if [ "$MOUNT_DEVMAPPER" == "true" ]; then
     LIBDEVMAPPER_SOURCE=`ldd ../serviced | grep libdevmapper | awk '{print $3}'`
-    LIBDEVMAPPER_TARGET=`echo $LIBDEVMAPPER_SOURCE | cut -d '/' -f4`
+    LIBDEVMAPPER_TARGET=`echo $LIBDEVMAPPER_SOURCE | rev | cut -d '/' -f1 | rev`
     LIB_DEVMAPPER_MOUNT="-v ${LIBDEVMAPPER_SOURCE}:/lib/x86_64-linux-gnu/${LIBDEVMAPPER_TARGET}"
 fi
 
