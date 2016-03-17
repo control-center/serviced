@@ -52,8 +52,7 @@ type PoolIPs struct {
 
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add resource pool: %s", err)
 		return err
 	}
@@ -96,8 +95,7 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 // UpdateResourcePool updates an existing resource pool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("update resource pool", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("update resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update resource pool: %s", err)
 		return err
 	}
@@ -319,8 +317,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 // RemoveResourcePool removes a resource pool
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("remove resource pool", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("remove resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot remove resource pool: %s", err)
 		return err
 	}

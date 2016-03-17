@@ -49,8 +49,8 @@ func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
 		return time.After(minWait)
 	}
 
-	if gotLock, blocker := s.facade.DFSLock(datastore.Get()).LockWithTimeout("zookeeper sync", lockBlock); !gotLock {
-		glog.Infof("System is busy (%s), will retry later", blocker)
+	if err := s.facade.DFSLock(datastore.Get()).LockWithTimeout("zookeeper sync", lockBlock); err != nil {
+		glog.Infof("Could not lock DFS (%s), will retry later", err)
 		return time.After(noLockWait)
 	}
 	defer s.facade.DFSLock(datastore.Get()).Unlock()

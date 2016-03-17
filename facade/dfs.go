@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
-	csync "github.com/control-center/serviced/commons/sync"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -171,7 +170,7 @@ func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error 
 }
 
 // DFSLock returns the locker for the dfs
-func (f *Facade) DFSLock(ctx datastore.Context) csync.TimedLocker {
+func (f *Facade) DFSLock(ctx datastore.Context) dfs.DFSLocker {
 	return f.dfs
 }
 
@@ -282,8 +281,7 @@ func (f *Facade) Download(imageID, tenantID string) error {
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); err != nil {
 		glog.Warningf("Cannot reset registry: %s", err)
 		return err
 	}
@@ -317,8 +315,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // If force is true for a local registry, upgrade again even if previous upgrade was successful.
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); err != nil {
 		glog.Warningf("Cannot migrate registry: %s", err)
 		return err
 	}

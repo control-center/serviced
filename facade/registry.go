@@ -103,8 +103,7 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 // SyncRegistryImages makes sure images on es are in sync with zk.  If force is
 // enabled, all images are reset.
 func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
-	if gotLock, blocker := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); !gotLock {
-		err := ErrSystemBusy{blocker}
+	if err := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); err != nil {
 		glog.Warningf("Cannot sync registry images: %s", err)
 		return err
 	}

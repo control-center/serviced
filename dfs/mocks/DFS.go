@@ -17,8 +17,8 @@ func (_m *DFS) Lock(name string) {
 	return
 }
 
-func (_m *DFS) LockWithTimeout(name string, timeout time.Duration) (bool, string) {
-	return true, name
+func (_m *DFS) LockWithTimeout(name string, timeout time.Duration) error {
+	return nil
 }
 
 func (_m *DFS) Unlock() {
