@@ -58,6 +58,54 @@ func (s *DFSTestSuite) TestBackup_ImageNotFound(c *C) {
 	c.Assert(err, Equals, ErrTestNoPull)
 }
 
+func (s *DFSTestSuite) TestBackup_SkipTemplateImage(c *C) {
+	buf := bytes.NewBufferString("")
+	backupInfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{"library/repo:tag"},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Hosts: []host.Host{
+			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots: []string{"BASE_LABEL"},
+		Timestamp: time.Now().UTC(),
+	}
+	s.docker.On("FindImage", "library/repo:tag").Return(&dockerclient.Image{}, dockerclient.ErrNoSuchImage).Once()
+	s.docker.On("PullImage", "library/repo:tag").Return(dockerclient.ErrNoSuchImage)
+	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
+	info := &volume.SnapshotInfo{
+		Name:     "BASE_LABEL",
+		TenantID: "BASE",
+		Label:    "LABEL",
+		Created:  time.Now().UTC(),
+	}
+	imagesbuf := bytes.NewBufferString("")
+	err := json.NewEncoder(imagesbuf).Encode([]string{"BASE/repo:tag"})
+	c.Assert(err, IsNil)
+	vol.On("SnapshotInfo", "BASE_LABEL").Return(info, nil)
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imagesbuf}, nil)
+	s.registry.On("PullImage", mock.AnythingOfType("<-chan time.Time"), "BASE/repo:tag").Return(nil)
+	s.registry.On("ImagePath", "BASE/repo:tag").Return("testserver:5000/BASE/repo:tag", nil)
+	vol.On("Export", "LABEL", "", mock.AnythingOfType("*utils.Spool")).Return(nil).Run(func(a mock.Arguments) {
+		writer := a.Get(2).(io.Writer)
+		_, err := fmt.Fprint(writer, "here is some snapshot data")
+		c.Assert(err, IsNil)
+	})
+	allImages := []string{"testserver:5000/BASE/repo:tag"}
+	s.docker.On("SaveImages", allImages, mock.AnythingOfType("*utils.Spool")).Return(nil).Run(func(a mock.Arguments) {
+		writer := a.Get(1).(io.Writer)
+		err := json.NewEncoder(writer).Encode(a.Get(0))
+		c.Assert(err, IsNil)
+	})
+	err = s.dfs.Backup(backupInfo, buf)
+	c.Assert(err, IsNil)
+	c.Assert(buf.Len() > 0, Equals, true)
+}
+
 func (s *DFSTestSuite) TestBackup(c *C) {
 	buf := bytes.NewBufferString("")
 	backupInfo := BackupInfo{
