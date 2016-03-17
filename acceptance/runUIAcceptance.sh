@@ -147,12 +147,25 @@ fi
 echo "Using HOST_IP=$HOST_IP"
 
 #
-# If we're running on RedHat, we need to mount the host's libdevmapper into the container
-# since the container doesn't have the same libraries
+# If we're not running on Ubuntu 14.04 (the same version as the zenoss/capybara image), then
+# we need to mount the host's libdevmapper into the container since the container
+# doesn't have a compatible library
 #
-LIB_DEVMAPPER_MOUNT=""
+MOUNT_DEVMAPPER=false
 if [ -f /etc/redhat-release ]; then
-   LIB_DEVMAPPER_MOUNT="-v /usr/lib64/libdevmapper.so.1.02:/usr/lib/libdevmapper.so.1.02"
+   MOUNT_DEVMAPPER=true
+else
+   UBUNTU_RELEASE=`lsb_release -r | cut -f2`
+   if [ "$UBUNTU_RELEASE" != "14.04" ]; then
+      MOUNT_DEVMAPPER=true
+   fi
+fi
+
+LIB_DEVMAPPER_MOUNT=""
+if [ "$MOUNT_DEVMAPPER" == "true" ]; then
+    LIBDEVMAPPER_SOURCE=`ldd ../serviced | grep libdevmapper | awk '{print $3}'`
+    LIBDEVMAPPER_TARGET=`echo $LIBDEVMAPPER_SOURCE | cut -d '/' -f4`
+    LIB_DEVMAPPER_MOUNT="-v ${LIBDEVMAPPER_SOURCE}:/lib/x86_64-linux-gnu/${LIBDEVMAPPER_TARGET}"
 fi
 
 cp -u `pwd`/../serviced `pwd`/ui
