@@ -27,8 +27,12 @@ When (/^I am on the hosts page$/) do
     visitHostsPage()
 end
 
-When (/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
-    fillInHostAndPort(hostName)
+When (/^I fill in the Host field with "(.*?)"$/) do |hostName|
+    fillInHost(hostName)
+end
+
+When (/^I fill in the Port field with "(.*?)"$/) do |rpcPort|
+    fillInPort(rpcPort)
 end
 
 When (/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
@@ -67,8 +71,12 @@ Then (/^I should see the Add Host dialog$/) do
     @hosts_page.addHost_dialog.visible?
 end
 
-Then (/^I should see the Host and port field$/) do
-    @hosts_page.hostName_input.visible?
+Then (/^I should see the Host field$/) do
+    @hosts_page.hostHost_input.visible?
+end
+
+Then (/^I should see the Port field$/) do
+    @hosts_page.rpcPort_input.visible?
 end
 
 Then (/^I should see the Resource Pool ID field$/) do
@@ -85,8 +93,8 @@ Then (/^I should see an empty Hosts page$/) do
     @hosts_page.assert_text("No Data Found")
 end
 
-Then (/^the Host and port field should be flagged as invalid$/) do
-    expect(@hosts_page.hostName_input[:class]).to include("ng-invalid")
+Then (/^the Port field should be flagged as invalid$/) do
+    expect(@hosts_page.rpcPort_input[:class]).to include("ng-invalid")
 end
 
 
@@ -102,11 +110,18 @@ def visitHostsPage()
     @hosts_page.has_no_css?(".loading_wrapper")
 end
 
-def fillInHostAndPort(host)
+def fillInHost(host)
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
-    @hosts_page.hostName_input.set getTableValue(host)
+    @hosts_page.hostHost_input.set getTableValue(host)
+end
+
+def fillInPort(port)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
+    @hosts_page.rpcPort_input.set getTableValue(port)
 end
 
 def fillInResourcePool(pool)
@@ -127,24 +142,26 @@ def clickAddHostButton()
     @hosts_page.addHost_button.click
 end
 
-def addHost(name, pool, commitment, hostID)
-    addHostCLI(name, pool, commitment, hostID)
+def addHost(name, port, pool, commitment, hostID)
+    addHostCLI(name, port, pool, commitment, hostID)
 end
 
-def addHostUI(name, pool, commitment)
+def addHostUI(name, port, pool, commitment)
     clickAddHostButton()
-    fillInHostAndPort(name)
+    fillInHost(name)
+    fillInPort(port)
     fillInResourcePool(pool)
     fillInRAMLimit(commitment)
     click_link_or_button("Add Host")
 end
 
-def addHostCLI(name, pool, commitment, hostID)
+def addHostCLI(name, port, pool, commitment, hostID)
     servicedCLI = getServicedCLI()
     nameValue =  getTableValue(name)
+    portValue =  getTableValue(port)
     poolValue =  getTableValue(pool)
     commitmentValue =  getTableValue(commitment)
-    cmd = "#{servicedCLI} host add '#{nameValue}' '#{poolValue}' --memory '#{commitmentValue}' 2>&1"
+    cmd = "#{servicedCLI} host add '#{nameValue}:#{portValue}' '#{poolValue}' --memory '#{commitmentValue}' 2>&1"
 
     result = `#{cmd}`
 
@@ -160,12 +177,13 @@ def addDefaultHost()
 end
 
 def addHostJson(host)
-    nameAndPort = "table://hosts/" + host + "/nameAndPort"
+    name = "table://hosts/" + host + "/hostName"
+    port = "table://hosts/" + host + "/rpcPort"
     pool = "table://hosts/" + host + "/pool"
     commitment = "table://hosts/" + host + "/commitment"
     hostID = "table://hosts/" + host + "/hostID"
 
-    addHost(nameAndPort, pool, commitment, hostID)
+    addHost(name, port, pool, commitment, hostID)
 end
 
 def removeAllHostsCLI()

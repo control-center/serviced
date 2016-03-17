@@ -196,6 +196,7 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 		"percentScale":  percentScale,
 		"bytesToMB":     bytesToMB,
 		"plus":          plus,
+		"uintToInt":     uintToInt,
 		"each":          each,
 	}
 
@@ -329,6 +330,10 @@ func each(n int) []int {
 
 func plus(a, b int) int {
 	return a + b
+}
+
+func uintToInt(a uint64) int {
+    return int(a)    
 }
 
 // round value - convert to int64
