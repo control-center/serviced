@@ -110,4 +110,7 @@ type ClientInterface interface {
 
 	// UpgradeRegistry migrates images from an older or remote docker registry.
 	UpgradeRegistry(endpoint string, override bool) error
+
+	// DockerOverride replaces an image in the docker registry with a new image
+	DockerOverride(newImage, oldImage string) error
 }

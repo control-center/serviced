@@ -19,6 +19,12 @@ type UpgradeDockerRequest struct {
 	Override bool
 }
 
+// DockerOverrideRequest are options for replacing an image in the docker registry
+type DockerOverrideRequest struct {
+	OldImage string
+	NewImage string
+}
+
 // ResetRegistry pulls latest from the running docker registry and updates the
 // index.
 func (c *Client) ResetRegistry() error {
@@ -36,4 +42,13 @@ func (c *Client) SyncRegistry() error {
 func (c *Client) UpgradeRegistry(endpoint string, override bool) error {
 	req := UpgradeDockerRequest{endpoint, override}
 	return c.call("UpgradeRegistry", req, new(int))
+}
+
+// DockerOverride replaces an image in the registry with a new image
+func (c *Client) DockerOverride(newImage, oldImage string) error {
+	req := DockerOverrideRequest{
+		OldImage: oldImage,
+		NewImage: newImage,
+	}
+	return c.call("DockerOverride", req, new(int))
 }
