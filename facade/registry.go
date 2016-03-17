@@ -15,6 +15,7 @@ package facade
 
 import (
 	"fmt"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/registry"
@@ -102,6 +103,12 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 // SyncRegistryImages makes sure images on es are in sync with zk.  If force is
 // enabled, all images are reset.
 func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
+	if err := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); err != nil {
+		glog.Warningf("Cannot sync registry images: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	// get all the images that are currently in the index
 	rImages, err := f.GetRegistryImages(ctx)
 	if err != nil {

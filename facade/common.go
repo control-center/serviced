@@ -14,8 +14,14 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
+	"time"
+
 	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/glog"
+)
+
+const (
+	userLockTimeout = time.Second
 )
 
 type eventContext map[string]interface{}

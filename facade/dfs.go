@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
@@ -63,6 +62,8 @@ var registryVersionInfos = map[int]registryVersionInfo{
 
 // Backup takes a backup of all installed applications
 func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
+	// Do not DFSLock here, ControlPlaneDao does that
+
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
 	glog.Infof("Starting backup")
@@ -145,6 +146,7 @@ func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []str
 
 // DeleteSnapshot removes a snapshot from an application.
 func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	if err := f.dfs.Delete(snapshotID); err != nil {
 		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
 		return err
@@ -154,6 +156,7 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 
 // DeleteSnapshots removes all snapshots for an application.
 func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	snapshots, err := f.ListSnapshots(ctx, serviceID)
 	if err != nil {
 		return err
@@ -167,7 +170,7 @@ func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error 
 }
 
 // DFSLock returns the locker for the dfs
-func (f *Facade) DFSLock(ctx datastore.Context) sync.Locker {
+func (f *Facade) DFSLock(ctx datastore.Context) dfs.DFSLocker {
 	return f.dfs
 }
 
@@ -278,6 +281,12 @@ func (f *Facade) Download(imageID, tenantID string) error {
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
+	if err := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); err != nil {
+		glog.Warningf("Cannot reset registry: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
@@ -306,6 +315,12 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // If force is true for a local registry, upgrade again even if previous upgrade was successful.
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
+	if err := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); err != nil {
+		glog.Warningf("Cannot migrate registry: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	success := true // indicates a successful migration
 	if fromRegistryHost == "" {
 		// check if a local docker migration is needed
@@ -402,6 +417,7 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 
 // Restore restores application data from a backup.
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning restore from backup")
 	data, err := f.dfs.Restore(r)
 	if err != nil {
@@ -437,6 +453,7 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader) error {
 // Rollback rolls back an application to state described in the provided
 // snapshot.
 func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning rollback of snapshot %s", snapshotID)
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
@@ -490,6 +507,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 
 // Snapshot takes a snapshot for a particular application.
 func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string) (string, error) {
+	// Do not DFSLock here, ControlPlaneDao does that
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not get tenant id of service %s: %s", serviceID, err)
@@ -636,4 +654,9 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 	}
 
 	return container, nil
+}
+
+// DockerOverride will replace a docker image in the registry with a new image
+func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
+	return f.dfs.Override(newImageName, oldImageName)
 }

@@ -30,3 +30,8 @@ func (s *Server) SyncRegistry(req struct{}, reply *int) error {
 func (s *Server) UpgradeRegistry(req UpgradeDockerRequest, reply *int) error {
 	return s.f.UpgradeRegistry(s.context(), req.Endpoint, req.Override)
 }
+
+// DockerOverride replaces an image in the registry with a new image
+func (s *Server) DockerOverride(overrideReq DockerOverrideRequest, _ *int) error {
+	return s.f.DockerOverride(s.context(), overrideReq.NewImage, overrideReq.OldImage)
+}

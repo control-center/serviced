@@ -36,10 +36,16 @@ const (
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// AddHost register a host with serviced. Returns an error if host already
-// exists or if the host's IP is a virtual IP
+// AddHost registers a host with serviced. Returns an error if host already
+// exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
+	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
+		glog.Warningf("Cannot add host: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -87,6 +93,12 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 // UpdateHost information for a registered host
 func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
+	if err := f.DFSLock(ctx).LockWithTimeout("update host", userLockTimeout); err != nil {
+		glog.Warningf("Cannot update host: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
+
 	// validate the host exists
 	if host, err := f.GetHost(ctx, entity.ID); err != nil {
 		return err
@@ -120,6 +132,7 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 
 // RestoreHosts restores a list of hosts, typically from a backup
 func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
+	// Do not DFSLock here, ControlPlaneDao does that
 	var exists bool
 	var err error
 
@@ -157,6 +170,11 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 // RemoveHost removes a Host from serviced
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
+	if err := f.DFSLock(ctx).LockWithTimeout("remove host", userLockTimeout); err != nil {
+		glog.Warningf("Cannot remove host: %s", err)
+		return err
+	}
+	defer f.DFSLock(ctx).Unlock()
 
 	//assert valid host
 	var _host *host.Host

@@ -40,3 +40,12 @@ func (a *api) UpgradeRegistry(endpoint string, override bool) error {
 	}
 	return client.UpgradeRegistry(endpoint, override)
 }
+
+// DockerOverride replaces an image in the docker registry with the specified image
+func (a *api) DockerOverride(newImage string, oldImage string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+	return client.DockerOverride(newImage, oldImage)
+}

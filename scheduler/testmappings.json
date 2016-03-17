@@ -1,0 +1,37 @@
+{
+  "settings": {
+    "number_of_shards": 1
+  },
+
+  "mappings": {
+    "servicestate": {
+      "properties": {
+        "Id" :             {"type": "string", "index":"not_analyzed"},
+        "HostID":          {"type": "string", "index":"not_analyzed"},
+        "ServiceID":       {"type": "string", "index":"not_analyzed"},
+        "DockerID":        {"type": "string", "index":"not_analyzed"},
+        "PrivateIP":       {"type": "string", "index":"not_analyzed"},
+        "Scheduled" :      {"type": "date", "format" : "dateOptionalTime"},
+        "Terminate" :      {"type": "date", "format" : "dateOptionalTime"},
+        "Started" :        {"type": "date", "format" : "dateOptionalTime"},
+        "EndPoints" :      {
+          "properties":    {
+            "Name" :        {"type": "string", "index":"not_analyzed"},
+            "Protocol" :    {"type": "string", "index":"not_analyzed"},
+            "Application" : {"type": "string", "index":"not_analyzed"},
+            "Purpose" :     {"type": "string", "index":"not_analyzed"},
+            "PortNumber" :  {"type": "long",   "index":"not_analyzed"}
+          }
+        }
+      }
+    },
+    "servicedeployment": {
+      "properties": {
+        "Id" :             {"type": "string", "index":"not_analyzed"},
+        "ServiceID":       {"type": "string", "index":"not_analyzed"},
+        "TemplateID":      {"type": "string", "index":"not_analyzed"},
+        "DeployedAt" :     {"type": "date", "format" : "dateOptionalTime"}
+      }
+    }
+  }
+}
