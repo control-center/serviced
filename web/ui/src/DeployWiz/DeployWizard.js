@@ -67,10 +67,15 @@
         };
 
         var validHost = function(){
-            if($("#new_host_name").val() === ""){
-                showError($translate.instant("content_wizard_invalid_host"));
+            var err = utils.validateHostName($scope.newHost.host, $translate) ||
+                utils.validatePortNumber($scope.newHost.port, $translate) ||
+                utils.validateRAMLimit($scope.newHost.RAMLimit);
+            if(err){
+                showError(err);
                 return false;
             }
+
+            $scope.newHost.IPAddr = $scope.newHost.host + ':' + $scope.newHost.port;
 
             resourcesFactory.addHost($scope.newHost)
                 .success(function(){
@@ -113,7 +118,12 @@
             // if there is not at least one host, add an
             // "add host" step to the wizard
             if(hostsFactory.hostList.length === 0){
-                $scope.newHost = {};
+                $scope.newHost = {
+                    port: $translate.instant('placeholder_port')
+                };
+                if ($scope.pools.length > 0){
+                    $scope.newHost.PoolID = $scope.pools[0].id;
+                }
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
                     label: 'add_host',
@@ -210,7 +220,12 @@
         };
 
         $scope.addHostStart = function() {
-            $scope.newHost = {};
+            $scope.newHost = {
+                port: $translate.instant('placeholder_port')
+            };
+            if ($scope.pools.length > 0){
+                $scope.newHost.PoolID = $scope.pools[0].id;
+            }
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
         };
 
