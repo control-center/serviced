@@ -7,7 +7,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/facade"
 import "github.com/control-center/serviced/volume"
-import "time"
 
 type ClientInterface struct {
 	mock.Mock
