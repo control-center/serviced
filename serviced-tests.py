@@ -218,11 +218,12 @@ def main(options):
     if usep1:
         cmd.extend(['-p', '1'])
 
+    cmd.extend(options.packages or ["./..."])
+
     passthru = options.arguments
     if passthru and passthru[0] == "--":
         passthru = passthru[1:]
     cmd.extend(passthru)
-    cmd.extend(options.packages or ["./..."])
 
     log.debug("Running command: %s" % cmd)
     log.debug("Running in directory: %s" % SERVICED_ROOT)
