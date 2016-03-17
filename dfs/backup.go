@@ -58,10 +58,14 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		glog.Errorf("Could not write backup metadata: %s", err)
 		return err
 	}
+	var images []string
 	// download the base images
 	for _, image := range data.BaseImages {
 		if _, err := dfs.docker.FindImage(image); docker.IsImageNotFound(err) {
-			if err := dfs.docker.PullImage(image); err != nil {
+			if err := dfs.docker.PullImage(image); docker.IsImageNotFound(err) {
+				glog.Warningf("Could not pull base image %s, skipping", image)
+				continue
+			} else if err != nil {
 				glog.Errorf("Could not pull image %s: %s", image, err)
 				return err
 			}
@@ -69,8 +73,8 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not find image %s: %s", image, err)
 			return err
 		}
+		images = append(images, image)
 	}
-	images := data.BaseImages
 	// export the snapshots
 	for _, snapshot := range data.Snapshots {
 		vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshot)
