@@ -66,6 +66,8 @@ type DFS interface {
 	// UpgradeRegistry loads images for each service
 	// into the docker registry index
 	UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error
+	// Override replaces an image in the registry with a new image
+	Override(newImage, oldImage string) error
 }
 
 var _ = DFS(&DistributedFilesystem{})

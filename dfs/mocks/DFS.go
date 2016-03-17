@@ -302,3 +302,15 @@ func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string, registry
 
 	return r0
 }
+func (_m *DFS) Override(newImage string, oldImage string) error {
+	ret := _m.Called(newImage, oldImage)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(newImage, oldImage)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

@@ -25,9 +25,9 @@ The Cucumber/Capybara tests are code, and as such they should follow certain bes
 For simplicity’s sake, the first round of acceptance tests included several literal values that are only valid in the context of a specific developer’s environment. Here are some examples:
 
 ```
-When I fill in the Host Name field with "gjones-dev:4979"
-When I fill in the Host Name field with "vagrant:4979"
-When I fill in the Host Name field with "172.17.42.1:4979"
+When I fill in the Host field with "gjones-dev"
+When I fill in the Host field with "vagrant"
+When I fill in the Host field with "172.17.42.1"
 When I remove "roei-dev"
 Then I should see "roei-dev" in the "Name" column
 Then I should see "Username: zenoss"
@@ -50,13 +50,13 @@ where
 For example, the following step:
 
 ```
-    When I fill in the Host Name field with "vagrant:4979"
+    When I fill in the Host field with "vagrant"
 ```
 
 Can be replaced with:
 
 ```
-    When I fill in the Host Name field with "table://hosts/host1/nameAndPort"
+    When I fill in the Host field with "table://hosts/host1/hostName"
 ```
 
 In each step definition where a value needs to be externalized, the step definition will call a common routine, `getTableValue()`, passing it the value from step statement. The `getTableValue()` routine which will either:
@@ -69,12 +69,12 @@ Here is an example step definition with a pseudo-code implementation of `getTabl
 
 ```
 
-When(/^I fill in the Host Name field with "(.*?)"$/) do |valueOrTableUrl|
+When(/^I fill in the Host field with "(.*?)"$/) do |valueOrTableUrl|
     hostName = getTableValue(valueOrTableUrl)
     @hosts_page.hostName_input.set hostName
 end
 
-def getTableValue(valueOrTableUrl) 
+def getTableValue(valueOrTableUrl)
     if valueOrTableUrl does not begin with "table://"
         return valueOrTableUrl
 
@@ -96,22 +96,24 @@ The tables of data can be read from JSON files at startup.  Consider the followi
 ```
 
 {
-  "hosts" { 
+  "hosts" {
     "defaultHost": {
-      “nameAndPort": "gjones-dev:4979"
+      “hostName": "gjones-dev"
+      "rpcPort": "4979"
       "name": "gjones-dev",
       "pool": "default",
     },
 
     "host2" : {
-      "nameAndPort": "vagrant1:4979"
+      “hostName": "vagrant1"
+      "rpcPort": "4979"
       "name": "vagrant1",
       "pool": "default",
     }
   }
 }
 ```
-The value of `table://hosts/defaultHost/nameAndPort` would be "gjones-dev:4979"
+The value of `table://hosts/defaultHost/“hostName` would be "gjones-dev"
 
 The JSON files should be stored in a directory named `acceptance/ui/features/data/<dataset>`  where `<dataset>` is the name of a set of data. Separating the data files into different directories by dataset will allow the same tests to be executed against different deployments. Each kind of table type (hosts, pools, etc) should be defined a separate JSON file. The file contents should be a set of objects keyed by object name.  An optional `--dataset` parameter should be added to the `runUIAcceptance.sh` script to allow the user to specify different datasets.  The value of the parameter can be passed into the container as an environment variable. If not specified, the tests should default to the dataset named “default”.
 

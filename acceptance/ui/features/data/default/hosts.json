@@ -2,7 +2,7 @@
   "hosts":
   {
     "defaultHost": {
-      "nameAndPort": "%{local_ip}:4981",
+      "hostName": "%{local_ip}",
       "name": "defaultHost",
       "rpcPort": 4981,
       "hostID": 4981,
@@ -19,24 +19,24 @@
     },
 
     "host2": {
-      "nameAndPort": "%{local_ip}:4982",
+      "hostName": "%{local_ip}",
       "name": "secondHost",
       "rpcPort": 4982,
       "hostID": 4982,
       "memory": 6442450944,
       "memoryGB": "6.00 GB",
-      "ramGB": "5737418240",
+      "ramGB": "5602947K",
       "cores": 4982,
       "kernelVersion": "Kernel Version test 2",
       "kernelRelease": "Kernel Release test 2",
       "ccRelease": "CC Release test 2",
       "pool": "default",
-      "commitment": "5737418240",
+      "commitment": "5602947K",
       "outboundIP": "%{local_ip}"
     },
 
     "host3": {
-      "nameAndPort": "%{local_ip}:4983",
+      "hostName": "%{local_ip}",
       "name": "thirdHost",
       "rpcPort": 4983,
       "hostID": 4983,
@@ -53,7 +53,7 @@
     },
 
     "host4": {
-      "nameAndPort": "%{local_ip}:4984",
+      "hostName": "%{local_ip}",
       "name": "fourthHost",
       "rpcPort": 4984,
       "hostID": 4984,
@@ -70,7 +70,7 @@
     },
 
     "host5": {
-      "nameAndPort": "%{local_ip}:4985",
+      "hostName": "%{local_ip}",
       "name": "fifthHost",
       "rpcPort": 4985,
       "hostID": 4985,
