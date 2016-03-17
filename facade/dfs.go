@@ -637,3 +637,8 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 
 	return container, nil
 }
+
+// DockerOverride will replace a docker image in the registry with a new image
+func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
+	return f.dfs.Override(newImageName, oldImageName)
+}
