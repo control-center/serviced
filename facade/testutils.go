@@ -62,6 +62,9 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.CTX = datastore.Get()
 
 	ft.Facade = New()
+	ft.dfs = &dfsmocks.DFS{}
+	ft.Facade.SetDFS(ft.dfs)
+	ft.setupMockDFS()
 }
 
 func (ft *FacadeTest) SetUpTest(c *gocheck.C) {

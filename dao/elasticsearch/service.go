@@ -14,14 +14,30 @@
 package elasticsearch
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
-// AddService add a service. Return error if service already exists
+const (
+	userLockTimeout = time.Second
+)
+
+// AddService adds a new service. Returns an error if service already exists.
 func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) error {
+	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("add service", userLockTimeout); err != nil {
+		glog.Warningf("Cannot add service: %s", err)
+		return err
+	}
+	defer this.facade.DFSLock(datastore.Get()).Unlock()
+
+	return this.addService(svc, serviceId)
+}
+
+func (this *ControlPlaneDao) addService(svc service.Service, serviceId *string) error {
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
@@ -29,8 +45,14 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	return nil
 }
 
-// CloneService clones a service.  Return error if given serviceID is not found
+// CloneService clones a service. Returns an error if given serviceID is not found.
 func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clonedServiceId *string) error {
+	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("clone service", userLockTimeout); err != nil {
+		glog.Warningf("Cannot clone service: %s", err)
+		return err
+	}
+	defer this.facade.DFSLock(datastore.Get()).Unlock()
+
 	svc, err := this.facade.GetService(datastore.Get(), request.ServiceID)
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.CloneService: unable to find service id %+v: %s", request.ServiceID, err)
@@ -43,7 +65,7 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 		return err
 	}
 
-	if err := this.AddService(*cloned, clonedServiceId); err != nil {
+	if err := this.addService(*cloned, clonedServiceId); err != nil {
 		return err
 	}
 
@@ -52,11 +74,23 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
+	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("update service", userLockTimeout); err != nil {
+		glog.Warningf("Cannot update service: %s", err)
+		return err
+	}
+	defer this.facade.DFSLock(datastore.Get()).Unlock()
+
 	return this.facade.UpdateService(datastore.Get(), svc)
 }
 
 //
 func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
+	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("migrate service", userLockTimeout); err != nil {
+		glog.Warningf("Cannot migrate service: %s", err)
+		return err
+	}
+	defer this.facade.DFSLock(datastore.Get()).Unlock()
+
 	return this.facade.MigrateServices(datastore.Get(), request)
 }
 
@@ -75,6 +109,12 @@ func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]servic
 
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
+	if err := this.facade.DFSLock(datastore.Get()).LockWithTimeout("remove service", userLockTimeout); err != nil {
+		glog.Warningf("Cannot remove service: %s", err)
+		return err
+	}
+	defer this.facade.DFSLock(datastore.Get()).Unlock()
+
 	return this.facade.RemoveService(datastore.Get(), id)
 }
 

@@ -158,7 +158,7 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// ensure all the services are unlocked
 	glog.Infof("Resetting service locks")
 	locker := s.facade.DFSLock(datastore.Get())
-	locker.Lock()
+	locker.Lock("reset service locks")
 	if err := s.facade.ResetLocks(datastore.Get()); err != nil {
 		glog.Errorf("Could not reset dfs locks: %s", err)
 		return
