@@ -53,6 +53,8 @@ Feature: Resource Pool Management
     Then I should see "Added new Pool"
       And I should see "Added resource pool"
       And I should see an entry for "table://pools/pool2/name" in the table
+      And the "table://pools/defaultPool/name" button should be disabled
+      And the "table://pools/pool2/name" button should not be disabled
 
   @clean_pools
   Scenario: Delete a resource pool

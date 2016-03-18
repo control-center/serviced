@@ -287,20 +287,21 @@ func (c *Connection) Get(path string, node client.Node) error {
 	return c.get(path, node)
 }
 
-func (c *Connection) get(p string, node client.Node) error {
+func (c *Connection) get(p string, node client.Node) (err error) {
 	p = path.Join(c.basePath, p)
 	bytes, stat, err := c.conn.Get(p)
 	if err != nil {
 		return xlateError(err)
 	}
-	if len(bytes) == 0 {
-		return client.ErrEmptyNode
-	}
-	if err := json.Unmarshal(bytes, node); err != nil {
-		return client.ErrSerialization
+	if len(bytes) > 0 {
+		if err := json.Unmarshal(bytes, node); err != nil {
+			return client.ErrSerialization
+		}
+	} else {
+		err = client.ErrEmptyNode
 	}
 	node.SetVersion(stat)
-	return nil
+	return
 }
 
 // GetW returns the node at the given path as well as a channel to watch for

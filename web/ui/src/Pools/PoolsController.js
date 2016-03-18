@@ -17,6 +17,9 @@
 
         // Function to remove a pool
         $scope.clickRemovePool = function(poolID) {
+            if ($scope.isDefaultPool(poolID)) {
+              return;
+            }
             $modalService.create({
                 template: $translate.instant("confirm_remove_pool") + "<strong>"+ poolID +"</strong>",
                 model: $scope,
@@ -91,6 +94,10 @@
                     // Reset for another add
                     $scope.newPool = {};
                 });
+        };
+
+        $scope.isDefaultPool = function(poolID) {
+          return poolID === "default";
         };
 
         function init(){
