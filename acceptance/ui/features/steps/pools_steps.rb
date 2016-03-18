@@ -59,7 +59,7 @@ When (/^I am on the resource pool page$/) do
 end
 
 When (/^I remove all resource pools$/) do
-    removeAllPoolsCLI()
+    removeAllPoolsExceptDefaultCLI()
 end
 
 When (/^I click the add Resource Pool button$/) do
@@ -224,11 +224,11 @@ def removeAllPoolsExceptDefault()
     visitApplicationsPage()
     removeAllEntries("service")
     removeAllHostsCLI()
-    removeAllPoolsCLI()
+    removeAllPoolsExceptDefaultCLI()
     refreshPage()
 end
 
-def removeAllPoolsCLI()
+def removeAllPoolsExceptDefaultCLI()
     servicedCLI = getServicedCLI()
     cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | grep -v ^default | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
     result = `#{cmd}`
