@@ -122,6 +122,15 @@ Then (/^I should see the Interface field$/) do
     @pools_page.interface_input.visible?
 end
 
+Then (/^the "(.*)" button should (not )?be disabled$/) do |name, enabled|
+    button = find(:xpath, "//button[@name='" + getTableValue(name) + "']")
+    if (enabled)
+        not button.has_css?('disabled')
+    else
+        button.has_css?('disabled')
+    end
+end
+
 def visitPoolsPage()
     wait = Capybara.default_wait_time
     Capybara.default_wait_time = 180
@@ -229,5 +238,5 @@ def removeAllPoolsCLI()
     cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID"
     result = `#{cmd}`
     verifyCLIExitSuccess($?, result)
-    expect(result).to eq("default")
+    expect(result.strip).to eq("default")
 end
