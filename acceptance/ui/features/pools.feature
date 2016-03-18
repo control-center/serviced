@@ -56,10 +56,6 @@ Feature: Resource Pool Management
       And the "table://pools/defaultPool/name" button should be disabled
       And the "table://pools/pool2/name" button should not be disabled
 
-  Scenario: Cannot remove the default resource pool
-    Given that only the default resource pool is added
-    When I am on the resource pool page
-
   @clean_pools
   Scenario: Delete a resource pool
     When I am on the resource pool page
