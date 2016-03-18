@@ -75,8 +75,9 @@ class StackFrame:
     # Returns a list of warnings for the line.
     # Raises an exception on a hard error.
     def parseFileLine(self, line):
-        # Format:
+        # Formats:
 	#   /home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:306 +0xb13
+        #   /usr/local/go/src/compress/flate/deflate.go:150
         fieldnum = 0
         warnings = []
         line = line.strip()
@@ -92,7 +93,11 @@ class StackFrame:
             self.filename, line = line.rsplit(':', 1)
 
             fieldnum = 2 # Line number
-            linenum, line = line.split(' ', 1)
+            if line.find(' ') == -1:
+                linenum = line
+                line = ''
+            else:
+                linenum, line = line.split(' ', 1)
             if not linenum.isdigit():
                 raise ParseError('Expected integer line number, got: {0}'.format(linenum))
             self.linenum = int(linenum)
@@ -100,7 +105,7 @@ class StackFrame:
             fieldnum = 3 # Offset
             if line.find(' ') == -1:
                 self.offset = line
-                line = ""
+                line = ''
             else:
                 self.offset, line = line.split(' ', 1)
 
@@ -113,7 +118,7 @@ class StackFrame:
             return warnings
 
         except Exception as exc:
-            raiseWithModifiedMessage(sys.exc_info(), self.formatFunctionMessage(str(exc), fieldnum))
+            raiseWithModifiedMessage(sys.exc_info(), self.formatFileMessage(str(exc), fieldnum))
 
     def addArg(self, arg):
         self.args.append(arg)

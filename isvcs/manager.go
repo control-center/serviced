@@ -61,7 +61,7 @@ func (err StartError) Error() string {
 type StopError int
 
 func (err StopError) Error() string {
-	return fmt.Sprintf("manager: coulf not stop %d isvcs", int(err))
+	return fmt.Sprintf("manager: could not stop %d isvcs", int(err))
 }
 
 // A managerRequest describes an operation for the manager loop() to perform and a response channel

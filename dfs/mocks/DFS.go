@@ -13,8 +13,12 @@ type DFS struct {
 	mock.Mock
 }
 
-func (_m *DFS) Lock() {
+func (_m *DFS) Lock(name string) {
 	return
+}
+
+func (_m *DFS) LockWithTimeout(name string, timeout time.Duration) error {
+	return nil
 }
 
 func (_m *DFS) Unlock() {

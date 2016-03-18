@@ -103,6 +103,14 @@ class StackFrame_FileGood(BaseTestCase):
         self.assertEquals(self.stackframe.offset, '+0xb13')
         self.assertEquals(len(warnings), 0)
 
+class StackFrame_FileGoodNoOffset(BaseTestCase):
+    def runTest(self):
+        warnings = self.stackframe.parseFileLine('/home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:306')
+        self.assertEquals(self.stackframe.filename, '/home/kwalker/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go')
+        self.assertEquals(self.stackframe.linenum, 306)
+        self.assertEquals(self.stackframe.offset, '')
+        self.assertEquals(len(warnings), 0)
+
 class StackFrame_File_BadJustFilename(BaseTestCase):
     def runTest(self):
         with self.assertRaises(gostack.ParseError):

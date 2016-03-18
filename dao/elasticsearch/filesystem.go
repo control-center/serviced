@@ -89,7 +89,7 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("backup")
 	defer dfslocker.Unlock()
 
 	// set the progress of the backup file
@@ -130,7 +130,7 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 	ctx := datastore.Get()
 
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("restore")
 	defer dfslocker.Unlock()
 	inprogress.SetProgress(filename, "restore")
 	defer func() {
@@ -245,7 +245,7 @@ func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *stri
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("snapshot")
 	defer dfslocker.Unlock()
 
 	tagList := []string{}
@@ -267,7 +267,7 @@ func (dao *ControlPlaneDao) Rollback(req model.RollbackRequest, _ *int) (err err
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("rollback")
 	defer dfslocker.Unlock()
 	err = dao.facade.Rollback(ctx, req.SnapshotID, req.ForceRestart)
 	return
@@ -279,7 +279,7 @@ func (dao *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) (err error
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("delete snapshot")
 	defer dfslocker.Unlock()
 	err = dao.facade.DeleteSnapshot(ctx, snapshotID)
 	return
@@ -291,7 +291,7 @@ func (dao *ControlPlaneDao) DeleteSnapshots(serviceID string, _ *int) (err error
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("delete snapshots")
 	defer dfslocker.Unlock()
 	err = dao.facade.DeleteSnapshots(ctx, serviceID)
 	return
@@ -303,7 +303,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("list snapshots")
 	defer dfslocker.Unlock()
 
 	*snapshots = make([]model.SnapshotInfo, 0)
@@ -340,6 +340,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 
 // ResetRegistry prompts all images to be pushed back into the docker registry
 func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err error) {
+	// Do not DFSLock here, Facade does that
 	err = dao.facade.SyncRegistryImages(datastore.Get(), true)
 	return
 }
@@ -347,6 +348,7 @@ func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err er
 // RepairRegistry will try to recover the latest image of all service images
 // from the docker registry and save it to the index.
 func (dao *ControlPlaneDao) RepairRegistry(_ model.EntityRequest, _ *int) (err error) {
+	// Do not DFSLock here, Facade does that
 	err = dao.facade.RepairRegistry(datastore.Get())
 	return
 }
@@ -357,7 +359,7 @@ func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
 
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
+	dfslocker.Lock("reset tenant lock")
 	defer dfslocker.Unlock()
 
 	err = dao.facade.ResetLock(ctx, serviceID)
