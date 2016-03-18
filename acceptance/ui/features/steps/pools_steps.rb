@@ -211,28 +211,23 @@ def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
 end
 
-def removeAllPools()
-    removeAllPoolsCLI()
-end
-
 def removeAllPoolsExceptDefault()
     visitApplicationsPage()
     removeAllEntries("service")
     removeAllHostsCLI()
     removeAllPoolsCLI()
-    addDefaultPool()
     refreshPage()
 end
 
 def removeAllPoolsCLI()
     servicedCLI = getServicedCLI()
-    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
+    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | grep -v ^default | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
     result = `#{cmd}`
     verifyCLIExitSuccess($?, result)
 
     # verify all of the hosts were really removed
-    cmd = "#{servicedCLI} pool list 2>&1"
+    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID"
     result = `#{cmd}`
     verifyCLIExitSuccess($?, result)
-    expect(result).to include("no resource pools found")
+    expect(result).to eq("default")
 end
