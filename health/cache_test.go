@@ -21,7 +21,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func TestHealthStatusCache(t *testing.T) { TestingT(t) }
+func Test(t *testing.T) { TestingT(t) }
 
 var _ = Suite(&HealthStatusCacheTestSuite{})
 

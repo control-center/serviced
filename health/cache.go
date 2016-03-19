@@ -18,16 +18,6 @@ import (
 	"time"
 )
 
-// TODO: move me somewhere else
-// HealthStatus is the output from a provided health check.
-type HealthStatus struct {
-	Status    string
-	Output    []byte
-	Err       error
-	StartedAt time.Time
-	Duration  time.Duration
-}
-
 // HealthStatusKey is the key to the health status item in the cache.
 type HealthStatusKey struct {
 	ServiceID       string
