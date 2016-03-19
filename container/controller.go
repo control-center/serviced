@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
@@ -760,7 +761,7 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 		return
 	}
 	defer client.Close()
-	var healthChecks map[string]domain.HealthCheck
+	var healthChecks map[string]health.HealthCheck
 
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {

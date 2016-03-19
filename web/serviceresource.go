@@ -14,10 +14,13 @@
 package web
 
 import (
+	"time"
+
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/dao"
 
 	"net/url"
 )
@@ -65,4 +68,22 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 	}
 
 	restSuccess(w)
+}
+
+// restGetServicesHealth returns health checks for all services
+// TODO: remove before merging
+func restGetServicesHealth(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	stats := make(map[string]map[int]map[string]health.HealthStatus)
+	if err := client.GetServicesHealth(0, &stats); err != nil {
+		glog.Errorf("Could not get services health: %s", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(struct {
+		Timestamp int64
+		Statuses  map[string]map[int]map[string]health.HealthStatus
+	}{
+		Timestamp: time.Now().UTC().Unix(),
+		Statuses:  stats,
+	})
 }

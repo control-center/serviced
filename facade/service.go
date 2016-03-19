@@ -28,11 +28,11 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -625,7 +625,7 @@ func (f *Facade) GetImageIDs(ctx datastore.Context) ([]string, error) {
 	return imageIDs, nil
 }
 
-func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
+func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]health.HealthCheck, error) {
 	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
 	store := f.serviceStore
 	svc, err := store.Get(ctx, serviceID)

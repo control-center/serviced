@@ -15,6 +15,7 @@ package health
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os/exec"
 	"time"
@@ -23,6 +24,10 @@ import (
 // DefaultTolerance is the default tolerance value in determining
 // non-responsive health checks.
 const DefaultTolerance int = 2
+
+// DefaultExpiration is the default expiration for deprecated health status
+// updates.
+const DefaultExpiration time.Duration = time.Minute
 
 const (
 	// OK means health check is passing
@@ -50,19 +55,48 @@ type HealthStatus struct {
 	Duration  time.Duration
 }
 
-// HealthStatusRequest is a remote request to write to the health check cache.
-type HealthStatusRequest struct {
-	Key     HealthStatusKey
-	Value   HealthStatus
-	Expires time.Duration
-}
-
 // HealthCheck is the health check object.
 type HealthCheck struct {
 	Script    string
 	Timeout   time.Duration
 	Interval  time.Duration
 	Tolerance int
+}
+
+// MarshalJSON implements json.Marshaller
+func (hc *HealthCheck) MarshalJSON() ([]byte, error) {
+	jhc := struct {
+		Script    string
+		Timeout   float64
+		Interval  float64
+		Tolerance int
+	}{
+		Script:    hc.Script,
+		Timeout:   hc.Timeout.Seconds(),
+		Interval:  hc.Interval.Seconds(),
+		Tolerance: hc.Tolerance,
+	}
+	return json.Marshal(jhc)
+}
+
+// UnmarshalJSON implements json.Unmarshaller
+func (hc *HealthCheck) UnmarshalJSON(data []byte) error {
+	jhc := struct {
+		Script    string
+		Timeout   float64
+		Interval  float64
+		Tolerance int
+	}{}
+	if err := json.Unmarshal(data, &jhc); err != nil {
+		return err
+	}
+	*hc = HealthCheck{
+		Script:    jhc.Script,
+		Timeout:   time.Duration(jhc.Timeout) * time.Second,
+		Interval:  time.Duration(jhc.Interval) * time.Second,
+		Tolerance: jhc.Tolerance,
+	}
+	return nil
 }
 
 // Expires calculates the time to live on the cache item.

@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
 
@@ -253,6 +254,17 @@ type ControlPlane interface {
 
 	// Check the health of control center
 	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
+
+	// ReportHealthStatus reports the status of a health check to the health
+	// status cache.
+	ReportHealthStatus(req HealthStatusRequest, unused *int) error
+
+	// ReportInstanceDead reports the status of a service instance as dead.
+	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
+
+	// GetServicesHealth returns all health checks for all services
+	// TODO: remove me before merging
+	GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error
 
 	// -----------------------------------------------------------------------
 	// Filesystem CRUD
