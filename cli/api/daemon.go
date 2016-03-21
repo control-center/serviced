@@ -38,6 +38,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/agent"
@@ -82,6 +83,10 @@ import (
 
 var minDockerVersion = version{1, 9, 0}
 var dockerRegistry = "localhost:5000"
+
+const (
+	localhost = "127.0.0.1"
+)
 
 type daemon struct {
 	servicedEndpoint string
@@ -802,6 +807,16 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	return eDriver, nil
 }
 
+func initMetricsClient() *metrics.Client {
+	addr := fmt.Sprintf("http://%s:8888", localhost)
+	client, err := metrics.NewClient(addr)
+	if err != nil {
+		glog.Errorf("Unable to initiate metrics client to %s", addr)
+		return nil, err
+	}
+	return client
+}
+
 func (d *daemon) initFacade() *facade.Facade {
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
@@ -814,6 +829,8 @@ func (d *daemon) initFacade() *facade.Facade {
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)
+	client := initMetricsClient()
+	f.SetMetricsClient(client)
 	return f
 }
 

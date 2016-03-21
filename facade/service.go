@@ -33,6 +33,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -1065,6 +1066,26 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 	return states, nil
 }
 
+func (f *Facade) GetRunningServices(ctx datastore.Context) ([]dao.RunningService, error) {
+	var services []dao.RunningService
+	pools, err := f.GetResourcePools(ctx)
+	if err != nil {
+		return services, err
+	}
+	for _, pool := range pools {
+		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool.ID))
+		if err != nil {
+			return services, err
+		}
+		svcs, err := zkservice.LoadRunningServices(conn)
+		if err != nil {
+			return services, err
+		}
+		services = append(services, svcs...)
+	}
+	return services, nil
+}
+
 func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...string) ([]dao.RunningService, error) {
 	var services []dao.RunningService
 	hostMap := make(map[string][]string)
@@ -1805,6 +1826,18 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	}
 
 	return svcs, nil
+}
+
+func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...dao.RunningService) ([]metrics.MemoryUsageStats, error) {
+	// Convert our dao.RunningServices into the structure the metrics API wants
+	svcInstances := make([]metrics.ServiceInstance, len(instances))
+	for i, inst := range instances {
+		svcInstances[i] = metrics.ServiceInstance{
+			inst.ServiceID,
+			inst.InstanceID,
+		}
+	}
+	return f.metricsClient.GetInstanceMemoryStats(startTime, svcInstances...)
 }
 
 func lookUpTenant(svcID string) (string, bool) {
