@@ -157,7 +157,14 @@ func (d *NFSDriver) Status() (*volume.Status, error) {
 
 // Release implements volume.Driver.Release
 func (d *NFSDriver) Release(volumeName string) error {
-	return ErrNotSupported
+	volumePath := filepath.Join(d.root, volumeName)
+	if !d.networkDisabled {
+		//actual NFS mount
+		if err := unmount(volumePath); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Resize implements volume.Driver.Resize
@@ -262,3 +269,18 @@ func mountImpl(sourceVol, destination string) error {
 }
 
 var mount = mountImpl
+
+func unmountImpl(destination string) error {
+	nfsLock.Lock()
+	defer nfsLock.Unlock()
+	if storageClient, err := storage.GetClient(); err != nil {
+		return err
+	} else {
+		if err = storageClient.Unmount(destination); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var unmount = unmountImpl
