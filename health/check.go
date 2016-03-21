@@ -15,7 +15,6 @@ package health
 
 import (
 	"encoding/json"
-	"errors"
 	"os/exec"
 	"time"
 )
@@ -41,13 +40,10 @@ const (
 	Timeout = "timeout"
 	// NotRunning means the instance is not running
 	NotRunning = "not running"
-	// Unknown means the instance hasn't checked-in within the provided time
+	// Unknown means the instance hasn't checked in within the provided time
 	// limit.
 	Unknown = "unknown"
 )
-
-// ErrTimeout is the error message returned when a health check is not responsive
-var ErrTimeout = errors.New("health check timed out")
 
 // HealthStatus is the output from a provided health check.
 type HealthStatus struct {
@@ -144,9 +140,7 @@ func (hc *HealthCheck) Run() (stat HealthStatus) {
 	cmd.Start()
 	timer := time.NewTimer(hc.GetTimeout())
 	errC := make(chan error)
-	go func() {
-		errC <- cmd.Wait()
-	}()
+	go func() { errC <- cmd.Wait() }()
 	select {
 	case err := <-errC:
 		timer.Stop()
