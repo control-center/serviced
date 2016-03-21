@@ -26,7 +26,7 @@ type MemoryUsageQuery func() ([]MemoryUsageStats, error)
 // MemoryUsageCache is a simple TTL cache for MemoryUsageStats objects
 type MemoryUsageCache struct {
 	sync.Mutex
-	Locks  map[string]sync.Mutex
+	Locks  map[string]*sync.Mutex
 	Usages map[string][]MemoryUsageStats
 	TTL    time.Duration
 	Clock  utils.Clock
@@ -35,16 +35,16 @@ type MemoryUsageCache struct {
 // getkeylock returns a lock specifically for this key
 func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
 	var (
-		lock sync.Mutex
+		lock *sync.Mutex
 		ok   bool
 	)
 	c.Lock()
 	defer c.Unlock()
 	if lock, ok = c.Locks[key]; !ok {
-		lock = sync.Mutex{}
+		lock = &sync.Mutex{}
 		c.Locks[key] = lock
 	}
-	return &lock
+	return lock
 }
 
 // Get retrieves a cached value if one exists; otherwise it calls getter, caches the result, and returns it
@@ -56,6 +56,8 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []Memor
 	defer l.Unlock()
 
 	if val, ok = c.Usages[key]; !ok {
+		c.Lock()
+		defer c.Unlock()
 		if val, err = getter(); err != nil {
 			return
 		}
@@ -73,7 +75,7 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []Memor
 
 func NewMemoryUsageCache(ttl time.Duration) *MemoryUsageCache {
 	return &MemoryUsageCache{
-		Locks:  make(map[string]sync.Mutex),
+		Locks:  make(map[string]*sync.Mutex),
 		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    ttl,
 		Clock:  utils.RealClock,
