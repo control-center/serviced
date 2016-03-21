@@ -66,13 +66,11 @@ func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error 
 
 func UpdateResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
 	var node PoolNode
-	if err := conn.Get(poolpath(pool.ID), &node); err != nil {
-		if err == client.ErrNoNode {
-			node = PoolNode{ResourcePool: pool}
-			return conn.Create(poolpath(pool.ID), &node)
-		} else {
-			return err
-		}
+	if err := conn.Get(poolpath(pool.ID), &node); err == client.ErrNoNode {
+		node = PoolNode{ResourcePool: pool}
+		return conn.Create(poolpath(pool.ID), &node)
+	} else if err != nil && err != client.ErrEmptyNode { // workaround to fix acceptance test
+		return err
 	}
 	node.ResourcePool = pool
 	return conn.Set(poolpath(pool.ID), &node)

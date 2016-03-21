@@ -41,6 +41,7 @@ var (
 	ErrPoolNotExists = errors.New("facade: resource pool does not exist")
 	ErrIPExists      = errors.New("facade: ip exists in resource pool")
 	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
+	ErrDefaultPool   = errors.New("facade: cannot delete default resource pool")
 )
 
 // PoolIPs type for IP resources available in a ResourcePool
@@ -322,6 +323,12 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
+
+	// CC-2024: do not delete the default resource pool
+	if id == "default" {
+		glog.Errorf("Cannot delete default resource pool")
+		return ErrDefaultPool
+	}
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
 		return fmt.Errorf("could not verify hosts in pool %s: %s", id, err)
