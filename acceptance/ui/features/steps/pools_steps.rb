@@ -1,6 +1,6 @@
 Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
-    @pools_page.wait_for_pool_names(Capybara.default_wait_time)
+    @pools_page.wait_for_pool_names(getDefaultWaitTime())
     if @pools_page.pool_names.size < 4
         removeAllPoolsExceptDefault()
         addPoolJson("pool2")
@@ -132,12 +132,11 @@ Then (/^the "(.*)" button should (not )?be disabled$/) do |name, enabled|
 end
 
 def visitPoolsPage()
-    wait = Capybara.default_wait_time
-    Capybara.default_wait_time = 180
+    oldWait = setDefaultWaitTime(180)
     @pools_page = Pools.new
     @pools_page.navbar.resourcePools.click()
     expect(@pools_page).to be_displayed
-    Capybara.default_wait_time = wait
+    setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
     @pools_page.has_no_css?(".loading_wrapper")

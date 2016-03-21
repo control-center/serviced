@@ -7,7 +7,9 @@ if [ "${CAPYBARA_DRIVER}" != "poltergeist" ]; then
     /etc/init.d/xvfb start
 fi
 
+source /usr/local/rvm/scripts/rvm
 CUCUMBER_CMD="cd /capybara; cucumber $*"
+
 #
 # Run cucumber with the default profile (which generates a JSON report) and convert the JSON report to
 # a nice HTML format
