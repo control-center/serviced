@@ -255,10 +255,15 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 
 ## TODOs
 
- * Add example of REST validation using Cucumber.
+ * Add example of REST validation using Cucumber. Here are some helper libraries to consider:
+   * https://github.com/DigitalInnovation/cucumber_rest_api
+   * https://github.com/jayzes/cucumber-api-steps
+   * https://github.com/collectiveidea/json_spec
+ * Add example of CLI validation using Cucumber.
 
 ## Known Issues
 
+ * With upgrade to zenoss/capybara:1.1.0, the --debug option stopped working.
  * Phantomjs does not work. The primary issue is lack of support for the ES 6 `bind()` method which also prevents use of PhantomJS with our unit tests.
  * The tests don't work on Mac OSX for a variety of reasons:
    * The run script makes Linux-specific assumptions about mapping timezone definitions into the container.

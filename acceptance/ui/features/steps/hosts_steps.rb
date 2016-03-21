@@ -1,6 +1,6 @@
 Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
-    @hosts_page.wait_for_host_entries(Capybara.default_wait_time)
+    @hosts_page.wait_for_host_entries(getDefaultWaitTime())
     if @hosts_page.host_entries.size < 5
         removeAllHostsCLI()
         addDefaultHost()
@@ -99,12 +99,11 @@ end
 
 
 def visitHostsPage()
-    wait = Capybara.default_wait_time
-    Capybara.default_wait_time = 180
+    oldWait = setDefaultWaitTime(180)
     @hosts_page = Hosts.new
     @hosts_page.load
     expect(@hosts_page).to be_displayed
-    Capybara.default_wait_time = wait
+    setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
     @hosts_page.has_no_css?(".loading_wrapper")
