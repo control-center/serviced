@@ -169,8 +169,6 @@ func (s *HealthCheckTestSuite) TestNotRunning(c *C) {
 	}
 	stat := check.NotRunning()
 	c.Check(stat.Status, Equals, NotRunning)
-	c.Check(stat.Output, DeepEquals, []byte{})
-	c.Check(stat.Err, IsNil)
 	c.Check(stat.StartedAt.IsZero(), Equals, false)
 	c.Check(stat.Duration, Equals, time.Duration(0))
 }
@@ -185,8 +183,6 @@ func (s *HealthCheckTestSuite) TestUnknown(c *C) {
 	}
 	stat := check.Unknown()
 	c.Check(stat.Status, Equals, Unknown)
-	c.Check(stat.Output, DeepEquals, []byte{})
-	c.Check(stat.Err, IsNil)
 	c.Check(stat.StartedAt.IsZero(), Equals, false)
 	c.Check(stat.Duration, Equals, time.Duration(0))
 }
@@ -201,24 +197,21 @@ func (s *HealthCheckTestSuite) TestRun_Passed(c *C) {
 	}
 	stat := check.Run()
 	c.Check(stat.Status, Equals, OK)
-	c.Check(stat.Output, DeepEquals, []byte("testscript"))
-	c.Check(stat.Err, IsNil)
 	c.Check(stat.Duration > 0, Equals, true)
 }
 
 func (s *HealthCheckTestSuite) TestRun_Timeout(c *C) {
 	// Verify a timed out health check
 	check := HealthCheck{
-		Script:    "sleep 1",
+		Script:    "sleep 5",
 		Timeout:   250 * time.Millisecond,
 		Interval:  time.Second,
 		Tolerance: 0,
 	}
 	stat := check.Run()
 	c.Check(stat.Status, Equals, Timeout)
-	c.Check(stat.Output, DeepEquals, []byte{})
-	c.Check(stat.Err, Equals, ErrTimeout)
 	c.Check(stat.Duration >= check.Timeout, Equals, true)
+	c.Check(stat.Duration < 5*time.Second, Equals, true)
 }
 
 func (s *HealthCheckTestSuite) TestRun_Failed(c *C) {
@@ -231,10 +224,31 @@ func (s *HealthCheckTestSuite) TestRun_Failed(c *C) {
 	}
 	stat := check.Run()
 	c.Check(stat.Status, Equals, Failed)
-	c.Check(stat.Output, DeepEquals, []byte("failure"))
-	c.Check(stat.Err, NotNil)
 	c.Check(stat.Duration > 0, Equals, true)
 }
 
 func (s *HealthCheckTestSuite) TestPing(c *C) {
+	// Verify ping
+	check := HealthCheck{
+		Script:    "echo -n testscript",
+		Timeout:   time.Second,
+		Interval:  500 * time.Millisecond,
+		Tolerance: 0,
+	}
+	cancel := make(chan struct{})
+	startTime := time.Now()
+	interval := 0
+	check.Ping(cancel, func(stat HealthStatus) {
+		switch interval {
+		case 0:
+			c.Check(time.Since(startTime) < check.Interval, Equals, true)
+			startTime = time.Now()
+		case 1:
+			close(cancel)
+			c.Check(time.Since(startTime) >= check.Interval, Equals, true)
+		default:
+			c.Errorf("Ping ran %d times longer than expected", interval-1)
+		}
+		interval++
+	})
 }

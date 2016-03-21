@@ -14,7 +14,6 @@
 package health
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"os/exec"
@@ -53,8 +52,6 @@ var ErrTimeout = errors.New("health check timed out")
 // HealthStatus is the output from a provided health check.
 type HealthStatus struct {
 	Status    string
-	Output    []byte
-	Err       error
 	StartedAt time.Time
 	Duration  time.Duration
 }
@@ -126,7 +123,6 @@ func (hc *HealthCheck) Expires() time.Duration {
 func (hc *HealthCheck) NotRunning() HealthStatus {
 	return HealthStatus{
 		Status:    NotRunning,
-		Output:    []byte{},
 		StartedAt: time.Now(),
 	}
 }
@@ -136,7 +132,6 @@ func (hc *HealthCheck) NotRunning() HealthStatus {
 func (hc *HealthCheck) Unknown() HealthStatus {
 	return HealthStatus{
 		Status:    Unknown,
-		Output:    []byte{},
 		StartedAt: time.Now(),
 	}
 }
@@ -145,44 +140,26 @@ func (hc *HealthCheck) Unknown() HealthStatus {
 // script.
 func (hc *HealthCheck) Run() (stat HealthStatus) {
 	stat.StartedAt = time.Now()
-	buf := &bytes.Buffer{}
 	cmd := exec.Command("sh", "-c", hc.Script)
-	cmd.Stdout = buf
-	cmd.Stderr = buf
 	cmd.Start()
 	timer := time.NewTimer(hc.GetTimeout())
-	cancel := make(chan struct{})
 	errC := make(chan error)
-	// Wait for the command to exit
 	go func() {
-		select {
-		case errC <- cmd.Wait():
-			close(cancel)
-			timer.Stop()
-		case <-cancel:
-		}
+		errC <- cmd.Wait()
 	}()
-	// Wait for the timer to time out
-	go func() {
-		select {
-		case <-timer.C:
-			select {
-			case errC <- ErrTimeout:
-				close(cancel)
-				cmd.Process.Kill()
-			case <-cancel:
-			}
-		case <-cancel:
+	select {
+	case err := <-errC:
+		timer.Stop()
+		if err != nil {
+			stat.Status = Failed
+		} else {
+			stat.Status = OK
 		}
-	}()
-	if stat.Err = <-errC; stat.Err == nil {
-		stat.Status = OK
-	} else if stat.Err == ErrTimeout {
+	case <-timer.C:
+		cmd.Process.Kill()
+		<-errC
 		stat.Status = Timeout
-	} else {
-		stat.Status = Failed
 	}
-	stat.Output = buf.Bytes()
 	stat.Duration = time.Since(stat.StartedAt)
 	return
 }

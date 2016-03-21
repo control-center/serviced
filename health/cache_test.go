@@ -50,8 +50,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Exists(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -71,8 +69,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Update(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -82,8 +78,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Update(c *C) {
 	c.Assert(ok, Equals, true)
 	value = HealthStatus{
 		Status:    "ok1",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -103,8 +97,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Expired(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -129,8 +121,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Delete(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -154,8 +144,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok1",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -170,8 +158,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 	}
 	value = HealthStatus{
 		Status:    "ok2",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -186,8 +172,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 	}
 	value = HealthStatus{
 		Status:    "ok3",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -214,8 +198,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok1",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -230,8 +212,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 	}
 	value = HealthStatus{
 		Status:    "ok2",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -246,8 +226,6 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 	}
 	value = HealthStatus{
 		Status:    "ok3",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -273,8 +251,6 @@ func (s *HealthStatusCacheTestSuite) TestSetPurgeFrequency(c *C) {
 	}
 	value := HealthStatus{
 		Status:    "ok1",
-		Output:    []byte("the status is okay"),
-		Err:       nil,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
