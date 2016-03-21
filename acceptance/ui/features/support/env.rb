@@ -148,7 +148,7 @@ end
 # Register poltergeist (headless driver based on phantomjs)
 Capybara.register_driver :poltergeist do |app|
     options = {
-    	:ignore_ssl_errors => true,
+        :ignore_ssl_errors => true,
         :js_errors => true,
         :debug => false,
         :timeout => 120,
