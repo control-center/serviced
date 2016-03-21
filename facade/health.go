@@ -34,6 +34,11 @@ func (f *Facade) ReportInstanceDead(serviceID string, instanceID int) {
 	f.hcache.DeleteInstance(serviceID, instanceID)
 }
 
+// GetHealthForIsvc returns health checks for a single isvc instance
+func (f *Facade) GetIsvcsHealth(serviceID string) map[string]health.HealthStatus {
+	return f.hcache.GetInstance(serviceID, 0)
+}
+
 // GetServicesHealth returns the status of all services health instances.
 // TODO: adding this so the code will compile, remove when finished
 func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {

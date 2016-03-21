@@ -18,8 +18,7 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/health"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
@@ -132,34 +131,6 @@ func (m *Manager) GetServiceNames() []string {
 	}
 	sort.Strings(names)
 	return names
-}
-
-func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error) {
-	result := dao.IServiceHealthResult{
-		ServiceName:    name,
-		ContainerName:  "",
-		ContainerID:    "",
-		HealthStatuses: make([]domain.HealthCheckStatus, 0),
-	}
-
-	svc, found := m.services[name]
-	if !found {
-		glog.Errorf("Internal service %q not found", name)
-		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
-	}
-
-	if ctr, err := docker.FindContainer(svc.name()); err == nil {
-		result.ContainerID = ctr.ID
-	}
-
-	svc.lock.RLock()
-	defer svc.lock.RUnlock()
-
-	result.ContainerName = svc.name()
-	for _, value := range svc.healthStatuses {
-		result.HealthStatuses = append(result.HealthStatuses, *value)
-	}
-	return result, nil
 }
 
 // checks for the existence of all the container images
@@ -486,6 +457,13 @@ func (m *Manager) Notify(val interface{}) error {
 	}
 	m.requests <- request
 	return <-request.response
+}
+
+// SetHealthReporter reports isvcs health checks
+func (m *Manager) SetHealthReporter(getReport func(string) func(string, health.HealthStatus, time.Duration)) {
+	for _, svc := range m.services {
+		svc.SetHealthReporter(getReport(svc.ID))
+	}
 }
 
 // TearDown() causes the *Manager's loop() to exit

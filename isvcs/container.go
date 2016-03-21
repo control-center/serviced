@@ -17,7 +17,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	dfsdocker "github.com/control-center/serviced/dfs/docker"
-	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/rcrowley/go-metrics"
@@ -141,7 +141,8 @@ type IService struct {
 	exited      <-chan int
 
 	lock           *sync.RWMutex
-	healthStatuses map[string]*domain.HealthCheckStatus
+	healthStatuses map[string]health.HealthStatus
+	report         func(name string, status health.HealthStatus, expires time.Duration)
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -171,25 +172,19 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	}
 
 	if len(svc.HealthChecks) > 0 {
-		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
-		for name, healthCheckDefinition := range svc.HealthChecks {
-			svc.healthStatuses[name] = &domain.HealthCheckStatus{
-				Name:      name,
-				Status:    "unknown",
-				Interval:  healthCheckDefinition.Interval.Seconds(),
-				Timestamp: 0,
-				StartedAt: 0,
+		svc.healthStatuses = make(map[string]health.HealthStatus, len(svc.HealthChecks))
+		for name := range svc.HealthChecks {
+			svc.healthStatuses[name] = health.HealthStatus{
+				Status:    health.Unknown,
+				StartedAt: time.Now(),
 			}
 		}
 	} else {
 		name := DEFAULT_HEALTHCHECK_NAME
-		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, 1)
-		svc.healthStatuses[name] = &domain.HealthCheckStatus{
-			Name:      name,
-			Status:    "unknown",
-			Interval:  3.156e9,
-			Timestamp: 0,
-			StartedAt: 0,
+		svc.healthStatuses = make(map[string]health.HealthStatus, 1)
+		svc.healthStatuses[name] = health.HealthStatus{
+			Status:    health.Unknown,
+			StartedAt: time.Now(),
 		}
 	}
 
@@ -248,6 +243,12 @@ func (svc *IService) Exec(command []string) ([]byte, error) {
 	}
 	os.Stdout.Write(output)
 	return output, nil
+}
+
+func (svc *IService) SetHealthReporter(report func(string, health.HealthStatus, time.Duration)) {
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+	svc.report = report
 }
 
 func (svc *IService) getResourcePath(p string) string {
@@ -413,7 +414,7 @@ func (svc *IService) attach() (*docker.Container, error) {
 func (svc *IService) start() (<-chan int, error) {
 	ctr, err := svc.attach()
 	if err != nil {
-		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
+		svc.setStoppedHealthStatus(time.Minute)
 		return nil, err
 	}
 
@@ -423,7 +424,7 @@ func (svc *IService) start() (<-chan int, error) {
 
 	// start the container
 	if err := ctr.Start(); err != nil && err != docker.ErrAlreadyStarted {
-		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
+		svc.setStoppedHealthStatus(time.Minute)
 		return nil, err
 	}
 
@@ -438,7 +439,7 @@ func (svc *IService) start() (<-chan int, error) {
 		svc.startTime = time.Now()
 	case rc := <-notify:
 		glog.Errorf("isvc %s exited on startup, rc=%d", svc.Name, rc)
-		svc.setStoppedHealthStatus(ExitError(rc))
+		svc.setStoppedHealthStatus(time.Minute)
 		return nil, ExitError(rc)
 	}
 
@@ -448,17 +449,17 @@ func (svc *IService) start() (<-chan int, error) {
 func (svc *IService) stop() error {
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
-		svc.setStoppedHealthStatus(nil)
+		svc.setStoppedHealthStatus(time.Minute)
 		return nil
 	} else if err != nil {
 		glog.Errorf("Could not get isvc container %s", svc.Name)
-		svc.setStoppedHealthStatus(err)
+		svc.setStoppedHealthStatus(time.Minute)
 		return err
 	}
 
 	glog.Warningf("Stopping isvc container %s", svc.name())
 	err = ctr.Stop(45 * time.Second)
-	svc.setStoppedHealthStatus(err)
+	svc.setStoppedHealthStatus(time.Minute)
 	return err
 }
 
@@ -527,7 +528,7 @@ func (svc *IService) run() {
 				}
 
 				if rc := <-svc.exited; rc != 0 {
-					svc.setStoppedHealthStatus(ExitError(rc))
+					svc.setStoppedHealthStatus(time.Minute)
 					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
 				}
 				svc.setExitedChannel(nil)
@@ -594,7 +595,7 @@ func (svc *IService) run() {
 				req.response <- nil
 			}
 		case rc := <-svc.exited:
-			svc.setStoppedHealthStatus(ExitError(rc))
+			svc.setStoppedHealthStatus(time.Minute)
 			glog.Errorf("isvc %s exited unexpectedly; rc=%d", svc.Name, rc)
 
 			stopService := svc.isFlapping()
@@ -708,9 +709,8 @@ func (svc *IService) startupHealthcheck() <-chan error {
 
 			startCheck := time.Now()
 			for {
-				currentTime := time.Now()
-				result = svc.runCheckOrTimeout(checkDefinition)
-				svc.setHealthStatus(result, currentTime.Unix())
+				status, expires, result := svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(status, expires)
 				elapsed := time.Since(startCheck)
 				if result == nil {
 					glog.Infof("Verified health status of %s after %s", svc.Name, elapsed)
@@ -726,31 +726,40 @@ func (svc *IService) startupHealthcheck() <-chan error {
 			}
 			err <- result
 		} else {
-			svc.setHealthStatus(nil, time.Now().Unix())
+			status := health.HealthStatus{Status: health.OK, StartedAt: time.Now()}
+			// FIXME: health status does not expire
+			svc.setHealthStatus(status, 24*365*100*time.Hour)
 			err <- nil
 		}
 	}()
 	return err
 }
 
-func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
+func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) (status health.HealthStatus, expires time.Duration, err error) {
 	finished := make(chan error, 1)
-	halt := make(chan struct{}, 1)
-
+	halt := make(chan struct{})
+	status.StartedAt = time.Now()
 	go func() {
 		finished <- checkDefinition.healthCheck(halt)
 	}()
-
-	var result error
+	timer := time.NewTimer(checkDefinition.Timeout)
 	select {
-	case err := <-finished:
-		result = err
-	case <-time.After(checkDefinition.Timeout):
-		glog.Errorf("healthcheck timed out for %s", svc.Name)
-		result = fmt.Errorf("healthcheck timed out")
-		halt <- struct{}{}
+	case err = <-finished:
+		timer.Stop()
+		if err != nil {
+			status.Status = health.Failed
+		} else {
+			status.Status = health.OK
+		}
+	case <-timer.C:
+		close(halt)
+		<-finished
+		err = errors.New("healthcheck timed out")
+		status.Status = health.Timeout
 	}
-	return result
+	status.Duration = time.Since(status.StartedAt)
+	expires = 2 * (checkDefinition.Timeout + checkDefinition.Interval)
+	return
 }
 
 func (svc *IService) doHealthChecks(halt <-chan struct{}) {
@@ -773,9 +782,9 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			glog.Infof("Stopped healthchecks for %s", svc.Name)
 			return
 
-		case currentTime := <-timer:
-			err := svc.runCheckOrTimeout(checkDefinition)
-			svc.setHealthStatus(err, currentTime.Unix())
+		case <-timer:
+			status, expires, err := svc.runCheckOrTimeout(checkDefinition)
+			svc.setHealthStatus(status, expires)
 			if err != nil {
 				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.Name, err)
 			}
@@ -783,35 +792,24 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	}
 }
 
-func (svc *IService) setHealthStatus(result error, currentTime int64) {
+func (svc *IService) setHealthStatus(status health.HealthStatus, expires time.Duration) {
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
 
 	svc.lock.Lock()
 	defer svc.lock.Unlock()
-
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
-		if result == nil {
-			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
-				glog.Infof("Health status for %s returned to 'passed'", svc.Name)
-			}
-			healthStatus.Status = "passed"
-			healthStatus.Failure = ""
-		} else {
-			healthStatus.Status = "failed"
-			healthStatus.Failure = result.Error()
-		}
-		healthStatus.Timestamp = currentTime
-		if healthStatus.StartedAt == 0 {
-			healthStatus.StartedAt = currentTime
+	if _, ok := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; ok {
+		svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME] = status
+		if svc.report != nil {
+			svc.report(DEFAULT_HEALTHCHECK_NAME, status, expires)
 		}
 	} else {
 		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
 	}
 }
 
-func (svc *IService) setStoppedHealthStatus(stopResult error) {
+func (svc *IService) setStoppedHealthStatus(expires time.Duration) {
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
@@ -819,15 +817,15 @@ func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	svc.lock.Lock()
 	defer svc.lock.Unlock()
 
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
-		healthStatus.Status = "stopped"
-		if stopResult == nil {
-			healthStatus.Failure = ""
-		} else {
-			healthStatus.Failure = stopResult.Error()
+	if _, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		status := health.HealthStatus{
+			Status:    health.NotRunning,
+			StartedAt: time.Now(),
 		}
-		healthStatus.Timestamp = time.Now().Unix()
-		healthStatus.StartedAt = 0
+		svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME] = status
+		if svc.report != nil {
+			svc.report(DEFAULT_HEALTHCHECK_NAME, status, expires)
+		}
 	} else {
 		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
 	}
@@ -1002,4 +1000,3 @@ func findContainerMount(dctr *dockerclient.Container, dest string) *dockerclient
 	}
 	return nil
 }
-

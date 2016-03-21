@@ -111,6 +111,49 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Expired(c *C) {
 	c.Assert(ok, Equals, false)
 }
 
+func (s *HealthStatusCacheTestSuite) TestGetInstance(c *C) {
+	// Get all health checks for an instance that have not expired
+	cache := New()
+	key := HealthStatusKey{
+		ServiceID:       "test-service",
+		InstanceID:      0,
+		HealthCheckName: "test-health-0",
+	}
+	value := HealthStatus{
+		Status:    "ok0",
+		StartedAt: time.Now().Add(-5 * time.Minute),
+		Duration:  30 * time.Second,
+	}
+	cache.Set(key, value, 0)
+	key = HealthStatusKey{
+		ServiceID:       "test-service",
+		InstanceID:      1,
+		HealthCheckName: "test-health-0",
+	}
+	value = HealthStatus{
+		Status:    "ok1",
+		StartedAt: time.Now().Add(-5 * time.Minute),
+		Duration:  30 * time.Second,
+	}
+	cache.Set(key, value, time.Minute)
+	key = HealthStatusKey{
+		ServiceID:       "test-service",
+		InstanceID:      0,
+		HealthCheckName: "test-health-0",
+	}
+	value = HealthStatus{
+		Status:    "ok1",
+		StartedAt: time.Now().Add(-5 * time.Minute),
+		Duration:  30 * time.Second,
+	}
+	cache.Set(key, value, time.Minute)
+	expected := map[string]HealthStatus{
+		key.HealthCheckName: value,
+	}
+	actual := cache.GetInstance("test-service", 0)
+	c.Assert(actual, DeepEquals, expected)
+}
+
 func (s *HealthStatusCacheTestSuite) TestCRUD_Delete(c *C) {
 	// Delete an item from the cache
 	cache := New()

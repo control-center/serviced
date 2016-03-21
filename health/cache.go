@@ -101,6 +101,23 @@ func (cache *HealthStatusCache) Get(key HealthStatusKey) (HealthStatus, bool) {
 	return item.Value(), ok
 }
 
+// GetInstance returns all health checks for a given service and instance.
+func (cache *HealthStatusCache) GetInstance(serviceID string, instanceID int) map[string]HealthStatus {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	stats := make(map[string]HealthStatus)
+	for key, item := range cache.data {
+		if key.ServiceID == serviceID && key.InstanceID == instanceID {
+			if item.Expired() {
+				cache.delete(key)
+			} else {
+				stats[key.HealthCheckName] = item.Value()
+			}
+		}
+	}
+	return stats
+}
+
 // get is non thread-safe
 func (cache *HealthStatusCache) get(key HealthStatusKey) (item HealthStatusItem, ok bool) {
 	if item, ok = cache.data[key]; ok {
