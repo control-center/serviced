@@ -84,21 +84,6 @@ Feature: Host Management
       And I should see "The port number must be between 1 and 65535"
       And I should see an empty Hosts page
 
-      # This is an invalid test case.  The dropdown field for pools only
-      # displays values for existing pools
-      #  Scenario: Add an invalid host with an invalid Resource Pool field
-      #    Given there are no hosts added
-      #      And I remove all resource pools
-      #    When I am on the hosts page
-      #      And I click the add Host button
-      #      And I fill in the Host field with "table://hosts/defaultHost/hostName"
-      #      And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
-      #      And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      #      And I click "Add Host"
-      #    Then I should see "Error"
-      #      And I should see "Internal Server Error: error verifying pool exists: empty Kind id"
-      #      And I should see an empty Hosts page
-
   Scenario: Add an invalid host with an invalid RAM Limit field
     Given there are no hosts added
     When I am on the hosts page
