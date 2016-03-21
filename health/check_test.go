@@ -14,15 +14,135 @@
 package health_test
 
 import (
+	"encoding/json"
 	"time"
 
 	. "github.com/control-center/serviced/health"
 	. "gopkg.in/check.v1"
 )
 
+type jsonhealthcheck struct {
+	Script    string
+	Timeout   float64
+	Interval  float64
+	Tolerance int
+}
+
 var _ = Suite(&HealthCheckTestSuite{})
 
 type HealthCheckTestSuite struct{}
+
+func (s *HealthCheckTestSuite) TestMarshalJSON(c *C) {
+	// Verify the marshaller
+	check := HealthCheck{
+		Script:    "echo testscript",
+		Timeout:   time.Minute,
+		Interval:  2 * time.Second,
+		Tolerance: 5,
+	}
+	data, err := json.Marshal(&check)
+	c.Assert(err, IsNil)
+
+	expected := jsonhealthcheck{
+		Script:    check.Script,
+		Timeout:   60,
+		Interval:  2,
+		Tolerance: 5,
+	}
+	var actual jsonhealthcheck
+	err = json.Unmarshal(data, &actual)
+	c.Assert(err, IsNil)
+	c.Check(actual, DeepEquals, expected)
+}
+
+func (s *HealthCheckTestSuite) TestMarshalJSON_Map(c *C) {
+	// Verify the marshaller works given a map of HealthCheck data
+	checkMap := map[string]HealthCheck{
+		"testscript": {
+			Script:    "echo testscript",
+			Timeout:   time.Minute,
+			Interval:  2 * time.Second,
+			Tolerance: 5,
+		},
+	}
+	data, err := json.Marshal(&checkMap)
+	c.Assert(err, IsNil)
+	expected := map[string]jsonhealthcheck{
+		"testscript": {
+			Script:    "echo testscript",
+			Timeout:   60,
+			Interval:  2,
+			Tolerance: 5,
+		},
+	}
+	actual := make(map[string]jsonhealthcheck)
+	err = json.Unmarshal(data, &actual)
+	c.Assert(err, IsNil)
+	c.Check(actual, DeepEquals, expected)
+}
+
+func (s *HealthCheckTestSuite) TestUnmarshalJSON(c *C) {
+	// Verify the unmarshaller
+	jhc := jsonhealthcheck{
+		Script:    "echo testscript",
+		Timeout:   60,
+		Interval:  2,
+		Tolerance: 5,
+	}
+	bytes, err := json.Marshal(jhc)
+	c.Assert(err, IsNil)
+
+	expected := HealthCheck{
+		Script:    "echo testscript",
+		Timeout:   time.Minute,
+		Interval:  2 * time.Second,
+		Tolerance: 5,
+	}
+	var actual HealthCheck
+	err = json.Unmarshal(bytes, &actual)
+	c.Assert(err, IsNil)
+	c.Assert(actual, DeepEquals, expected)
+}
+
+func (s *HealthCheckTestSuite) TestUnmarshalJSON_Map(c *C) {
+	// Verify the unmarshaller works given a map of HealthCheck data
+	jhcMap := map[string]jsonhealthcheck{
+		"testscript": {
+			Script:    "echo testscript",
+			Timeout:   60,
+			Interval:  2,
+			Tolerance: 5,
+		},
+	}
+	bytes, err := json.Marshal(jhcMap)
+	c.Assert(err, IsNil)
+
+	expected := map[string]HealthCheck{
+		"testscript": {
+			Script:    "echo testscript",
+			Timeout:   time.Minute,
+			Interval:  2 * time.Second,
+			Tolerance: 5,
+		},
+	}
+	actual := make(map[string]HealthCheck)
+	err = json.Unmarshal(bytes, &actual)
+	c.Assert(err, IsNil)
+	c.Assert(actual, DeepEquals, expected)
+}
+
+func (s *HealthCheckTestSuite) TestGetTimeout(c *C) {
+	// Verify the healthcheck timeout
+	check := HealthCheck{
+		Script:    "echo testscript",
+		Timeout:   0,
+		Interval:  2 * time.Second,
+		Tolerance: 0,
+	}
+	c.Check(check.GetTimeout(), Equals, DefaultTimeout)
+	check.Timeout = 15 * time.Second
+	c.Check(check.GetTimeout(), Equals, check.Timeout)
+}
 
 func (s *HealthCheckTestSuite) TestExpires(c *C) {
 	// Verify the expiration duration
@@ -114,4 +234,7 @@ func (s *HealthCheckTestSuite) TestRun_Failed(c *C) {
 	c.Check(stat.Output, DeepEquals, []byte("failure"))
 	c.Check(stat.Err, NotNil)
 	c.Check(stat.Duration > 0, Equals, true)
+}
+
+func (s *HealthCheckTestSuite) TestPing(c *C) {
 }

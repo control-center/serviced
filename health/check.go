@@ -21,9 +21,13 @@ import (
 	"time"
 )
 
-// DefaultTolerance is the default tolerance value in determining
-// non-responsive health checks.
+// DefaultTolerance is the default coefficient used to determine when a health
+// check is expired
 const DefaultTolerance int = 2
+
+// DefaultTimeout is the default timeout setting used to determine when a
+// health check is non-responsive
+const DefaultTimeout time.Duration = 30 * time.Second
 
 // DefaultExpiration is the default expiration for deprecated health status
 // updates.
@@ -64,7 +68,7 @@ type HealthCheck struct {
 }
 
 // MarshalJSON implements json.Marshaller
-func (hc *HealthCheck) MarshalJSON() ([]byte, error) {
+func (hc HealthCheck) MarshalJSON() ([]byte, error) {
 	jhc := struct {
 		Script    string
 		Timeout   float64
@@ -99,13 +103,22 @@ func (hc *HealthCheck) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// GetTimeout returns the timeout duration.
+func (hc *HealthCheck) GetTimeout() time.Duration {
+	timeout := hc.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	return timeout
+}
+
 // Expires calculates the time to live on the cache item.
 func (hc *HealthCheck) Expires() time.Duration {
 	tolerance := hc.Tolerance
 	if tolerance <= 0 {
 		tolerance = DefaultTolerance
 	}
-	return time.Duration(tolerance) * (hc.Timeout + hc.Interval)
+	return time.Duration(tolerance) * (hc.GetTimeout() + hc.Interval)
 }
 
 // NotRunning returns the health status for a service instance that is not
@@ -137,16 +150,30 @@ func (hc *HealthCheck) Run() (stat HealthStatus) {
 	cmd.Stdout = buf
 	cmd.Stderr = buf
 	cmd.Start()
-	timer := time.NewTimer(hc.Timeout)
-	errC := make(chan error, 1)
+	timer := time.NewTimer(hc.GetTimeout())
+	cancel := make(chan struct{})
+	errC := make(chan error)
+	// Wait for the command to exit
 	go func() {
-		defer timer.Stop()
-		errC <- cmd.Wait()
+		select {
+		case errC <- cmd.Wait():
+			close(cancel)
+			timer.Stop()
+		case <-cancel:
+		}
 	}()
+	// Wait for the timer to time out
 	go func() {
-		defer cmd.Process.Kill()
-		<-timer.C
-		errC <- ErrTimeout
+		select {
+		case <-timer.C:
+			select {
+			case errC <- ErrTimeout:
+				close(cancel)
+				cmd.Process.Kill()
+			case <-cancel:
+			}
+		case <-cancel:
+		}
 	}()
 	if stat.Err = <-errC; stat.Err == nil {
 		stat.Status = OK
@@ -158,4 +185,20 @@ func (hc *HealthCheck) Run() (stat HealthStatus) {
 	stat.Output = buf.Bytes()
 	stat.Duration = time.Since(stat.StartedAt)
 	return
+}
+
+// Ping performs the health check on the specified interval.
+func (hc *HealthCheck) Ping(cancel <-chan struct{}, report func(HealthStatus)) {
+	timer := time.NewTimer(0)
+	defer timer.Stop()
+	for {
+		select {
+		case <-timer.C:
+			stat := hc.Run()
+			timer.Reset(hc.Interval)
+			report(stat)
+		case <-cancel:
+			return
+		}
+	}
 }
