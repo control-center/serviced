@@ -925,7 +925,6 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 }
 
 func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	fmt.Printf("writing uiConfig %v", uiConfig)
 	w.WriteJson(uiConfig)
 }
 
