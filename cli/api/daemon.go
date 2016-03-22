@@ -812,7 +812,7 @@ func initMetricsClient() *metrics.Client {
 	client, err := metrics.NewClient(addr)
 	if err != nil {
 		glog.Errorf("Unable to initiate metrics client to %s", addr)
-		return nil, err
+		return nil
 	}
 	return client
 }

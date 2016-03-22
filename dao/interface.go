@@ -130,16 +130,16 @@ type ControlPlane interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	// Add a new service
-	AddService(service service.Service, serviceId *string) error
+	AddService(svc service.Service, serviceId *string) error
 
 	// Clones a new service
 	CloneService(request ServiceCloneRequest, serviceId *string) error
 
 	// Deploy a new service
-	DeployService(service ServiceDeploymentRequest, serviceId *string) error
+	DeployService(svc ServiceDeploymentRequest, serviceId *string) error
 
 	// Update an existing service
-	UpdateService(service service.Service, unused *int) error
+	UpdateService(svc service.Service, unused *int) error
 
 	// Migrate a service definition
 	MigrateServices(request ServiceMigrationRequest, unused *int) error
@@ -148,19 +148,19 @@ type ControlPlane interface {
 	RemoveService(serviceId string, unused *int) error
 
 	// Get a service from serviced
-	GetService(serviceId string, service *service.Service) error
+	GetService(serviceId string, svc *service.Service) error
 
 	// Get a list of services from serviced
 	GetServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find a child service with the given name
-	FindChildService(request FindChildRequest, service *service.Service) error
+	FindChildService(request FindChildRequest, svc *service.Service) error
 
 	// Get services with the given tag(s)
 	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Assign IP addresses to all services at and below the provided service
-	AssignIPs(assignmentRequest AssignmentRequest, _ *int) (err error)
+	AssignIPs(assignmentRequest AssignmentRequest, unused *int) (err error)
 
 	// Get the IP addresses assigned to an service
 	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
@@ -181,7 +181,7 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Wait for a particular service state
-	WaitService(request WaitServiceRequest, _ *int) error
+	WaitService(request WaitServiceRequest, unused *int) error
 
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
@@ -244,10 +244,10 @@ type ControlPlane interface {
 	// Service CRUD
 
 	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, user *user.User) error
+	GetSystemUser(unused int, usr *user.User) error
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(user user.User, result *bool) error
+	ValidateCredentials(usr user.User, result *bool) error
 
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
@@ -277,13 +277,13 @@ type ControlPlane interface {
 	AsyncBackup(dirpath string, filename *string) (err error)
 
 	// Restore reverts the full application stack from a backup file
-	Restore(filename string, _ *int) (err error)
+	Restore(filename string, unused *int) (err error)
 
 	// AsyncRestore is the same as restore but asynchronous
-	AsyncRestore(filename string, _ *int) (err error)
+	AsyncRestore(filename string, unused *int) (err error)
 
 	// Adds 1 or more tags to an existing snapshot
-	TagSnapshot(request TagSnapshotRequest, _ *int) error
+	TagSnapshot(request TagSnapshotRequest, unused *int) error
 
 	// Removes a specific tag from an existing snapshot
 	RemoveSnapshotTag(request SnapshotByTagRequest, snapshotID *string) error
@@ -295,31 +295,31 @@ type ControlPlane interface {
 	ListBackups(dirpath string, files *[]BackupFile) (err error)
 
 	// BackupStatus returns the current status of a running backup or restore
-	BackupStatus(_ EntityRequest, status *string) (err error)
+	BackupStatus(unused EntityRequest, status *string) (err error)
 
 	// Snapshot captures the state of a single application
 	Snapshot(req SnapshotRequest, snapshotID *string) (err error)
 
 	// Rollback reverts a single application to the state of a snapshot
-	Rollback(req RollbackRequest, _ *int) (err error)
+	Rollback(req RollbackRequest, unused *int) (err error)
 
 	// DeleteSnapshot deletes a single snapshot
-	DeleteSnapshot(snapshotID string, _ *int) (err error)
+	DeleteSnapshot(snapshotID string, unused *int) (err error)
 
 	// DeleteSnapshots deletes all snapshots for a service
-	DeleteSnapshots(serviceID string, _ *int) (err error)
+	DeleteSnapshots(serviceID string, unused *int) (err error)
 
 	// ListSnapshots returns a list of all snapshots for a service
 	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) (err error)
 
 	// ResetRegistry prompts all images to be re-pushed into the docker
 	// registry.
-	ResetRegistry(_ EntityRequest, _ *int) (err error)
+	ResetRegistry(unused EntityRequest, unused_ *int) (err error)
 
 	// RepairRegistry will try to recover the latest image of all service
 	// images from the docker registry and save it to the index.
-	RepairRegistry(_ EntityRequest, _ *int) (err error)
+	RepairRegistry(unused EntityRequest, unused_ *int) (err error)
 
 	// ReadyDFS waits for the DFS to be idle when creating a service shell.
-	ReadyDFS(serviceID string, _ *int) (err error)
+	ReadyDFS(serviceID string, unused *int) (err error)
 }

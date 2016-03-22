@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
@@ -43,7 +44,7 @@ type ConciseServiceStatus struct {
 	RAMMax          int64
 	RAMLast         int64
 	RAMAverage      int64
-	HealthChecks    map[string]health.HealthCheckStatus
+	HealthChecks    map[string]health.HealthStatus
 }
 
 func memoryKey(serviceID, instanceID string) string {
@@ -95,8 +96,8 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	// Look up health check statuses
 	healthChecks := make(map[string]map[string]health.HealthStatus)
 	if len(instances) > 0 {
-		results := &map[string]map[int]map[string]health.HealthStatus{}
-		if err := client.GetServicesHealth(&empty, &results); err != nil {
+		results := make(map[string]map[int]map[string]health.HealthStatus)
+		if err := client.GetServicesHealth(0, &results); err != nil {
 			glog.Errorf("Unable to look up health check results (%s)", err)
 		}
 		for svcid, insts := range results {
