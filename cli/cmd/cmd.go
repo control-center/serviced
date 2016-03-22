@@ -107,6 +107,8 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"log-driver", defaultOps.DockerLogDriver, "log driver for docker containers"},
 		cli.StringSliceFlag{"log-config", convertToStringSlice(defaultOps.DockerLogConfigList), "comma-separated list of key=value settings for docker log driver"},
 
+		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in ms that the UI polls serviced for changes"},
+
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
@@ -244,6 +246,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		DockerLogDriver:      ctx.GlobalString("log-driver"),
 		DockerLogConfigList:  ctx.GlobalStringSlice("log-config"),
 		AllowLoopBack:        ctx.GlobalString("allow-loop-back"),
+		UIPollFrequency:      ctx.GlobalInt("ui-poll-frequency"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs

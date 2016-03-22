@@ -39,6 +39,12 @@ import (
 	"github.com/zenoss/go-json-rest"
 )
 
+// UIConfig contains configuration values
+// that the UI may care about
+type UIConfig struct {
+	PollFrequency int
+}
+
 // ServiceConfig is the ui/rest handler for control center
 type ServiceConfig struct {
 	bindPort    string
@@ -50,12 +56,20 @@ type ServiceConfig struct {
 	certPEMFile string
 	keyPEMFile  string
 	localAddrs  map[string]struct{}
+	uiConfig    UIConfig
 }
 
 var defaultHostAlias string
+var uiConfig UIConfig
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string, certPEMFile string, keyPEMFile string) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int,
+	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int) *ServiceConfig {
+
+	uiCfg := UIConfig{
+		PollFrequency: pollFrequency,
+	}
+
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
@@ -65,6 +79,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		muxPort:     muxPort,
 		certPEMFile: certPEMFile,
 		keyPEMFile:  keyPEMFile,
+		uiConfig:    uiCfg,
 	}
 
 	hostAddrs, err := utils.GetIPv4Addresses()
@@ -164,6 +179,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	}
 
 	defaultHostAlias = sc.hostaliases[0]
+	uiConfig = sc.uiConfig
 
 	r.HandleFunc("/", httphandler)
 	r.HandleFunc("/{path:.*}", httphandler)
