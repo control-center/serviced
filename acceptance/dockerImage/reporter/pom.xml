@@ -26,7 +26,7 @@
         <dependency>
             <groupId>net.masterthought</groupId>
             <artifactId>cucumber-reporting</artifactId>
-            <version>0.0.24</version>
+            <version>1.4.0</version>
         </dependency>
     </dependencies>
 

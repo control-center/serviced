@@ -34,12 +34,11 @@ And (/^I close the deploy wizard if present$/) do
 end
 
 def visitLoginPage()
-    wait = Capybara.default_wait_time
-    Capybara.default_wait_time = 180
+    oldWait = setDefaultWaitTime(180)
     @login_page = Login.new
     @login_page.load
     expect(@login_page).to be_displayed
-    Capybara.default_wait_time = wait
+    setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
     @login_page.has_no_css?(".loading_wrapper")

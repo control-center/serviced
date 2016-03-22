@@ -270,7 +270,7 @@ def removeAllEntries(category)
 end
 
 def refreshPage()
-    page.driver.browser.navigate.refresh
+    visit page.driver.browser.current_url
 end
 
 def getTableValue(valueOrTableUrl)
@@ -326,4 +326,14 @@ end
 def verifyCLIExitSuccess(processStatus, output)
     errorMsg = "CLI return code %d is not 0. Command Output=%s" % [processStatus.exitstatus, output]
     expect(processStatus.exitstatus).to eq(0), errorMsg
+end
+
+def getDefaultWaitTime()
+    return Capybara.default_max_wait_time
+end
+
+def setDefaultWaitTime(newWait)
+    oldWait = Capybara.default_max_wait_time
+    Capybara.default_max_wait_time = newWait
+    return oldWait
 end
