@@ -1828,16 +1828,8 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	return svcs, nil
 }
 
-func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...dao.RunningService) ([]metrics.MemoryUsageStats, error) {
-	// Convert our dao.RunningServices into the structure the metrics API wants
-	svcInstances := make([]metrics.ServiceInstance, len(instances))
-	for i, inst := range instances {
-		svcInstances[i] = metrics.ServiceInstance{
-			inst.ServiceID,
-			inst.InstanceID,
-		}
-	}
-	return f.metricsClient.GetInstanceMemoryStats(startTime, svcInstances...)
+func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
+	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
 }
 
 func lookUpTenant(svcID string) (string, bool) {
