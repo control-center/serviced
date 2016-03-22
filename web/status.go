@@ -48,7 +48,7 @@ type ConciseServiceStatus struct {
 }
 
 func memoryKey(serviceID, instanceID string) string {
-	return fmt.Sprintf("%s-%d", serviceID, instanceID)
+	return fmt.Sprintf("%s-%s", serviceID, instanceID)
 }
 
 // convertInstancesToMetric converts dao.RunningServices into the structure the
@@ -142,5 +142,5 @@ func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, client
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
 	}
-	fmt.Println(statuses)
+	w.WriteJson(statuses)
 }
