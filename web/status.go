@@ -43,7 +43,7 @@ type ConciseServiceStatus struct {
 	RAMMax          int64
 	RAMLast         int64
 	RAMAverage      int64
-	HealthChecks    []health.HealthCheckStatus
+	HealthChecks    map[string]health.HealthCheckStatus
 }
 
 func memoryKey(serviceID, instanceID string) string {
@@ -93,6 +93,18 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	}
 
 	// Look up health check statuses
+	healthChecks := make(map[string]map[string]health.HealthStatus)
+	if len(instances) > 0 {
+		results := &map[string]map[int]map[string]health.HealthStatus{}
+		if err := client.GetServicesHealth(&empty, &results); err != nil {
+			glog.Errorf("Unable to look up health check results (%s)", err)
+		}
+		for svcid, insts := range results {
+			for instid, checks := range insts {
+				healthChecks[memoryKey(svcid, string(instid))] = checks
+			}
+		}
+	}
 
 	// Create the concise service statuses
 	for _, instance := range instances {
@@ -109,10 +121,14 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			ServiceID:       instance.ServiceID,
 			StartedAt:       instance.StartedAt,
 		}
-		if mem, ok := memoryStats[memoryKey(instance.ServiceID, string(instance.InstanceID))]; ok {
+		key := memoryKey(instance.ServiceID, string(instance.InstanceID))
+		if mem, ok := memoryStats[key]; ok {
 			stat.RAMMax = mem.Max
 			stat.RAMLast = mem.Last
 			stat.RAMAverage = mem.Average
+		}
+		if hc, ok := healthChecks[key]; ok {
+			stat.HealthChecks = hc
 		}
 		statuses = append(statuses, stat)
 	}
