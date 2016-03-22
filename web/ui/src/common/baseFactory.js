@@ -2,7 +2,7 @@
  * baseFactory.js
  * baseFactory constructs a factory object that can be used
  * to keep the UI in sync with the backend. The returned factory
- * will use the provided update function (which should return a 
+ * will use the provided update function (which should return a
  * promise good for an map of id to object), create new objects using
  * the provided ObjConstructor, and cache those objects.
  *
@@ -17,18 +17,29 @@
 (function() {
     'use strict';
 
-    // TODO - make update frequency configurable
-    var UPDATE_FREQUENCY = 3000;
+    const DEFAULT_UPDATE_FREQUENCY = 3000;
+    var updateFrequency = DEFAULT_UPDATE_FREQUENCY;
 
     var $q, $interval, $rootScope;
 
     angular.module('baseFactory', []).
-    factory("baseFactory", ["$q", "$interval", "$rootScope",
-    function(_$q, _$interval, _$rootScope){
+    factory("baseFactory", ["$q", "$interval", "$rootScope", "servicedConfig",
+    function(_$q, _$interval, _$rootScope, servicedConfig){
 
         $q = _$q;
         $interval = _$interval;
         $rootScope = _$rootScope;
+
+        servicedConfig.getConfig()
+            .then(config => {
+                updateFrequency = config.PollFrequency;
+            }).catch(err => {
+                let errMessage = err.statusText;
+                if(err.data && err.data.Detail){
+                    errMessage = err.data.Detail;
+                }
+                console.error("could not load serviced config:", errMessage);
+            });
 
         return BaseFactory;
     }]);
@@ -110,7 +121,7 @@
         // begins auto-update
         activate: function(){
             if(!this.updatePromise){
-                this.updatePromise = $interval(() => this.update(), UPDATE_FREQUENCY);
+                this.updatePromise = $interval(() => this.update(), updateFrequency);
             }
         },
 

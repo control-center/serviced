@@ -254,6 +254,10 @@
             getHostAlias: {
                 method: "GET",
                 url: "/hosts/defaultHostAlias"
+            },
+            getUIConfig: {
+                method: "GET",
+                url: "/config"
             }
         };
 
