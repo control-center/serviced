@@ -80,6 +80,7 @@ type HostAgent struct {
 	hostID               string               // the hostID of the current host
 	dockerDNS            []string             // docker dns addresses
 	storage              volume.Driver        // driver supporting the application data
+	storageTenants       []string             // tenants we have mounted
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
@@ -767,6 +768,8 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 	if err != nil {
 		return "", fmt.Errorf("could not get subvolume %s: %s", tenantID, err)
 	}
+	a.addStorageTenant(tenantID)
+
 	resourcePath := filepath.Join(vol.Path(), volume.ResourcePath)
 	if err = os.MkdirAll(resourcePath, 0770); err != nil && !os.IsExist(err) {
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
@@ -798,6 +801,11 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 // main loop of the HostAgent
 func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	glog.Info("Starting HostAgent")
+
+	// CC-1991: Unmount NFS on agent shutdown
+	if a.storage.DriverType() == volume.DriverTypeNFS {
+		defer a.releaseStorageTenants()
+	}
 
 	var wg sync.WaitGroup
 	defer func() {
@@ -951,6 +959,25 @@ func (a *HostAgent) VirtualInterfaceMap(prefix string) (map[string]*pool.Virtual
 	}
 
 	return interfaceMap, nil
+}
+
+// addStorageTenant remembers a storage tenant we have used
+func (a *HostAgent) addStorageTenant(tenantID string) {
+	for _, tid := range a.storageTenants {
+		if tid == tenantID {
+			return
+		}
+	}
+	a.storageTenants = append(a.storageTenants, tenantID)
+}
+
+// releaseStorageTenants releases the resources for each tenant we have used
+func (a *HostAgent) releaseStorageTenants() {
+	for _, tenantID := range a.storageTenants {
+		if err := a.storage.Release(tenantID); err != nil {
+			glog.Warningf("Could not release tenant %s: %s", tenantID, err)
+		}
+	}
 }
 
 type stateResult struct {

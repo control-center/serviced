@@ -69,9 +69,6 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 	c.Assert(status, IsNil)
 	c.Assert(err, Equals, ErrNotSupported)
 
-	err = driver.Release("volume")
-	c.Assert(err, Equals, ErrNotSupported)
-
 	volpath := filepath.Join(root, "testvolume")
 	if err := os.MkdirAll(volpath, 0775); err != nil {
 		c.Error(err)
@@ -116,6 +113,7 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 
 	c.Assert(driver.Exists(volname), Equals, true)
 	c.Assert(driver.List(), DeepEquals, []string{volname})
+	c.Assert(driver.Release(volname), IsNil)
 	c.Assert(driver.Cleanup(), IsNil)
 
 }

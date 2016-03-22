@@ -17,6 +17,7 @@ package nfs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 var (
 	ErrTestMountError   = errors.New("Error mounting volume")
 	ErrTestUnMountError = errors.New("Error un-mounting volume")
+	ErrTestMountNotNFS  = errors.New("Mount not NFS")
 )
 
 type mockCommand struct {
@@ -68,12 +70,21 @@ func (d *mockDriver) Installed() error {
 	return nil
 }
 
-func (d *mockDriver) Info(_ string, info *proc.NFSMountInfo) error {
+func (d *mockDriver) Info(localPath string, info *proc.NFSMountInfo) error {
 	if !d.isMounted {
 		return proc.ErrMountPointNotFound
 	}
 
+	if localPath != d.MountInfo.LocalPath {
+		return proc.ErrMountPointNotFound
+	}
+
 	*info = *d.MountInfo
+
+	if !strings.HasPrefix(info.FSType, "nfs") {
+		return ErrTestMountNotNFS
+	}
+
 	return nil
 }
 
@@ -187,7 +198,6 @@ func TestMount_Remount_Success(t *testing.T) {
 func TestMount_Success(t *testing.T) {
 	d := mockDriver{isInstalled: true, isMounted: false}
 
-	// incompatible fs type
 	info := proc.NFSMountInfo{
 		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
 	}
@@ -195,5 +205,74 @@ func TestMount_Success(t *testing.T) {
 
 	if err := Mount(&d, info.RemotePath, info.LocalPath); err != nil {
 		t.Errorf("got error %s", err)
+	}
+}
+
+func TestUnmount_NotInstalled(t *testing.T) {
+	d := mockDriver{isInstalled: false}
+	if err := Unmount(&d, "local"); err != ErrNfsMountingUnsupported {
+		if err == nil {
+			t.Errorf("got no error")
+		} else {
+			t.Errorf("expected '%s'; got '%s'", ErrNfsMountingUnsupported, err)
+		}
+	}
+}
+
+func TestUnmount_NotMounted(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: false}
+
+	localPath := "/tmp/path/umounttest"
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: localPath, FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	if err := Unmount(&d, localPath); err != proc.ErrMountPointNotFound {
+		t.Errorf("expected '%s'; got '%s'", proc.ErrMountPointNotFound, err)
+	}
+}
+
+func TestUnmount_BadFS(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true}
+
+	localPath := "/tmp/path/umounttest"
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: localPath, FSType: "btrfs"},
+	}
+	d.MountInfo = &info
+
+	if err := Unmount(&d, localPath); err != ErrTestMountNotNFS {
+		t.Errorf("expected '%s'; got '%s'", ErrTestMountNotNFS, err)
+	}
+}
+
+func TestUnmount_UnmountSubdir(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true}
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	if err := Unmount(&d, "/tmp/path/subdir"); err != proc.ErrMountPointNotFound {
+		t.Errorf("expected '%s'; got '%s'", proc.ErrMountPointNotFound, err)
+	}
+}
+
+func TestUnmount_Success(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true}
+
+	localPath := "/tmp/path/umounttest"
+
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: localPath, FSType: "nfs4"},
+	}
+	d.MountInfo = &info
+
+	if err := Unmount(&d, localPath); err != nil {
+		t.Errorf("got error: %s", err)
 	}
 }
