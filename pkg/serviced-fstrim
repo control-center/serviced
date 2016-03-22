@@ -20,17 +20,13 @@
 which fstrim>/dev/null 2>&1 || { echo "Error:fstrim not found! Please install." >&2; exit 1; }
 
 # capture block devices of the related serviced volumes
-blk_devs=$(lsblk -o MOUNTPOINT,TYPE | grep '/opt/serviced/' | grep ' dm' | sort | uniq)
+blk_devs=$(lsblk -n -o MOUNTPOINT,TYPE | sort | uniq | grep -E '/opt/serviced/var/volumes/[^/]+\s+dm')
 
 # no need for fstrim if serviced volumes are not on device-mapper
 (( $? == 0 )) ||    { echo "Serviced volumes not on device-mapper" >&2; exit 0;  }
 
 # handle only the mounted serviced volumes
-for i in $(mount | grep '/opt/serviced/var/volumes' | cut -d ' ' -f 1)
+for i in $(echo "$blk_devs" | cut -d ' ' -f 1)
 do
-    # skip not related entries
-    echo "$blk_devs" | grep "$i"
-    (( $? == 0 )) || { echo "Skipping $i which not on device-mapper >&2"; continue; }
-
     fstrim -v $i
 done
