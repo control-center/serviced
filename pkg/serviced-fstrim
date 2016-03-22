@@ -17,6 +17,10 @@
 # It discards the blockes unused by the mounted dfs volumes of serviced
 # It should not run more often than necessary.
 # Please refer to the description of fstrim man page.
+#
+# Environment variable:
+#     SERVICED (default: /opt/serviced/bin/serviced)
+# 
 
 err_exit()
 {
@@ -36,13 +40,13 @@ then
 fi
 
 # check dependency
-for prog in fstrim serviced
+for prog in fstrim "${SERVICED:=/opt/serviced/bin/serviced}"
 do
     which "$prog" >/dev/null 2>&1 || err_exit "$prog not found"
 done
 
 # locate the thinpool
-svc_vol_status=$(serviced volume status)                    || err_exit "serviced not returning volume status"
+svc_vol_status=$("$SERVICED" volume status)                 || err_exit "serviced not returning volume status"
 echo "$svc_vol_status" | grep -qE "Driver:\s+devicemapper"  || ok_exit  "serviced not running on devicemapper"
 line=($(echo "$svc_vol_status" | grep -E "^PoolName:"))     || err_exit "cannot find pool name"
 pool_name=${line[1]}
