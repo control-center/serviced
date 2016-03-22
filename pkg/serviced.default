@@ -8,13 +8,13 @@
 # TMP=/tmp
 
 # Set the number of processors used by serviced
-# GOMAXPROCS=4
+# GOMAXPROCS=2
 
 # Set enable/disable the agent role, set to 1/0, respectively
-# SERVICED_AGENT=0
+# SERVICED_AGENT=1
 
 # Set enable/disable the master role, set to 1/0, respectively
-# SERVICED_MASTER=0
+# SERVICED_MASTER=1
 
 # Set the the zookeeper ensemble, multiple masters should be comma separated
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
