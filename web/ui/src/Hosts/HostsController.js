@@ -158,6 +158,7 @@
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
             servicesFactory.deactivate();
+            poolsFactory.deactivate();
         });
     }]);
 })();
