@@ -165,7 +165,7 @@ type IServiceHealthResult struct {
 	ServiceName    string
 	ContainerName  string
 	ContainerID    string
-	HealthStatuses map[string]health.HealthStatus
+	HealthStatuses []domain.HealthCheckStatus
 }
 
 // ServiceInstanceRequest requests information about a service instance given

@@ -32,11 +32,12 @@ func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results
 
 	healthStatuses := make([]dao.IServiceHealthResult, len(IServiceNames))
 	for i, name := range IServiceNames {
-		status := this.facade.GetIsvcsHealth(name)
-		healthStatuses[i] = dao.IServiceHealthResult{
-			ServiceName:    name,
-			HealthStatuses: status,
+		status, err := isvcs.Mgr.GetHealthStatus(name)
+		if err != nil {
+			return err
 		}
+
+		healthStatuses[i] = status
 	}
 
 	*results = healthStatuses

@@ -44,7 +44,7 @@ func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
 		exitStatus := 0
 		t := NewTable("Service Name,Container Name,Container ID,Health Check,Status")
 		t.Padding = 2
-		for name, serviceHealth := range results {
+		for _, serviceHealth := range results {
 			for _, status := range serviceHealth.HealthStatuses {
 				if status.Status != "passed" {
 					exitStatus = 1
@@ -57,8 +57,8 @@ func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
 					"Service Name":   serviceHealth.ServiceName,
 					"Container Name": serviceHealth.ContainerName,
 					"Container ID":   serviceHealth.ContainerID[:min(12, len(serviceHealth.ContainerID))],
-					"Health Check":   name,
-					"Status":         status.Status,
+					"Health Check":   status.Name,
+					"Status":         getCombinedStatus(status.Status, status.Failure),
 				})
 			}
 		}
@@ -72,4 +72,11 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func getCombinedStatus(status, failure string) string {
+	if failure == "" {
+		return status
+	}
+	return fmt.Sprintf("%s - %s", status, failure)
 }

@@ -468,22 +468,12 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	d.facade = d.initFacade()
-	// Set up isvcs health reporting
-	isvcs.Mgr.SetHealthReporter(func(serviceID string) func(string, health.HealthStatus, time.Duration) {
-		return func(name string, stat health.HealthStatus, expires time.Duration) {
-			key := health.HealthStatusKey{
-				ServiceID:       serviceID,
-				InstanceID:      0,
-				HealthCheckName: name,
-			}
-			d.facade.ReportHealthStatus(key, stat, expires)
-		}
-	})
 
 	if d.cpDao, err = d.initDAO(); err != nil {
 		glog.Errorf("Could not initialize DAO: %s", err)
 		return err
 	}
+
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		glog.Errorf("Could not create default pool: %s", err)
 		return err
