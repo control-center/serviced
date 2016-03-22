@@ -33,6 +33,7 @@ import (
 type nfsMountT func(string, string) error
 
 var nfsMount = nfs.Mount
+var nfsUnmount = nfs.Unmount
 var mkdirAll = os.MkdirAll
 var storageClient *Client
 var mp = utils.GetDefaultMountProc()
@@ -116,6 +117,10 @@ func (c *Client) Close() {
 // Mount source  to local destination path. The source is relative to the exported path
 func (c *Client) Mount(source, destination string) error {
 	return nfsMount(&nfs.NFSDriver{}, path.Join(c.exportedPath, source), destination)
+}
+
+func (c *Client) Unmount(destination string) error {
+	return nfsUnmount(&nfs.NFSDriver{}, destination)
 }
 
 func (c *Client) loop() {

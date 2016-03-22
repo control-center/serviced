@@ -205,3 +205,25 @@ func Mount(driver Driver, remotePath, localPath string) error {
 
 	return nil
 }
+
+// Unmount attempts to unmount the localPath
+func Unmount(driver Driver, localPath string) error {
+	// check if the driver is installed
+	if err := driver.Installed(); err != nil {
+		return err
+	}
+
+	// verify mount
+	var mountInfo proc.NFSMountInfo
+	if err := driver.Info(localPath, &mountInfo); err != nil {
+		glog.Errorf("Could not get volume info for %s: %s", localPath, err)
+		return err
+	}
+
+	if err := driver.Unmount(localPath); err != nil {
+		glog.Errorf("Could not unmount %s: %s", localPath, err)
+		return err
+	}
+
+	return nil
+}
