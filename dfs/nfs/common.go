@@ -213,12 +213,15 @@ func Unmount(driver Driver, localPath string) error {
 		return err
 	}
 
+	// verify mount
 	var mountInfo proc.NFSMountInfo
 	if err := driver.Info(localPath, &mountInfo); err != nil {
+		glog.Errorf("Could not get volume info for %s: %s", localPath, err)
 		return err
 	}
 
 	if err := driver.Unmount(localPath); err != nil {
+		glog.Errorf("Could not unmount %s: %s", localPath, err)
 		return err
 	}
 

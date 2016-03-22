@@ -157,9 +157,9 @@ func (d *NFSDriver) Status() (*volume.Status, error) {
 
 // Release implements volume.Driver.Release
 func (d *NFSDriver) Release(volumeName string) error {
-	volumePath := filepath.Join(d.root, volumeName)
 	if !d.networkDisabled {
 		//actual NFS mount
+		volumePath := filepath.Join(d.root, volumeName)
 		if err := unmount(volumePath); err != nil {
 			return err
 		}
