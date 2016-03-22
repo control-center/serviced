@@ -17,10 +17,20 @@
 # It discards the blockes unused by the mounted dfs volumes of serviced
 # It should not run more often than necessary.
 # Please refer to the description of fstrim man page.
+which fstrim>/dev/null 2>&1 || { echo "Error:fstrim not found! Please install." >&2; exit 1; }
 
-which fstrim || { echo "Error:fstrim not found! Please install." >&2; exit 1; }
+# capture block devices of the related serviced volumes
+blk_devs=$(lsblk -o MOUNTPOINT,TYPE | grep '/opt/serviced/' | grep ' dm' | sort | uniq)
 
+# no need for fstrim if serviced volumes are not on device-mapper
+(( $? == 0 )) ||    { echo "Serviced volumes not on device-mapper" >&2; exit 0;  }
+
+# handle only the mounted serviced volumes
 for i in $(mount | grep '/opt/serviced/var/volumes' | cut -d ' ' -f 1)
 do
+    # skip not related entries
+    echo "$blk_devs" | grep "$i"
+    (( $? == 0 )) || { echo "Skipping $i which not on device-mapper >&2"; continue; }
+
     fstrim -v $i
 done
