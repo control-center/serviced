@@ -34,10 +34,7 @@ ok_exit()
    exit 0
 }
 
-if [ "$EUID" -ne 0 ]
-then 
-   err_exit "need to run as root"
-fi
+(( $EUID == 0 )) || err_exit "need to run as root"
 
 # check dependency
 for prog in fstrim "${SERVICED:=/opt/serviced/bin/serviced}"
