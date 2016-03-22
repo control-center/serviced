@@ -233,3 +233,15 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	c.Assert(hash2, Not(Equals), "")
 	c.Assert(hash1, Not(Equals), hash2)
 }
+
+func (s *DockerSuite) TestFindImageByHash(c *C) {
+	_, err := s.docker.FindImageByHash("non_existant_hash")
+	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
+	hash, err := s.docker.GetImageHash("busybox")
+	c.Assert(err, IsNil)
+	expected, err := s.docker.FindImage("busybox")
+	c.Assert(err, IsNil)
+	img, err := s.docker.FindImageByHash(hash)
+	c.Assert(err, IsNil)
+	c.Assert(img, DeepEquals, expected)
+}
