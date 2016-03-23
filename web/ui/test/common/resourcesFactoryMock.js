@@ -8,7 +8,7 @@ var resourcesFactoryMock = function($provide) {
         var mock = jasmine.createSpyObj('resourcesFactory', [
             "assignIP", "getPools", "getPoolIP",
             "getService", "startService", "stopService", "restartService",
-            "getServices"
+            "getServices", "getUIConfig"
         ]);
 
         var currDeferred;
@@ -33,6 +33,11 @@ var resourcesFactoryMock = function($provide) {
             return currDeferred.promise;
         });
         mock.startService = mock.restartService.and.callFake(function(){
+            currDeferred = httpify($q.defer());
+            return currDeferred.promise;
+        });
+
+        mock.getUIConfig = mock.getUIConfig.and.callFake(function(){
             currDeferred = httpify($q.defer());
             return currDeferred.promise;
         });
