@@ -56,9 +56,6 @@ func memoryKey(serviceID, instanceID string) string {
 func convertInstancesToMetric(instances []dao.RunningService) []metrics.ServiceInstance {
 	svcInstances := make([]metrics.ServiceInstance, len(instances))
 	for i, inst := range instances {
-		if inst.ServiceID == "isvc-internalservices" {
-			continue
-		}
 		svcInstances[i] = metrics.ServiceInstance{
 			inst.ServiceID,
 			inst.InstanceID,
