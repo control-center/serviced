@@ -126,7 +126,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		if node.PushedAt.Unix() == 0 {
 			// Do I have the image?
 			glog.Infof("Checking if push required for id=%s node: %s:%s %s (UUID=%s)", id, node.Image.Repo, node.Image.Tag, node.Image.Tag, node.Image.UUID)
-			if img, err := l.findImage(&node.Image); err == nil {
+			if img, err := l.FindImage(&node.Image); err == nil {
 				glog.V(1).Infof("Found image %v locally, acquiring lead", node.Image)
 				func() {
 					// Become the leader so I can push the image
@@ -200,7 +200,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 
 // findImage looks for the registry image locally and in the local registry.  It firsts checks locally by UUID,
 //  then by repo, tag, and hash, then it checks if the image is already in the registry, and finally it searches by hash
-func (l *RegistryListener) findImage(rImg *registry.Image) (*dockerclient.Image, error) {
+func (l *RegistryListener) FindImage(rImg *registry.Image) (*dockerclient.Image, error) {
 	regaddr := path.Join(l.address, rImg.String())
 	glog.V(1).Infof("Searching for image %s", regaddr)
 
