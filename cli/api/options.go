@@ -100,7 +100,7 @@ type Options struct {
 	DockerLogDriver      string            // Which log driver to use with containers
 	DockerLogConfigList  []string          // List of comma-separated key=value options for docker logging
 	AllowLoopBack        string            // Allow loop back devices for DM storage, string val of bool
-	UIPollFrequency      int               // frequency in ms that UI should poll for service changes
+	UIPollFrequency      int               // frequency in seconds that UI should poll for service changes
 }
 
 // LoadOptions overwrites the existing server options
@@ -247,7 +247,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
 		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 		AllowLoopBack:        strconv.FormatBool(config.BoolVal("ALLOW_LOOP_BACK", false)),
-		UIPollFrequency:      config.IntVal("UI_POLL_FREQUENCY", 3000),
+		UIPollFrequency:      config.IntVal("UI_POLL_FREQUENCY", 3),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

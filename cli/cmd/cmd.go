@@ -107,7 +107,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"log-driver", defaultOps.DockerLogDriver, "log driver for docker containers"},
 		cli.StringSliceFlag{"log-config", convertToStringSlice(defaultOps.DockerLogConfigList), "comma-separated list of key=value settings for docker log driver"},
 
-		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in ms that the UI polls serviced for changes"},
+		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},

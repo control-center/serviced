@@ -32,7 +32,7 @@
 
         servicedConfig.getConfig()
             .then(config => {
-                updateFrequency = config.PollFrequency;
+                updateFrequency = config.PollFrequency * 1000;
             }).catch(err => {
                 let errMessage = err.statusText;
                 if(err.data && err.data.Detail){
