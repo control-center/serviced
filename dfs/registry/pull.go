@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
 
@@ -34,6 +35,7 @@ type Registry interface {
 	SetConnection(conn client.Connection)
 	PullImage(cancel <-chan time.Time, image string) error
 	ImagePath(image string) (string, error)
+	FindImage(rImg *registry.Image) (*dockerclient.Image, error)
 }
 
 // ImagePath returns the proper path to the registry image
