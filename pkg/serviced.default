@@ -47,7 +47,7 @@
 # SERVICED_UI_PORT=443
 
 # Set the frequency in seconds that the UI will poll serviced for updates
-# SERVICE_UI_POLL_FREQUENCY=3
+# SERVICED_UI_POLL_FREQUENCY=3
 
 # Set the mux port to listen on
 # SERVICED_MUX_PORT=22250
