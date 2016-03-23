@@ -40,6 +40,13 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 			glog.Errorf("Could not find image %s for snapshot: %s", image, err)
 			return "", err
 		}
+
+		// make sure we actually have the image locally before changing the tag and triggering a push
+		if _, err := dfs.reg.FindImage(rImage); err != nil {
+			glog.Errorf("Could not find image %s locally for snapshot:  %s", rImage.String(), err)
+			return "", err
+		}
+
 		rImage.Tag = label
 		if err := dfs.index.PushImage(rImage.String(), rImage.UUID, rImage.Hash); err != nil {
 			glog.Errorf("Could not retag image %s for snapshot: %s", image, err)
