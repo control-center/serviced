@@ -56,6 +56,9 @@ func memoryKey(serviceID, instanceID string) string {
 func convertInstancesToMetric(instances []dao.RunningService) []metrics.ServiceInstance {
 	svcInstances := make([]metrics.ServiceInstance, len(instances))
 	for i, inst := range instances {
+		if inst.ServiceID == "isvc-internalservices" {
+			continue
+		}
 		svcInstances[i] = metrics.ServiceInstance{
 			inst.ServiceID,
 			inst.InstanceID,
@@ -74,10 +77,10 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 		glog.V(3).Info("Nil service list returned")
 		instances = []dao.RunningService{}
 	}
-	// Append internal services to the list
-	instances = append(instances, getIRS()...)
 
 	// Look up memory stats for the last hour
+	// Memory stats for isvcs don't work the same way, so we don't append
+	// those services to this list yet
 	memoryStats := make(map[string]metrics.MemoryUsageStats)
 	if len(instances) > 0 {
 		response := []metrics.MemoryUsageStats{}
@@ -92,6 +95,9 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			memoryStats[memoryKey(mus.ServiceID, mus.InstanceID)] = mus
 		}
 	}
+
+	// Append internal services to the list
+	instances = append(instances, getIRS()...)
 
 	// Look up health check statuses
 	healthChecks := make(map[string]map[string]health.HealthStatus)
