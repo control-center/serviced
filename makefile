@@ -276,6 +276,7 @@ install_DIRS += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
+install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 
 # Specify the stuff to install as attributes of the various
 # install directories we know about.
@@ -287,6 +288,7 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
 #
 default_INSTCMD = cp
 $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
+$(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += serviced-controller/serviced-controller:serviced-controller
@@ -294,6 +296,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                  += tools/serviced-storage/serv
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-cleanup:serviced-container-cleanup
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced-storage:$(_DESTDIR)/usr/bin/serviced-storage
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static
