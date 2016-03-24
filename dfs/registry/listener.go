@@ -243,6 +243,13 @@ func (l *RegistryListener) FindImage(rImg *registry.Image) (*dockerclient.Image,
 	}
 
 	// search all images for a matching hash
+	// First just check top-level layers
 	glog.V(0).Infof("Image %s not found in registry, searching local images by hash", regaddr)
-	return l.docker.FindImageByHash(rImg.Hash)
+	if img, err := l.docker.FindImageByHash(rImg.Hash, false); err == nil {
+		return img, nil
+	}
+
+	// Now check all layers
+	glog.V(0).Infof("Hash for Image %s not found in top-level layers, searching all layers", regaddr)
+	return l.docker.FindImageByHash(rImg.Hash, true)
 }
