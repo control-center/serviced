@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/registry"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -57,6 +59,27 @@ func (_m *Registry) ImagePath(image string) (string, error) {
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
 		r1 = rf(image)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Registry) FindImage(rImg *registry.Image) (*dockerclient.Image, error) {
+	ret := _m.Called(rImg)
+
+	var r0 *dockerclient.Image
+	if rf, ok := ret.Get(0).(func(*registry.Image) *dockerclient.Image); ok {
+		r0 = rf(rImg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dockerclient.Image)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*registry.Image) error); ok {
+		r1 = rf(rImg)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -65,6 +66,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 		Hash:    "hashvalue",
 	}
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
+	s.registry.On("FindImage", rImage).Return(&dockerclient.Image{}, nil).Once()
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid", "hashvalue").Return(ErrTestNoPush).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
@@ -72,6 +74,31 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 	id, err = s.dfs.Snapshot(data)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestNoPush)
+}
+
+func (s *DFSTestSuite) TestSnapshot_MissingImage(c *C) {
+	data := SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
+			TenantID: "BASE",
+			Tags:     []string{"tag1"},
+		},
+		Images: []string{"BASE/repo:latest"},
+	}
+	rImage := &registry.Image{
+		Library: "BASE",
+		Repo:    "repo",
+		Tag:     "latest",
+		UUID:    "testuuid",
+		Hash:    "hashvalue",
+	}
+
+	vol := &volumemocks.Volume{}
+	s.disk.On("Get", "BASE").Return(vol, nil)
+	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil).Once()
+	s.registry.On("FindImage", rImage).Return(nil, ErrTestImageNotFound).Once()
+	id, err := s.dfs.Snapshot(data)
+	c.Assert(id, Equals, "")
+	c.Assert(err, Equals, ErrTestImageNotFound)
 }
 
 func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
@@ -95,6 +122,7 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
+	s.registry.On("FindImage", rImage).Return(&dockerclient.Image{}, nil)
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid", "hashvalue").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
@@ -133,6 +161,7 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
+	s.registry.On("FindImage", rImage).Return(&dockerclient.Image{}, nil)
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid", "hashvalue").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
@@ -172,6 +201,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 	}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil)
+	s.registry.On("FindImage", rImage).Return(&dockerclient.Image{}, nil).Once()
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid", "hashvalue").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)

@@ -233,3 +233,37 @@ func (s *DockerSuite) TestGetImageHash(c *C) {
 	c.Assert(hash2, Not(Equals), "")
 	c.Assert(hash1, Not(Equals), hash2)
 }
+
+func (s *DockerSuite) TestFindImageByHash(c *C) {
+	_, err := s.docker.FindImageByHash("non_existant_hash", false)
+	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
+	expectedhash, err := s.docker.GetImageHash("busybox")
+	c.Assert(err, IsNil)
+	actual, err := s.docker.FindImageByHash(expectedhash, false)
+	c.Assert(err, IsNil)
+	// have to compare hashes, IDs may not match
+	actualhash, err := s.docker.GetImageHash(actual.ID)
+	c.Assert(err, IsNil)
+	c.Assert(actualhash, Equals, expectedhash)
+
+	// Test "allLayers"
+	// find a lower layer of busybox
+	historyList, err := s.dc.ImageHistory("busybox")
+	c.Assert(err, IsNil)
+	c.Assert(len(historyList) > 1, Equals, true)
+	lowerLayer := historyList[1]
+
+	lowerLayerHash, err := s.docker.GetImageHash(lowerLayer.ID)
+	c.Assert(err, IsNil)
+
+	// If not checking all layers, this should fail
+	actual, err = s.docker.FindImageByHash(lowerLayerHash, false)
+	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
+
+	// With all layers = true, this should succeed
+	actual, err = s.docker.FindImageByHash(lowerLayerHash, true)
+	c.Assert(err, IsNil)
+	actualhash, err = s.docker.GetImageHash(actual.ID)
+	c.Assert(err, IsNil)
+	c.Assert(actualhash, Equals, lowerLayerHash)
+}

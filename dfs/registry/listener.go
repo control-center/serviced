@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
 
@@ -121,8 +122,8 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		if node.PushedAt.Unix() == 0 {
 			// Do I have the image?
 			glog.Infof("Checking if push required for id=%s node: %s:%s %s (UUID=%s)", id, node.Image.Repo, node.Image.Tag, node.Image.Tag, node.Image.UUID)
-			if img, err := l.docker.FindImage(node.Image.UUID); err == nil {
-				glog.V(1).Infof("Found image %s locally, acquiring lead", node.Image)
+			if img, err := l.FindImage(&node.Image); err == nil {
+				glog.V(1).Infof("Found image %v locally, acquiring lead", node.Image)
 				func() {
 					// Become the leader so I can push the image
 					leaderDone := make(chan struct{})
@@ -143,9 +144,19 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 							glog.Errorf("Could not get %s: %s", imagepath, err)
 							return
 						}
-						if img.ID != node.Image.UUID || node.PushedAt.Unix() > 0 {
-							glog.V(1).Infof("Image %s changed, cancelling push", node.Image)
+						if node.PushedAt.Unix() > 0 {
+							glog.V(1).Infof("Image %s already pushed, cancelling push", node.Image.String())
 							return
+						}
+						if img.ID != node.Image.UUID {
+							localHash, err := l.docker.GetImageHash(img.ID)
+							if err != nil {
+								glog.Warningf("Error building hash of image: %s, cancelling push: %s", img.ID, err)
+								return
+							} else if localHash != node.Image.Hash {
+								glog.V(1).Infof("Image %s changed, cancelling push", node.Image.String())
+								return
+							}
 						}
 					}
 					// Push the image and update the registry
@@ -153,9 +164,9 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// so that the push will get retriggered the next time it
 					// is needed.
 					registrypath := path.Join(l.address, node.Image.String())
-					glog.V(1).Infof("Updating registry image %s from path=%s", node.Image.UUID, registrypath)
-					if err := l.docker.TagImage(node.Image.UUID, registrypath); err != nil {
-						glog.Warningf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
+					glog.V(1).Infof("Updating registry image %s from path=%s", img.ID, registrypath)
+					if err := l.docker.TagImage(img.ID, registrypath); err != nil {
+						glog.Warningf("Could not tag %s as %s: %s", img.ID, registrypath, err)
 						node.PushedAt = time.Unix(0, 0)
 					} else if err := l.docker.PushImage(registrypath); err != nil {
 						glog.Warningf("Could not push %s: %s", registrypath, err)
@@ -181,4 +192,60 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		close(done)
 		done = make(chan struct{})
 	}
+}
+
+// findImage looks for the registry image locally and in the local registry.  It firsts checks locally by UUID,
+//  then by repo, tag, and hash, then it checks if the image is already in the registry, and finally it searches by hash
+func (l *RegistryListener) FindImage(rImg *registry.Image) (*dockerclient.Image, error) {
+	regaddr := path.Join(l.address, rImg.String())
+	glog.V(1).Infof("Searching for image %s", regaddr)
+
+	// check for UUID
+	if img, err := l.docker.FindImage(rImg.UUID); err == nil {
+		return img, nil
+	}
+
+	// check by repo and tag, and compare hashes
+	glog.V(1).Infof("UUID %s not found locally, searching by registry address for %s", rImg.UUID, regaddr)
+	if img, err := l.docker.FindImage(regaddr); err == nil {
+		if localHash, err := l.docker.GetImageHash(img.ID); err != nil {
+			glog.Warningf("Error building hash of image: %s: %s", img.ID, err)
+		} else {
+			if localHash == rImg.Hash {
+				return img, nil
+			}
+			glog.V(1).Infof("Found %s locally, but hashes do not match", regaddr)
+		}
+	}
+
+	// attempt to pull the image, then compare hashes
+	glog.V(0).Infof("Image address %s not found locally, attempting pull", regaddr)
+	if err := l.docker.PullImage(regaddr); err == nil {
+		glog.V(1).Infof("Successfully pulled image %s from registry, checking for match", regaddr)
+		if img, err := l.docker.FindImage(regaddr); err == nil {
+			if img.ID == rImg.UUID {
+				glog.V(1).Infof("Found image %s in registry with correct UUID", regaddr)
+				return img, nil
+			}
+			if localHash, err := l.docker.GetImageHash(img.ID); err != nil {
+				glog.Warningf("Error building hash of image: %s: %s", img.ID, err)
+			} else {
+				if localHash == rImg.Hash {
+					glog.V(1).Infof("Found image %s in registry with correct Hash", regaddr)
+					return img, nil
+				}
+			}
+		}
+	}
+
+	// search all images for a matching hash
+	// First just check top-level layers
+	glog.V(0).Infof("Image %s not found in registry, searching local images by hash", regaddr)
+	if img, err := l.docker.FindImageByHash(rImg.Hash, false); err == nil {
+		return img, nil
+	}
+
+	// Now check all layers
+	glog.V(0).Infof("Hash for Image %s not found in top-level layers, searching all layers", regaddr)
+	return l.docker.FindImageByHash(rImg.Hash, true)
 }
