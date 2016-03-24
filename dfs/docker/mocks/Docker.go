@@ -177,12 +177,12 @@ func (_m *Docker) GetImageHash(image string) (string, error) {
 
 	return r0, r1
 }
-func (_m *Docker) FindImageByHash(imageHash string) (*dockerclient.Image, error) {
-	ret := _m.Called(imageHash)
+func (_m *Docker) FindImageByHash(imageHash string, checkAllLayers bool) (*dockerclient.Image, error) {
+	ret := _m.Called(imageHash, checkAllLayers)
 
 	var r0 *dockerclient.Image
-	if rf, ok := ret.Get(0).(func(string) *dockerclient.Image); ok {
-		r0 = rf(imageHash)
+	if rf, ok := ret.Get(0).(func(string, bool) *dockerclient.Image); ok {
+		r0 = rf(imageHash, checkAllLayers)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dockerclient.Image)
@@ -190,8 +190,8 @@ func (_m *Docker) FindImageByHash(imageHash string) (*dockerclient.Image, error)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(imageHash)
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(imageHash, checkAllLayers)
 	} else {
 		r1 = ret.Error(1)
 	}

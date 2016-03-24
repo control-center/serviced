@@ -212,7 +212,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_ImageNotFound(c *C) {
 	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
@@ -627,7 +628,32 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_SuccessByHash
 	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
+
+	img, err := s.listener.FindImage(rImage.Image)
+
+	c.Assert(err, IsNil)
+	c.Assert(img.ID, Equals, "differentid")
+	s.docker.AssertExpectations(c)
+}
+
+func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_SuccessByHashAllLayers(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+			Hash:    "hashvalue",
+		},
+	}
+	regaddr := rImage.Address(s.listener.address)
+
+	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -651,7 +677,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_Fail(c *C) {
 	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -676,7 +703,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_FailGettingHa
 	s.docker.On("FindImage", regaddr).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
 	s.docker.On("GetImageHash", "differentid").Return("", ErrTestImageNotFound).Once()
 	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -701,7 +729,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_FailHashesDon
 	s.docker.On("FindImage", regaddr).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
 	s.docker.On("GetImageHash", "differentid").Return("differenthash", nil).Once()
 	s.docker.On("PullImage", regaddr).Return(ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -726,7 +755,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_FailAfterPull
 	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
 	s.docker.On("PullImage", regaddr).Return(nil).Once()
 	s.docker.On("FindImage", regaddr).Return(nil, ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -752,7 +782,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_FailAfterPull
 	s.docker.On("PullImage", regaddr).Return(nil).Once()
 	s.docker.On("FindImage", regaddr).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
 	s.docker.On("GetImageHash", "differentid").Return("", ErrTestImageNotFound).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
@@ -778,7 +809,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_TestFindImage_FailAfterPull
 	s.docker.On("PullImage", regaddr).Return(nil).Once()
 	s.docker.On("FindImage", regaddr).Return(&dockerclient.Image{ID: "differentid"}, nil).Once()
 	s.docker.On("GetImageHash", "differentid").Return("differenthash", nil).Once()
-	s.docker.On("FindImageByHash", rImage.Image.Hash).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, false).Return(nil, ErrTestImageNotFound).Once()
+	s.docker.On("FindImageByHash", rImage.Image.Hash, true).Return(nil, ErrTestImageNotFound).Once()
 
 	img, err := s.listener.FindImage(rImage.Image)
 
