@@ -1,7 +1,16 @@
 /* global jasmine: true, beforeEach: true, expect: true, inject: true, module: true */
 
 describe('baseFactory', function() {
-    beforeEach(module('baseFactory'));
+    // load up actual services
+    beforeEach(function(){
+        module('servicedConfig');
+        module('baseFactory');
+    });
+
+    // load up mock services
+    beforeEach(function(){
+        module(resourcesFactoryMock);
+    });
 
     var $q, $interval, scope;
     beforeEach(inject(function($injector){

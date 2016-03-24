@@ -4,6 +4,7 @@ describe('servicesFactory', function() {
 
     // load up actual services
     beforeEach(function(){
+        module('servicedConfig');
         module('baseFactory');
         module('servicesFactory');
         module('miscUtils');
@@ -211,6 +212,7 @@ describe('servicesFactory Service object', function() {
 
     // load up actual services
     beforeEach(function(){
+        module('servicedConfig');
         module('baseFactory');
         module('servicesFactory');
         module('miscUtils');
