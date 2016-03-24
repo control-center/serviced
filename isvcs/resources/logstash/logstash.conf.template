@@ -17,8 +17,6 @@ input {
 
 output {
 	elasticsearch {
-		protocol => "http"
-		host => "elasticsearch"
-		port => 9100
+		hosts => "elasticsearch:9100"
 	}
 }
