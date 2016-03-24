@@ -36,7 +36,10 @@ func (c *ServicedCli) initVolume() {
 				Description: "serviced volume status",
 				Action:      c.cmdVolumeStatus,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.BoolFlag{
+						Name:   "verbose, v",
+						Usage:  "Show JSON format",
+					},
 				},
 			},
 		},

@@ -37,7 +37,10 @@ func (c *ServicedCli) initSnapshot() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotList,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"show-tags, t", "shows tags associated with each snapshot"},
+					cli.BoolFlag{
+						Name:  "show-tags, t",
+						Usage: "shows tags associated with each snapshot",
+					},
 				},
 			}, {
 				Name:         "add",
@@ -46,8 +49,16 @@ func (c *ServicedCli) initSnapshot() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotAdd,
 				Flags: []cli.Flag{
-					cli.StringFlag{"description, d", "", "a description of the snapshot"},
-					cli.StringFlag{"tag, t", "", "a unique tag for the snapshot"},
+					cli.StringFlag{
+						Name:  "description, d",
+						Value: "",
+						Usage: "a description of the snapshot",
+					},
+					cli.StringFlag{
+						Name:  "tag, t",
+						Value: "",
+						Usage: "a unique tag for the snapshot",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -57,7 +68,10 @@ func (c *ServicedCli) initSnapshot() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotRemove,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"force, f", "required for deleting all snapshots"},
+					cli.BoolFlag{
+						Name:  "force, f",
+						Usage: "required for deleting all snapshots",
+					},
 				},
 			}, {
 				Name:        "commit",
@@ -69,7 +83,10 @@ func (c *ServicedCli) initSnapshot() {
 				Usage:       "Restores the environment to the state of the given snapshot",
 				Description: "serviced snapshot rollback SNAPSHOTID",
 				Flags: []cli.Flag{
-					cli.BoolFlag{"force-restart", "restarts running services during rollback"},
+					cli.BoolFlag{
+						Name:  "force-restart",
+						Usage: "restarts running services during rollback",
+					},
 				},
 				BashComplete: c.printSnapshotsFirst,
 				Action:       c.cmdSnapshotRollback,

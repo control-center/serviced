@@ -40,8 +40,15 @@ func (c *ServicedCli) initTemplate() {
 				BashComplete: c.printTemplatesFirst,
 				Action:       c.cmdTemplateList,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
-					cli.StringFlag{"show-fields", "TemplateID,Name,Description", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "TemplateID,Name,Description",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:        "add",
@@ -62,7 +69,10 @@ func (c *ServicedCli) initTemplate() {
 				BashComplete: c.printTemplateDeploy,
 				Action:       c.cmdTemplateDeploy,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"manual-assign-ips", "Manually assign IP addresses"},
+					cli.BoolFlag{
+						Name:  "manual-assign-ips",
+						Usage: "Manually assign IP addresses",
+					},
 				},
 			}, {
 				Name:        "compile",
@@ -71,7 +81,10 @@ func (c *ServicedCli) initTemplate() {
 				Action:      c.cmdTemplateCompile,
 				Flags: []cli.Flag{
 					cli.GenericFlag{
-						"map", &api.ImageMap{}, "Map a given image name to another (e.g. -map zenoss/zenoss5x:latest,quay.io/zenoss-core:alpha2)"},
+						Name:  "map",
+						Value: &api.ImageMap{},
+						Usage: "Map a given image name to another (e.g. -map zenoss/zenoss5x:latest,quay.io/zenoss-core:alpha2)",
+					},
 				},
 			},
 		},

@@ -145,7 +145,10 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			rowmap[fmt.Sprintf("%s/%d", svc.ID, 0)] = row
 		} else {
 			for _, stat := range status {
-				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{svc.ID, stat.State.InstanceID})
+				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{
+					ServiceID:  svc.ID,
+					InstanceID: stat.State.InstanceID,
+				})
 				row := make(map[string]interface{})
 				row["ServiceID"] = svc.ID
 				if svc.ParentServiceID != "" {

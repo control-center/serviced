@@ -142,14 +142,12 @@ $(GOSRC)/$(godep_SRC):
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
 
-#
-# FIXME: drop -composites=false to get full coverage
 GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet:
 	GOSRC=$(GOSRC) GOTOOLS_SRC=$(GOTOOLS_SRC) ./get_govet.sh
 	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
-	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+	go tool vet $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
 
 .PHONY: go
 go:
