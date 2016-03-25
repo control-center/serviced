@@ -6,8 +6,10 @@
     'use strict';
 
     angular.module('healthIcon', [])
-    .directive("healthIcon", [
-    function(){
+    .directive("healthIcon", ["hcStatus",
+    function(hcStatus){
+        let {OK, FAILED, TIMEOUT, NOT_RUNNING, UNKNOWN} = hcStatus;
+
         return {
             restrict: "E",
             scope: {
@@ -17,10 +19,10 @@
             template: '<i class="healthIcon glyphicon"></i><div class="healthIconBadge"></div>',
             link: function($scope, element, attrs){
                 var STATUS_STYLES = {
-                    "bad": "glyphicon glyphicon-exclamation bad",
-                    "good": "glyphicon glyphicon-ok good",
-                    "unknown": "glyphicon glyphicon-question unknown",
-                    "down": "glyphicon glyphicon-minus disabled"
+                    [FAILED]: "glyphicon glyphicon-exclamation bad",
+                    [OK]: "glyphicon glyphicon-ok good",
+                    [UNKNOWN]: "glyphicon glyphicon-question unknown",
+                    [NOT_RUNNING]: "glyphicon glyphicon-minus disabled"
                 };
 
                 // cache some DOM elements
@@ -39,21 +41,21 @@
                     if(!statusObj){
                         // TODO - re-implement?
                         //statusObj = new Status(id, "", 1);
-                        //statusObj.statusRollup.incDown();
+                        //statusObj.statusRollup.incNotRunning();
                         //statusObj.evaluateStatus();
                         return;
                     }
 
 
                     // determine if we should hide healthchecks
-                    hideHealthChecks = statusObj.statusRollup.allGood() ||
-                        statusObj.statusRollup.allDown() ||
-                        statusObj.desiredState === 0;
+                    hideHealthChecks = statusObj.statusRollup.allOK() ||
+                        statusObj.statusRollup.allNotRunning() ||
+                        statusObj.desiredState  === 0;
 
                     // if service should be up and there is more than 1 instance, show number of instances
                     if(statusObj.desiredState === 1 && statusObj.statusRollup.total > 1){
                         $el.addClass("wide");
-                        $badge.text(statusObj.statusRollup.good +"/"+ statusObj.statusRollup.total).show();
+                        $badge.text(statusObj.statusRollup.ok +"/"+ statusObj.statusRollup.total).show();
 
                     // else, hide the badge
                     } else {
@@ -101,14 +103,15 @@
                                 if(popoverHTML.length >= 15){
                                     // add an overflow indicator if not already there
                                     if(popoverHTML[popoverHTML.length-1] !== "..."){
-                                        popoverHTML.push("..."); 
+                                        popoverHTML.push("...");
                                     }
                                     return;
                                 }
 
                                 // only create an instance row for this instance if
                                 // it's in a bad or unknown state
-                                if(instanceStatus.status === "bad" || instanceStatus.status === "unknown"){
+                                if(instanceStatus.status === FAILED ||
+                                      instanceStatus.status === UNKNOWN){
                                     popoverHTML.push("<div class='healthTooltipDetailRow'>");
                                     popoverHTML.push("<div style='font-weight: bold; font-size: .9em; padding: 5px 0 3px 0;'>"+ instanceStatus.name +"</div>");
                                     instanceStatus.children.forEach(function(hc){
@@ -175,7 +178,7 @@
 
                     // if the status has changed since last tick, or
                     // it was and is still unknown, notify user
-                    if(lastStatus !== statusObj.status || lastStatus === "unknown" && statusObj.status === "unknown"){
+                    if(lastStatus !== statusObj.status || lastStatus === UNKNOWN && statusObj.status === UNKNOWN){
                         bounceStatus($el);
                     }
                     // store the status for comparison later
@@ -187,7 +190,7 @@
 
                 // TODO - cleanup watch
                 $scope.$on("$destroy", function(){});
-                
+
                 function bindHealthCheckRowTemplate(hc){
                     return "<div class='healthTooltipDetailRow "+ hc.status +"'>\
                             <i class='healthIcon glyphicon'></i>\

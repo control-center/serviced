@@ -143,18 +143,15 @@
                 });
             },
 
-            // HACK - individual services should update
-            // their own health
             // TODO - debounce this guy
             updateHealth: function(){
-                serviceHealth.update(this.serviceMap).then((statuses) => {
-                    for(var id in statuses){
-                        // attach status to associated service
-                        if(this.serviceMap[id]){
-                            this.serviceMap[id].status = statuses[id];
-                        }
+                let statuses = serviceHealth.update(this.serviceMap);
+                for(var id in statuses){
+                    // attach status to associated service
+                    if(this.serviceMap[id]){
+                        this.serviceMap[id].status = statuses[id];
                     }
-                });
+                }
             }
         });
 

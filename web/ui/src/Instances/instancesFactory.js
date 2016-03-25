@@ -16,7 +16,7 @@
         $notification = _notification;
         utils = _utils;
 
-        var newFactory = new BaseFactory(Instance, resourcesFactory.getRunningServices);
+        var newFactory = new BaseFactory(Instance, resourcesFactory.getServiceInstances);
 
         // alias some stuff for ease of use
         newFactory.instanceArr = newFactory.objArr;
@@ -74,25 +74,22 @@
         update: function(instance) {
             if(instance){
                this.updateInstanceDef(instance);
+               this.updateInstanceHealth(instance.HealthChecks);
             }
-
-            // update service health
-            // TODO - should service update itself, its controller
-            // update the service, or serviceHealth update all services?
-            this.status = serviceHealth.get(this.healthId);
         },
 
         updateInstanceDef: function(instance) {
             this.name = instance.Name;
             this.id = instance.ID;
             this.model = Object.freeze(instance);
-            // TODO - formally define health id
-            this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
-            this.desiredState = instance.DesiredState;
             this.resources.RAMAverage = Math.max(0, instance.RAMAverage);
             this.resources.RAMLast = Math.max(0, instance.RAMLast);
             this.resources.RAMMax = Math.max(0, instance.RAMMax);
-            this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
+            //this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
+        },
+
+        updateInstanceHealth: function(healthChecks){
+            serviceHealth.setInstanceHealth(this, healthChecks);
         },
 
         stop: function(){
@@ -103,8 +100,6 @@
                 .error((data, status) => {
                     $notification.create("Stop Instance failed", data.Detail).error();
                 });
-            // desired state 0 is stop
-            this.desiredState = 0;
         },
 
         resourcesGood: function() {

@@ -113,9 +113,9 @@
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
-            getRunningServices: {
+            getServiceInstances: {
                 method: "GET",
-                url: "/running"
+                url: "/running2"
             },
             addPool: {
                 method: "POST",
@@ -217,10 +217,6 @@
             getVersion: {
                 method: "GET",
                 url: "/version"
-            },
-            getServiceHealth: {
-                method: "GET",
-                url: "/servicehealth"
             },
             getDeployStatus: {
                 method: "POST",
