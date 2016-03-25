@@ -22,7 +22,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *CliAPITestSuite) testConvertOffsets(c *C, received []string, expected []uint64) {
+func (s *TestAPISuite) testConvertOffsets(c *C, received []string, expected []uint64) {
 	converted, err := convertOffsets(received)
 	if err != nil {
 		c.Fatalf("unexpected error converting offsets: %s", err)
@@ -32,26 +32,26 @@ func (s *CliAPITestSuite) testConvertOffsets(c *C, received []string, expected [
 	}
 }
 
-func (s *CliAPITestSuite) testUint64sAreSorted(c *C, values []uint64, expected bool) {
+func (s *TestAPISuite) testUint64sAreSorted(c *C, values []uint64, expected bool) {
 	if uint64sAreSorted(values) != expected {
 		c.Fatalf("expected %v for sortedness for values: %v", expected, values)
 	}
 }
 
-func (s *CliAPITestSuite) testGetMinValue(c *C, values []uint64, expected uint64) {
+func (s *TestAPISuite) testGetMinValue(c *C, values []uint64, expected uint64) {
 	if getMinValue(values) != expected {
 		c.Fatalf("expected min value %v from values: %v", expected, values)
 	}
 }
 
-func (s *CliAPITestSuite) testGenerateOffsets(c *C, inMessages []string, inOffsets, expected []uint64) {
+func (s *TestAPISuite) testGenerateOffsets(c *C, inMessages []string, inOffsets, expected []uint64) {
 	converted := generateOffsets(inMessages, inOffsets)
 	if !reflect.DeepEqual(converted, expected) {
 		c.Fatalf("unexpected error generating offsets from %v:%v got %v expected %v", inMessages, inOffsets, converted, expected)
 	}
 }
 
-func (s *CliAPITestSuite) TestLogs_Offsets(c *C) {
+func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 	s.testConvertOffsets(c, []string{"123", "456", "789"}, []uint64{123, 456, 789})
 	s.testConvertOffsets(c, []string{"456", "123", "789"}, []uint64{456, 123, 789})
 

@@ -24,7 +24,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *CliAPITestSuite) TestGetService_works(c *C) {
+func (s *TestAPISuite) TestGetService_works(c *C) {
 	serviceID := "test-service"
 	expected, _ := service.NewService()
 
@@ -37,7 +37,7 @@ func (s *CliAPITestSuite) TestGetService_works(c *C) {
 	c.Assert(actual.ID, Equals, expected.ID)
 }
 
-func (s *CliAPITestSuite) TestGetService_fails(c *C) {
+func (s *TestAPISuite) TestGetService_fails(c *C) {
 	errorStub := errors.New("errorStub: GetService() failed")
 	serviceID := "test-service"
 	s.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(errorStub)
@@ -55,7 +55,7 @@ func (m mockInputReader) Read(p []byte) (n int, err error) {
 	return args.Int(0), args.Error(1)
 }
 
-func (s *CliAPITestSuite) TestGetEndpoints_fails(c *C) {
+func (s *TestAPISuite) TestGetEndpoints_fails(c *C) {
 	errorStub := errors.New("errorStub: GetServiceEndpoints() failed")
 	serviceID := "test-service"
 
@@ -69,7 +69,7 @@ func (s *CliAPITestSuite) TestGetEndpoints_fails(c *C) {
 	c.Assert(err, Equals, errorStub)
 }
 
-func (s *CliAPITestSuite) TestGetEndpoints_works(c *C) {
+func (s *TestAPISuite) TestGetEndpoints_works(c *C) {
 	serviceID := "test-service"
 
 	s.mockMasterClient.
