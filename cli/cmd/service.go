@@ -54,10 +54,24 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceList,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
-					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
-					cli.StringFlag{"format", "", "format the output using the given go template"},
-					cli.StringFlag{"show-fields", "Name,ServiceID,Inst,ImageID,Pool,DState,Launch,DepID", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
+					},
+					cli.BoolFlag{
+						Name:  "ascii, a",
+						Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+					},
+					cli.StringFlag{
+						Name:  "format",
+						Value: "",
+						Usage: "format the output using the given go template",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "Name,ServiceID,Inst,ImageID,Pool,DState,Launch,DepID",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:        "status",
@@ -65,8 +79,15 @@ func (c *ServicedCli) initService() {
 				Description: "serviced service status { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceStatus,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
-					cli.StringFlag{"show-fields", "Name,ServiceID,Status,HC Fail,Healthcheck,Healthcheck Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "ascii, a",
+						Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "Name,ServiceID,Status,HC Fail,Healthcheck,Healthcheck Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:        "add",
@@ -74,9 +95,21 @@ func (c *ServicedCli) initService() {
 				Description: "serviced service add NAME IMAGEID COMMAND",
 				Action:      c.cmdServiceAdd,
 				Flags: []cli.Flag{
-					cli.GenericFlag{"p", &api.PortMap{}, "Expose a port for this service (e.g. -p tcp:3306:mysql)"},
-					cli.GenericFlag{"q", &api.PortMap{}, "Map a remote service port (e.g. -q tcp:3306:mysql)"},
-					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
+					cli.GenericFlag{
+						Name:  "p",
+						Value: &api.PortMap{},
+						Usage: "Expose a port for this service (e.g. -p tcp:3306:mysql)",
+					},
+					cli.GenericFlag{
+						Name:  "q",
+						Value: &api.PortMap{},
+						Usage: "Map a remote service port (e.g. -q tcp:3306:mysql)",
+					},
+					cli.StringFlag{
+						Name:  "parent-id",
+						Value: "",
+						Usage: "Parent service ID for which this service relates",
+					},
 				},
 			}, {
 				Name:        "clone",
@@ -84,7 +117,11 @@ func (c *ServicedCli) initService() {
 				Description: "serviced service clone { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceClone,
 				Flags: []cli.Flag{
-					cli.StringFlag{"suffix", "", "name to append to service name, volumes, endpoints"},
+					cli.StringFlag{
+						Name:  "suffix",
+						Value: "",
+						Usage: "name to append to service name, volumes, endpoints",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -100,7 +137,11 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceEdit,
 				Flags: []cli.Flag{
-					cli.StringFlag{"editor, e", os.Getenv("EDITOR"), "Editor used to update the service definition"},
+					cli.StringFlag{
+						Name:  "editor, e",
+						Value: os.Getenv("EDITOR"),
+						Usage: "Editor used to update the service definition",
+					},
 				},
 			}, {
 				Name:         "assign-ip",
@@ -115,7 +156,10 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
 				Flags: []cli.Flag{
-					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+					cli.BoolTFlag{
+						Name:  "auto-launch",
+						Usage: "Recursively schedules child services",
+					},
 				},
 			}, {
 				Name:         "restart",
@@ -124,7 +168,10 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
 				Flags: []cli.Flag{
-					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+					cli.BoolTFlag{
+						Name:  "auto-launch",
+						Usage: "Recursively schedules child services",
+					},
 				},
 			}, {
 				Name:         "stop",
@@ -133,7 +180,10 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStop,
 				Flags: []cli.Flag{
-					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+					cli.BoolTFlag{
+						Name:  "auto-launch",
+						Usage: "Recursively schedules child services",
+					},
 				},
 			}, {
 				Name:         "shell",
@@ -142,9 +192,20 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceShell,
 				Flags: []cli.Flag{
-					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
-					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
-					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
+					cli.StringFlag{
+						Name:  "saveas, s",
+						Value: "",
+						Usage: "saves the service instance with the given name",
+					},
+					cli.BoolFlag{
+						Name:  "interactive, i",
+						Usage: "runs the service instance as a tty",
+					},
+					cli.StringSliceFlag{
+						Name:  "mount",
+						Value:  &cli.StringSlice{},
+						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
+					},
 				},
 			}, {
 				Name:         "run",
@@ -153,13 +214,38 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServiceRun,
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
-					cli.BoolFlag{"logtostderr", "enable/disable detailed serviced run logging (false by default)"},
-					cli.BoolTFlag{"logstash", "enable/disable log stash (true by default)"},
-					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
-					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
-					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"user", "", "container username used to run command"},
+					cli.BoolFlag{
+						Name:  "interactive, i",
+						Usage: "runs the service instance as a tty",
+					},
+					cli.BoolFlag{
+						Name:  "logtostderr",
+						Usage: "enable/disable detailed serviced run logging (false by default)",
+					},
+					cli.BoolTFlag{
+						Name:  "logstash",
+						Usage: "enable/disable log stash (true by default)",
+					},
+					cli.StringFlag{
+						Name:  "logstash-idle-flush-time",
+						Value: "100ms",
+						Usage: "time duration for logstash to flush log messages",
+					},
+					cli.StringFlag{
+						Name:  "logstash-settle-time",
+						Value: "5s",
+						Usage: "time duration to wait for logstash to flush log messages before closing",
+					},
+					cli.StringSliceFlag{
+						Name:  "mount",
+						Value: &cli.StringSlice{},
+						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
+					},
+					cli.StringFlag{
+						Name:  "user",
+						Value: "",
+						Usage: "container username used to run command",
+					},
 				},
 			}, {
 				Name:         "attach",
@@ -186,7 +272,10 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceListSnapshots,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"show-tags, t", "shows the tags associated with each snapshot"},
+					cli.BoolFlag{
+						Name:  "show-tags, t",
+						Usage: "shows the tags associated with each snapshot",
+					},
 				},
 			}, {
 				Name:         "snapshot",
@@ -195,8 +284,16 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceSnapshot,
 				Flags: []cli.Flag{
-					cli.StringFlag{"description, d", "", "a description of the snapshot"},
-					cli.StringFlag{"tag, t", "", "a unique tag for the snapshot"},
+					cli.StringFlag{
+						Name:  "description, d",
+						Value: "",
+						Usage: "a description of the snapshot",
+					},
+					cli.StringFlag{
+						Name:  "tag, t",
+						Value: "",
+						Usage: "a unique tag for the snapshot",
+					},
 				},
 			}, {
 				Name:         "endpoints",
@@ -205,9 +302,18 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceEndpoints,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"imports, i", "include only imported endpoints"},
-					cli.BoolFlag{"all, a", "include all endpoints (imports and exports)"},
-					cli.BoolFlag{"verify, v", "verify endpoints"},
+					cli.BoolFlag{
+						Name:  "imports, i",
+						Usage: "include only imported endpoints",
+					},
+					cli.BoolFlag{
+						Name:  "all, a",
+						Usage: "include all endpoints (imports and exports)",
+					},
+					cli.BoolFlag{
+						Name:  "verify, v",
+						Usage: "verify endpoints",
+					},
 				},
 			},
 		},

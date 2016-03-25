@@ -38,8 +38,15 @@ func (c *ServicedCli) initPool() {
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdPoolList,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
-					cli.StringFlag{"show-fields", "ID", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "ID",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:  "add",
@@ -62,8 +69,15 @@ func (c *ServicedCli) initPool() {
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdPoolListIPs,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
-					cli.StringFlag{"show-fields", "InterfaceName,IPAddress,Type", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "InterfaceName,IPAddress,Type",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:         "add-virtual-ip",

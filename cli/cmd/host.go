@@ -40,8 +40,15 @@ func (c *ServicedCli) initHost() {
 				BashComplete: c.printHostsFirst,
 				Action:       c.cmdHostList,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"verbose, v", "Show JSON format"},
-					cli.StringFlag{"show-fields", "ID,Pool,Name,Addr,RPCPort,Cores,RAM,Cur/Max/Avg,Network,Release", "Comma-delimited list describing which fields to display"},
+					cli.BoolFlag{
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
+					},
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "ID,Pool,Name,Addr,RPCPort,Cores,RAM,Cur/Max/Avg,Network,Release",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
 				},
 			}, {
 				Name:         "add",
@@ -50,7 +57,11 @@ func (c *ServicedCli) initHost() {
 				BashComplete: c.printHostAdd,
 				Action:       c.cmdHostAdd,
 				Flags: []cli.Flag{
-					cli.StringFlag{"memory", "", "Memory to allocate on this host, e.g. 20G, 50%"},
+					cli.StringFlag{
+						Name:  "memory",
+						Value: "",
+						Usage: "Memory to allocate on this host, e.g. 20G, 50%",
+					},
 				},
 			}, {
 				Name:         "remove",
