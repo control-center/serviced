@@ -26,11 +26,11 @@ import (
 
 func TestAtomicFile(t *testing.T) { TestingT(t) }
 
-type AtomicFileSuite struct{}
+type TestAtomicFileSuite struct{}
 
-var _ = Suite(&AtomicFileSuite{})
+var _ = Suite(&TestAtomicFileSuite{})
 
-func (s *AtomicFileSuite) TestWriteFile(c *C) {
+func (s *TestAtomicFileSuite) TestWriteFile(c *C) {
 	f, err := ioutil.TempFile("", "TestWriteFile")
 	if err != nil {
 		c.Fatalf("unexpected error creating tempfile: %s", err)
