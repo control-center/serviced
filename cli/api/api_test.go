@@ -27,7 +27,7 @@ import (
 var tGlobal *testing.T
 
 // Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) {
+func TestAPI(t *testing.T) {
 	TestingT(t)
 
 	// HACK ALERT: Some functions in testify.Mock require testing.T, but
@@ -36,9 +36,9 @@ func Test(t *testing.T) {
 	tGlobal = t
 }
 
-var _ = Suite(&CliAPITestSuite{})
+var _ = Suite(&TestAPISuite{})
 
-type CliAPITestSuite struct {
+type TestAPISuite struct {
 	api API
 
 	//  A mock implementation of the ControlPlane interface
@@ -47,7 +47,7 @@ type CliAPITestSuite struct {
 	mockMasterClient *mocks.ClientInterface
 }
 
-func (s *CliAPITestSuite) SetUpTest(c *C) {
+func (s *TestAPISuite) SetUpTest(c *C) {
 	s.mockControlPlane = &daomocks.ControlPlane{}
 	s.mockMasterClient = &mocks.ClientInterface{}
 
@@ -55,7 +55,7 @@ func (s *CliAPITestSuite) SetUpTest(c *C) {
 	s.api = apiObj
 }
 
-func (s *CliAPITestSuite) TearDownTest(c *C) {
+func (s *TestAPISuite) TearDownTest(c *C) {
 	// don't allow per-test-case values to be reused across test cases
 	s.api = nil
 	s.mockControlPlane = nil
