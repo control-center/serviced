@@ -35,16 +35,10 @@ func DockerIsLoggedIn() bool {
 		return false
 	}
 
-	// Create a registry endpoint to the official registry.
-	endpoint, err := registry.NewEndpoint(&registry.IndexInfo{Official: true}, nil, registry.APIVersionUnknown)
-	if err != nil {
-		glog.Errorf("Error checking Docker Hub login: %s", err)
-		return false
-	}
-
 	// Iterate over AuthConfigs and attempt to login.
+	svc := registry.NewService(registry.ServiceOptions{})
 	for _, authConfig := range configFile.AuthConfigs {
-		_, err := registry.Login(&authConfig, endpoint)
+		_, _, err := svc.Auth(&authConfig, "")
 		if err == nil {
 			return true
 		}

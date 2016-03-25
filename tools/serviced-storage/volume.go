@@ -14,12 +14,13 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/volume"
-	"github.com/docker/docker/pkg/units"
-	"github.com/jessevdk/go-flags"
 	"os"
 	"os/exec"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/volume"
+	"github.com/docker/go-units"
+	"github.com/jessevdk/go-flags"
 )
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
@@ -62,11 +63,11 @@ func (c *DriverSync) Execute(args []string) error {
 	destinationPath := string(c.Args.DestinationPath)
 	sourcePath := string(c.Args.SourcePath)
 	logger := log.WithFields(log.Fields{
-		"destination":destinationPath,
-		"source":sourcePath})
+		"destination": destinationPath,
+		"source":      sourcePath})
 	if c.Create {
 		logger = logger.WithFields(log.Fields{
-			"type":c.Type,
+			"type": c.Type,
 		})
 		logger.Info("Determining driver type for destination")
 		destinationDriverType, err := volume.StringToDriverType(c.Type)
@@ -110,7 +111,7 @@ func (c *DriverSync) Execute(args []string) error {
 			createVolume(string(destinationPath), volumeName)
 		}
 		volumeLogger = volumeLogger.WithFields(log.Fields{
-			"sourcePath":sourceVolume.Path(),
+			"sourcePath": sourceVolume.Path(),
 		})
 		volumeLogger.Info("using rsync to sync source to destination")
 		rsync(sourceVolume.Path(), string(c.Args.DestinationPath))
@@ -130,7 +131,6 @@ func rsync(sourcePath string, destinationPath string) {
 	rsync.Stderr = os.Stderr
 	rsync.Run()
 }
-
 
 //CreateVolume creates a volume at path with name of name
 func createVolume(path string, name string) {

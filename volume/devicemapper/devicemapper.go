@@ -24,7 +24,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
 )
 

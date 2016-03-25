@@ -25,7 +25,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/googollee/go-socket.io"
+	"github.com/control-center/go-socket.io"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
