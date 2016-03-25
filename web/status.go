@@ -14,8 +14,10 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -27,6 +29,18 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
+
+var (
+	cachedvalue  atomic.Value
+	cachetimeout = time.Duration(5) * time.Second
+	emptyvalue   = []byte{}
+)
+
+// SetServiceStatsCacheTimeout sets the time in seconds for stats on
+// running instances to be cached for the UI.
+func SetServiceStatsCacheTimeout(seconds int) {
+	cachetimeout = time.Duration(seconds) * time.Second
+}
 
 // ConciseServiceStatus contains the information necessary to display the
 // status of a service in the UI. It joins running instances with health checks
@@ -113,13 +127,16 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	// Add isvcs to the mix
 	isvcInstances := getIRS()
 	for _, isvc := range isvcInstances {
+		if isvc.ServiceID == "isvc-internalservices" {
+			continue
+		}
 		instances = append(instances, isvc)
 		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"))
 		if err != nil {
 			glog.Warningf("Error acquiring health status for %s (%s)", isvc.ServiceID, err)
 			continue
 		}
-		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = ConvertDomainHealthToNewHealth(results.HealthStatuses)
+		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = convertDomainHealthToNewHealth(results.HealthStatuses)
 	}
 	// Create the concise service statuses
 	for _, instance := range instances {
@@ -151,19 +168,41 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 }
 
 func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	statuses, err := getAllServiceStatuses(client)
-	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
-		restServerError(w, err)
+	f := func() []byte {
+		statuses, err := getAllServiceStatuses(client)
+		if err != nil {
+			glog.Errorf("Error retrieving service statuses: (%s)", err)
+			restServerError(w, err)
+		}
+		bytes, err := json.Marshal(statuses)
+		if err != nil {
+			glog.Errorf("Error serializing service statuses: (%s)", err)
+			restServerError(w, err)
+		}
+		return bytes
 	}
-	w.WriteJson(statuses)
+	w.Header().Set("content-type", "application/json")
+	w.Write(getCached(f))
+}
+
+func getCached(f func() []byte) []byte {
+	val := cachedvalue.Load()
+	if val == nil || len(val.([]byte)) == 0 {
+		val = f()
+		cachedvalue.Store(val)
+		go func() {
+			time.Sleep(cachetimeout)
+			cachedvalue.Store(emptyvalue)
+		}()
+	}
+	return val.([]byte)
 }
 
 // ConvertDomainHealthToNewHealth changes the domain health check status into
 // a new-style health status for consumption by the UI or other interface.
 // Sort of deprecated, in that it will be rendered useless once
 // domain.HealthCheckStatus is no longer returned by isvcs.Mgr.
-func ConvertDomainHealthToNewHealth(sources []domain.HealthCheckStatus) map[string]health.HealthStatus {
+func convertDomainHealthToNewHealth(sources []domain.HealthCheckStatus) map[string]health.HealthStatus {
 	var status string
 	result := make(map[string]health.HealthStatus)
 	for _, hcs := range sources {

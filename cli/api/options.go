@@ -62,6 +62,7 @@ type Options struct {
 	ReportStats          bool
 	HostStats            string
 	StatsPeriod          int
+	SvcStatsCacheTimeout int
 	MCUsername           string
 	MCPasswd             string
 	Mount                []string
@@ -215,6 +216,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		Zookeepers:           config.StringSlice("ZK", []string{}),
 		HostStats:            config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
 		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
+		SvcStatsCacheTimeout: config.IntVal("SVCSTATS_CACHE_TIMEOUT", 5),
 		MCUsername:           "scott",
 		MCPasswd:             "tiger",
 		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "devicemapper")),
