@@ -97,8 +97,6 @@ def args():
     types.add_argument("--integration", action="store_true", help="pass the 'integration' build tag")
 
     options = parser.add_argument_group("Test Options")
-    options.add_argument("--no-godep", dest="nogodep", action="store_true",
-            help="don't add the godep workspace to GOPATH")
     options.add_argument("--quick", action="store_true", help="don't run tests with the '!quick' build constraint")
     options.add_argument("--root", action="store_true", help="run the tests as the root user")
     options.add_argument("--race", action="store_true", help="run tests with race detection")
@@ -144,18 +142,6 @@ def build_tags(options):
     return tags
 
 
-def get_gopath():
-    gopath = os.environ.get("GOPATH")
-    log.debug("Original GOPATH=%s" % (gopath or ""))
-    try:
-        godep_path = subprocess.check_output(["godep", "path"], cwd=SERVICED_ROOT)
-    except subprocess.CalledProcessError:
-        fail("Unable to run 'godep path'. Please check your environment.")
-    gopath = "%s:%s" % (godep_path.strip(), gopath.strip())
-    log.debug("Modified GOPATH=%s" % gopath)
-    return gopath
-
-
 def main(options):
     logging.basicConfig(level=logging.DEBUG if options.verbose else logging.INFO)
 
@@ -191,10 +177,6 @@ def main(options):
     else:
         runner = which("go")
         log.debug("Using go executable %s" % runner)
-
-    # Modify this after we've gotten all the tools.
-    if not options.nogodep:
-        env["GOPATH"] = get_gopath()
 
     # TODO: Get a sudo session set up with an interactive proc
     cmd = ["sudo", "-E", "PATH=%s" % env["PATH"]] if options.root else []
