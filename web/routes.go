@@ -107,7 +107,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
 		rest.Route{"GET", "/running", gz(sc.authorizedClient(restGetAllRunning))},
 		rest.Route{"GET", "/config", gz(sc.authorizedClient(restGetUIConfig))},
-		rest.Route{"GET", "/running2", gz(sc.authorizedClient(restGetConciseServiceStatus))},
+		rest.Route{"GET", "/servicestatus", gz(sc.authorizedClient(restGetConciseServiceStatus))},
 
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},

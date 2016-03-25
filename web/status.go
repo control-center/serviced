@@ -31,9 +31,15 @@ import (
 )
 
 var (
-	cachedvalue  atomic.Value
-	cachetimeout = time.Duration(5) * time.Second
-	emptyvalue   = []byte{}
+	cachedvalue     atomic.Value
+	cachetimeout    = time.Duration(5) * time.Second
+	emptyvalue      = []byte{}
+	isvcsRootHealth = map[string]health.HealthStatus{
+		"alive": health.HealthStatus{
+			Status:    health.OK,
+			StartedAt: time.Now(),
+		},
+	}
 )
 
 // SetServiceStatsCacheTimeout sets the time in seconds for stats on
@@ -83,6 +89,7 @@ func convertInstancesToMetric(instances []dao.RunningService) []metrics.ServiceI
 
 func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServiceStatus, err error) {
 	// Get all running service instances
+	glog.V(0).Info("Retrieving statuses, memory and health checks for running services")
 	var instances []dao.RunningService
 	if err := client.GetRunningServices(&empty, &instances); err != nil {
 		return nil, err
@@ -127,16 +134,19 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	// Add isvcs to the mix
 	isvcInstances := getIRS()
 	for _, isvc := range isvcInstances {
-		if isvc.ServiceID == "isvc-internalservices" {
-			continue
-		}
+		var checks map[string]health.HealthStatus
 		instances = append(instances, isvc)
-		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"))
-		if err != nil {
-			glog.Warningf("Error acquiring health status for %s (%s)", isvc.ServiceID, err)
-			continue
+		if isvc.ServiceID == "isvc-internalservices" {
+			checks = isvcsRootHealth
+		} else {
+			results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"))
+			if err != nil {
+				glog.Warningf("Error acquiring health status for %s (%s)", isvc.ServiceID, err)
+				continue
+			}
+			checks = convertDomainHealthToNewHealth(results.HealthStatuses)
 		}
-		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = convertDomainHealthToNewHealth(results.HealthStatuses)
+		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = checks
 	}
 	// Create the concise service statuses
 	for _, instance := range instances {

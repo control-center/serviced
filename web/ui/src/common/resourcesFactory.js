@@ -115,7 +115,7 @@
             },
             getServiceInstances: {
                 method: "GET",
-                url: "/running2"
+                url: "/servicestatus"
             },
             addPool: {
                 method: "POST",

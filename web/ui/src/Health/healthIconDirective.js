@@ -8,7 +8,7 @@
     angular.module('healthIcon', [])
     .directive("healthIcon", ["hcStatus",
     function(hcStatus){
-        let {OK, FAILED, TIMEOUT, NOT_RUNNING, UNKNOWN} = hcStatus;
+        let {OK, FAILED, NOT_RUNNING, UNKNOWN} = hcStatus;
 
         return {
             restrict: "E",
