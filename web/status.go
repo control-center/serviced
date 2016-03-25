@@ -15,10 +15,13 @@ package web
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
@@ -93,9 +96,6 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 		}
 	}
 
-	// Append internal services to the list
-	instances = append(instances, getIRS()...)
-
 	// Look up health check statuses
 	healthChecks := make(map[string]map[string]health.HealthStatus)
 	if len(instances) > 0 {
@@ -110,6 +110,17 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 		}
 	}
 
+	// Add isvcs to the mix
+	isvcInstances := getIRS()
+	for _, isvc := range isvcInstances {
+		instances = append(instances, isvc)
+		results, err := isvcs.Mgr.GetHealthStatus(strings.TrimPrefix(isvc.ServiceID, "isvc-"))
+		if err != nil {
+			glog.Warningf("Error acquiring health status for %s (%s)", isvc.ServiceID, err)
+			continue
+		}
+		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = ConvertDomainHealthToNewHealth(results.HealthStatuses)
+	}
 	// Create the concise service statuses
 	for _, instance := range instances {
 		stat := &ConciseServiceStatus{
@@ -146,4 +157,30 @@ func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, client
 		restServerError(w, err)
 	}
 	w.WriteJson(statuses)
+}
+
+// ConvertDomainHealthToNewHealth changes the domain health check status into
+// a new-style health status for consumption by the UI or other interface.
+// Sort of deprecated, in that it will be rendered useless once
+// domain.HealthCheckStatus is no longer returned by isvcs.Mgr.
+func ConvertDomainHealthToNewHealth(sources []domain.HealthCheckStatus) map[string]health.HealthStatus {
+	var status string
+	result := make(map[string]health.HealthStatus)
+	for _, hcs := range sources {
+		switch hcs.Status {
+		case "passed":
+			status = health.OK
+		case "failed":
+			status = health.Failed
+		default:
+			status = health.Unknown
+		}
+		// Not going to bother populating Duration, since it doesn't have an
+		// analogue in domain.HealthCheckStatus.
+		result[hcs.Name] = health.HealthStatus{
+			Status:    status,
+			StartedAt: time.Unix(hcs.Timestamp, 0),
+		}
+	}
+	return result
 }
