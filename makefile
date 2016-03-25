@@ -142,7 +142,7 @@ $(GOSRC)/$(godep_SRC):
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
 
-GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
+GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/ vendor/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet:
 	GOSRC=$(GOSRC) GOTOOLS_SRC=$(GOTOOLS_SRC) ./get_govet.sh
