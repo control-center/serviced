@@ -77,6 +77,14 @@ func ExportFile(tarfile *tar.Writer, path, name string) error {
 		glog.Warningf("Cannot export Unix domain socket %s", path)
 		return nil
 	}
+	if isNamedPipe := fstat.Mode() & os.ModeNamedPipe; isNamedPipe == os.ModeNamedPipe {
+		glog.Warningf("Cannot export Named pipe %s", path)
+		return nil
+	}
+	if isDevice := fstat.Mode() & os.ModeDevice; isDevice == os.ModeDevice {
+		glog.Warningf("Cannot export Device %s", path)
+		return nil
+	}
 
 	file, err := os.Open(path)
 	if err != nil {
