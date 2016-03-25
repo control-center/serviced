@@ -89,7 +89,7 @@ func convertInstancesToMetric(instances []dao.RunningService) []metrics.ServiceI
 
 func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServiceStatus, err error) {
 	// Get all running service instances
-	glog.V(0).Info("Retrieving statuses, memory and health checks for running services")
+	glog.V(2).Info("Retrieving statuses, memory and health checks for running services")
 	var instances []dao.RunningService
 	if err := client.GetRunningServices(&empty, &instances); err != nil {
 		return nil, err
