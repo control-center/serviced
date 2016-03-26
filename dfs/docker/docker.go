@@ -67,6 +67,7 @@ type Docker interface {
 	CommitContainer(ctr, image string) (*dockerclient.Image, error)
 	GetImageHash(image string) (string, error)
 	GetContainerStats(containerID string, timeout time.Duration) (*dockerclient.Stats, error)
+	FindImageByHash(imageHash string, checkAllLayers bool) (*dockerclient.Image, error)
 }
 
 type DockerClient struct {
@@ -231,4 +232,29 @@ func (d *DockerClient) GetContainerStats(containerID string, timeout time.Durati
 	}
 
 	return result, nil
+}
+
+// FindImageByHash searches all local images for an image with the given hash
+func (d *DockerClient) FindImageByHash(imageHash string, checkAllLayers bool) (*dockerclient.Image, error) {
+	opts := dockerclient.ListImagesOptions{
+		All:     checkAllLayers,
+		Digests: false,
+	}
+
+	allImages, err := d.dc.ListImages(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, apiImage := range allImages {
+		if hash, err := d.GetImageHash(apiImage.ID); err == nil {
+			if hash == imageHash {
+				return d.FindImage(apiImage.ID)
+			}
+		} else {
+			glog.Warningf("Error computing hash for %s: %s", apiImage.ID, err)
+		}
+	}
+
+	return nil, dockerclient.ErrNoSuchImage
 }

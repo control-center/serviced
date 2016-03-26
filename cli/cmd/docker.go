@@ -44,8 +44,15 @@ func (c *ServicedCli) initDocker() {
 				Description: "Upgrades the docker registry from an older or remote registry",
 				Action:      c.cmdMigrateRegistry,
 				Flags: []cli.Flag{
-					cli.StringFlag{"registry", "", "host:port where the registry is running"},
-					cli.BoolFlag{"override, f", "overrides all existing image records"},
+					cli.StringFlag{
+						Name:  "registry",
+						Value: "",
+						Usage: "host:port where the registry is running",
+					},
+					cli.BoolFlag{
+						Name:  "override, f",
+						Usage: "overrides all existing image records",
+					},
 				},
 			}, {
 				Name:        "override",

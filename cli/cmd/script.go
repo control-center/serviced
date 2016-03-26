@@ -50,8 +50,15 @@ func (c *ServicedCli) initScript() {
 				Description: "serviced script run FILE [--service SERVICEID] [-n]",
 				Action:      c.cmdScriptRun,
 				Flags: []cli.Flag{
-					cli.StringFlag{"service", "", "Service to run this script against"},
-					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
+					cli.StringFlag{
+						Name:  "service",
+						Value: "",
+						Usage: "Service to run this script against",
+					},
+					cli.BoolFlag{
+						Name:  "no-op, n",
+						Usage: "Run through script without modifying system",
+					},
 				},
 			},
 		},
