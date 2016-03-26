@@ -148,7 +148,7 @@ func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) erro
 			return err
 		}
 	case tar.TypeSymlink:
-		if err := os.Symlink(filename, header.Linkname); err != nil {
+		if err := os.Symlink(header.Linkname, filename); err != nil {
 			glog.Errorf("Could not create symlink at %s: %s", filename, err)
 			return err
 		}
