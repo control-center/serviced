@@ -70,7 +70,7 @@ func (s *TestWebSuite) buildRequest(action, url, payload string) rest.Request {
 	httpRequest, _ := http.NewRequest(action, url, reader)
 	return rest.Request{
 		httpRequest,
-		nil,
+		map[string]string{},
 	}
 }
 
