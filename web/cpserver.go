@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
@@ -37,6 +38,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/facade"
 )
 
 // UIConfig contains configuration values
@@ -57,6 +59,7 @@ type ServiceConfig struct {
 	keyPEMFile  string
 	localAddrs  map[string]struct{}
 	uiConfig    UIConfig
+	facade      facade.FacadeInterface
 }
 
 var defaultHostAlias string
@@ -64,7 +67,7 @@ var uiConfig UIConfig
 
 // NewServiceConfig creates a new ServiceConfig
 func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int,
-	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int) *ServiceConfig {
+	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int, facade facade.FacadeInterface) *ServiceConfig {
 
 	uiCfg := UIConfig{
 		PollFrequency: pollFrequency,
@@ -80,6 +83,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		certPEMFile: certPEMFile,
 		keyPEMFile:  keyPEMFile,
 		uiConfig:    uiCfg,
+		facade:      facade,
 	}
 
 	hostAddrs, err := utils.GetIPv4Addresses()
@@ -350,8 +354,9 @@ func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
 }
 
 type requestContext struct {
-	sc     *ServiceConfig
-	master master.ClientInterface
+	sc      *ServiceConfig
+	master  master.ClientInterface
+	dataCtx datastore.Context
 }
 
 func newRequestContext(sc *ServiceConfig) *requestContext {
@@ -368,6 +373,18 @@ func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
 		ctx.master = c
 	}
 	return ctx.master, nil
+}
+
+func (ctx *requestContext) getFacade() facade.FacadeInterface {
+	return ctx.sc.facade
+}
+
+func (ctx *requestContext) getDatastoreContext() datastore.Context {
+	//here in case we ever need to create a per request datastore context
+	if ctx.dataCtx == nil {
+		ctx.dataCtx = datastore.Get()
+	}
+	return ctx.dataCtx
 }
 
 func (ctx *requestContext) end() error {
