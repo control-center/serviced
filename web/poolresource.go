@@ -14,6 +14,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/facade"
+	"fmt"
 )
 
 //restGetPools retrieves all Resource Pools. Response is map[pool-id]ResourcePool
@@ -105,7 +106,11 @@ func restUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for PUT"))
+		return
 	}
+
 	var payload pool.ResourcePool
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {

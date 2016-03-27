@@ -74,7 +74,10 @@ func (s *TestWebSuite) TestRestUpdatePool(c *C) {
 }
 
 func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
-	request := s.buildRequest("PUT", "/pools", `{"ID": "somePool"}`)
+	poolID := "testPool"
+	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("PUT", "/pools", poolJson)
+	request.PathParams["poolId"] = poolID
 	expectedError := fmt.Errorf("mock update failed")
 	s.mockFacade.
 		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
@@ -96,6 +99,15 @@ func (s *TestWebSuite) TestRestUpdatePoolFailsForInvalidURL(c *C) {
 
 func (s *TestWebSuite) TestRestUpdatePoolFailsForBadJSON(c *C) {
 	request := s.buildRequest("PUT", "/pools", "{this is not valid json}")
+	request.PathParams["poolId"] = "someID"
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestResUpdatePoolFailsForMissingPoolID(c *C) {
+	request := s.buildRequest("PUT","/pools", `{"ID": "somePool"}`)
 
 	restUpdatePool(&(s.writer), &request, s.ctx)
 
