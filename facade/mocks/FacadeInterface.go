@@ -13,17 +13,20 @@
 
 package mocks
 
-import "github.com/stretchr/testify/mock"
+import (
+	"time"
 
-import "time"
-import "github.com/control-center/serviced/dao"
-import "github.com/control-center/serviced/datastore"
-import "github.com/control-center/serviced/domain"
-import "github.com/control-center/serviced/domain/host"
-import "github.com/control-center/serviced/domain/pool"
-import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/domain/servicestate"
-import "github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/facade"
+	"github.com/stretchr/testify/mock"
+)
 
 type FacadeInterface struct {
 	mock.Mock
@@ -149,8 +152,30 @@ func (m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) erro
 
 	return r0
 }
+func (m *FacadeInterface) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
+	ret := m.Called(ctx, hostID)
+
+	var r0 *host.Host
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*host.Host)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *FacadeInterface) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	ret := m.Called(ctx)
+
+	var r0 []host.Host
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]host.Host)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *FacadeInterface) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
+	ret := m.Called(ctx, poolID)
 
 	var r0 []host.Host
 	if ret.Get(0) != nil {
@@ -167,12 +192,34 @@ func (m *FacadeInterface) AddResourcePool(ctx datastore.Context, entity *pool.Re
 
 	return r0
 }
+func (m *FacadeInterface) GetResourcePool(ctx datastore.Context, poolID string) (*pool.ResourcePool, error) {
+	ret := m.Called(ctx, poolID)
+
+	var r0 *pool.ResourcePool
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*pool.ResourcePool)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *FacadeInterface) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error) {
 	ret := m.Called(ctx)
 
 	var r0 []pool.ResourcePool
 	if ret.Get(0) != nil {
 		r0 = ret.Get(0).([]pool.ResourcePool)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m *FacadeInterface) GetPoolIPs(ctx datastore.Context, poolID string) (*facade.PoolIPs, error) {
+	ret := m.Called(ctx, poolID)
+
+	var r0 *facade.PoolIPs
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*facade.PoolIPs)
 	}
 	r1 := ret.Error(1)
 
@@ -185,6 +232,13 @@ func (m *FacadeInterface) HasIP(ctx datastore.Context, poolID string, ipAddr str
 	r1 := ret.Error(1)
 
 	return r0, r1
+}
+func (m *FacadeInterface) RemoveResourcePool(ctx datastore.Context, id string) error {
+	ret := m.Called(ctx, id)
+
+	r0 := ret.Error(0)
+
+	return r0
 }
 func (m *FacadeInterface) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	ret := m.Called(ctx, entity)

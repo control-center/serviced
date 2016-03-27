@@ -16,24 +16,54 @@
 package web
 
 import (
-	"github.com/control-center/serviced/domain/pool"
+	"fmt"
+	"net/http"
 
-	"testing"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/stretchr/testify/mock"
+	. "gopkg.in/check.v1"
 )
 
-func TestBuildPoolMonitoringProfile(t *testing.T) {
+func (s *TestWebSuite) TestRestAddPool(c *C) {
+	poolID := "testPool"
+	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("POST", "/pool/add", poolJson)
+	s.mockFacade.
+		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil)
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, "Added resource pool", poolLinks(poolID))
+}
+
+func (s *TestWebSuite) TestRestAddPoolFailsForBadJSON(c *C) {
+	request := s.buildRequest("POST", "/pool/add", "{this is not valid json}")
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestAddPoolFails(c *C) {
+	request := s.buildRequest("POST", "/pool/add", `{"ID": "somePool"}`)
+	expectedError := fmt.Errorf("mock add failed")
+	s.mockFacade.
+		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(expectedError)
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestBuildPoolMonitoringProfile(c *C) {
 	pool := pool.ResourcePool{}
-	err := buildPoolMonitoringProfile(&pool, []string{}, nil)
+	err := buildPoolMonitoringProfile(&pool, []string{}, s.mockFacade, s.ctx.getDatastoreContext())
 
-	if err != nil {
-		t.Fatalf("Failed to build pool monitoring profile: err=%s", err)
-	}
-
-	if len(pool.MonitoringProfile.MetricConfigs) <= 0 {
-		t.Fatalf("Failed to build pool monitoring profile (missing metric configs): pool=%+v", pool)
-	}
-
-	if len(pool.MonitoringProfile.GraphConfigs) <= 0 {
-		t.Fatalf("Failed to build pool monitoring profile (missing graphs): pool=%+v", pool)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(pool.MonitoringProfile.MetricConfigs), Not(Equals), 0)
+	c.Assert(len(pool.MonitoringProfile.GraphConfigs), Equals, 3)
+	// FIXME: validate the expected content of the metric and graph configs
 }
