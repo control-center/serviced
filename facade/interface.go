@@ -57,13 +57,23 @@ type FacadeInterface interface {
 
 	AddHost(ctx datastore.Context, entity *host.Host) error
 
+	GetHost(ctx datastore.Context, hostID string) (*host.Host, error)
+
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
+
+	FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error)
 
 	AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 
+	GetResourcePool(ctx datastore.Context, poolID string) (*pool.ResourcePool, error)
+
 	GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error)
 
+	GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error)
+
 	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
+
+	RemoveResourcePool(ctx datastore.Context, id string) error
 
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 
