@@ -230,6 +230,10 @@
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "0eeaf8392f5b04950925b8a69fe70f110fa7cbfc"
 		},
+        {
+            "ImportPath": "github.com/jessevdk/go-flags",
+            "Rev": "6b9493b3cb60367edd942144879646604089e3f7"
+        },
 		{
 			"ImportPath": "github.com/kr/pretty",
 			"Comment": "go.weekly.2011-12-22-27-ge6ac2fc",
