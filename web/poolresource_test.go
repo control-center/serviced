@@ -16,24 +16,110 @@
 package web
 
 import (
-	"github.com/control-center/serviced/domain/pool"
+	"fmt"
+	"net/http"
 
-	"testing"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/stretchr/testify/mock"
+	. "gopkg.in/check.v1"
 )
 
-func TestBuildPoolMonitoringProfile(t *testing.T) {
+func (s *TestWebSuite) TestRestAddPool(c *C) {
+	poolID := "testPool"
+	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("POST", "/pools/add", poolJson)
+	s.mockFacade.
+		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil)
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, "Added resource pool", poolLinks(poolID))
+}
+
+func (s *TestWebSuite) TestRestAddPoolFailsForBadJSON(c *C) {
+	request := s.buildRequest("POST", "/pools/add", "{this is not valid json}")
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestAddPoolFails(c *C) {
+	request := s.buildRequest("POST", "/pools/add", `{"ID": "somePool"}`)
+	expectedError := fmt.Errorf("mock add failed")
+	s.mockFacade.
+		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(expectedError)
+
+	restAddPool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestUpdatePool(c *C) {
+	poolID := "testPool"
+	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("PUT", "/pools", poolJson)
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil)
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, "Updated resource pool", poolLinks(poolID))
+}
+
+func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
+	poolID := "testPool"
+	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("PUT", "/pools", poolJson)
+	request.PathParams["poolId"] = poolID
+	expectedError := fmt.Errorf("mock update failed")
+	s.mockFacade.
+		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(expectedError)
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestUpdatePoolFailsForInvalidURL(c *C) {
+	request := s.buildRequest("PUT", "/pools", `{"ID": "somePool"}`)
+	request.PathParams["poolId"] = "%zzz"
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestUpdatePoolFailsForBadJSON(c *C) {
+	request := s.buildRequest("PUT", "/pools", "{this is not valid json}")
+	request.PathParams["poolId"] = "someID"
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestResUpdatePoolFailsForMissingPoolID(c *C) {
+	request := s.buildRequest("PUT","/pools", `{"ID": "somePool"}`)
+
+	restUpdatePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestBuildPoolMonitoringProfile(c *C) {
 	pool := pool.ResourcePool{}
-	err := buildPoolMonitoringProfile(&pool, []string{}, nil)
+	err := buildPoolMonitoringProfile(&pool, []string{}, s.mockFacade, s.ctx.getDatastoreContext())
 
-	if err != nil {
-		t.Fatalf("Failed to build pool monitoring profile: err=%s", err)
-	}
-
-	if len(pool.MonitoringProfile.MetricConfigs) <= 0 {
-		t.Fatalf("Failed to build pool monitoring profile (missing metric configs): pool=%+v", pool)
-	}
-
-	if len(pool.MonitoringProfile.GraphConfigs) <= 0 {
-		t.Fatalf("Failed to build pool monitoring profile (missing graphs): pool=%+v", pool)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(pool.MonitoringProfile.MetricConfigs), Not(Equals), 0)
+	c.Assert(len(pool.MonitoringProfile.GraphConfigs), Equals, 3)
+	// FIXME: validate the expected content of the metric and graph configs
 }

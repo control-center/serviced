@@ -836,8 +836,18 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases,
-		options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile, options.UIPollFrequency)
+	cpserver := web.NewServiceConfig(
+		options.UIPort,
+		options.Endpoint,
+		options.ReportStats,
+		options.HostAliases,
+		options.TLS,
+		options.MuxPort,
+		options.AdminGroup,
+		options.CertPEMFile,
+		options.KeyPEMFile,
+		options.UIPollFrequency,
+		d.facade)
 	go cpserver.Serve(d.shutdown)
 	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)
 }

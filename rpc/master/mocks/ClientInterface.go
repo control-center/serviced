@@ -6,7 +6,6 @@ import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/facade"
 import "github.com/control-center/serviced/volume"
 import "time"
 
@@ -224,15 +223,15 @@ func (_m *ClientInterface) RemoveResourcePool(poolID string) error {
 
 	return r0
 }
-func (_m *ClientInterface) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
+func (_m *ClientInterface) GetPoolIPs(poolID string) (*pool.PoolIPs, error) {
 	ret := _m.Called(poolID)
 
-	var r0 *facade.PoolIPs
-	if rf, ok := ret.Get(0).(func(string) *facade.PoolIPs); ok {
+	var r0 *pool.PoolIPs
+	if rf, ok := ret.Get(0).(func(string) *pool.PoolIPs); ok {
 		r0 = rf(poolID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*facade.PoolIPs)
+			r0 = ret.Get(0).(*pool.PoolIPs)
 		}
 	}
 

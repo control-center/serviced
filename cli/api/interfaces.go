@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/script"
 	"github.com/control-center/serviced/volume"
@@ -50,7 +49,7 @@ type API interface {
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error
-	GetPoolIPs(string) (*facade.PoolIPs, error)
+	GetPoolIPs(string) (*pool.PoolIPs, error)
 	AddVirtualIP(pool.VirtualIP) error
 	RemoveVirtualIP(pool.VirtualIP) error
 
