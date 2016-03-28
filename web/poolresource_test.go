@@ -162,6 +162,23 @@ func (s *TestWebSuite) TestRestGetPoolFails(c *C) {
 	s.assertServerError(c, expectedError)
 }
 
+func (s *TestWebSuite) TestRestGetPoolFailsForInvalidURL(c *C) {
+	request := s.buildRequest("GET", "/pools", "")
+	request.PathParams["poolId"] = "%zzz"
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestGetPoolFailsForMissingPoolID(c *C) {
+	request := s.buildRequest("GET","/pools", "")
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
 func (s *TestWebSuite) TestRestGetPoolWhenFindHostsInPoolFails(c *C) {
 	expectedError := fmt.Errorf("mock FindHostsInPool failed")
 	poolID := "somePool"
@@ -290,7 +307,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFailsForBadJSON(c *C) {
 	s.assertBadRequest(c)
 }
 
-func (s *TestWebSuite) TestResUpdatePoolFailsForMissingPoolID(c *C) {
+func (s *TestWebSuite) TestRestUpdatePoolFailsForMissingPoolID(c *C) {
 	request := s.buildRequest("PUT","/pools", `{"ID": "somePool"}`)
 
 	restUpdatePool(&(s.writer), &request, s.ctx)

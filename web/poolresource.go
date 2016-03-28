@@ -53,6 +53,9 @@ func restGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for PUT"))
+		return
 	}
 
 	facade := ctx.getFacade()
