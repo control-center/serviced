@@ -66,42 +66,52 @@ func ExportDirectory(tarfile *tar.Writer, path, name string) error {
 
 // ExportFile writes a file into a tar Writer.
 func ExportFile(tarfile *tar.Writer, path, name string) error {
-	finfo, err := os.Stat(path)
+	// use Lstat so we don't dereference the symlinks.
+	fstat, err := os.Lstat(path)
 	if err != nil {
 		glog.Errorf("Could not stat %s", path)
 		return err
 	}
-	if isSocket := finfo.Mode() & os.ModeSocket; isSocket == os.ModeSocket {
+
+	if isSocket := fstat.Mode() & os.ModeSocket; isSocket == os.ModeSocket {
 		glog.Warningf("Cannot export Unix domain socket %s", path)
 		return nil
 	}
+	if isNamedPipe := fstat.Mode() & os.ModeNamedPipe; isNamedPipe == os.ModeNamedPipe {
+		glog.Warningf("Cannot export Named pipe %s", path)
+		return nil
+	}
+	if isDevice := fstat.Mode() & os.ModeDevice; isDevice == os.ModeDevice {
+		glog.Warningf("Cannot export Device %s", path)
+		return nil
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
 		glog.Errorf("Could not open %s: %s", path, err)
 		return err
 	}
 	defer file.Close()
-	fstat, err := file.Stat()
-	if err != nil {
-		glog.Errorf("Could not stat %s: %s", path, err)
-		return err
-	}
 
 	link, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		glog.Errorf("Could not check link for %s: %s", path, err)
 		return err
 	}
+
 	header, err := getHeader(name, link, fstat)
 	if err != nil {
 		glog.Errorf("Could not create file header %s: %s", path, err)
 		return err
 	}
+
 	if err := tarfile.WriteHeader(header); err != nil {
 		glog.Errorf("Could not write file header %s: %s", path, err)
 		return err
 	}
-	if link == path {
+
+	// Only write regular files; ignore symlinks/named pipes/sockets/devices.
+	if fstat.Mode().IsRegular() {
 		if _, err := io.Copy(tarfile, file); err != nil {
 			glog.Errorf("Could not write file %s: %s", path, err)
 			return err
@@ -138,7 +148,7 @@ func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) erro
 			return err
 		}
 	case tar.TypeSymlink:
-		if err := os.Symlink(filename, header.Linkname); err != nil {
+		if err := os.Symlink(header.Linkname, filename); err != nil {
 			glog.Errorf("Could not create symlink at %s: %s", filename, err)
 			return err
 		}
@@ -172,6 +182,11 @@ func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) erro
 	return nil
 }
 
+// Returns true if the FileInfo target is a Symbolic Link
+func isSymLink(fstat os.FileInfo) bool {
+	return fstat.Mode() & os.ModeSymlink != 0
+}
+
 func getHeader(name, link string, fstat os.FileInfo) (*tar.Header, error) {
 	header, err := tar.FileInfoHeader(fstat, link)
 	if err != nil {
@@ -181,5 +196,9 @@ func getHeader(name, link string, fstat os.FileInfo) (*tar.Header, error) {
 	header.Uid = int(fstat.Sys().(*syscall.Stat_t).Uid)
 	header.Gid = int(fstat.Sys().(*syscall.Stat_t).Gid)
 	header.ModTime = fstat.ModTime()
+	// Set symbolic link targets.
+	if (isSymLink(fstat)) {
+		header.Linkname = link
+	}
 	return header, nil
 }
