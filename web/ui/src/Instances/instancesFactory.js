@@ -85,7 +85,7 @@
             this.resources.RAMAverage = Math.max(0, instance.RAMAverage);
             this.resources.RAMLast = Math.max(0, instance.RAMLast);
             this.resources.RAMMax = Math.max(0, instance.RAMMax);
-            //this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
+            this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
         },
 
         updateInstanceHealth: function(healthChecks){
