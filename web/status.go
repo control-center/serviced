@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
@@ -67,6 +68,7 @@ type ConciseServiceStatus struct {
 	RAMMax          int64
 	RAMLast         int64
 	RAMAverage      int64
+	RAMCommitment   utils.EngNotation
 	HealthChecks    map[string]health.HealthStatus
 }
 
@@ -162,6 +164,7 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			PoolID:          instance.PoolID,
 			ServiceID:       instance.ServiceID,
 			StartedAt:       instance.StartedAt,
+			RAMCommitment:   instance.RAMCommitment,
 		}
 		key := memoryKey(instance.ServiceID, string(instance.InstanceID))
 		if mem, ok := memoryStats[key]; ok {
