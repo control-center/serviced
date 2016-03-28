@@ -474,14 +474,16 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
+TEST_TARGET_DIRS = $(GOVET_TARGET_DIRS:=...)
+
 .PHONY: test
 test: unit_test integration_test integration_docker_test integration_dao_test integration_zzk_test js_test
 
 unit_test: build docker_ok
-	./serviced-tests.py --unit --race --packages ./...
+	./serviced-tests.py --unit --race --packages $(TEST_TARGET_DIRS)
 
 integration_test: build docker_ok
-	./serviced-tests.py --integration --quick --race --packages ./...
+	./serviced-tests.py --integration --quick --race --packages $(TEST_TARGET_DIRS)
 
 integration_docker_test: build docker_ok
 	./serviced-tests.py --integration --race --packages ./commons/docker/...
