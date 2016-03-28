@@ -75,7 +75,7 @@ func (s *TestWebSuite) buildRequest(action, url, payload string) rest.Request {
 	}
 }
 
-func (s *TestWebSuite) getResultMap(c *C, result interface{}) {
+func (s *TestWebSuite) getResult(c *C, result interface{}) {
 	body := s.recorder.Body.String()
 	c.Assert(len(body), Not(Equals), 0)
 

@@ -50,7 +50,7 @@ func (s *TestWebSuite) TestRestGetPools(c *C) {
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 
 	actualResult := map[string]pool.ResourcePool{}
-	s.getResultMap(c, &actualResult)
+	s.getResult(c, &actualResult)
 	s.assertMapKeys(c, actualResult, expectedResult)
 	for poolID, pool := range actualResult {
 		c.Assert(pool.ID, Equals, expectedResult[poolID].ID)
@@ -61,14 +61,14 @@ func (s *TestWebSuite) TestRestGetPoolsReturnsEmptyList(c *C) {
 	emptyPools := []pool.ResourcePool{}
 	request := s.buildRequest("GET", "/pools", "")
 	s.mockFacade.
-	On("GetResourcePools", s.ctx.getDatastoreContext()).
-	Return(emptyPools, nil)
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return(emptyPools, nil)
 
 	restGetPools(&(s.writer), &request, s.ctx)
 
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 	actualResult := map[string]pool.ResourcePool{}
-	s.getResultMap(c, &actualResult)
+	s.getResult(c, &actualResult)
 	c.Assert(len(actualResult), Equals, 0)
 }
 
@@ -356,6 +356,79 @@ func (s *TestWebSuite) TestRestRemovePoolFailsForMissingPoolID(c *C) {
 	request := s.buildRequest("DELETE","/pools", `{"ID": "somePool"}`)
 
 	restRemovePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestGetHostsForResourcePool(c *C) {
+	poolID := "testPool"
+	request := s.buildRequest("GET", "/pools/testPool/hosts", "")
+	request.PathParams["poolId"] = poolID
+	expectedHosts := []host.Host{
+		{ID: "host1", IPAddr: "192.10.168.1"},
+		{ID: "host2", IPAddr: "192.10.168.2"},
+	}
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), poolID).
+		Return(expectedHosts, nil)
+
+	restGetHostsForResourcePool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	actualResult := []pool.PoolHost{}
+	s.getResult(c, &actualResult)
+	c.Assert(len(actualResult), Equals, len(expectedHosts))
+	c.Assert(actualResult[0].HostID, Equals, expectedHosts[0].ID)
+	c.Assert(actualResult[0].PoolID, Equals, poolID)
+	c.Assert(actualResult[0].HostIP, Equals, expectedHosts[0].IPAddr)
+	c.Assert(actualResult[1].HostID, Equals, expectedHosts[1].ID)
+	c.Assert(actualResult[1].PoolID, Equals, poolID)
+	c.Assert(actualResult[1].HostIP, Equals, expectedHosts[1].IPAddr)
+}
+
+func (s *TestWebSuite) TestRestGetHostsForResourcePoolReturnsEmptyList(c *C) {
+	poolID := "testPool"
+	request := s.buildRequest("GET", "/pools/testPool/hosts", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), poolID).
+		Return([]host.Host{}, nil)
+
+	restGetHostsForResourcePool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	actualResult := []pool.PoolHost{}
+	s.getResult(c, &actualResult)
+	c.Assert(len(actualResult), Equals, 0)
+}
+
+func (s *TestWebSuite) TestRestGetHostsForResourcePoolFails(c *C) {
+	expectedError := fmt.Errorf("mock FindHostsInPool failed")
+	poolID := "testPool"
+	request := s.buildRequest("GET", "/pools/testPool/hosts", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), poolID).
+		Return(nil, expectedError)
+
+	restGetHostsForResourcePool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetHostsForResourcePoolFailsForInvalidURL(c *C) {
+	request := s.buildRequest("GET", "/pools/%zzz/hosts", "")
+	request.PathParams["poolId"] = "%zzz"
+
+	restGetHostsForResourcePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestGetHostsForResourcePoolFailsForMissingPoolID(c *C) {
+	request := s.buildRequest("GET", "/pools/somePoolID/hosts", "")
+
+	restGetHostsForResourcePool(&(s.writer), &request, s.ctx)
 
 	s.assertBadRequest(c)
 }
