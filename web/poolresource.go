@@ -154,7 +154,7 @@ func restRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&simpleResponse{"Removed resource pool", poolsLinks()})
 }
 
-//restGetHostsForResourcePool gets all Hosts in a resource pool. response is [dao.PoolHost]
+//restGetHostsForResourcePool gets all Hosts in a resource pool. response is []pool.PoolHost
 func restGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	poolHosts := make([]*pool.PoolHost, 0)
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))

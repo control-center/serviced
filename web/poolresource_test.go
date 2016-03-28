@@ -433,6 +433,51 @@ func (s *TestWebSuite) TestRestGetHostsForResourcePoolFailsForMissingPoolID(c *C
 	s.assertBadRequest(c)
 }
 
+func (s *TestWebSuite) TestRestGetPoolIps(c *C) {
+	poolID := "testPool"
+	request := s.buildRequest("GET", "/pools/testPool/ips", "")
+	request.PathParams["poolId"] = poolID
+	expectedIps := pool.PoolIPs{
+		PoolID:  poolID,
+		HostIPs: []host.HostIPResource{{HostID: "host1"}},
+	}
+	s.mockFacade.
+		On("GetPoolIPs", s.ctx.getDatastoreContext(), poolID).
+		Return(&expectedIps, nil)
+
+	restGetPoolIps(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	actualResult := pool.PoolIPs{}
+	s.getResult(c, &actualResult)
+	c.Assert(actualResult.PoolID, Equals, expectedIps.PoolID)
+	c.Assert(len(actualResult.HostIPs), Equals, len(expectedIps.HostIPs))
+	c.Assert(actualResult.HostIPs[0].HostID, Equals, expectedIps.HostIPs[0].HostID)
+}
+
+func (s *TestWebSuite) TestRestGetPoolIpsFails(c *C) {
+	expectedError := fmt.Errorf("mock GetPoolIPs failed")
+	poolID := "testPool"
+	request := s.buildRequest("GET", "/pools/testPool/ips", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("GetPoolIPs", s.ctx.getDatastoreContext(), poolID).
+		Return(nil, expectedError)
+
+	restGetPoolIps(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPoolIpsForInvalidURL(c *C) {
+	request := s.buildRequest("GET", "/pools/%zzz/ips", "")
+	request.PathParams["poolId"] = "%zzz"
+
+	restGetPoolIps(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
 func (s *TestWebSuite) TestBuildPoolMonitoringProfile(c *C) {
 	pool := pool.ResourcePool{}
 	err := buildPoolMonitoringProfile(&pool, []string{}, s.mockFacade, s.ctx.getDatastoreContext())
