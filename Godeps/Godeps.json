@@ -7,6 +7,11 @@
 			"Comment": "v0.10.0",
 			"Rev": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
 		},
+        {
+            "ImportPath": "github.com/stretchr/testify/mock",
+            "Comment": "v1.1.3",
+            "Rev": "dcb39ac4d82b2c04f01407f25bbaf917f22fbc91"
+        },
 		{
 			"ImportPath": "github.com/araddon/gou",
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
