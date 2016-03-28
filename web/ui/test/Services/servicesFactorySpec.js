@@ -193,12 +193,13 @@ describe('servicesFactory', function() {
 
     it("Attaches service health to a service", function(){
         var mockInstance = {
+            id: "67890",
             model: { ServiceID: serviceDefA.ID }
         };
         var mockHealths = {
-            "healthcheck1": { Status: hcStatus.OK },
-            "healthcheck2": { Status: hcStatus.FAILED }
+            "check1": { Status: hcStatus.OK }
         };
+
         // put some health up for serviceDefA
         serviceHealth.setInstanceHealth(mockInstance, mockHealths);
 
@@ -209,7 +210,7 @@ describe('servicesFactory', function() {
         scope.$root.$digest();
 
         var status = servicesFactory.get(serviceDefA.ID).status;
-        expect(status.status).toBe(hcStatus.FAILED);
+        expect(status.status).toBe(hcStatus.OK);
     });
 });
 
