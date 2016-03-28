@@ -85,7 +85,6 @@ func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unu
 }
 
 // GetServicesHealth returns health checks for all services.
-// TODO: remove me before merging
 func (this *ControlPlaneDao) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) (err error) {
 	*results, err = this.facade.GetServicesHealth(datastore.Get())
 	return

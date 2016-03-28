@@ -263,7 +263,6 @@ type ControlPlane interface {
 	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
 
 	// GetServicesHealth returns all health checks for all services
-	// TODO: remove me before merging
 	GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error
 
 	// -----------------------------------------------------------------------

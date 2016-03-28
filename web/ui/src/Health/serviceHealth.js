@@ -7,7 +7,6 @@
 	// Failed means health check is responsive, but failing
 	const FAILED = "failed";
 	// Timeout means health check is non-responsive in the given time
-    // TODO - handle timeout status
 	const TIMEOUT = "timeout";
 	// NotRunning means the instance is not running
 	const NOT_RUNNING = "not_running";

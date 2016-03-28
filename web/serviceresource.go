@@ -71,7 +71,6 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 }
 
 // restGetServicesHealth returns health checks for all services
-// TODO: remove before merging
 func restGetServicesHealth(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	stats := make(map[string]map[int]map[string]health.HealthStatus)
 	if err := client.GetServicesHealth(0, &stats); err != nil {

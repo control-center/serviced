@@ -35,7 +35,6 @@ func (f *Facade) ReportInstanceDead(serviceID string, instanceID int) {
 }
 
 // GetServicesHealth returns the status of all services health instances.
-// TODO: adding this so the code will compile, remove when finished
 func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
 	store := f.serviceStore
 	svcs, err := store.GetServices(ctx)
@@ -53,7 +52,6 @@ func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]ma
 }
 
 // GetServiceHealth returns the status of all health instances.
-// TODO: adding this so the code will compile, remove when finished
 func (f *Facade) GetServiceHealth(ctx datastore.Context, serviceID string) (map[int]map[string]health.HealthStatus, error) {
 	store := f.serviceStore
 	svc, err := store.Get(ctx, serviceID)
