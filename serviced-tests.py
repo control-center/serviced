@@ -102,6 +102,7 @@ def args():
     options.add_argument("--race", action="store_true", help="run tests with race detection")
     options.add_argument("--cover", action="store_true", help="run tests with coverage")
     options.add_argument("--tag", action="append", help="optional extra build tag (may be specified multiple times)")
+    options.add_argument("--include_vendor", action="store_true", dest="include_vendor", help="run tests against the vendor directory")
 
     coverage = parser.add_argument_group("Coverage Options")
     coverage.add_argument("--cover-html", required=False, help="output file for HTML coverage report")
@@ -200,7 +201,13 @@ def main(options):
     if usep1:
         cmd.extend(['-p', '1'])
 
-    cmd.extend(options.packages or ["./..."])
+    packages = options.packages
+    if not packages:
+        if options.include_vendor:
+            packages = "./..."
+        else:
+            packages = subprocess.check_output("go list ./... | grep -v vendor", shell=True).splitlines()
+    cmd.extend(packages)
 
     passthru = options.arguments
     if passthru and passthru[0] == "--":
