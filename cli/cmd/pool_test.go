@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -131,7 +130,7 @@ func (t PoolAPITest) RemoveResourcePool(id string) error {
 	return nil
 }
 
-func (t PoolAPITest) GetPoolIPs(id string) (*facade.PoolIPs, error) {
+func (t PoolAPITest) GetPoolIPs(id string) (*pool.PoolIPs, error) {
 	p, err := t.GetResourcePool(id)
 	if err != nil {
 		return nil, err
@@ -139,7 +138,7 @@ func (t PoolAPITest) GetPoolIPs(id string) (*facade.PoolIPs, error) {
 		return nil, ErrNoPoolFound
 	}
 
-	return &facade.PoolIPs{PoolID: p.ID, HostIPs: t.hostIPs}, nil
+	return &pool.PoolIPs{PoolID: p.ID, HostIPs: t.hostIPs}, nil
 }
 
 func TestServicedCLI_CmdPoolList_one(t *testing.T) {

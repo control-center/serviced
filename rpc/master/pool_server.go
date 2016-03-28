@@ -17,7 +17,6 @@ import (
 	"errors"
 
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/facade"
 )
 
 // GetResourcePools returns all ResourcePools
@@ -60,7 +59,7 @@ func (s *Server) RemoveResourcePool(poolID string, _ *struct{}) error {
 }
 
 // GetPoolIPs gets all ips available to a pool
-func (s *Server) GetPoolIPs(poolID string, reply *facade.PoolIPs) error {
+func (s *Server) GetPoolIPs(poolID string, reply *pool.PoolIPs) error {
 	response, err := s.f.GetPoolIPs(s.context(), poolID)
 	if err != nil {
 		return err

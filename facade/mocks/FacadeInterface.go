@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/facade"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -214,12 +213,12 @@ func (m *FacadeInterface) GetResourcePools(ctx datastore.Context) ([]pool.Resour
 
 	return r0, r1
 }
-func (m *FacadeInterface) GetPoolIPs(ctx datastore.Context, poolID string) (*facade.PoolIPs, error) {
+func (m *FacadeInterface) GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs, error) {
 	ret := m.Called(ctx, poolID)
 
-	var r0 *facade.PoolIPs
+	var r0 *pool.PoolIPs
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(*facade.PoolIPs)
+		r0 = ret.Get(0).(*pool.PoolIPs)
 	}
 	r1 := ret.Error(1)
 

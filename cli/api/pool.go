@@ -15,7 +15,6 @@ package api
 
 import (
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/facade"
 )
 
 const ()
@@ -82,7 +81,7 @@ func (a *api) RemoveResourcePool(id string) error {
 }
 
 // Returns a list of Host IPs for a given pool
-func (a *api) GetPoolIPs(id string) (*facade.PoolIPs, error) {
+func (a *api) GetPoolIPs(id string) (*pool.PoolIPs, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err

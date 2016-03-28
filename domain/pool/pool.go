@@ -16,6 +16,7 @@ package pool
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/host"
 
 	"reflect"
 	"sort"
@@ -44,6 +45,14 @@ type ResourcePool struct {
 	UpdatedAt         time.Time
 	MonitoringProfile domain.MonitorProfile
 	datastore.VersionedEntity
+}
+
+
+// PoolIPs type for IP resources available in a ResourcePool
+type PoolIPs struct {
+	PoolID     string
+	HostIPs    []host.HostIPResource
+	VirtualIPs []VirtualIP
 }
 
 type ByIP []VirtualIP

@@ -15,7 +15,6 @@ package master
 
 import (
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/facade"
 )
 
 //GetResourcePool gets the pool for the given poolID or nil
@@ -52,8 +51,8 @@ func (c *Client) RemoveResourcePool(poolID string) error {
 }
 
 //GetPoolIPs returns a all IPs in a ResourcePool.
-func (c *Client) GetPoolIPs(poolID string) (*facade.PoolIPs, error) {
-	var poolIPs facade.PoolIPs
+func (c *Client) GetPoolIPs(poolID string) (*pool.PoolIPs, error) {
+	var poolIPs pool.PoolIPs
 	if err := c.call("GetPoolIPs", poolID, &poolIPs); err != nil {
 		return nil, err
 	}
