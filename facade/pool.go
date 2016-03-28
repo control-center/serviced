@@ -44,13 +44,6 @@ var (
 	ErrDefaultPool   = errors.New("facade: cannot delete default resource pool")
 )
 
-// PoolIPs type for IP resources available in a ResourcePool
-type PoolIPs struct {
-	PoolID     string
-	HostIPs    []host.HostIPResource
-	VirtualIPs []pool.VirtualIP
-}
-
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
@@ -457,7 +450,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 }
 
 // GetPoolIPs gets all IPs available to a resource pool
-func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error) {
+func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs, error) {
 	glog.V(0).Infof("Facade.GetPoolIPs: %+v", poolID)
 	hosts, err := f.FindHostsInPool(ctx, poolID)
 	if err != nil {
@@ -483,7 +476,7 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 	virtualIPs := make([]pool.VirtualIP, 0)
 	virtualIPs = append(virtualIPs, myPool.VirtualIPs...)
 
-	return &PoolIPs{PoolID: poolID, HostIPs: hostIPs, VirtualIPs: virtualIPs}, nil
+	return &pool.PoolIPs{PoolID: poolID, HostIPs: hostIPs, VirtualIPs: virtualIPs}, nil
 }
 
 var defaultRealm = "default"

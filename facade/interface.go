@@ -69,7 +69,7 @@ type FacadeInterface interface {
 
 	GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error)
 
-	GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, error)
+	GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs, error)
 
 	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
 
