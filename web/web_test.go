@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -71,6 +72,27 @@ func (s *TestWebSuite) buildRequest(action, url, payload string) rest.Request {
 	return rest.Request{
 		httpRequest,
 		map[string]string{},
+	}
+}
+
+func (s *TestWebSuite) getResultMap(c *C, result interface{}) {
+	body := s.recorder.Body.String()
+	c.Assert(len(body), Not(Equals), 0)
+
+	err := json.Unmarshal([]byte(body), result)
+	c.Assert(err, IsNil)
+}
+
+func (s *TestWebSuite) assertMapKeys(c *C, actual interface{}, expected interface{}) {
+	actualMap := reflect.ValueOf(actual)
+	expectedMap := reflect.ValueOf(expected)
+	c.Assert(len(actualMap.MapKeys()), Equals, len(expectedMap.MapKeys()))
+	for _, key := range expectedMap.MapKeys() {
+		v := actualMap.MapIndex(key)
+		if !v.IsValid() {
+			c.Logf("Could not find key %s", key)
+		}
+		c.Assert(v.IsValid(), Equals, true)
 	}
 }
 

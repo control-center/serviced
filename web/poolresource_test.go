@@ -19,10 +19,194 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
+
+func (s *TestWebSuite) TestRestGetPools(c *C) {
+	expectedPools := []pool.ResourcePool{
+		{ID: "pool1"},
+		{ID: "pool2"},
+	}
+	expectedResult := map[string]pool.ResourcePool{
+		"pool1": expectedPools[0],
+		"pool2": expectedPools[1],
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	s.mockFacade.
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return(expectedPools, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPools[0].ID).
+		Return([]host.Host{}, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPools[1].ID).
+		Return([]host.Host{}, nil)
+
+	restGetPools(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+
+	actualResult := map[string]pool.ResourcePool{}
+	s.getResultMap(c, &actualResult)
+	s.assertMapKeys(c, actualResult, expectedResult)
+	for poolID, pool := range actualResult {
+		c.Assert(pool.ID, Equals, expectedResult[poolID].ID)
+	}
+}
+
+func (s *TestWebSuite) TestRestGetPoolsReturnsEmptyList(c *C) {
+	emptyPools := []pool.ResourcePool{}
+	request := s.buildRequest("GET", "/pools", "")
+	s.mockFacade.
+	On("GetResourcePools", s.ctx.getDatastoreContext()).
+	Return(emptyPools, nil)
+
+	restGetPools(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	actualResult := map[string]pool.ResourcePool{}
+	s.getResultMap(c, &actualResult)
+	c.Assert(len(actualResult), Equals, 0)
+}
+
+func (s *TestWebSuite) TestRestGetPoolsFails(c *C) {
+	expectedError := fmt.Errorf("mock GetResourcePools failed")
+	request := s.buildRequest("GET", "/pools", "")
+	s.mockFacade.
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return(nil, expectedError)
+
+	restGetPools(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPoolsWhenFindHostsInPoolFails(c *C) {
+	expectedError := fmt.Errorf("mock FindHostsInPool failed")
+	expectedPools := []pool.ResourcePool{
+		{ID: "pool1"},
+		{ID: "pool2"},
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	s.mockFacade.
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return(expectedPools, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPools[0].ID).
+		Return(nil, expectedError)
+
+	restGetPools(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPoolsWhenGetHostFails(c *C) {
+	expectedError := fmt.Errorf("mock GetHost failed")
+	expectedPools := []pool.ResourcePool{
+		{ID: "pool1"},
+		{ID: "pool2"},
+	}
+	expectedHosts := []host.Host{
+		{ID: "host1"},
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	s.mockFacade.
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return(expectedPools, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPools[0].ID).
+		Return(expectedHosts, nil)
+	s.mockFacade.
+		On("GetHost", s.ctx.getDatastoreContext(), expectedHosts[0].ID).
+		Return(nil, expectedError)
+
+	restGetPools(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPool(c *C) {
+	poolID := "somePool"
+	expectedPool := pool.ResourcePool{
+		ID: poolID,
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(&expectedPool, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPool.ID).
+		Return([]host.Host{}, nil)
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+
+}
+
+func (s *TestWebSuite) TestRestGetPoolFails(c *C) {
+	expectedError := fmt.Errorf("mock GetResourcePool failed")
+	poolID := "somePool"
+	request := s.buildRequest("GET", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(nil, expectedError)
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPoolWhenFindHostsInPoolFails(c *C) {
+	expectedError := fmt.Errorf("mock FindHostsInPool failed")
+	poolID := "somePool"
+	expectedPool := pool.ResourcePool{
+		ID: poolID,
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(&expectedPool, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPool.ID).
+		Return(nil, expectedError)
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestGetPoolWhenGetHostFails(c *C) {
+	expectedError := fmt.Errorf("mock GetHost failed")
+	poolID := "somePool"
+	expectedPool := pool.ResourcePool{
+		ID: poolID,
+	}
+	expectedHosts := []host.Host{
+		{ID: "host1"},
+	}
+	request := s.buildRequest("GET", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(&expectedPool, nil)
+	s.mockFacade.
+		On("FindHostsInPool", s.ctx.getDatastoreContext(), expectedPool.ID).
+		Return(expectedHosts, nil)
+	s.mockFacade.
+		On("GetHost", s.ctx.getDatastoreContext(), expectedHosts[0].ID).
+		Return(nil, expectedError)
+
+	restGetPool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
 
 func (s *TestWebSuite) TestRestAddPool(c *C) {
 	poolID := "testPool"
@@ -48,7 +232,7 @@ func (s *TestWebSuite) TestRestAddPoolFailsForBadJSON(c *C) {
 
 func (s *TestWebSuite) TestRestAddPoolFails(c *C) {
 	request := s.buildRequest("POST", "/pools/add", `{"ID": "somePool"}`)
-	expectedError := fmt.Errorf("mock add failed")
+	expectedError := fmt.Errorf("mock AddResourcePool failed")
 	s.mockFacade.
 		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
 		Return(expectedError)
@@ -78,7 +262,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
 	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
 	request := s.buildRequest("PUT", "/pools", poolJson)
 	request.PathParams["poolId"] = poolID
-	expectedError := fmt.Errorf("mock update failed")
+	expectedError := fmt.Errorf("mock UpdateResourcePool failed")
 	s.mockFacade.
 		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
 		Return(expectedError)
@@ -132,7 +316,7 @@ func (s *TestWebSuite) TestRestRemovePoolFails(c *C) {
 	poolID := "testPool"
 	request := s.buildRequest("DELETE", "/pools", "")
 	request.PathParams["poolId"] = poolID
-	expectedError := fmt.Errorf("mock remove failed")
+	expectedError := fmt.Errorf("mock RemoveResourcePool failed")
 	s.mockFacade.
 		On("RemoveResourcePool", s.ctx.getDatastoreContext(), poolID).
 		Return(expectedError)
