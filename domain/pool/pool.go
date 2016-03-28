@@ -55,6 +55,13 @@ type PoolIPs struct {
 	VirtualIPs []VirtualIP
 }
 
+// An association between a host and a pool.
+type PoolHost struct {
+	HostID string
+	PoolID string
+	HostIP string
+}
+
 type ByIP []VirtualIP
 
 func (b ByIP) Len() int           { return len(b) }

@@ -12,7 +12,6 @@ import (
 
 	"net/url"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/facade"
 	"fmt"
 )
@@ -157,11 +156,14 @@ func restRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 //restGetHostsForResourcePool gets all Hosts in a resource pool. response is [dao.PoolHost]
 func restGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	poolHosts := make([]*dao.PoolHost, 0)
+	poolHosts := make([]*pool.PoolHost, 0)
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
 		restBadRequest(w, err)
+		return
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for DELETE"))
 		return
 	}
 
@@ -173,7 +175,7 @@ func restGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		return
 	}
 	for _, host := range hosts {
-		ph := dao.PoolHost{
+		ph := pool.PoolHost{
 			HostID: host.ID,
 			PoolID: poolID,
 			HostIP: host.IPAddr,
