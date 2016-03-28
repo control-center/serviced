@@ -114,6 +114,43 @@ func (s *TestWebSuite) TestResUpdatePoolFailsForMissingPoolID(c *C) {
 	s.assertBadRequest(c)
 }
 
+func (s *TestWebSuite) TestRestRemovePool(c *C) {
+	poolID := "testPool"
+	request := s.buildRequest("DELETE", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	s.mockFacade.
+		On("RemoveResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(nil)
+
+	restRemovePool(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, "Removed resource pool", poolsLinks())
+}
+
+func (s *TestWebSuite) TestRestRemovePoolFails(c *C) {
+	poolID := "testPool"
+	request := s.buildRequest("DELETE", "/pools", "")
+	request.PathParams["poolId"] = poolID
+	expectedError := fmt.Errorf("mock remove failed")
+	s.mockFacade.
+		On("RemoveResourcePool", s.ctx.getDatastoreContext(), poolID).
+		Return(expectedError)
+
+	restRemovePool(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestRemovePoolFailsForInvalidURL(c *C) {
+	request := s.buildRequest("DELETE", "/pools", "")
+	request.PathParams["poolId"] = "%zzz"
+
+	restRemovePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
 func (s *TestWebSuite) TestBuildPoolMonitoringProfile(c *C) {
 	pool := pool.ResourcePool{}
 	err := buildPoolMonitoringProfile(&pool, []string{}, s.mockFacade, s.ctx.getDatastoreContext())
