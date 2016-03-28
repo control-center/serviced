@@ -26,8 +26,8 @@
         UNKNOWN: UNKNOWN
     });
 
-    serviceHealthModule.factory("$serviceHealth", ["$rootScope", "$q", "resourcesFactory", "$translate",
-    function($rootScope, $q, resourcesFactory, $translate){
+    serviceHealthModule.factory("$serviceHealth", ["$rootScope", "resourcesFactory", "$translate",
+    function($rootScope, resourcesFactory, $translate){
 
         var statuses = {};
         var serviceHealths = {};
