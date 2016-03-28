@@ -339,10 +339,8 @@ retry 10 test_started      && succeed "Service containers started"              
 
 retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
 
-# FIXME: CC-1682 - test_assigned_ip and test_config are temporarily disabled until
-# we can sort out why these tests are not working on CentOS 7.1 w/Docker 1.9.1
-#retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
-#retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
+retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
+retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 
 retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected"   || fail "Unable to access -CONFIGS- file"
 
