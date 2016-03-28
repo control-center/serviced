@@ -22,6 +22,8 @@
 #     SERVICED (default: /opt/serviced/bin/serviced)
 # 
 
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/opt/serviced/bin:$PATH
+
 err_exit()
 {
    echo "Error: $1!" >&2
