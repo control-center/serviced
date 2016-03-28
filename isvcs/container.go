@@ -880,6 +880,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			previousDockerID = ctr.ID
 
 			// CPU Stats
+			// TODO: Consolidate this into a single object that both ISVCS and non-ISVCS can use
 			var (
 				kernelCPUPercent float64
 				userCPUPercent   float64
@@ -891,8 +892,14 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			totalCPU := dockerstats.CPUStats.SystemCPUUsage
 
 			// Total CPU Cycles
-			if previousTotalCPU, found := previousStats["totalCPU"]; found && usePreviousStats {
-				totalCPUChange = totalCPU - previousTotalCPU
+			previousTotalCPU, found := previousStats["totalCPU"]
+			if found {
+				if totalCPU <= previousTotalCPU {
+					glog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
+					usePreviousStats = false
+				} else {
+					totalCPUChange = totalCPU - previousTotalCPU
+				}
 			} else {
 				usePreviousStats = false
 			}
@@ -901,7 +908,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			// CPU Cycles in Kernel mode
 			if previousKernelCPU, found := previousStats["kernelCPU"]; found && usePreviousStats {
 				kernelCPUChange := kernelCPU - previousKernelCPU
-				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+				kernelCPUPercent = (float64(kernelCPUChange) / float64(totalCPUChange)) * float64(len(dockerstats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 			} else {
 				usePreviousStats = false
 			}
@@ -910,7 +917,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			// CPU Cycles in User mode
 			if previousUserCPU, found := previousStats["userCPU"]; found && usePreviousStats {
 				userCPUChange := userCPU - previousUserCPU
-				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+				userCPUPercent = (float64(userCPUChange) / float64(totalCPUChange)) * float64(len(dockerstats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 			} else {
 				usePreviousStats = false
 			}

@@ -300,6 +300,7 @@ func (sr *StatsReporter) updateStats() {
 			}
 
 			// CPU Stats
+			// TODO: Consolidate this into a single object that both ISVCS and non-ISVCS can use
 			var (
 				kernelCPUPercent float64
 				userCPUPercent   float64
@@ -311,8 +312,14 @@ func (sr *StatsReporter) updateStats() {
 			totalCPU := stats.CPUStats.SystemCPUUsage
 
 			// Total CPU Cycles
-			if previousTotalCPU, found := sr.previousStats[key]["totalCPU"]; found && usePreviousStats {
-				totalCPUChange = totalCPU - previousTotalCPU
+			previousTotalCPU, found := sr.previousStats[key]["totalCPU"]
+			if found {
+				if totalCPU <= previousTotalCPU {
+					glog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
+					usePreviousStats = false
+				} else {
+					totalCPUChange = totalCPU - previousTotalCPU
+				}
 			} else {
 				usePreviousStats = false
 			}
@@ -321,7 +328,7 @@ func (sr *StatsReporter) updateStats() {
 			// CPU Cycles in Kernel mode
 			if previousKernelCPU, found := sr.previousStats[key]["kernelCPU"]; found && usePreviousStats {
 				kernelCPUChange := kernelCPU - previousKernelCPU
-				kernelCPUPercent = 100 * float64(kernelCPUChange) / float64(totalCPUChange)
+				kernelCPUPercent = (float64(kernelCPUChange) / float64(totalCPUChange)) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 			} else {
 				usePreviousStats = false
 			}
@@ -330,7 +337,7 @@ func (sr *StatsReporter) updateStats() {
 			// CPU Cycles in User mode
 			if previousUserCPU, found := sr.previousStats[key]["userCPU"]; found && usePreviousStats {
 				userCPUChange := userCPU - previousUserCPU
-				userCPUPercent = 100 * float64(userCPUChange) / float64(totalCPUChange)
+				userCPUPercent = (float64(userCPUChange) / float64(totalCPUChange)) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 			} else {
 				usePreviousStats = false
 			}
