@@ -142,12 +142,12 @@ $(GOSRC)/$(godep_SRC):
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
 
-GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
+GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/ vendor/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet:
 	GOSRC=$(GOSRC) GOTOOLS_SRC=$(GOTOOLS_SRC) ./get_govet.sh
 	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
-	go tool vet $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
 
 .PHONY: go
 go:
@@ -474,14 +474,16 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
+TEST_TARGET_DIRS = $(shell go list | grep -v vendor/)
+
 .PHONY: test
 test: unit_test integration_test integration_docker_test integration_dao_test integration_zzk_test js_test
 
 unit_test: build docker_ok
-	./serviced-tests.py --unit --race --packages ./...
+	./serviced-tests.py --unit --race --packages $(TEST_TARGET_DIRS)
 
 integration_test: build docker_ok
-	./serviced-tests.py --integration --quick --race --packages ./...
+	./serviced-tests.py --integration --quick --race --packages $(TEST_TARGET_DIRS)
 
 integration_docker_test: build docker_ok
 	./serviced-tests.py --integration --race --packages ./commons/docker/...

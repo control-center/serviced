@@ -15,7 +15,7 @@
 package shell
 
 import (
-	"github.com/googollee/go-socket.io"
+	"github.com/control-center/go-socket.io"
 
 	"time"
 )

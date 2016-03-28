@@ -24,7 +24,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
 )
 
@@ -211,9 +211,8 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 
 		// Resize the filesystem to use the new space
 		dmDevice := fmt.Sprintf("/dev/mapper/%s", devicename)
-		resize2fs := exec.Command("resize2fs", dmDevice)
-		if output, err := resize2fs.CombinedOutput(); err != nil {
-			glog.Errorf("Unable to resize filesystem (%s)", string(output))
+		if err := resize2fs(dmDevice); err != nil {
+			glog.Errorf("Unable to resize filesystem: %s", err)
 			return err
 		}
 		return nil
@@ -1034,4 +1033,43 @@ func (v *DeviceMapperVolume) rawSnapshotLabel(label string) string {
 func (v *DeviceMapperVolume) snapshotExists(label string) bool {
 	label = v.rawSnapshotLabel(label)
 	return v.Metadata.SnapshotExists(label)
+}
+
+func getfstype(dmDevice string) (fstype []byte, err error) {
+	output, err := exec.Command("blkid", "-s", "TYPE", dmDevice).CombinedOutput()
+	if err != nil {
+		glog.Errorf("Could not get the device type of %s: %s (%s)", dmDevice, string(output), err)
+		return nil, err
+	}
+	if fields := bytes.Fields(output); len(fields) == 2 {
+		if bytes.HasPrefix(fields[1], []byte("TYPE=")) {
+			value := bytes.TrimPrefix(fields[1], []byte("TYPE="))
+			fstype = bytes.Trim(value, "\"")
+			return
+		}
+	}
+	// This should not happen
+	return nil, errors.New("invalid output")
+}
+
+func resize2fs(dmDevice string) error {
+	fstype, err := getfstype(dmDevice)
+	if err != nil {
+		return err
+	}
+	var cmd *exec.Cmd
+	switch string(fstype) {
+	case "xfs":
+		glog.Infof("Device type: %s, Command: xfs_growfs %s", fstype, dmDevice)
+		cmd = exec.Command("xfs_growfs", dmDevice)
+	default:
+		glog.Infof("Device type: %s, Command: resize2fs %s", fstype, dmDevice)
+		cmd = exec.Command("resize2fs", dmDevice)
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		glog.Errorf("Could not resize filesystem for device %s: %s (%s)", dmDevice, string(output), err)
+		return err
+	}
+	return nil
 }
