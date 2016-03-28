@@ -151,6 +151,14 @@ func (s *TestWebSuite) TestRestRemovePoolFailsForInvalidURL(c *C) {
 	s.assertBadRequest(c)
 }
 
+func (s *TestWebSuite) TestRestRemovePoolFailsForMissingPoolID(c *C) {
+	request := s.buildRequest("DELETE","/pools", `{"ID": "somePool"}`)
+
+	restRemovePool(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
 func (s *TestWebSuite) TestBuildPoolMonitoringProfile(c *C) {
 	pool := pool.ResourcePool{}
 	err := buildPoolMonitoringProfile(&pool, []string{}, s.mockFacade, s.ctx.getDatastoreContext())
