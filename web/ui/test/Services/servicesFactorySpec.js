@@ -18,13 +18,14 @@ describe('servicesFactory', function() {
         module(translateMock);
     });
 
-    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus;
+    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus, instancesFactory;
     beforeEach(inject(function($injector){
         resourcesFactory = $injector.get("resourcesFactory");
         scope = $injector.get("$rootScope").$new();
         serviceHealth = $injector.get("$serviceHealth");
         servicesFactory = $injector.get("servicesFactory");
         hcStatus = $injector.get("hcStatus");
+        instancesFactory = $injector.get("instancesFactory");
     }));
 
     var serviceDefA = {
@@ -201,11 +202,17 @@ describe('servicesFactory', function() {
 
         // add instances to the services
         var mockService = servicesFactory.get(serviceDefA.ID);
-        mockService.instances.push({
+        var mockInstance = {
             id: "67890",
             model: { ServiceID: serviceDefA.ID },
             healthChecks: { "check1": hcStatus.OK }
-        });
+        };
+        mockService.instances.push(mockInstance);
+
+        // push mock instance into instances factory
+        // so that servicesFactory can retrieve it later
+        instancesFactory._pushInstance(mockInstance);
+
         // update services to evaluate instance status
         servicesFactory.update();
         var deferred = resourcesFactory._getCurrDeferred();

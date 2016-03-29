@@ -31,7 +31,8 @@ describe('serviceHealth', function() {
             model: {
                 DesiredState: STOPPED
             },
-            instances: []
+            instances: [],
+            getServiceInstances: function(){return this.instances;}
         };
     }
     function createMockInstance(serviceID){
