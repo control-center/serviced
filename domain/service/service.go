@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -94,7 +95,7 @@ type Service struct {
 	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64
 	Actions           map[string]string
-	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
+	HealthChecks      map[string]health.HealthCheck // A health check for the service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile
 	MemoryLimit       float64

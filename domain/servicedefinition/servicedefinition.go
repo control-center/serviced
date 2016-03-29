@@ -15,6 +15,7 @@ package servicedefinition
 
 import (
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
@@ -54,7 +55,7 @@ type ServiceDefinition struct {
 	Runs              map[string]string             // FIXME: This field is deprecated. Remove when possible.
 	Commands          map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
-	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
+	HealthChecks      map[string]health.HealthCheck // HealthChecks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
 	MemoryLimit       float64

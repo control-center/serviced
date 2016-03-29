@@ -23,9 +23,11 @@ package node
 import (
 	"time"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/health"
 )
 
 // Network protocol type.
@@ -113,9 +115,16 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]domain.HealthCheck) error
+	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]health.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	// ReportHealthStatus writes the health check status to the cache
+	ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error
+
+	// ReportInstanceDead removes all health checks for the provided instance from the
+	// cache.
+	ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error
 
 	// GetService retrieves a service object with templates evaluated.
 	GetService(serviceId string, response *service.Service) error

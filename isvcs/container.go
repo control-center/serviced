@@ -1002,4 +1002,3 @@ func findContainerMount(dctr *dockerclient.Container, dest string) *dockerclient
 	}
 	return nil
 }
-

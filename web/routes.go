@@ -13,10 +13,7 @@
 
 package web
 
-import (
-	"github.com/control-center/serviced/health"
-	"github.com/zenoss/go-json-rest"
-)
+import "github.com/zenoss/go-json-rest"
 
 //getRoutes returns all registered rest routes
 func (sc *ServiceConfig) getRoutes() []rest.Route {
@@ -61,7 +58,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Services (Apps)
 		rest.Route{"GET", "/services", gz(sc.authorizedClient(restGetAllServices))},
-		rest.Route{"GET", "/servicehealth", gz(sc.authorizedClient(health.RestGetHealthStatus))},
+		rest.Route{"GET", "/servicehealth", gz(sc.authorizedClient(restGetServicesHealth))},
 		rest.Route{"GET", "/services/:serviceId", gz(sc.authorizedClient(restGetService))},
 		rest.Route{"GET", "/services/:serviceId/running", gz(sc.authorizedClient(restGetRunningForService))},
 		rest.Route{"GET", "/services/:serviceId/status", gz(sc.authorizedClient(restGetStatusForService))},
@@ -110,6 +107,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
 		rest.Route{"GET", "/running", gz(sc.authorizedClient(restGetAllRunning))},
 		rest.Route{"GET", "/config", gz(sc.authorizedClient(restGetUIConfig))},
+		rest.Route{"GET", "/servicestatus", gz(sc.authorizedClient(restGetConciseServiceStatus))},
 
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},
