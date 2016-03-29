@@ -133,7 +133,7 @@ func (s *TestWebSuite) TestRestGetPool(c *C) {
 	expectedPool := pool.ResourcePool{
 		ID: poolID,
 	}
-	request := s.buildRequest("GET", "/pools", "")
+	request := s.buildRequest("GET", "/pools/somePool", "")
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
@@ -145,13 +145,15 @@ func (s *TestWebSuite) TestRestGetPool(c *C) {
 	restGetPool(&(s.writer), &request, s.ctx)
 
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
-
+	actualResult := pool.ResourcePool{}
+	s.getResult(c, &actualResult)
+	c.Assert(actualResult.ID, Equals, expectedPool.ID)
 }
 
 func (s *TestWebSuite) TestRestGetPoolFails(c *C) {
 	expectedError := fmt.Errorf("mock GetResourcePool failed")
 	poolID := "somePool"
-	request := s.buildRequest("GET", "/pools", "")
+	request := s.buildRequest("GET", "/pools/somePool", "")
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
@@ -163,7 +165,7 @@ func (s *TestWebSuite) TestRestGetPoolFails(c *C) {
 }
 
 func (s *TestWebSuite) TestRestGetPoolFailsForInvalidURL(c *C) {
-	request := s.buildRequest("GET", "/pools", "")
+	request := s.buildRequest("GET", "/pools/%zzz", "")
 	request.PathParams["poolId"] = "%zzz"
 
 	restGetPool(&(s.writer), &request, s.ctx)
@@ -185,7 +187,7 @@ func (s *TestWebSuite) TestRestGetPoolWhenFindHostsInPoolFails(c *C) {
 	expectedPool := pool.ResourcePool{
 		ID: poolID,
 	}
-	request := s.buildRequest("GET", "/pools", "")
+	request := s.buildRequest("GET", "/pools/somePool", "")
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
@@ -208,7 +210,7 @@ func (s *TestWebSuite) TestRestGetPoolWhenGetHostFails(c *C) {
 	expectedHosts := []host.Host{
 		{ID: "host1"},
 	}
-	request := s.buildRequest("GET", "/pools", "")
+	request := s.buildRequest("GET", "/pools/somePool", "")
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("GetResourcePool", s.ctx.getDatastoreContext(), poolID).
@@ -262,7 +264,7 @@ func (s *TestWebSuite) TestRestAddPoolFails(c *C) {
 func (s *TestWebSuite) TestRestUpdatePool(c *C) {
 	poolID := "testPool"
 	poolJSON := `{"ID": "` + poolID + `", "Description": "test pool"}`
-	request := s.buildRequest("PUT", "/pools", poolJSON)
+	request := s.buildRequest("PUT", "/pools/testPool/", poolJSON)
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
@@ -277,7 +279,7 @@ func (s *TestWebSuite) TestRestUpdatePool(c *C) {
 func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
 	poolID := "testPool"
 	poolJSON := `{"ID": "` + poolID + `", "Description": "test pool"}`
-	request := s.buildRequest("PUT", "/pools", poolJSON)
+	request := s.buildRequest("PUT", "/pools/testPool", poolJSON)
 	request.PathParams["poolId"] = poolID
 	expectedError := fmt.Errorf("mock UpdateResourcePool failed")
 	s.mockFacade.
@@ -290,7 +292,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
 }
 
 func (s *TestWebSuite) TestRestUpdatePoolFailsForInvalidURL(c *C) {
-	request := s.buildRequest("PUT", "/pools", `{"ID": "somePool"}`)
+	request := s.buildRequest("PUT", "/pools/%zzz", `{"ID": "somePool"}`)
 	request.PathParams["poolId"] = "%zzz"
 
 	restUpdatePool(&(s.writer), &request, s.ctx)
@@ -299,7 +301,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFailsForInvalidURL(c *C) {
 }
 
 func (s *TestWebSuite) TestRestUpdatePoolFailsForBadJSON(c *C) {
-	request := s.buildRequest("PUT", "/pools", "{this is not valid json}")
+	request := s.buildRequest("PUT", "/pools/someID", "{this is not valid json}")
 	request.PathParams["poolId"] = "someID"
 
 	restUpdatePool(&(s.writer), &request, s.ctx)
@@ -308,7 +310,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFailsForBadJSON(c *C) {
 }
 
 func (s *TestWebSuite) TestRestUpdatePoolFailsForMissingPoolID(c *C) {
-	request := s.buildRequest("PUT","/pools", `{"ID": "somePool"}`)
+	request := s.buildRequest("PUT", "/pools", `{"ID": "somePool"}`)
 
 	restUpdatePool(&(s.writer), &request, s.ctx)
 
@@ -317,7 +319,7 @@ func (s *TestWebSuite) TestRestUpdatePoolFailsForMissingPoolID(c *C) {
 
 func (s *TestWebSuite) TestRestRemovePool(c *C) {
 	poolID := "testPool"
-	request := s.buildRequest("DELETE", "/pools", "")
+	request := s.buildRequest("DELETE", "/pools/testPool", "")
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("RemoveResourcePool", s.ctx.getDatastoreContext(), poolID).
@@ -331,7 +333,7 @@ func (s *TestWebSuite) TestRestRemovePool(c *C) {
 
 func (s *TestWebSuite) TestRestRemovePoolFails(c *C) {
 	poolID := "testPool"
-	request := s.buildRequest("DELETE", "/pools", "")
+	request := s.buildRequest("DELETE", "/pools/testPool", "")
 	request.PathParams["poolId"] = poolID
 	expectedError := fmt.Errorf("mock RemoveResourcePool failed")
 	s.mockFacade.
@@ -344,7 +346,7 @@ func (s *TestWebSuite) TestRestRemovePoolFails(c *C) {
 }
 
 func (s *TestWebSuite) TestRestRemovePoolFailsForInvalidURL(c *C) {
-	request := s.buildRequest("DELETE", "/pools", "")
+	request := s.buildRequest("DELETE", "/pools/%zzz", "")
 	request.PathParams["poolId"] = "%zzz"
 
 	restRemovePool(&(s.writer), &request, s.ctx)
@@ -353,7 +355,7 @@ func (s *TestWebSuite) TestRestRemovePoolFailsForInvalidURL(c *C) {
 }
 
 func (s *TestWebSuite) TestRestRemovePoolFailsForMissingPoolID(c *C) {
-	request := s.buildRequest("DELETE","/pools", `{"ID": "somePool"}`)
+	request := s.buildRequest("DELETE", "/pools", `{"ID": "somePool"}`)
 
 	restRemovePool(&(s.writer), &request, s.ctx)
 

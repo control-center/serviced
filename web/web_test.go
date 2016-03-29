@@ -111,7 +111,7 @@ func (s *TestWebSuite) assertSimpleResponse(c *C, expectedDetails string, expect
 
 func (s *TestWebSuite) assertLinks(c *C, actual, expected []link) {
 	c.Assert(len(actual), Equals, len(expected))
-	c.Assert(len(actual), DeepEquals, len(expected))
+	c.Assert(actual, DeepEquals, expected)
 }
 
 func (s *TestWebSuite) assertBadRequest(c *C) {
