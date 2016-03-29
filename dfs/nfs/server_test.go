@@ -156,6 +156,20 @@ func assertFileContents(t *testing.T, filename string, contents []byte) {
 	}
 }
 
+func assertPathExists(t *testing.T, filename string) {
+	_, err := os.Stat(filename)
+	if err != nil {
+		t.Fatalf("Failure reading %s: %s", filename, err)
+	}
+}
+
+func assertPathDoesNotExist(t *testing.T, filename string) {
+	_, err := os.Stat(filename)
+	if err == nil {
+		t.Fatalf("Path %s exists.", filename)
+	}
+}
+
 func TestWriteExports(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
 	if err != nil {
@@ -231,4 +245,58 @@ func TestWriteExports(t *testing.T) {
 	// File contains serviced exports and both preceding - remove duplicates
 	testWriteExports(preamble+conflict1+dummyBlock+conflict2+postamble,
 		preamble+etcExportsRemoveComment+conflict1+exportBlock+etcExportsRemoveComment+conflict2+postamble)
+}
+
+func TestRemoveDeprecated(t *testing.T) {
+	//Create a Server, then call cleanupBindMounts after lining up ducks
+	emptyTempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer os.RemoveAll(emptyTempDir)
+	t.Logf("created temp dir: %s", emptyTempDir)
+
+	nonemptyTempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer os.RemoveAll(nonemptyTempDir)
+
+	tmpfile, err := ioutil.TempFile(nonemptyTempDir, "foobar")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer os.Remove(tmpfile.Name())
+	t.Logf("created temp dir: %s", nonemptyTempDir)
+
+	// neuter NFS stop during tests
+	stop = func() error {
+		return nil
+	}
+	defer func() {
+		stop = stopImpl
+	}()
+
+	s1 := Server{
+		network:      "1.2.3.4/8",
+		basePath:     path.Join(emptyTempDir, "baseDir"),
+		exportedName: "foobar",
+	}
+
+	// deprecated dir is empty, deleted with no problem
+	assertPathExists(t, emptyTempDir)
+	s1.removeDeprecated(emptyTempDir)
+	assertPathDoesNotExist(t, emptyTempDir)
+
+	s2 := Server{
+		network:      "1.2.3.4/8",
+		basePath:     path.Join(nonemptyTempDir, "baseDir"),
+		exportedName: "foobar",
+	}
+
+	// deprecated dir is not empty, not deleted
+	assertPathExists(t, nonemptyTempDir)
+	s2.removeDeprecated(nonemptyTempDir)
+	assertPathExists(t, nonemptyTempDir)
+
 }
