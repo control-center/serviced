@@ -219,6 +219,10 @@
             evaluateHealthChecks: function(healthChecks){
                 for(var name in healthChecks){
                     this.statusRollup.incStatus(healthChecks[name]);
+                    this.children.push({
+                        name: name,
+                        status: healthChecks[name]
+                    });
                 }
                 this.evaluateStatus();
             },
