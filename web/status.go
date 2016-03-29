@@ -181,34 +181,43 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 }
 
 func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	f := func() []byte {
+	f := func() ([]byte, error) {
 		statuses, err := getAllServiceStatuses(client)
 		if err != nil {
-			glog.Errorf("Error retrieving service statuses: (%s)", err)
-			restServerError(w, err)
+			glog.V(2).Infof("Error retrieving service statuses: (%s)", err)
+			return nil, err
 		}
 		bytes, err := json.Marshal(statuses)
 		if err != nil {
-			glog.Errorf("Error serializing service statuses: (%s)", err)
-			restServerError(w, err)
+			glog.V(2).Infof("Error serializing service statuses: (%s)", err)
+			return nil, err
 		}
-		return bytes
+		return bytes, nil
 	}
 	w.Header().Set("content-type", "application/json")
-	w.Write(getCached(f))
+	bytes, err := getCached(f)
+	if err != nil {
+		glog.Errorf("Error retrieving service statuses: %s", err)
+		restServerError(w, err)
+	}
+	w.Write(bytes)
 }
 
-func getCached(f func() []byte) []byte {
+func getCached(f func() ([]byte, error)) ([]byte, error) {
+	var err error
 	val := cachedvalue.Load()
 	if val == nil || len(val.([]byte)) == 0 {
-		val = f()
+		val, err = f()
+		if err != nil {
+			return nil, err
+		}
 		cachedvalue.Store(val)
 		go func() {
 			time.Sleep(cachetimeout)
 			cachedvalue.Store(emptyvalue)
 		}()
 	}
-	return val.([]byte)
+	return val.([]byte), nil
 }
 
 // ConvertDomainHealthToNewHealth changes the domain health check status into
