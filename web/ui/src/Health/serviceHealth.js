@@ -25,8 +25,8 @@
         UNKNOWN: UNKNOWN
     });
 
-    serviceHealthModule.factory("$serviceHealth", ["$rootScope", "resourcesFactory", "$translate",
-    function($rootScope, resourcesFactory, $translate){
+    serviceHealthModule.factory("$serviceHealth", ["$translate",
+    function($translate){
 
         var statuses = {};
         var serviceHealths = {};
@@ -47,8 +47,7 @@
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
-                    service.model.DesiredState,
-                    service.model.Instances);
+                    service.model.DesiredState);
 
                 // if no healthcheck for this service mark as not running
                 if(!serviceHealthCheck){
@@ -66,8 +65,7 @@
                         instanceStatus = new Status(
                             instanceUniqueId,
                             service.name +" "+ instanceId,
-                            service.model.DesiredState,
-                            service.model.Instances);
+                            service.model.DesiredState);
 
                         instanceStatus.evaluateHealthChecks(instanceHealthCheck);
 
@@ -152,11 +150,10 @@
             }
         };
 
-        function Status(id, name, desiredState, numInstances){
+        function Status(id, name, desiredState){
             this.id = id;
             this.name = name;
             this.desiredState = desiredState;
-            this.numInstances = numInstances;
 
             this.statusRollup = new StatusRollup();
             this.children = [];
@@ -193,8 +190,10 @@
                     }
 
                 } else if(this.desiredState === 0){
-                    // should be notRunning, but is still passing... weird
-                    if(this.statusRollup.anyOK()){
+                    // shouldnt be running, but still getting health checks,
+                    // so probably stopping
+                    if(this.statusRollup.anyOK() || this.statusRollup.anyFailed() ||
+                            this.statusRollup.anyUnknown()){
                         this.status = UNKNOWN;
                         this.description = $translate.instant("stopping_service");
 
@@ -208,42 +207,19 @@
 
             // roll up child status into this status
             evaluateChildren: function(){
-
                 this.statusRollup = this.children.reduce(function(acc, childStatus){
                     acc.incStatus(childStatus.status);
                     return acc;
                 }.bind(this), new StatusRollup());
-
-                // if total doesn't match numInstances, then some
-                // stuff is missing! mark unknown!
-                if(this.numInstances !== undefined && this.numInstances >= this.statusRollup.total){
-                    this.statusRollup.unknown += this.numInstances - this.statusRollup.total;
-                    this.statusRollup.total = this.numInstances;
-                }
-
                 this.evaluateStatus();
             },
 
             // set this status's statusRollup based on healthchecks
+            // NOTE - subtly different than evaluateChildren
             evaluateHealthChecks: function(healthChecks){
-                var status;
-
-                this.statusRollup = new StatusRollup();
-
-                for(var healthCheck in healthChecks){
-                    //status = evaluateHealthCheck(healthChecks[healthCheck], timestamp);
-                    status = healthChecks[healthCheck];
-
-                    // this is a healthcheck status object... kinda weird...
-                    this.children.push({
-                        name: healthCheck,
-                        status: status
-                    });
-
-                    // add this guy's status to the total
-                    this.statusRollup.incStatus(status);
+                for(var name in healthChecks){
+                    this.statusRollup.incStatus(healthChecks[name]);
                 }
-
                 this.evaluateStatus();
             },
 
@@ -268,11 +244,9 @@
             get: function(id){
                 var status = statuses[id];
 
-                // if no status, return a stubbed out
-                // bad status
-                // HACK: this should be improved/fixed
+                // if no status found, return unknown
                 if(!status){
-                    status = new Status(id, FAILED, 0, 1);
+                    status = new Status(id, UNKNOWN, 0);
                     status.evaluateStatus();
                 }
 

@@ -95,10 +95,10 @@ module.exports = function(config) {
     // Code coverage results below these thresholds will trigger a build failure
     // For more info, see https://www.npmjs.com/package/karma-threshold-reporter
     thresholdReporter: {
-      statements: 15,
-      branches: 9,
-      functions: 13,
-      lines: 15
+      statements: 20,
+      branches: 15,
+      functions: 15,
+      lines: 20
     }
   });
 };

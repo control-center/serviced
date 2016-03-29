@@ -2,7 +2,10 @@
 var translateMock = function($provide) {
     $provide.factory('$translate', function($q) {
         var mock = jasmine.createSpyObj('$translate', [
-            "instant"
+            "instant",
+            "storageKey",
+            "storage",
+            "preferredLanguage"
         ]);
 
         mock.instant = mock.instant.and.callFake(function(str){
