@@ -30,14 +30,17 @@ describe('serviceHealth', function() {
             name: "mockservice" + id,
             model: {
                 DesiredState: STOPPED
-            }
+            },
+            instances: [],
+            getServiceInstances: function(){return this.instances;}
         };
     }
     function createMockInstance(serviceID){
         return {
             id: Math.floor(Math.random() * 10000),
             model: {
-                ServiceID: serviceID
+                ServiceID: serviceID,
+                HealthChecks: {}
             }
         };
     }
@@ -47,12 +50,10 @@ describe('serviceHealth', function() {
 
         // create instance
         var mockInstance = createMockInstance(id);
-        var mockHealthChecks = {
-            "check1": { Status: healthCheckStatus }
+        // set healthcheck status
+        mockInstance.healthChecks = {
+            "check1": healthCheckStatus
         };
-
-        // update health for this instance
-        serviceHealth.setInstanceHealth(mockInstance, mockHealthChecks);
 
         // create service
         var mockService = createMockService(id);
