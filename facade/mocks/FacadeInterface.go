@@ -173,6 +173,31 @@ func (m *FacadeInterface) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 
 	return r0, r1
 }
+func (m* FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
+	ret := m.Called(ctx)
+
+	var r0 []string
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]string)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+func (m* FacadeInterface) UpdateHost(ctx datastore.Context, entity *host.Host) error {
+	ret := m.Called(ctx, entity)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
+func (m* FacadeInterface) RemoveHost(ctx datastore.Context, hostID string) error {
+	ret := m.Called(ctx, hostID)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
 func (m *FacadeInterface) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
 	ret := m.Called(ctx, poolID)
 
