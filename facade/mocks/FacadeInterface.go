@@ -18,12 +18,12 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/health"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -246,12 +246,12 @@ func (m *FacadeInterface) UpdateResourcePool(ctx datastore.Context, entity *pool
 
 	return r0
 }
-func (m *FacadeInterface) GetHealthChecksForService(ctx datastore.Context, id string) (map[string]domain.HealthCheck, error) {
+func (m *FacadeInterface) GetHealthChecksForService(ctx datastore.Context, id string) (map[string]health.HealthCheck, error) {
 	ret := m.Called(ctx, id)
 
-	var r0 map[string]domain.HealthCheck
+	var r0 map[string]health.HealthCheck
 	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(map[string]domain.HealthCheck)
+		r0 = ret.Get(0).(map[string]health.HealthCheck)
 	}
 	r1 := ret.Error(1)
 
