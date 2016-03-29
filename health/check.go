@@ -39,7 +39,7 @@ const (
 	// Timeout means health check is non-responsive in the given time
 	Timeout = "timeout"
 	// NotRunning means the instance is not running
-	NotRunning = "not running"
+	NotRunning = "not_running"
 	// Unknown means the instance hasn't checked in within the provided time
 	// limit.
 	Unknown = "unknown"
