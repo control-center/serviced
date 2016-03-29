@@ -227,8 +227,8 @@ func (s *TestWebSuite) TestRestGetPoolWhenGetHostFails(c *C) {
 
 func (s *TestWebSuite) TestRestAddPool(c *C) {
 	poolID := "testPool"
-	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
-	request := s.buildRequest("POST", "/pools/add", poolJson)
+	poolJSON := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("POST", "/pools/add", poolJSON)
 	s.mockFacade.
 		On("AddResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
 		Return(nil)
@@ -261,8 +261,8 @@ func (s *TestWebSuite) TestRestAddPoolFails(c *C) {
 
 func (s *TestWebSuite) TestRestUpdatePool(c *C) {
 	poolID := "testPool"
-	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
-	request := s.buildRequest("PUT", "/pools", poolJson)
+	poolJSON := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("PUT", "/pools", poolJSON)
 	request.PathParams["poolId"] = poolID
 	s.mockFacade.
 		On("UpdateResourcePool", s.ctx.getDatastoreContext(), mock.AnythingOfType("*pool.ResourcePool")).
@@ -276,8 +276,8 @@ func (s *TestWebSuite) TestRestUpdatePool(c *C) {
 
 func (s *TestWebSuite) TestRestUpdatePoolFails(c *C) {
 	poolID := "testPool"
-	poolJson := `{"ID": "` + poolID + `", "Description": "test pool"}`
-	request := s.buildRequest("PUT", "/pools", poolJson)
+	poolJSON := `{"ID": "` + poolID + `", "Description": "test pool"}`
+	request := s.buildRequest("PUT", "/pools", poolJSON)
 	request.PathParams["poolId"] = poolID
 	expectedError := fmt.Errorf("mock UpdateResourcePool failed")
 	s.mockFacade.

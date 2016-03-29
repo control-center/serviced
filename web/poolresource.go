@@ -156,7 +156,7 @@ func restRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 
 //restGetHostsForResourcePool gets all Hosts in a resource pool. response is []pool.PoolHost
 func restGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	poolHosts := make([]*pool.PoolHost, 0)
+	poolHosts := []*pool.PoolHost{}
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
@@ -224,8 +224,8 @@ func getPoolHostIds(poolID string, facade facade.FacadeInterface, dataCtx datast
 }
 
 func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, facade facade.FacadeInterface, dataCtx datastore.Context) error {
-	var totalMemory uint64 = 0
-	var totalCores int = 0
+	var totalMemory uint64
+	var totalCores int
 
 	//calculate total memory and total cores
 	for i := range hostIDs {
