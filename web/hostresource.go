@@ -14,34 +14,32 @@
 package web
 
 import (
+	"fmt"
+	"net"
+	"net/url"
+	"strconv"
+	"strings"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-
-	"net"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
 func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	response := make(map[string]*host.Host)
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	hosts, err := client.GetHosts()
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	hosts, err := facade.GetHosts(dataCtx)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
 		restServerError(w, err)
 		return
 	}
+
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
+	response := make(map[string]*host.Host)
 	for i, host := range hosts {
 		response[host.ID] = &hosts[i]
 		if err := buildHostMonitoringProfile(&hosts[i]); err != nil {
@@ -54,14 +52,9 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 }
 
 func restGetActiveHostIDs(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	hostids, err := client.GetActiveHostIDs()
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	hostids, err := facade.GetActiveHostIDs(dataCtx)
 	if err != nil {
 		restServerError(w, err)
 		return
@@ -77,15 +70,14 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	if err != nil {
 		restBadRequest(w, err)
 		return
-	}
-
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for GET"))
 		return
 	}
 
-	host, err := client.GetHost(hostID)
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	host, err := facade.GetHost(dataCtx, hostID)
 	if err != nil {
 		glog.Error("Could not get host: ", err)
 		restServerError(w, err)
@@ -101,7 +93,6 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&host)
 }
 
-//restGetMaster retrieves information related to the master.
 func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	w.WriteJson(&map[string]string{"hostalias": defaultHostAlias})
 }
@@ -121,7 +112,6 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		restBadRequest(w, err)
 		return
 	}
-	// Save the pool ID and IP address for later. GetInfo wipes these
 	ipAddr := payload.IPAddr
 	parts := strings.Split(ipAddr, ":")
 	hostIPAddr, err := net.ResolveIPAddr("ip", parts[0])
@@ -146,17 +136,11 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
-	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
 		restServerError(w, err)
 		return
 	}
-
-	// IPs := []string{}
-	// for _, ip := range payload.IPs {
-	// 	IPs = append(IPs, ip.IPAddress)
-	// }
 
 	buildRequest := agent.BuildHostRequest{
 		IP:     hostIP,
@@ -170,13 +154,10 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		restBadRequest(w, err)
 		return
 	}
-	masterClient, err := ctx.getMasterClient()
-	if err != nil {
-		glog.Errorf("Unable to add host: %v", err)
-		restServerError(w, err)
-		return
-	}
-	err = masterClient.AddHost(*host)
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	err = facade.AddHost(dataCtx, host)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
 		restServerError(w, err)
@@ -192,6 +173,9 @@ func restUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for PUT"))
+		return
 	}
 	glog.V(3).Infof("Received update request for %s", hostID)
 	var payload host.Host
@@ -202,13 +186,9 @@ func restUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		return
 	}
 
-	masterClient, err := ctx.getMasterClient()
-	if err != nil {
-		glog.Errorf("Unable to add host: %v", err)
-		restServerError(w, err)
-		return
-	}
-	err = masterClient.UpdateHost(payload)
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	err = facade.UpdateHost(dataCtx, &payload)
 	if err != nil {
 		glog.Errorf("Unable to update host: %v", err)
 		restServerError(w, err)
@@ -224,15 +204,14 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
-	}
-
-	masterClient, err := ctx.getMasterClient()
-	if err != nil {
-		glog.Errorf("Unable to add host: %v", err)
-		restServerError(w, err)
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for DELETE"))
 		return
 	}
-	err = masterClient.RemoveHost(hostID)
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	err = facade.RemoveHost(dataCtx, hostID)
 	if err != nil {
 		glog.Errorf("Could not remove host: %v", err)
 		restServerError(w, err)
