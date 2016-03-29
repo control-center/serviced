@@ -394,8 +394,6 @@ func (c *Server) removeDeprecated(dirpath string) {
 			glog.Warningf("Could not look up deprecated exports path %s: %s", dirpath, err)
 			return
 		}
-		// Stop NFS
-		stop()
 
 		// Unmount path
 		if err := mp.Unmount(dirpath); err != nil {

@@ -269,14 +269,6 @@ func TestRemoveDeprecated(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	t.Logf("created temp dir: %s", nonemptyTempDir)
 
-	// neuter NFS stop during tests
-	stop = func() error {
-		return nil
-	}
-	defer func() {
-		stop = stopImpl
-	}()
-
 	s1 := Server{
 		network:      "1.2.3.4/8",
 		basePath:     path.Join(emptyTempDir, "baseDir"),
@@ -284,7 +276,6 @@ func TestRemoveDeprecated(t *testing.T) {
 	}
 
 	// deprecated dir is empty, deleted with no problem
-	assertPathExists(t, emptyTempDir)
 	s1.removeDeprecated(emptyTempDir)
 	assertPathDoesNotExist(t, emptyTempDir)
 
@@ -295,7 +286,6 @@ func TestRemoveDeprecated(t *testing.T) {
 	}
 
 	// deprecated dir is not empty, not deleted
-	assertPathExists(t, nonemptyTempDir)
 	s2.removeDeprecated(nonemptyTempDir)
 	assertPathExists(t, nonemptyTempDir)
 
