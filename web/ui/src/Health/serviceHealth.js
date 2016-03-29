@@ -29,62 +29,49 @@
     function($translate){
 
         var statuses = {};
-        var serviceHealths = {};
 
         // updates health check data for all services
         function update(serviceList) {
 
-            var serviceHealthCheck, instanceHealthCheck,
-                serviceStatus, instanceStatus, instanceUniqueId,
-                instance, service;
+            var serviceStatus, instanceStatus, instanceUniqueId, service;
 
             statuses = {};
 
             // iterate services healthchecks
             for(var serviceId in serviceList){
                 service = serviceList[serviceId];
-                serviceHealthCheck = serviceHealths[serviceId];
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
                     service.model.DesiredState);
 
-                // if no healthcheck for this service mark as not running
-                if(!serviceHealthCheck){
-                    serviceStatus.statusRollup.incNotRunning();
-                    serviceStatus.evaluateStatus();
+                // refresh list of instances
+                service.getServiceInstances();
 
-                // otherwise, look for instances
-                } else {
+                // if this service has instances, evaluate their health
+                service.instances.forEach(instance => {
 
-                    // iterate instances healthchecks
-                    for(var instanceId in serviceHealthCheck){
-                        instanceHealthCheck = serviceHealthCheck[instanceId];
-                        instanceUniqueId = serviceId +"."+ instanceId;
-                        // evaluate the status of this instance
-                        instanceStatus = new Status(
-                            instanceUniqueId,
-                            service.name +" "+ instanceId,
-                            service.model.DesiredState);
+                    // create a new status rollup for this instance
+                    instanceUniqueId = serviceId +"."+ instance.id;
+                    instanceStatus = new Status(
+                        instanceUniqueId,
+                        service.name +" "+ instance.id,
+                        service.model.DesiredState);
 
-                        instanceStatus.evaluateHealthChecks(instanceHealthCheck);
+                    // evalute instance healthchecks and roll em up
+                    instanceStatus.evaluateHealthChecks(instance.healthChecks);
+                    // store resulting status on instance
+                    instance.status = instanceStatus;
 
-                        // attach status to instance
-                        instance = service.instances.find(instance => instance.id === instanceId);
-                        if(instance){
-                            instance.status = instanceStatus;
-                        }
+                    // add this guy's statuses to hash map for easy lookup
+                    statuses[instanceUniqueId] = instanceStatus;
+                    // add this guy's status to his parent
+                    serviceStatus.children.push(instanceStatus);
+                });
 
-                        // add this guy's statuses to hash map for easy lookup
-                        statuses[instanceUniqueId] = instanceStatus;
-                        // add this guy's status to his parent
-                        serviceStatus.children.push(instanceStatus);
-                    }
-
-                    // now that this services instances have been evaluated,
-                    // evaluate the status of this service
-                    serviceStatus.evaluateChildren();
-                }
+                // now that this services instances have been evaluated,
+                // evaluate the status of this service
+                serviceStatus.evaluateChildren();
 
                 statuses[serviceId] = serviceStatus;
             }
@@ -219,6 +206,10 @@
             evaluateHealthChecks: function(healthChecks){
                 for(var name in healthChecks){
                     this.statusRollup.incStatus(healthChecks[name]);
+                    this.children.push({
+                        name: name,
+                        status: healthChecks[name]
+                    });
                 }
                 this.evaluateStatus();
             },
@@ -227,20 +218,6 @@
 
         return {
             update: update,
-            setInstanceHealth: function(instance, healthChecks){
-                let serviceHealth, instanceHealth;
-
-                if(!serviceHealths[instance.model.ServiceID]){
-                    serviceHealths[instance.model.ServiceID] = {};
-                }
-                serviceHealth = serviceHealths[instance.model.ServiceID];
-
-                instanceHealth = {};
-                for(var name in healthChecks){
-                    instanceHealth[name] = healthChecks[name].Status;
-                }
-                serviceHealth[instance.id] = instanceHealth;
-            },
             get: function(id){
                 var status = statuses[id];
 

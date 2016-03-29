@@ -65,6 +65,7 @@
             RAMAverage: 0
         };
 
+        this.healthChecks = {};
         this.update(instance);
     }
 
@@ -74,7 +75,6 @@
         update: function(instance) {
             if(instance){
                this.updateInstanceDef(instance);
-               this.updateInstanceHealth(instance.HealthChecks);
             }
         },
 
@@ -86,10 +86,12 @@
             this.resources.RAMLast = Math.max(0, instance.RAMLast);
             this.resources.RAMMax = Math.max(0, instance.RAMMax);
             this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
-        },
 
-        updateInstanceHealth: function(healthChecks){
-            serviceHealth.setInstanceHealth(this, healthChecks);
+            var hc = {};
+            for(var name in instance.HealthChecks){
+                hc[name] = instance.HealthChecks[name].Status;
+            }
+            this.healthChecks = hc;
         },
 
         stop: function(){
