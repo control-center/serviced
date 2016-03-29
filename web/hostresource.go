@@ -14,16 +14,17 @@
 package web
 
 import (
+	"fmt"
+	"net"
+	"net/url"
+	"strconv"
+	"strings"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-
-	"net"
-	"net/url"
-	"strconv"
-	"strings"
 )
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
@@ -69,6 +70,9 @@ func restGetHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for GET"))
+		return
 	}
 
 	facade := ctx.getFacade()
@@ -108,7 +112,6 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		restBadRequest(w, err)
 		return
 	}
-	// Save the pool ID and IP address for later. GetInfo wipes these
 	ipAddr := payload.IPAddr
 	parts := strings.Split(ipAddr, ":")
 	hostIPAddr, err := net.ResolveIPAddr("ip", parts[0])
@@ -133,17 +136,11 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	agentClient, err := agent.NewClient(payload.IPAddr)
-	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
 	if err != nil {
 		glog.Errorf("Could not create connection to host %s: %v", payload.IPAddr, err)
 		restServerError(w, err)
 		return
 	}
-
-	// IPs := []string{}
-	// for _, ip := range payload.IPs {
-	// 	IPs = append(IPs, ip.IPAddress)
-	// }
 
 	buildRequest := agent.BuildHostRequest{
 		IP:     hostIP,
@@ -176,6 +173,9 @@ func restUpdateHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for PUT"))
+		return
 	}
 	glog.V(3).Infof("Received update request for %s", hostID)
 	var payload host.Host
@@ -203,6 +203,9 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		restBadRequest(w, err)
+		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for DELETE"))
 		return
 	}
 

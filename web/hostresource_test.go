@@ -147,6 +147,14 @@ func (s *TestWebSuite) TestRestGetHostFailsForInvalidURL(c *C) {
 	s.assertBadRequest(c)
 }
 
+func (s *TestWebSuite) TestRestGetHostFailsForMissingHostID(c *C) {
+	request := s.buildRequest("GET", "/hosts", "")
+
+	restGetHost(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
 func (s *TestWebSuite) TestRestAddHostFailsForBadJSON(c *C) {
 	request := s.buildRequest("POST", "/hosts/add", "{this is not valid json}")
 
@@ -226,6 +234,15 @@ func (s *TestWebSuite) TestRestUpdateHostFailsForInvalidURL(c *C) {
 
 func (s *TestWebSuite) TestRestUpdateHostFailsForBadJSON(c *C) {
 	request := s.buildRequest("PUT", "/hosts/someHostID", "{this is not valid json}")
+	request.PathParams["hostId"] = "someHostID"
+
+	restUpdateHost(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestUpdateHostFailsForMissingHostID(c *C) {
+	request := s.buildRequest("PUT", "/hosts", `{"ID": "someHostID"}`)
 
 	restUpdateHost(&(s.writer), &request, s.ctx)
 
@@ -263,6 +280,14 @@ func (s *TestWebSuite) TestRestRemoveHostFails(c *C) {
 func (s *TestWebSuite) TestRestRemoveHostFailsForInvalidURL(c *C) {
 	request := s.buildRequest("DELETE", "/hosts/%zzz", "")
 	request.PathParams["hostId"] = "%zzz"
+
+	restRemoveHost(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestRemoveHostFailsForMissingHostID(c *C) {
+	request := s.buildRequest("DELETE", "/hosts/testHost", "")
 
 	restRemoveHost(&(s.writer), &request, s.ctx)
 
