@@ -33,8 +33,7 @@
         // updates health check data for all services
         function update(serviceList) {
 
-            var serviceStatus, instanceStatus, instanceUniqueId,
-                instance, service;
+            var serviceStatus, instanceStatus, instanceUniqueId, service;
 
             statuses = {};
 
@@ -45,6 +44,9 @@
                     serviceId,
                     service.name,
                     service.model.DesiredState);
+
+                // refresh list of instances
+                service.getServiceInstances();
 
                 // if this service has instances, evaluate their health
                 service.instances.forEach(instance => {
