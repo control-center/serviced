@@ -384,32 +384,33 @@ func (c *Server) cleanupBindMounts() {
 		}
 	}
 	// CC-1816: clean up remnants of old /exports/serviced_var_volumes directory
-	removeDeprecated("/exports/serviced_var_volumes")
+	c.removeDeprecated("/exports/serviced_var_volumes")
 }
 
 // removeDeprecated will clean up any old exports path
-func removeDeprecated(dirpath string) {
+func (c *Server) removeDeprecated(dirpath string) {
 	if dirContents, err := ioutil.ReadDir(dirpath); !os.IsNotExist(err) {
 		if err != nil {
 			glog.Warningf("Could not look up deprecated exports path %s: %s", dirpath, err)
 			return
 		}
+
 		// Unmount path
 		if err := mp.Unmount(dirpath); err != nil {
 			glog.Warningf("Could not unmount deprecated path %s: %s", dirpath, err)
 		}
-		// recurse through the filesystem
-		for _, file := range dirContents {
-			if file.IsDir() {
-				removeDeprecated(filepath.Join(dirpath, file.Name()))
+
+		// Guarantee the path is now empty
+		if l := len(dirContents); l > 0 {
+			glog.Warningf("Path %s is not empty.", dirpath)
+		} else {
+			// Remove the path only if it is empty
+			if err := os.Remove(dirpath); err != nil {
+				glog.Warningf("Could not remove deprecated path %s: %s", dirpath, err)
+				return
 			}
+			glog.Infof("Deleted deprecated path %s", dirpath)
 		}
-		// remove the path
-		if err := os.RemoveAll(dirpath); err != nil {
-			glog.Warningf("Could not remove deprecated path %s: %s", dirpath, err)
-			return
-		}
-		glog.Infof("Deleted deprecated path %s", dirpath)
 	}
 }
 

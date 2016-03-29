@@ -39,6 +39,9 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
+                                if ($scope.newHost.RAMLimit === undefined || $scope.newHost.RAMLimit === '') {
+                                    $scope.newHost.RAMLimit = "100%";
+                                }
 
                                 $scope.newHost.IPAddr = $scope.newHost.host + ':' + $scope.newHost.port;
 

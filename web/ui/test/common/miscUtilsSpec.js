@@ -134,11 +134,13 @@ describe('miscUtils', function() {
     });
 
     describe("validateRAMLimit", function(){
+        it("Validates an empty string", function(){
+            expect(miscUtils.validateRAMLimit("")).toBe(null);
+        });
         it("Validates percentage values", function(){
             expect(miscUtils.validateRAMLimit("50%")).toBe(null);
         });
         it("Validates various byte values", function(){
-            expect(miscUtils.validateRAMLimit("972")).toBe(null);
             expect(miscUtils.validateRAMLimit("972k")).toBe(null);
             expect(miscUtils.validateRAMLimit("972K")).toBe(null);
             expect(miscUtils.validateRAMLimit("972g")).toBe(null);
@@ -150,11 +152,13 @@ describe('miscUtils', function() {
         it("Invalidates 0%", function(){
             expect(miscUtils.validateRAMLimit("0%")).toEqual("RAM Limit must be at least 1%");
         });
-        it("Invalidates invalid units", function(){
-            expect(miscUtils.validateRAMLimit("100Z")).toEqual("Invalid RAM Limit value");
+        it("Invalidates missing or invalid units", function(){
+            expect(miscUtils.validateRAMLimit("972")).toBe("Invalid RAM Limit value, must specify % or unit of K, M, G, or T");
+            expect(miscUtils.validateRAMLimit("100Z")).toEqual("Invalid RAM Limit value, must specify % or unit of K, M, G, or T");
         });
-        it("Invalidates 0", function(){
-            expect(miscUtils.validateRAMLimit("0")).toEqual("RAM Limit must be at least 1");
+        it("Invalidates 0 with various suffixes", function(){
+            expect(miscUtils.validateRAMLimit("0G")).toEqual("RAM Limit must be at least 1");
+            expect(miscUtils.validateRAMLimit("0k")).toEqual("RAM Limit must be at least 1");
         });
         it("Invalidates limit that exceeds available memory", function(){
             expect(miscUtils.validateRAMLimit("64G", 32 * 1024 * 1024 * 1024)).toEqual("RAM Limit exceeds available host memory");
