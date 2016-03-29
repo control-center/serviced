@@ -40,7 +40,7 @@ func (dao *ControlPlaneDao) GetServiceMemoryStats(req dao.MetricRequest, stats *
 }
 
 func (dao *ControlPlaneDao) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
-	s, err := dao.metricClient.GetInstanceMemoryStats(req.StartTime, req.Instances...)
+	s, err := dao.facade.GetInstanceMemoryStats(req.StartTime, req.Instances...)
 	if err != nil {
 		glog.V(2).Infof("Could not get service instance stats for %+v: %s", req.Instances, err)
 		return err
