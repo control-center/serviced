@@ -31,13 +31,6 @@ type User struct {
 	Password string // no requirements on passwords yet
 }
 
-// An association between a host and a pool.
-type PoolHost struct {
-	HostID string
-	PoolID string
-	HostIP string
-}
-
 //AssignmentRequest is used to couple a serviceId to an IPAddress
 type AssignmentRequest struct {
 	ServiceID      string

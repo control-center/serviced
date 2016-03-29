@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/volume"
 	"time"
 )
@@ -73,7 +72,7 @@ type ClientInterface interface {
 	RemoveResourcePool(poolID string) error
 
 	// GetPoolIPs returns a all IPs in a ResourcePool.
-	GetPoolIPs(poolID string) (*facade.PoolIPs, error)
+	GetPoolIPs(poolID string) (*pool.PoolIPs, error)
 
 	// AddVirtualIP adds a VirtualIP to a specific pool
 	AddVirtualIP(requestVirtualIP pool.VirtualIP) error

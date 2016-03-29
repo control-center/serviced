@@ -4,40 +4,38 @@
 package web
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
 	"net/url"
 
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/facade"
+	"fmt"
 )
 
 //restGetPools retrieves all Resource Pools. Response is map[pool-id]ResourcePool
 func restGetPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	pools, err := client.GetResourcePools()
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	pools, err := facade.GetResourcePools(dataCtx)
 	if err != nil {
 		glog.Error("Could not get resource pools: ", err)
 		restServerError(w, err)
 		return
 	}
+
 	poolsMap := make(map[string]*pool.ResourcePool)
 	for i, pool := range pools {
-		hostIDs, err := getPoolHostIds(pool.ID, client)
+		hostIDs, err := getPoolHostIds(pool.ID, facade, dataCtx)
 		if err != nil {
 			restServerError(w, err)
 			return
 		}
 
-		if err := buildPoolMonitoringProfile(&pools[i], hostIDs, client); err != nil {
+		if err := buildPoolMonitoringProfile(&pools[i], hostIDs, facade, dataCtx); err != nil {
 			restServerError(w, err)
 			return
 		}
@@ -54,28 +52,27 @@ func restGetPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	if err != nil {
 		restBadRequest(w, err)
 		return
-	}
-
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for PUT"))
 		return
 	}
 
-	pool, err := client.GetResourcePool(poolID)
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	pool, err := facade.GetResourcePool(dataCtx, poolID)
 	if err != nil {
 		glog.Error("Could not get resource pool: ", err)
 		restServerError(w, err)
 		return
 	}
 
-	hostIDs, err := getPoolHostIds(pool.ID, client)
+	hostIDs, err := getPoolHostIds(pool.ID, facade, dataCtx)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
 
-	if err := buildPoolMonitoringProfile(pool, hostIDs, client); err != nil {
+	if err := buildPoolMonitoringProfile(pool, hostIDs, facade, dataCtx); err != nil {
 		restServerError(w, err)
 		return
 	}
@@ -93,13 +90,9 @@ func restAddPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		restBadRequest(w, err)
 		return
 	}
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
 
-	err = client.AddResourcePool(payload)
+	facade := ctx.getFacade()
+	err = facade.AddResourcePool(ctx.getDatastoreContext(), &payload)
 	if err != nil {
 		glog.Error("Unable to add pool: ", err)
 		restServerError(w, err)
@@ -115,7 +108,11 @@ func restUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for PUT"))
+		return
 	}
+
 	var payload pool.ResourcePool
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -123,12 +120,9 @@ func restUpdatePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		restBadRequest(w, err)
 		return
 	}
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-	err = client.UpdateResourcePool(payload)
+
+	facade := ctx.getFacade()
+	err = facade.UpdateResourcePool(ctx.getDatastoreContext(), &payload)
 	if err != nil {
 		glog.Error("Unable to update pool: ", err)
 		restServerError(w, err)
@@ -144,13 +138,13 @@ func restRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
-	}
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for DELETE"))
 		return
 	}
-	err = client.RemoveResourcePool(poolID)
+
+	facade := ctx.getFacade()
+	err = facade.RemoveResourcePool(ctx.getDatastoreContext(), poolID)
 	if err != nil {
 		glog.Error("Could not remove resource pool: ", err)
 		restServerError(w, err)
@@ -160,28 +154,28 @@ func restRemovePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&simpleResponse{"Removed resource pool", poolsLinks()})
 }
 
-//restGetHostsForResourcePool gets all Hosts in a resource pool. response is [dao.PoolHost]
+//restGetHostsForResourcePool gets all Hosts in a resource pool. response is []pool.PoolHost
 func restGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	poolHosts := make([]*dao.PoolHost, 0)
+	poolHosts := []*pool.PoolHost{}
 	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
 	if err != nil {
 		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
 		restBadRequest(w, err)
 		return
-	}
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for DELETE"))
 		return
 	}
-	hosts, err := client.FindHostsInPool(poolID)
+
+	facade := ctx.getFacade()
+	hosts, err := facade.FindHostsInPool(ctx.getDatastoreContext(), poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
 		restServerError(w, err)
 		return
 	}
 	for _, host := range hosts {
-		ph := dao.PoolHost{
+		ph := pool.PoolHost{
 			HostID: host.ID,
 			PoolID: poolID,
 			HostIP: host.IPAddr,
@@ -198,15 +192,13 @@ func restGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	if err != nil {
 		restBadRequest(w, err)
 		return
-	}
-
-	client, err := ctx.getMasterClient()
-	if err != nil {
-		restServerError(w, err)
+	} else if len(poolID) == 0 {
+		restBadRequest(w, fmt.Errorf("poolID must be specified for GET"))
 		return
 	}
 
-	ips, err := client.GetPoolIPs(poolID)
+	facade := ctx.getFacade()
+	ips, err := facade.GetPoolIPs(ctx.getDatastoreContext(), poolID)
 	if err != nil {
 		glog.Error("Could not get resource pool: ", err)
 		restServerError(w, err)
@@ -217,8 +209,8 @@ func restGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&ips)
 }
 
-func getPoolHostIds(poolID string, client master.ClientInterface) ([]string, error) {
-	hosts, err := client.FindHostsInPool(poolID)
+func getPoolHostIds(poolID string, facade facade.FacadeInterface, dataCtx datastore.Context) ([]string, error) {
+	hosts, err := facade.FindHostsInPool(dataCtx, poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
 		return nil, err
@@ -231,13 +223,13 @@ func getPoolHostIds(poolID string, client master.ClientInterface) ([]string, err
 	return hostIDs, nil
 }
 
-func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, client master.ClientInterface) error {
-	var totalMemory uint64 = 0
-	var totalCores int = 0
+func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, facade facade.FacadeInterface, dataCtx datastore.Context) error {
+	var totalMemory uint64
+	var totalCores int
 
 	//calculate total memory and total cores
 	for i := range hostIDs {
-		host, err := client.GetHost(hostIDs[i])
+		host, err := facade.GetHost(dataCtx, hostIDs[i])
 		if err != nil {
 			glog.Errorf("Failed to get host for id=%s -> %s", hostIDs[i], err)
 			return err
