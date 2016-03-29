@@ -192,20 +192,24 @@ describe('servicesFactory', function() {
     });
 
     it("Attaches service health to a service", function(){
-        var mockInstance = {
-            id: "67890",
-            model: { ServiceID: serviceDefA.ID }
-        };
-        var mockHealths = {
-            "check1": { Status: hcStatus.OK }
-        };
-
-        // put some health up for serviceDefA
-        serviceHealth.setInstanceHealth(mockInstance, mockHealths);
-
+        // setup some services
         servicesFactory.update();
         var deferred = resourcesFactory._getCurrDeferred();
         deferred.resolve([serviceDefA, serviceDefC]);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
+
+        // add instances to the services
+        var mockService = servicesFactory.get(serviceDefA.ID);
+        mockService.instances.push({
+            id: "67890",
+            model: { ServiceID: serviceDefA.ID },
+            healthChecks: { "check1": hcStatus.OK }
+        });
+        // update services to evaluate instance status
+        servicesFactory.update();
+        var deferred = resourcesFactory._getCurrDeferred();
+        deferred.resolve([]);
         // force a tick so promise can resolve
         scope.$root.$digest();
 
