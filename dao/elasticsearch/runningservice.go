@@ -19,41 +19,14 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-
-	"fmt"
 )
 
-func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) (err error) {
 	// we initialize the data container to something here in case it has not been initialized yet
 	*allRunningServices = make([]dao.RunningService, 0)
-	allPools, err := this.facade.GetResourcePools(datastore.Get())
-	if err != nil {
-		glog.Error("runningservice.go failed to get resource pool")
-		return err
-	} else if allPools == nil || len(allPools) == 0 {
-		return fmt.Errorf("no resource pools found")
-	}
-
-	for _, aPool := range allPools {
-		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(aPool.ID))
-		if err != nil {
-			glog.Errorf("runningservice.go Failed to get connection based on pool: %v", aPool.ID)
-			return err
-		}
-
-		singlePoolRunningServices := []dao.RunningService{}
-		singlePoolRunningServices, err = zkservice.LoadRunningServices(poolBasedConn)
-		if err != nil {
-			glog.Errorf("Failed GetAllRunningServices: %v", err)
-			return err
-		}
-
-		for _, rs := range singlePoolRunningServices {
-			*allRunningServices = append(*allRunningServices, rs)
-		}
-	}
-
-	return nil
+	// Make the call to the facade to get the services
+	*allRunningServices, err = this.facade.GetRunningServices(datastore.Get())
+	return
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {

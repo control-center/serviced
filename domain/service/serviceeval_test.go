@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
 )
 
 var startup_testcases = []struct {
@@ -556,8 +557,8 @@ func (s *S) TestIllegalTemplates(t *C) {
 		},
 		//health check
 		Service{
-			HealthChecks: map[string]domain.HealthCheck{
-				"check": domain.HealthCheck{
+			HealthChecks: map[string]health.HealthCheck{
+				"check": health.HealthCheck{
 					Script: "{{illegal_healthcheck_script}}",
 				},
 			},

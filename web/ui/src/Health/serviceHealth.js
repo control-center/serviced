@@ -2,103 +2,119 @@
 (function() {
     'use strict';
 
-    angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "resourcesFactory", "$translate",
-    function($rootScope, $q, resourcesFactory, $translate){
+	// OK means health check is passing
+	const OK = "passed";
+	// Failed means health check is responsive, but failing
+	const FAILED = "failed";
+	// Timeout means health check is non-responsive in the given time
+	const TIMEOUT = "timeout";
+	// NotRunning means the instance is not running
+	const NOT_RUNNING = "not_running";
+	// Unknown means the instance hasn't checked in within the provided time
+	// limit.
+	const UNKNOWN = "unknown";
+
+    let serviceHealthModule = angular.module('serviceHealth', []);
+
+    // share constants for other packages to use
+    serviceHealthModule.value("hcStatus", {
+        OK: OK,
+        FAILED: FAILED,
+        TIMEOUT: TIMEOUT,
+        NOT_RUNNING: NOT_RUNNING,
+        UNKNOWN: UNKNOWN
+    });
+
+    serviceHealthModule.factory("$serviceHealth", ["$translate",
+    function($translate){
 
         var statuses = {};
+        var serviceHealths = {};
 
         // updates health check data for all services
         function update(serviceList) {
 
-            // TODO - these methods should return promises, but they
-            // don't so use our own promises
-            var servicesDeferred = $q.defer();
-            var healthCheckDeferred = $q.defer();
+            var serviceHealthCheck, instanceHealthCheck,
+                serviceStatus, instanceStatus, instanceUniqueId,
+                instance, service;
 
-            // TODO - deal with serviceList in a better way
-            servicesDeferred.resolve(serviceList);
+            statuses = {};
 
-            resourcesFactory.getServiceHealth().success(function(healthChecks){
-                healthCheckDeferred.resolve(healthChecks);
-            });
+            // iterate services healthchecks
+            for(var serviceId in serviceList){
+                service = serviceList[serviceId];
+                serviceHealthCheck = serviceHealths[serviceId];
+                serviceStatus = new Status(
+                    serviceId,
+                    service.name,
+                    service.model.DesiredState);
 
-            return $q.all({
-                services: servicesDeferred.promise,
-                health: healthCheckDeferred.promise
-            }).then(function(results){
-                var serviceHealthCheck, instanceHealthCheck,
-                    serviceStatus, instanceStatus, instanceUniqueId;
-                
-                statuses = {};
+                // if no healthcheck for this service mark as not running
+                if(!serviceHealthCheck){
+                    serviceStatus.statusRollup.incNotRunning();
+                    serviceStatus.evaluateStatus();
 
-                // iterate services healthchecks
-                for(var serviceId in results.services){
-                    serviceHealthCheck = results.health.Statuses[serviceId];
-                    serviceStatus = new Status(serviceId, results.services[serviceId].name, results.services[serviceId].model.DesiredState, results.services[serviceId].model.Instances);
+                // otherwise, look for instances
+                } else {
 
-                    // if no healthcheck for this service mark as down
-                    if(!serviceHealthCheck){
-                        serviceStatus.statusRollup.incDown();
-                        serviceStatus.evaluateStatus();
+                    // iterate instances healthchecks
+                    for(var instanceId in serviceHealthCheck){
+                        instanceHealthCheck = serviceHealthCheck[instanceId];
+                        instanceUniqueId = serviceId +"."+ instanceId;
+                        // evaluate the status of this instance
+                        instanceStatus = new Status(
+                            instanceUniqueId,
+                            service.name +" "+ instanceId,
+                            service.model.DesiredState);
 
-                    // otherwise, look for instances
-                    } else {
+                        instanceStatus.evaluateHealthChecks(instanceHealthCheck);
 
-                        // iterate instances healthchecks
-                        for(var instanceId in serviceHealthCheck){
-                            instanceHealthCheck = serviceHealthCheck[instanceId];
-                            instanceUniqueId = serviceId +"."+ instanceId;
-                            // evaluate the status of this instance
-                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].name +" "+ instanceId, results.services[serviceId].model.DesiredState, results.services[serviceId].model.Instances);
-                            instanceStatus.evaluateHealthChecks(instanceHealthCheck, results.health.Timestamp);
-                            
-                            // add this guy's statuses to hash map for easy lookup
-                            statuses[instanceUniqueId] = instanceStatus;
-                            // add this guy's status to his parent
-                            serviceStatus.children.push(instanceStatus);
+                        // attach status to instance
+                        instance = service.instances.find(instance => instance.id === instanceId);
+                        if(instance){
+                            instance.status = instanceStatus;
                         }
-                        
-                        // now that this services instances have been evaluated,
-                        // evaluate the status of this service
-                        serviceStatus.evaluateChildren();
+
+                        // add this guy's statuses to hash map for easy lookup
+                        statuses[instanceUniqueId] = instanceStatus;
+                        // add this guy's status to his parent
+                        serviceStatus.children.push(instanceStatus);
                     }
 
-                    statuses[serviceId] = serviceStatus;
+                    // now that this services instances have been evaluated,
+                    // evaluate the status of this service
+                    serviceStatus.evaluateChildren();
                 }
 
-                // NOTE: resolves returned promise with statuses object
-                return statuses;
+                statuses[serviceId] = serviceStatus;
+            }
 
-            }).catch(function(err){
-                // something went awry
-                console.log("Promise err", err);
-            });
+            return statuses;
         }
 
         // used by Status to examine children and figure
         // out what the parent's status is
         function StatusRollup(){
-            this.good = 0;
-            this.bad = 0;
-            this.down = 0;
-            this.unknown = 0;
+            this[OK] = 0;
+            this[FAILED] = 0;
+            this[NOT_RUNNING] = 0;
+            this[UNKNOWN] = 0;
             this.total = 0;
         }
         StatusRollup.prototype = {
             constructor: StatusRollup,
 
-            incGood: function(){
-                this.incStatus("good");
+            incOK: function(){
+                this.incStatus(OK);
             },
-            incBad: function(){
-                this.incStatus("bad");
+            incFailed: function(){
+                this.incStatus(FAILED);
             },
-            incDown: function(){
-                this.incStatus("down");
+            incNotRunning: function(){
+                this.incStatus(NOT_RUNNING);
             },
             incUnknown: function(){
-                this.incStatus("unknown");
+                this.incStatus(UNKNOWN);
             },
             incStatus: function(status){
                 if(this[status] !== undefined){
@@ -107,44 +123,41 @@
                 }
             },
 
-            // TODO - use assertion style ie: status.is.good() or status.any.good()
-            anyBad: function(){
-                return !!this.bad;
+            // TODO - use assertion style ie: status.is.ok() or status.any.ok()
+            anyFailed: function(){
+                return !!this[FAILED];
             },
-            allBad: function(){
-                return this.total && this.bad === this.total;
+            allFailed: function(){
+                return this.total && this[FAILED] === this.total;
             },
-            anyGood: function(){
-                return !!this.good;
+            anyOK: function(){
+                return !!this[OK];
             },
-            allGood: function(){
-                return this.total && this.good === this.total;
+            allOK: function(){
+                return this.total && this[OK] === this.total;
             },
-            anyDown: function(){
-                return !!this.down;
+            anyNotRunning: function(){
+                return !!this[NOT_RUNNING];
             },
-            allDown: function(){
-                return this.total && this.down === this.total;
+            allNotRunning: function(){
+                return this.total && this[NOT_RUNNING] === this.total;
             },
             anyUnknown: function(){
-                return !!this.unknown;
+                return !!this[UNKNOWN];
             },
             allUnknown: function(){
-                return this.total && this.unknown === this.total;
+                return this.total && this[UNKNOWN] === this.total;
             }
         };
 
-        function Status(id, name, desiredState, numInstances){
+        function Status(id, name, desiredState){
             this.id = id;
             this.name = name;
             this.desiredState = desiredState;
-            this.numInstances = numInstances;
 
             this.statusRollup = new StatusRollup();
             this.children = [];
 
-            // bad, good, unknown, down
-            // TODO - use enum or constants for statuses
             this.status = null;
             this.description = null;
         }
@@ -156,35 +169,37 @@
             evaluateStatus: function(){
                 if(this.desiredState === 1){
                     // if any failing, bad!
-                    if(this.statusRollup.anyBad()){
-                        this.status = "bad";
+                    if(this.statusRollup.anyFailed()){
+                        this.status = FAILED;
                         this.description = $translate.instant("failing_health_checks");
 
-                    // if any down, oh no!
-                    } else if(this.statusRollup.anyDown()){
-                        this.status = "unknown";
+                    // if any notRunning, oh no!
+                    } else if(this.statusRollup.anyNotRunning()){
+                        this.status = UNKNOWN;
                         this.description = $translate.instant("starting_service");
 
-                    // if all are good, yay! good!
-                    } else if(this.statusRollup.allGood()){
-                        this.status = "good";
+                    // if all are ok, yay! ok!
+                    } else if(this.statusRollup.allOK()){
+                        this.status = OK;
                         this.description = $translate.instant("passing_health_checks");
-                    
+
                     // some health checks are late
                     } else {
-                        this.status = "unknown";
+                        this.status = UNKNOWN;
                         this.description = $translate.instant("missing_health_checks");
                     }
 
                 } else if(this.desiredState === 0){
-                    // should be down, but is still passing... weird
-                    if(this.statusRollup.anyGood()){
-                        this.status = "unknown";
+                    // shouldnt be running, but still getting health checks,
+                    // so probably stopping
+                    if(this.statusRollup.anyOK() || this.statusRollup.anyFailed() ||
+                            this.statusRollup.anyUnknown()){
+                        this.status = UNKNOWN;
                         this.description = $translate.instant("stopping_service");
 
-                    // stuff is down as expected
+                    // stuff is notRunning as expected
                     } else {
-                        this.status = "down";
+                        this.status = NOT_RUNNING;
                         this.description = $translate.instant("container_down");
                     }
                 }
@@ -192,96 +207,46 @@
 
             // roll up child status into this status
             evaluateChildren: function(){
-
                 this.statusRollup = this.children.reduce(function(acc, childStatus){
                     acc.incStatus(childStatus.status);
                     return acc;
                 }.bind(this), new StatusRollup());
-
-                // if total doesn't match numInstances, then some
-                // stuff is missing! mark unknown!
-                if(this.numInstances !== undefined && this.numInstances >= this.statusRollup.total){
-                    this.statusRollup.unknown += this.numInstances - this.statusRollup.total;
-                    this.statusRollup.total = this.numInstances; 
-                }
-
                 this.evaluateStatus();
             },
 
             // set this status's statusRollup based on healthchecks
-            evaluateHealthChecks: function(healthChecks, timestamp){
-                var status;
-
-                this.statusRollup = new StatusRollup();
-
-                for(var healthCheck in healthChecks){
-                    status = evaluateHealthCheck(healthChecks[healthCheck], timestamp);
-
-                    // this is a healthcheck status object... kinda weird...
-                    this.children.push({
-                        name: healthCheck,
-                        status: status
-                    });
-                    
-                    // add this guy's status to the total
-                    this.statusRollup.incStatus(status);
+            // NOTE - subtly different than evaluateChildren
+            evaluateHealthChecks: function(healthChecks){
+                for(var name in healthChecks){
+                    this.statusRollup.incStatus(healthChecks[name]);
                 }
-
                 this.evaluateStatus();
             },
 
         };
 
-        // determine the health of a healthCheck based on start time, 
-        // up time and healthcheck
-        function evaluateHealthCheck(hc, timestamp){
-            var status = {};
-
-            // calculates the number of missed healthchecks since last start time
-            var missedIntervals = (timestamp - Math.max(hc.Timestamp, hc.StartedAt)) / hc.Interval;
-
-            // if service hasn't started yet
-            if(hc.StartedAt === undefined){
-                status = "down";
-            
-            // if healthCheck has missed 2 updates, mark unknown
-            } else if (missedIntervals > 2 && missedIntervals < 60) {
-                status = "unknown";
-
-            // if healthCheck has missed 60 updates, mark failed
-            } else if (missedIntervals > 60) {
-                status = "bad";
-
-            // if Status is passed, then good!
-            } else if(hc.Status === "passed") {
-                status = "good";
-
-            // if Status is failed, then bad!
-            } else if(hc.Status === "failed") {
-                status = "bad";
-
-            // isvcs set status to stopped when they are dead
-            } else if(hc.Status === "stopped") {
-                status = "bad";
-
-            // otherwise I have no idea
-            } else {
-                status = "unknown";
-            }
-
-            return status;
-        }
-
         return {
             update: update,
+            setInstanceHealth: function(instance, healthChecks){
+                let serviceHealth, instanceHealth;
+
+                if(!serviceHealths[instance.model.ServiceID]){
+                    serviceHealths[instance.model.ServiceID] = {};
+                }
+                serviceHealth = serviceHealths[instance.model.ServiceID];
+
+                instanceHealth = {};
+                for(var name in healthChecks){
+                    instanceHealth[name] = healthChecks[name].Status;
+                }
+                serviceHealth[instance.id] = instanceHealth;
+            },
             get: function(id){
                 var status = statuses[id];
 
-                // if no status, return a stubbed out
-                // bad status
-                // HACK: this should be improved/fixed
+                // if no status found, return unknown
                 if(!status){
-                    status = new Status(id, "bad", 0, 1);
+                    status = new Status(id, UNKNOWN, 0);
                     status.evaluateStatus();
                 }
 

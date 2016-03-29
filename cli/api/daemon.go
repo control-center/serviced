@@ -38,6 +38,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/agent"
@@ -90,6 +91,10 @@ import (
 var minDockerVersion = version{1, 9, 0}
 var dockerRegistry = "localhost:5000"
 
+const (
+	localhost = "127.0.0.1"
+)
+
 type daemon struct {
 	servicedEndpoint string
 	staticIPs        []string
@@ -106,6 +111,7 @@ type daemon struct {
 	rpcServer        *rpc.Server
 
 	facade *facade.Facade
+	hcache *health.HealthStatusCache
 	docker docker.Docker
 	reg    *registry.RegistryListener
 	disk   volume.Driver
@@ -382,6 +388,7 @@ func (d *daemon) run() (err error) {
 	default:
 		d.stopISVCS()
 	}
+	d.hcache.SetPurgeFrequency(0)
 	return nil
 }
 
@@ -467,8 +474,6 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not initialize DAO: %s", err)
 		return err
 	}
-
-	health.Initialize(d.cpDao, d.facade, d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		glog.Errorf("Could not create default pool: %s", err)
@@ -793,6 +798,16 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	return eDriver, nil
 }
 
+func initMetricsClient() *metrics.Client {
+	addr := fmt.Sprintf("http://%s:8888", localhost)
+	client, err := metrics.NewClient(addr)
+	if err != nil {
+		glog.Errorf("Unable to initiate metrics client to %s", addr)
+		return nil
+	}
+	return client
+}
+
 func (d *daemon) initFacade() *facade.Facade {
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
@@ -802,6 +817,11 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
+	d.hcache = health.New()
+	d.hcache.SetPurgeFrequency(5 * time.Second)
+	f.SetHealthCache(d.hcache)
+	client := initMetricsClient()
+	f.SetMetricsClient(client)
 	return f
 }
 
@@ -839,6 +859,7 @@ func (d *daemon) initWeb() {
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases,
 		options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile, options.UIPollFrequency)
+	web.SetServiceStatsCacheTimeout(options.SvcStatsCacheTimeout)
 	go cpserver.Serve(d.shutdown)
 	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)
 }

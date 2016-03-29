@@ -34,11 +34,12 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -698,7 +699,7 @@ func (f *Facade) GetImageIDs(ctx datastore.Context) ([]string, error) {
 	return imageIDs, nil
 }
 
-func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
+func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]health.HealthCheck, error) {
 	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
 	store := f.serviceStore
 	svc, err := store.Get(ctx, serviceID)
@@ -1136,6 +1137,26 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 	}
 
 	return states, nil
+}
+
+func (f *Facade) GetRunningServices(ctx datastore.Context) ([]dao.RunningService, error) {
+	var services []dao.RunningService
+	pools, err := f.GetResourcePools(ctx)
+	if err != nil {
+		return services, err
+	}
+	for _, pool := range pools {
+		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool.ID))
+		if err != nil {
+			return services, err
+		}
+		svcs, err := zkservice.LoadRunningServices(conn)
+		if err != nil {
+			return services, err
+		}
+		services = append(services, svcs...)
+	}
+	return services, nil
 }
 
 func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...string) ([]dao.RunningService, error) {
@@ -1865,6 +1886,10 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	}
 
 	return svcs, nil
+}
+
+func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
+	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

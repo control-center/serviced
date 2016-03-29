@@ -8,41 +8,43 @@ describe('servicesFactory', function() {
         module('baseFactory');
         module('servicesFactory');
         module('miscUtils');
+        module('serviceHealth');
     });
 
     // load up mock services
     beforeEach(function(){
         module(resourcesFactoryMock);
-        module(serviceHealthMock);
         module(instancesFactoryMock);
+        module(translateMock);
     });
 
-    var $q, $interval, resourcesFactory, scope, instancesFactory, serviceHealth, servicesFactory;
+    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus;
     beforeEach(inject(function($injector){
-        $q = $injector.get("$q");
-        $interval = $injector.get("$interval");
         resourcesFactory = $injector.get("resourcesFactory");
         scope = $injector.get("$rootScope").$new();
-        instancesFactory = $injector.get("instancesFactory");
         serviceHealth = $injector.get("$serviceHealth");
         servicesFactory = $injector.get("servicesFactory");
+        hcStatus = $injector.get("hcStatus");
     }));
 
     var serviceDefA = {
             ID: "123456",
             Name: "Service A",
             RAMCommitment: "1024M",
+            DesiredState: 1
         },
         serviceDefB = {
             ID: "123457",
             Name: "Service B",
             RAMCommitment: "1024M",
+            DesiredState: 1
         },
         serviceDefC = {
             ID: "123458",
             Name: "Service C",
             ParentServiceID: "123457",
             RAMCommitment: "1024M",
+            DesiredState: 1
         };
 
 
@@ -190,21 +192,25 @@ describe('servicesFactory', function() {
     });
 
     it("Attaches service health to a service", function(){
+        var mockInstance = {
+            id: "67890",
+            model: { ServiceID: serviceDefA.ID }
+        };
+        var mockHealths = {
+            "check1": { Status: hcStatus.OK }
+        };
+
+        // put some health up for serviceDefA
+        serviceHealth.setInstanceHealth(mockInstance, mockHealths);
+
         servicesFactory.update();
         var deferred = resourcesFactory._getCurrDeferred();
         deferred.resolve([serviceDefA, serviceDefC]);
         // force a tick so promise can resolve
         scope.$root.$digest();
 
-        var serviceHealthDeferred = serviceHealth._getCurrDeferred(),
-            serviceHealthData = {};
-
-        serviceHealthData[serviceDefA.ID] = "hi";
-        serviceHealthDeferred.resolve(serviceHealthData);
-        // force a tick so promise can resolve
-        scope.$root.$digest();
-
-        expect(servicesFactory.get(serviceDefA.ID).status).toBe("hi");
+        var status = servicesFactory.get(serviceDefA.ID).status;
+        expect(status.status).toBe(hcStatus.OK);
     });
 });
 
@@ -216,24 +222,23 @@ describe('servicesFactory Service object', function() {
         module('baseFactory');
         module('servicesFactory');
         module('miscUtils');
+        module('serviceHealth');
     });
 
     // load up mock services
     beforeEach(function(){
         module(resourcesFactoryMock);
-        module(serviceHealthMock);
         module(instancesFactoryMock);
+        module(translateMock);
     });
 
-    var $q, $interval, resourcesFactory, scope, instancesFactory, serviceHealth, servicesFactory;
+    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus;
     beforeEach(inject(function($injector){
-        $q = $injector.get("$q");
-        $interval = $injector.get("$interval");
         resourcesFactory = $injector.get("resourcesFactory");
         scope = $injector.get("$rootScope").$new();
-        instancesFactory = $injector.get("instancesFactory");
         serviceHealth = $injector.get("$serviceHealth");
         servicesFactory = $injector.get("servicesFactory");
+        hcStatus = $injector.get("hcStatus");
     }));
 
     var serviceDefA = {
