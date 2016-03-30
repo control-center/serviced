@@ -18,13 +18,14 @@ describe('servicesFactory', function() {
         module(translateMock);
     });
 
-    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus;
+    var resourcesFactory, scope, serviceHealth, servicesFactory, hcStatus, instancesFactory;
     beforeEach(inject(function($injector){
         resourcesFactory = $injector.get("resourcesFactory");
         scope = $injector.get("$rootScope").$new();
         serviceHealth = $injector.get("$serviceHealth");
         servicesFactory = $injector.get("servicesFactory");
         hcStatus = $injector.get("hcStatus");
+        instancesFactory = $injector.get("instancesFactory");
     }));
 
     var serviceDefA = {
@@ -192,20 +193,30 @@ describe('servicesFactory', function() {
     });
 
     it("Attaches service health to a service", function(){
-        var mockInstance = {
-            id: "67890",
-            model: { ServiceID: serviceDefA.ID }
-        };
-        var mockHealths = {
-            "check1": { Status: hcStatus.OK }
-        };
-
-        // put some health up for serviceDefA
-        serviceHealth.setInstanceHealth(mockInstance, mockHealths);
-
+        // setup some services
         servicesFactory.update();
         var deferred = resourcesFactory._getCurrDeferred();
         deferred.resolve([serviceDefA, serviceDefC]);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
+
+        // add instances to the services
+        var mockService = servicesFactory.get(serviceDefA.ID);
+        var mockInstance = {
+            id: "67890",
+            model: { ServiceID: serviceDefA.ID },
+            healthChecks: { "check1": hcStatus.OK }
+        };
+        mockService.instances.push(mockInstance);
+
+        // push mock instance into instances factory
+        // so that servicesFactory can retrieve it later
+        instancesFactory._pushInstance(mockInstance);
+
+        // update services to evaluate instance status
+        servicesFactory.update();
+        var deferred = resourcesFactory._getCurrDeferred();
+        deferred.resolve([]);
         // force a tick so promise can resolve
         scope.$root.$digest();
 
