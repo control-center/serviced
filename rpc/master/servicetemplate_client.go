@@ -20,7 +20,7 @@ import (
 // Add a new service template
 func (c *Client) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error) {
 	response := ""
-	if err := c.call("AddServiceTemplate", serviceTemplate, response); err != nil {
+	if err := c.call("AddServiceTemplate", serviceTemplate, &response); err != nil {
 		return "", err
 	}
 	return response, nil

@@ -766,8 +766,10 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 		Description: "test template",
 	}
 
-	if e := dt.Dao.AddServiceTemplate(template, &templateId); e != nil {
+	if newTemplateId, e := dt.Facade.AddServiceTemplate(dt.CTX, template); e != nil {
 		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
+	} else {
+		templateId = newTemplateId
 	}
 
 	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
