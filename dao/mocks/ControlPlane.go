@@ -4,7 +4,6 @@ import "github.com/control-center/serviced/dao"
 import "github.com/stretchr/testify/mock"
 
 import "github.com/control-center/serviced/domain"
-import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
 import "github.com/control-center/serviced/domain/servicetemplate"
@@ -177,20 +176,6 @@ func (_m *ControlPlane) AssignIPs(assignmentRequest dao.AssignmentRequest, unuse
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.AssignmentRequest, *int) error); ok {
 		r0 = rf(assignmentRequest, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// GetServiceAddressAssignments provides a mock function with given fields: serviceID, addresses
-func (_m *ControlPlane) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error {
-	ret := _m.Called(serviceID, addresses)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]addressassignment.AddressAssignment) error); ok {
-		r0 = rf(serviceID, addresses)
 	} else {
 		r0 = ret.Error(0)
 	}
