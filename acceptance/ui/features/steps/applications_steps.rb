@@ -113,7 +113,7 @@ end
 def checkActive(entry)
     within(page.find("table[data-config='servicesTable']")) do
         within(page.find("tr", :text => entry)) do
-            return page.has_css?("[class*='good']")
+            return page.has_css?("[class*='passed']")
         end
     end
 end
