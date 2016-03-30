@@ -191,10 +191,6 @@ func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[st
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates, 0)
 }
 
-func (s *ControlClient) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, templateId, 0)
-}
-
 func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused, 0)
 }

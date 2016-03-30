@@ -435,20 +435,6 @@ func (_m *ControlPlane) DeployTemplate(request dao.ServiceTemplateDeploymentRequ
 	return r0
 }
 
-// AddServiceTemplate provides a mock function with given fields: serviceTemplate, templateId
-func (_m *ControlPlane) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	ret := _m.Called(serviceTemplate, templateId)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate, *string) error); ok {
-		r0 = rf(serviceTemplate, templateId)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // UpdateServiceTemplate provides a mock function with given fields: serviceTemplate, unused
 func (_m *ControlPlane) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
 	ret := _m.Called(serviceTemplate, unused)

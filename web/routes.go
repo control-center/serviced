@@ -93,7 +93,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", gz(sc.authorizedClient(restGetAppTemplates))},
-		rest.Route{"POST", "/templates/add", gz(sc.authorizedClient(restAddAppTemplate))},
+		rest.Route{"POST", "/templates/add", gz(sc.checkAuth(restAddAppTemplate))},
 		rest.Route{"DELETE", "/templates/:templateId", gz(sc.authorizedClient(restRemoveAppTemplate))},
 		rest.Route{"POST", "/templates/deploy", gz(sc.authorizedClient(restDeployAppTemplate))},
 		rest.Route{"POST", "/templates/deploy/status", gz(sc.authorizedClient(restDeployAppTemplateStatus))},
