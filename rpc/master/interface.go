@@ -18,6 +18,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
 	"time"
 )
@@ -88,6 +89,12 @@ type ClientInterface interface {
 
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
+
+	//--------------------------------------------------------------------------
+	// Service Tempatate Management Functions
+
+	// Add a new service template
+	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error)
 
 	//--------------------------------------------------------------------------
 	// Volume Management Functions

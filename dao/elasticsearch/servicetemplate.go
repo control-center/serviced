@@ -19,11 +19,6 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
-func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateID *string) (err error) {
-	*templateID, err = this.facade.AddServiceTemplate(datastore.Get(), serviceTemplate)
-	return err
-}
-
 func (this *ControlPlaneDao) UpdateServiceTemplate(template servicetemplate.ServiceTemplate, unused *int) error {
 	return this.facade.UpdateServiceTemplate(datastore.Get(), template)
 }

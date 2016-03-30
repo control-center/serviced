@@ -6,6 +6,7 @@ import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
+import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/volume"
 import "time"
 
@@ -298,6 +299,27 @@ func (_m *ClientInterface) WaitService(serviceIDs []string, state service.Desire
 	}
 
 	return r0
+}
+func (_m *ClientInterface) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error) {
+	ret := _m.Called(serviceTemplate)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate) string); ok {
+		r0 = rf(serviceTemplate)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(servicetemplate.ServiceTemplate) error); ok {
+		r1 = rf(serviceTemplate)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 	ret := _m.Called()

@@ -126,6 +126,14 @@ func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Desi
 
 	return r0
 }
+func (m *FacadeInterface) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
+	ret := m.Called(ctx, serviceTemplate)
+
+	r0 := ret.Get(0).(string)
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *FacadeInterface) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
 	ret := m.Called(ctx)
 

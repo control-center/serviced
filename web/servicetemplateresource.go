@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -35,7 +35,7 @@ func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	w.WriteJson(&templatesMap)
 }
 
-func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	// read uploaded file
 	file, _, err := r.FormFile("tpl")
 	if err != nil {
@@ -52,14 +52,13 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	var templateId string
-	err = client.AddServiceTemplate(*template, &templateId)
+	templateID, err := ctx.getFacade().AddServiceTemplate(ctx.getDatastoreContext(), *template)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
 
-	w.WriteJson(&simpleResponse{templateId, servicesLinks()})
+	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
 }
 
 func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

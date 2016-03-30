@@ -224,9 +224,6 @@ type ControlPlane interface {
 	// Deploy an application template in to production
 	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
 
-	// Add a new service Template
-	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error
-
 	// Update a new service Template
 	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 

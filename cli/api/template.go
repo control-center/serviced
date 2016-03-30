@@ -90,18 +90,18 @@ func (a *api) AddServiceTemplate(reader io.Reader) (*template.ServiceTemplate, e
 	}
 
 	// Connect to the client
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
 	// Add the template
-	var id string
-	if err := client.AddServiceTemplate(t, &id); err != nil {
+	if id, err := client.AddServiceTemplate(t); err != nil {
 		return nil, err
+	} else {
+		return a.GetServiceTemplate(id)
 	}
 
-	return a.GetServiceTemplate(id)
 }
 
 // RemoveTemplate removes an existing template by its template ID
