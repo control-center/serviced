@@ -23,7 +23,6 @@ script
     export SERVICED_MASTER=1
     export TZ=UTC
     export HOME=/root
-    export GOMAXPROCS=2
 
     if [ -f /etc/default/serviced ]; then
         set -x   # log the overrides
