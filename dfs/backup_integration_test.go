@@ -49,14 +49,14 @@ const (
 var i int
 
 func (s *DFSTestSuite) BenchmarkBackup(c *C) {
-
+	//1012318498
 	// Create a file to play with
 	dir := c.MkDir()
 	i += 1
 	c.Logf("Creating 100M file of random data: %d", i)
 	random := fmt.Sprintf("%s/rand.file", dir)
 	tar := fmt.Sprintf("%s/rand.tar", dir)
-	exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /dev/urandom | head -c10M > %s", random)).Run()
+	exec.Command("/bin/bash", "-c", fmt.Sprintf("cat /dev/urandom | head -c100M > %s", random)).Run()
 	exec.Command("tar", "cf", tar, random).Run()
 
 	tardata, _ := ioutil.ReadFile(tar)
