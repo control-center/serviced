@@ -81,7 +81,7 @@ func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *request
 }
 
 func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var payload dao.ServiceTemplateDeploymentRequest
+	var payload servicetemplate.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)
@@ -110,7 +110,7 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 }
 
 func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var payload dao.ServiceTemplateDeploymentRequest
+	var payload servicetemplate.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)

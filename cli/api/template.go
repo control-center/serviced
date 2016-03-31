@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	template "github.com/control-center/serviced/domain/servicetemplate"
@@ -143,7 +142,7 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Serv
 		return nil, err
 	}
 
-	req := dao.ServiceTemplateDeploymentRequest{
+	req := template.ServiceTemplateDeploymentRequest{
 		PoolID:       config.PoolID,
 		TemplateID:   config.ID,
 		DeploymentID: config.DeploymentID,

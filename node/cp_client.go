@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -174,11 +175,11 @@ func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap, 0)
 }
 
-func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
+func (s *ControlClient) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
 	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantIDs, 0)
 }
 
-func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, status *string) error {
+func (s *ControlClient) DeployTemplateStatus(request servicetemplate.ServiceTemplateDeploymentRequest, status *string) error {
 	return s.rpcClient.Call("ControlPlane.DeployTemplateStatus", request, status, 0)
 }
 
