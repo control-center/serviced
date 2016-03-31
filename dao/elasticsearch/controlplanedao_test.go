@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
@@ -737,102 +736,6 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 	if len(assignments) != 1 {
 		t.Errorf("Expected 1 AddressAssignment but found %d", len(assignments))
-	}
-}
-
-func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
-	glog.V(0).Infof("TestDao_AddServiceTemplate started")
-	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
-
-	var (
-		templateId string
-		templates  map[string]servicetemplate.ServiceTemplate
-	)
-
-	// Clean up old templates...
-	var e error
-	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	for id, _ := range templates {
-		if e := dt.Facade.RemoveServiceTemplate(dt.CTX, id); e != nil {
-			t.Fatalf("Failure removing service template %s with error: %s", id, e)
-		}
-	}
-
-	template := servicetemplate.ServiceTemplate{
-		ID:          "",
-		Name:        "test_template",
-		Description: "test template",
-	}
-
-	if newTemplateId, e := dt.Facade.AddServiceTemplate(dt.CTX, template); e != nil {
-		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
-	} else {
-		templateId = newTemplateId
-	}
-
-	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	template.ID = templateId
-	template.Description = "test_template_modified"
-	if e := dt.Facade.UpdateServiceTemplate(dt.CTX, template); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
-	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	if templates[templateId].Description != "test_template_modified" {
-		t.Fatalf("Expected template to be modified. It hasn't changed!")
-	}
-	if e := dt.Facade.RemoveServiceTemplate(dt.CTX, templateId); e != nil {
-		t.Fatalf("Failure removing service template with error: %s", e)
-	}
-	time.Sleep(1 * time.Second) // race condition. :(
-	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 0 {
-		t.Fatalf("Expected zero templates. Found %d", len(templates))
-	}
-	if e := dt.Facade.UpdateServiceTemplate(dt.CTX, template); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
-	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
-	if e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
 	}
 }
 
