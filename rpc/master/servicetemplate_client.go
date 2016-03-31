@@ -44,3 +44,13 @@ func (c *Client) RemoveServiceTemplate(serviceTemplateID string) error {
 
 }
 
+// Deploy a service Template
+func (c *Client) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) (tenantIDs []string, err error){
+	response := []string{}
+	if err := c.call("DeployTemplate", request, &response); err != nil {
+		return nil, err
+	}
+	return response, nil
+
+}
+

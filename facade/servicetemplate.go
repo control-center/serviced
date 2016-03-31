@@ -184,6 +184,7 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
+// FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
 
 // UpdateDeployTemplateStatus updates the deployment status of the service being deployed

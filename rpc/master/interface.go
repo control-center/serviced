@@ -102,6 +102,9 @@ type ClientInterface interface {
 	// Remove a service Template
 	RemoveServiceTemplate(serviceTemplateID string) error
 
+	// Deploy an application template
+	DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) (tenantIDs []string, err error)
+
 	//--------------------------------------------------------------------------
 	// Volume Management Functions
 

@@ -354,6 +354,27 @@ func (_m *ClientInterface) RemoveServiceTemplate(templateID string) error {
 
 	return r0
 }
+func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) (tenantIDs []string, err error) {
+	ret := _m.Called(request)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func()[]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 	ret := _m.Called()
 

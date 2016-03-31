@@ -137,7 +137,7 @@ func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.Se
 
 // DeployTemplate deploys a template given its template ID
 func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Service, error) {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +148,8 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Serv
 		DeploymentID: config.DeploymentID,
 	}
 
-	var ids []string
-	if err := client.DeployTemplate(req, &ids); err != nil {
+	ids, err := client.DeployTemplate(req);
+	if err != nil {
 		return nil, err
 	}
 
