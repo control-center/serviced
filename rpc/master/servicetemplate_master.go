@@ -28,7 +28,7 @@ func (s *Server) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTempl
 }
 
 // Get a list of service templates
-func (s *Server) GetServiceTemplates(unused int, response *map[string]servicetemplate.ServiceTemplate) error  {
+func (s *Server) GetServiceTemplates(unused struct{}, response *map[string]servicetemplate.ServiceTemplate) error  {
 	templates, err := s.f.GetServiceTemplates(s.context())
 	if err != nil {
 		return err
