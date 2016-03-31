@@ -23,6 +23,14 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
+
+// A request to deploy a service template
+type ServiceTemplateDeploymentRequest struct {
+	PoolID       string // Pool Id to deploy service into
+	TemplateID   string // Id of template to be deployed
+	DeploymentID string // Unique id of the instance of this template
+}
+
 // ServiceTemplate type to hold service definitions
 type ServiceTemplate struct {
 	ID          string                                  // Unique ID of this service template

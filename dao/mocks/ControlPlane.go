@@ -6,6 +6,7 @@ import "github.com/stretchr/testify/mock"
 import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
+import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
@@ -421,11 +422,11 @@ func (_m *ControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 }
 
 // DeployTemplate provides a mock function with given fields: request, tenantIDs
-func (_m *ControlPlane) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
+func (_m *ControlPlane) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
 	ret := _m.Called(request, tenantIDs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.ServiceTemplateDeploymentRequest, *[]string) error); ok {
+	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplateDeploymentRequest, *[]string) error); ok {
 		r0 = rf(request, tenantIDs)
 	} else {
 		r0 = ret.Error(0)

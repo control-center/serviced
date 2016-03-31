@@ -19,6 +19,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -221,7 +222,7 @@ type ControlPlane interface {
 	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
+	DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD

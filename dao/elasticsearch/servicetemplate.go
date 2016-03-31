@@ -37,12 +37,12 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 	return err
 }
 
-func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) (err error) {
+func (this *ControlPlaneDao) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest, tenantIDs *[]string) (err error) {
 	*tenantIDs, err = this.facade.DeployTemplate(datastore.Get(), request.PoolID, request.TemplateID, request.DeploymentID)
 	return
 }
 
-func (this *ControlPlaneDao) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, deployTemplateStatus *string) error {
+func (this *ControlPlaneDao) DeployTemplateStatus(request servicetemplate.ServiceTemplateDeploymentRequest, deployTemplateStatus *string) error {
 	var err error
 	err = this.facade.DeployTemplateStatus(request.DeploymentID, deployTemplateStatus)
 	return err
