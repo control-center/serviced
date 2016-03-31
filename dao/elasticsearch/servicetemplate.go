@@ -14,7 +14,6 @@
 package elasticsearch
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
@@ -55,9 +54,4 @@ func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[
 		*active = make([]map[string]string, 0)
 	}
 	return err
-}
-
-func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) (err error) {
-	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
-	return
 }

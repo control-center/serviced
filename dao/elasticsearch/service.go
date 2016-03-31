@@ -199,3 +199,8 @@ func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *int)
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) error {
 	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
 }
+
+func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) (err error) {
+	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
+	return
+}
