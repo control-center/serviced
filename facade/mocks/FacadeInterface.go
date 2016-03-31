@@ -157,6 +157,37 @@ func (m *FacadeInterface) UpdateServiceTemplate(ctx datastore.Context, template 
 
 	return r0
 }
+func (m *FacadeInterface) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
+	ret := m.Called(ctx, poolID, templateID, deploymentID)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func()[]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (m *FacadeInterface) DeployTemplateActive(active *[]map[string]string) error {
+	ret := m.Called(active)
+
+	return ret.Error(0)
+}
+func (m *FacadeInterface) DeployTemplateStatus(deploymentID string, status *string) error {
+	ret := m.Called(deploymentID, status)
+
+	return ret.Error(0)
+}
 func (m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) error {
 	ret := m.Called(ctx, entity)
 

@@ -41,3 +41,13 @@ func (s *Server) GetServiceTemplates(unused int, response *map[string]servicetem
 func (s *Server) RemoveServiceTemplate(templateID string,  _ *struct{}) error  {
 	return s.f.RemoveServiceTemplate(s.context(), templateID)
 }
+
+// Deploy a service template
+func (s *Server) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest, response *[]string) error  {
+	tenantIDs, err := s.f.DeployTemplate(s.context(), request.PoolID, request.TemplateID, request.DeploymentID)
+	if err != nil {
+		return err
+	}
+	*response = tenantIDs
+	return nil
+}

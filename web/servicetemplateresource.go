@@ -22,9 +22,7 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/node"
 )
 
 
@@ -80,7 +78,7 @@ func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *request
 	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
 }
 
-func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload servicetemplate.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -88,8 +86,7 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 		restBadRequest(w, err)
 		return
 	}
-	var tenantIDs []string
-	err = client.DeployTemplate(payload, &tenantIDs)
+	tenantIDs, err := ctx.getFacade().DeployTemplate(ctx.getDatastoreContext(), payload.PoolID, payload.TemplateID, payload.DeploymentID)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
 		restServerError(w, err)
@@ -97,7 +94,12 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 	glog.V(0).Info("Deployed template ", payload)
 
+	// FIXME: This REST implementation isn't compatible with the Facade - if the Facade ever returns more than one
+	//        value, then the code below will only return a result for the first value.
+	//        When can the Facade return more than one value?
 	for _, tenantID := range tenantIDs {
+		// FIXME: Business logic like assigning IPs does NOT belong in the REST tier.
+		//        This logic should be moved into the Facade.
 		assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
 		if err := client.AssignIPs(assignmentRequest, nil); err != nil {
 			glog.Errorf("Could not automatically assign IPs: %v", err)
@@ -109,7 +111,7 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 }
 
-func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload servicetemplate.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -119,7 +121,7 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client
 	}
 	status := ""
 
-	err = client.DeployTemplateStatus(payload, &status)
+	err = ctx.getFacade().DeployTemplateStatus(payload.DeploymentID, &status)
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
@@ -128,10 +130,10 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client
 	w.WriteJson(&simpleResponse{status, servicesLinks()})
 }
 
-func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var active []map[string]string
 
-	err := client.DeployTemplateActive("", &active)
+	err := ctx.getFacade().DeployTemplateActive(&active)
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
