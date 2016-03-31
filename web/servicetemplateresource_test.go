@@ -163,6 +163,117 @@ func (s *TestWebSuite) TestRestRemoveAppTemplateFailsForInvalidURL(c *C) {
 	s.assertBadRequest(c)
 }
 
+func (s *TestWebSuite) TestRestDeployAppTemplate(c *C) {
+	expectedResult := []string{
+		"someTenantID",
+	}
+	payload := servicetemplate.ServiceTemplateDeploymentRequest{
+		PoolID:       "somePoolID",
+		TemplateID:   "someTemplateID",
+		DeploymentID: "someDeploymentID",
+	}
+	jsonPayload, err := json.Marshal(&payload)
+	if err != nil {
+		c.Fatalf("Failed to marshall JSON: %s", err)
+	}
+	request := s.buildRequest("GET", "/templates/deploy", string(jsonPayload))
+	s.mockFacade.
+		On("DeployTemplate", s.ctx.getDatastoreContext(), payload.PoolID, payload.TemplateID, payload.DeploymentID).
+		Return(expectedResult, nil)
+	s.mockFacade.
+		On("AssignIPs", s.ctx.getDatastoreContext(), mock.AnythingOfType("addressassignment.AssignmentRequest")).
+		Return(nil)
+
+	restDeployAppTemplate(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, expectedResult[0], servicesLinks())
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateFails(c *C) {
+	expectedError := fmt.Errorf("mock DeployTemplate failed")
+	request := s.buildRequest("GET", "/templates/deploy", `{"DeploymentID": "someID"}`)
+	s.mockFacade.
+		On("DeployTemplate", s.ctx.getDatastoreContext(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return(nil, expectedError)
+
+	restDeployAppTemplate(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateFailsForBadJSON(c *C) {
+	request := s.buildRequest("POST", "/templates/deploy", "{this is not valid json}")
+
+	restDeployAppTemplate(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateStatus(c *C) {
+	expectedResult := "ok"
+	deploymentID := "someDeploymentID"
+	requestJSON := `{"DeploymentID": "` + deploymentID + `"}`
+	request := s.buildRequest("POST", "/templates/deploy/status", requestJSON)
+	s.mockFacade.
+		On("DeployTemplateStatus", deploymentID).
+		Return(expectedResult, nil)
+
+	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, expectedResult, servicesLinks())
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateStatusFails(c *C) {
+	expectedError := fmt.Errorf("mock DeployTemplateStatus failed")
+	deploymentID := "someDeploymentID"
+	requestJSON := `{"DeploymentID": "` + deploymentID + `"}`
+	request := s.buildRequest("POST", "/templates/deploy/status", requestJSON)
+	s.mockFacade.
+		On("DeployTemplateStatus", deploymentID).
+		Return(nil, expectedError)
+
+	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
+
+	s.assertAltServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateStatusFailsForBadJSON(c *C) {
+	request := s.buildRequest("POST", "/templates/deploy/status", "{this is not valid json}")
+
+	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateActive(c *C) {
+	expectedResult := make([]map[string]string, 1)
+	request := s.buildRequest("GET", "/templates/deploy/active", "")
+	s.mockFacade.
+		On("DeployTemplateActive").
+		Return(expectedResult, nil)
+
+	restDeployAppTemplateActive(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	var actualResult []map[string]string
+	s.getResult(c, &actualResult)
+	c.Assert(actualResult, DeepEquals, expectedResult)
+}
+
+func (s *TestWebSuite) TestRestDeployAppTemplateActiveFails(c *C) {
+	expectedError := fmt.Errorf("mock DeployTemplateActive failed")
+	request := s.buildRequest("GET", "/templates/deploy/active", "")
+	s.mockFacade.
+		On("DeployTemplateActive").
+		Return(nil, expectedError)
+
+	restDeployAppTemplateActive(&(s.writer), &request, s.ctx)
+
+	s.assertAltServerError(c, expectedError)
+}
+
 // Build a multi-part form request containing a JSON service template
 func buildUploadRequest(action, url string, templateJSON *bytes.Buffer) (rest.Request, error) {
 	uploadBody := &bytes.Buffer{}
