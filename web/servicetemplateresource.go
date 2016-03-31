@@ -95,14 +95,15 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *request
 	}
 	glog.V(0).Info("Deployed template ", payload)
 
-	// FIXME: This REST implementation isn't compatible with the Facade - if the Facade ever returns more than one
-	//        value, then the code below will only return a result for the first value.
+	// FIXME: This REST implementation isn't compatible with the Facade implementation - if the Facade ever returns
+	//        more than one value, then the code below will only return a result for the first value.
 	//        When can the Facade return more than one value?
 	for _, tenantID := range tenantIDs {
 		// FIXME: Business logic like assigning IPs does NOT belong in the REST tier.
 		//        This logic should be moved into the Facade.
 		assignmentRequest := addressassignment.AssignmentRequest{tenantID, "", true}
 		if err := ctx.getFacade().AssignIPs(ctx.getDatastoreContext(), assignmentRequest); err != nil {
+			// FIXME: This error is never reported to the client
 			glog.Errorf("Could not automatically assign IPs: %v", err)
 			continue
 		}
@@ -120,9 +121,8 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		restBadRequest(w, err)
 		return
 	}
-	status := ""
 
-	err = ctx.getFacade().DeployTemplateStatus(payload.DeploymentID, &status)
+	status, err := ctx.getFacade().DeployTemplateStatus(payload.DeploymentID)
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
@@ -132,9 +132,7 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, ctx *r
 }
 
 func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	var active []map[string]string
-
-	err := ctx.getFacade().DeployTemplateActive(&active)
+	active, err := ctx.getFacade().DeployTemplateActive()
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
