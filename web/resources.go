@@ -26,6 +26,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
@@ -500,7 +501,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	//automatically assign virtual ips to new service
-	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
+	request := addressassignment.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)

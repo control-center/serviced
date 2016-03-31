@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -121,6 +122,13 @@ func (m *FacadeInterface) UpdateService(ctx datastore.Context, svc service.Servi
 }
 func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error {
 	ret := m.Called(ctx, dstate, timeout, recursive, serviceIDs)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
+func (m *FacadeInterface)AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error) {
+	ret := m.Called(ctx, assignmentRequest)
 
 	r0 := ret.Error(0)
 

@@ -1257,7 +1257,7 @@ func (f *Facade) restoreIPs(ctx datastore.Context, svc *service.Service) error {
 	return nil
 }
 
-func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest) error {
+func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.AssignmentRequest) error {
 	visitor := func(svc *service.Service) error {
 		// get all of the ports for the service
 		portmap, err := GetPorts(svc.Endpoints)

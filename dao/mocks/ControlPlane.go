@@ -4,6 +4,7 @@ import "github.com/control-center/serviced/dao"
 import "github.com/stretchr/testify/mock"
 
 import "github.com/control-center/serviced/domain"
+import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
 import "github.com/control-center/serviced/domain/user"
@@ -169,11 +170,11 @@ func (_m *ControlPlane) GetTaggedServices(request dao.ServiceRequest, services *
 }
 
 // AssignIPs provides a mock function with given fields: assignmentRequest, unused
-func (_m *ControlPlane) AssignIPs(assignmentRequest dao.AssignmentRequest, unused *int) error {
+func (_m *ControlPlane) AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) error {
 	ret := _m.Called(assignmentRequest, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.AssignmentRequest, *int) error); ok {
+	if rf, ok := ret.Get(0).(func(addressassignment.AssignmentRequest, *int) error); ok {
 		r0 = rf(assignmentRequest, unused)
 	} else {
 		r0 = ret.Error(0)

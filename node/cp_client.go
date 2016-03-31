@@ -23,6 +23,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -110,7 +111,7 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused, 0)
 }
 
-func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) (err error) {
+func (s *ControlClient) AssignIPs(assignmentRequest addressassignment.AssignmentRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil, 0)
 }
 

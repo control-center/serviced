@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/health"
 
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -50,6 +51,8 @@ type FacadeInterface interface {
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
 	WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error
+
+	AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error)
 
 	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error)
 
