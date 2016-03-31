@@ -30,6 +30,43 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *TestWebSuite) TestRestGetAppTemplates(c *C) {
+	expectedTemplates := []servicetemplate.ServiceTemplate{
+		{ID: "template1"},
+		{ID: "template2"},
+	}
+	expectedResult := map[string]servicetemplate.ServiceTemplate{
+		"template1": expectedTemplates[0],
+		"template2": expectedTemplates[1],
+	}
+	request := s.buildRequest("GET", "/templates", "")
+	s.mockFacade.
+		On("GetServiceTemplates", s.ctx.getDatastoreContext()).
+		Return(expectedResult, nil)
+
+	restGetAppTemplates(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	actualResult := map[string]servicetemplate.ServiceTemplate{}
+	s.getResult(c, &actualResult)
+	s.assertMapKeys(c, actualResult, expectedResult)
+	for templateID, template := range actualResult {
+		c.Assert(template.ID, Equals, expectedResult[templateID].ID)
+	}
+}
+
+func (s *TestWebSuite) TestRestGetAppTemplatesFails(c *C) {
+	expectedError := fmt.Errorf("mock GetServiceTemplates failed")
+	request := s.buildRequest("GET", "/templates", "")
+	s.mockFacade.
+		On("GetServiceTemplates", s.ctx.getDatastoreContext()).
+		Return(nil, expectedError)
+
+	restGetAppTemplates(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
 func (s *TestWebSuite) TestRestAddAppTemplate(c *C) {
 	expectedTemplateID := "someTemplateID"
 	jsonBuffer, err := getTestTemplateJson()
@@ -87,6 +124,43 @@ func (s *TestWebSuite) TestRestAddAppTemplateFailsForBadJson(c *C) {
 	restAddAppTemplate(&(s.writer), &request, s.ctx)
 
 	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestRemoveAppTemplate(c *C) {
+	templateID := "someTemplateID"
+	request := s.buildRequest("DELETE", "/templates/someTemplateID", "")
+	request.PathParams["templateId"] = templateID
+	s.mockFacade.
+		On("RemoveServiceTemplate", s.ctx.getDatastoreContext(), templateID).
+		Return(nil)
+
+	restRemoveAppTemplate(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+	s.assertSimpleResponse(c, templateID, servicesLinks())
+}
+
+func (s *TestWebSuite) TestRestRemoveAppTemplateFails(c *C) {
+	expectedError := fmt.Errorf("mock RemoveServiceTemplate failed")
+	templateID := "someTemplateID"
+	request := s.buildRequest("DELETE", "/templates/someTemplateID", "")
+	request.PathParams["templateId"] = templateID
+	s.mockFacade.
+		On("RemoveServiceTemplate", s.ctx.getDatastoreContext(), templateID).
+		Return(expectedError)
+
+	restRemoveAppTemplate(&(s.writer), &request, s.ctx)
+
+	s.assertServerError(c, expectedError)
+}
+
+func (s *TestWebSuite) TestRestRemoveAppTemplateFailsForInvalidURL(c *C) {
+	request := s.buildRequest("DELETE", "/templates/%zzz", "")
+	request.PathParams["templateId"] = "%zzz"
+
+	restRemoveAppTemplate(&(s.writer), &request, s.ctx)
+
+	s.assertBadRequest(c)
 }
 
 // Build a multi-part form request containing a JSON service template

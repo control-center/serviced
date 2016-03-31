@@ -6,7 +6,6 @@ import "github.com/stretchr/testify/mock"
 import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
-import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
@@ -428,48 +427,6 @@ func (_m *ControlPlane) DeployTemplate(request dao.ServiceTemplateDeploymentRequ
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.ServiceTemplateDeploymentRequest, *[]string) error); ok {
 		r0 = rf(request, tenantIDs)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateServiceTemplate provides a mock function with given fields: serviceTemplate, unused
-func (_m *ControlPlane) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
-	ret := _m.Called(serviceTemplate, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate, *int) error); ok {
-		r0 = rf(serviceTemplate, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// RemoveServiceTemplate provides a mock function with given fields: serviceTemplateID, unused
-func (_m *ControlPlane) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
-	ret := _m.Called(serviceTemplateID, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(serviceTemplateID, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// GetServiceTemplates provides a mock function with given fields: unused, serviceTemplates
-func (_m *ControlPlane) GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error {
-	ret := _m.Called(unused, serviceTemplates)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *map[string]servicetemplate.ServiceTemplate) error); ok {
-		r0 = rf(unused, serviceTemplates)
 	} else {
 		r0 = ret.Error(0)
 	}

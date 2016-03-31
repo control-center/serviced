@@ -145,6 +145,11 @@ func (m *FacadeInterface) GetServiceTemplates(ctx datastore.Context) (map[string
 
 	return r0, r1
 }
+func (m *FacadeInterface) RemoveServiceTemplate(ctx datastore.Context, templateID string) error {
+	ret := m.Called(ctx, templateID)
+
+	return ret.Error(0)
+}
 func (m *FacadeInterface) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error {
 	ret := m.Called(ctx, template)
 

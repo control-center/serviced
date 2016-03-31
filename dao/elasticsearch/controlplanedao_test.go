@@ -745,17 +745,18 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
 
 	var (
-		unused     int
 		templateId string
 		templates  map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
+	var e error
+	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
+	if e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	for id, _ := range templates {
-		if e := dt.Dao.RemoveServiceTemplate(id, &unused); e != nil {
+		if e := dt.Facade.RemoveServiceTemplate(dt.CTX, id); e != nil {
 			t.Fatalf("Failure removing service template %s with error: %s", id, e)
 		}
 	}
@@ -772,7 +773,8 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 		templateId = newTemplateId
 	}
 
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
+	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
+	if e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	if len(templates) != 1 {
@@ -786,10 +788,11 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	}
 	template.ID = templateId
 	template.Description = "test_template_modified"
-	if e := dt.Dao.UpdateServiceTemplate(template, &unused); e != nil {
+	if e := dt.Facade.UpdateServiceTemplate(dt.CTX, template); e != nil {
 		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
 	}
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
+	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
+	if e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	if len(templates) != 1 {
@@ -804,20 +807,22 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if templates[templateId].Description != "test_template_modified" {
 		t.Fatalf("Expected template to be modified. It hasn't changed!")
 	}
-	if e := dt.Dao.RemoveServiceTemplate(templateId, &unused); e != nil {
+	if e := dt.Facade.RemoveServiceTemplate(dt.CTX, templateId); e != nil {
 		t.Fatalf("Failure removing service template with error: %s", e)
 	}
 	time.Sleep(1 * time.Second) // race condition. :(
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
+	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
+	if e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	if len(templates) != 0 {
 		t.Fatalf("Expected zero templates. Found %d", len(templates))
 	}
-	if e := dt.Dao.UpdateServiceTemplate(template, &unused); e != nil {
+	if e := dt.Facade.UpdateServiceTemplate(dt.CTX, template); e != nil {
 		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
 	}
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
+	templates, e = dt.Facade.GetServiceTemplates(dt.CTX)
+	if e != nil {
 		t.Fatalf("Failure getting service templates with error: %s", e)
 	}
 	if len(templates) != 1 {

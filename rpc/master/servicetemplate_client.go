@@ -25,3 +25,22 @@ func (c *Client) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTempl
 	}
 	return response, nil
 }
+
+// Get a list of service templates
+func (c *Client) GetServiceTemplates() (map[string]servicetemplate.ServiceTemplate, error) {
+	response := map[string]servicetemplate.ServiceTemplate{}
+	if err := c.call("GetServiceTemplates", empty, &response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+// Remove a service Template
+func (c *Client) RemoveServiceTemplate(serviceTemplateID string) error {
+	if err := c.call("RemoveServiceTemplate", serviceTemplateID, nil); err != nil {
+		return err
+	}
+	return nil
+
+}
+
