@@ -14,8 +14,8 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/validation"
@@ -285,7 +285,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 
 	// update address assignments
 	for _, svc := range services {
-		request := dao.AssignmentRequest{
+		request := addressassignment.AssignmentRequest{
 			ServiceID:      svc.ID,
 			IPAddress:      "",
 			AutoAssignment: true,

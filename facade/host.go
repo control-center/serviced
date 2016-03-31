@@ -14,14 +14,14 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/dao"
+	"fmt"
+	"time"
+
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
-
-	"fmt"
-	"time"
 )
 
 const (
@@ -214,7 +214,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 
 	// update address assignments
 	for _, svc := range services {
-		request := dao.AssignmentRequest{
+		request := addressassignment.AssignmentRequest{
 			ServiceID:      svc.ID,
 			IPAddress:      "",
 			AutoAssignment: true,

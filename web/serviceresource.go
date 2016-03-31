@@ -16,7 +16,7 @@ package web
 import (
 	"time"
 
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
@@ -34,7 +34,7 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 		return
 	}
 
-	request := dao.AssignmentRequest{ServiceID: serviceID, IPAddress: "", AutoAssignment: true}
+	request := addressassignment.AssignmentRequest{ServiceID: serviceID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)
@@ -60,7 +60,7 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 		return
 	}
 
-	request := dao.AssignmentRequest{ServiceID: serviceID, IPAddress: ip, AutoAssignment: false}
+	request := addressassignment.AssignmentRequest{ServiceID: serviceID, IPAddress: ip, AutoAssignment: false}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Errorf("Failed to manually assign IP: %+v -> %v", request, err)
 		restServerError(w, err)

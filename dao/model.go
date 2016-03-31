@@ -31,13 +31,6 @@ type User struct {
 	Password string // no requirements on passwords yet
 }
 
-//AssignmentRequest is used to couple a serviceId to an IPAddress
-type AssignmentRequest struct {
-	ServiceID      string
-	IPAddress      string
-	AutoAssignment bool
-}
-
 // A request to deploy a service from a service definition
 //  Pool and deployment ids are derived from the parent
 type ServiceDeploymentRequest struct {

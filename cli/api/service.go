@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -423,7 +424,7 @@ func (a *api) AssignIP(config IPConfig) error {
 		return err
 	}
 
-	req := dao.AssignmentRequest{
+	req := addressassignment.AssignmentRequest{
 		ServiceID:      config.ServiceID,
 		IPAddress:      config.IPAddress,
 		AutoAssignment: config.IPAddress == "",

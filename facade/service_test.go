@@ -255,7 +255,7 @@ func (ft *FacadeTest) TestFacade_validateServiceStart(c *C) {
 		BindInterface: "eth0",
 	})
 	c.Assert(err, IsNil)
-	err = ft.Facade.AssignIPs(ft.CTX, dao.AssignmentRequest{
+	err = ft.Facade.AssignIPs(ft.CTX, addressassignment.AssignmentRequest{
 		ServiceID:      svc.ID,
 		AutoAssignment: false,
 		IPAddress:      "192.168.22.12",
