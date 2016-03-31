@@ -55,6 +55,8 @@ type FacadeInterface interface {
 
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)
 
+	RemoveServiceTemplate(ctx datastore.Context, templateID string) error
+
 	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error
 
 	AddHost(ctx datastore.Context, entity *host.Host) error

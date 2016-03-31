@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -223,15 +222,6 @@ type ControlPlane interface {
 
 	// Deploy an application template in to production
 	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
-
-	// Update a new service Template
-	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
-
-	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
-
-	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD

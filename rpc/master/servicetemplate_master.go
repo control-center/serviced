@@ -18,11 +18,26 @@ import (
 )
 
 // Add a new service template
-func (s *Server)AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, response *string) error  {
+func (s *Server) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, response *string) error  {
 	templateID, err := s.f.AddServiceTemplate(s.context(), serviceTemplate)
 	if err != nil {
 		return err
 	}
 	*response = templateID
 	return nil
+}
+
+// Get a list of service templates
+func (s *Server) GetServiceTemplates(unused int, response *map[string]servicetemplate.ServiceTemplate) error  {
+	templates, err := s.f.GetServiceTemplates(s.context())
+	if err != nil {
+		return err
+	}
+	*response = templates
+	return nil
+}
+
+// Remove a service template
+func (s *Server) RemoveServiceTemplate(templateID string,  _ *struct{}) error  {
+	return s.f.RemoveServiceTemplate(s.context(), templateID)
 }

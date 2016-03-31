@@ -96,6 +96,12 @@ type ClientInterface interface {
 	// Add a new service template
 	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error)
 
+	// Get a list of ServiceTemplates
+	GetServiceTemplates() (serviceTemplates map[string]servicetemplate.ServiceTemplate, err error)
+
+	// Remove a service Template
+	RemoveServiceTemplate(serviceTemplateID string) error
+
 	//--------------------------------------------------------------------------
 	// Volume Management Functions
 

@@ -28,10 +28,13 @@ import (
 )
 
 
-func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var unused int
-	var templatesMap map[string]servicetemplate.ServiceTemplate
-	client.GetServiceTemplates(unused, &templatesMap)
+func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	templatesMap, err := ctx.getFacade().GetServiceTemplates(ctx.getDatastoreContext())
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
 	w.WriteJson(&templatesMap)
 }
 
@@ -61,17 +64,14 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
 }
 
-func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	templateID, err := url.QueryUnescape(r.PathParam("templateId"))
-	var unused int
-
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 
-	err = client.RemoveServiceTemplate(templateID, &unused)
-
+	err = ctx.getFacade().RemoveServiceTemplate(ctx.getDatastoreContext(), templateID)
 	if err != nil {
 		restServerError(w, err)
 		return

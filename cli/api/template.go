@@ -40,18 +40,18 @@ type CompileTemplateConfig struct {
 
 // Gets all available service templates
 func (a *api) GetServiceTemplates() ([]template.ServiceTemplate, error) {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	templatemap := make(map[string]template.ServiceTemplate)
-	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
-		return nil, err
+	templateMap, err := client.GetServiceTemplates()
+	if err != nil {
+			return nil, err
 	}
-	templates := make([]template.ServiceTemplate, len(templatemap))
+	templates := make([]template.ServiceTemplate, len(templateMap))
 	i := 0
-	for id, t := range templatemap {
+	for id, t := range templateMap {
 		t.ID = id
 		templates[i] = t
 		i++
@@ -62,20 +62,20 @@ func (a *api) GetServiceTemplates() ([]template.ServiceTemplate, error) {
 
 // Gets a particular serviced template by its template ID
 func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	templatemap := make(map[string]template.ServiceTemplate)
-	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
+	templateMap, err := client.GetServiceTemplates()
+	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := templatemap[id]; !ok {
+	if _, ok := templateMap[id]; !ok {
 		return nil, fmt.Errorf("unable to find template by id: %s", id)
 	}
-	t := templatemap[id]
+	t := templateMap[id]
 	t.ID = id
 
 	return &t, nil
@@ -106,16 +106,12 @@ func (a *api) AddServiceTemplate(reader io.Reader) (*template.ServiceTemplate, e
 
 // RemoveTemplate removes an existing template by its template ID
 func (a *api) RemoveServiceTemplate(id string) error {
-	client, err := a.connectDAO()
+	client, err := a.connectMaster()
 	if err != nil {
 		return err
 	}
 
-	if err := client.RemoveServiceTemplate(id, &unusedInt); err != nil {
-		return err
-	}
-
-	return nil
+	return client.RemoveServiceTemplate(id)
 }
 
 // CompileTemplate builds a template given a source path

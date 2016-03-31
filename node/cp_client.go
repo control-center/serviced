@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -185,18 +184,6 @@ func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeployme
 
 func (s *ControlClient) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
 	return s.rpcClient.Call("ControlPlane.DeployTemplateActive", notUsed, active, 0)
-}
-
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates, 0)
-}
-
-func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused, 0)
-}
-
-func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused, 0)
 }
 
 func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
