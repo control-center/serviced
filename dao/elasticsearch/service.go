@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
@@ -196,6 +197,11 @@ func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *int)
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
-func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) error {
+func (this *ControlPlaneDao) AssignIPs(assignmentRequest addressassignment.AssignmentRequest, _ *int) error {
 	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
+}
+
+func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) (err error) {
+	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
+	return
 }

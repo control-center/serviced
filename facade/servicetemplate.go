@@ -184,6 +184,7 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
+// FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
 
 // UpdateDeployTemplateStatus updates the deployment status of the service being deployed
@@ -197,31 +198,31 @@ func UpdateDeployTemplateStatus(deploymentID string, status string) {
 }
 
 // gather a list of all active DeploymentIDs
-func (f *Facade) DeployTemplateActive(active *[]map[string]string) error {
+func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
 	// we initialize the data container to something here in case it has not been initialized yet
-	*active = make([]map[string]string, 0)
+	active = make([]map[string]string, 0)
 	for _, v := range deployments {
-		*active = append(*active, v)
+		active = append(active, v)
 	}
 
-	return nil
+	return active, nil
 }
 
 // DeployTemplateStatus sets the status of a deployed service or template
-func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error {
+func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
+	status = ""
+	err = nil
 	if _, ok := deployments[deploymentID]; ok {
 		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
 			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-			*status = deployments[deploymentID]["status"]
+			status = deployments[deploymentID]["status"]
 		} else if deployments[deploymentID]["status"] != "" {
 			time.Sleep(100 * time.Millisecond)
-			f.DeployTemplateStatus(deploymentID, status)
+			status, err = f.DeployTemplateStatus(deploymentID)
 		}
-	} else {
-		*status = ""
 	}
 
-	return nil
+	return status, err
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service

@@ -14,9 +14,7 @@
 package web
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -28,8 +26,8 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
@@ -45,119 +43,6 @@ type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *nod
 
 func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	w.WriteJson(&map[string]bool{"dockerLoggedIn": utils.DockerIsLoggedIn()})
-}
-
-func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var unused int
-	var templatesMap map[string]servicetemplate.ServiceTemplate
-	client.GetServiceTemplates(unused, &templatesMap)
-	w.WriteJson(&templatesMap)
-}
-
-func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	// read uploaded file
-	file, _, err := r.FormFile("tpl")
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-	defer file.Close()
-
-	var b bytes.Buffer
-	_, err = io.Copy(&b, file)
-	template, err := servicetemplate.FromJSON(b.String())
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	var templateId string
-	err = client.AddServiceTemplate(*template, &templateId)
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	w.WriteJson(&simpleResponse{templateId, servicesLinks()})
-}
-
-func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	templateID, err := url.QueryUnescape(r.PathParam("templateId"))
-	var unused int
-
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-
-	err = client.RemoveServiceTemplate(templateID, &unused)
-
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
-}
-
-func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var payload dao.ServiceTemplateDeploymentRequest
-	err := r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Info("Could not decode deployment payload: ", err)
-		restBadRequest(w, err)
-		return
-	}
-	var tenantIDs []string
-	err = client.DeployTemplate(payload, &tenantIDs)
-	if err != nil {
-		glog.Error("Could not deploy template: ", err)
-		restServerError(w, err)
-		return
-	}
-	glog.V(0).Info("Deployed template ", payload)
-
-	for _, tenantID := range tenantIDs {
-		assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
-		if err := client.AssignIPs(assignmentRequest, nil); err != nil {
-			glog.Errorf("Could not automatically assign IPs: %v", err)
-			continue
-		}
-		glog.Infof("Automatically assigned IP addresses to service: %v", tenantID)
-		// end of automatic IP assignment
-		w.WriteJson(&simpleResponse{tenantID, servicesLinks()})
-	}
-}
-
-func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var payload dao.ServiceTemplateDeploymentRequest
-	err := r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Info("Could not decode deployment payload: ", err)
-		restBadRequest(w, err)
-		return
-	}
-	status := ""
-
-	err = client.DeployTemplateStatus(payload, &status)
-	if err != nil {
-		glog.Errorf("Unexpected error during template status: %v", err)
-		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
-		return
-	}
-	w.WriteJson(&simpleResponse{status, servicesLinks()})
-}
-
-func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var active []map[string]string
-
-	err := client.DeployTemplateActive("", &active)
-	if err != nil {
-		glog.Errorf("Unexpected error during template status: %v", err)
-		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
-		return
-	}
-	w.WriteJson(&active)
 }
 
 func getTaggedServices(client *node.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
@@ -616,7 +501,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	//automatically assign virtual ips to new service
-	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
+	request := addressassignment.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)

@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -255,7 +256,7 @@ func (ft *FacadeTest) TestFacade_validateServiceStart(c *C) {
 		BindInterface: "eth0",
 	})
 	c.Assert(err, IsNil)
-	err = ft.Facade.AssignIPs(ft.CTX, dao.AssignmentRequest{
+	err = ft.Facade.AssignIPs(ft.CTX, addressassignment.AssignmentRequest{
 		ServiceID:      svc.ID,
 		AutoAssignment: false,
 		IPAddress:      "192.168.22.12",

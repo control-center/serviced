@@ -6,6 +6,7 @@ import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
+import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/volume"
 import "time"
 
@@ -298,6 +299,81 @@ func (_m *ClientInterface) WaitService(serviceIDs []string, state service.Desire
 	}
 
 	return r0
+}
+func (_m *ClientInterface) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error) {
+	ret := _m.Called(serviceTemplate)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate) string); ok {
+		r0 = rf(serviceTemplate)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(servicetemplate.ServiceTemplate) error); ok {
+		r1 = rf(serviceTemplate)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) GetServiceTemplates() (serviceTemplates map[string]servicetemplate.ServiceTemplate, err error) {
+	ret := _m.Called()
+
+	var r0 map[string]servicetemplate.ServiceTemplate
+	if rf, ok := ret.Get(0).(func() map[string]servicetemplate.ServiceTemplate); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]servicetemplate.ServiceTemplate)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) RemoveServiceTemplate(templateID string) error {
+	ret := _m.Called(templateID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(templateID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) (tenantIDs []string, err error) {
+	ret := _m.Called(request)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func()[]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 	ret := _m.Called()

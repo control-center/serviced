@@ -28,6 +28,13 @@ type AddressAssignment struct {
 	datastore.VersionedEntity
 }
 
+// AssignmentRequest is used to couple a serviceId to an IPAddress
+type AssignmentRequest struct {
+	ServiceID      string
+	IPAddress      string
+	AutoAssignment bool
+}
+
 // EqualIP verifies the address assignment is the same by IP ONLY
 func (assign AddressAssignment) EqualIP(b AddressAssignment) bool {
 	if assign.PoolID != b.PoolID {

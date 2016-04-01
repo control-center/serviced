@@ -7,7 +7,6 @@ import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
-import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
@@ -171,26 +170,12 @@ func (_m *ControlPlane) GetTaggedServices(request dao.ServiceRequest, services *
 }
 
 // AssignIPs provides a mock function with given fields: assignmentRequest, unused
-func (_m *ControlPlane) AssignIPs(assignmentRequest dao.AssignmentRequest, unused *int) error {
+func (_m *ControlPlane) AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) error {
 	ret := _m.Called(assignmentRequest, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.AssignmentRequest, *int) error); ok {
+	if rf, ok := ret.Get(0).(func(addressassignment.AssignmentRequest, *int) error); ok {
 		r0 = rf(assignmentRequest, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// GetServiceAddressAssignments provides a mock function with given fields: serviceID, addresses
-func (_m *ControlPlane) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error {
-	ret := _m.Called(serviceID, addresses)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]addressassignment.AddressAssignment) error); ok {
-		r0 = rf(serviceID, addresses)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -429,76 +414,6 @@ func (_m *ControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.MetricRequest, *[]metrics.MemoryUsageStats) error); ok {
 		r0 = rf(req, stats)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// DeployTemplate provides a mock function with given fields: request, tenantIDs
-func (_m *ControlPlane) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
-	ret := _m.Called(request, tenantIDs)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.ServiceTemplateDeploymentRequest, *[]string) error); ok {
-		r0 = rf(request, tenantIDs)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// AddServiceTemplate provides a mock function with given fields: serviceTemplate, templateId
-func (_m *ControlPlane) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	ret := _m.Called(serviceTemplate, templateId)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate, *string) error); ok {
-		r0 = rf(serviceTemplate, templateId)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateServiceTemplate provides a mock function with given fields: serviceTemplate, unused
-func (_m *ControlPlane) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
-	ret := _m.Called(serviceTemplate, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate, *int) error); ok {
-		r0 = rf(serviceTemplate, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// RemoveServiceTemplate provides a mock function with given fields: serviceTemplateID, unused
-func (_m *ControlPlane) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
-	ret := _m.Called(serviceTemplateID, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(serviceTemplateID, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// GetServiceTemplates provides a mock function with given fields: unused, serviceTemplates
-func (_m *ControlPlane) GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error {
-	ret := _m.Called(unused, serviceTemplates)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *map[string]servicetemplate.ServiceTemplate) error); ok {
-		r0 = rf(unused, serviceTemplates)
 	} else {
 		r0 = ret.Error(0)
 	}

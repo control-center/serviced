@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
@@ -724,116 +723,19 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	if err != nil {
 		t.Fatalf("Failure creating service %-v with error: %s", testService, err)
 	}
-	assignmentRequest := dao.AssignmentRequest{testService.ID, "", true}
+	assignmentRequest := addressassignment.AssignmentRequest{testService.ID, "", true}
 	err = dt.Dao.AssignIPs(assignmentRequest, nil)
 	if err != nil {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
 	assignments := []addressassignment.AddressAssignment{}
-	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
+	err = dt.Facade.GetServiceAddressAssignments(dt.CTX, testService.ID, &assignments)
 	if err != nil {
 		t.Errorf("GetServiceAddressAssignments failed: %v", err)
 	}
 	if len(assignments) != 1 {
 		t.Errorf("Expected 1 AddressAssignment but found %d", len(assignments))
-	}
-}
-
-func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
-	//test removing address when not present
-	err := dt.Dao.RemoveAddressAssignment("fake", nil)
-	if err == nil {
-		t.Errorf("Expected error removing address %v", err)
-	}
-}
-
-func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
-	glog.V(0).Infof("TestDao_AddServiceTemplate started")
-	defer glog.V(0).Infof("TestDao_AddServiceTemplate finished")
-
-	var (
-		unused     int
-		templateId string
-		templates  map[string]servicetemplate.ServiceTemplate
-	)
-
-	// Clean up old templates...
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	for id, _ := range templates {
-		if e := dt.Dao.RemoveServiceTemplate(id, &unused); e != nil {
-			t.Fatalf("Failure removing service template %s with error: %s", id, e)
-		}
-	}
-
-	template := servicetemplate.ServiceTemplate{
-		ID:          "",
-		Name:        "test_template",
-		Description: "test template",
-	}
-
-	if e := dt.Dao.AddServiceTemplate(template, &templateId); e != nil {
-		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
-	}
-
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	template.ID = templateId
-	template.Description = "test_template_modified"
-	if e := dt.Dao.UpdateServiceTemplate(template, &unused); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
-	}
-	if templates[templateId].Description != "test_template_modified" {
-		t.Fatalf("Expected template to be modified. It hasn't changed!")
-	}
-	if e := dt.Dao.RemoveServiceTemplate(templateId, &unused); e != nil {
-		t.Fatalf("Failure removing service template with error: %s", e)
-	}
-	time.Sleep(1 * time.Second) // race condition. :(
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 0 {
-		t.Fatalf("Expected zero templates. Found %d", len(templates))
-	}
-	if e := dt.Dao.UpdateServiceTemplate(template, &unused); e != nil {
-		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
-	}
-	if e := dt.Dao.GetServiceTemplates(0, &templates); e != nil {
-		t.Fatalf("Failure getting service templates with error: %s", e)
-	}
-	if len(templates) != 1 {
-		t.Fatalf("Expected 1 template. Found %d", len(templates))
-	}
-	if _, ok := templates[templateId]; !ok {
-		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
-	}
-	if templates[templateId].Name != "test_template" {
-		t.Fatalf("Expected to find test_template. Found %s", templates[templateId].Name)
 	}
 }
 

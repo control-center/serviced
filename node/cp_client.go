@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -112,12 +111,8 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused, 0)
 }
 
-func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) (err error) {
+func (s *ControlClient) AssignIPs(assignmentRequest addressassignment.AssignmentRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil, 0)
-}
-
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses, 0)
 }
 
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {
@@ -178,34 +173,6 @@ func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unus
 
 func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap, 0)
-}
-
-func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantIDs, 0)
-}
-
-func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, status *string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplateStatus", request, status, 0)
-}
-
-func (s *ControlClient) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplateActive", notUsed, active, 0)
-}
-
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates, 0)
-}
-
-func (s *ControlClient) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error {
-	return s.rpcClient.Call("ControlPlane.AddServiceTemplate", serviceTemplate, templateId, 0)
-}
-
-func (s *ControlClient) UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.UpdateServiceTemplate", serviceTemplate, unused, 0)
-}
-
-func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused, 0)
 }
 
 func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {

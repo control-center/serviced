@@ -20,7 +20,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -160,10 +159,7 @@ type ControlPlane interface {
 	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Assign IP addresses to all services at and below the provided service
-	AssignIPs(assignmentRequest AssignmentRequest, unused *int) (err error)
-
-	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
+	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -221,24 +217,6 @@ type ControlPlane interface {
 
 	// Get service memory stats for a particular service instance
 	GetInstanceMemoryStats(req MetricRequest, stats *[]metrics.MemoryUsageStats) error
-
-	//---------------------------------------------------------------------------
-	// ServiceTemplate CRUD
-
-	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
-
-	// Add a new service Template
-	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error
-
-	// Update a new service Template
-	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
-
-	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
-
-	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD

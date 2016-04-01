@@ -123,3 +123,9 @@ func (s *TestWebSuite) assertServerError(c *C, expectedError error) {
 	c.Assert(s.recorder.Code, Equals, http.StatusInternalServerError)
 	s.assertSimpleResponse(c, fmt.Sprintf("Internal Server Error: %s", expectedError),  homeLink())
 }
+
+// Some methods return a slightly different response on error
+func (s *TestWebSuite) assertAltServerError(c *C, expectedError error) {
+	c.Assert(s.recorder.Code, Equals, http.StatusInternalServerError)
+	s.assertSimpleResponse(c, expectedError.Error(),  homeLink())
+}

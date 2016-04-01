@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -126,6 +127,21 @@ func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Desi
 
 	return r0
 }
+func (m *FacadeInterface)AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error) {
+	ret := m.Called(ctx, assignmentRequest)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
+func (m *FacadeInterface) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
+	ret := m.Called(ctx, serviceTemplate)
+
+	r0 := ret.Get(0).(string)
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *FacadeInterface) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
 	ret := m.Called(ctx)
 
@@ -137,12 +153,80 @@ func (m *FacadeInterface) GetServiceTemplates(ctx datastore.Context) (map[string
 
 	return r0, r1
 }
+func (m *FacadeInterface) RemoveServiceTemplate(ctx datastore.Context, templateID string) error {
+	ret := m.Called(ctx, templateID)
+
+	return ret.Error(0)
+}
 func (m *FacadeInterface) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error {
 	ret := m.Called(ctx, template)
 
 	r0 := ret.Error(0)
 
 	return r0
+}
+func (m *FacadeInterface) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
+	ret := m.Called(ctx, poolID, templateID, deploymentID)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func()[]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (m *FacadeInterface) DeployTemplateActive() (active []map[string]string, err error) {
+	ret := m.Called()
+
+	var r0 []map[string]string
+	if rf, ok := ret.Get(0).(func()[]map[string]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]map[string]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (m *FacadeInterface) DeployTemplateStatus(deploymentID string) (status string, err error) {
+	ret := m.Called(deploymentID)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func()string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) error {
 	ret := m.Called(ctx, entity)

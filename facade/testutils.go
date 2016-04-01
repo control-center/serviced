@@ -75,6 +75,7 @@ func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockZZK()
 	ft.setupMockDFS()
+	LogstashContainerReloader = reloadLogstashContainerStub
 }
 
 func (ft *FacadeTest) setupMockZZK() {
@@ -101,4 +102,8 @@ func (ft *FacadeTest) setupMockDFS() {
 }
 
 func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
+}
+
+func reloadLogstashContainerStub(_ datastore.Context, _ FacadeInterface) error {
+	return nil
 }

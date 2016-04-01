@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/health"
 
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -51,9 +52,21 @@ type FacadeInterface interface {
 
 	WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error
 
+	AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error)
+
+	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error)
+
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)
 
+	RemoveServiceTemplate(ctx datastore.Context, templateID string) error
+
 	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error
+
+	DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error)
+
+	DeployTemplateActive() (active []map[string]string, err error)
+
+	DeployTemplateStatus(deploymentID string) (status string, err error)
 
 	AddHost(ctx datastore.Context, entity *host.Host) error
 
