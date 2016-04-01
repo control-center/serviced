@@ -14,16 +14,24 @@
 package utils
 
 import (
-	"io"
+	"fmt"
 
+	"github.com/control-center/serviced/utils"
 	"gopkg.in/pipe.v2"
 )
 
-type TarStreamMerger struct {
-	p *pipe.Line
-}
-
-func NewTarStreamMerger(w io.Writer) *TarStreamMerger {
+// PrefixPath rewrites the paths of all the files within a tar stream to be
+// beneath a given prefix. To do this, it has to untar the stream to disk,
+// which it does in a temp directory beneath tmpdir.
+func PrefixPath(prefix, tmpdir string) pipe.Pipe {
+	uuid, _ := utils.NewUUID36()
+	subdir := fmt.Sprintf("%s/%s", tmpdir, uuid)
+	return pipe.Script(
+		pipe.MkDirAll(subdir, 0777),
+		pipe.ChDir(subdir),
+		pipe.Exec("tar", "-xf", "-", "--transform", fmt.Sprintf("s,^,%s,", prefix)),
+		pipe.Exec("tar", "-cf", "-", "."),
+	)
 }
 
 /*
