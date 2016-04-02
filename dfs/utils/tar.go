@@ -14,99 +14,102 @@
 package utils
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"path/filepath"
 
-	"github.com/control-center/serviced/utils"
 	"gopkg.in/pipe.v2"
 )
 
 // PrefixPath rewrites the paths of all the files within a tar stream to be
-// beneath a given prefix. To do this, it has to untar the stream to disk,
-// which it does in a temp directory beneath tmpdir.
-func PrefixPath(prefix, tmpdir string) pipe.Pipe {
-	uuid, _ := utils.NewUUID36()
-	subdir := fmt.Sprintf("%s/%s", tmpdir, uuid)
-	return pipe.Script(
-		pipe.MkDirAll(subdir, 0777),
-		pipe.ChDir(subdir),
-		pipe.Exec("tar", "-xf", "-", "--transform", fmt.Sprintf("s,^,%s,", prefix)),
-		pipe.Exec("tar", "-cf", "-", "."),
-	)
-}
-
-/*
-const (
-	// Tar archives comprise 512-byte blocks
-	blocksize = 512
-	// The terminator of a tar archive is two 512-byte blocks of zeroes, so that's our buffer
-	bufsize = blocksize << 1
-)
-
-var (
-	zeroes = make([]byte, bufsize)
-	// ErrClosed is returned when a write happens after the stream is closed
-	ErrClosed = errors.New("TarStreamMerger: write after closed")
-)
-
-// TarStreamMerger is a utility to combine multiple tar streams into a single
-// tarball without using much intermediate memory or disk. It accomplishes this
-// by omitting the end-of-archive terminator of each stream, then simply
-// concatenating them to the provided writer.
-type TarStreamMerger struct {
-	out    io.Writer
-	buffer [bufsize]byte
-	closed bool
-}
-
-// NewTarStreamMerger creates a new TarStreamMerger
-func NewTarStreamMerger(w io.Writer) *TarStreamMerger {
-	return &TarStreamMerger{out: w}
-}
-
-// Append appends a new tar stream to the merger
-func (m *TarStreamMerger) Append(tarStream io.Reader) error {
-	if m.closed {
-		return ErrClosed
-	}
-
-	reader := bufio.NewReader(tarStream)
-
-	// Clear out the buffer
-	buffer := m.buffer[:]
-	copy(buffer, zeroes)
-
-	for {
-		if _, err := io.ReadFull(tarStream, buffer); err != nil {
-			// we got io.EOF, the only thing io.ReadFull can return
-			if bytes.Equal(buffer, zeroes) {
-				// We got a terminator; don't write it
-				return nil
+// beneath a given prefix.
+func PrefixPath(prefix string) pipe.Pipe {
+	return pipe.TaskFunc(func(s *pipe.State) error {
+		reader := tar.NewReader(s.Stdin)
+		writer := tar.NewWriter(s.Stdout)
+		defer writer.Close()
+		for {
+			hdr, err := reader.Next()
+			if err == io.EOF {
+				// End of the archive
+				break
 			}
-			if bytes.Equal(buffer[blocksize:], zeroes[0:blocksize]) {
-				// Second block is a zero; check for a terminator
-				if b, err := reader.Peek(blocksize); err != nil || bytes.Equal(b, zeroes[0:blocksize]) {
-					m.out.Write(buffer[0:blocksize])
-					return nil
-				}
-			}
-			if _, err := m.out.Write(buffer); err != nil {
+			if err != nil {
 				return err
 			}
-			// Reset the buffer again
-			copy(buffer, zeroes)
+			// Add the prefix
+			hdr.Name = filepath.Join(prefix, hdr.Name)
+			writer.WriteHeader(hdr)
+			io.Copy(writer, reader)
 		}
-	}
-
-}
-
-// Close finalizes the merged tar stream by appending the archive terminator.
-func (m *TarStreamMerger) Close() error {
-	if m.closed {
 		return nil
-	}
-	m.closed = true
-	// Write a terminator
-	_, err := m.out.Write(zeroes)
-	return err
+	})
 }
-*/
+
+// StripTerminator echoes the tar archive input minus the final 1024-zero-byte
+// terminator. This allows archives to be concatenated.
+func stripTerminator() pipe.Pipe {
+	return pipe.TaskFunc(func(s *pipe.State) error {
+		reader := tar.NewReader(s.Stdin)
+		writer := tar.NewWriter(s.Stdout)
+		// This is the interesting part. We simply flush the tar writer, but
+		// don't close it. This omits the terminator.
+		defer writer.Flush()
+		for {
+			hdr, err := reader.Next()
+			if err == io.EOF {
+				// End of the archive
+				break
+			}
+			if err != nil {
+				return err
+			}
+			writer.WriteHeader(hdr)
+			io.Copy(writer, reader)
+		}
+		return nil
+	})
+}
+
+type taskFunc func(s *pipe.State) error
+
+func (f taskFunc) Run(s *pipe.State) error { fmt.Println("RUNNING"); return f(s) }
+func (f taskFunc) Kill()                   {}
+
+// Cat concatenates the output of several pipes together.
+func Cat(pipes ...pipe.Pipe) pipe.Pipe {
+	return pipe.Script(pipes...)
+	/*
+		return func(s *pipe.State) error {
+			stdout := s.Stdout
+			for _, p := range pipes {
+
+				s.AddTask(taskFunc(pipe.Line(
+					p, pipe.Write(stdout),
+				)))
+			}
+			return nil
+		}
+	*/
+}
+
+func WriteSuffix(suffix []byte) pipe.Pipe {
+	return pipe.TaskFunc(func(s *pipe.State) error {
+		io.Copy(s.Stdout, s.Stdin)
+		_, err := s.Stdout.Write(suffix)
+		return err
+	})
+}
+
+// ConcatTarStreams combines several tar streams into a single tarball.
+func ConcatTarStreams(pipes ...pipe.Pipe) pipe.Pipe {
+	thepipening := []pipe.Pipe{}
+	for _, p := range pipes {
+		thepipening = append(thepipening, pipe.Line(p, stripTerminator()))
+	}
+	return pipe.Line(
+		Cat(thepipening...),
+		WriteSuffix(make([]byte, 1024)),
+	)
+}
