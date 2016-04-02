@@ -17,6 +17,7 @@ package utils_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,19 +59,57 @@ func tarfile(dir, size string, numfiles int) string {
 
 func (s *TarTestSuite) TestPrefixPath(c *C) {
 	dir := c.MkDir()
-	testfile := tarfile(dir, "100KB", 2)
+	testfile := tarfile(dir, "10KB", 2)
 	outfile := filepath.Join(dir, "out.tar")
 	p := pipe.Line(
 		pipe.ReadFile(testfile),
-		PrefixPath("prefix/", dir),
+		PrefixPath("prefix"),
 		pipe.WriteFile(outfile, 0644),
 	)
-	stdout, err := pipe.CombinedOutput(p)
-	c.Log(string(stdout))
+	err := pipe.Run(p)
 	c.Assert(err, IsNil)
 	outdir := filepath.Join(dir, "testout")
 	os.Mkdir(outdir, os.ModePerm)
-	exec.Command("tar", "-C", outdir, "-xf", outfile).Run()
-	os.ListDir(outdir)
-	time.Sleep(30 * time.Second)
+}
+
+func (s *TarTestSuite) TestCatPipe(c *C) {
+	p := Cat(
+		pipe.Println("line 1"),
+		pipe.Line(
+			// Add a level of indirection
+			pipe.Println("line 2"),
+			pipe.Tee(ioutil.Discard),
+		),
+		pipe.Println("line 3"),
+		pipe.Println("line 4"),
+		pipe.Println("line 5"),
+	)
+	out, err := pipe.CombinedOutput(p)
+	c.Assert(err, IsNil)
+	c.Assert(string(out), Equals, "line 1\nline 2\nline 3\nline 4\nline 5\n")
+}
+
+func (s *TarTestSuite) TestConcatTarPipe(c *C) {
+	dir := c.MkDir()
+	testfile1 := tarfile(dir, "1K", 2)
+	testfile2 := tarfile(dir, "1K", 3)
+	testfile3 := tarfile(dir, "1K", 1)
+	outfile := filepath.Join(dir, "out.tar")
+
+	p := pipe.Line(
+		ConcatTarStreams(
+			pipe.Line(
+				pipe.ReadFile(testfile1),
+				PrefixPath("1"),
+			),
+			pipe.ReadFile(testfile2),
+			pipe.ReadFile(testfile3),
+		),
+		pipe.WriteFile(outfile, 0644),
+	)
+	err := pipe.Run(p)
+	c.Assert(err, IsNil)
+	outdir := filepath.Join(dir, "testout")
+	os.Mkdir(outdir, os.ModePerm)
+	time.Sleep(300 * time.Second)
 }
