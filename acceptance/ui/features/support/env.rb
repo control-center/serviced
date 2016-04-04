@@ -176,8 +176,9 @@ Capybara::Webkit.configure do |config|
 end
 
 Before do
+  # Any DISPLAY value other than ":99" implies we're xhosting the browser outside of the docker container
   debug = false
-  if ENV["DISPLAY"].include? "unix:"
+  if ENV["DISPLAY"] != ":99"
         debug = true
   end
 
