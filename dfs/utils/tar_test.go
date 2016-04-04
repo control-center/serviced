@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/control-center/serviced/dfs/utils"
 	. "gopkg.in/check.v1"
@@ -68,8 +67,6 @@ func (s *TarTestSuite) TestPrefixPath(c *C) {
 	)
 	err := pipe.Run(p)
 	c.Assert(err, IsNil)
-	outdir := filepath.Join(dir, "testout")
-	os.Mkdir(outdir, os.ModePerm)
 }
 
 func (s *TarTestSuite) TestCatPipe(c *C) {
@@ -111,5 +108,4 @@ func (s *TarTestSuite) TestConcatTarPipe(c *C) {
 	c.Assert(err, IsNil)
 	outdir := filepath.Join(dir, "testout")
 	os.Mkdir(outdir, os.ModePerm)
-	time.Sleep(300 * time.Second)
 }

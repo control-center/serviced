@@ -100,12 +100,12 @@ func (s *DFSTestSuite) BenchmarkBackup(c *C) {
 		s.docker.On("PullImage", "library/repo:tag").Return(nil)
 		s.docker.On("FindImage", "library/repo:tag").Return(&dockerclient.Image{}, dockerclient.ErrNoSuchImage)
 		s.registry.On("ImagePath", "TENANT/repo:tag").Return("testserver:5000/TENANT/repo:tag", nil)
-		vol.On("Export", SnapshotLabel, "", mock.AnythingOfType("*utils.Spool")).Return(nil).Run(func(a mock.Arguments) {
+		vol.On("Export", SnapshotLabel, "", mock.AnythingOfType("*io.PipeWriter")).Return(nil).Run(func(a mock.Arguments) {
 			writer := a.Get(2).(io.Writer)
 			_, err := writer.Write(tardata)
 			c.Assert(err, IsNil)
 		})
-		s.docker.On("SaveImages", allImages, mock.AnythingOfType("*utils.Spool")).Return(nil).Run(func(a mock.Arguments) {
+		s.docker.On("SaveImages", allImages, mock.AnythingOfType("*io.PipeWriter")).Return(nil).Run(func(a mock.Arguments) {
 			writer := a.Get(1).(io.Writer)
 			_, err := writer.Write(tardata)
 			c.Assert(err, IsNil)
