@@ -133,7 +133,6 @@ printf "Using HOST_IP=%s\n", HOST_IP
 printf "Using TARGET_HOST=%s\n", TARGET_HOST
 printf "Using DISPLAY=%s\n", ENV["DISPLAY"]
 
-
 #
 # Register Chrome (Firefox is the selenium default)
 Capybara.register_driver :selenium_chrome do |app|
@@ -177,7 +176,12 @@ Capybara::Webkit.configure do |config|
 end
 
 Before do
-  if Capybara.current_driver == :selenium || Capybara.current_driver == :selenium_chrome
+  debug = false
+  if ENV["DISPLAY"].include? "unix:"
+        debug = true
+  end
+
+  if !debug && (Capybara.current_driver == :selenium || Capybara.current_driver == :selenium_chrome)
     require 'headless'
 
     headless = Headless.new
