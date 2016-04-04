@@ -133,15 +133,23 @@ printf "Using HOST_IP=%s\n", HOST_IP
 printf "Using TARGET_HOST=%s\n", TARGET_HOST
 printf "Using DISPLAY=%s\n", ENV["DISPLAY"]
 
+
 #
 # Register Chrome (Firefox is the selenium default)
 Capybara.register_driver :selenium_chrome do |app|
+    # Get the default capabilities which enable javascript and browser logging
+    # For whatever reasaon, we have to explicitly specify these capabilities to enable browser logging
+    caps = Selenium::WebDriver::Remote::Capabilities.chrome()
+
     #
     # Chrome's sandboxing doesn't work in a docker container because Chrome detects it's on an SID volume
     # and refuses to start. So you must either run the docker container w/--privileged or run chrome as
     # a non-root user with sandboxing disabled. The later seems most secure
-    args = %w(--no-sandbox)
-    Capybara::Selenium::Driver.new(app, :browser => :chrome, :args => ["--no-sandbox", "--ignore-certificate-errors", "--user-data-dir=/tmp"])
+    Capybara::Selenium::Driver.new(app,
+                                   :browser => :chrome,
+                                   :args => ["--no-sandbox", "--ignore-certificate-errors", "--user-data-dir=/tmp"],
+                                   :desired_capabilities => caps
+    )
 end
 
 #
@@ -153,6 +161,10 @@ Capybara.register_driver :poltergeist do |app|
         :debug => false,
         :timeout => 120,
         :phantomjs_options => ['--load-images=no', '--disk-cache=false', '--ignore-ssl-errors=true'],
+        # FIXME: Write a custom logger that implements the Ruby IO object so that we can cache all of the messages and
+        #        produce scenario-specific reports ala the selenium-chrome driver (see hooks.rb)
+        # Uncomment to get JS console messages written to stdout
+        # :phantomjs_logger => STDOUT,
         :inspector => true,
     }
     Capybara::Poltergeist::Driver.new(app, options)
