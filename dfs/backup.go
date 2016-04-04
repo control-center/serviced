@@ -21,8 +21,11 @@ import (
 	"path"
 	"time"
 
+	"gopkg.in/pipe.v2"
+
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dfs/utils"
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -34,30 +37,18 @@ const (
 
 // Backup writes all application data into an export stream
 func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
-	tarfile := tar.NewWriter(w)
-	defer tarfile.Close()
-	buffer := bytes.NewBufferString("")
-	spool, err := utils.NewSpool(dfs.tmp)
-	if err != nil {
-		glog.Errorf("Could not create spool: %s", err)
+
+	// A set of pipes that output tar streams
+	var tarpipes []pipe.Pipe
+
+	// write the backup metadata. This is too tiny to parallelize
+	metadataBuffer := &bytes.Buffer{}
+	if err := dfs.writeBackupMetadata(data, metadataBuffer); err != nil {
+		glog.V(2).Infof("Unable to write backup metadata: %s", err)
 		return err
 	}
-	defer spool.Remove()
-	// write the backup metadata
-	glog.Infof("Writing backup metadata")
-	if err := json.NewEncoder(buffer).Encode(data); err != nil {
-		glog.Errorf("Could not encode backup metadata: %s", err)
-		return err
-	}
-	header := &tar.Header{Name: BackupMetadataFile, Size: int64(buffer.Len())}
-	if err := tarfile.WriteHeader(header); err != nil {
-		glog.Errorf("Could not create metadata header for backup: %s", err)
-		return err
-	}
-	if _, err := buffer.WriteTo(tarfile); err != nil {
-		glog.Errorf("Could not write backup metadata: %s", err)
-		return err
-	}
+	tarpipes = append(tarpipes, pipe.Read(metadataBuffer))
+
 	var images []string
 	// download the base images
 	for _, image := range data.BaseImages {
@@ -108,38 +99,63 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			images = append(images, image)
 		}
 		timer.Stop()
-		// export the snapshot
-		if err := vol.Export(info.Label, "", spool); err != nil {
-			glog.Errorf("Could not export tenant %s: %s", info.TenantID, err)
-			return err
-		}
-		glog.Infof("Exporting tenant volume %s", info.TenantID)
-		header := &tar.Header{Name: path.Join(SnapshotsMetadataDir, info.TenantID, info.Label), Size: spool.Size()}
-		if err := tarfile.WriteHeader(header); err != nil {
-			glog.Errorf("Could not create header for tenant %s: %s", info.TenantID, err)
-			return err
-		}
-		if _, err := spool.WriteTo(tarfile); err != nil {
-			glog.Errorf("Could not write tenant %s to backup: %s", info.TenantID, err)
-			return err
-		}
-		glog.Infof("Finished exporting tenant volume %s", info.TenantID)
+		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
+		tarpipes = append(tarpipes, pipe.Line(
+			dfs.snapshotSavePipe(vol, info.Label),
+			utils.PrefixPath(prefix),
+		))
 	}
-	// export the images
-	glog.Infof("Saving images to backup")
-	if err := dfs.docker.SaveImages(images, spool); err != nil {
-		glog.Errorf("Could not save images to backup: %s", err)
+
+	// Add the image save pipe
+	tarpipes = append(tarpipes, pipe.Line(
+		dfs.dockerSavePipe(images...),
+		// Relocate the tar Docker spits out under a well-known directory
+		// This directory is a tar file in older backups; restore should
+		// switch on that to decide how to extract them
+		utils.PrefixPath(DockerImagesFile),
+	))
+
+	backupPipeline := pipe.Line(
+		utils.ConcatTarStreams(tarpipes...),
+		pipe.Write(w),
+	)
+	return pipe.Run(backupPipeline)
+}
+
+// dockerSavePipe streams the tar archive output by Docker to pipe's stdout
+func (dfs *DistributedFilesystem) dockerSavePipe(images ...string) pipe.Pipe {
+	return pipe.TaskFunc(func(s *pipe.State) error {
+		return dfs.docker.SaveImages(images, s.Stdout)
+	})
+}
+
+func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label string) pipe.Pipe {
+	return pipe.TaskFunc(func(s *pipe.State) error {
+		return vol.Export(label, "", s.Stdout)
+	})
+}
+
+// writeBackupMetadata writes out a tar stream containing a file containing the
+// JSON-serialized backup metdata passed in
+func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w io.Writer) error {
+	var (
+		jsonData []byte
+		err      error
+	)
+	tarfile := tar.NewWriter(w)
+	defer tarfile.Close()
+	glog.V(2).Infof("Writing backup metadata")
+	if jsonData, err = json.Marshal(data); err != nil {
 		return err
 	}
-	header = &tar.Header{Name: DockerImagesFile, Size: spool.Size()}
+	header := &tar.Header{Name: BackupMetadataFile, Size: int64(len(jsonData))}
 	if err := tarfile.WriteHeader(header); err != nil {
-		glog.Errorf("Could not create docker images header for backup: %s", err)
+		glog.V(2).Infof("Could not create metadata header for backup: %s", err)
 		return err
 	}
-	if _, err := spool.WriteTo(tarfile); err != nil {
-		glog.Errorf("Could not write docker images: %s", err)
+	if _, err := tarfile.Write(jsonData); err != nil {
+		glog.V(2).Infof("Could not write backup metadata: %s", err)
 		return err
 	}
-	glog.Infof("Successfully completed backup")
 	return nil
 }

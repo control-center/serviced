@@ -15,7 +15,6 @@ package utils
 
 import (
 	"archive/tar"
-	"fmt"
 	"io"
 	"path/filepath"
 
@@ -50,6 +49,7 @@ func PrefixPath(prefix string) pipe.Pipe {
 // StripTerminator echoes the tar archive input minus the final 1024-zero-byte
 // terminator. This allows archives to be concatenated.
 func stripTerminator() pipe.Pipe {
+	// TODO: Make this more efficient by not bothering with a tar reader
 	return pipe.TaskFunc(func(s *pipe.State) error {
 		reader := tar.NewReader(s.Stdin)
 		writer := tar.NewWriter(s.Stdout)
@@ -72,29 +72,13 @@ func stripTerminator() pipe.Pipe {
 	})
 }
 
-type taskFunc func(s *pipe.State) error
-
-func (f taskFunc) Run(s *pipe.State) error { fmt.Println("RUNNING"); return f(s) }
-func (f taskFunc) Kill()                   {}
-
 // Cat concatenates the output of several pipes together.
 func Cat(pipes ...pipe.Pipe) pipe.Pipe {
 	return pipe.Script(pipes...)
-	/*
-		return func(s *pipe.State) error {
-			stdout := s.Stdout
-			for _, p := range pipes {
-
-				s.AddTask(taskFunc(pipe.Line(
-					p, pipe.Write(stdout),
-				)))
-			}
-			return nil
-		}
-	*/
 }
 
-func WriteSuffix(suffix []byte) pipe.Pipe {
+// AppendData appends the given data to the end of a stream
+func AppendData(suffix []byte) pipe.Pipe {
 	return pipe.TaskFunc(func(s *pipe.State) error {
 		io.Copy(s.Stdout, s.Stdin)
 		_, err := s.Stdout.Write(suffix)
@@ -110,6 +94,6 @@ func ConcatTarStreams(pipes ...pipe.Pipe) pipe.Pipe {
 	}
 	return pipe.Line(
 		Cat(thepipening...),
-		WriteSuffix(make([]byte, 1024)),
+		AppendData(make([]byte, 1024)),
 	)
 }
