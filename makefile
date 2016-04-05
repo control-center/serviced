@@ -103,6 +103,9 @@ GODEP     = $(GOBIN)/godep
 GO        = $(GODEP) go
 godep_SRC = github.com/tools/godep
 
+# Verify that we are running with the right go version
+GOVERSION ?= go1.6
+
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
 # $(_DESTDIR)$(prefix)
@@ -121,7 +124,13 @@ endif
 # Build targets       #
 #---------------------#
 .PHONY: default build all
-default build all: $(build_TARGETS)
+default build all: goversion $(build_TARGETS)
+
+.PHONY: goversion
+goversion:
+ifeq "$(shell go version | grep $(GOVERSION))" ""
+	$(error "Build requires go version $(GOVERSION)")
+endif
 
 .PHONY: build_isvcs
 build_isvcs:
