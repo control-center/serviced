@@ -55,7 +55,7 @@
                     // if service should be up and there is more than 1 instance, show number of instances
                     if(statusObj.desiredState === 1 && statusObj.statusRollup.total > 1){
                         $el.addClass("wide");
-                        $badge.text(statusObj.statusRollup.ok +"/"+ statusObj.statusRollup.total).show();
+                        $badge.text(statusObj.statusRollup[OK] +"/"+ statusObj.statusRollup.total).show();
 
                     // else, hide the badge
                     } else {
