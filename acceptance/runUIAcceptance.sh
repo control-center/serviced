@@ -103,7 +103,11 @@ CALLER_UID=`id -u`
 CALLER_GID=`id -g`
 
 if [ "$debug" == true ]; then
-    DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
+    if [[ "$DISPLAY" =~ "\:[0-9]" ]]; then
+        DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
+    else
+        DEBUG_OPTION="-e DISPLAY=$DISPLAY"
+    fi
 fi
 
 if [ -n "${TAGS}" ]; then
