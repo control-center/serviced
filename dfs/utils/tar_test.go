@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"testing"
 
 	. "github.com/control-center/serviced/dfs/utils"
 	. "gopkg.in/check.v1"
@@ -39,8 +38,6 @@ func getFileName(dir string) string {
 	i += 1
 	return fmt.Sprintf("%s/%d.file", dir, i)
 }
-
-func TestTar(t *testing.T) { TestingT(t) }
 
 func tarfile(dir, size string, numfiles int) string {
 	i += 1
@@ -106,6 +103,4 @@ func (s *TarTestSuite) TestConcatTarPipe(c *C) {
 	)
 	err := pipe.Run(p)
 	c.Assert(err, IsNil)
-	outdir := filepath.Join(dir, "testout")
-	os.Mkdir(outdir, os.ModePerm)
 }
