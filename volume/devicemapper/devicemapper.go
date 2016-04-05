@@ -22,6 +22,7 @@ import (
 	"gopkg.in/pipe.v2"
 
 	"github.com/control-center/serviced/commons/atomicfile"
+	dfsutils "github.com/control-center/serviced/dfs/utils"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -911,7 +912,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 		v.driver.DeviceSet.Unlock()
 	}()
 	// Set up the file stream
-	buffer := bytes.NewBuffer()
+	buffer := &bytes.Buffer{}
 	tarfile := tar.NewWriter(buffer)
 	// Set the driver type
 	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
@@ -928,7 +929,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 
 	return pipe.Run(pipe.Line(
-		utils.ConcatTarStreams(
+		dfsutils.ConcatTarStreams(
 			pipe.Read(buffer),
 			pipeExportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label)),
 			pipeExportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label)),
@@ -1081,6 +1082,6 @@ func resize2fs(dmDevice string) error {
 func pipeExportDirectoryAsTar(path, prefix string) pipe.Pipe {
 	return pipe.Line(
 		pipe.ChDir(path),
-		pipe.Exec("tar", "-cO", "--transform", fmt.Sprintf("s,^,%s/,", prefix), "."),
+		pipe.Exec("tar", "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), "."),
 	)
 }

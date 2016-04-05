@@ -25,9 +25,8 @@ import (
 // beneath a given prefix.
 func PrefixPath(prefix string) pipe.Pipe {
 	return pipe.TaskFunc(func(s *pipe.State) error {
-		reader := tar.NewReader(s.Stdin)
+		reader := pipeTarReader(s.Stdin)
 		writer := tar.NewWriter(s.Stdout)
-		defer writer.Close()
 		for {
 			hdr, err := reader.Next()
 			if err == io.EOF {
@@ -39,23 +38,24 @@ func PrefixPath(prefix string) pipe.Pipe {
 			}
 			// Add the prefix
 			hdr.Name = filepath.Join(prefix, hdr.Name)
-			writer.WriteHeader(hdr)
-			io.Copy(writer, reader)
+			if err := writer.WriteHeader(hdr); err != nil {
+				return err
+			}
+			if _, err := io.Copy(writer, reader); err != nil {
+				return err
+			}
 		}
-		return nil
+		return writer.Close()
 	})
 }
 
-// StripTerminator echoes the tar archive input minus the final 1024-zero-byte
-// terminator. This allows archives to be concatenated.
-func stripTerminator() pipe.Pipe {
+// StripTarTerminator echoes the tar archive input minus the final
+// 1024-zero-byte terminator. This allows archives to be concatenated.
+func StripTarTerminator() pipe.Pipe {
 	// TODO: Make this more efficient by not bothering with a tar reader
 	return pipe.TaskFunc(func(s *pipe.State) error {
-		reader := tar.NewReader(s.Stdin)
+		reader := pipeTarReader(s.Stdin)
 		writer := tar.NewWriter(s.Stdout)
-		// This is the interesting part. We simply flush the tar writer, but
-		// don't close it. This omits the terminator.
-		defer writer.Flush()
 		for {
 			hdr, err := reader.Next()
 			if err == io.EOF {
@@ -66,9 +66,13 @@ func stripTerminator() pipe.Pipe {
 				return err
 			}
 			writer.WriteHeader(hdr)
-			io.Copy(writer, reader)
+			if _, err := io.Copy(writer, reader); err != nil {
+				return err
+			}
 		}
-		return nil
+		// This is the interesting part. We simply flush the tar writer, but
+		// don't close it. This omits the terminator.
+		return writer.Flush()
 	})
 }
 
@@ -80,7 +84,9 @@ func Cat(pipes ...pipe.Pipe) pipe.Pipe {
 // AppendData appends the given data to the end of a stream
 func AppendData(suffix []byte) pipe.Pipe {
 	return pipe.TaskFunc(func(s *pipe.State) error {
-		io.Copy(s.Stdout, s.Stdin)
+		if _, err := io.Copy(s.Stdout, s.Stdin); err != nil {
+			return err
+		}
 		_, err := s.Stdout.Write(suffix)
 		return err
 	})
@@ -90,10 +96,27 @@ func AppendData(suffix []byte) pipe.Pipe {
 func ConcatTarStreams(pipes ...pipe.Pipe) pipe.Pipe {
 	thepipening := []pipe.Pipe{}
 	for _, p := range pipes {
-		thepipening = append(thepipening, pipe.Line(p, stripTerminator()))
+		thepipening = append(thepipening, pipe.Line(p, StripTarTerminator()))
 	}
 	return pipe.Line(
 		Cat(thepipening...),
+		// Terminate!
 		AppendData(make([]byte, 1024)),
 	)
+}
+
+// pipeTarReader insulates pipe's io.Pipe usage from tar's Reader by
+// introducing another io.Pipe in between. pipe manages the closing of its
+// io.Pipes in a way that, in certain situations, is incompatible with the tar
+// package. This allows us to control the closing of the io.Pipe in concert
+// with our tar.Reader.
+func pipeTarReader(r io.Reader) *tar.Reader {
+	var (
+		in  *io.PipeReader
+		out *io.PipeWriter
+	)
+	in, out = io.Pipe()
+	reader := tar.NewReader(in)
+	go io.Copy(out, r)
+	return reader
 }
