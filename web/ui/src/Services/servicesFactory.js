@@ -36,12 +36,15 @@
 
                 // if this is the first update, request
                 // all services
-                if(this.lastUpdate === undefined || force){
+                if(this.lastRequest === undefined || force){
                     since = 0;
+
+                // request all data since the last request
+                // was made to ensure any new data that came
+                // in DURING the request is filled
                 } else {
-                    since = (now - this.lastUpdate) + UPDATE_PADDING;
+                    since = (now - this.lastRequest) + UPDATE_PADDING;
                 }
-                this.lastUpdate = now;
 
                 resourcesFactory.getServices(since)
                     .success((data, status) => {
@@ -90,10 +93,10 @@
                         // notify the first services request is done
                         $rootScope.$emit("ready");
 
+                        // last SUCCESSFUL request
+                        this.lastUpdate = this.lastRequest = new Date().getTime();
+
                         deferred.resolve();
-                    })
-                    .finally(() => {
-                        this.lastUpdate = new Date().getTime();
                     });
 
                 // keep instances up to date

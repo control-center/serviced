@@ -105,7 +105,7 @@
                     deferred.resolve();
                 })
                 .error((data, status) => {
-                    console.error("Unable to update factory", data);
+                    console.warn("Unable to update factory", data);
                 })
                 .finally(() => {
                     // notify the first request is complete

@@ -1,6 +1,8 @@
 /* globals controlplane: true */
 (function(){
 
+    const REQUEST_TIMEOUT = 30000;
+
     controlplane.factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval", "miscUtils",
     function($http, $location, $notification, DSCacheFactory, $q, $interval, utils) {
         // add function to $http service to allow for noCacheGet requests
@@ -257,6 +259,22 @@
             }
         };
 
+        // adds success and error functions
+        // to regular promise ala $http
+        function httpify(deferred){
+            deferred.promise.success = function(fn){
+                deferred.promise.then(fn);
+                return deferred.promise;
+            };
+            deferred.promise.error = function(fn){
+                deferred.promise.then(null, fn);
+                return deferred.promise;
+            };
+            return deferred;
+        }
+
+        var pendingGETRequests = {};
+
         function generateMethod(config){
             // method should be all lowercase
             config.method = config.method.toLowerCase();
@@ -269,16 +287,56 @@
 
             return function(/* args */){
                 var url = config.url.apply(null, arguments),
-                    payload;
+                    resourceName = url,
+                    payload,
+                    // deferred that will be returned to the user
+                    deferred = $q.defer();
+
+                // if resourceName has query params, strip em off
+                if(resourceName.indexOf("?")){
+                    resourceName = resourceName.split("?")[0];
+                }
+
+                // NOTE: all of our code expects angular's wrapped
+                // promises which provide a success and error method
+                // TODO - remove the need for this
+                httpify(deferred);
+
+                if(pendingGETRequests[resourceName]){
+                    // theres already a pending request to
+                    // this endpoint, so fail!
+                    deferred.reject(`a request to ${resourceName} is pending`);
+                    return deferred.promise;
+                }
 
                 if(config.payload){
                     payload = config.payload.apply(null, arguments);
                 }
 
-                return $http[config.method](url, payload)
-                    .error(function(data, status) {
-                        redirectIfUnauthorized(status);
-                    });
+                $http({
+                    method: config.method,
+                    url: url,
+                    data: payload,
+                    timeout: REQUEST_TIMEOUT
+                })
+                .success(function(data, status){
+                    deferred.resolve(data);
+                })
+                .error(function(data, status) {
+                    // TODO - include data as well?
+                    deferred.reject(status);
+                    redirectIfUnauthorized(status);
+                })
+                .finally(function() {
+                    pendingGETRequests[resourceName] = null;
+                });
+
+                // NOTE: only limits GET requests
+                if(config.method === "get"){
+                    pendingGETRequests[resourceName] = deferred;
+                }
+
+                return deferred.promise;
             };
         }
 
