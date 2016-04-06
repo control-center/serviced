@@ -112,11 +112,11 @@ func ConcatTarStreams(pipes ...pipe.Pipe) pipe.Pipe {
 // with our tar.Reader.
 func pipeTarReader(r io.Reader) *tar.Reader {
 	var (
-		in  *io.PipeReader
-		out *io.PipeWriter
+		piper *io.PipeReader
+		pipew *io.PipeWriter
 	)
-	in, out = io.Pipe()
-	reader := tar.NewReader(in)
-	go io.Copy(out, r)
+	piper, pipew = io.Pipe()
+	reader := tar.NewReader(piper)
+	go io.Copy(pipew, r)
 	return reader
 }
