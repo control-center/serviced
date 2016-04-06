@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
+// +build unit integration
 
 package facade
 
@@ -24,5 +24,3 @@ import (
 func Test(t *testing.T) {
 	TestingT(t)
 }
-
-var _ = Suite(&FacadeTest{})
