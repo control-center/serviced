@@ -414,8 +414,8 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 
 func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
 	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, pool.ID)
-
 	if err != nil {
+		// FIXME: this error shouldn't be ignored. Either log it and/or have the caller fail and return the error
 		return err
 	}
 
@@ -429,13 +429,13 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 	pool.CoreCapacity = coreCapacity
 	pool.MemoryCapacity = memCapacity
 
-	return err
+	return nil
 }
 
 func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePool) error {
 	services, err := f.serviceStore.GetServicesByPool(ctx, pool.ID)
-
 	if err != nil {
+		// FIXME: this error shouldn't be ignored. Either log it and/or have the caller fail and return the error
 		return err
 	}
 
@@ -446,7 +446,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 
 	pool.MemoryCommitment = memCommitment
 
-	return err
+	return nil
 }
 
 // GetPoolIPs gets all IPs available to a resource pool
