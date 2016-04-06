@@ -103,55 +103,86 @@ func (dfs *DistributedFilesystem) restoreVersion0(r io.Reader, data *BackupInfo)
 }
 
 // restoreVersion1 restores application data from a >=1.1.3 backup, where the
-// data is contained in a single tar
+// data is contained in a single tar. It does this by partitioning the tar
+// stream into multiple other streams: One for Docker images, which used to be
+// an independent tar file within the tar stream (but is now included inline),
+// and one for each DFS snapshot being restored.
 func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo) error {
-
 	var (
+		errs           []error
 		registryImages []string
 		imagesr        *io.PipeReader
 		imagesw        *io.PipeWriter
 		wg             sync.WaitGroup
+		startedDocker  bool
 	)
 
+	// Parse the incoming stream as a tar
 	backupTar := tar.NewReader(r)
 
-	snapshotStreams := make(map[string]*tar.Writer)
-
-	// Get the image-loading pipe going
+	// Create a pipe to handle the Docker image tar substream
 	imagesr, imagesw = io.Pipe()
 	imageTar := tar.NewWriter(imagesw)
+	// Start restoring images from the substream. The read will block until
+	// something writes to the pipe.
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		dfs.restoreImages(imagesr)
+		defer func() {
+			glog.Infof("Docker images finished loading from backup")
+			wg.Done()
+		}()
+		if err := dfs.restoreImages(imagesr); err != nil {
+			// Store the error for returning outside this func
+			errs = append(errs, err)
+		}
 	}()
 
-	// Func to register streams for snapshots
+	// A function to create a pipe for each snapshot tar substream, to be
+	// restored as a volume
+	snapshotStreams := make(map[string]*tar.Writer)
 	getSnapshotStream := func(tenant, label string) *tar.Writer {
 		if _, ok := snapshotStreams[tenant]; !ok {
 			glog.Infof("Loading snapshot data for %s", tenant)
 			r, w := io.Pipe()
+			// Store this writer for later retrieval. This is all single-threaded
+			// at this level, so no worries about concurrent access.
 			snapshotStreams[tenant] = tar.NewWriter(w)
-			go func() error {
-				wg.Add(1)
-				defer wg.Done()
+			wg.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+				}()
+				// Restore the incoming tar substream as a snapshot volume
 				imgs, err := dfs.restoreVolume(tenant, label, r)
 				if err != nil {
-					return err
+					// Store the error for returning outside this func
+					errs = append(errs, err)
+					return
 				}
-				glog.Infof("Loaded %s data", tenant)
+				// Save off the images implicated by this volume, so we can tag
+				// and push them to the registry after everything's restored
 				registryImages = append(registryImages, imgs...)
-				return nil
+				glog.Infof("Finished loading data for application %s", tenant)
 			}()
 		}
 		return snapshotStreams[tenant]
 	}
 
 	for {
+		// Short-circuit if any of the subpipes has produced an error so far
+		if len(errs) > 0 {
+			return errs[0]
+		}
+		// Otherwise, move on to the next file in the stream
 		hdr, err := backupTar.Next()
 		if err == io.EOF {
-			// All done. Write terminators to our pipes to make them valid tars
+			// All done. Write terminators to our pipes to make them valid
+			// tars, signaling the functions processing those streams that they
+			// can finish up
 			imageTar.Close()
+			for _, w := range snapshotStreams {
+				w.Close()
+			}
 			break
 		} else if err != nil {
 			glog.Errorf("Could not read backup: %s", err)
@@ -159,31 +190,50 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 		}
 		switch {
 		case hdr.Name == BackupMetadataFile:
-			// Skip it
+			// Skip it. We've already got it.
 		case strings.HasPrefix(hdr.Name, SnapshotsMetadataDir):
-			// Find or create the snapshot pipe
+			// This file is part of a volume snapshot. Find or create the pipe
+			// responsible for restoring that volume, strip off the extra
+			// parent path (so it resembles a tarfile containing the volume
+			// data at the root), and write the tar entry to the subpipe.
 			parts := strings.Split(hdr.Name, "/")
 			if len(parts) < 3 {
+				// This is a parent folder or something, not relevant
 				continue
 			}
 			tenant, label := parts[1], parts[2]
+			// Find or create the pipe that's got a restoreVolume for this
+			// volume reading from the other end
 			w := getSnapshotStream(tenant, label)
-			hdr.Name = strings.TrimPrefix(hdr.Name, strings.Join(parts[:3], "/"))
+			// Strip off the parent path, so the subtar is a tar with the
+			// volume data at the root (resembling a version 0 backup)
+			hdr.Name = strings.TrimPrefix(hdr.Name, strings.Join(parts[:3], "/")+"/")
+			// Write the entry down the pipe
 			w.WriteHeader(hdr)
 			io.Copy(w, backupTar)
 		case strings.HasPrefix(hdr.Name, DockerImagesFile):
+			if !startedDocker {
+				glog.Infof("Loading Docker images from backup")
+				startedDocker = true
+			}
 			// Remove the directory prefix, so Docker sees the tar it
 			// originally gave us
 			hdr.Name = strings.TrimPrefix(hdr.Name, DockerImagesFile+"/")
+			// Feed it to the restoreImages goroutine on the other end
 			imageTar.WriteHeader(hdr)
 			io.Copy(imageTar, backupTar)
 		default:
 			glog.Warningf("Unrecognized file %s", hdr.Name)
 		}
 	}
-
+	// Wait for the subpipes to finish up
 	wg.Wait()
-	return nil
+	// Return any errors, if produced
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	// Everything's ok, so finalize by pushing images to the registry if necessary
+	return dfs.loadRegistry(registryImages)
 }
 
 func (dfs *DistributedFilesystem) restoreVolume(tenant, label string, tarfile io.Reader) ([]string, error) {

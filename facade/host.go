@@ -45,7 +45,10 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
+	return f.addHost(ctx, entity)
+}
 
+func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) error {
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
 		return err
@@ -154,7 +157,7 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 				glog.Errorf("Could not check ip %s in pool %s while restoring host %s: %s", host.IPAddr, host.PoolID, host.ID, err)
 				return err
 			} else if !exists {
-				if err := f.AddHost(ctx, &host); err != nil {
+				if err := f.addHost(ctx, &host); err != nil {
 					glog.Errorf("Could not add host %s to pool %s: %s", host.ID, host.PoolID, err)
 					return err
 				}
