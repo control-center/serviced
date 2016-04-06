@@ -64,6 +64,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not find image %s: %s", image, err)
 			return err
 		}
+		glog.V(2).Infof("Prepared Docker image %s for backup", image)
 		images = append(images, image)
 	}
 	// export the snapshots
@@ -73,7 +74,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			return err
 		}
 		// load the images from this snapshot
-		glog.Infof("Preparing images for tenant %s", info.TenantID)
+		glog.V(2).Infof("Preparing images for tenant %s", info.TenantID)
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
 			glog.Errorf("Could not receive images metadata for tenant %s: %s", info.TenantID, err)
@@ -96,6 +97,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 				glog.Errorf("Could not get the image path from registry %s: %s", img, err)
 				return err
 			}
+			glog.V(2).Infof("Prepared Docker image %s for backup", image)
 			images = append(images, image)
 		}
 		timer.Stop()
@@ -119,6 +121,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		utils.ConcatTarStreams(tarpipes...),
 		pipe.Write(w),
 	)
+	glog.V(2).Infof("Beginning backup")
 	return pipe.Run(backupPipeline)
 }
 
