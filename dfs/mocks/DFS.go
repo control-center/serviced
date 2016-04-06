@@ -14,26 +14,17 @@ type DFS struct {
 
 // Lock provides a mock function with given fields: opName
 func (_m *DFS) Lock(opName string) {
-	_m.Called(opName)
+	return
 }
 
 // LockWithTimeout provides a mock function with given fields: opName, timeout
 func (_m *DFS) LockWithTimeout(opName string, timeout time.Duration) error {
-	ret := _m.Called(opName, timeout)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, time.Duration) error); ok {
-		r0 = rf(opName, timeout)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
+	return nil
 }
 
 // Unlock provides a mock function with given fields:
 func (_m *DFS) Unlock() {
-	_m.Called()
+	return
 }
 
 // Timeout provides a mock function with given fields:
