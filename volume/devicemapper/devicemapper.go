@@ -989,6 +989,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	for {
 		header, err := tarfile.Next()
 		if err == io.EOF {
+			glog.Infof("End of snapshot import: %s", label)
 			break
 		} else if err != nil {
 			glog.Errorf("Could not import archive: %s", err)
