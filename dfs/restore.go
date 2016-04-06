@@ -38,10 +38,10 @@ func ExtractBackupInfo(filename string) (*BackupInfo, error) {
 	var info BackupInfo
 	data, err := exec.Command("tar", "-O", "--occurrence", "-xzf", filename, BackupMetadataFile).CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, ErrRestoreNoInfo
 	}
 	if err := json.Unmarshal(data, &info); err != nil {
-		return nil, err
+		return nil, ErrRestoreNoInfo
 	}
 	return &info, nil
 }

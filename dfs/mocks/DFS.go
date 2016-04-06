@@ -4,7 +4,6 @@ import "github.com/control-center/serviced/dfs"
 import "github.com/stretchr/testify/mock"
 
 import "io"
-
 import "time"
 
 import "github.com/control-center/serviced/domain/service"
@@ -13,18 +12,31 @@ type DFS struct {
 	mock.Mock
 }
 
-func (_m *DFS) Lock(name string) {
-	return
+// Lock provides a mock function with given fields: opName
+func (_m *DFS) Lock(opName string) {
+	_m.Called(opName)
 }
 
-func (_m *DFS) LockWithTimeout(name string, timeout time.Duration) error {
-	return nil
+// LockWithTimeout provides a mock function with given fields: opName, timeout
+func (_m *DFS) LockWithTimeout(opName string, timeout time.Duration) error {
+	ret := _m.Called(opName, timeout)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, time.Duration) error); ok {
+		r0 = rf(opName, timeout)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
+// Unlock provides a mock function with given fields:
 func (_m *DFS) Unlock() {
-	return
+	_m.Called()
 }
 
+// Timeout provides a mock function with given fields:
 func (_m *DFS) Timeout() time.Duration {
 	ret := _m.Called()
 
@@ -37,6 +49,8 @@ func (_m *DFS) Timeout() time.Duration {
 
 	return r0
 }
+
+// Create provides a mock function with given fields: tenantID
 func (_m *DFS) Create(tenantID string) error {
 	ret := _m.Called(tenantID)
 
@@ -49,6 +63,8 @@ func (_m *DFS) Create(tenantID string) error {
 
 	return r0
 }
+
+// Destroy provides a mock function with given fields: tenantID
 func (_m *DFS) Destroy(tenantID string) error {
 	ret := _m.Called(tenantID)
 
@@ -61,6 +77,8 @@ func (_m *DFS) Destroy(tenantID string) error {
 
 	return r0
 }
+
+// Download provides a mock function with given fields: image, tenantID, upgrade
 func (_m *DFS) Download(image string, tenantID string, upgrade bool) (string, error) {
 	ret := _m.Called(image, tenantID, upgrade)
 
@@ -80,6 +98,8 @@ func (_m *DFS) Download(image string, tenantID string, upgrade bool) (string, er
 
 	return r0, r1
 }
+
+// Commit provides a mock function with given fields: ctrID
 func (_m *DFS) Commit(ctrID string) (string, error) {
 	ret := _m.Called(ctrID)
 
@@ -99,6 +119,8 @@ func (_m *DFS) Commit(ctrID string) (string, error) {
 
 	return r0, r1
 }
+
+// Snapshot provides a mock function with given fields: info
 func (_m *DFS) Snapshot(info dfs.SnapshotInfo) (string, error) {
 	ret := _m.Called(info)
 
@@ -118,6 +140,8 @@ func (_m *DFS) Snapshot(info dfs.SnapshotInfo) (string, error) {
 
 	return r0, r1
 }
+
+// Rollback provides a mock function with given fields: snapshotID
 func (_m *DFS) Rollback(snapshotID string) error {
 	ret := _m.Called(snapshotID)
 
@@ -130,6 +154,8 @@ func (_m *DFS) Rollback(snapshotID string) error {
 
 	return r0
 }
+
+// Delete provides a mock function with given fields: snapshotID
 func (_m *DFS) Delete(snapshotID string) error {
 	ret := _m.Called(snapshotID)
 
@@ -142,6 +168,8 @@ func (_m *DFS) Delete(snapshotID string) error {
 
 	return r0
 }
+
+// List provides a mock function with given fields: tenantID
 func (_m *DFS) List(tenantID string) ([]string, error) {
 	ret := _m.Called(tenantID)
 
@@ -163,6 +191,8 @@ func (_m *DFS) List(tenantID string) ([]string, error) {
 
 	return r0, r1
 }
+
+// Info provides a mock function with given fields: snapshotID
 func (_m *DFS) Info(snapshotID string) (*dfs.SnapshotInfo, error) {
 	ret := _m.Called(snapshotID)
 
@@ -184,6 +214,8 @@ func (_m *DFS) Info(snapshotID string) (*dfs.SnapshotInfo, error) {
 
 	return r0, r1
 }
+
+// Backup provides a mock function with given fields: info, w
 func (_m *DFS) Backup(info dfs.BackupInfo, w io.Writer) error {
 	ret := _m.Called(info, w)
 
@@ -196,27 +228,22 @@ func (_m *DFS) Backup(info dfs.BackupInfo, w io.Writer) error {
 
 	return r0
 }
-func (_m *DFS) Restore(r io.Reader) (*dfs.BackupInfo, error) {
-	ret := _m.Called(r)
 
-	var r0 *dfs.BackupInfo
-	if rf, ok := ret.Get(0).(func(io.Reader) *dfs.BackupInfo); ok {
-		r0 = rf(r)
+// Restore provides a mock function with given fields: r, backupInfo
+func (_m *DFS) Restore(r io.Reader, backupInfo *dfs.BackupInfo) error {
+	ret := _m.Called(r, backupInfo)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(io.Reader, *dfs.BackupInfo) error); ok {
+		r0 = rf(r, backupInfo)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dfs.BackupInfo)
-		}
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(io.Reader) error); ok {
-		r1 = rf(r)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
+
+// BackupInfo provides a mock function with given fields: r
 func (_m *DFS) BackupInfo(r io.Reader) (*dfs.BackupInfo, error) {
 	ret := _m.Called(r)
 
@@ -238,6 +265,8 @@ func (_m *DFS) BackupInfo(r io.Reader) (*dfs.BackupInfo, error) {
 
 	return r0, r1
 }
+
+// Tag provides a mock function with given fields: snapshotID, tagName
 func (_m *DFS) Tag(snapshotID string, tagName string) error {
 	ret := _m.Called(snapshotID, tagName)
 
@@ -250,6 +279,8 @@ func (_m *DFS) Tag(snapshotID string, tagName string) error {
 
 	return r0
 }
+
+// Untag provides a mock function with given fields: tenantID, tagName
 func (_m *DFS) Untag(tenantID string, tagName string) (string, error) {
 	ret := _m.Called(tenantID, tagName)
 
@@ -269,6 +300,8 @@ func (_m *DFS) Untag(tenantID string, tagName string) (string, error) {
 
 	return r0, r1
 }
+
+// TagInfo provides a mock function with given fields: tenantID, tagName
 func (_m *DFS) TagInfo(tenantID string, tagName string) (*dfs.SnapshotInfo, error) {
 	ret := _m.Called(tenantID, tagName)
 
@@ -290,6 +323,8 @@ func (_m *DFS) TagInfo(tenantID string, tagName string) (*dfs.SnapshotInfo, erro
 
 	return r0, r1
 }
+
+// UpgradeRegistry provides a mock function with given fields: svcs, tenantID, registryHost, override
 func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string, registryHost string, override bool) error {
 	ret := _m.Called(svcs, tenantID, registryHost, override)
 
@@ -302,6 +337,8 @@ func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string, registry
 
 	return r0
 }
+
+// Override provides a mock function with given fields: newImage, oldImage
 func (_m *DFS) Override(newImage string, oldImage string) error {
 	ret := _m.Called(newImage, oldImage)
 
