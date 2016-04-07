@@ -13,7 +13,7 @@
 
 // +build unit
 
-package facade
+package facade_test
 
 import (
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
@@ -21,6 +21,7 @@ import (
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
 	poolmocks "github.com/control-center/serviced/domain/pool/mocks"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/facade"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -28,7 +29,7 @@ import (
 var _ = Suite(&FacadeUnitTest{})
 
 type FacadeUnitTest struct {
-	Facade    *Facade
+	Facade    *facade.Facade
 	ctx       *datastoremocks.Context
 	zzk       *zzkmocks.ZZK
 	dfs       *dfsmocks.DFS
@@ -37,7 +38,7 @@ type FacadeUnitTest struct {
 }
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
-	ft.Facade = New()
+	ft.Facade = facade.New()
 }
 
 func (ft *FacadeUnitTest) SetUpTest(c *C) {
