@@ -19,7 +19,10 @@ import (
 	"syscall"
 	"time"
 
+	"gopkg.in/pipe.v2"
+
 	"github.com/control-center/serviced/commons/atomicfile"
+	dfsutils "github.com/control-center/serviced/dfs/utils"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -909,8 +912,8 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 		v.driver.DeviceSet.Unlock()
 	}()
 	// Set up the file stream
-	tarfile := tar.NewWriter(writer)
-	defer tarfile.Close()
+	buffer := &bytes.Buffer{}
+	tarfile := tar.NewWriter(buffer)
 	// Set the driver type
 	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
 	if err := tarfile.WriteHeader(header); err != nil {
@@ -921,16 +924,18 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 		glog.Errorf("Could not export driver type: %s", err)
 		return err
 	}
+	tarfile.Close()
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
-	if err := volume.ExportDirectory(tarfile, mdpath, fmt.Sprintf("%s-metadata", label)); err != nil {
-		return err
-	}
-	// Write volume
-	if err := volume.ExportDirectory(tarfile, mountpoint, fmt.Sprintf("%s-volume", label)); err != nil {
-		return err
-	}
-	return nil
+
+	return pipe.Run(pipe.Line(
+		dfsutils.ConcatTarStreams(
+			pipe.Read(buffer),
+			pipeExportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label)),
+			pipeExportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label)),
+		),
+		pipe.Write(writer),
+	))
 }
 
 // Import implements volume.Volume.Import
@@ -1072,4 +1077,11 @@ func resize2fs(dmDevice string) error {
 		return err
 	}
 	return nil
+}
+
+func pipeExportDirectoryAsTar(path, prefix string) pipe.Pipe {
+	return pipe.Line(
+		pipe.ChDir(path),
+		pipe.Exec("tar", "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), "."),
+	)
 }

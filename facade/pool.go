@@ -51,7 +51,10 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
+	return f.addResourcePool(ctx, entity)
+}
 
+func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	if pool, err := f.GetResourcePool(ctx, entity.ID); err != nil {
 		return err
 	} else if pool != nil {
@@ -154,9 +157,9 @@ func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.Resour
 	// Do not DFSLock here, ControlPlaneDao does that
 	for _, pool := range pools {
 		pool.DatabaseVersion = 0
-		if err := f.AddResourcePool(ctx, &pool); err != nil {
+		if err := f.addResourcePool(ctx, &pool); err != nil {
 			if err == ErrPoolExists {
-				if err := f.UpdateResourcePool(ctx, &pool); err != nil {
+				if err := f.updateResourcePool(ctx, &pool); err != nil {
 					glog.Errorf("Could not restore resource pool %s via update: %s", pool.ID, err)
 					return err
 				}

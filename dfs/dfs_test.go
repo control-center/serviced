@@ -88,3 +88,10 @@ func (s *DFSTestSuite) SetUpTest(c *C) {
 	s.net = &storagemocks.StorageDriver{}
 	s.dfs = NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net, time.Minute)
 }
+
+func (s *DFSTestSuite) getVolumeFromSnapshot(snapshotID, tenantID string) *volumemocks.Volume {
+	vol := &volumemocks.Volume{}
+	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
+	s.disk.On("Get", tenantID).Return(vol, nil)
+	return vol
+}
