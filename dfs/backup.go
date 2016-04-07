@@ -132,6 +132,7 @@ func (dfs *DistributedFilesystem) dockerSavePipe(images ...string) pipe.Pipe {
 	})
 }
 
+// snapshotSavePipe returns a pipe that exports a given volume to the pipe's stdout
 func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label string) pipe.Pipe {
 	return pipe.TaskFunc(func(s *pipe.State) error {
 		return vol.Export(label, "", s.Stdout)

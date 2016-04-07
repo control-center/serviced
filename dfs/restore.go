@@ -219,6 +219,8 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 	return dfs.loadRegistry(registryImages)
 }
 
+// restoreVolume restores the application data contained in the tarfile to the
+// DFS volume denoted by tenant and label
 func (dfs *DistributedFilesystem) restoreVolume(tenant, label string, tarfile io.Reader) ([]string, error) {
 	vol, err := dfs.disk.Create(tenant)
 	if err == volume.ErrVolumeExists {
