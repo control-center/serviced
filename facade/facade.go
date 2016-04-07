@@ -40,9 +40,9 @@ func New() *Facade {
 
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
-	hostStore     *host.HostStore
+	hostStore     host.Store
 	registryStore *registry.ImageRegistryStore
-	poolStore     *pool.Store
+	poolStore     pool.Store
 	templateStore *servicetemplate.Store
 	serviceStore  *service.Store
 
@@ -57,6 +57,10 @@ type Facade struct {
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
+
+func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
+
+func (f *Facade) SetPoolStore(store pool.Store) { f.poolStore = store }
 
 func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = hcache }
 
