@@ -15,10 +15,8 @@ package dfs
 
 import (
 	"archive/tar"
-	"encoding/json"
 	"errors"
 	"io"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -30,21 +28,6 @@ var (
 	ErrRestoreNoInfo        = errors.New("backup is missing metadata")
 	ErrInvalidBackupVersion = errors.New("backup has an invalid version")
 )
-
-// ExtractBackupInfo extracts the backup metadata from a tarball on disk in as
-// cheaply a manner as possible. The serialized BackupInfo is stored at the
-// front of the tarball to facilitate this.
-func ExtractBackupInfo(filename string) (*BackupInfo, error) {
-	var info BackupInfo
-	data, err := exec.Command("tar", "-O", "--occurrence", "-xzf", filename, BackupMetadataFile).CombinedOutput()
-	if err != nil {
-		return nil, ErrRestoreNoInfo
-	}
-	if err := json.Unmarshal(data, &info); err != nil {
-		return nil, ErrRestoreNoInfo
-	}
-	return &info, nil
-}
 
 // Restore restores application data from a backup.
 func (dfs *DistributedFilesystem) Restore(r io.Reader, info *BackupInfo) error {
