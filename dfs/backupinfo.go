@@ -17,6 +17,7 @@ import (
 	"archive/tar"
 	"encoding/json"
 	"io"
+	"os/exec"
 
 	"github.com/zenoss/glog"
 )
@@ -41,4 +42,19 @@ func (dfs *DistributedFilesystem) BackupInfo(r io.Reader) (*BackupInfo, error) {
 			return &data, nil
 		}
 	}
+}
+
+// ExtractBackupInfo extracts the backup metadata from a tarball on disk in as
+// cheaply a manner as possible. The serialized BackupInfo is stored at the
+// front of the tarball to facilitate this.
+func ExtractBackupInfo(filename string) (*BackupInfo, error) {
+	var info BackupInfo
+	data, err := exec.Command("tar", "-O", "--occurrence", "-xzf", filename, BackupMetadataFile).CombinedOutput()
+	if err != nil {
+		return nil, ErrRestoreNoInfo
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil, ErrRestoreNoInfo
+	}
+	return &info, nil
 }

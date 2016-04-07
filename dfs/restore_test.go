@@ -33,17 +33,6 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *DFSTestSuite) TestRestore_NoMetadata(c *C) {
-	buf := bytes.NewBufferString("")
-	tarfile := tar.NewWriter(buf)
-	err := tarfile.WriteHeader(&tar.Header{Name: "IGNORED", Size: 0})
-	c.Assert(err, IsNil)
-	tarfile.Close()
-	backupInfo, err := s.dfs.Restore(buf)
-	c.Assert(backupInfo, IsNil)
-	c.Assert(err, Equals, ErrRestoreNoInfo)
-}
-
 func (s *DFSTestSuite) TestRestore_LoadImages(c *C) {
 	buf := bytes.NewBufferString("")
 	tarfile := tar.NewWriter(buf)
@@ -66,8 +55,7 @@ func (s *DFSTestSuite) TestRestore_LoadImages(c *C) {
 	c.Assert(err, IsNil)
 	tarfile.Close()
 	s.docker.On("LoadImage", mock.AnythingOfType("*tar.Reader")).Return(nil)
-	actual, err := s.dfs.Restore(buf)
-	c.Assert(actual, DeepEquals, &backupInfo)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, IsNil)
 	s.docker.AssertExpectations(c)
 }
@@ -101,9 +89,8 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshot(c *C) {
 	err = json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
-	actual, err := s.dfs.Restore(buf)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, &backupInfo)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
 }
@@ -134,8 +121,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImages(c *C) {
 	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	vol.On("RemoveSnapshot", "LABEL").Return(nil)
-	actual, err := s.dfs.Restore(buf)
-	c.Assert(actual, IsNil)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, Equals, ErrTestNoImagesMetadata)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
@@ -170,8 +156,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNotFound(c *C) {
 	c.Assert(err, IsNil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{}, ErrTestImageNotFound)
-	actual, err := s.dfs.Restore(buf)
-	c.Assert(actual, IsNil)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, Equals, ErrTestImageNotFound)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
@@ -208,8 +193,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoPush(c *C) {
 	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{ID: "someimageid"}, nil)
 	s.docker.On("GetImageHash", "someimageid").Return("hashvalue", nil)
 	s.index.On("PushImage", "test:5000/image:now", "someimageid", "hashvalue").Return(ErrTestNoPush)
-	actual, err := s.dfs.Restore(buf)
-	c.Assert(actual, IsNil)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, Equals, ErrTestNoPush)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
@@ -245,8 +229,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{ID: "someimageid"}, nil)
 	s.docker.On("GetImageHash", "someimageid").Return("", ErrTestNoHash)
-	actual, err := s.dfs.Restore(buf)
-	c.Assert(actual, IsNil)
+	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, Equals, ErrTestNoHash)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)

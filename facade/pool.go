@@ -143,9 +143,9 @@ func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.Resource
 func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
 	for _, pool := range pools {
 		pool.DatabaseVersion = 0
-		if err := f.AddResourcePool(ctx, &pool); err != nil {
+		if err := f.addResourcePool(ctx, &pool); err != nil {
 			if err == ErrPoolExists {
-				if err := f.UpdateResourcePool(ctx, &pool); err != nil {
+				if err := f.updateResourcePool(ctx, &pool); err != nil {
 					glog.Errorf("Could not restore resource pool %s via update: %s", pool.ID, err)
 					return err
 				}

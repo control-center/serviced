@@ -103,12 +103,13 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
 	}
 	glog.Infof("Loaded tenants")
 	data := dfs.BackupInfo{
-		Templates:  templates,
-		BaseImages: images,
-		Pools:      pools,
-		Hosts:      hosts,
-		Snapshots:  snapshots,
-		Timestamp:  stime,
+		Templates:     templates,
+		BaseImages:    images,
+		Pools:         pools,
+		Hosts:         hosts,
+		Snapshots:     snapshots,
+		Timestamp:     stime,
+		BackupVersion: 1,
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
 		glog.Errorf("Could not backup: %s", err)
@@ -401,29 +402,28 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 }
 
 // Restore restores application data from a backup.
-func (f *Facade) Restore(ctx datastore.Context, r io.Reader) error {
+func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
 	glog.Infof("Beginning restore from backup")
-	data, err := f.dfs.Restore(r)
-	if err != nil {
+	if err := f.dfs.Restore(r, backupInfo); err != nil {
 		glog.Errorf("Could not restore from backup: %s", err)
 		return err
 	}
-	if err := f.RestoreServiceTemplates(ctx, data.Templates); err != nil {
+	if err := f.RestoreServiceTemplates(ctx, backupInfo.Templates); err != nil {
 		glog.Errorf("Could not restore service templates from backup: %s", err)
 		return err
 	}
 	glog.Infof("Restored service templates")
-	if err := f.RestoreResourcePools(ctx, data.Pools); err != nil {
+	if err := f.RestoreResourcePools(ctx, backupInfo.Pools); err != nil {
 		glog.Errorf("Could not restore resource pools from backup: %s", err)
 		return err
 	}
 	glog.Infof("Restored resource pools")
-	if err := f.RestoreHosts(ctx, data.Hosts); err != nil {
+	if err := f.RestoreHosts(ctx, backupInfo.Hosts); err != nil {
 		glog.Errorf("Could not restore hosts from backup: %s", err)
 		return err
 	}
 	glog.Infof("Loaded hosts")
-	for _, snapshot := range data.Snapshots {
+	for _, snapshot := range backupInfo.Snapshots {
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			glog.Errorf("Could not rollback snapshot %s: %s", snapshot, err)
 			return err

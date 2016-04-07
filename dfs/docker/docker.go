@@ -89,6 +89,7 @@ func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {
 		Names:        images,
 		OutputStream: writer,
 	}
+	glog.Infof("Exporting images %s", images)
 	return d.dc.ExportImages(opts)
 }
 

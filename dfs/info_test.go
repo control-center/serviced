@@ -121,10 +121,3 @@ func (s *DFSTestSuite) TestInfo_Success(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(info, DeepEquals, &SnapshotInfo{vinfo, imgs, svcs})
 }
-
-func (s *DFSTestSuite) getVolumeFromSnapshot(snapshotID, tenantID string) *volumemocks.Volume {
-	vol := &volumemocks.Volume{}
-	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
-	s.disk.On("Get", tenantID).Return(vol, nil)
-	return vol
-}
