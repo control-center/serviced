@@ -17,14 +17,15 @@ import (
 	"fmt"
 	"os"
 
-	"compress/gzip"
 	"path/filepath"
 	"sync"
 	"time"
 
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/volume"
+	gzip "github.com/klauspost/pgzip"
 	"github.com/zenoss/glog"
 )
 
@@ -113,9 +114,9 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 		return
 	}
 	defer fh.Close()
-	gz := gzip.NewWriter(fh)
-	defer gz.Close()
-	err = dao.facade.Backup(ctx, gz)
+	w := gzip.NewWriter(fh)
+	defer w.Close()
+	err = dao.facade.Backup(ctx, w)
 	return
 }
 
@@ -139,6 +140,10 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 		}
 		inprogress.SetError(err)
 	}()
+	info, err := dfs.ExtractBackupInfo(filename)
+	if err != nil {
+		return err
+	}
 	fh, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -149,7 +154,7 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 		return err
 	}
 	defer gz.Close()
-	err = dao.facade.Restore(ctx, gz)
+	err = dao.facade.Restore(ctx, gz, info)
 	return err
 }
 

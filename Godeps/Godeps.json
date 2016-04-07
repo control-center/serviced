@@ -271,6 +271,26 @@
 			"Rev": "0a28dbe50f23d8fce6b016975b964cfe7b97a20a"
 		},
 		{
+			"ImportPath": "github.com/klauspost/compress/flate",
+			"Comment": "v1.0-5-g9d711f4",
+			"Rev": "9d711f4445beb7f6488148ce04e3b4dc6e72242d"
+		},
+		{
+			"ImportPath": "github.com/klauspost/cpuid",
+			"Comment": "v1.0",
+			"Rev": "09cded8978dc9e80714c4d85b0322337b0a1e5e0"
+		},
+		{
+			"ImportPath": "github.com/klauspost/crc32",
+			"Comment": "v1.0",
+			"Rev": "19b0b332c9e4516a6370a0456e6182c3b5036720"
+		},
+		{
+			"ImportPath": "github.com/klauspost/pgzip",
+			"Comment": "v1.0",
+			"Rev": "95e8170c5d4da28db9c64dfc9ec3138ea4466fd4"
+		},
+		{
 			"ImportPath": "github.com/kr/pretty",
 			"Comment": "go.weekly.2011-12-22-18-gbc9499c",
 			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
@@ -348,6 +368,18 @@
 		{
 			"ImportPath": "github.com/msteinert/pam",
 			"Rev": "6534f23b3984c4b8f517feba04a7d65b4da3ca57"
+		},
+		{
+			"ImportPath": "golang.org/x/net/websocket",
+			"Rev": "1dfe7915deaf3f80b962c163b918868d8a6d8974"
+		},
+		{
+			"ImportPath": "gopkg.in/check.v1",
+			"Rev": "4f90aeace3a26ad7021961c297b22c42160c7b25"
+		},
+		{
+			"ImportPath": "gopkg.in/pipe.v2",
+			"Rev": "3c2ca4d525447ec8b2f606a6974f9c9f40831f26"
 		}
 	]
 }
