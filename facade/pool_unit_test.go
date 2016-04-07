@@ -13,7 +13,7 @@
 
 // +build unit
 
-package facade
+package facade_test
 
 import (
 	"github.com/control-center/serviced/datastore"
