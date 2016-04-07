@@ -15,7 +15,7 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -72,8 +72,9 @@ type ConciseServiceStatus struct {
 	HealthChecks    map[string]health.HealthStatus
 }
 
-func memoryKey(serviceID, instanceID string) string {
-	return fmt.Sprintf("%s-%s", serviceID, instanceID)
+type memorykey struct {
+	ServiceID  string
+	InstanceID int
 }
 
 // convertInstancesToMetric converts dao.RunningServices into the structure the
@@ -104,7 +105,7 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	// Look up memory stats for the last hour
 	// Memory stats for isvcs don't work the same way, so we don't append
 	// those services to this list yet
-	memoryStats := make(map[string]metrics.MemoryUsageStats)
+	memoryStats := make(map[memorykey]metrics.MemoryUsageStats)
 	if len(instances) > 0 {
 		response := []metrics.MemoryUsageStats{}
 		query := dao.MetricRequest{
@@ -115,12 +116,17 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			glog.Errorf("Unable to look up instance memory stats (%s)", err)
 		}
 		for _, mus := range response {
-			memoryStats[memoryKey(mus.ServiceID, mus.InstanceID)] = mus
+			instID, err := strconv.Atoi(mus.InstanceID)
+			if err != nil {
+				glog.Errorf("Could not convert instance id %s", mus.InstanceID)
+				continue
+			}
+			memoryStats[memorykey{ServiceID: mus.ServiceID, InstanceID: instID}] = mus
 		}
 	}
 
 	// Look up health check statuses
-	healthChecks := make(map[string]map[string]health.HealthStatus)
+	healthChecks := make(map[memorykey]map[string]health.HealthStatus)
 	if len(instances) > 0 {
 		results := make(map[string]map[int]map[string]health.HealthStatus)
 		if err := client.GetServicesHealth(0, &results); err != nil {
@@ -128,7 +134,7 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 		}
 		for svcid, insts := range results {
 			for instid, checks := range insts {
-				healthChecks[memoryKey(svcid, string(instid))] = checks
+				healthChecks[memorykey{ServiceID: svcid, InstanceID: instid}] = checks
 			}
 		}
 	}
@@ -148,7 +154,7 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			}
 			checks = convertDomainHealthToNewHealth(results.HealthStatuses)
 		}
-		healthChecks[memoryKey(isvc.ServiceID, string(isvc.InstanceID))] = checks
+		healthChecks[memorykey{ServiceID: isvc.ServiceID, InstanceID: isvc.InstanceID}] = checks
 	}
 	// Create the concise service statuses
 	for _, instance := range instances {
@@ -166,7 +172,7 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 			StartedAt:       instance.StartedAt,
 			RAMCommitment:   instance.RAMCommitment,
 		}
-		key := memoryKey(instance.ServiceID, string(instance.InstanceID))
+		key := memorykey{ServiceID: instance.ServiceID, InstanceID: instance.InstanceID}
 		if mem, ok := memoryStats[key]; ok {
 			stat.RAMMax = mem.Max
 			stat.RAMLast = mem.Last
