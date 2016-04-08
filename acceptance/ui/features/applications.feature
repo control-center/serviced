@@ -5,12 +5,12 @@ Feature: Application Management
   I want to manage applications
 
   Background:
-    Given that the admin user is logged in
+    Given that the test template is added
       And that the default resource pool is added
-      And that the test template is added
+      And that the admin user is logged in
 
   Scenario: View default applications page
-    When I am on the applications page
+    When I am on the applications page for the first time
     Then I should see "Application Template"
       And I should see "Deployment ID"
       And I should see "Public Endpoints"

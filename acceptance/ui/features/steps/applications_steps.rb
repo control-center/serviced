@@ -37,6 +37,11 @@ Given (/^(?:|that )the test template is added$/) do
     refreshPage()
 end
 
+When(/^I am on the applications page for the first time$/) do
+    # Try to visit the application page.  Retry twice, with 10 second delays.
+    retryMethod(method(:visitApplicationsPage), 2, 10)
+end
+
 When(/^I am on the applications page$/) do
     visitApplicationsPage()
 end
