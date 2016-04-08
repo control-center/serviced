@@ -328,8 +328,8 @@
                     deferred.resolve(data);
                 })
                 .error(function(data, status) {
-                    // TODO - include data as well?
-                    deferred.reject(status);
+                    // TODO - include status as well?
+                    deferred.reject(data);
                     redirectIfUnauthorized(status);
                 })
                 .finally(function() {
