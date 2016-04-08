@@ -2,6 +2,10 @@
 (function(){
 
     const REQUEST_TIMEOUT = 30000;
+    const GET = "get";
+    const PUT = "put";
+    const DELETE = "delete";
+    const POST = "post";
 
     controlplane.factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval", "miscUtils",
     function($http, $location, $notification, DSCacheFactory, $q, $interval, utils) {
@@ -34,19 +38,19 @@
          */
         var methodConfigs = {
             assignIP: {
-                method: "PUT",
+                method: PUT,
                 url: (id, ip) => `/services/${id}/ip/${ip}`,
             },
             getPools: {
-                method: "GET",
+                method: GET,
                 url: "/pools"
             },
             getPoolIPs: {
-                method: "GET",
+                method: GET,
                 url: id => `/pools/${id}/ips`
             },
             addVHost: {
-                method: "PUT",
+                method: PUT,
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
@@ -59,27 +63,27 @@
                 }
             },
             removeVHost: {
-                method: "DELETE",
+                method: DELETE,
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 }
             },
             enableVHost: {
-                method: "POST",
+                method: POST,
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:true});}
             },
             disableVHost: {
-                method: "POST",
+                method: POST,
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
             addPort: {
-                method: "PUT",
+                method: PUT,
                 url: (serviceID, endpointName, portName, portIP) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
@@ -92,13 +96,13 @@
                 }
             },
             removePort: {
-                method: "DELETE",
+                method: DELETE,
                 url: (serviceID, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 }
             },
             enablePort: {
-                method: "POST",
+                method: POST,
                 url: (serviceID, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
@@ -109,27 +113,27 @@
                 }
             },
             disablePort: {
-                method: "POST",
+                method: POST,
                 url: (serviceID, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
                 payload: () => {return JSON.stringify({Enable:false});}
             },
             getServiceInstances: {
-                method: "GET",
+                method: GET,
                 url: "/servicestatus"
             },
             addPool: {
-                method: "POST",
+                method: POST,
                 url: "/pools/add",
                 payload: pool => pool
             },
             removePool: {
-                method: "DELETE",
+                method: DELETE,
                 url: id => `/pools/${id}`
             },
             addPoolVirtualIP: {
-                method: "PUT",
+                method: PUT,
                 url: poolID => `/pools/${poolID}/virtualip`,
                 payload: (poolID, ip, netmask, bindInterface) => {
                     return JSON.stringify({
@@ -141,120 +145,120 @@
                 }
             },
             removePoolVirtualIP: {
-                method: "DELETE",
+                method: DELETE,
                 url: (poolID, ip) => `/pools/${poolID}/virtualip/${ip}`,
             },
             killRunning: {
-                method: "DELETE",
+                method: DELETE,
                 url: (hostID, instanceID) => `/hosts/${hostID}/${instanceID}`
             },
             getHosts: {
-                method: "GET",
+                method: GET,
                 url: "/hosts"
             },
             addHost: {
-                method: "POST",
+                method: POST,
                 url: "/hosts/add",
                 payload: host => host
             },
             updateHost: {
-                method: "PUT",
+                method: PUT,
                 url: id => `/hosts/${id}`,
                 payload: (id, host) => host
             },
             removeHost: {
-                method: "DELETE",
+                method: DELETE,
                 url: id => `/hosts/${id}`
             },
             getRunningHosts: {
-                method: "GET",
+                method: GET,
                 url: "/hosts/running"
             },
             getServices: {
-                method: "GET",
+                method: GET,
                 url: since => `/services${ since ? "?since="+ since : ""}`,
             },
             getInstanceLogs: {
-                method: "GET",
+                method: GET,
                 url: (serviceID, instanceID) => `/services/${serviceID}/${instanceID}/logs`
             },
             dockerIsLoggedIn: {
-                method: "GET",
+                method: GET,
                 url: "/dockerIsLoggedIn"
             },
             getAppTemplates: {
-                method: "GET",
+                method: GET,
                 url: "/templates"
             },
             removeAppTemplate: {
-                method: "DELETE",
+                method: DELETE,
                 url: id => `/templates/${id}`
             },
             updateService: {
-                method: "PUT",
+                method: PUT,
                 url: id => `/services/${id}`,
                 payload: (id, service) => service
             },
             deployAppTemplate: {
-                method: "POST",
+                method: POST,
                 url: "/templates/deploy",
                 payload: template => template
             },
             removeService: {
-                method: "DELETE",
+                method: DELETE,
                 url: id => `/services/${id}`
             },
             startService: {
-                method: "PUT",
+                method: PUT,
                 url: (id, skip) => `/services/${id}/startService${ skip ? "?auto=false" : "" }`
             },
             stopService: {
-                method: "PUT",
+                method: PUT,
                 url: (id, skip) => `/services/${id}/stopService${ skip ? "?auto=false" : "" }`
             },
             restartService: {
-                method: "PUT",
+                method: PUT,
                 url: (id, skip) => `/services/${id}/restartService${ skip ? "?auto=false" : "" }`
             },
             getVersion: {
-                method: "GET",
+                method: GET,
                 url: "/version"
             },
             getDeployStatus: {
-                method: "POST",
+                method: POST,
                 url: "/templates/deploy/status",
                 payload: def => def
             },
             getDeployingTemplates: {
-                method: "GET",
+                method: GET,
                 url: "/templates/deploy/active"
             },
             createBackup: {
-                method: "GET",
+                method: GET,
                 url: "/backup/create"
             },
             restoreBackup: {
-                method: "GET",
+                method: GET,
                 url: filename => `/backup/restore?filename=${filename}`
             },
             getBackupFiles: {
-                method: "GET",
+                method: GET,
                 url: "/backup/list"
             },
             getBackupStatus: {
-                method: "GET",
+                method: GET,
                 url: "/backup/status"
             },
             getRestoreStatus: {
-                method: "GET",
+                method: GET,
                 url: "/backup/restore/status"
             },
             getHostAlias: {
-                method: "GET",
+                method: GET,
                 url: "/hosts/defaultHostAlias"
             },
             getUIConfig: {
-                method: "GET",
+                method: GET,
                 url: "/config"
             }
         };
@@ -287,6 +291,7 @@
 
             return function(/* args */){
                 var url = config.url.apply(null, arguments),
+                    method = config.method,
                     resourceName = url,
                     payload,
                     // deferred that will be returned to the user
@@ -302,7 +307,7 @@
                 // TODO - remove the need for this
                 httpify(deferred);
 
-                if(pendingGETRequests[resourceName]){
+                if(method === GET && pendingGETRequests[resourceName]){
                     // theres already a pending request to
                     // this endpoint, so fail!
                     deferred.reject(`a request to ${resourceName} is pending`);
@@ -314,7 +319,7 @@
                 }
 
                 $http({
-                    method: config.method,
+                    method: method,
                     url: url,
                     data: payload,
                     timeout: REQUEST_TIMEOUT
@@ -328,11 +333,13 @@
                     redirectIfUnauthorized(status);
                 })
                 .finally(function() {
-                    pendingGETRequests[resourceName] = null;
+                    if(method === GET){
+                        pendingGETRequests[resourceName] = null;
+                    }
                 });
 
                 // NOTE: only limits GET requests
-                if(config.method === "get"){
+                if(method === GET){
                     pendingGETRequests[resourceName] = deferred;
                 }
 
@@ -344,7 +351,7 @@
             addAppTemplate: function(fileData){
               return $http({
                   url: "/templates/add",
-                  method: "POST",
+                  method: POST,
                   data: fileData,
                   // content-type undefined forces the browser to fill in the
                   // boundary parameter of the request
