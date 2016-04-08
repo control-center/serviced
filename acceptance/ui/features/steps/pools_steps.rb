@@ -228,11 +228,9 @@ def checkPoolExistsCLI(poolName)
 end
 
 def removeAllPoolsExceptDefault()
-    visitApplicationsPage()
-    removeAllEntries("service")
+    removeAllServicesCLI()
     removeAllHostsCLI()
     removeAllPoolsExceptDefaultCLI()
-    refreshPage()
 end
 
 def removeAllPoolsExceptDefaultCLI()
@@ -246,4 +244,15 @@ def removeAllPoolsExceptDefaultCLI()
     result = `#{cmd}`
     verifyCLIExitSuccess($?, result)
     expect(result.strip).to eq("default")
+end
+
+def removeVirtualIPsFromDefaultPoolCLI()
+    servicedCLI = getServicedCLI()
+    # cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress "
+    # result = `#{cmd}`
+    # printf "ips:\n---\n%s\n---\n", result
+
+    cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress | xargs --no-run-if-empty #{servicedCLI} pool remove-virtual-ip default 2>&1"
+    result = `#{cmd}`
+    verifyCLIExitSuccess($?, result)
 end

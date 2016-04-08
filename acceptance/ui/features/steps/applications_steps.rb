@@ -175,6 +175,13 @@ def removeServiceCLI(serviceName)
     verifyCLIExitSuccess($?, result)
 end
 
+def removeAllServicesCLI()
+    servicedCLI = getServicedCLI()
+
+    result = `#{servicedCLI} service list --show-fields ServiceID 2>&1 | grep -v ServiceID | xargs --no-run-if-empty #{servicedCLI} service rm 2>&1`
+    verifyCLIExitSuccess($?, result)
+end
+
 def addTemplateCLI(dir)
     servicedCLI = getServicedCLI()
     result = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
@@ -195,6 +202,13 @@ def checkTemplateExistsCLI(templateName)
 
     matchData = result.match /^#{templateName}$/
     return matchData != nil
+end
+
+def removeAllTemplatesCLI()
+    servicedCLI = getServicedCLI()
+
+    result = `#{servicedCLI} template list --show-fields TemplateID 2>&1 | grep -v TemplateID | xargs --no-run-if-empty #{servicedCLI} template rm 2>&1`
+    verifyCLIExitSuccess($?, result)
 end
 
 def closeDeployWizard()
