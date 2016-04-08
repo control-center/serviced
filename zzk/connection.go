@@ -40,8 +40,9 @@ type GetConnection func(string) (client.Connection, error)
 
 // zclient is the coordinator client manager
 type zclient struct {
-	*client.Client
-	connections map[string]*zconn
+	client          *client.Client
+	connectionsLock sync.RWMutex
+	connections     map[string]*zconn
 }
 
 // zconn is the connection listener for the coordinator client
@@ -60,7 +61,11 @@ func GeneratePoolPath(poolID string) string {
 func InitializeLocalClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
-	manager[local] = &zclient{client, make(map[string]*zconn)}
+	manager[local] = &zclient{
+		client: client,
+		connectionsLock: sync.RWMutex{},
+		connections: make(map[string]*zconn),
+	}
 }
 
 // GetLocalConnection acquires a connection from the local zookeeper client
@@ -68,7 +73,7 @@ func GetLocalConnection(path string) (client.Connection, error) {
 	managerLock.RLock()
 	localclient, ok := manager[local]
 	managerLock.RUnlock()
-	if !ok || localclient.Client == nil {
+	if !ok || localclient.client == nil {
 		glog.Fatalf("zClient has not been initialized!")
 	}
 	return localclient.GetConnection(path)
@@ -78,7 +83,11 @@ func GetLocalConnection(path string) (client.Connection, error) {
 func InitializeRemoteClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
-	manager[remote] = &zclient{client, make(map[string]*zconn)}
+	manager[remote] = &zclient{
+		client: client,
+		connectionsLock: sync.RWMutex{},
+		connections: make(map[string]*zconn),
+	}
 }
 
 // GetRemoteConnection acquires a connection from the remote zookeeper client
@@ -86,7 +95,8 @@ func GetRemoteConnection(path string) (client.Connection, error) {
 	managerLock.RLock()
 	remoteclient, ok := manager[remote]
 	managerLock.RUnlock()
-	if !ok || remoteclient.Client == nil {
+
+	if !ok || remoteclient.client == nil {
 		return nil, ErrNotInitialized
 	}
 	return remoteclient.GetConnection(path)
@@ -119,8 +129,10 @@ func ShutdownConnections() {
 
 // GetConnection creates a new path-based connection or acquires a stored connection
 func (zclient *zclient) GetConnection(path string) (client.Connection, error) {
+	zclient.connectionsLock.Lock()
+	defer zclient.connectionsLock.Unlock()
 	if _, ok := zclient.connections[path]; !ok {
-		zclient.connections[path] = newzconn(zclient.Client, path)
+		zclient.connections[path] = newzconn(zclient.client, path)
 	}
 	zconn := zclient.connections[path]
 	return zconn.connect(DefaultConnectionTimeout)
@@ -128,6 +140,8 @@ func (zclient *zclient) GetConnection(path string) (client.Connection, error) {
 
 // Shutdown shuts down all open connections for a client
 func (zclient *zclient) Shutdown() {
+	zclient.connectionsLock.RLock()
+	defer zclient.connectionsLock.RUnlock()
 	for _, zconn := range zclient.connections {
 		zconn.shutdown()
 	}
