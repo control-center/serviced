@@ -123,6 +123,9 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 	// A function to create a pipe for each snapshot tar substream, to be
 	// restored as a volume
 	snapshotStreams := make(map[string]*tar.Writer)
+	// pipeStreams track each of the PipeWriters, because they have to be
+	// closed on exit.  *tar.Writer does not close pipes.
+	pipeStreams := make(map[string]*io.PipeWriter)
 	getSnapshotStream := func(tenant, label string) *tar.Writer {
 		if _, ok := snapshotStreams[tenant]; !ok {
 			glog.Infof("Loading snapshot data for %s", tenant)
@@ -130,6 +133,7 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 			// Store this writer for later retrieval. This is all single-threaded
 			// at this level, so no worries about concurrent access.
 			snapshotStreams[tenant] = tar.NewWriter(w)
+			pipeStreams[tenant] = w
 			wg.Add(1)
 			go func() {
 				defer func() {
@@ -163,8 +167,10 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 			// tars, signaling the functions processing those streams that they
 			// can finish up
 			imageTar.Close()
-			for _, w := range snapshotStreams {
+			imagesw.Close()
+			for k, w := range snapshotStreams {
 				w.Close()
+				pipeStreams[k].Close()
 			}
 			break
 		} else if err != nil {
