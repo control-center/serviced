@@ -57,6 +57,10 @@ describe('servicesFactory', function() {
 
     it("Passes an expected `since` for subsquent updates", function(done){
         servicesFactory.update();
+        var deferred = resourcesFactory._getCurrDeferred();
+        deferred.resolve([serviceDefA, serviceDefB]);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         setTimeout(function(){
             servicesFactory.update();
@@ -64,6 +68,11 @@ describe('servicesFactory', function() {
             // minus 1ms so we can expect the value to be greater than
             // or equal to 1200
             expect(resourcesFactory.getServices.calls.mostRecent().args[0]).toBeGreaterThan(1199);
+            var deferred = resourcesFactory._getCurrDeferred();
+            deferred.resolve([serviceDefA, serviceDefB]);
+            // force a tick so promise can resolve
+            scope.$root.$digest();
+
             done();
         }, 200);
     });
