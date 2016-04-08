@@ -32,6 +32,7 @@
             update: function(force, skipUpdateInstances){
                 var deferred = $q.defer(),
                     now = new Date().getTime(),
+                    requestTime = now,
                     since;
 
                 // if this is the first update, request
@@ -93,8 +94,9 @@
                         // notify the first services request is done
                         $rootScope.$emit("ready");
 
-                        // last SUCCESSFUL request
-                        this.lastUpdate = this.lastRequest = new Date().getTime();
+                        // time last SUCCESSFUL request began
+                        this.lastRequest = requestTime;
+                        this.lastUpdate = new Date().getTime();
 
                         deferred.resolve();
                     });
