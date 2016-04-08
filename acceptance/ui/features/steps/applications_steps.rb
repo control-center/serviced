@@ -16,12 +16,8 @@ Given (/^(?:|that )multiple applications and application templates have been add
 end
 
 Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
-    visitApplicationsPage()
-    exists = true
-    while exists == true do
-        exists = checkServiceRows(app)
-        removeEntry(app, "service") if exists
-    end
+    exists = checkServiceExistsCLI(app)
+    removeServiceCLI(app) if exists
 end
 
 Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
@@ -30,11 +26,10 @@ Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is add
     addService(app, "default", id) if !exists
 end
 
+# Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the test template is added$/) do
-    visitApplicationsPage()
-    exists = checkTemplateRows("testsvc")
-    addTemplate(TEMPLATE_DIR) if !exists
-    refreshPage()
+    exists = checkTemplateExistsCLI("testsvc")
+    addTemplateCLI(TEMPLATE_DIR) if !exists
 end
 
 When(/^I am on the applications page for the first time$/) do
@@ -141,7 +136,7 @@ end
 
 def visitApplicationsPage()
     @applications_page = Applications.new
-    @applications_page.navbar.applications.click()
+    @applications_page.load
     expect(@applications_page).to be_displayed
     closeDeployWizard()
 end
@@ -161,19 +156,45 @@ def addService(name, pool, id)
     expect(page).to have_content("App deployed successfully", wait: 120)
 end
 
-def addTemplate(dir)
+def checkServiceExistsCLI(serviceName)
+    serviceName = getTableValue(serviceName)
+    servicedCLI = getServicedCLI()
+
+    result = `#{servicedCLI} service list --show-fields Name 2>&1`
+    verifyCLIExitSuccess($?, result)
+
+    matchData = result.match /^#{serviceName}$/
+    return matchData != nil
+end
+
+def removeServiceCLI(serviceName)
+    serviceName = getTableValue(serviceName)
+    servicedCLI = getServicedCLI()
+
+    result = `#{servicedCLI} service rm #{serviceName} 2>&1`
+    verifyCLIExitSuccess($?, result)
+end
+
+def addTemplateCLI(dir)
     servicedCLI = getServicedCLI()
     result = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
     verifyCLIExitSuccess($?, result)
-
-    # FIXME: sleeping is a hack. Is this really necessary?
-    `sleep 1`
 
     templateID = result
     result = `#{servicedCLI} template list #{templateID}`
 
     verifyCLIExitSuccess($?, result)
     expect(result.lines.count).not_to eq(0)
+end
+
+def checkTemplateExistsCLI(templateName)
+    templateName = getTableValue(templateName)
+    servicedCLI = getServicedCLI()
+    result = `#{servicedCLI} template list --show-fields Name 2>&1`
+    verifyCLIExitSuccess($?, result)
+
+    matchData = result.match /^#{templateName}$/
+    return matchData != nil
 end
 
 def closeDeployWizard()

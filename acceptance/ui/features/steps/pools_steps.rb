@@ -9,10 +9,9 @@ Given (/^(?:|that )multiple resource pools have been added$/) do
     end
 end
 
+# Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the default resource pool is added$/) do
-    visitPoolsPage()
-    hasDefault = isInRows("default")
-    if (hasDefault == false)
+    if (!checkPoolExistsCLI("default"))
         addDefaultPool()
     end
 end
@@ -24,9 +23,9 @@ Given (/^(?:|that )only the default resource pool is added$/) do
     end
 end
 
+# Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
-    visitPoolsPage()
-    if (isNotInRows(pool))
+    if (!checkPoolExistsCLI(pool))
         addPool(pool, "added for tests")
     end
 end
@@ -217,6 +216,15 @@ end
 
 def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
+end
+
+def checkPoolExistsCLI(poolName)
+    servicedCLI = getServicedCLI()
+    result = `#{servicedCLI} pool list 2>&1`
+    verifyCLIExitSuccess($?, result)
+
+    matchData = result.match /^#{poolName}$/
+    return matchData != nil
 end
 
 def removeAllPoolsExceptDefault()
