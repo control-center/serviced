@@ -5,9 +5,9 @@ Feature: Application Management
   I want to manage applications
 
   Background:
-    Given that the test template is added
+    Given that the admin user is logged in
       And that the default resource pool is added
-      And that the admin user is logged in
+      And that the test template is added
 
   Scenario: View default applications page
     When I am on the applications page for the first time
