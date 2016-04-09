@@ -307,16 +307,39 @@ def getServicedCLI()
     return "/capybara/serviced --endpoint #{TARGET_HOST}:4979"
 end
 
-
+#
+# Login if not already logged in. 
+#
+# Note that by saving cookies after the first successful login and restoring them
+#   on subsequent calls (thus bypassing the need to login), dramatically improves performance for all
+#   test cases.
 def loginAsDefaultUser()
-    visitLoginPage()
-    fillInDefaultUserID()
-    fillInDefaultPassword()
-    clickSignInButton()
-    # login redirects to application page, but
-    # deploy wizard may appears, so automatically
-    # close it
-    closeDeployWizard()
+
+  # Before we can set cookies, we must visit a page first
+  visitLoginPage()
+
+  # if we have cookies from a previous login, restore them and we're done
+  if $saved_cookies != nil
+    # printf "saved cookies=%s\n", $saved_cookies.inspect
+    $saved_cookies.each do |cookie|
+      page.driver.browser.manage.add_cookie(
+        {name: cookie[:name], value: cookie[:value]}
+      )
+    end
+    return
+  end
+
+  fillInDefaultUserID()
+  fillInDefaultPassword()
+  clickSignInButton()
+
+  # login redirects to application page, but
+  # deploy wizard may appears, so automatically
+  # close it
+  closeDeployWizard()
+
+  $saved_cookies = page.driver.browser.manage.all_cookies
+  # printf "saved cookies=%s\n", $saved_cookies.inspect
 end
 
 #
