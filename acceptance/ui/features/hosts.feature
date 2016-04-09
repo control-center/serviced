@@ -127,7 +127,7 @@ Feature: Host Management
       And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
       And I should see "Showing 1 Result"
 
-  @clean_hosts @broke
+  @clean_hosts
   Scenario: Add another valid host
     Given only the default host is added
     When I am on the hosts page
