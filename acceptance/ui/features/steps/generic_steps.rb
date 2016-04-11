@@ -326,6 +326,9 @@ def loginAsDefaultUser()
         {name: cookie[:name], value: cookie[:value]}
       )
     end
+
+    # simulate starting on the default landing page
+    visitDefaultPage()
     return
   end
 
@@ -339,7 +342,7 @@ def loginAsDefaultUser()
   closeDeployWizard()
 
   $saved_cookies = page.driver.browser.manage.all_cookies
-  # printf "saved cookies=%s\n", $saved_cookies.inspect
+  # printf "saving cookies=%s\n", $saved_cookies.inspect
 end
 
 #
@@ -359,4 +362,8 @@ def setDefaultWaitTime(newWait)
     oldWait = Capybara.default_max_wait_time
     Capybara.default_max_wait_time = newWait
     return oldWait
+end
+
+def visitDefaultPage()
+  visitApplicationsPage()
 end
