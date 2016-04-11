@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory",
-    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -353,20 +353,42 @@
         };
 
         $scope.refreshAppTemplates = function(){
-            return resourcesFactory.getAppTemplates().success(function(templatesMap) {
-                var templates = [];
-                for (var key in templatesMap) {
-                    var template = templatesMap[key];
-                    template.ID = key;
-                    templates.push(template);
-                }
-                $scope.templates.data = templates;
-            });
+            const MAX_RETRIES = 4;
+            var deferred = $q.defer(),
+                attempts = 0;
+
+            // allow requests to be repeated if necessary
+            var fetch = () => {
+                resourcesFactory.getAppTemplates()
+                    .then(function(templatesMap) {
+                        var templates = [];
+                        for (var key in templatesMap) {
+                            var template = templatesMap[key];
+                            template.ID = key;
+                            templates.push(template);
+                        }
+                        $scope.templates.data = templates;
+                        deferred.resolve();
+                    }, function(){
+                        if(attempts >= MAX_RETRIES){
+                            deferred.reject("Unable to refresh application templates");
+                        }
+                        // retry in 3s
+                        setTimeout(fetch, 3000);
+                        attempts++;
+                    });
+            };
+            fetch();
+
+            return deferred.promise;
         };
 
-        $scope.refreshAppTemplates().success(() => {
-            hostsFactory.update().then(resetStepPage);
-        });
+        $scope.refreshAppTemplates()
+            .then(() => {
+                hostsFactory.update().then(resetStepPage);
+            }, e => {
+                console.error(e);
+            });
 
         poolsFactory.update()
             .then(() => {
