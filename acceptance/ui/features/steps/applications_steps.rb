@@ -212,23 +212,24 @@ def removeAllTemplatesCLI()
 end
 
 def closeDeployWizard()
-    # if the deploy wizard is on the page
-    # and visible, it should be closed. if
-    # not, we can just ignore the exception
-    # that the cabybara finder throws
+    # if the deploy wizard is on the page and visible, close it
+    page_found = false
     begin
         el = find("#addApp")
         # found it!
         if el.visible?
+            page_found = true
             el.find(".modal-header .close").click()
-            # wait till it is no longer visible
-            find("#addApp", :count => 0)
         end
-        true
     rescue
         # couldn't find the deploy wizard,
         # but that's ok. we all make mistakes
-        true
+        return
+    end
+
+    if page_found
+        # wait till it is no longer visible, and error if it remains on screen
+        expect(page).not_to have_selector("#addApp")
     end
 end
 
