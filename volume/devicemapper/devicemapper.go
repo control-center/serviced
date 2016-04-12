@@ -1022,17 +1022,9 @@ func (v *DeviceMapperVolume) volumeDevice() string {
 	return v.Metadata.CurrentDevice()
 }
 
-func (v *DeviceMapperVolume) getSnapshotPrefix() string {
-	return v.Tenant() + "_"
-}
-
 // rawSnapshotLabel ensures that <label> has the tenant prefix for this volume
 func (v *DeviceMapperVolume) rawSnapshotLabel(label string) string {
-	prefix := v.getSnapshotPrefix()
-	if !strings.HasPrefix(label, prefix) {
-		return prefix + label
-	}
-	return label
+	return volume.DefaultSnapshotLabel(v.Tenant(), label)
 }
 
 func (v *DeviceMapperVolume) snapshotExists(label string) bool {
