@@ -5,8 +5,8 @@ Feature: Application Sorting
   I want to sort applications and application templates
 
   Background:
-    Given that the admin user is logged in
-      And that multiple applications and application templates have been added
+    Given PENDING that multiple applications and application templates have been added
+      And that the admin user is logged in
 
   Scenario: Sort applications by ascending name
     When I am on the applications page

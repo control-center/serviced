@@ -10,30 +10,27 @@ end
 # See https://github.com/cucumber/cucumber/wiki/Hooks for more info about hooks
 #
 Before('@login-required') do
-    loginAsDefaultUser()
+  loginAsDefaultUser()
 end
 
 After('@clean_hosts') do
-    removeAllHostsCLI()
+  removeAllHostsCLI()
 end
 
 After('@clean_pools') do
-    removeAllPoolsExceptDefault()
+  removeAllPoolsExceptDefault()
 end
 
 After('@clean_templates') do
-    visitApplicationsPage()
+  removeAllTemplatesCLI()
 end
 
 After('@clean_services') do
-    visitApplicationsPage()
-    removeAllEntries("service")
+  removeAllServicesCLI()
 end
 
 After('@clean_virtualips') do
-    if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
-        removeAllEntries("address")
-    end
+  removeVirtualIPsFromDefaultPoolCLI()
 end
 
 After('@screenshot') do |scenario|

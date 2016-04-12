@@ -9,10 +9,9 @@ Given (/^(?:|that )multiple resource pools have been added$/) do
     end
 end
 
+# Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the default resource pool is added$/) do
-    visitPoolsPage()
-    hasDefault = isInRows("default")
-    if (hasDefault == false)
+    if (!checkPoolExistsCLI("default"))
         addDefaultPool()
     end
 end
@@ -24,9 +23,9 @@ Given (/^(?:|that )only the default resource pool is added$/) do
     end
 end
 
+# Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
-    visitPoolsPage()
-    if (isNotInRows(pool))
+    if (!checkPoolExistsCLI(pool))
         addPool(pool, "added for tests")
     end
 end
@@ -219,12 +218,19 @@ def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
 end
 
+def checkPoolExistsCLI(poolName)
+    servicedCLI = getServicedCLI()
+    result = `#{servicedCLI} pool list 2>&1`
+    verifyCLIExitSuccess($?, result)
+
+    matchData = result.match /^#{poolName}$/
+    return matchData != nil
+end
+
 def removeAllPoolsExceptDefault()
-    visitApplicationsPage()
-    removeAllEntries("service")
+    removeAllServicesCLI()
     removeAllHostsCLI()
     removeAllPoolsExceptDefaultCLI()
-    refreshPage()
 end
 
 def removeAllPoolsExceptDefaultCLI()
@@ -238,4 +244,15 @@ def removeAllPoolsExceptDefaultCLI()
     result = `#{cmd}`
     verifyCLIExitSuccess($?, result)
     expect(result.strip).to eq("default")
+end
+
+def removeVirtualIPsFromDefaultPoolCLI()
+    servicedCLI = getServicedCLI()
+    # cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress "
+    # result = `#{cmd}`
+    # printf "ips:\n---\n%s\n---\n", result
+
+    cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress | xargs --no-run-if-empty #{servicedCLI} pool remove-virtual-ip default 2>&1"
+    result = `#{cmd}`
+    verifyCLIExitSuccess($?, result)
 end

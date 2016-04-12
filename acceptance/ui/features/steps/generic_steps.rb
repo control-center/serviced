@@ -307,16 +307,51 @@ def getServicedCLI()
     return "/capybara/serviced --endpoint #{TARGET_HOST}:4979"
 end
 
-
+#
+# Login if not already logged in. 
+#
+# Note that by saving cookies after the first successful login and restoring them
+#   on subsequent calls (thus bypassing the need to login), dramatically improves performance for all
+#   test cases.
 def loginAsDefaultUser()
-    visitLoginPage()
-    fillInDefaultUserID()
-    fillInDefaultPassword()
-    clickSignInButton()
-    # login redirects to application page, but
-    # deploy wizard may appears, so automatically
-    # close it
-    closeDeployWizard()
+
+  # Before we can set cookies, we must visit a page first
+  visitLoginPage()
+
+  #
+  # FIXME: CC-2129
+  # Apparently, there is a bug in $ngCookies which sometimes causes the session cookies not to be loaded.
+  # Specifically, checkLogin() in authService.js does not see the restored cookie values (sometimes) even though
+  # they are there. If that problem is resolved (either by upgrading Angular or writing our own implementation
+  # of something like $ngCookies), then uncommenting this code will result in significant improvement in the
+  # performance of acceptance tests because we can skip most logins.
+  #
+  # # if we have cookies from a previous login, restore them and we're done
+  # if $saved_cookies != nil
+  #   # printf "saved cookies=%s\n", $saved_cookies.inspect
+  #   $saved_cookies.each do |cookie|
+  #     page.driver.browser.manage.add_cookie(
+  #       {name: cookie[:name], value: cookie[:value]}
+  #     )
+  #   end
+  #
+  #   # simulate starting on the default landing page; otherwise we're still sitting on the login page
+  #   visitDefaultPage()
+  #   return
+  # end
+
+  fillInDefaultUserID()
+  fillInDefaultPassword()
+  clickSignInButton()
+
+  # login redirects to application page, but
+  # deploy wizard may appears, so automatically
+  # close it
+  closeDeployWizard()
+
+  # FIXME: CC-2129
+  # $saved_cookies = page.driver.browser.manage.all_cookies
+  # printf "saving cookies=%s\n", $saved_cookies.inspect
 end
 
 #
@@ -336,4 +371,8 @@ def setDefaultWaitTime(newWait)
     oldWait = Capybara.default_max_wait_time
     Capybara.default_max_wait_time = newWait
     return oldWait
+end
+
+def visitDefaultPage()
+  visitApplicationsPage()
 end
