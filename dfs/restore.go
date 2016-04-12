@@ -162,30 +162,36 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 		return snapshotStreams[tenant]
 	}
 
+	cleanup := func() {
+		// All done. Write terminators to our pipes to make them valid
+		// tars, signaling the functions processing those streams that they
+		// can finish up
+		imageTar.Close()
+		imagesw.Close()
+		for k, w := range snapshotStreams {
+			if w != nil {
+				w.Close()
+			}
+			if pw, ok := pipeStreams[k]; ok {
+				pw.Close()
+			}
+		}
+	}
+
 	for {
 		// Short-circuit if any of the subpipes has produced an error so far
 		if len(errs) > 0 {
+			cleanup()
 			return errs[0]
 		}
 		// Otherwise, move on to the next file in the stream
 		hdr, err := backupTar.Next()
 		if err == io.EOF {
-			// All done. Write terminators to our pipes to make them valid
-			// tars, signaling the functions processing those streams that they
-			// can finish up
-			imageTar.Close()
-			imagesw.Close()
-			for k, w := range snapshotStreams {
-				if w != nil {
-					w.Close()
-				}
-				if pw, ok := pipeStreams[k]; ok {
-					pw.Close()
-				}
-			}
+			cleanup()
 			break
 		} else if err != nil {
 			glog.Errorf("Could not read backup: %s", err)
+			cleanup()
 			return err
 		}
 		switch {
