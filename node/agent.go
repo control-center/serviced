@@ -436,9 +436,14 @@ func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 			if err := a.servicedChain.Forward(iptables.Add, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
 				glog.Warningf("Could not start external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
 			}
+
+			//local variables, not loop var, for the defer func
+			protocol := endpoint.Protocol
+			endpointName := endpoint.Name
+			serviceID := svc.ID
 			defer func() {
-				if err := a.servicedChain.Forward(iptables.Delete, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
-					glog.Warningf("Could not remove external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
+				if err := a.servicedChain.Forward(iptables.Delete, protocol, frontendAddress, backendAddress); err != nil {
+					glog.Warningf("Could not remove external address proxy for %s:%s: %s", serviceID, endpointName, err)
 				}
 			}()
 		}
