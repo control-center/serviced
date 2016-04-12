@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/user"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/zenoss/glog"
@@ -114,4 +115,12 @@ func FilesystemBytesSize(path string) int64 {
 	s := syscall.Statfs_t{}
 	syscall.Statfs(path, &s)
 	return int64(s.Bsize) * int64(s.Blocks)
+}
+
+func DefaultSnapshotLabel(tenant, label string) string {
+	prefix := tenant + "_"
+	if !strings.HasPrefix(label, prefix) {
+		label = prefix + label
+	}
+	return label
 }
