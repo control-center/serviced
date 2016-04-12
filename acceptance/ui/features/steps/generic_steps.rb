@@ -318,19 +318,27 @@ def loginAsDefaultUser()
   # Before we can set cookies, we must visit a page first
   visitLoginPage()
 
-  # if we have cookies from a previous login, restore them and we're done
-  if $saved_cookies != nil
-    # printf "saved cookies=%s\n", $saved_cookies.inspect
-    $saved_cookies.each do |cookie|
-      page.driver.browser.manage.add_cookie(
-        {name: cookie[:name], value: cookie[:value]}
-      )
-    end
-
-    # simulate starting on the default landing page
-    visitDefaultPage()
-    return
-  end
+  #
+  # FIXME: CC-2129
+  # Apparently, there is a bug in $ngCookies which sometimes causes the session cookies not to be loaded.
+  # Specifically, checkLogin() in authService.js does not see the restored cookie values (sometimes) even though
+  # they are there. If that problem is resolved (either by upgrading Angular or writing our own implementation
+  # of something like $ngCookies), then uncommenting this code will result in significant improvement in the
+  # performance of acceptance tests because we can skip most logins.
+  #
+  # # if we have cookies from a previous login, restore them and we're done
+  # if $saved_cookies != nil
+  #   # printf "saved cookies=%s\n", $saved_cookies.inspect
+  #   $saved_cookies.each do |cookie|
+  #     page.driver.browser.manage.add_cookie(
+  #       {name: cookie[:name], value: cookie[:value]}
+  #     )
+  #   end
+  #
+  #   # simulate starting on the default landing page; otherwise we're still sitting on the login page
+  #   visitDefaultPage()
+  #   return
+  # end
 
   fillInDefaultUserID()
   fillInDefaultPassword()
@@ -341,7 +349,8 @@ def loginAsDefaultUser()
   # close it
   closeDeployWizard()
 
-  $saved_cookies = page.driver.browser.manage.all_cookies
+  # FIXME: CC-2129
+  # $saved_cookies = page.driver.browser.manage.all_cookies
   # printf "saving cookies=%s\n", $saved_cookies.inspect
 end
 
