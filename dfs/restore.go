@@ -128,6 +128,13 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 	pipeStreams := make(map[string]*io.PipeWriter)
 	getSnapshotStream := func(tenant, label string) *tar.Writer {
 		if _, ok := snapshotStreams[tenant]; !ok {
+			// First check to see if the snapshot already exists, and if so,
+			// return a nil writer
+			fullLabel := volume.DefaultSnapshotLabel(tenant, label)
+			if dfs.disk.Exists(fullLabel) {
+				snapshotStreams[tenant] = nil
+				return nil
+			}
 			glog.Infof("Loading snapshot data for %s", tenant)
 			r, w := io.Pipe()
 			// Store this writer for later retrieval. This is all single-threaded
@@ -155,26 +162,36 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 		return snapshotStreams[tenant]
 	}
 
+	cleanup := func() {
+		// All done. Write terminators to our pipes to make them valid
+		// tars, signaling the functions processing those streams that they
+		// can finish up
+		imageTar.Close()
+		imagesw.Close()
+		for k, w := range snapshotStreams {
+			if w != nil {
+				w.Close()
+			}
+			if pw, ok := pipeStreams[k]; ok {
+				pw.Close()
+			}
+		}
+	}
+
 	for {
 		// Short-circuit if any of the subpipes has produced an error so far
 		if len(errs) > 0 {
+			cleanup()
 			return errs[0]
 		}
 		// Otherwise, move on to the next file in the stream
 		hdr, err := backupTar.Next()
 		if err == io.EOF {
-			// All done. Write terminators to our pipes to make them valid
-			// tars, signaling the functions processing those streams that they
-			// can finish up
-			imageTar.Close()
-			imagesw.Close()
-			for k, w := range snapshotStreams {
-				w.Close()
-				pipeStreams[k].Close()
-			}
+			cleanup()
 			break
 		} else if err != nil {
 			glog.Errorf("Could not read backup: %s", err)
+			cleanup()
 			return err
 		}
 		switch {
@@ -194,6 +211,10 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 			// Find or create the pipe that's got a restoreVolume for this
 			// volume reading from the other end
 			w := getSnapshotStream(tenant, label)
+			if w == nil {
+				// Snapshot already exists, so don't bother
+				continue
+			}
 			// Strip off the parent path, so the subtar is a tar with the
 			// volume data at the root (resembling a version 0 backup)
 			hdr.Name = strings.TrimPrefix(hdr.Name, strings.Join(parts[:3], "/")+"/")
