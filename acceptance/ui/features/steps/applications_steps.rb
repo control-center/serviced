@@ -230,6 +230,8 @@ def closeDeployWizard()
     if page_found
         # wait till it is no longer visible, and error if it remains on screen
         expect(page).not_to have_selector("#addApp")
+        # must wait for the modal shadowbox to clear as well
+        expect(page).not_to have_selector(".modal-backdrop")
     end
 end
 
