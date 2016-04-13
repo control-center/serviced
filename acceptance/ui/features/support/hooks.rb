@@ -2,6 +2,12 @@ require "capybara-screenshot"
 
 # Write a message to the JS console so that we know when a scenario starts
 Before do |scenario|
+
+  window = Capybara.page.driver.browser.manage.window
+  if window != nil
+    window.resize_to(1280, 1024)
+  end
+
   cmd = sprintf "console.log(\"%s\")", getStartScenarioAnnouncement(scenario)
   Capybara.page.driver.execute_script(cmd)
 end
