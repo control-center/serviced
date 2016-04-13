@@ -140,7 +140,20 @@ parse_host() {
     echo "$host"
 }
 
+# Lookup host IP from name. Use ping because we can't assume that nslookup is installed.
+lookup_host_ip() {
+    PING_RESULT=`ping -c 1 $1 2>&1 | grep ^PING `
+    if [ -z "${PING_RESULT}" ]; then
+        echo "ERROR: can't find target host IP address: 'ping -c 1 $1' failed" 1>&2
+        exit 1
+    fi
+
+    host_ip="$(echo ${PING_RESULT} | awk '{print $3}' | sed -r 's/\(//' | sed -r 's/\)//')"
+    echo "$host_ip"
+}
+
 TARGET_HOST=`parse_host ${APPLICATION_URL}`
+TARGET_HOST_IP=`lookup_host_ip ${TARGET_HOST}`
 
 HOST_IP=`hostname -i`
 if [[ $HOST_IP == 127* ]]; then
@@ -187,7 +200,7 @@ cp -u `pwd`/../serviced `pwd`/ui
 trap 'docker rm -f ui_acceptance' INT
 
 docker run --rm --name ui_acceptance \
-    --net=host \
+    --add-host=${TARGET_HOST}:${TARGET_HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
