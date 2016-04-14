@@ -295,7 +295,8 @@
                     resourceName = url,
                     payload,
                     // deferred that will be returned to the user
-                    deferred = $q.defer();
+                    deferred = $q.defer(),
+                    requestObj;
 
                 // if resourceName has query params, strip em off
                 if(resourceName.indexOf("?")){
@@ -307,9 +308,9 @@
                 // TODO - remove the need for this
                 httpify(deferred);
 
+                // theres already a pending request to
+                // this endpoint, so fail!
                 if(method === GET && pendingGETRequests[resourceName]){
-                    // theres already a pending request to
-                    // this endpoint, so fail!
                     deferred.reject(`a request to ${resourceName} is pending`);
                     return deferred.promise;
                 }
@@ -318,12 +319,17 @@
                     payload = config.payload.apply(null, arguments);
                 }
 
-                $http({
+                requestObj = {
                     method: method,
                     url: url,
-                    data: payload,
-                    timeout: REQUEST_TIMEOUT
-                })
+                    data: payload
+                };
+
+                if(method === GET){
+                    requestObj.timeout = REQUEST_TIMEOUT;
+                }
+
+                $http(requestObj)
                 .success(function(data, status){
                     deferred.resolve(data);
                 })

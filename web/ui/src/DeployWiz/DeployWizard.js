@@ -312,12 +312,10 @@
             var checkStatus = true;
             resourcesFactory.deployAppTemplate(deploymentDefinition)
                 .success(function() {
-                    servicesFactory.update().then(function(){
-                        checkStatus = false;
-                        servicesFactory.update(true, false);
-                        $notification.create("App deployed successfully").success();
-                        closeModal();
-                    });
+                    checkStatus = false;
+                    servicesFactory.update(true, false);
+                    $notification.create("App deployed successfully").success();
+                    closeModal();
                 })
                 .error(function(data, status){
                     checkStatus = false;
@@ -329,20 +327,25 @@
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    resourcesFactory.getDeployStatus(deploymentDefinition).success(function(data){
-                        if(data.Detail === "timeout"){
-                            $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
-                        }else{
-                            var parts = data.Detail.split("|");
-                            if(parts[1]){
-                                $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
+                    resourcesFactory.getDeployStatus(deploymentDefinition)
+                        .success(function(data){
+                            if(data.Detail === "timeout"){
+                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
                             }else{
-                                $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
+                                var parts = data.Detail.split("|");
+                                if(parts[1]){
+                                    $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
+                                }else{
+                                    $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
+                                }
                             }
-                        }
-
-                        getStatus();
-                    });
+                        })
+                        .error(function(err){
+                            console.warn("Error getting deploy status", err);
+                        })
+                        .finally(function(){
+                            getStatus();
+                        });
                 }
             };
 
@@ -385,13 +388,13 @@
 
         $scope.refreshAppTemplates()
             .then(() => {
-                hostsFactory.update().then(resetStepPage);
+                hostsFactory.update().finally(resetStepPage);
             }, e => {
                 console.error(e);
             });
 
         poolsFactory.update()
-            .then(() => {
+            .finally(() => {
                 $scope.pools = poolsFactory.poolList;
             });
     }]);
