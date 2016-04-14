@@ -1072,8 +1072,5 @@ func resize2fs(dmDevice string) error {
 }
 
 func pipeExportDirectoryAsTar(path, prefix string) pipe.Pipe {
-	return pipe.Line(
-		pipe.ChDir(path),
-		pipe.Exec("tar", "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), "."),
-	)
+	return pipe.Exec("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
 }
