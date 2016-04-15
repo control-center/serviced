@@ -39,7 +39,13 @@
         var methodConfigs = {
             assignIP: {
                 method: PUT,
-                url: (id, ip) => `/services/${id}/ip/${ip}`,
+                url: (id, ip) => {
+                  let url = `/services/${id}/ip`;
+                  if (ip) {
+                    url += `/${ip}`;
+                  }
+                  return url;
+                }
             },
             getPools: {
                 method: GET,

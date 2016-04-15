@@ -190,7 +190,7 @@
           $scope.ips.assign = {'ip':ip, 'value':null};
           resourcesFactory.getPoolIPs(poolID)
               .success(function(data) {
-                var options= [{'Value':'Automatic', 'IPAddr':null}];
+                var options= [{'Value':'Automatic', 'IPAddr':''}];
 
                 var i, IPAddr, value;
                 //host ips
