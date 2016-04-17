@@ -19,10 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/pipe.v2"
-
 	"github.com/control-center/serviced/commons/atomicfile"
-	dfsutils "github.com/control-center/serviced/dfs/utils"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -911,31 +908,31 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 		}
 		v.driver.DeviceSet.Unlock()
 	}()
-	// Set up the file stream
-	buffer := &bytes.Buffer{}
-	tarfile := tar.NewWriter(buffer)
+
+	tarOut := tar.NewWriter(writer)
+
 	// Set the driver type
 	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
-	if err := tarfile.WriteHeader(header); err != nil {
+	if err := tarOut.WriteHeader(header); err != nil {
 		glog.Errorf("Could not export driver type header: %s", err)
 		return err
 	}
-	if _, err := fmt.Fprint(tarfile, v.Driver().DriverType()); err != nil {
+	if _, err := fmt.Fprint(tarOut, v.Driver().DriverType()); err != nil {
 		glog.Errorf("Could not export driver type: %s", err)
 		return err
 	}
-	tarfile.Close()
+
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 
-	return pipe.Run(pipe.Line(
-		dfsutils.ConcatTarStreams(
-			pipe.Read(buffer),
-			pipeExportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label)),
-			pipeExportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label)),
-		),
-		pipe.Write(writer),
-	))
+	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut); err != nil {
+		return err
+	}
+	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut); err != nil {
+		return err
+	}
+
+	return tarOut.Close()
 }
 
 // Import implements volume.Volume.Import
@@ -1071,6 +1068,30 @@ func resize2fs(dmDevice string) error {
 	return nil
 }
 
-func pipeExportDirectoryAsTar(path, prefix string) pipe.Pipe {
-	return pipe.Exec("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
+	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	tarReader := tar.NewReader(pipe)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if err := out.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := io.Copy(out, tarReader); err != nil {
+			return err
+		}
+	}
+	return nil
 }
