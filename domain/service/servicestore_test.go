@@ -40,7 +40,7 @@ var _ = Suite(&S{
 type S struct {
 	elastic.ElasticTest
 	ctx   datastore.Context
-	store *Store
+	store Store
 }
 
 func (s *S) SetUpTest(c *C) {
