@@ -43,7 +43,7 @@ type Facade struct {
 	hostStore     host.Store
 	registryStore *registry.ImageRegistryStore
 	poolStore     pool.Store
-	templateStore *servicetemplate.Store
+	templateStore servicetemplate.Store
 	serviceStore  service.Store
 
 	zzk           ZZK
@@ -63,6 +63,8 @@ func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
 func (f *Facade) SetPoolStore(store pool.Store) { f.poolStore = store }
 
 func (f *Facade) SetServiceStore(store service.Store) { f.serviceStore = store }
+
+func (f *Facade) SetTemplateStore(store servicetemplate.Store) { f.templateStore = store }
 
 func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = hcache }
 
