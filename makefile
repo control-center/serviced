@@ -558,15 +558,3 @@ docker_clean: docker_clean_pkg
 
 .PHONY: mrclean
 mrclean: docker_clean clean
-
-#==============================================================================#
-# DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
-#==============================================================================#
-.PHONY: dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx
-dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx:
-	$(error The $@ target has been deprecated. Yo, fix your makefile. Use docker_build or possibly docker_buildandpackage.)
-
-.PHONY: build_binary
-build_binary: $(build_TARGETS)
-	$(error The $@ target has been deprecated.  Just use 'make build' or 'make' instead.)
-#==============================================================================#
