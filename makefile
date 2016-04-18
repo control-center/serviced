@@ -138,7 +138,7 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
-	cd web/ui && make clean build
+	cd web/ui && make build
 
 .PHONY: mockAgent
 mockAgent:
