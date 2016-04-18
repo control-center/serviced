@@ -470,7 +470,7 @@ integration_zzk_test: build docker_ok
 	./serviced-tests.py --integration --race --packages ./zzk/...
 
 js_test: build docker_ok
-	cd web && make "GO=$(GO)" test
+	cd web/ui && make "GO=$(GO)" test
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
@@ -506,12 +506,8 @@ clean_serviced:
 clean_pkg:
 	cd pkg && make clean
 
-.PHONY: clean_dao
-clean_dao:
-	cd dao && make clean
-
 .PHONY: clean
-clean: clean_js clean_pkg clean_dao clean_serviced
+clean: clean_js clean_pkg clean_serviced
 
 .PHONY: docker_clean_pkg
 docker_clean_pkg:
