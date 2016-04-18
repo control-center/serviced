@@ -806,10 +806,14 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
-	// Remove the snapshot info from the metadata
+	// Remove the snapshot info from the volume metadata
 	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
+	}
+	// Remove the snapshot-specific metadata directory
+	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), rawLabel)); err != nil {
+		return err
 	}
 	// Delete the device itself
 	glog.V(2).Infof("Deactivating snapshot device %s", device)
