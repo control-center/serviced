@@ -902,6 +902,9 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	}
 	defer func() {
 		glog.V(2).Infof("Unmounting temporary export device %s", device)
+		// We use the provided UnmountDevice func here, rather than our own
+		// unmount(), because we DO care about Docker's internal bookkeeping
+		// here. Without this, DeviceSet.DeleteDevice will fail.
 		if err := v.driver.DeviceSet.UnmountDevice(device, mountpoint); err != nil {
 			glog.V(2).Infof("Error unmounting (%s): %s", mountpoint, err)
 		}
