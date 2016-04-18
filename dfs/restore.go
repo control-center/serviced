@@ -131,7 +131,9 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 			// First check to see if the snapshot already exists, and if so,
 			// return a nil writer
 			fullLabel := volume.DefaultSnapshotLabel(tenant, label)
+			glog.Infof("Looking for preexisting volume %s", fullLabel)
 			if dfs.disk.Exists(fullLabel) {
+				glog.Infof("Volume %s exists; skipping", fullLabel)
 				snapshotStreams[tenant] = nil
 				return nil
 			}
