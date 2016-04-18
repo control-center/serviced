@@ -27,6 +27,7 @@ func NewStore() Store {
 	return &storeImpl{}
 }
 
+// Store type for interacting with ResourcePool persistent storage
 type Store interface {
 	datastore.EntityStore
 
@@ -40,7 +41,6 @@ type Store interface {
 	HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error)
 }
 
-//Store type for interacting with ResourcePool persistent storage
 type storeImpl struct {
 	datastore.DataStore
 }

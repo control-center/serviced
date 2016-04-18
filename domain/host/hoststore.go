@@ -28,6 +28,7 @@ func NewStore() Store {
 	return &storeImpl{}
 }
 
+// Store type for interacting with Host persistent storage
 type Store interface {
 	datastore.EntityStore
 
@@ -41,7 +42,6 @@ type Store interface {
 	GetN(ctx datastore.Context, limit uint64) ([]Host, error)
 }
 
-//HostStore type for interacting with Host persistent storage
 type storeImpl struct {
 	datastore.DataStore
 }
