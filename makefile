@@ -86,22 +86,7 @@ endif
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
 
-#------------------------------------------------------------------------------#
-# Build Repeatability with Godeps
-#------------------------------------------------------------------------------#
-# We manage go dependencies by 'godep saving' from the current $GOPATH/src.
-# The Godeps directory is manually updated and thus requires some dev-vigilence
-# if our go imports change in name or version.
-#
-#    godep save ./...
-#
-# to generate the Godeps file based upon the src currently populated in
-# $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
-# against the generated Godeps.
-#------------------------------------------------------------------------------#
-GODEP     = $(GOBIN)/godep
-GO        = $(GODEP) go
-godep_SRC = github.com/tools/godep
+GO        = go
 
 # Verify that we are running with the right go version
 GOVERSION ?= go1.6
@@ -144,10 +129,6 @@ build_js:
 mockAgent:
 	cd acceptance/mockAgent && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
-# Download godep source to $GOPATH/src/.
-$(GOSRC)/$(godep_SRC):
-	go get $(godep_SRC)
-
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
 
@@ -174,18 +155,18 @@ docker_SRC = github.com/docker/docker
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
 #
-# Force our go recipies to always fire since make doesn't
+# Force our go recipes to always fire since make doesn't
 # understand all of the target's *.go dependencies.  In this case let
 # '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
-serviced: $(GODEP)
+serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
-serviced-controller: $(GODEP)
+serviced-controller: $(GO)
 serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
@@ -193,7 +174,7 @@ serviced-controller: FORCE
 
 tools: serviced-storage
 
-serviced-storage: $(GODEP)
+serviced-storage: $(GO)
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
@@ -254,19 +235,6 @@ docker_build: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build:$(BUILD_VERSION) \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
-
-# Make the installed godep primitive (under $GOPATH/bin/godep)
-# dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the '$(GO) install' of the
-# source.
-#
-# This requires some make fu borrowed from:
-#
-#    https://lists.gnu.org/archive/html/help-gnu-utils/2007-08/msg00019.html
-#
-missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
-$(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -526,7 +494,7 @@ clean_js:
 	cd web/ui && make clean
 
 .PHONY: clean_serviced
-clean_serviced: $(GODEP)
+clean_serviced:
 	@for target in serviced $(serviced) ;\
         do \
                 if [ -f "$${target}" ];then \
@@ -541,8 +509,8 @@ clean_pkg:
 	cd pkg && make clean
 
 .PHONY: clean_dao
-clean_dao: $(GODEP)
-	cd dao && make "GO=$(GO)" clean
+clean_dao:
+	cd dao && make clean
 
 .PHONY: clean
 clean: clean_js clean_pkg clean_dao clean_serviced
