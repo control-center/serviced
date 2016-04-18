@@ -17,10 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/pipe.v2"
-
 	"github.com/control-center/serviced/commons/atomicfile"
-	dfsutils "github.com/control-center/serviced/dfs/utils"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
@@ -805,10 +802,14 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
-	// Remove the snapshot info from the metadata
+	// Remove the snapshot info from the volume metadata
 	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
+	}
+	// Remove the snapshot-specific metadata directory
+	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), rawLabel)); err != nil {
+		return err
 	}
 	// Delete the device itself
 	glog.V(2).Infof("Deactivating snapshot device %s", device)
@@ -897,7 +898,10 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	}
 	defer func() {
 		glog.V(2).Infof("Unmounting temporary export device %s", device)
-		if err := unmount(mountpoint); err != nil {
+		// We use the provided UnmountDevice func here, rather than our own
+		// unmount(), because we DO care about Docker's internal bookkeeping
+		// here. Without this, DeviceSet.DeleteDevice will fail.
+		if err := v.driver.DeviceSet.UnmountDevice(device); err != nil {
 			glog.V(2).Infof("Error unmounting (%s): %s", mountpoint, err)
 		}
 		glog.V(2).Infof("Deactivating temporary export device %s", device)
@@ -907,31 +911,31 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 		}
 		v.driver.DeviceSet.Unlock()
 	}()
-	// Set up the file stream
-	buffer := &bytes.Buffer{}
-	tarfile := tar.NewWriter(buffer)
+
+	tarOut := tar.NewWriter(writer)
+
 	// Set the driver type
 	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
-	if err := tarfile.WriteHeader(header); err != nil {
+	if err := tarOut.WriteHeader(header); err != nil {
 		glog.Errorf("Could not export driver type header: %s", err)
 		return err
 	}
-	if _, err := fmt.Fprint(tarfile, v.Driver().DriverType()); err != nil {
+	if _, err := fmt.Fprint(tarOut, v.Driver().DriverType()); err != nil {
 		glog.Errorf("Could not export driver type: %s", err)
 		return err
 	}
-	tarfile.Close()
+
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 
-	return pipe.Run(pipe.Line(
-		dfsutils.ConcatTarStreams(
-			pipe.Read(buffer),
-			pipeExportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label)),
-			pipeExportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label)),
-		),
-		pipe.Write(writer),
-	))
+	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut); err != nil {
+		return err
+	}
+	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut); err != nil {
+		return err
+	}
+
+	return tarOut.Close()
 }
 
 // Import implements volume.Volume.Import
@@ -1028,6 +1032,69 @@ func (v *DeviceMapperVolume) snapshotExists(label string) bool {
 	return v.Metadata.SnapshotExists(label)
 }
 
-func pipeExportDirectoryAsTar(path, prefix string) pipe.Pipe {
-	return pipe.Exec("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+func getfstype(dmDevice string) (fstype []byte, err error) {
+	output, err := exec.Command("blkid", "-s", "TYPE", dmDevice).CombinedOutput()
+	if err != nil {
+		glog.Errorf("Could not get the device type of %s: %s (%s)", dmDevice, string(output), err)
+		return nil, err
+	}
+	if fields := bytes.Fields(output); len(fields) == 2 {
+		if bytes.HasPrefix(fields[1], []byte("TYPE=")) {
+			value := bytes.TrimPrefix(fields[1], []byte("TYPE="))
+			fstype = bytes.Trim(value, "\"")
+			return
+		}
+	}
+	// This should not happen
+	return nil, errors.New("invalid output")
+}
+
+func resize2fs(dmDevice string) error {
+	fstype, err := getfstype(dmDevice)
+	if err != nil {
+		return err
+	}
+	var cmd *exec.Cmd
+	switch string(fstype) {
+	case "xfs":
+		glog.Infof("Device type: %s, Command: xfs_growfs %s", fstype, dmDevice)
+		cmd = exec.Command("xfs_growfs", dmDevice)
+	default:
+		glog.Infof("Device type: %s, Command: resize2fs %s", fstype, dmDevice)
+		cmd = exec.Command("resize2fs", dmDevice)
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		glog.Errorf("Could not resize filesystem for device %s: %s (%s)", dmDevice, string(output), err)
+		return err
+	}
+	return nil
+}
+
+func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
+	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+	pipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	tarReader := tar.NewReader(pipe)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if err := out.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := io.Copy(out, tarReader); err != nil {
+			return err
+		}
+	}
+	return nil
 }

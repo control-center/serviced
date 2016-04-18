@@ -19,6 +19,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"path"
 	"time"
 
@@ -231,6 +233,43 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
 	s.docker.On("GetImageHash", "someimageid").Return("", ErrTestNoHash)
 	err = s.dfs.Restore(buf, &backupInfo)
 	c.Assert(err, Equals, ErrTestNoHash)
+	s.disk.AssertExpectations(c)
+	vol.AssertExpectations(c)
+}
+
+func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
+	buf := bytes.NewBufferString("")
+	tarfile := tar.NewWriter(buf)
+	backupInfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Hosts: []host.Host{
+			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots:     []string{"BASE_LABEL"},
+		Timestamp:     time.Now().UTC(),
+		BackupVersion: 1,
+	}
+	s.writeBackupInfo(c, tarfile, backupInfo)
+	err := tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL"), Size: 0})
+	c.Assert(err, IsNil)
+	tarfile.Close()
+	vol := &volumemocks.Volume{}
+	s.disk.On("Exists", "BASE_LABEL").Return(true)
+	s.docker.On("LoadImage", mock.AnythingOfType("*io.PipeReader")).Return(nil).Run(func(a mock.Arguments) {
+		reader := a.Get(0).(io.Reader)
+		io.Copy(ioutil.Discard, reader)
+	})
+	imgbuffer := bytes.NewBufferString("")
+	err = json.NewEncoder(imgbuffer).Encode([]string{})
+	c.Assert(err, IsNil)
+	err = s.dfs.Restore(buf, &backupInfo)
+	c.Assert(err, IsNil)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
 }

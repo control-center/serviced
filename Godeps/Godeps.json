@@ -376,10 +376,6 @@
 		{
 			"ImportPath": "gopkg.in/check.v1",
 			"Rev": "4f90aeace3a26ad7021961c297b22c42160c7b25"
-		},
-		{
-			"ImportPath": "gopkg.in/pipe.v2",
-			"Rev": "3c2ca4d525447ec8b2f606a6974f9c9f40831f26"
 		}
 	]
 }
