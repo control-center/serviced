@@ -20,6 +20,9 @@ import (
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
 	poolmocks "github.com/control-center/serviced/domain/pool/mocks"
+	registrymocks "github.com/control-center/serviced/domain/registry/mocks"
+	servicemocks "github.com/control-center/serviced/domain/service/mocks"
+	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/control-center/serviced/facade"
 	"github.com/stretchr/testify/mock"
@@ -29,12 +32,15 @@ import (
 var _ = Suite(&FacadeUnitTest{})
 
 type FacadeUnitTest struct {
-	Facade    *facade.Facade
-	ctx       *datastoremocks.Context
-	zzk       *zzkmocks.ZZK
-	dfs       *dfsmocks.DFS
-	hostStore *hostmocks.Store
-	poolStore *poolmocks.Store
+	Facade        *facade.Facade
+	ctx           *datastoremocks.Context
+	zzk           *zzkmocks.ZZK
+	dfs           *dfsmocks.DFS
+	hostStore     *hostmocks.Store
+	poolStore     *poolmocks.Store
+	registryStore *registrymocks.ImageRegistryStore
+	serviceStore  *servicemocks.Store
+	templateStore *templatemocks.Store
 }
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
@@ -52,6 +58,15 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.poolStore = &poolmocks.Store{}
 	ft.Facade.SetPoolStore(ft.poolStore)
+
+	ft.registryStore = &registrymocks.ImageRegistryStore{}
+	ft.Facade.SetRegistryStore(ft.registryStore)
+
+	ft.serviceStore = &servicemocks.Store{}
+	ft.Facade.SetServiceStore(ft.serviceStore)
+
+	ft.templateStore = &templatemocks.Store{}
+	ft.Facade.SetTemplateStore(ft.templateStore)
 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
