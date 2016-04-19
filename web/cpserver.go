@@ -153,14 +153,20 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
-
-		if svcIDs, found, registrykey := getVHostServices(httphost); found {
-			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
-			sc.publicendpointhandler(w, r, registrykey, svcIDs)
-		} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
-			glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
-			sc.publicendpointhandler(w, r, registrykey, svcIDs)
-		} else {
+		isVHost := len(parts) > 1 //Don't look for a vhost if httphost didn't contain a '.'
+		if isVHost { 
+			if svcIDs, found, registrykey := getVHostServices(httphost); found {
+				glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+				sc.publicendpointhandler(w, r, registrykey, svcIDs)
+			} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
+				glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
+				sc.publicendpointhandler(w, r, registrykey, svcIDs)
+			} else {
+				isVHost = false
+			}	
+		}
+		 
+		if !isVHost {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
 				// bindPort has already been validated, so the Split/access below won't break.
