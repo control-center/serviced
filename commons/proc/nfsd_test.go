@@ -16,14 +16,14 @@
 package proc
 
 import (
-	"testing"
+	. "gopkg.in/check.v1"
 )
 
 func setProcDir(dir string) {
 	procDir = dir
 }
 
-func TestGetProcNFSDExport(t *testing.T) {
+func (s *TestProcSuite) TestGetProcNFSDExport(c *C) {
 
 	// mock up our proc dir
 	defer setProcDir(procDir)
@@ -47,35 +47,25 @@ func TestGetProcNFSDExport(t *testing.T) {
 	}
 
 	actual, err := GetProcNFSDExport(expected.MountPoint)
-	if err != nil {
-		t.Fatalf("could not get nfsd export: %s", err)
-	}
-
-	if !expected.Equals(actual) {
-		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(expected.Equals(actual), Equals, true)
 
 	actualUUID := actual.ClientOptions["*"]["uuid"]
 	expectedUUID := expected.ClientOptions["*"]["uuid"]
-	if expectedUUID != actualUUID {
-		t.Fatalf("expectedUUID: %+v != actualUUID: %+v", expectedUUID, actualUUID)
-	}
+	c.Assert(actualUUID, Equals, expectedUUID)
 
-	if _, err := GetProcNFSDExport("/doesnotexist"); err != ErrMountPointNotExported {
-		t.Fatalf("expected could not get nfsd export: %s", err)
-	}
+	_, err = GetProcNFSDExport("/doesnotexist")
+	c.Assert(err, Equals, ErrMountPointNotExported)
 }
 
-func TestGetProcNFSDExports(t *testing.T) {
+func (s *TestProcSuite) TestGetProcNFSDExports(c *C) {
 
 	// mock up our proc dir
 	defer setProcDir(procDir)
 	procDir = "tstproc/"
 
 	mounts, err := GetProcNFSDExports()
-	if err != nil {
-		t.Fatalf("could not get nfsd exports: %s", err)
-	}
+	c.Assert(err, IsNil)
 
 	expected := &ProcNFSDExports{
 		MountPoint: "/exports/serviced_var",
@@ -94,13 +84,10 @@ func TestGetProcNFSDExports(t *testing.T) {
 		},
 	}
 	actual := mounts[expected.MountPoint]
-	if !expected.Equals(&actual) {
-		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
-	}
+	c.Assert(expected.Equals(&actual), Equals, true)
 
 	actualUUID := actual.ClientOptions["*"]["uuid"]
 	expectedUUID := expected.ClientOptions["*"]["uuid"]
-	if expectedUUID != actualUUID {
-		t.Fatalf("expectedUUID: %+v != actualUUID: %+v", expectedUUID, actualUUID)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(actualUUID, Equals, expectedUUID)
 }

@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,28 +16,18 @@
 package proc
 
 import (
+	"testing"
+
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestProcSuite) TestGetProcStat(c *C) {
-
-	// mock up our proc dir
-	defer func(s string) {
-		procDir = s
-	}(procDir)
-	procDir = ""
-
-	procStat, err := GetProcStat(0)
-	c.Assert(err, IsNil)
-
-	testProc := &ProcStat{
-		Pid:      10132,
-		Filename: "(cp something)",
-		State:    "R",
-		Ppid:     2028,
-		Pgrp:     10132,
-		Session:  2028,
-	}
-
-	c.Assert(*testProc, Equals, *procStat)
+type TestProcSuite struct {
+	// add suite-specific data here such as mocks
 }
+
+// verify TestGoofySuite implements the Suite interface
+var _ = Suite(&TestProcSuite{})
+
+// Wire gocheck into the go test runner
+func TestProc(t *testing.T) { TestingT(t) }
+
