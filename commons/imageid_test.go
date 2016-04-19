@@ -16,11 +16,20 @@
 package commons
 
 import (
-	"reflect"
 	"testing"
 
 	. "gopkg.in/check.v1"
 )
+
+type TestCommonsSuite struct{
+	// add suite-specific data here such as mocks
+}
+
+// verify TestGoofySuite implements the Suite interface
+var _ = Suite(&TestCommonsSuite{})
+
+// Wire gocheck into the go test runner
+func TestCommons(t *testing.T) { TestingT(t) }
 
 type ImageIDTest struct {
 	in        string
@@ -283,46 +292,32 @@ var imgidtests = []ImageIDTest{
 	},
 }
 
-func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
+func doTest(c *C, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
 	for _, tt := range tests {
 		imgid, err := parse(tt.in)
-		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
-		}
-		if !reflect.DeepEqual(imgid, tt.out) {
-			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
-				name, tt.in, imgid, tt.out)
-		}
-		if tt.in != imgid.String() {
-			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
-				name, tt.in, imgid.String(), tt.in)
-		}
+		c.Assert(err, IsNil)
+		c.Assert(imgid, DeepEquals, tt.out)
+		c.Assert(imgid.String(), Equals, tt.in)
 	}
 }
 
-func TestParse(t *testing.T) {
-	DoTest(t, ParseImageID, "Parse", imgidtests)
+func (s *TestCommonsSuite) TestParse(c *C) {
+	doTest(c, ParseImageID, "Parse", imgidtests)
 }
 
-func TestString(t *testing.T) {
-	iid, err := ParseImageID("warner.bros:1948/dobbs/sierramadre:1925")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if iid.String() != "warner.bros:1948/dobbs/sierramadre:1925" {
-		t.Errorf("expecting: warner.bros:1948/dobbs/sierramadre:1925, got %s\n", iid.String())
-	}
+func (s *TestCommonsSuite) TestString(c *C) {
+	expectedID := "warner.bros:1948/dobbs/sierramadre:1925"
+	iid, err := ParseImageID(expectedID)
+	c.Assert(err, IsNil)
+	c.Assert(iid.String(), Equals, expectedID)
 }
 
-func TestBogusTag(t *testing.T) {
+func (s *TestCommonsSuite) TestBogusTag(c *C) {
 	_, err := ParseImageID("sierramadre:feature/classic")
-	if err == nil {
-		t.Fatal("expected failure, bad tag")
-	}
+	c.Assert(err, Not(IsNil))
 }
 
-func TestValidateInvalid(t *testing.T) {
+func (s *TestCommonsSuite) TestValidateInvalid(c *C) {
 	iid := &ImageID{
 		Host: "warner.bros",
 		Port: 1948,
@@ -331,20 +326,16 @@ func TestValidateInvalid(t *testing.T) {
 		Tag:  "feature",
 	}
 
-	if iid.Validate() {
-		t.Fatal("expecting failure, bad user")
-	}
+	c.Assert(iid.Validate(), Equals, false)
 }
 
-func TestValidateValid(t *testing.T) {
+func (s *TestCommonsSuite) TestValidateValid(c *C) {
 	iid := &ImageID{
 		Repo: "sierramadre",
 		Tag:  "543c56d1-2510-cd37-c0f4-cab544df985d",
 	}
 
-	if !iid.Validate() {
-		t.Fatal("expecting success: ", iid.String())
-	}
+	c.Assert(iid.Validate(), Equals, true)
 }
 
 type ImageEqualsTest struct {
@@ -352,32 +343,20 @@ type ImageEqualsTest struct {
 	expected bool
 }
 
-func DoImageEqualsTest(t *testing.T, tests []ImageEqualsTest) {
-	for i, tt := range tests {
+func doImageEqualsTest(c *C, tests []ImageEqualsTest) {
+	for _, tt := range tests {
 		iid1, err := ParseImageID(tt.id1)
-		if err != nil {
-			t.Fatalf("error parsing %s on %d: %s", tt.id1, i, err)
-		}
+		c.Assert(err, IsNil)
 
 		iid2, err := ParseImageID(tt.id2)
-		if err != nil {
-			t.Fatalf("error parsing %s on %d: %s", tt.id2, i, err)
-		}
+		c.Assert(err, IsNil)
 
-		expected := "match"
-		if !tt.expected {
-			expected = "mismatch"
-		}
-
-		if iid1.Equals(*iid2) != tt.expected {
-			t.Errorf("expected %s on %d: (%s) (%s)", expected, i, iid1, iid2)
-		} else if iid2.Equals(*iid1) != tt.expected {
-			t.Errorf("expected %s on %d: (%s) (%s)", expected, i, iid2, iid1)
-		}
+		c.Assert(iid1.Equals(*iid2), Equals, tt.expected)
+		c.Assert(iid2.Equals(*iid1), Equals, tt.expected)
 	}
 }
 
-func TestEquals(t *testing.T) {
+func (s *TestCommonsSuite) TestEquals(c *C) {
 	tests := []ImageEqualsTest{
 		{"warner.bros:1948/dobbs/sierramadre:1925", "warner.bros:1948/dobbs/sierramadre:1925", true},
 		{"warner.bros:1948/dobbs/sierramadre:1925", "niblet3:5000/devimg:1925", false},
@@ -389,7 +368,7 @@ func TestEquals(t *testing.T) {
 		{"warner.bros:1948/dobbs/sierramadre", "niblet3:5000/devimg", false},
 		{"warner.bros:1948/dobbs/sierramadre", "niblet3:5000/devimg:latest", false},
 	}
-	DoImageEqualsTest(t, tests)
+	doImageEqualsTest(c, tests)
 }
 
 type RenameTest struct {
@@ -437,32 +416,23 @@ var renameTests = []RenameTest{
 	}(),
 }
 
-func DoRenameImageIdTest(t *testing.T, tests []RenameTest) {
-	for index, test := range tests {
+func doRenameImageIdTest(c *C, tests []RenameTest) {
+	for _, test := range tests {
 		image, err := RenameImageID(test.registry, test.tenant, test.imgID, test.tag)
-		if test.anErr && err == nil {
-			t.Fatalf("expected err on %v but got none, dying", index)
-		} else if !test.anErr && err != nil {
-			t.Fatalf("unexpected err on %v: %s", index, err.Error())
-		}
-		if test.anErr && err != nil {
+		if test.anErr {
+			c.Assert(err, Not(IsNil))
 			continue
 		}
-		if !image.Equals(*test.ImageID) {
-			t.Fatalf("got %s expected %s on %v\n", image.String(), test.ImageID.String(), index)
-		}
+		c.Assert(err, IsNil)
+		c.Assert(image.Equals(*test.ImageID), Equals, true)
 	}
 }
 
-func TestRenameImageID(t *testing.T) {
-	DoRenameImageIdTest(t, renameTests)
+func (s *TestCommonsSuite) TestRenameImageID(c *C) {
+	doRenameImageIdTest(c, renameTests)
 }
 
-type ImageIDSuite struct{}
-
-var _ = Suite(&ImageIDSuite{})
-
-func (s *ImageIDSuite) TestMerge(c *C) {
+func (s *TestCommonsSuite) TestMerge(c *C) {
 	img1_orig := &ImageID{
 		"host",
 		1,
