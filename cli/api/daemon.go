@@ -735,9 +735,7 @@ func (d *daemon) startAgent() error {
 	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
 		glog.Fatalf("could not register RPC server named Agent: %v", err)
 	}
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
+
 	if options.Master {
 		rpcutils.RegisterLocal("Agent", agentServer)
 	}
