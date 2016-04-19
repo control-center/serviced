@@ -1586,7 +1586,7 @@ func filterByNameRegex(nmregex string, services []service.Service) ([]service.Se
 func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, error) {
 	glog.V(3).Infof("Facade.getService: id=%s", id)
 	store := f.serviceStore
-	svc, err := store.Get(datastore.Get(), id)
+	svc, err := store.Get(ctx, id)
 	if err != nil || svc == nil {
 		return service.Service{}, err
 	}
