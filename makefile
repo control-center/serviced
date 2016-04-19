@@ -86,22 +86,7 @@ endif
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
 
-#------------------------------------------------------------------------------#
-# Build Repeatability with Godeps
-#------------------------------------------------------------------------------#
-# We manage go dependencies by 'godep saving' from the current $GOPATH/src.
-# The Godeps directory is manually updated and thus requires some dev-vigilence
-# if our go imports change in name or version.
-#
-#    godep save ./...
-#
-# to generate the Godeps file based upon the src currently populated in
-# $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
-# against the generated Godeps.
-#------------------------------------------------------------------------------#
-GODEP     = $(GOBIN)/godep
-GO        = $(GODEP) go
-godep_SRC = github.com/tools/godep
+GO        = go
 
 # Verify that we are running with the right go version
 GOVERSION ?= go1.6
@@ -138,15 +123,11 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
-	cd web/ui && make clean build
+	cd web/ui && make build
 
 .PHONY: mockAgent
 mockAgent:
 	cd acceptance/mockAgent && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-
-# Download godep source to $GOPATH/src/.
-$(GOSRC)/$(godep_SRC):
-	go get $(godep_SRC)
 
 GOVET     = $(GOBIN)/govet
 GOTOOLS_SRC = golang.org/x/tools
@@ -174,18 +155,18 @@ docker_SRC = github.com/docker/docker
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
 #
-# Force our go recipies to always fire since make doesn't
+# Force our go recipes to always fire since make doesn't
 # understand all of the target's *.go dependencies.  In this case let
 # '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
-serviced: $(GODEP)
+serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
-serviced-controller: $(GODEP)
+serviced-controller: $(GO)
 serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
@@ -193,7 +174,7 @@ serviced-controller: FORCE
 
 tools: serviced-storage
 
-serviced-storage: $(GODEP)
+serviced-storage: $(GO)
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
@@ -254,19 +235,6 @@ docker_build: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build:$(BUILD_VERSION) \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
-
-# Make the installed godep primitive (under $GOPATH/bin/godep)
-# dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the '$(GO) install' of the
-# source.
-#
-# This requires some make fu borrowed from:
-#
-#    https://lists.gnu.org/archive/html/help-gnu-utils/2007-08/msg00019.html
-#
-missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
-$(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -483,16 +451,14 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
-TEST_TARGET_DIRS = $(shell go list | grep -v vendor/)
-
 .PHONY: test
 test: unit_test integration_test integration_docker_test integration_dao_test integration_zzk_test js_test
 
 unit_test: build docker_ok
-	./serviced-tests.py --unit --race --packages $(TEST_TARGET_DIRS)
+	./serviced-tests.py --unit --race
 
 integration_test: build docker_ok
-	./serviced-tests.py --integration --quick --race --packages $(TEST_TARGET_DIRS)
+	./serviced-tests.py --integration --quick --race
 
 integration_docker_test: build docker_ok
 	./serviced-tests.py --integration --race --packages ./commons/docker/...
@@ -504,7 +470,7 @@ integration_zzk_test: build docker_ok
 	./serviced-tests.py --integration --race --packages ./zzk/...
 
 js_test: build docker_ok
-	cd web && make "GO=$(GO)" test
+	cd web/ui && make "GO=$(GO)" test
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
@@ -526,7 +492,7 @@ clean_js:
 	cd web/ui && make clean
 
 .PHONY: clean_serviced
-clean_serviced: $(GODEP)
+clean_serviced:
 	@for target in serviced $(serviced) ;\
         do \
                 if [ -f "$${target}" ];then \
@@ -540,12 +506,8 @@ clean_serviced: $(GODEP)
 clean_pkg:
 	cd pkg && make clean
 
-.PHONY: clean_dao
-clean_dao: $(GODEP)
-	cd dao && make "GO=$(GO)" clean
-
 .PHONY: clean
-clean: clean_js clean_pkg clean_dao clean_serviced
+clean: clean_js clean_pkg clean_serviced
 
 .PHONY: docker_clean_pkg
 docker_clean_pkg:
@@ -558,15 +520,3 @@ docker_clean: docker_clean_pkg
 
 .PHONY: mrclean
 mrclean: docker_clean clean
-
-#==============================================================================#
-# DEPRECATED STUFF -- DELETE ME SOON, PLEASE --
-#==============================================================================#
-.PHONY: dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx
-dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx:
-	$(error The $@ target has been deprecated. Yo, fix your makefile. Use docker_build or possibly docker_buildandpackage.)
-
-.PHONY: build_binary
-build_binary: $(build_TARGETS)
-	$(error The $@ target has been deprecated.  Just use 'make build' or 'make' instead.)
-#==============================================================================#
