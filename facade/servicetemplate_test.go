@@ -27,7 +27,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeTest) TestFacadeServiceTemplate(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 	glog.V(0).Infof("TestFacadeServiceTemplate started")
 	defer glog.V(0).Infof("TestFacadeServiceTemplate finished")
 
@@ -123,7 +123,7 @@ func (ft *FacadeTest) TestFacadeServiceTemplate(t *C) {
 	}
 }
 
-func (ft *FacadeTest) TestFacadeValidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeValidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestFacadeValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
@@ -143,7 +143,7 @@ func (ft *FacadeTest) TestFacadeValidServiceForStart(t *C) {
 	}
 }
 
-func (ft *FacadeTest) TestFacadeInvalidServiceForStart(t *C) {
+func (ft *FacadeIntegrationTest) TestFacadeInvalidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestFacadeInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
