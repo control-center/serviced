@@ -771,9 +771,9 @@ func (d *daemon) registerMasterRPC() error {
 	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
 		return fmt.Errorf("could not register RPC server named LoadBalancer: %v", err)
 	}
-	rpcutils.RegisterLocal("ControlPlane", d.cpDao)
-	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
-		return fmt.Errorf("could not register RPC server named ControlPlane: %v", err)
+	rpcutils.RegisterLocal("ControlCenter", d.cpDao)
+	if err := d.rpcServer.RegisterName("ControlCenter", d.cpDao); err != nil {
+		return fmt.Errorf("could not register RPC server named ControlCenter: %v", err)
 	}
 	return nil
 }

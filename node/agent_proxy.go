@@ -72,7 +72,7 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return nil
 	}
 	defer controlClient.Close()
@@ -105,7 +105,7 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return nil
 	}
 	defer controlClient.Close()
@@ -137,7 +137,7 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
 	client, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return err
 	}
 	defer client.Close()
@@ -164,7 +164,7 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return err
 	}
 	defer controlClient.Close()
@@ -196,7 +196,7 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return err
 	}
 	defer controlClient.Close()
