@@ -262,7 +262,7 @@ var context_testcases = []Service{
 
 var addresses []string
 
-func createSvcs(store *Store, ctx datastore.Context) error {
+func createSvcs(store Store, ctx datastore.Context) error {
 	for _, testcase := range startup_testcases {
 		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
@@ -276,7 +276,7 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 	return nil
 }
 
-func createContextSvcs(store *Store, ctx datastore.Context) error {
+func createContextSvcs(store Store, ctx datastore.Context) error {
 	for _, testcase := range context_testcases {
 		if err := store.Put(ctx, &testcase); err != nil {
 			return err

@@ -24,17 +24,30 @@ import (
 )
 
 //NewStore creates a HostStore
-func NewStore() *HostStore {
-	return &HostStore{}
+func NewStore() Store {
+	return &storeImpl{}
 }
 
-//HostStore type for interacting with Host persistent storage
-type HostStore struct {
+// Store type for interacting with Host persistent storage
+type Store interface {
+	datastore.EntityStore
+
+	// FindHostsWithPoolID returns all hosts with the given poolid.
+	FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error)
+
+	// GetHostByIP looks up a host by the given ip address
+	GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error)
+
+	// GetN returns all hosts up to limit.
+	GetN(ctx datastore.Context, limit uint64) ([]Host, error)
+}
+
+type storeImpl struct {
 	datastore.DataStore
 }
 
 // FindHostsWithPoolID returns all hosts with the given poolid.
-func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error) {
+func (hs *storeImpl) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error) {
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolId not allowed")
@@ -50,7 +63,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 }
 
 // GetHostByIP looks up a host by the given ip address
-func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error) {
+func (hs *storeImpl) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error) {
 	if hostIP = strings.TrimSpace(hostIP); hostIP == "" {
 		return nil, errors.New("empty hostIP not allowed")
 	}
@@ -72,7 +85,7 @@ func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, e
 }
 
 // GetN returns all hosts up to limit.
-func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
+func (hs *storeImpl) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)

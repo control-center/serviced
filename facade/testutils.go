@@ -32,8 +32,8 @@ import (
 	gocheck "gopkg.in/check.v1"
 )
 
-//FacadeTest used for running tests where a facade type is needed.
-type FacadeTest struct {
+// FacadeIntegrationTest used for running integration tests where a facade type is needed.
+type FacadeIntegrationTest struct {
 	elastic.ElasticTest
 	CTX    datastore.Context
 	Facade *Facade
@@ -41,8 +41,10 @@ type FacadeTest struct {
 	dfs    *dfsmocks.DFS
 }
 
+var _ = gocheck.Suite(&FacadeIntegrationTest{})
+
 //SetUpSuite sets up test suite
-func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
+func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
 	if ft.Mappings == nil {
@@ -67,7 +69,7 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.setupMockDFS()
 }
 
-func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
+func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
 	ft.ElasticTest.SetUpTest(c)
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
@@ -78,7 +80,7 @@ func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
 	LogstashContainerReloader = reloadLogstashContainerStub
 }
 
-func (ft *FacadeTest) setupMockZZK() {
+func (ft *FacadeIntegrationTest) setupMockZZK() {
 	ft.zzk.On("AddResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("RemoveResourcePool", mock.AnythingOfType("string")).Return(nil)
@@ -97,11 +99,11 @@ func (ft *FacadeTest) setupMockZZK() {
 
 }
 
-func (ft *FacadeTest) setupMockDFS() {
+func (ft *FacadeIntegrationTest) setupMockDFS() {
 	ft.dfs.On("Destroy", mock.AnythingOfType("string")).Return(nil)
 }
 
-func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
+func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
 }
 
 func reloadLogstashContainerStub(_ datastore.Context, _ FacadeInterface) error {
