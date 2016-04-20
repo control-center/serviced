@@ -92,12 +92,12 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-//Instantiate the gocheck suite. Initialize the DaoTest and the embedded FacadeTest
+//Instantiate the gocheck suite. Initialize the DaoTest and the embedded FacadeIntegrationTset
 var _ = Suite(&DaoTest{})
 
 //DaoTest gocheck test type for setting up isvcs and other resources needed by tests
 type DaoTest struct {
-	facade.FacadeTest
+	facade.FacadeIntegrationTest
 	Dao    *ControlPlaneDao
 	zkConn coordclient.Connection
 }
@@ -120,7 +120,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("Could not start es container: %s", err)
 	}
 	dt.MappingsFile = "controlplane.json"
-	dt.FacadeTest.SetUpSuite(c)
+	dt.FacadeIntegrationTest.SetUpSuite(c)
 
 	dsn := coordzk.NewDSN([]string{"127.0.0.1:2181"}, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
@@ -158,7 +158,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 //SetUpTest run before each test.
 func (dt *DaoTest) SetUpTest(c *C) {
 	//Facade tests delete the contents of the database for every test
-	dt.FacadeTest.SetUpTest(c)
+	dt.FacadeIntegrationTest.SetUpTest(c)
 	//DAO tests expect default pool and system user
 
 	if err := dt.Facade.CreateDefaultPool(dt.CTX, "default"); err != nil {
@@ -174,7 +174,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 //TearDownSuite stops all isvcs
 func (dt *DaoTest) TearDownSuite(c *C) {
 	isvcs.Mgr.Stop()
-	dt.FacadeTest.TearDownSuite(c)
+	dt.FacadeIntegrationTest.TearDownSuite(c)
 }
 
 func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {

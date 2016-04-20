@@ -22,17 +22,31 @@ import (
 )
 
 //NewStore creates a ResourcePool store
-func NewStore() *Store {
-	return &Store{}
+func NewStore() Store {
+	return &storeImpl{}
 }
 
-//Store type for interacting with ResourcePool persistent storage
-type Store struct {
+// Store type for interacting with ResourcePool persistent storage
+type Store interface {
+	// Get a ServiceTemplate by id. Return ErrNoSuchEntity if not found
+	Get(ctx datastore.Context, id string) (*ServiceTemplate, error)
+
+	// Put adds or updates a ServiceTemplate
+	Put(ctx datastore.Context, st ServiceTemplate) error
+
+	// Delete removes the a ServiceTemplate if it exists
+	Delete(ctx datastore.Context, id string) error
+
+	// GetServiceTemplates returns all ServiceTemplates
+	GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error)
+}
+
+type storeImpl struct {
 	ds datastore.DataStore
 }
 
 // Put adds or updates a ServiceTemplate
-func (s *Store) Put(ctx datastore.Context, st ServiceTemplate) error {
+func (s *storeImpl) Put(ctx datastore.Context, st ServiceTemplate) error {
 	if err := st.ValidEntity(); err != nil {
 		return fmt.Errorf("error validating template: %v", err)
 	}
@@ -44,7 +58,7 @@ func (s *Store) Put(ctx datastore.Context, st ServiceTemplate) error {
 }
 
 // Get a ServiceTemplate by id. Return ErrNoSuchEntity if not found
-func (s *Store) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) {
+func (s *storeImpl) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) {
 	var wrapper serviceTemplateWrapper
 
 	if err := s.ds.Get(ctx, Key(id), &wrapper); err != nil {
@@ -56,12 +70,12 @@ func (s *Store) Get(ctx datastore.Context, id string) (*ServiceTemplate, error) 
 }
 
 // Delete removes the a ServiceTemplate if it exists
-func (s *Store) Delete(ctx datastore.Context, id string) error {
+func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 	return s.ds.Delete(ctx, Key(id))
 }
 
 // GetServiceTemplates returns all ServiceTemplates
-func (s *Store) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
+func (s *storeImpl) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
 	glog.V(3).Infof("Store.GetServiceTemplates")
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")

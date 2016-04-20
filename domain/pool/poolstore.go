@@ -23,23 +23,36 @@ import (
 )
 
 //NewStore creates a ResourcePool store
-func NewStore() *Store {
-	return &Store{}
+func NewStore() Store {
+	return &storeImpl{}
 }
 
-//Store type for interacting with ResourcePool persistent storage
-type Store struct {
+// Store type for interacting with ResourcePool persistent storage
+type Store interface {
+	datastore.EntityStore
+
+	// GetResourcePools Get a list of all the resource pools
+	GetResourcePools(ctx datastore.Context) ([]ResourcePool, error)
+
+	// GetResourcePoolsByRealm gets a list of resource pools for a given realm
+	GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error)
+
+	// HasVirtualIP returns true if there is a virtual ip found for the given pool
+	HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error)
+}
+
+type storeImpl struct {
 	datastore.DataStore
 }
 
 //GetResourcePools Get a list of all the resource pools
-func (ps *Store) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
+func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
-func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
+func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
@@ -56,7 +69,7 @@ func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]
 }
 
 // HasVirtualIP returns true if there is a virtual ip found for the given pool
-func (s *Store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
+func (s *storeImpl) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
 		return false, errors.New("empty pool id not allowed")
 	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {
