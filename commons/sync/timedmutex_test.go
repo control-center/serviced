@@ -17,8 +17,9 @@ package sync
 
 import (
 	"fmt"
-	"testing"
 	"time"
+
+	. "gopkg.in/check.v1"
 )
 
 type LockWithTimeoutResponse struct {
@@ -26,7 +27,7 @@ type LockWithTimeoutResponse struct {
 	owner string
 }
 
-func TestTimedMutex_Lock(t *testing.T) {
+func (s *TestSyncSuite) TestTimedMutex_Lock(c *C) {
 	name1 := "lock 1"
 	name2 := "lock 2"
 
@@ -40,45 +41,45 @@ func TestTimedMutex_Lock(t *testing.T) {
 	}()
 	select {
 	case <-lock1Response:
-		t.Logf("(ok) lock 1 acquired")
+		c.Logf("(ok) lock 1 acquired")
 	case <-time.After(250 * time.Millisecond):
-		t.Fatalf("timeout while acquiring lock 1")
+		c.Fatalf("timeout while acquiring lock 1")
 	}
 
 	// test that a second lock blocks
 	lock2Response := make(chan struct{})
 	go func() {
 		locker.Lock(name2)
-		t.Logf("--- got lock 2, sending event")
+		c.Logf("--- got lock 2, sending event")
 		lock2Response <- struct{}{}
 	}()
 	select {
 	case <-lock2Response:
-		t.Fatalf("lock 2 did not block as expected")
+		c.Fatalf("lock 2 did not block as expected")
 	case <-time.After(time.Second):
-		t.Logf("(ok) lock 2 is blocking")
+		c.Logf("(ok) lock 2 is blocking")
 	}
 
 	// unlock
 	unlock1Response := make(chan struct{})
 	go func() {
-		t.Logf("--- unlocking 1")
+		c.Logf("--- unlocking 1")
 		locker.Unlock()
 		unlock1Response <- struct{}{}
 	}()
 	select {
 	case <-unlock1Response:
-		t.Logf("(ok) unlocked 1")
+		c.Logf("(ok) unlocked 1")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking 1")
+		c.Fatalf("timeout while unlocking 1")
 	}
 
 	// test that the second lock unblocked
 	select {
 	case <-lock2Response:
-		t.Logf("(ok) lock 2 unblocked")
+		c.Logf("(ok) lock 2 unblocked")
 	case <-time.After(time.Second * 3):
-		t.Errorf("timeout waiting for lock 2 to unblock")
+		c.Errorf("timeout waiting for lock 2 to unblock")
 	}
 
 	// check if the second lock can unlock
@@ -89,13 +90,13 @@ func TestTimedMutex_Lock(t *testing.T) {
 	}()
 	select {
 	case <-unlock2Response:
-		t.Logf("(ok) unlocked 2")
+		c.Logf("(ok) unlocked 2")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking 2")
+		c.Fatalf("timeout while unlocking 2")
 	}
 }
 
-func TestTimedMutex_LockWithTimeoutBlocks(t *testing.T) {
+func (s *TestSyncSuite) TestTimedMutex_LockWithTimeoutBlocks(c *C) {
 	name1 := "lock 1"
 	name2 := "lock 2"
 
@@ -109,45 +110,45 @@ func TestTimedMutex_LockWithTimeoutBlocks(t *testing.T) {
 	}()
 	select {
 	case <-lock1Response:
-		t.Logf("(ok) lock 1 acquired")
+		c.Logf("(ok) lock 1 acquired")
 	case <-time.After(250 * time.Millisecond):
-		t.Fatalf("timeout while acquiring lock 1")
+		c.Fatalf("timeout while acquiring lock 1")
 	}
 
 	// test that lock-with-timeout blocks
 	lock2Response := make(chan struct{})
 	go func() {
 		locker.LockWithTimeout(name2, time.Minute)
-		t.Logf("--- got lock 2, sending event")
+		c.Logf("--- got lock 2, sending event")
 		lock2Response <- struct{}{}
 	}()
 	select {
 	case <-lock2Response:
-		t.Fatalf("lock 2 did not block as expected")
+		c.Fatalf("lock 2 did not block as expected")
 	case <-time.After(2 * time.Second):
-		t.Logf("(ok) lock 2 is blocking")
+		c.Logf("(ok) lock 2 is blocking")
 	}
 
 	// unlock
 	unlock1Response := make(chan struct{})
 	go func() {
-		t.Logf("--- unlocking 1")
+		c.Logf("--- unlocking 1")
 		locker.Unlock()
 		unlock1Response <- struct{}{}
 	}()
 	select {
 	case <-unlock1Response:
-		t.Logf("(ok) unlocked 1")
+		c.Logf("(ok) unlocked 1")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking 1")
+		c.Fatalf("timeout while unlocking 1")
 	}
 
 	// test that the second lock unblocked
 	select {
 	case <-lock2Response:
-		t.Logf("(ok) lock 2 unblocked")
+		c.Logf("(ok) lock 2 unblocked")
 	case <-time.After(time.Second * 3):
-		t.Errorf("timeout waiting for lock 2 to unblock")
+		c.Errorf("timeout waiting for lock 2 to unblock")
 	}
 
 	// check if the second lock can unlock
@@ -158,13 +159,13 @@ func TestTimedMutex_LockWithTimeoutBlocks(t *testing.T) {
 	}()
 	select {
 	case <-unlock2Response:
-		t.Logf("(ok) unlocked 2")
+		c.Logf("(ok) unlocked 2")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking 2")
+		c.Fatalf("timeout while unlocking 2")
 	}
 }
 
-func TestTimedMutex_LockWithTimeoutTimesOut(t *testing.T) {
+func (s *TestSyncSuite) TestTimedMutex_LockWithTimeoutTimesOut(c *C) {
 	name1 := "lock 1"
 	name2 := "lock 2"
 
@@ -178,41 +179,41 @@ func TestTimedMutex_LockWithTimeoutTimesOut(t *testing.T) {
 	}()
 	select {
 	case <-lock1Response:
-		t.Logf("(ok) lock 1 acquired")
+		c.Logf("(ok) lock 1 acquired")
 	case <-time.After(250 * time.Millisecond):
-		t.Fatalf("timeout while acquiring lock 1")
+		c.Fatalf("timeout while acquiring lock 1")
 	}
 
 	// test that lock-with-timeout times out
 	lock2Response := make(chan struct{})
 	go func() {
 		locker.LockWithTimeout(name2, time.Second)
-		t.Logf("--- got lock 2, sending event")
+		c.Logf("--- got lock 2, sending event")
 		lock2Response <- struct{}{}
 	}()
 	select {
 	case <-lock2Response:
-		t.Logf("(ok) lock 2 timed out")
+		c.Logf("(ok) lock 2 timed out")
 	case <-time.After(2 * time.Second):
-		t.Errorf("lock 2 did not time out")
+		c.Errorf("lock 2 did not time out")
 	}
 
 	// unlock
 	unlock1Response := make(chan struct{})
 	go func() {
-		t.Logf("--- unlocking 1")
+		c.Logf("--- unlocking 1")
 		locker.Unlock()
 		unlock1Response <- struct{}{}
 	}()
 	select {
 	case <-unlock1Response:
-		t.Logf("(ok) unlocked 1")
+		c.Logf("(ok) unlocked 1")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking 1")
+		c.Fatalf("timeout while unlocking 1")
 	}
 }
 
-func TestTimedMutex_DoubleUnlock(t *testing.T) {
+func (s *TestSyncSuite) TestTimedMutex_DoubleUnlock(c *C) {
 	name1 := "lock 1"
 
 	locker := NewTimedMutex()
@@ -225,9 +226,9 @@ func TestTimedMutex_DoubleUnlock(t *testing.T) {
 	}()
 	select {
 	case <-lock1Response:
-		t.Logf("(ok) lock 1 acquired")
+		c.Logf("(ok) lock 1 acquired")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while acquiring lock 1")
+		c.Fatalf("timeout while acquiring lock 1")
 	}
 
 	// unlock
@@ -238,9 +239,9 @@ func TestTimedMutex_DoubleUnlock(t *testing.T) {
 	}()
 	select {
 	case <-unlock1Response:
-		t.Logf("(ok) unlocked 1")
+		c.Logf("(ok) unlocked 1")
 	case <-time.After(time.Second):
-		t.Errorf("timeout while unlocking 1")
+		c.Errorf("timeout while unlocking 1")
 	}
 
 	// second unlock, should panic
@@ -248,7 +249,7 @@ func TestTimedMutex_DoubleUnlock(t *testing.T) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Logf("(ok) caught panic")
+				c.Logf("(ok) caught panic")
 				unlock2Response <- true
 			} else {
 				unlock2Response <- false
@@ -259,17 +260,17 @@ func TestTimedMutex_DoubleUnlock(t *testing.T) {
 	select {
 	case response2 := <-unlock2Response:
 		if !response2 {
-			t.Errorf("no panic from unlock 2")
+			c.Errorf("no panic from unlock 2")
 		} else {
 			// Panicked, as expected (logged by goroutine)
 		}
 	case <-time.After(time.Second):
-		t.Errorf("timeout while unlocking 2")
+		c.Errorf("timeout while unlocking 2")
 	}
 }
 
 // Make sure multiple write locks are released one at a time
-func TestTimedMutex_MultipleLockers(t *testing.T) {
+func (s *TestSyncSuite) TestTimedMutex_MultipleLockers(c *C) {
 	numGoroutines := 4
 
 	// setup
@@ -290,7 +291,7 @@ func TestTimedMutex_MultipleLockers(t *testing.T) {
 	case <-lockmainResponse:
 		// Acquired, as expected
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while acquiring lock main")
+		c.Fatalf("timeout while acquiring lock main")
 	}
 
 	// spin off several goroutines
@@ -327,7 +328,7 @@ func TestTimedMutex_MultipleLockers(t *testing.T) {
 		case <-ready:
 			numEvents++
 		case <-timeout.C:
-			t.Fatalf("goroutines never got ready")
+			c.Fatalf("goroutines never got ready")
 		}
 	}
 	time.Sleep(250 * time.Microsecond) // event is sent before Lock() is called
@@ -340,9 +341,9 @@ func TestTimedMutex_MultipleLockers(t *testing.T) {
 	}()
 	select {
 	case <-unlockmainResponse:
-		t.Logf("main unlocked")
+		c.Logf("main unlocked")
 	case <-time.After(time.Second):
-		t.Fatalf("timeout while unlocking main")
+		c.Fatalf("timeout while unlocking main")
 	}
 
 	// wait for the goroutines to finish (they should proceed one at a time as another unlocks)
@@ -351,18 +352,18 @@ func TestTimedMutex_MultipleLockers(t *testing.T) {
 	for numEvents < numGoroutines {
 		select {
 		case ev := <-done:
-			t.Logf("goroutine %d is done", ev)
+			c.Logf("goroutine %d is done", ev)
 			numEvents++
 		case <-timeout.C:
-			t.Fatalf("timed out waiting for goroutines to update the data")
+			c.Fatalf("timed out waiting for goroutines to update the data")
 		}
 	}
 
 	// verify all the data lists are the same
-	t.Logf("data lists: A=%v, B=%v, C=%v", listA, listB, listC)
+	c.Logf("data lists: A=%v, B=%v, C=%v", listA, listB, listC)
 	for i := 0; i < len(listA); i++ {
 		if listA[i] != listB[i] || listB[i] != listC[i] {
-			t.Fatalf("lists do not match at element %d", i)
+			c.Fatalf("lists do not match at element %d", i)
 		}
 	}
 }
