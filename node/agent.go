@@ -336,7 +336,7 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
+		glog.Errorf("Could not start Control Center client %v", err)
 		return err
 	}
 	defer client.Close()
