@@ -159,7 +159,7 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 
 // GetHealthCheck returns the health check configuration for a service, if it exists
 func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]health.HealthCheck) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
 	*healthChecks = make(map[string]health.HealthCheck, 0)
 
 	controlClient, err := NewControlClient(a.master)
@@ -305,7 +305,7 @@ func (a *HostAgent) addEndpoint(key string, endpoint applicationendpoint.Applica
 
 // GetHostID returns the agent's host id
 func (a *HostAgent) GetHostID(_ string, hostID *string) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetHostID(): %s", a.hostID)
+	glog.V(4).Infof("ControlCenterAgent.GetHostID(): %s", a.hostID)
 	*hostID = a.hostID
 	return nil
 }
@@ -315,13 +315,13 @@ func (a *HostAgent) GetZkInfo(_ string, zkInfo *ZkInfo) error {
 	localDSN := a.zkClient.ConnectionString()
 	zkInfo.ZkDSN = strings.Replace(localDSN, "127.0.0.1", strings.Split(a.master, ":")[0], -1)
 	zkInfo.PoolID = a.poolID
-	glog.V(4).Infof("ControlPlaneAgent.GetZkInfo(): %+v", zkInfo)
+	glog.V(4).Infof("ControlCenterAgent.GetZkInfo(): %+v", zkInfo)
 	return nil
 }
 
 // GetServiceBindMounts returns the service bindmounts
 func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+	glog.V(4).Infof("ControlCenterAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 	*bindmounts = make(map[string]string, 0)
 
 	var tenantID string

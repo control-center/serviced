@@ -707,13 +707,13 @@ func (d *daemon) startAgent() error {
 		}()
 
 		// register the API
-		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		if err = d.rpcServer.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
-			glog.Fatalf("could not register RPC server named ControlPlaneAgent: %v", err)
+		glog.V(0).Infoln("registering ControlCenterAgent service")
+		if err = d.rpcServer.RegisterName("ControlCenterAgent", hostAgent); err != nil {
+			glog.Fatalf("could not register RPC server named ControlCenterAgent: %v", err)
 		}
 
 		if options.Master {
-			rpcutils.RegisterLocal("ControlPlaneAgent", hostAgent)
+			rpcutils.RegisterLocal("ControlCenterAgent", hostAgent)
 		}
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
