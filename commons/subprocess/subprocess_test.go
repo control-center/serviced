@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,25 +16,18 @@
 package subprocess
 
 import (
-	"time"
+	"testing"
 
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestSubprocessSuite) TestSubprocess(c *C) {
-	subprocess, exited, err := New(time.Second*5, nil, "sleep", "1")
-	c.Assert(err, IsNil)
-
-	select {
-	case <-time.After(time.Millisecond * 1200):
-		c.Fatal("expected sleep to finish")
-	case <-exited:
-
-	}
-
-	timeout := time.AfterFunc(time.Millisecond*500, func() {
-		c.Fatal("Should have closed subprocess already!")
-	})
-	subprocess.Close()
-	timeout.Stop()
+type TestSubprocessSuite struct {
+	// add suite-specific data here such as mocks
 }
+
+// verify TestGoofySuite implements the Suite interface
+var _ = Suite(&TestSubprocessSuite{})
+
+// Wire gocheck into the go test runner
+func TestSubprocess(t *testing.T) { TestingT(t) }
+
