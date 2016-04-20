@@ -30,7 +30,7 @@ type TestLayerSuite struct{
 	// add suite-specific data here such as mocks
 }
 
-// verify TestGoofySuite implements the Suite interface
+// verify TestLayerSuite implements the Suite interface
 var _ = Suite(&TestLayerSuite{})
 
 // Wire gocheck into the go test runner

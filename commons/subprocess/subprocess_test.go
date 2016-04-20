@@ -25,7 +25,7 @@ type TestSubprocessSuite struct {
 	// add suite-specific data here such as mocks
 }
 
-// verify TestGoofySuite implements the Suite interface
+// verify TestSubprocessSuite implements the Suite interface
 var _ = Suite(&TestSubprocessSuite{})
 
 // Wire gocheck into the go test runner

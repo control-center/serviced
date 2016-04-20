@@ -25,7 +25,7 @@ type TestSyncSuite struct {
 	// add suite-specific data here such as mocks
 }
 
-// verify TestGoofySuite implements the Suite interface
+// verify TestSyncSuite implements the Suite interface
 var _ = Suite(&TestSyncSuite{})
 
 // Wire gocheck into the go test runner

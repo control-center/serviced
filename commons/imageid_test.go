@@ -25,7 +25,7 @@ type TestCommonsSuite struct{
 	// add suite-specific data here such as mocks
 }
 
-// verify TestGoofySuite implements the Suite interface
+// verify TestCommonsSuite implements the Suite interface
 var _ = Suite(&TestCommonsSuite{})
 
 // Wire gocheck into the go test runner

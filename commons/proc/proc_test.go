@@ -25,7 +25,7 @@ type TestProcSuite struct {
 	// add suite-specific data here such as mocks
 }
 
-// verify TestGoofySuite implements the Suite interface
+// verify TestProcSuite implements the Suite interface
 var _ = Suite(&TestProcSuite{})
 
 // Wire gocheck into the go test runner
