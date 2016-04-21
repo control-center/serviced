@@ -23,9 +23,9 @@ The following is a partial illustration of the subdirectory structure for the pa
 
 ## Build Setup
 Nothing special is required to build the code in `serviced/web`. The toplevel
-makefile for serviced calls the `serviced/web/makefile` which builds the GO code for the backend,
-and calls `serviced/web/ui/makefile` to build the UI code.  By default, the `serviced/web/ui/makefile` uses
-the Docker container `zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch
+makefile for serviced calls the `serviced/web/ui/makefile`to build the UI code
+By default, the `serviced/web/ui/makefile` uses the Docker container
+`zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch
 the UI portion of the build. This image contains all of the tools required to build the UI.
 
 If you have node.js installed locally, then the first time the build is executed a number of
@@ -45,6 +45,15 @@ It is recommended (but not required) that developers working on the UI code inst
 The makefile will not use the Docker container `zenoss/serviced-build` if it finds [Node.js](http://nodejs.org)
 on the user's path. Therefore, bypassing the Docker container will speed up your local builds a little bit.
 
+If you are building locally, please create (or update) your `$HOME/.nmprc` file to contain the following line:
+```
+registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
+```
+This will direct NPM to pull artifacts from the Zenoss-local NPM repo on our
+[Nexus server](http://www.sonatype.com/nexus-repository-sonatype) -
+http://nexus.zendev.org:8081/nexus/#view-repositories
+
+
 Regardless of whether you are using the `zenoss/serviced-build` container or installing the tools locally, the tool chain for UI builds is divided into two parts:
   * pre-requisite tools
   * all other build-time dependencies
@@ -62,7 +71,9 @@ Once the pre-requisite build tools are installed, all other components of the JS
 incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
 
 ### Updating dev tool versions
-To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.  Be sure to test with a clean build, removing `serviced/web/ui/node_modules` just to be safe.
+To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.
+Be sure that your `$HOME/.npmrc` file is pointed at `http://nexus.zendev.org:8081/nexus/content/repositories/npm`
+Be sure to test with a clean build, removing `serviced/web/ui/node_modules` just to be safe.
 
 To change a version of one of the other tools, edit [`serviced/web/ui/package.json`](./package.json).
 

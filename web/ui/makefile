@@ -31,7 +31,7 @@ build: $(controlplane_JS)
 #
 # If you have NPM installed locally, you can run this step manually to
 # refresh the NPM dependencies. If you have new dependencies to add to the
-# regular build, check the read for details on how to refresh those
+# regular build, check the README for details on how to refresh those
 # dependencies in the build image.
 #
 # If you are using the serviced-build image to build the UI AND you need
