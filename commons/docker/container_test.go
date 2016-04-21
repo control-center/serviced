@@ -24,6 +24,7 @@ import (
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
+	. "gopkg.in/check.v1"
 )
 
 func TestMain(m *testing.M) {
@@ -32,7 +33,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestContainerCommit(t *testing.T) {
+func (s *TestDockerSuite) TestContainerCommit(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -44,9 +45,7 @@ func TestContainerCommit(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	sc := make(chan struct{})
 
@@ -55,20 +54,16 @@ func TestContainerCommit(t *testing.T) {
 	})
 
 	err = ctr.Start()
-	if err != nil {
-		t.Fatal("can't start container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	select {
 	case <-sc:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for event")
+		c.Fatal("Timed out waiting for event")
 	}
 
 	_, err = ctr.Commit("testcontainer/commit", false)
-	if err != nil {
-		t.Fatal("can't commit: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	ctr.Kill()
 	ctr.Delete(true)
@@ -77,7 +72,7 @@ func TestContainerCommit(t *testing.T) {
 	exec.Command(cmd[0], cmd[1:]...).Run()
 }
 
-func TestOnContainerStart(t *testing.T) {
+func (s *TestDockerSuite) TestOnContainerStart(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -89,9 +84,7 @@ func TestOnContainerStart(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	sc := make(chan struct{})
 
@@ -100,25 +93,23 @@ func TestOnContainerStart(t *testing.T) {
 	})
 
 	err = ctr.Start()
-	if err != nil {
-		t.Fatal("can't start container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	select {
 	case <-sc:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for event")
+		c.Fatal("Timed out waiting for event")
 	}
 
 	if !ctr.IsRunning() {
-		t.Fatal("expected container to be running")
+		c.Fatal("expected container to be running")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
 }
 
-func TestOnContainerStop(t *testing.T) {
+func (s *TestDockerSuite) TestOnContainerStop(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -130,9 +121,7 @@ func TestOnContainerStop(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't start container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	ec := make(chan int)
 	waitErrC := make(chan string)
@@ -151,15 +140,15 @@ func TestOnContainerStop(t *testing.T) {
 
 	select {
 	case waitErr := <-waitErrC:
-		t.Fatal(waitErr)
+		c.Fatal(waitErr)
 	case exitcode := <-ec:
-		t.Logf("Received exit code: %d", exitcode)
+		c.Logf("Received exit code: %d", exitcode)
 	case <-time.After(30 * time.Second):
-		t.Fatal("Timed out waiting for event")
+		c.Fatal("Timed out waiting for event")
 	}
 }
 
-func TestCancelOnEvent(t *testing.T) {
+func (s *TestDockerSuite) TestCancelOnEvent(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -171,9 +160,7 @@ func TestCancelOnEvent(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't start container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	ec := make(chan struct{})
 
@@ -191,7 +178,7 @@ func TestCancelOnEvent(t *testing.T) {
 
 	select {
 	case <-ec:
-		t.Fatal("OnEvent fired")
+		c.Fatal("OnEvent fired")
 	case <-time.After(2 * time.Second):
 		// success
 	}
@@ -200,7 +187,7 @@ func TestCancelOnEvent(t *testing.T) {
 	ctr.Delete(true)
 }
 
-func TestRestartContainer(t *testing.T) {
+func (s *TestDockerSuite) TestRestartContainer(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -212,9 +199,7 @@ func TestRestartContainer(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't start container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	restartch := make(chan struct{})
 	diech := make(chan struct{})
@@ -234,13 +219,13 @@ func TestRestartContainer(t *testing.T) {
 	select {
 	case <-diech:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for container to stop/die")
+		c.Fatal("Timed out waiting for container to stop/die")
 	}
 
 	select {
 	case <-restartch:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for Start event")
+		c.Fatal("Timed out waiting for Start event")
 	}
 
 	ctr.CancelOnEvent(Die)
@@ -250,7 +235,7 @@ func TestRestartContainer(t *testing.T) {
 
 }
 
-func TestListContainers(t *testing.T) {
+func (s *TestDockerSuite) TestListContainers(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -265,20 +250,16 @@ func TestListContainers(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		ctr, err := NewContainer(cd, true, 300*time.Second, nil, nil)
-		if err != nil {
-			t.Fatal("can't create container: ", err)
-		}
+		c.Assert(err, IsNil)
 
 		ctrs = append(ctrs, ctr)
 	}
 
 	cl, err := Containers()
-	if err != nil {
-		t.Fatal("can't get a list of containers: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	if (len(cl) - len(ctrs)) < 0 {
-		t.Fatalf("expecting at least %d containers, found %d", len(ctrs), len(cl))
+		c.Fatalf("expecting at least %d containers, found %d", len(ctrs), len(cl))
 	}
 
 	for _, ctr := range ctrs {
@@ -291,7 +272,7 @@ func TestListContainers(t *testing.T) {
 		}
 
 		if !found {
-			t.Fatal("missing container: ", ctr.ID)
+			c.Fatal("missing container: ", ctr.ID)
 		}
 	}
 
@@ -304,7 +285,7 @@ func TestListContainers(t *testing.T) {
 	}
 }
 
-func TestWaitForContainer(t *testing.T) {
+func (s *TestDockerSuite) TestWaitForContainer(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -316,17 +297,13 @@ func TestWaitForContainer(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, true, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	wc := make(chan int)
 
-	go func(c *Container) {
-		rc, err := c.Wait(600 * time.Second)
-		if err != nil {
-			t.Log("container wait failed: ", err)
-		}
+	go func(ctr *Container) {
+		rc, err := ctr.Wait(600 * time.Second)
+		c.Assert(err, IsNil)
 
 		wc <- rc
 	}(ctr)
@@ -334,7 +311,7 @@ func TestWaitForContainer(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	if err := ctr.Kill(); err != nil {
-		t.Fatal("can't kill container: ", err)
+		c.Fatal("can't kill container: ", err)
 	}
 
 	select {
@@ -342,11 +319,11 @@ func TestWaitForContainer(t *testing.T) {
 		// success
 		ctr.Delete(true)
 	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for wait to finish")
+		c.Fatal("timed out waiting for wait to finish")
 	}
 }
 
-func TestInspectContainer(t *testing.T) {
+func (s *TestDockerSuite) TestInspectContainer(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -358,14 +335,10 @@ func TestInspectContainer(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	prestart, err := ctr.Inspect()
-	if err != nil {
-		t.Fatal("can't pre inspect container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	sc := make(chan struct{})
 
@@ -374,31 +347,29 @@ func TestInspectContainer(t *testing.T) {
 	})
 
 	if err := ctr.Start(); err != nil {
-		t.Fatal("can't start container: ", err)
+		c.Fatal("can't start container: ", err)
 	}
 
 	select {
 	case <-sc:
 		break
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for container to start")
+		c.Fatal("timed out waiting for container to start")
 	}
 
 	poststart, err := ctr.Inspect()
-	if err != nil {
-		t.Fatal("can't post inspect container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	if poststart.State.Running == prestart.State.Running {
-		t.Fatal("inspected stated didn't change")
+		c.Fatal("inspected stated didn't change")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
 }
 
-func TestRepeatedStart(t *testing.T) {
-	t.Skip("skip this until the build box issues get sorted out")
+func (s *TestDockerSuite) TestRepeatedStart(c *C) {
+	c.Skip("skip this until the build box issues get sorted out")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -410,9 +381,7 @@ func TestRepeatedStart(t *testing.T) {
 	}
 
 	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	sc := make(chan struct{})
 
@@ -421,25 +390,25 @@ func TestRepeatedStart(t *testing.T) {
 	})
 
 	if err := ctr.Start(); err != nil {
-		t.Fatal("can't start container: ", err)
+		c.Fatal("can't start container: ", err)
 	}
 
 	select {
 	case <-sc:
 		break
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for container to start")
+		c.Fatal("timed out waiting for container to start")
 	}
 
 	if err := ctr.Start(); err == nil {
-		t.Fatal("expecting ErrAlreadyStarted")
+		c.Fatal("expecting ErrAlreadyStarted")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
 }
 
-func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
+func (s *TestDockerSuite) TestNewContainerOnCreatedAndStartedActions(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -467,9 +436,7 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		var err error
 
 		ctr, err = NewContainer(cd, true, 300*time.Second, ca, sa)
-		if err != nil {
-			t.Fatal("can't create container: ", err)
-		}
+		c.Assert(err, IsNil)
 
 		ctrCreated <- struct{}{}
 	}()
@@ -478,14 +445,14 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	case <-cc:
 		break
 	case <-time.After(360 * time.Second):
-		t.Fatal("timed out waiting for create action execution")
+		c.Fatal("timed out waiting for create action execution")
 	}
 
 	select {
 	case <-sc:
 		break
 	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for start action execution")
+		c.Fatal("timed out waiting for start action execution")
 	}
 
 	select {
@@ -494,11 +461,11 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for NewContainer to return a ctr")
+		c.Fatal("timed out waiting for NewContainer to return a ctr")
 	}
 }
 
-func TestNewContainerOnCreatedAction(t *testing.T) {
+func (s *TestDockerSuite) TestNewContainerOnCreatedAction(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -520,9 +487,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 	go func() {
 		var err error
 		ctr, err = NewContainer(cd, false, 300*time.Second, ca, nil)
-		if err != nil {
-			t.Fatal("can't create container: ", err)
-		}
+		c.Assert(err, IsNil)
 		ctrCreated <- struct{}{}
 	}()
 
@@ -530,7 +495,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 	case <-cc:
 		break
 	case <-time.After(360 * time.Second):
-		t.Fatal("timed out waiting for create action execution")
+		c.Fatal("timed out waiting for create action execution")
 	}
 
 	select {
@@ -539,11 +504,11 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for NewContainer to return a ctr")
+		c.Fatal("timed out waiting for NewContainer to return a ctr")
 	}
 }
 
-func TestNewContainerOnStartedAction(t *testing.T) {
+func (s *TestDockerSuite) TestNewContainerOnStartedAction(c *C) {
 	//t.Skip("skip this until the build box issues get sorted out")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
@@ -567,9 +532,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		var err error
 
 		ctr, err = NewContainer(cd, true, 300*time.Second, nil, sa)
-		if err != nil {
-			t.Fatal("can't create container: ", err)
-		}
+		c.Assert(err, IsNil)
 
 		ctrCreated <- struct{}{}
 	}()
@@ -578,7 +541,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 	case <-sc:
 		break
 	case <-time.After(360 * time.Second):
-		t.Fatal("timed out waiting for create action execution")
+		c.Fatal("timed out waiting for create action execution")
 	}
 
 	select {
@@ -587,11 +550,11 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		ctr.Delete(true)
 		break
 	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for NewContainer to return a ctr")
+		c.Fatal("timed out waiting for NewContainer to return a ctr")
 	}
 }
 
-func TestFindContainer(t *testing.T) {
+func (s *TestDockerSuite) TestFindContainer(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -603,37 +566,30 @@ func TestFindContainer(t *testing.T) {
 	}
 
 	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	if ctr2, err := NewContainer(cd, false, 300*time.Second, nil, nil); err != nil {
-		t.Fatal("can't create second container: ", err)
+		c.Fatal("can't create second container: ", err)
 	} else {
 		defer ctr2.Delete(true)
 	}
 	cid := ctrone.ID
 
 	ctr, err := FindContainer(cid)
-	if err != nil {
-		t.Fatalf("can't find container %s: %v", cid, err)
-	}
-
-	if ctrone.ID != ctr.ID {
-		t.Fatalf("container names don't match; got %s, expecting %s", ctr.Name, ctrone.Name)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(ctr.ID, Equals, ctrone.ID)
 
 	if err := ctrone.Delete(true); err != nil {
-		t.Fatal("can't delete container: ", err)
+		c.Fatal("can't delete container: ", err)
 	}
 
 	if _, err = FindContainer(cid); err == nil {
-		t.Fatal("should not have found container: ", cid)
+		c.Fatal("should not have found container: ", cid)
 	}
 }
 
 // TODO: add some additional Export tests, e.g., bogus path, insufficient permissions, etc.
-func TestContainerExport(t *testing.T) {
+func (s *TestDockerSuite) TestContainerExport(c *C) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -645,29 +601,19 @@ func TestContainerExport(t *testing.T) {
 	}
 
 	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
+	c.Assert(err, IsNil)
 	defer ctrone.Delete(true)
 
 	ctrtwo, err := NewContainer(cd, false, 300*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create second container: ", err)
-	}
+	c.Assert(err, IsNil)
 	defer ctrtwo.Delete(true)
 
 	cf, err := ioutil.TempFile("/tmp", "containertest")
-	if err != nil {
-		t.Fatal("can't create temp file for export: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	err = ctrone.Export(cf)
-	if err != nil {
-		t.Fatal("can't export container: ", err)
-	}
+	c.Assert(err, IsNil)
 
 	err = os.Remove(cf.Name())
-	if err != nil {
-		t.Fatalf("can't remove %s: %v", cf.Name(), err)
-	}
+	c.Assert(err, IsNil)
 }

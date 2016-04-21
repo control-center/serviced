@@ -26,12 +26,12 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func Test(t *testing.T) { TestingT(t) }
+func TestPool(t *testing.T) { TestingT(t) }
 
-type MySuite struct{}
+type PoolSuite struct{}
 
 var (
-	_                = Suite(&MySuite{})
+	_                = Suite(&PoolSuite{})
 	factoryCount     = int32(0)
 	IntentionalError = errors.New("intentional error")
 )
@@ -53,7 +53,7 @@ func ErrFactory() (interface{}, error) {
 	return nil, IntentionalError
 }
 
-func (s *MySuite) TestBorrowReturnRemove(c *C) {
+func (s *PoolSuite) TestBorrowReturnRemove(c *C) {
 
 	capacity := 1
 
@@ -106,7 +106,7 @@ func (s *MySuite) TestBorrowReturnRemove(c *C) {
 	c.Assert(err, Equals, ErrItemUnavailable)
 }
 
-func (s *MySuite) TestWaitOnRemove(c *C) {
+func (s *PoolSuite) TestWaitOnRemove(c *C) {
 	capacity := 1
 
 	//Allow creation of one more item than capacity
@@ -137,7 +137,7 @@ func (s *MySuite) TestWaitOnRemove(c *C) {
 	c.Assert(item, Not(Equals), newItem)
 }
 
-func (s *MySuite) TestWait(c *C) {
+func (s *PoolSuite) TestWait(c *C) {
 
 	waitTime := 250 * time.Millisecond
 	capacity := 1
@@ -168,7 +168,7 @@ func (s *MySuite) TestWait(c *C) {
 
 }
 
-func (s *MySuite) TestConcurrent(c *C) {
+func (s *PoolSuite) TestConcurrent(c *C) {
 
 	capacity := 100
 
@@ -269,7 +269,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 	c.Assert(p.Borrowed(), Equals, 0)
 }
 
-func (s *MySuite) TestBorrowFactoryReturnsErr(c *C) {
+func (s *PoolSuite) TestBorrowFactoryReturnsErr(c *C) {
 	p, _ := NewPool(1, ErrFactory)
 	x, err := p.Borrow()
 	c.Assert(err, Equals, IntentionalError)

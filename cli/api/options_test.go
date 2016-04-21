@@ -17,64 +17,63 @@ package api
 
 import (
 	"strings"
-	"testing"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestValidateCommonOptions(t *testing.T) {
+func (s *TestAPISuite) TestValidateCommonOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 
 	err := ValidateCommonOptions(testOptions)
 
-	if err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+	c.Assert(err, IsNil)
 }
 
-func TestValidateCommonOptionsFailsWithInvalidRPCCertVerify(t *testing.T) {
+func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCCertVerify(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCCertVerify = "foobar"
 
 	err := ValidateCommonOptions(testOptions)
 
-	assertErrorContent(t, err, "error parsing rpc-cert-verify value")
+	s.assertErrorContent(c, err, "error parsing rpc-cert-verify value")
 }
 
-func TestValidateCommonOptionsFailsWithInvalidRPCDisableTLS(t *testing.T) {
+func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCDisableTLS(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCDisableTLS = "not a boolean string"
 
 	err := ValidateCommonOptions(testOptions)
 
-	assertErrorContent(t, err, "error parsing rpc-disable-tls value")
+	s.assertErrorContent(c, err, "error parsing rpc-disable-tls value")
 }
 
-func TestValidateCommonOptionsFailsWithInvalidUIAddress(t *testing.T) {
+func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidUIAddress(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.UIPort = "not a valid port string"
 
 	err := ValidateCommonOptions(testOptions)
 
-	assertErrorContent(t, err, "error validating UI port")
+	s.assertErrorContent(c, err, "error validating UI port")
 }
 
-func TestValidateCommonOptionsFailsWithInvalidVirtualAddressSubnet(t *testing.T) {
+func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidVirtualAddressSubnet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.VirtualAddressSubnet = "not a valid subnet"
 
 	err := ValidateCommonOptions(testOptions)
 
-	assertErrorContent(t, err, "error validating virtual-address-subnet")
+	s.assertErrorContent(c, err, "error validating virtual-address-subnet")
 }
 
-func TestValidateServerOptions(t *testing.T) {
+func (s *TestAPISuite) TestValidateServerOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = true
@@ -82,12 +81,11 @@ func TestValidateServerOptions(t *testing.T) {
 	LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
-	if err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+
+	c.Assert(err, IsNil)
 }
 
-func TestValidateServerOptionsFailsIfNotMasterOrAgent(t *testing.T) {
+func (s *TestAPISuite) TestValidateServerOptionsFailsIfNotMasterOrAgent(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = false
@@ -96,10 +94,10 @@ func TestValidateServerOptionsFailsIfNotMasterOrAgent(t *testing.T) {
 
 	err := ValidateServerOptions()
 
-	assertErrorContent(t, err, "no mode (master or agent) was specified")
+	s.assertErrorContent(c, err, "no mode (master or agent) was specified")
 }
 
-func TestValidateServerOptionsFailsIfStorageInvalid(t *testing.T) {
+func (s *TestAPISuite) TestValidateServerOptionsFailsIfStorageInvalid(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = true
@@ -109,10 +107,10 @@ func TestValidateServerOptionsFailsIfStorageInvalid(t *testing.T) {
 
 	err := ValidateServerOptions()
 
-	assertErrorContent(t, err, "Use of devicemapper loop back device is not allowed")
+	s.assertErrorContent(c, err, "Use of devicemapper loop back device is not allowed")
 }
 
-func TestValidateServerOptionsFailsIfAgentMissingEndpoint(t *testing.T) {
+func (s *TestAPISuite) TestValidateServerOptionsFailsIfAgentMissingEndpoint(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Agent = true
@@ -121,10 +119,10 @@ func TestValidateServerOptionsFailsIfAgentMissingEndpoint(t *testing.T) {
 
 	err := ValidateServerOptions()
 
-	assertErrorContent(t, err, "No endpoint to master has been configured")
+	s.assertErrorContent(c, err, "No endpoint to master has been configured")
 }
 
-func TestValidateServerOptionsSetsEndpointIfMasterMissingEndpoint(t *testing.T) {
+func (s *TestAPISuite) TestValidateServerOptionsSetsEndpointIfMasterMissingEndpoint(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = true
@@ -134,18 +132,13 @@ func TestValidateServerOptionsSetsEndpointIfMasterMissingEndpoint(t *testing.T) 
 
 	err := ValidateServerOptions()
 
-	if err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	} else if len(options.Endpoint) == 0 {
-		t.Errorf("options.Endpoint pass was not set")
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(options.Endpoint), Not(Equals), 0)
 }
 
-func assertErrorContent(t *testing.T, err error, expectedContent string) {
-	if err == nil {
-		t.Errorf("expected error, but got ni")
-	} else if !strings.Contains(err.Error(), expectedContent) {
-		t.Errorf("expected error message to contain %q, but got %q", expectedContent, err)
+func (s *TestAPISuite) assertErrorContent(c *C, err error, expectedContent string) {
+	c.Assert(err, Not(IsNil))
+	if !strings.Contains(err.Error(), expectedContent) {
+		c.Errorf("expected error message to contain %q, but got %q", expectedContent, err)
 	}
-
 }
