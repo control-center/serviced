@@ -23,6 +23,16 @@
             return !$scope.dockerLoggedIn;
         };
 
+        var showError = function(message){
+            $("#deployWizardNotificationsContent").html(message);
+            $("#deployWizardNotifications").removeClass("hide");
+        };
+
+        var resetError = function(){
+            $("#deployWizardNotifications").html("");
+            $("#deployWizardNotifications").addClass("hide");
+        };
+
         var validTemplateSelected = function() {
             if(!$scope.install.templateID){
                 showError($translate.instant("label_wizard_select_app"));
@@ -132,16 +142,6 @@
             }
 
             $scope.step_page = $scope.steps[step].content;
-        };
-
-        var showError = function(message){
-            $("#deployWizardNotificationsContent").html(message);
-            $("#deployWizardNotifications").removeClass("hide");
-        };
-
-        var resetError = function(){
-            $("#deployWizardNotifications").html("");
-            $("#deployWizardNotifications").addClass("hide");
         };
 
         $scope.steps = [

@@ -19,6 +19,7 @@
 
         var width = 857;
         var height = 567;
+        var color = d3.scale.category20c();
 
         var cpuCores = function(h) {
             return h.model.Cores;
@@ -33,7 +34,6 @@
             return h.isHost? h.name : null;
         };
 
-        var color = d3.scale.category20c();
         var treemap = d3.layout.treemap()
             .size([width, height])
             .value(memoryCapacity);
@@ -43,6 +43,20 @@
                 .style("top", function(d) { return d.y + "px"; })
                 .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
                 .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+        };
+
+        var selectNewValue = function(valFunc) {
+            var node = d3.select("#hostmap").
+                selectAll(".node").
+                data(treemap.value(valFunc).nodes);
+            node.enter().
+                append("div").
+                attr("class", "node");
+            node.transition().duration(1000).
+                call(position).
+                style("background", poolBgColor).
+                text(hostText);
+            node.exit().remove();
         };
 
         $scope.selectionButtonClass = function(id) {
@@ -60,20 +74,6 @@
         $scope.selectByCores = function() {
             $scope.treemapSelection = 'cpu';
             selectNewValue(cpuCores);
-        };
-
-        var selectNewValue = function(valFunc) {
-            var node = d3.select("#hostmap").
-                selectAll(".node").
-                data(treemap.value(valFunc).nodes);
-            node.enter().
-                append("div").
-                attr("class", "node");
-            node.transition().duration(1000).
-                call(position).
-                style("background", poolBgColor).
-                text(hostText);
-            node.exit().remove();
         };
 
         var selectNewRoot = function(newroot) {
