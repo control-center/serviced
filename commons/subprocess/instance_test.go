@@ -16,25 +16,25 @@
 package subprocess
 
 import (
-	"testing"
 	"time"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestSubprocess(t *testing.T) {
-	s, exited, err := New(time.Second*5, nil, "sleep", "1")
-	if err != nil {
-		t.Fatalf("expected subprocess to start: %s", err)
-	}
+func (s *TestSubprocessSuite) TestSubprocess(c *C) {
+	subprocess, exited, err := New(time.Second*5, nil, "sleep", "1")
+	c.Assert(err, IsNil)
+
 	select {
 	case <-time.After(time.Millisecond * 1200):
-		t.Fatal("expected sleep to finish")
+		c.Fatal("expected sleep to finish")
 	case <-exited:
 
 	}
 
 	timeout := time.AfterFunc(time.Millisecond*500, func() {
-		t.Fatal("Should have closed subprocess already!")
+		c.Fatal("Should have closed subprocess already!")
 	})
-	s.Close()
+	subprocess.Close()
 	timeout.Stop()
 }

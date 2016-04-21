@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,38 +13,21 @@
 
 // +build unit
 
-package api
+package subprocess
 
 import (
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestListTemplates(t *testing.T) {
+type TestSubprocessSuite struct {
+	// add suite-specific data here such as mocks
 }
 
-func BenchmarkListTemplates(b *testing.B) {
-}
+// verify TestSubprocessSuite implements the Suite interface
+var _ = Suite(&TestSubprocessSuite{})
 
-func TestAddTemplate(t *testing.T) {
-}
+// Wire gocheck into the go test runner
+func TestSubprocess(t *testing.T) { TestingT(t) }
 
-func BenchmarkAddTemplate(b *testing.B) {
-}
-
-func TestRemoveTemplate(t *testing.T) {
-}
-
-func BenchmarkRemoveTemplate(b *testing.B) {
-}
-
-func TestCompileTemplate(t *testing.T) {
-}
-
-func BenchmarkCompileTemplate(b *testing.B) {
-}
-
-func TestDeployTemplate(t *testing.T) {
-}
-
-func BenchmarkDeployTemplate(b *testing.B) {
-}

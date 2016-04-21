@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,34 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit
+// +build integration,!quick
 
-package api
+package docker
 
 import (
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestListHosts(t *testing.T) {
+type TestDockerSuite struct {
+	// add suite-specific data here such as mocks
 }
 
-func BenchmarkListHosts(b *testing.B) {
-}
+// verify TestDockerSuite implements the Suite interface
+var _ = Suite(&TestDockerSuite{})
 
-func TestGetHost(t *testing.T) {
-}
+// Wire gocheck into the go test runner
+func TestDockerSync(t *testing.T) { TestingT(t) }
 
-func BenchmarkGetHost(b *testing.B) {
-}
-
-func TestAddHost(t *testing.T) {
-}
-
-func BenchmarkAddHost(b *testing.B) {
-}
-
-func TestRemoveHost(t *testing.T) {
-}
-
-func BenchmarkRemoveHost(b *testing.B) {
-}

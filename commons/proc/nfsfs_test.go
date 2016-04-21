@@ -17,10 +17,10 @@ package proc
 
 import (
 	"fmt"
-	"testing"
+	. "gopkg.in/check.v1"
 )
 
-func TestGetProcNFSFSServers(t *testing.T) {
+func (s *TestProcSuite) TestGetProcNFSFSServers(c *C) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -29,9 +29,7 @@ func TestGetProcNFSFSServers(t *testing.T) {
 	procDir = "tstproc/"
 
 	servers, err := GetProcNFSFSServers()
-	if err != nil {
-		t.Fatalf("could not get nfsfs/servers: %s", err)
-	}
+	c.Assert(err, IsNil)
 
 	expectedServer := &ProcNFSFSServer{
 		Version:  "v4",
@@ -41,12 +39,10 @@ func TestGetProcNFSFSServers(t *testing.T) {
 	}
 	key := fmt.Sprintf("%s:%s:%s", expectedServer.Version, expectedServer.ServerID, expectedServer.Port)
 	actualServer := servers[key]
-	if *expectedServer != actualServer {
-		t.Fatalf("expected: %+v != actual: %+v", expectedServer, &actualServer)
-	}
+	c.Assert(actualServer, Equals, *expectedServer)
 }
 
-func TestGetMountInfo(t *testing.T) {
+func (s *TestProcSuite) TestGetMountInfo(c *C) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -61,9 +57,7 @@ func TestGetMountInfo(t *testing.T) {
 	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{print $3, $9, $10, $5, $NF}'"
 
 	actual, err := GetMountInfo("/tmp/serviced/var")
-	if err != nil {
-		t.Fatalf("could not get mount info: %s", err)
-	}
+	c.Assert(err, IsNil)
 
 	expected := MountInfo{
 		DeviceID:   "0:137",
@@ -72,12 +66,10 @@ func TestGetMountInfo(t *testing.T) {
 		LocalPath:  "/tmp/serviced/var",
 		ServerIP:   "10.87.209.168",
 	}
-	if expected != *actual {
-		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
-	}
+	c.Assert(*actual, Equals, expected)
 }
 
-func TestGetNFSVolumeInfo(t *testing.T) {
+func (s *TestProcSuite) TestGetNFSVolumeInfo(c *C) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -93,9 +85,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 
 	// mock up our ReadFSIDFromMount command
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
-	if err != nil {
-		t.Fatalf("could not get mount info: %s", err)
-	}
+	c.Assert(err, IsNil)
 
 	minfo := MountInfo{
 		DeviceID:   "0:137",
@@ -108,7 +98,5 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	expected := NFSMountInfo{
 		MountInfo: minfo,
 	}
-	if expected != *actual {
-		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
-	}
+	c.Assert(*actual, Equals, expected)
 }
