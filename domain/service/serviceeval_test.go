@@ -188,6 +188,26 @@ var endpoint_testcases = []struct {
 	}, "hostname_collector"},
 }
 
+var environ_testcases = []struct {
+	service  Service
+	expected string
+}{
+	{Service{
+		ID:          "200",
+		Name:        "200",
+		PoolID:      "default",
+		Launch:      "manual",
+		Environment: []string{"TEST=id_{{.ID}}"},
+	}, "TEST=instance_200"},
+	{Service{
+		ID:          "200",
+		Name:        "200",
+		PoolID:      "default",
+		Launch:      "manual",
+		Environment: []string{"TEST_{{.InstanceID}}=x"},
+	}, "TEST_0=x"},
+}
+
 var context_testcases = []Service{
 	{
 		ID:      "200",
@@ -269,6 +289,11 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 		}
 	}
 	for _, testcase := range endpoint_testcases {
+		if err := store.Put(ctx, &testcase.service); err != nil {
+			return err
+		}
+	}
+	for _, testcase := range environ_testcases {
 		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
 		}
@@ -397,6 +422,21 @@ func (s *S) TestEvaluateActionsTemplate(t *C) {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", expected, result)
 			}
 			glog.Infof("Expecting \"%s\" got \"%s\"\n", expected, result)
+		}
+	}
+}
+
+func (s *S) TestEvaluateEnvironmentTemplate(t *C) {
+	err := createSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+	for _, testcase := range environ_testcases {
+		glog.Infof("Service.Environment before: %s", testcase.service.Environment)
+		err = testcase.service.EvaluateEnvironmentTemplate(s.getSVC, s.findChild, 0)
+		t.Assert(err, IsNil)
+		glog.Infof("Service.Environment after: %s, error=%s", testcase.service.Environment, err)
+		result := testcase.service.Environment
+		if result != testcase.expected {
+			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
 		}
 	}
 }
