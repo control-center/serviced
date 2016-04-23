@@ -73,6 +73,7 @@ type RunningService struct {
 	Name              string
 	Startup           string
 	Description       string
+	Environment       []string
 	Instances         int
 	ImageID           string
 	PoolID            string
