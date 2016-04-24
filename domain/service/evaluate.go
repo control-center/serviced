@@ -366,7 +366,7 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildSer
 
 // EvaluateEndpointTemplates parses and evaluates the "Environment" property of
 // this service.
-func (service *Service) EvaluateEnvironmentVariables(gs GetService, fc FindChildService, instanceID int) (err error) {
+func (service *Service) EvaluateEnvironmentTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	for i, envvar := range service.Environment {
 		err, result := service.evaluateTemplate(gs, fc, instanceID, envvar)
 		if err != nil {
@@ -443,7 +443,7 @@ func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, 
 		glog.Errorf("%+v", err)
 		return err
 	}
-	if err = service.EvaluateEnvironmentVariables(getSvc, findChild, instanceID); err != nil {
+	if err = service.EvaluateEnvironmentTemplate(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}

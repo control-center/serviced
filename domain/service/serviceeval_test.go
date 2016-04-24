@@ -198,7 +198,7 @@ var environ_testcases = []struct {
 		PoolID:      "default",
 		Launch:      "manual",
 		Environment: []string{"TEST=id_{{.ID}}"},
-	}, "TEST=instance_200"},
+	}, "TEST=id_200"},
 	{Service{
 		ID:          "200",
 		Name:        "200",
@@ -434,7 +434,7 @@ func (s *S) TestEvaluateEnvironmentTemplate(t *C) {
 		err = testcase.service.EvaluateEnvironmentTemplate(s.getSVC, s.findChild, 0)
 		t.Assert(err, IsNil)
 		glog.Infof("Service.Environment after: %s, error=%s", testcase.service.Environment, err)
-		result := testcase.service.Environment
+		result := testcase.service.Environment[0]
 		if result != testcase.expected {
 			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
 		}
