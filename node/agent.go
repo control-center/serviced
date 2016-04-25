@@ -696,7 +696,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	// End temp fix part 1. See immediately below for part 2.
 
 	// add arguments for environment variables
-	cfg.Env = append([]string{},
+	cfg.Env = append(svc.Environment,
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
@@ -762,7 +762,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 			Hard: 0,
 		},
 	}
-
 	return cfg, hcfg, nil
 }
 

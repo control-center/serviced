@@ -19,7 +19,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Empty(c *C) {
+func (s *TestAPISuite) TestEnvironConfigReader_StringMap_Empty(c *C) {
 	listValue := []string{""}
 	expected := map[string]string{}
 
@@ -28,7 +28,7 @@ func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Empty(c *C) {
 	c.Assert(result, DeepEquals, expected)
 }
 
-func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Simple(c *C) {
+func (s *TestAPISuite) TestEnvironConfigReader_StringMap_Simple(c *C) {
 	listValue := []string{"keySimple=valueSimple"}
 	expected := map[string]string{"keySimple": "valueSimple"}
 
@@ -37,7 +37,7 @@ func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Simple(c *C) {
 	c.Assert(result, DeepEquals, expected)
 }
 
-func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Multiple(c *C) {
+func (s *TestAPISuite) TestEnvironConfigReader_StringMap_Multiple(c *C) {
 	listValue := []string{"key1=value1", "key2=value2", "key3=value3"}
 	expected := map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}
 
@@ -46,7 +46,7 @@ func (st *serviceAPITest) TestEnvironConfigReader_StringMap_Multiple(c *C) {
 	c.Assert(result, DeepEquals, expected)
 }
 
-func (st *serviceAPITest) TestEnvironConfigReader_StringMap_EmptyPair(c *C) {
+func (s *TestAPISuite) TestEnvironConfigReader_StringMap_EmptyPair(c *C) {
 	listValue := []string{"key1=value1", "", "key2=value2", ""}
 	expected := map[string]string{"key1": "value1", "key2": "value2"}
 
@@ -55,7 +55,7 @@ func (st *serviceAPITest) TestEnvironConfigReader_StringMap_EmptyPair(c *C) {
 	c.Assert(result, DeepEquals, expected)
 }
 
-func (st *serviceAPITest) TestEnvironConfigReader_StringMap_InvalidPair(c *C) {
+func (s *TestAPISuite) TestEnvironConfigReader_StringMap_InvalidPair(c *C) {
 	listValue := []string{"key1=value1", "key2=", "=value3", "foo"}
 	expected := map[string]string{"key1": "value1", "key2": ""}
 

@@ -16,15 +16,14 @@
 package api
 
 import (
-	"testing"
+	"reflect"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"reflect"
-	"strings"
+	. "gopkg.in/check.v1"
 )
 
-func TestAddStorageOptionWithEmptyDefault(t *testing.T) {
+func (s *TestAPISuite) TestAddStorageOptionWithEmptyDefault(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	var options []string
 
@@ -32,10 +31,10 @@ func TestAddStorageOptionWithEmptyDefault(t *testing.T) {
 		options = append(options, value)
 	})
 
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestAddStorageOptionWithNonEmptyDefault(t *testing.T) {
+func (s *TestAPISuite) TestAddStorageOptionWithNonEmptyDefault(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	var options []string
 
@@ -43,10 +42,10 @@ func TestAddStorageOptionWithNonEmptyDefault(t *testing.T) {
 		options = append(options, value)
 	})
 
-	verifyOptions(t, options, []string{"default"})
+	verifyOptions(c, options, []string{"default"})
 }
 
-func TestAddStorageOptionWithEnvValue(t *testing.T) {
+func (s *TestAPISuite) TestAddStorageOptionWithEnvValue(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"IGNORE_DEFAULT": "ignore"})
 	var options []string
 
@@ -54,58 +53,58 @@ func TestAddStorageOptionWithEnvValue(t *testing.T) {
 		options = append(options, value)
 	})
 
-	verifyOptions(t, options, []string{"ignore"})
+	verifyOptions(c, options, []string{"ignore"})
 }
 
-func TestGetDefaultNFSOptions(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultNFSOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeNFS, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultRSyncOptions(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultRSyncOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeRsync, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultBtrfsOptions(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultBtrfsOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeBtrFS, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultDevicemapperOptions(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultDevicemapperOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	verifyOptions(t, options, []string{"dm.basesize=100G"})
+	verifyOptions(c, options, []string{"dm.basesize=100G"})
 }
 
-func TestGetDefaultNFSOptionsWithDMOptionsSet(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultNFSOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeNFS, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultRSyncOptionsWithDMOptionsSet(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultRSyncOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeRsync, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultBrtrfsOptionsWithDMOptionsSet(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultBrtrfsOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeBtrFS, configReader)
-	verifyOptions(t, options, []string{})
+	verifyOptions(c, options, []string{})
 }
 
-func TestGetDefaultDevicemapperOptionsForThinpoolDevice(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForThinpoolDevice(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	verifyOptions(t, options, []string{"dm.thinpooldev=foo", "dm.basesize=100G"})
+	verifyOptions(c, options, []string{"dm.thinpooldev=foo", "dm.basesize=100G"})
 }
 
-func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
+func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForAll(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{
 		"DM_THINPOOLDEV":      "foo",
 		"DM_BASESIZE":         "200G",
@@ -114,7 +113,7 @@ func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
 		"DM_ARGS":             "arg1=a,arg2=b,arg3=c",
 	})
 	options := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	verifyOptions(t, options, []string{
+	verifyOptions(c, options, []string{
 		"dm.thinpooldev=foo",
 		"dm.basesize=200G",
 		"dm.loopdatasize=10G",
@@ -123,15 +122,15 @@ func TestGetDefaultDevicemapperOptionsForAll(t *testing.T) {
 	})
 }
 
-func TestThinPoolEnabledWithNoOptions(t *testing.T) {
+func (s *TestAPISuite) TestThinPoolEnabledWithNoOptions(c *C) {
 	options := []string{}
 
 	if thinPoolEnabled(options) {
-		t.Errorf("expectd false but got true")
+		c.Errorf("expectd false but got true")
 	}
 }
 
-func TestThinPoolEnabledWithoutThinPool(t *testing.T) {
+func (s *TestAPISuite) TestThinPoolEnabledWithoutThinPool(c *C) {
 	options := []string{
 		"dm.basesize=200G",
 		"dm.loopdatasize=10G",
@@ -139,21 +138,21 @@ func TestThinPoolEnabledWithoutThinPool(t *testing.T) {
 	}
 
 	if thinPoolEnabled(options) {
-		t.Errorf("expectd false but got true")
+		c.Errorf("expectd false but got true")
 	}
 }
 
-func TestThinPoolEnabledWithThinPool(t *testing.T) {
+func (s *TestAPISuite) TestThinPoolEnabledWithThinPool(c *C) {
 	options := []string{
 		"dm.thinpooldev=foo",
 	}
 
 	if !thinPoolEnabled(options) {
-		t.Errorf("expectd true but got false")
+		c.Errorf("expectd true but got false")
 	}
 }
 
-func TestThinPoolEnabledWithBothKindsOfOptions(t *testing.T) {
+func (s *TestAPISuite) TestThinPoolEnabledWithBothKindsOfOptions(c *C) {
 	options := []string{
 		"dm.thinpooldev=foo",
 		"dm.basesize=200G",
@@ -162,29 +161,29 @@ func TestThinPoolEnabledWithBothKindsOfOptions(t *testing.T) {
 	}
 
 	if !thinPoolEnabled(options) {
-		t.Errorf("expectd true but got false")
+		c.Errorf("expectd true but got false")
 	}
 }
 
-func TestLoopBackOptionsFoundWithNoOptions(t *testing.T) {
+func (s *TestAPISuite) TestLoopBackOptionsFoundWithNoOptions(c *C) {
 	options := []string{}
 
 	if loopBackOptionsFound(options) {
-		t.Errorf("expectd false but got true")
+		c.Errorf("expectd false but got true")
 	}
 }
 
-func TestLoopBackOptionsFoundWithoutLoopBackOptions(t *testing.T) {
+func (s *TestAPISuite) TestLoopBackOptionsFoundWithoutLoopBackOptions(c *C) {
 	options := []string{
 		"dm.thinpooldev=foo",
 	}
 
 	if loopBackOptionsFound(options) {
-		t.Errorf("expectd false but got true")
+		c.Errorf("expectd false but got true")
 	}
 }
 
-func TestLoopBackOptionsFoundWithLoopBackOptions(t *testing.T) {
+func (s *TestAPISuite) TestLoopBackOptionsFoundWithLoopBackOptions(c *C) {
 	options := []string{
 		"dm.basesize=200G",
 		"dm.loopdatasize=10G",
@@ -192,21 +191,21 @@ func TestLoopBackOptionsFoundWithLoopBackOptions(t *testing.T) {
 	}
 
 	if !loopBackOptionsFound(options) {
-		t.Errorf("expectd true but got false")
+		c.Errorf("expectd true but got false")
 	}
 }
 
-func TestLoopBackOptionsFoundWithJustBaseSize(t *testing.T) {
+func (s *TestAPISuite)  TestLoopBackOptionsFoundWithJustBaseSize(c *C) {
 	options := []string{
 		"dm.basesize=200G",
 	}
 
 	if !loopBackOptionsFound(options) {
-		t.Errorf("expectd true but got false")
+		c.Errorf("expectd true but got false")
 	}
 }
 
-func TestLoopBackOptionsFoundWithBothKindsOfOptions(t *testing.T) {
+func (s *TestAPISuite) TestLoopBackOptionsFoundWithBothKindsOfOptions(c *C) {
 	options := []string{
 		"dm.thinpooldev=foo",
 		"dm.basesize=200G",
@@ -215,11 +214,11 @@ func TestLoopBackOptionsFoundWithBothKindsOfOptions(t *testing.T) {
 	}
 
 	if !loopBackOptionsFound(options) {
-		t.Errorf("expectd true but got false")
+		c.Errorf("expectd true but got false")
 	}
 }
 
-func TestValidateStorageArgsPassBtrfs(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsPassBtrfs(c *C) {
 	testOptions := Options{
 		Master:        true,
 		FSType:        volume.DriverTypeBtrFS,
@@ -228,12 +227,12 @@ func TestValidateStorageArgsPassBtrfs(t *testing.T) {
 	}
 	LoadOptions(testOptions)
 
-	if err := validateStorageArgs(); err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+	err := validateStorageArgs()
+
+	c.Assert(err, IsNil)
 }
 
-func TestValidateStorageArgsPassRsync(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsPassRsync(c *C) {
 	testOptions := Options{
 		Master:        true,
 		FSType:        volume.DriverTypeRsync,
@@ -243,11 +242,11 @@ func TestValidateStorageArgsPassRsync(t *testing.T) {
 	LoadOptions(testOptions)
 
 	if err := validateStorageArgs(); err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
+		c.Errorf("expected pass, but got error: %s", err)
 	}
 }
 
-func TestValidateStorageArgsPassDMWithThinpool(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsPassDMWithThinpool(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	storageArgs := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
 	testOptions := Options{
@@ -258,51 +257,47 @@ func TestValidateStorageArgsPassDMWithThinpool(t *testing.T) {
 	}
 	LoadOptions(testOptions)
 
-	if err := validateStorageArgs(); err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+	err := validateStorageArgs()
+
+	c.Assert(err, IsNil)
 }
 
-func TestValidateStorageArgsFailDMWithLoopBack(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsFailDMWithLoopBack(c *C) {
 	testOptions := setupOptionsForDMWithLoopBack()
 	testOptions.AllowLoopBack = "false"
 	LoadOptions(testOptions)
 
-	expectedError := "devicemapper loop back device is not allowed"
-	if err := validateStorageArgs(); err == nil {
-		t.Errorf("expected error, but got ni")
-	} else if !strings.Contains(err.Error(), expectedError) {
-		t.Errorf("expected error message to contain %q, but got %q", expectedError, err)
-	}
+	err := validateStorageArgs()
+
+	s.assertErrorContent(c, err, "devicemapper loop back device is not allowed")
 }
 
-func TestValidateStorageArgsPassDMWithAllowLoopBack(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsPassDMWithAllowLoopBack(c *C) {
 	testOptions := setupOptionsForDMWithLoopBack()
 	testOptions.AllowLoopBack = "true"
 	LoadOptions(testOptions)
 
-	if err := validateStorageArgs(); err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+	err := validateStorageArgs()
+
+	c.Assert(err, IsNil)
 }
 
-func TestValidateStorageArgsDoesNotFailIfAgentOnly(t *testing.T) {
+func (s *TestAPISuite) TestValidateStorageArgsDoesNotFailIfAgentOnly(c *C) {
 	testOptions := setupOptionsForDMWithLoopBack()
 	testOptions.Master = false
 	testOptions.Agent = true
 	testOptions.AllowLoopBack = "false"
 	LoadOptions(testOptions)
 
-	if err := validateStorageArgs(); err != nil {
-		t.Errorf("expected pass, but got error: %s", err)
-	}
+	err := validateStorageArgs()
+
+	c.Assert(err, IsNil)
 }
 
-func verifyOptions(t *testing.T, actual []string, expected []string) {
-	if len(actual) != len(expected) {
-		t.Errorf("length of options incorrect: expected %d got %d; options=%v", len(expected), len(actual), actual)
-	} else if len(expected) > 0 && !reflect.DeepEqual(expected, actual) {
-		t.Errorf("options incorrect: expected %v got %v", expected, actual)
+func verifyOptions(c *C, actual []string, expected []string) {
+	c.Assert(len(actual), Equals, len(expected))
+	if len(expected) > 0 && !reflect.DeepEqual(expected, actual) {
+		c.Errorf("options incorrect: expected %v got %v", expected, actual)
 	}
 
 }

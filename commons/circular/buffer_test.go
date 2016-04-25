@@ -17,12 +17,20 @@ package circular
 
 import (
 	"testing"
+	
+	. "gopkg.in/check.v1"
 )
+
+func TestCircular(t *testing.T) { TestingT(t) }
+
+type CircularSuite struct{}
+
+var _ = Suite(&CircularSuite{})
 
 // TODO: Write a performance benchmark to show improvements to impl.
 // TODO: Write test to read from empty buffer, read from full buffer, etc
 
-func TestBuffer(t *testing.T) {
+func (s *CircularSuite) TestBuffer(c *C) {
 
 	const circularBufferSize = 5
 	b := NewBuffer(circularBufferSize)
@@ -30,26 +38,26 @@ func TestBuffer(t *testing.T) {
 	testbytes := []byte{99, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 	if n, err := b.Write(testbytes); err != nil {
-		t.Logf("Unexpected error when writing to circular buffer: %s", err)
-		t.FailNow()
+		c.Logf("Unexpected error when writing to circular buffer: %s", err)
+		c.FailNow()
 	} else {
 		if n != len(testbytes) {
-			t.Logf("expected %d bytes written, only %d were written", len(testbytes), n)
-			t.FailNow()
+			c.Logf("expected %d bytes written, only %d were written", len(testbytes), n)
+			c.FailNow()
 		}
 	}
 
 	results := make([]byte, circularBufferSize)
 
 	if n, err := b.Read(results); err != nil {
-		t.Logf("Unexpected error when reading from circular buffer: %s", err)
-		t.FailNow()
+		c.Logf("Unexpected error when reading from circular buffer: %s", err)
+		c.FailNow()
 	} else {
 		if n != circularBufferSize {
-			t.Logf("expected %d bytes read, only %d were read", circularBufferSize, n)
-			t.Logf("buffer: %v", b)
-			t.Logf("results: %v", results)
-			t.FailNow()
+			c.Logf("expected %d bytes read, only %d were read", circularBufferSize, n)
+			c.Logf("buffer: %v", b)
+			c.Logf("results: %v", results)
+			c.FailNow()
 		}
 	}
 }
