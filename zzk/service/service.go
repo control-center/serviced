@@ -443,6 +443,7 @@ func UpdateService(conn client.Connection, svcData service.Service, setLockOnCre
 		ID:              svcData.ID,
 		Name:            svcData.Name,
 		Startup:         svcData.Startup,
+		Environment:     svcData.Environment,
 		Instances:       svcData.Instances,
 		ChangeOptions:   svcData.ChangeOptions,
 		ImageID:         svcData.ImageID,

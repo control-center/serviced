@@ -32,6 +32,7 @@ type ServiceDefinition struct {
 	Version           string                 // Version of the defined service
 	Command           string                 // Command which runs the service
 	Description       string                 // Description of the service
+	Environment       []string               // Environment variables to be injected, of the form NAME="value"
 	Tags              []string               // Searchable service tags
 	ImageID           string                 // Docker image hosting the service
 	Instances         domain.MinMax          // Constraints on the number of instances

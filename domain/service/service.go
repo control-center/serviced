@@ -64,6 +64,7 @@ type Service struct {
 	Title             string // Title is a label used when describing this service in the context of a service tree
 	Version           string
 	Context           map[string]interface{}
+	Environment       []string
 	Startup           string
 	Description       string
 	Tags              []string
@@ -189,6 +190,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Context = sd.Context
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
+	svc.Environment = sd.Environment
 	svc.Tags = sd.Tags
 	if sd.Instances.Default != 0 {
 		svc.Instances = sd.Instances.Default
