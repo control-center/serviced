@@ -631,13 +631,13 @@ func (d *daemon) startAgent() error {
 		}()
 
 		// register the API
-		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		if err = d.rpcServer.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
-			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
+		glog.V(0).Infoln("registering ControlCenterAgent service")
+		if err = d.rpcServer.RegisterName("ControlCenterAgent", hostAgent); err != nil {
+			glog.Fatalf("could not register RPC server named ControlCenterAgent: %v", err)
 		}
 
 		if options.Master {
-			rpcutils.RegisterLocal("ControlPlaneAgent", hostAgent)
+			rpcutils.RegisterLocal("ControlCenterAgent", hostAgent)
 		}
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
@@ -657,11 +657,9 @@ func (d *daemon) startAgent() error {
 
 	agentServer := agent.NewServer(d.staticIPs)
 	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
-		glog.Fatalf("could not register Agent RPC server: %v", err)
+		glog.Fatalf("could not register RPC server named Agent: %v", err)
 	}
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
+
 	if options.Master {
 		rpcutils.RegisterLocal("Agent", agentServer)
 	}
@@ -689,17 +687,17 @@ func (d *daemon) registerMasterRPC() error {
 	}
 	rpcutils.RegisterLocal("Master", server)
 	if err := d.rpcServer.RegisterName("Master", server); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+		return fmt.Errorf("could not register RPC server named Master: %v", err)
 	}
 
 	// register the deprecated rpc servers
 	rpcutils.RegisterLocal("LoadBalancer", d.cpDao)
 	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+		return fmt.Errorf("could not register RPC server named LoadBalancer: %v", err)
 	}
-	rpcutils.RegisterLocal("ControlPlane", d.cpDao)
-	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+	rpcutils.RegisterLocal("ControlCenter", d.cpDao)
+	if err := d.rpcServer.RegisterName("ControlCenter", d.cpDao); err != nil {
+		return fmt.Errorf("could not register RPC server named ControlCenter: %v", err)
 	}
 	return nil
 }

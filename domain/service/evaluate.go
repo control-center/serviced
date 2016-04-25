@@ -333,7 +333,7 @@ func plus(a, b int) int {
 }
 
 func uintToInt(a uint64) int {
-    return int(a)    
+	return int(a)
 }
 
 // round value - convert to int64
@@ -364,6 +364,21 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildSer
 			if result != "" {
 				service.Endpoints[i].Application = result
 			}
+		}
+	}
+	return
+}
+
+// EvaluateEndpointTemplates parses and evaluates the "Environment" property of
+// this service.
+func (service *Service) EvaluateEnvironmentTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
+	for i, envvar := range service.Environment {
+		err, result := service.evaluateTemplate(gs, fc, instanceID, envvar)
+		if err != nil {
+			return err
+		}
+		if result != "" {
+			service.Environment[i] = result
 		}
 	}
 	return
@@ -433,6 +448,9 @@ func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, 
 		glog.Errorf("%+v", err)
 		return err
 	}
-
+	if err = service.EvaluateEnvironmentTemplate(getSvc, findChild, instanceID); err != nil {
+		glog.Errorf("%+v", err)
+		return err
+	}
 	return nil
 }
