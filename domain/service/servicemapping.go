@@ -29,6 +29,7 @@ var (
 		"Context":         {"type": "object", "index":"not_analyzed"},
 		"Description":     {"type": "string", "index":"not_analyzed"},
 		"DeploymentID":    {"type": "string", "index":"not_analyzed"},
+		"Environment":     {"type": "string", "index":"not_analyzed"},
 		"Tags":            {"type": "string", "index_name": "tag"},
 		"Instances":       {"type": "long",   "index":"not_analyzed"},
 		"InstancesLimits":       {
