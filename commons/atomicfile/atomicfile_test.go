@@ -20,37 +20,44 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestWriteFile(t *testing.T) {
+func TestAtomicFile(t *testing.T) { TestingT(t) }
 
+type TestAtomicFileSuite struct{}
+
+var _ = Suite(&TestAtomicFileSuite{})
+
+func (s *TestAtomicFileSuite) TestWriteFile(c *C) {
 	f, err := ioutil.TempFile("", "TestWriteFile")
 	if err != nil {
-		t.Fatalf("unexpected error creating tempfile: %s", err)
+		c.Fatalf("unexpected error creating tempfile: %s", err)
 	}
 	defer os.Remove(f.Name())
 	if err := f.Close(); err != nil {
-		t.Fatalf("error closing tempfile")
+		c.Fatalf("error closing tempfile")
 	}
 
 	expectedBytes := []byte("foobar")
 	if err := WriteFile(f.Name(), expectedBytes, 0660); err != nil {
-		t.Fatalf("unexpected error writing to atomic file: %s", err)
+		c.Fatalf("unexpected error writing to atomic file: %s", err)
 	}
 
 	data, err := ioutil.ReadFile(f.Name())
 	if err != nil {
-		t.Fatalf("trouble reading tempfile: %s", err)
+		c.Fatalf("trouble reading tempfile: %s", err)
 	}
 	if !reflect.DeepEqual(data, expectedBytes) {
-		t.Fatalf("got %+v expected %+v", data, expectedBytes)
+		c.Fatalf("got %+v expected %+v", data, expectedBytes)
 	}
 	stats, err := os.Stat(f.Name())
 	if err != nil {
-		t.Fatalf("error getting stats on file %s: %s", f.Name(), err)
+		c.Fatalf("error getting stats on file %s: %s", f.Name(), err)
 	}
 	newMode := stats.Mode()
 	if 0660 != newMode {
-		t.Fatalf("desired file mode (%04o) not successfully found (%04o)", 0660, newMode)
+		c.Fatalf("desired file mode (%04o) not successfully found (%04o)", 0660, newMode)
 	}
 }

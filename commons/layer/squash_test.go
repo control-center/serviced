@@ -16,13 +16,25 @@
 package layer
 
 import (
-	"github.com/fsouza/go-dockerclient"
-
 	"fmt"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/fsouza/go-dockerclient"
+
+	. "gopkg.in/check.v1"
 )
+
+type TestLayerSuite struct{
+	// add suite-specific data here such as mocks
+}
+
+// verify TestLayerSuite implements the Suite interface
+var _ = Suite(&TestLayerSuite{})
+
+// Wire gocheck into the go test runner
+func TestLayer(t *testing.T) { TestingT(t) }
 
 var errUnimplemented = fmt.Errorf("unimplemented")
 
@@ -94,16 +106,13 @@ var testCases = []testCase{
 
 // -rw-rw-r-- 1 dgarcia dgarcia 6656 Jun 20 13:02 ad892dd21d607a1458a722598a2e4d93015c4507abcd0ebfc16a43d4d1b41520.tar
 
-func TestSquash(t *testing.T) {
+func (s* TestLayerSuite) TestSquash(c *C) {
 	client := &mockClientT{}
 	for _, tc := range testCases {
 		client.exportContainerDatapaths = tc.exportContainerDatapaths
 		imageID, err := Squash(client, tc.layer, tc.downTo, "", "")
-		if err != tc.err {
-			t.Fatalf("unexpected err condition: %s, expected %+v", err, tc.err)
-		}
-		if imageID != tc.shouldBeEqualTo {
-			t.Fatalf("imageID should be '%s' instead of '%s'", tc.shouldBeEqualTo, imageID)
-		}
+
+		c.Assert(err, Equals, tc.err)
+		c.Assert(imageID, Equals, tc.shouldBeEqualTo)
 	}
 }

@@ -16,10 +16,10 @@
 package proc
 
 import (
-	"testing"
+	. "gopkg.in/check.v1"
 )
 
-func TestGetProcStat(t *testing.T) {
+func (s *TestProcSuite) TestGetProcStat(c *C) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -28,9 +28,7 @@ func TestGetProcStat(t *testing.T) {
 	procDir = ""
 
 	procStat, err := GetProcStat(0)
-	if err != nil {
-		t.Fatalf("could not get procstat: %s", err)
-	}
+	c.Assert(err, IsNil)
 
 	testProc := &ProcStat{
 		Pid:      10132,
@@ -40,7 +38,6 @@ func TestGetProcStat(t *testing.T) {
 		Pgrp:     10132,
 		Session:  2028,
 	}
-	if *testProc != *procStat {
-		t.Fatalf("%+v != %+v", testProc, procStat)
-	}
+
+	c.Assert(*testProc, Equals, *procStat)
 }
