@@ -910,6 +910,12 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
 		}
 		v.driver.DeviceSet.Unlock()
+		// unmount and remove the temporary mountpoint
+		if err := unmount(mountpoint); err != nil {
+			glog.Warningf("Could not unmount physical path %s: %s", mountpoint, err)
+		} else if err := os.RemoveAll(mountpoint); err != nil {
+			glog.Warningf("Could not remove physical path %s: %s", mountpoint, err)
+		}
 	}()
 
 	tarOut := tar.NewWriter(writer)
@@ -970,7 +976,10 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	defer func() {
 		mp := filepath.Join(mountpoint, label)
 		glog.V(2).Infof("Unmounting imported snapshot device %s", device)
-		if err := unmount(mp); err != nil {
+		// We use the provided UnmountDevice func here, rather than our own
+		// unmount(), because we DO care about Docker's internal bookkeeping
+		// here. Without this, DeviceSet.DeleteDevice will fail.
+		if err := v.driver.DeviceSet.UnmountDevice(device, mp); err != nil {
 			glog.V(2).Infof("Error unmounting (%s): %s", mp, err)
 		}
 		glog.V(2).Infof("Deactivating imported snapshot device %s", device)
@@ -979,6 +988,12 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
 		}
 		v.driver.DeviceSet.Unlock()
+		// unmount and remove the temporary mountpoint
+		if err := unmount(mp); err != nil {
+			glog.Warningf("Could not unmount physical path %s: %s", mountpoint, err)
+		} else if err := os.RemoveAll(mountpoint); err != nil {
+			glog.Warningf("Could not remove physical path %s: %s", mountpoint, err)
+		}
 	}()
 	// write volume and metadata
 	driverfile := fmt.Sprintf("%s-driver", label)
