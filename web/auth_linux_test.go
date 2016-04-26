@@ -188,15 +188,15 @@ func TestAuthentication(t *testing.T) {
 		user := tc.user
 		creds := login{Username: user.username, Password: tc.testPassword}
 		pamResult := pamValidateLoginOnly(&creds, adminGroup)
-		if (pamResult == nil) != tc.expectedPamResult {
+		if pamResult != tc.expectedPamResult {
 			t.Errorf("pam validation for user %s failed: %s", user.username, tc.description)
 		}
 		groupResult := isGroupMember(user.username, adminGroup)
-		if (groupResult == nil) != tc.expectedGroupResult {
+		if groupResult != tc.expectedGroupResult {
 			t.Errorf("group membership for user %s failed: %s", user.username, tc.description)
 		}
 		result := pamValidateLogin(&creds, adminGroup)
-		if (result == nil) != tc.expectedResult {
+		if result != tc.expectedResult {
 			t.Errorf("User Authentication for user %s failed: %s", user.username, tc.description)
 		}
 	}
