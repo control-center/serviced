@@ -38,25 +38,18 @@ func init() {
 	}
 }
 
-func isGroupMember(username, group string) error {
+func isGroupMember(username, group string) bool {
 	var cuser = C.CString(username)
 	defer C.free(unsafe.Pointer(cuser))
 	var cgroup = C.CString(group)
 	defer C.free(unsafe.Pointer(cgroup))
 	result := C.isGroupMember(cuser, cgroup)
 	glog.V(2).Infof("C.isGroupMember(%s, %s) returned %d.\n", username, group, result)
-
-	if result != 0 {
-		return nil
-	}
-	return fmt.Errorf("User %s is not member of group %s", username, group)
+	return (result != 0)
 }
 
-func pamValidateLogin(creds *login, group string) error {
-	if err := pamValidateLoginOnly(creds, group); err != nil {
-		return err
-	}
-	return isGroupMember(creds.Username, group)
+func pamValidateLogin(creds *login, group string) bool {
+	return pamValidateLoginOnly(creds, group) && isGroupMember(creds.Username, group)
 }
 
 func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
@@ -78,22 +71,22 @@ func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
 	}
 }
 
-func pamValidateLoginOnly(creds *login, group string) error {
+func pamValidateLoginOnly(creds *login, group string) bool {
 	t, err := pam.StartFunc("sudo", "", makePamConvHandler(creds))
 	if err != nil {
 		glog.Errorf("Start: %s", err.Error())
-		return err
+		return false
 	}
 	err = t.Authenticate(0)
 	if err != nil {
-		glog.V(2).Infof("Authentication failed for user %s: Authenticate error: %s", creds.Username, err.Error())
-		return err
+		glog.Errorf("Authentication failed for user %s: Authenticate error: %s", creds.Username, err.Error())
+		return false
 	}
 	err = t.AcctMgmt(pam.Silent)
 	if err != nil {
-		glog.V(2).Infof("Authentication failed for user %s: AcctMgmt error: %s", creds.Username, err.Error())
-		return err
+		glog.Errorf("Authentication failed for user %s: AcctMgmt error: %s", creds.Username, err.Error())
+		return false
 	}
 
-	return nil
+	return true
 }
