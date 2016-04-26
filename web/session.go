@@ -167,7 +167,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 		return
 	}
 
-	if err := pamValidateLogin(&creds, adminGroup); (err == nil) || cpValidateLogin(&creds, client) {
+	if pamValidateLogin(&creds, adminGroup) || cpValidateLogin(&creds, client) {
 		sessionsLock.Lock()
 		defer sessionsLock.Unlock()
 
@@ -198,7 +198,6 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 
 		w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 	} else {
-		glog.Errorf("Unable to validate credentials for user %s: PAM error: %s", creds.Username, err)
 		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
 	}
 }

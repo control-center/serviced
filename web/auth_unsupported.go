@@ -17,11 +17,9 @@ package web
 
 import (
 	"github.com/zenoss/glog"
-
-	"errors"
 )
 
 func pamValidateLogin(_ *login, _ string) bool {
 	glog.Errorf("pamValidateLogin is not supported on this platform")
-	return errors.New("pamValidateLogin is not supported on this platform")
+	return false
 }
