@@ -979,7 +979,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		// We use the provided UnmountDevice func here, rather than our own
 		// unmount(), because we DO care about Docker's internal bookkeeping
 		// here. Without this, DeviceSet.DeleteDevice will fail.
-		if err := v.driver.DeviceSet.UnmountDevice(device, mp); err != nil {
+		if err := v.driver.DeviceSet.UnmountDevice(device); err != nil {
 			glog.V(2).Infof("Error unmounting (%s): %s", mp, err)
 		}
 		glog.V(2).Infof("Deactivating imported snapshot device %s", device)
