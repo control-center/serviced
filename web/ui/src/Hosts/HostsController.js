@@ -4,8 +4,13 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory", "servicesFactory",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory, servicesFactory){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location",
+        "$filter", "resourcesFactory", "authService", "$modalService",
+        "$interval", "$translate", "$notification", "miscUtils", "hostsFactory",
+        "poolsFactory", "servicesFactory", "areUIReady",
+    function($scope, $routeParams, $location, $filter, resourcesFactory,
+    authService, $modalService, $interval, $translate, $notification,
+    utils, hostsFactory, poolsFactory, servicesFactory, areUIReady){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -21,6 +26,7 @@
         };
 
         $scope.modalAddHost = function() {
+            areUIReady.lock();
             $modalService.create({
                 templateUrl: "add-host.html",
                 model: $scope,
@@ -70,6 +76,9 @@
                         return false;
                     }
                     return true;
+                },
+                onShow: () => {
+                    areUIReady.unlock();
                 }
             });
         };
