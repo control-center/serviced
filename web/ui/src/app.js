@@ -26,7 +26,7 @@ var controlplane = angular.module('controlplane', [
     'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'healthStatus',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
-    'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady'
+    'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log'
 ]);
 
 controlplane.
@@ -162,8 +162,8 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(["$rootScope", "$window", "$location", "areUIReady",
-    function($rootScope, $window, $location, areUIReady){
+    .run(["$rootScope", "$window", "$location", "areUIReady", "log",
+    function($rootScope, $window, $location, areUIReady, log){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
@@ -177,6 +177,12 @@ controlplane.
         if(queryParams["disable-animation"] === "true"){
             disableAnimation = true;
             $("body").addClass("no-animation");
+        }
+
+        // set log level
+        if(queryParams["loglevel"]){
+            log.setLogLevel(log.level[queryParams["loglevel"]]);
+            log.info(`set log level to ${queryParams["loglevel"]}`);
         }
 
         var loaderEl = $(".loading_wrapper"),

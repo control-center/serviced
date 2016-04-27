@@ -5,13 +5,6 @@
 (function(){
     "use strict";
 
-    const DEBUG = true;
-    let debug = function(...args){
-        if(DEBUG){
-            console.log(...args);
-        }
-    };
-
     let rgx = /\(([^)]+)\)/;
     // gets name of the calling function from
     // stack trace. this is hardcoded to step up
@@ -27,7 +20,8 @@
     };
 
     class ReadyState {
-        constructor(){
+        constructor(log){
+            this.log = log;
             this.locked = false;
             this.lockCount = 0;
             this.onLock = ()=>{};
@@ -40,22 +34,24 @@
                 this.onLock(this);
             }
             this.lockCount++;
-            debug("lock count is now", this.lockCount, getCallingFn());
+            this.log.info("lock count is now", this.lockCount, getCallingFn());
         }
 
         unlock(){
             /*
+            // NOTE - uncomment to reimplement lock counting
             if(this.lockCount === 0){
                 // can't unlock because none are locked
-                debug("unable to unlock UI, UI is not locked");
+                this.log.info("unable to unlock UI, UI is not locked");
                 return;
             }*/
 
             this.lockCount--;
-            debug("lock count is now", this.lockCount);
+            this.log.info("lock count is now", this.lockCount);
 
+            // NOTE - uncomment to reimplement lock counting
             //if(this.lockCount === 0){
-                debug("ui is unlocked!", getCallingFn());
+                this.log.info("ui is unlocked!", getCallingFn());
                 this.locked = false;
                 this.onUnlock(this);
             //}
@@ -67,5 +63,5 @@
     }
 
     angular.module("areUIReady", [])
-        .service("areUIReady", ReadyState);
+        .service("areUIReady", ["log", ReadyState]);
 })();
