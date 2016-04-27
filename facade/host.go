@@ -157,6 +157,16 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 				glog.Errorf("Could not check ip %s in pool %s while restoring host %s: %s", host.IPAddr, host.PoolID, host.ID, err)
 				return err
 			} else if !exists {
+				// is this host in the database?
+				if h, err := f.GetHost(ctx, host.ID); err == nil {
+					if h.PoolID != host.PoolID {
+						if err := f.removeHost(ctx, host.ID, false); err != nil {
+							glog.Errorf("Could not restore host %s (%s): %s", host.PoolID, host.IPAddr, err)
+							return err
+						}
+						glog.Infof("Restoring host %s (%s) to a different pool; restart this host", host.PoolID, host.IPAddr)
+					}
+				}
 				if err := f.addHost(ctx, &host); err != nil {
 					glog.Errorf("Could not add host %s to pool %s: %s", host.ID, host.PoolID, err)
 					return err
@@ -178,7 +188,10 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
+	return f.removeHost(ctx, hostID, true)
+}
 
+func (f *Facade) removeHost(ctx datastore.Context, hostID string, setIPs bool) (err error) {
 	//assert valid host
 	var _host *host.Host
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
@@ -202,31 +215,30 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
 		return err
 	}
-
-	//grab all services that are address assigned the host's IPs
-	var services []service.Service
-	for _, ip := range _host.IPs {
-		query := []string{fmt.Sprintf("Endpoints.AddressAssignment.IPAddr:%s", ip.IPAddress)}
-		svcs, err := f.GetTaggedServices(ctx, query)
-		if err != nil {
-			glog.Errorf("Failed to grab services with endpoints assigned to ip %s on host %s: %s", ip.IPAddress, _host.Name, err)
-			return err
+	if setIPs {
+		//grab all services that are address assigned the host's IPs
+		var services []service.Service
+		for _, ip := range _host.IPs {
+			query := []string{fmt.Sprintf("Endpoints.AddressAssignment.IPAddr:%s", ip.IPAddress)}
+			svcs, err := f.GetTaggedServices(ctx, query)
+			if err != nil {
+				glog.Errorf("Failed to grab services with endpoints assigned to ip %s on host %s: %s", ip.IPAddress, _host.Name, err)
+				return err
+			}
+			services = append(services, svcs...)
 		}
-		services = append(services, svcs...)
+		// update address assignments
+		for _, svc := range services {
+			request := addressassignment.AssignmentRequest{
+				ServiceID:      svc.ID,
+				IPAddress:      "",
+				AutoAssignment: true,
+			}
+			if err = f.AssignIPs(ctx, request); err != nil {
+				glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
+			}
+		}
 	}
-
-	// update address assignments
-	for _, svc := range services {
-		request := addressassignment.AssignmentRequest{
-			ServiceID:      svc.ID,
-			IPAddress:      "",
-			AutoAssignment: true,
-		}
-		if err = f.AssignIPs(ctx, request); err != nil {
-			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
-		}
-	}
-
 	return nil
 }
 
