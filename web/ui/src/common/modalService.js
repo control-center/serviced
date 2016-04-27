@@ -25,7 +25,7 @@
 
             var defaultRoles = {
                 "cancel": {
-                    label: "Cancel",
+                    label: "btn_cancel",
                     icon: "glyphicon-remove",
                     classes: "btn-link minor",
                     action: function(){
