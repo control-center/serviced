@@ -171,7 +171,7 @@ func (s *FacadeIntegrationTest) TestRestoreHosts(c *C) {
 	hosts3 := []host.Host{
 		{
 			ID:      "deadb11f",
-			PoolID:  "poolid2",
+			PoolID:  "poolid",
 			Name:    "h1",
 			IPAddr:  "192.168.0.1",
 			RPCPort: 65535,

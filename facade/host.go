@@ -158,14 +158,15 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 				return err
 			} else if !exists {
 				// is this host in the database?
-				if h, err := f.GetHost(ctx, host.ID); err == nil {
-					if h.PoolID != host.PoolID {
-						if err := f.removeHost(ctx, host.ID, false); err != nil {
-							glog.Errorf("Could not restore host %s (%s): %s", host.PoolID, host.IPAddr, err)
-							return err
-						}
-						glog.Infof("Restoring host %s (%s) to a different pool; restart this host", host.PoolID, host.IPAddr)
+				if h, err := f.GetHost(ctx, host.ID); err != nil {
+					glog.Errorf("Could not look up host %s: %s", host.ID, err)
+					return err
+				} else if h != nil && h.PoolID != host.PoolID {
+					if err := f.removeHost(ctx, host.ID, false); err != nil {
+						glog.Errorf("Could not restore host %s (%s): %s", host.PoolID, host.IPAddr, err)
+						return err
 					}
+					glog.Infof("Restoring host %s (%s) to a different pool; restart this host", host.PoolID, host.IPAddr)
 				}
 				if err := f.addHost(ctx, &host); err != nil {
 					glog.Errorf("Could not add host %s to pool %s: %s", host.ID, host.PoolID, err)
