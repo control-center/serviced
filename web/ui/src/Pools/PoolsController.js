@@ -6,8 +6,12 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter", "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "poolsFactory",
-    function($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification, utils, poolsFactory){
+    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter",
+        "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
+        "miscUtils", "poolsFactory", "areUIReady",
+    function($scope, $routeParams, $location, $filter, $timeout,
+    resourcesFactory, authService, $modalService, $translate, $notification,
+    utils, poolsFactory, areUIReady){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -50,6 +54,7 @@
 
         // Function for opening add pool modal
         $scope.modalAddPool = function() {
+            areUIReady.lock();
             $scope.newPool = {};
             $modalService.create({
                 templateUrl: "add-pool.html",
@@ -82,7 +87,10 @@
                             }
                         }
                     }
-                ]
+                ],
+                onShow: () => {
+                    areUIReady.unlock();
+                }
             });
         };
 

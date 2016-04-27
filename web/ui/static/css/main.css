@@ -1234,10 +1234,10 @@ input.startup {
 
 .icon-spin {
     display: inline-block;
-    -moz-animation: spin 2s infinite linear;
-    -o-animation: spin 2s infinite linear;
-    -webkit-animation: spin 2s infinite linear;
-    animation: spin 2s infinite linear;
+    -moz-animation: spin 1s infinite linear;
+    -o-animation: spin 1s infinite linear;
+    -webkit-animation: spin 1s infinite linear;
+    animation: spin 1s infinite linear;
 }
 
 @-moz-keyframes spin {
@@ -1930,4 +1930,18 @@ body.no-animation * {
     -moz-animation: none !important;
     -ms-animation: none !important;
     -webkit-animation: none !important;
+}
+
+.uilock {
+    position: fixed;
+    left: 10px;
+    bottom: 10px;
+    color: #CCC;
+}
+.uilock:before {
+    font-family: 'Glyphicons Halflings';
+    -webkit-font-smoothing: antialiased;
+    font-style: normal;
+    font-weight: normal;
+    content: "\e031";
 }

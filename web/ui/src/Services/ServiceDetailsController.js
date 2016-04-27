@@ -10,11 +10,14 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies",
+    "poolsFactory", "CCUIState", "$cookies", "areUIReady",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies){
+    poolsFactory, CCUIState, $cookies, areUIReady){
+
+        // lock the page while controller comes up
+        areUIReady.lock();
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -978,6 +981,12 @@
                 current: servicesFactory.get($scope.params.serviceId)
             };
 
+            // if we already have a current service,
+            // look out world!
+            if($scope.services.current){
+                areUIReady.unlock();
+            }
+
             $scope.ips = {};
             $scope.pools = [];
 
@@ -987,6 +996,10 @@
                 // if no current service is set, try to set one
                 if(!$scope.services.current) {
                     $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                    // probably just set the current service for the first time
+                    if($scope.services.current){
+                        areUIReady.unlock();
+                    }
                 }
 
                 if($scope.services.current) {
