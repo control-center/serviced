@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies", "areUIReady",
+    "poolsFactory", "CCUIState", "$cookies", "areUIReady", "log",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies, areUIReady){
+    poolsFactory, CCUIState, $cookies, areUIReady, log){
 
         // lock the page while controller comes up
         areUIReady.lock();
@@ -804,7 +804,7 @@
 
         $scope.toggleChildren = function(service){
             if(!$scope.services.current){
-                console.warn("Cannot store toggle state: no current service");
+                log.warn("Cannot store toggle state: no current service");
                 return;
             }
 
@@ -1006,7 +1006,7 @@
                     return $scope.services.current.isDirty();
                 } else {
                     // there is no current service
-                    console.warn("current service not yet available");
+                    log.warn("current service not yet available");
                     return undefined;
                 }
             }, $scope.update);

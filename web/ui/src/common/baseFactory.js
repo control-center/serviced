@@ -20,15 +20,16 @@
     const DEFAULT_UPDATE_FREQUENCY = 3000;
     var updateFrequency = DEFAULT_UPDATE_FREQUENCY;
 
-    var $q, $interval, $rootScope;
+    var $q, $interval, $rootScope, log;
 
     angular.module('baseFactory', []).
-    factory("baseFactory", ["$q", "$interval", "$rootScope", "servicedConfig",
-    function(_$q, _$interval, _$rootScope, servicedConfig){
+    factory("baseFactory", ["$q", "$interval", "$rootScope", "servicedConfig", "log",
+    function(_$q, _$interval, _$rootScope, servicedConfig, _log){
 
         $q = _$q;
         $interval = _$interval;
         $rootScope = _$rootScope;
+        log = _log;
 
         servicedConfig.getConfig()
             .then(config => {
@@ -38,7 +39,7 @@
                 if(err.data && err.data.Detail){
                     errMessage = err.data.Detail;
                 }
-                console.error("could not load serviced config:", errMessage);
+                log.error("could not load serviced config:", errMessage);
             });
 
         return BaseFactory;
@@ -105,7 +106,7 @@
                     deferred.resolve();
                 })
                 .error((data, status) => {
-                    console.warn("Unable to update factory", data);
+                    log.warn("Unable to update factory", data);
                 })
                 .finally(() => {
                     // notify the first request is complete

@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory",
-    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory", "log",
+    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory, log){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -341,7 +341,7 @@
                             }
                         })
                         .error(function(err){
-                            console.warn("Error getting deploy status", err);
+                            log.warn("Error getting deploy status", err);
                         })
                         .finally(function(){
                             getStatus();
@@ -390,7 +390,7 @@
             .then(() => {
                 hostsFactory.update().finally(resetStepPage);
             }, e => {
-                console.error(e);
+                log.error(e);
             });
 
         poolsFactory.update()
