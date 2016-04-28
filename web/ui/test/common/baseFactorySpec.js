@@ -9,10 +9,11 @@ describe('baseFactory', function() {
 
     // load up mock services
     beforeEach(function(){
+        module(logMock);
         module(resourcesFactoryMock);
     });
 
-    var $q, $interval, scope;
+    var $q, $interval, scope, log;
     beforeEach(inject(function($injector){
         $q = $injector.get("$q");
         $interval = $injector.get("$interval");

@@ -914,12 +914,8 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
 		}
 		v.driver.DeviceSet.Unlock()
-		// unmount and remove the temporary mountpoint
-		if err := unmount(mountpoint); err != nil {
-			glog.Warningf("Could not unmount physical path %s: %s", mountpoint, err)
-		} else if err := os.RemoveAll(mountpoint); err != nil {
-			glog.Warningf("Could not remove physical path %s: %s", mountpoint, err)
-		}
+		// Be a good citizen and clean up the mountpoint
+		os.RemoveAll(mountpoint)
 	}()
 
 	tarOut := tar.NewWriter(writer)
@@ -992,12 +988,6 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
 		}
 		v.driver.DeviceSet.Unlock()
-		// unmount and remove the temporary mountpoint
-		if err := unmount(mp); err != nil {
-			glog.Warningf("Could not unmount physical path %s: %s", mountpoint, err)
-		} else if err := os.RemoveAll(mountpoint); err != nil {
-			glog.Warningf("Could not remove physical path %s: %s", mountpoint, err)
-		}
 	}()
 	// write volume and metadata
 	driverfile := fmt.Sprintf("%s-driver", label)
