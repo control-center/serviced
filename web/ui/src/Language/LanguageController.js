@@ -4,11 +4,11 @@
 (function() {
     'use strict';
 
-    controlplane.controller("LanguageController", ["$scope", "$cookies", "$translate", "miscUtils",
-    function($scope, $cookies, $translate, utils) {
+    controlplane.controller("LanguageController", ["$scope", "$cookies", "$translate", "miscUtils", "log",
+    function($scope, $cookies, $translate, utils, log) {
         $scope.name = 'language';
         $scope.setUserLanguage = function() {
-            console.log('User clicked', $scope.user.language);
+            log.log('User clicked', $scope.user.language);
             $cookies.Language = $scope.user.language;
             utils.updateLanguage($scope, $cookies, $translate);
         };

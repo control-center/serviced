@@ -6,6 +6,7 @@ describe('LanguageController', function() {
     var miscUtils = null
 
     beforeEach(module('controlplaneTest'));
+    beforeEach(module(logMock));
     beforeEach(module(miscUtilsMock));
 
     beforeEach(inject(function($injector) {
