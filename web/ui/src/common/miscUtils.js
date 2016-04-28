@@ -6,8 +6,8 @@
     "use strict";
 
     angular.module("miscUtils", [])
-    .factory("miscUtils", [ "$parse",
-    function($parse){
+    .factory("miscUtils", [ "$parse", "log",
+    function($parse, log){
 
         //polyfill endsWith so phantomjs won't complain :/
         if (!String.prototype.endsWith) {
@@ -26,7 +26,7 @@
 
             // TODO - use angular $location object to make this testable
             unauthorized: function() {
-                console.error('You don\'t appear to be logged in.');
+                log.error('You don\'t appear to be logged in.');
                 // show the login page and then refresh so we lose any incorrect state. CC-279
                 window.location.href = "/#/login";
                 window.location.reload();

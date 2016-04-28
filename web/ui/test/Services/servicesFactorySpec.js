@@ -13,6 +13,7 @@ describe('servicesFactory', function() {
 
     // load up mock services
     beforeEach(function(){
+        module(logMock);
         module(resourcesFactoryMock);
         module(instancesFactoryMock);
         module(translateMock);
@@ -247,6 +248,7 @@ describe('servicesFactory Service object', function() {
 
     // load up mock services
     beforeEach(function(){
+        module(logMock);
         module(resourcesFactoryMock);
         module(instancesFactoryMock);
         module(translateMock);

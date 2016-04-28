@@ -26,7 +26,7 @@ var controlplane = angular.module('controlplane', [
     'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'healthStatus',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
-    'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig'
+    'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log'
 ]);
 
 controlplane.
@@ -162,7 +162,8 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(function($rootScope, $window, $location){
+    .run(["$rootScope", "$window", "$location", "areUIReady", "log",
+    function($rootScope, $window, $location, areUIReady, log){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
@@ -176,6 +177,12 @@ controlplane.
         if(queryParams["disable-animation"] === "true"){
             disableAnimation = true;
             $("body").addClass("no-animation");
+        }
+
+        // set log level
+        if(queryParams["loglevel"]){
+            log.setLogLevel(log.level[queryParams["loglevel"]]);
+            log.info(`set log level to ${queryParams["loglevel"]}`);
         }
 
         var loaderEl = $(".loading_wrapper"),
@@ -199,4 +206,15 @@ controlplane.
             }, 1000);
 
         });
-    });
+
+        // tiny but visible loading indicator
+        // if the UI is busy
+        var uiLockEl = $("<div class='uilock icon-spin' style='display: none;'></div>");
+        $("body").append(uiLockEl);
+        areUIReady.onLock = function(){
+            uiLockEl.show();
+        };
+        areUIReady.onUnlock = function(){
+            uiLockEl.hide();
+        };
+    }]);
