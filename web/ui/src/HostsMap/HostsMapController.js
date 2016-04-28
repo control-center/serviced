@@ -4,8 +4,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils", "hostsFactory", "poolsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, utils, hostsFactory, poolsFactory) {
+    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils", "hostsFactory", "poolsFactory", "log",
+    function($scope, $routeParams, $location, resourcesFactory, authService, utils, hostsFactory, poolsFactory, log) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -77,7 +77,7 @@
         };
 
         var selectNewRoot = function(newroot) {
-            console.log('Selected %s', newroot.Id);
+            log.log('Selected', newroot.Id);
             var node = d3.select("#hostmap").
                 datum(newroot).
                 selectAll(".node").
@@ -103,11 +103,11 @@
                 return;
             }
             if (hostsAddedToPools) {
-                console.log('Already built');
+                log.log('Already built');
                 return;
             }
 
-            console.log('Preparing tree map');
+            log.log('Preparing tree map');
             hostsAddedToPools = true;
             hostsFactory.hostList.forEach((host) => {
                 let pool = poolsFactory.get(host.model.PoolID);

@@ -26,7 +26,8 @@ var lastMessage;
      * @requires $templateCache
      */
 
-     factory('$notification', ['$rootScope', '$templateCache', '$translate', function ($rootScope, $templateCache, $translate) {
+     factory('$notification', ['$rootScope', '$templateCache', '$translate', "log",
+     function ($rootScope, $templateCache, $translate, log) {
         var notificationFactory;
 
         var notificationTemplate = '<div class="bg-info notification" style="display:none;">\
@@ -76,7 +77,7 @@ var lastMessage;
                 this.$el.find(".close").show().off().on("click", this.onClose);
                 notificationFactory.store(this);
                 this.show(autoclose);
-                
+
                 return this;
             },
 
@@ -167,7 +168,7 @@ var lastMessage;
                 // if $attachPoint is no longer in the document
                 // use the default attachPoint
                 if(!$.contains(document, this.$attachPoint[0])){
-                    this.$attachPoint = $("#notifications"); 
+                    this.$attachPoint = $("#notifications");
                 }
                 this.$attachPoint.append(this.$el);
 
@@ -252,7 +253,7 @@ var lastMessage;
                     // de-dup messages
                     for(var i=0; i<this.$storage.length; ++i){
                         var message = this.$storage[i];
-                        console.log(notification.msg + " === " + message.msg);
+                        log.log(notification.msg + " === " + message.msg);
                         if(message && notification.msg === message.msg){
                             ++message.count;
                             return true;

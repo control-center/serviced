@@ -6,6 +6,7 @@ describe('miscUtils', function() {
 
     beforeEach(module('controlplaneTest'));
     beforeEach(module('miscUtils'));
+    beforeEach(module(logMock));
 
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();

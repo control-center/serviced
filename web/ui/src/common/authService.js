@@ -1,12 +1,12 @@
 /* authService.js
  * determine if user is authorized
- */ 
+ */
 (function(){
     "use strict";
 
     angular.module("authService", [])
-    .factory("authService", ["$cookies", "$cookieStore", "$location", "$http", "$notification", "miscUtils",
-    function($cookies, $cookieStore, $location, $http, $notification, utils) {
+    .factory("authService", ["$cookies", "$cookieStore", "$location", "$http", "$notification", "miscUtils", "log",
+    function($cookies, $cookieStore, $location, $http, $notification, utils, log) {
         var loggedIn = false;
         var userName = null;
 
@@ -49,7 +49,7 @@
                     error(function(data, status) {
                         // On failure to logout, note the error
                         // TODO error screen
-                        console.error('Unable to log out. Were you logged in to begin with?');
+                        log.error('Unable to log out. Were you logged in to begin with?');
                     });
             },
 
