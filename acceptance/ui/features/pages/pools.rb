@@ -2,7 +2,7 @@ require_relative 'navbar'
 require 'site_prism'
 
 class Pools < SitePrism::Page
-    set_url applicationURL("#/pools?disable-animation=true")
+    set_url applicationURL("#/pools?disable-animation=true&loglevel=debug")
     set_url_matcher /pools/
 
     section :navbar, NavBarSection, ".navbar-collapse"

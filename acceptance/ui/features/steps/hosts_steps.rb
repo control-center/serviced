@@ -110,35 +110,25 @@ def visitHostsPage()
 end
 
 def fillInHost(host)
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
     @hosts_page.hostHost_input.set getTableValue(host)
 end
 
 def fillInPort(port)
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
     @hosts_page.rpcPort_input.set getTableValue(port)
 end
 
 def fillInResourcePool(pool)
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
     @hosts_page.resourcePool_input.select getTableValue(pool)
 end
 
 def fillInRAMLimit(commitment)
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
     @hosts_page.ramLimit_input.set getTableValue(commitment)
 end
 
 def clickAddHostButton()
     @hosts_page.addHost_button.click
+    # wait till modal is done loading
+    @hosts_page.should have_no_css(".uilock", :visible => true)
 end
 
 def addHost(name, port, pool, commitment, hostID)
