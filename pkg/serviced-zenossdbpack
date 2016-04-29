@@ -1,0 +1,3 @@
+#!/bin/sh
+
+${SERVICED:=/opt/serviced/bin/serviced} service run zope zenossdbpack
