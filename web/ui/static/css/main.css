@@ -1912,7 +1912,9 @@ body.loading {
     font-size: 1.4em;
 }
 
-body.no-animation * {
+body.no-animation *,
+body.no-animation *:before,
+body.no-animation *:after {
     transition-property: none !important;
     -o-transition-property: none !important;
     -moz-transition-property: none !important;
@@ -1930,6 +1932,8 @@ body.no-animation * {
     -moz-animation: none !important;
     -ms-animation: none !important;
     -webkit-animation: none !important;
+
+    transition: none !important;
 }
 
 .uilock {
