@@ -270,9 +270,8 @@ func setImportedEndpoint(c *Controller, endpointID, instanceID, virtualAddress, 
 	glog.Infof("  cached imported endpoint[%s]: %+v", key, ie)
 }
 
+// NOTE - the caller must assume responsibility for acquiring a read lock on importedEndpointsLock
 func (c *Controller) getMatchingEndpoint(id string) *importedEndpoint {
-	c.importedEndpointsLock.RLock()
-	defer c.importedEndpointsLock.RUnlock()
 	for _, ie := range c.importedEndpoints {
 		endpointPattern := fmt.Sprintf("^%s$", registry.TenantEndpointKey(c.tenantID, ie.endpointID))
 		glog.V(2).Infof("  checking tenantEndpointID %s against pattern %s", id, endpointPattern)
@@ -304,9 +303,11 @@ func (c *Controller) watchRemotePorts() {
 	cMuxPort = uint16(c.options.Mux.Port)
 	cMuxTLS = c.options.Mux.TLS
 
+	c.importedEndpointsLock.RLock()
 	for key, endpoint := range c.importedEndpoints {
 		glog.V(2).Infof("importedEndpoints[%s]: %+v", key, endpoint)
 	}
+	c.importedEndpointsLock.RUnlock()
 
 	var err error
 	c.zkInfo, err = getAgentZkInfo(c.options.ServicedEndpoint)
@@ -341,7 +342,9 @@ func (c *Controller) watchRemotePorts() {
 	}()
 
 	processTenantEndpoints := func(conn coordclient.Connection, parentPath string, tenantEndpointIDs ...string) {
-		glog.V(2).Infof("processTenantEndpoints for path: %s tenantEndpointIDs: %s", parentPath, tenantEndpointIDs)
+		glog.Infof("processTenantEndpoints for path: %s tenantEndpointIDs: %s", parentPath, tenantEndpointIDs)
+		c.importedEndpointsLock.RLock()
+		defer c.importedEndpointsLock.RUnlock()
 
 		// cancel watcher on top level /endpoints if all watchers on imported endpoints have been set up
 		{
@@ -439,6 +442,8 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	parts := strings.Split(parentPath, "/")
 	tenantEndpointID := parts[len(parts)-1]
 
+	c.importedEndpointsLock.RLock()
+	defer c.importedEndpointsLock.RUnlock()
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
 		endpoints := make(map[int]applicationendpoint.ApplicationEndpoint, len(hostContainerIDs))
 		for ii, hostContainerID := range hostContainerIDs {
