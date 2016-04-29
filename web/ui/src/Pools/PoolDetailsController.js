@@ -6,8 +6,12 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils, hostsFactory, poolsFactory){
+    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location",
+    "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
+    "miscUtils", "hostsFactory", "poolsFactory", "areUIReady",
+    function($scope, $routeParams, $location, resourcesFactory,
+    authService, $modalService, $translate, $notification, utils,
+    hostsFactory, poolsFactory, areUIReady){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -62,6 +66,7 @@
 
         // Open the virtual ip modal
         $scope.modalAddVirtualIp = function(pool) {
+            areUIReady.lock();
             $scope.add_virtual_ip = {'PoolID': pool.id, 'IP':"", 'Netmask':"", 'BindInterface':""};
             $modalService.create({
                 templateUrl: "pool-add-virtualip.html",
@@ -93,7 +98,10 @@
                             }
                         }
                     }
-                ]
+                ],
+                onShow: function(){
+                    areUIReady.unlock();
+                }
             });
         };
 

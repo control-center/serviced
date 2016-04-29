@@ -110,6 +110,8 @@ def visitHostsPage()
 end
 
 def fillInHost(host)
+    # hosts can be added from deploy wizard, so
+    # the hosts_page object might not exist
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
@@ -117,6 +119,8 @@ def fillInHost(host)
 end
 
 def fillInPort(port)
+    # hosts can be added from deploy wizard, so
+    # the hosts_page object might not exist
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
@@ -124,6 +128,8 @@ def fillInPort(port)
 end
 
 def fillInResourcePool(pool)
+    # hosts can be added from deploy wizard, so
+    # the hosts_page object might not exist
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
@@ -131,6 +137,8 @@ def fillInResourcePool(pool)
 end
 
 def fillInRAMLimit(commitment)
+    # hosts can be added from deploy wizard, so
+    # the hosts_page object might not exist
     if @hosts_page == nil
          @hosts_page = Hosts.new
     end
@@ -139,6 +147,8 @@ end
 
 def clickAddHostButton()
     @hosts_page.addHost_button.click
+    # wait till modal is done loading
+    expect(@hosts_page).to have_no_css(".uilock", :visible => true)
 end
 
 def addHost(name, port, pool, commitment, hostID)

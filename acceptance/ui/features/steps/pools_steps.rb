@@ -143,6 +143,8 @@ end
 
 def clickAddPoolButton()
     @pools_page.addPool_button.click()
+    # wait till modal is done loading
+    expect(@pools_page).to have_no_css(".uilock", :visible => true)
 end
 
 def fillInResourcePoolField(name)
