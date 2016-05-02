@@ -235,7 +235,7 @@ type portRequest struct {
 	ServiceID   string
 	Application string
 	PortName    string
-	TLS			bool
+	UseTLS		bool
 	Protocol    string
 }
 
@@ -377,15 +377,15 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
-	err = service.AddPort(request.Application, scrubbedPort, request.TLS, request.Protocol)
+	err = service.AddPort(request.Application, scrubbedPort, request.UseTLS, request.Protocol)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(2).Infof("Port (%s) added to service (%s), TLS=%s, protocol=%s",
-					request.PortName, service.Name, request.TLS, request.Protocol)
+	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
+					request.PortName, service.Name, request.UseTLS, request.Protocol)
 
 	var unused int
 	err = client.UpdateService(*service, &unused)

@@ -244,7 +244,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		if err != nil {
 			glog.Fatalf("could not setup HTTPS webserver: %s", err)
 		}
-	}()	
+	}()
 	blockerChan := make(chan bool)
 	<-blockerChan
 }

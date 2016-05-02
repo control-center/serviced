@@ -97,7 +97,7 @@ type VHost struct {
 type Port struct {
 	PortAddr string // which port number to use for this endpoint
 	Enabled  bool   // whether the port should be enabled or disabled.
-	TLS      bool   // Does this port endpoint use tls.
+	UseTLS   bool   // Does this port endpoint use tls.
 	Protocol string // What protocol (if any) does the endpoind use.
 }
 

@@ -45,10 +45,10 @@
 
         $scope.modalAddPublicEndpoint = function() {
             $scope.protocols = [];
-            $scope.protocols.push({ Label: "HTTPS", TLS: true, Protocol: "https" });
-            $scope.protocols.push({ Label: "HTTP", TLS: false, Protocol: "http" });
-            $scope.protocols.push({ Label: "Other, secure (TLS)", TLS: true, Protocol: "" });
-            $scope.protocols.push({ Label: "Other, non-secure", TLS: false, Protocol: "" });            
+            $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
+            $scope.protocols.push({ Label: "HTTP", UseTLS: false, Protocol: "http" });
+            $scope.protocols.push({ Label: "Other, secure (TLS)", UseTLS: true, Protocol: "" });
+            $scope.protocols.push({ Label: "Other, non-secure", UseTLS: false, Protocol: "" });            
             
             // default public endpoint options
             $scope.publicEndpoints.add = {
@@ -59,7 +59,7 @@
                 port: "",
                 protocol: $scope.protocols[0],
             };
-            
+
             // returns an error string if newPublicEndpoint's vhost is invalid
             var validateVHost = function(newPublicEndpoint){
                 var name = newPublicEndpoint.name;
@@ -189,9 +189,9 @@
                 var port = newPublicEndpoint.host + ":" + newPublicEndpoint.port;
                 var serviceId = newPublicEndpoint.app_ep.ApplicationId;
                 var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
-                var tls = newPublicEndpoint.protocol.TLS;
+                var usetls = newPublicEndpoint.protocol.UseTLS;
                 var protocol = newPublicEndpoint.protocol.Protocol;
-                return resourcesFactory.addPort(serviceId, serviceEndpoint, port, tls, protocol);
+                return resourcesFactory.addPort(serviceId, serviceEndpoint, port, usetls, protocol);
             }
         };
 
@@ -312,7 +312,7 @@
                     host = $scope.defaultHostAlias;
                 }
                 if(protocol !== "") {
-                    return "http" + (publicEndpoint.TLS ? "s" : "") + "://" + host + publicEndpoint.PortAddr;
+                    return "http" + (publicEndpoint.UseTLS ? "s" : "") + "://" + host + publicEndpoint.PortAddr;
                 } else {
                     return host + publicEndpoint.PortAddr;
                 }
@@ -326,7 +326,7 @@
                 if (publicEndpoint.Protocol !== "") {
                     return publicEndpoint.Protocol;
                 }
-                if (publicEndpoint.TLS) {
+                if (publicEndpoint.UseTLS) {
                     return "other (TLS)";
                 }
                 return "other";

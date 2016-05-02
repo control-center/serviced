@@ -77,13 +77,13 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 
 func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpointNode, stopChan chan bool, shutdown <-chan (interface{})) error {
 	port := node.Name
-	useTLS := node.TLS
+	useTLS := node.UseTLS
 
 	// Declare our listener..
 	var listener net.Listener
 	var err error
 
-	glog.V(1).Infof("About to listen on port %s; TLS=%t", port, useTLS)
+	glog.V(1).Infof("About to listen on port %s; UseTLS=%t", port, useTLS)
 
 	if useTLS {
 		// Gather our certs files.
@@ -124,7 +124,7 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 		return err
 	}
 
-	glog.Infof("Listening on port %s; TLS=%t", port, useTLS)
+	glog.Infof("Listening on port %s; UseTLS=%t", port, useTLS)
 
 	go func() {
 		for {
