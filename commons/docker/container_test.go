@@ -34,14 +34,12 @@ func TestMain(m *testing.M) {
 }
 
 func (s *TestDockerSuite) TestContainerCommit(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
@@ -73,14 +71,12 @@ func (s *TestDockerSuite) TestContainerCommit(c *C) {
 }
 
 func (s *TestDockerSuite) TestOnContainerStart(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
@@ -110,14 +106,12 @@ func (s *TestDockerSuite) TestOnContainerStart(c *C) {
 }
 
 func (s *TestDockerSuite) TestOnContainerStop(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
@@ -149,14 +143,12 @@ func (s *TestDockerSuite) TestOnContainerStop(c *C) {
 }
 
 func (s *TestDockerSuite) TestCancelOnEvent(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
@@ -188,14 +180,12 @@ func (s *TestDockerSuite) TestCancelOnEvent(c *C) {
 }
 
 func (s *TestDockerSuite) TestRestartContainer(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, true, 600*time.Second, nil, nil)
@@ -236,14 +226,12 @@ func (s *TestDockerSuite) TestRestartContainer(c *C) {
 }
 
 func (s *TestDockerSuite) TestListContainers(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctrs := []*Container{}
@@ -286,14 +274,12 @@ func (s *TestDockerSuite) TestListContainers(c *C) {
 }
 
 func (s *TestDockerSuite) TestWaitForContainer(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, true, 300*time.Second, nil, nil)
@@ -324,14 +310,12 @@ func (s *TestDockerSuite) TestWaitForContainer(c *C) {
 }
 
 func (s *TestDockerSuite) TestInspectContainer(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
@@ -370,14 +354,12 @@ func (s *TestDockerSuite) TestInspectContainer(c *C) {
 
 func (s *TestDockerSuite) TestRepeatedStart(c *C) {
 	c.Skip("skip this until the build box issues get sorted out")
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctr, err := NewContainer(cd, false, 300*time.Second, nil, nil)
@@ -409,14 +391,12 @@ func (s *TestDockerSuite) TestRepeatedStart(c *C) {
 }
 
 func (s *TestDockerSuite) TestNewContainerOnCreatedAndStartedActions(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	cc := make(chan struct{})
@@ -466,14 +446,12 @@ func (s *TestDockerSuite) TestNewContainerOnCreatedAndStartedActions(c *C) {
 }
 
 func (s *TestDockerSuite) TestNewContainerOnCreatedAction(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	cc := make(chan struct{})
@@ -509,15 +487,12 @@ func (s *TestDockerSuite) TestNewContainerOnCreatedAction(c *C) {
 }
 
 func (s *TestDockerSuite) TestNewContainerOnStartedAction(c *C) {
-	//t.Skip("skip this until the build box issues get sorted out")
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	sc := make(chan struct{})
@@ -555,14 +530,12 @@ func (s *TestDockerSuite) TestNewContainerOnStartedAction(c *C) {
 }
 
 func (s *TestDockerSuite) TestFindContainer(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)
@@ -590,14 +563,12 @@ func (s *TestDockerSuite) TestFindContainer(c *C) {
 
 // TODO: add some additional Export tests, e.g., bogus path, insufficient permissions, etc.
 func (s *TestDockerSuite) TestContainerExport(c *C) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"sleep", "3600"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd:   []string{"sleep", "3600"},
 		},
-		dockerclient.HostConfig{},
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	ctrone, err := NewContainer(cd, false, 300*time.Second, nil, nil)

@@ -192,9 +192,9 @@ func (m *Manager) wipe() error {
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	var config dockerclient.Config
-	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{Config: &config},
-		dockerclient.HostConfig{},
+	cd := &dockerclient.CreateContainerOptions{
+		Config:     &config,
+		HostConfig: &dockerclient.HostConfig{},
 	}
 
 	config.Image = "ubuntu"
@@ -203,7 +203,7 @@ func (m *Manager) wipe() error {
 		"/mnt/volumes": struct{}{},
 	}
 
-	cd.Binds = []string{m.volumesDir + ":/mnt/volumes"}
+	cd.HostConfig.Binds = []string{m.volumesDir + ":/mnt/volumes"}
 	ctr, err := docker.NewContainer(cd, false, 5*time.Second, nil, nil)
 	if err != nil {
 		return err
