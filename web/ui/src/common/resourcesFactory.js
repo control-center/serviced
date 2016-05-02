@@ -90,14 +90,16 @@
             },
             addPort: {
                 method: PUT,
-                url: (serviceID, endpointName, portName, portIP) => {
+                url: (serviceID, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName, portIP) => {
+                payload: (serviceID, endpointName, portName, tls, protocol) => {
                     return JSON.stringify({
                         'ServiceID': serviceID,
                         'Application': endpointName,
-                        'PortName': portName
+                        'PortName': portName,
+                        'TLS': tls,
+                        'Protocol': protocol
                     });
                 }
             },
