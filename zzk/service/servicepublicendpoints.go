@@ -54,7 +54,7 @@ type ServicePublicEndpointNode struct {
 	Name      string
 	Enabled   bool
 	Type      registry.PublicEndpointType
-	TLS       bool
+	UseTLS    bool
     Protocol  string
 	version   interface{}
 }
@@ -66,12 +66,12 @@ func (node *ServicePublicEndpointNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *ServicePublicEndpointNode) Create(conn client.Connection) error {
-	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type, node.TLS, node.Protocol)
+	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type, node.UseTLS, node.Protocol)
 }
 
 // Update implements zzk.Node
 func (node *ServicePublicEndpointNode) Update(conn client.Connection) error {
-	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type, node.TLS, node.Protocol)
+	return updateServicePublicEndpoint(conn, node.ServiceID, node.Name, node.Enabled, node.Type, node.UseTLS, node.Protocol)
 }
 
 // Version implements client.Node
@@ -201,7 +201,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// Add the VHost entries.
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
-			vhostPort := servicedefinition.Port{ TLS: true, Protocol: "https" }
+			vhostPort := servicedefinition.Port{ UseTLS: true, Protocol: "https" }
 			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, registry.EPTypeVHost)] = vhostPort
 		}
 	}
@@ -229,7 +229,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// add vhosts from svc not in current
 	for sv, port := range svcpublicendpoints {
 		if _, ok := currentpublicendpoints[sv]; !ok {
-			if err := updateServicePublicEndpoint(conn, svc.ID, sv.Name(), sv.IsEnabled(), sv.Type(), port.TLS, port.Protocol); err != nil {
+			if err := updateServicePublicEndpoint(conn, svc.ID, sv.Name(), sv.IsEnabled(), sv.Type(), port.UseTLS, port.Protocol); err != nil {
 				return err
 			}
 		}
@@ -240,7 +240,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 
 // updateServicePublicEndpoint updates a service vhost node if it exists, otherwise creates it
 func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool,
-								 pepType registry.PublicEndpointType, tls bool, protocol string) error {
+								 pepType registry.PublicEndpointType, usetls bool, protocol string) error {
 	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
 	var node ServicePublicEndpointNode
 	spath := servicePublicEndpointPath(serviceID, endpointname, enabled, pepType)
@@ -256,7 +256,7 @@ func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname
 	node.Name = endpointname
 	node.Enabled = enabled
 	node.Type = pepType
-	node.TLS = tls
+	node.UseTLS = usetls
 	node.Protocol = protocol
 	glog.V(2).Infof("Adding service public endpoint at path:%s %+v", spath, node)
 	return conn.Set(spath, &node)
