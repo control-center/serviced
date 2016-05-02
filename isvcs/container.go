@@ -296,9 +296,10 @@ func (svc *IService) create() (*docker.Container, error) {
 	glog.Infof("hostConfig.LogConfig.Config=%v", hostConfig.LogConfig.Config)
 
 	var config dockerclient.Config
-	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{Name: svc.name(), Config: &config},
-		hostConfig,
+	cd := &dockerclient.CreateContainerOptions{
+		Name:       svc.name(),
+		Config:     &config,
+		HostConfig: &hostConfig,
 	}
 
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
@@ -309,14 +310,14 @@ func (svc *IService) create() (*docker.Container, error) {
 	// of the isvcs to access outside of the serviced host, potentially
 	// compromising security.
 	if svc.HostNetwork {
-		cd.NetworkMode = "host"
+		cd.HostConfig.NetworkMode = "host"
 		glog.Warningf("Host networking enabled for isvc %s", svc.Name)
 	}
 
 	// attach all exported ports
 	if svc.PortBindings != nil && len(svc.PortBindings) > 0 {
 		config.ExposedPorts = make(map[dockerclient.Port]struct{})
-		cd.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
+		cd.HostConfig.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 		for _, binding := range svc.PortBindings {
 			port := dockerclient.Port(fmt.Sprintf("%d", binding.HostPort))
 			config.ExposedPorts[port] = struct{}{}
@@ -325,10 +326,10 @@ func (svc *IService) create() (*docker.Container, error) {
 				HostPort: port.Port(),
 			}
 
-			cd.PortBindings[port] = append(cd.PortBindings[port], portBinding)
+			cd.HostConfig.PortBindings[port] = append(cd.HostConfig.PortBindings[port], portBinding)
 		}
 	}
-	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.PortBindings)
+	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.HostConfig.PortBindings)
 
 	// copy any links to other isvcs
 	if svc.Links != nil && len(svc.Links) > 0 {
@@ -340,14 +341,14 @@ func (svc *IService) create() (*docker.Container, error) {
 		if svc.StartGroup == 0 {
 			glog.Fatalf("isvc %s can not use docker Links with StartGroup=0", svc.Name)
 		}
-		cd.Links = make([]string, len(svc.Links))
-		copy(cd.Links, svc.Links)
-		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.Links)
+		cd.HostConfig.Links = make([]string, len(svc.Links))
+		copy(cd.HostConfig.Links, svc.Links)
+		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.HostConfig.Links)
 	}
 
 	// attach all exported volumes
 	config.Volumes = make(map[string]struct{})
-	cd.Binds = []string{}
+	cd.HostConfig.Binds = []string{}
 
 	// service-specific volumes
 	if svc.Volumes != nil && len(svc.Volumes) > 0 {
@@ -359,7 +360,7 @@ func (svc *IService) create() (*docker.Container, error) {
 					return nil, err
 				}
 			}
-			cd.Binds = append(cd.Binds, fmt.Sprintf("%s:%s", hostpath, dest))
+			cd.HostConfig.Binds = append(cd.HostConfig.Binds, fmt.Sprintf("%s:%s", hostpath, dest))
 			config.Volumes[dest] = struct{}{}
 		}
 	}
@@ -371,7 +372,7 @@ func (svc *IService) create() (*docker.Container, error) {
 				glog.Warningf("Could not mount source %s: path does not exist", src)
 				continue
 			}
-			cd.Binds = append(cd.Binds, fmt.Sprintf("%s:%s", src, dest))
+			cd.HostConfig.Binds = append(cd.HostConfig.Binds, fmt.Sprintf("%s:%s", src, dest))
 			config.Volumes[dest] = struct{}{}
 		}
 	}

@@ -593,21 +593,15 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 		}
 
 		// Not found, so make a new one
-		containerDefinition := &docker.ContainerDefinition{
-			dockerclient.CreateContainerOptions{
-				Name: containerName,
-				Config: &dockerclient.Config{
-					User:       "root",
-					WorkingDir: "/tmp/registry",
-					Image:      info.imageId,
-					Env:        []string{"SETTINGS_FLAVOR=local"},
-				},
-				// HostConfig: &dockerclient.HostConfig{
-				// 	Binds:        []string{bindMount},
-				// 	PortBindings: portBindings,
-				// },
+		containerDefinition := &dockerclient.CreateContainerOptions{
+			Name: containerName,
+			Config: &dockerclient.Config{
+				User:       "root",
+				WorkingDir: "/tmp/registry",
+				Image:      info.imageId,
+				Env:        []string{"SETTINGS_FLAVOR=local"},
 			},
-			dockerclient.HostConfig{},
+			HostConfig: &dockerclient.HostConfig{},
 		}
 
 		glog.Infof("Creating container %s from image %s", containerDefinition.Name, containerDefinition.Config.Image)
