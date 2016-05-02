@@ -366,7 +366,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
-func (s *Service) AddPort(application string, portAddr string) error {
+func (s *Service) AddPort(application string, portAddr string, usetls bool, protocol string) error {
 	portAddr = ScrubPortString(portAddr)
 	if s.Endpoints != nil {
 		//find the matching endpoint
@@ -380,7 +380,7 @@ func (s *Service) AddPort(application string, portAddr string) error {
 						ports = append(ports, port)
 					}
 				}
-				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr, Enabled: true})
+				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr, Enabled: true, UseTLS: usetls, Protocol: protocol})
 				return nil
 			}
 		}

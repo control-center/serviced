@@ -8,8 +8,8 @@
     var resourcesFactory, $q, serviceHealth, instancesFactory, utils;
 
     angular.module('servicesFactory', []).
-    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory", "baseFactory", "miscUtils", "log",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory, BaseFactory, _utils, log){
+    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory", "baseFactory", "miscUtils",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory, BaseFactory, _utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
@@ -527,6 +527,8 @@
                                     ServiceEndpoint: endpoint.Application,
                                     ApplicationId: service.id,
                                     Value: service.name +" - "+ endpoint.Application,
+                                    UseTLS: port.UseTLS,
+                                    Protocol: port.Protocol,
                                     type: "port",
                                 });
                             });
