@@ -36,6 +36,7 @@ type ThinPoolCreate struct {
 
 type LogicalVolumeInfo struct {
 	Name        string
+	VGName      string
 	KernelMajor uint
 	KernelMinor uint
 }
@@ -126,6 +127,11 @@ func createThinPool(purpose string, devices []string) (string, error) {
 	}
 
 	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
+	if err != nil {
+		return "", err
+	}
+
+	err = lvInfo.DisableMonitoring()
 	if err != nil {
 		return "", err
 	}
@@ -282,8 +288,9 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 	args := []string{"lvs",
 		"--noheadings",
 		"--nameprefixes",
-		"--options", "lv_name,lv_kernel_major,lv_kernel_minor",
+		"--options", "lv_name,vg_name,lv_kernel_major,lv_kernel_minor",
 	}
+	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	stdout, _, err := checkCommand(cmd)
 	if err != nil {
@@ -296,6 +303,7 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 	// Example command output:
 	// LVM2_LV_NAME='docker-pool' LVM2_LV_KERNEL_MAJOR='252' LVM2_LV_KERNEL_MINOR='4'
 	regexName := regexp.MustCompile("LVM2_LV_NAME='(.+?)'")
+	regexVGName := regexp.MustCompile("LVM2_VG_NAME='(.+?)'")
 	regexMajor := regexp.MustCompile("LVM2_LV_KERNEL_MAJOR='(.+?)'")
 	regexMinor := regexp.MustCompile("LVM2_LV_KERNEL_MINOR='(.+?)'")
 	for _, line := range strings.Split(stdout, "\n") {
@@ -303,6 +311,13 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 		if len(match) != 2 || match[1] != logicalVolume {
 			continue
 		}
+
+
+		match = regexVGName.FindStringSubmatch(line)
+		if len(match) != 2 {
+			return lvi, parseError
+		}
+		vgName := match[1]
 
 		match = regexMajor.FindStringSubmatch(line)
 		if len(match) != 2 {
@@ -323,8 +338,15 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 		}
 
 		lvi.Name = logicalVolume
+		lvi.VGName = vgName
 		lvi.KernelMajor = uint(major)
 		lvi.KernelMinor = uint(minor)
+
+		log.WithFields(log.Fields{
+			"lvname": lvi.Name,
+			"major": lvi.KernelMajor,
+			"minor": lvi.KernelMinor,
+		}).Debug("Logical Volume Info")
 		return lvi, nil
 	}
 
@@ -358,4 +380,22 @@ func (info *LogicalVolumeInfo) GetThinpoolName() (string, error) {
 		return "", fmt.Errorf("Unable to determine thin pool name")
 	}
 	return "/dev/mapper/" + devname, nil
+}
+
+func (info *LogicalVolumeInfo) DisableMonitoring() error {
+	if len(info.Name) == 0 {
+		return fmt.Errorf("Logical volume name is not specified")
+	} else if len(info.VGName) == 0 {
+		return fmt.Errorf("Volume group name is not specified")
+	}
+
+	args := []string{"lvchange",
+		"--monitor",
+		"n",
+		fmt.Sprintf("%s/%s", info.VGName, info.Name),
+	}
+	log.Info(strings.Join(args, " "))
+	cmd := exec.Command(args[0], args[1:]...)
+	_, _, err := checkCommand(cmd)
+	return err
 }
