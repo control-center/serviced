@@ -593,21 +593,18 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 		}
 
 		// Not found, so make a new one
-		containerDefinition := &docker.ContainerDefinition{
-			dockerclient.CreateContainerOptions{
-				Name: containerName,
-				Config: &dockerclient.Config{
-					User:       "root",
-					WorkingDir: "/tmp/registry",
-					Image:      info.imageId,
-					Env:        []string{"SETTINGS_FLAVOR=local"},
-				},
-				// HostConfig: &dockerclient.HostConfig{
-				// 	Binds:        []string{bindMount},
-				// 	PortBindings: portBindings,
-				// },
+		containerDefinition := &dockerclient.CreateContainerOptions{
+			Name: containerName,
+			Config: &dockerclient.Config{
+				User:       "root",
+				WorkingDir: "/tmp/registry",
+				Image:      info.imageId,
+				Env:        []string{"SETTINGS_FLAVOR=local"},
 			},
-			dockerclient.HostConfig{},
+			HostConfig: &dockerclient.HostConfig{
+				Binds:        []string{bindMount},
+				PortBindings: portBindings,
+			},
 		}
 
 		glog.Infof("Creating container %s from image %s", containerDefinition.Name, containerDefinition.Config.Image)
@@ -621,8 +618,6 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 	os.MkdirAll(storagePath, 0755)
 
 	// Make sure container is running
-	container.HostConfig.Binds = []string{bindMount}
-	container.HostConfig.PortBindings = portBindings
 	glog.Infof("Starting container %s for Docker registry v%d at %s", container.Name, info.version, url)
 	if err = container.Start(); err != nil {
 		glog.Errorf("Could not start container %s: %s", container.Name, err)

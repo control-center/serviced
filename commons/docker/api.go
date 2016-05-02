@@ -34,13 +34,6 @@ var pushLock sync.Mutex
 // Container represents a Docker container.
 type Container struct {
 	*dockerclient.Container
-	dockerclient.HostConfig
-}
-
-// ContainerDefinition records all the information necessary to create a Docker container.
-type ContainerDefinition struct {
-	dockerclient.CreateContainerOptions
-	dockerclient.HostConfig
 }
 
 // ContainerActionFunc instances are used to handle container action notifications.
@@ -92,15 +85,14 @@ func (err *ImageNotFound) Error() string {
 // any, will be executed on successful creation of the container. If a start action is specified
 // it will be executed after the container has been started. Note, if the start parameter is
 // false the container won't be started and the start action will not be executed.
-func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
+func NewContainer(cd *dockerclient.CreateContainerOptions, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
 
 	args := struct {
 		containerOptions *dockerclient.CreateContainerOptions
-		hostConfig       *dockerclient.HostConfig
 		start            bool
 		createaction     ContainerActionFunc
 		startaction      ContainerActionFunc
-	}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart}
+	}{cd, start, oncreate, onstart}
 
 	timeoutc := time.After(timeout)
 	dc, err := getDockerClient()
@@ -158,8 +150,8 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		})
 		defer ss.Cancel()
 
-		glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, args.hostConfig)
-		err = dc.StartContainer(ctr.ID, args.hostConfig)
+		glog.V(2).Infof("post creation start of %s", ctr.ID)
+		err = dc.StartContainer(ctr.ID, nil)
 		if err != nil {
 			glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
 			return nil, err
@@ -207,7 +199,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		}
 	}
 
-	return &Container{ctr, cd.HostConfig}, nil
+	return &Container{ctr}, nil
 }
 
 // FindContainer looks up a container using its id or name.
@@ -224,7 +216,7 @@ func FindContainer(id string) (*Container, error) {
 		}
 		return nil, err
 	}
-	return &Container{ctr, dockerclient.HostConfig{}}, nil
+	return &Container{ctr}, nil
 }
 
 // Logs calls docker logs for a running service container
@@ -259,7 +251,7 @@ func Containers() ([]*Container, error) {
 		if err != nil {
 			continue
 		}
-		resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
+		resp = append(resp, &Container{ctr})
 	}
 	return resp, nil
 }
@@ -377,9 +369,8 @@ func (c *Container) Start() error {
 	}
 
 	args := struct {
-		id         string
-		hostConfig *dockerclient.HostConfig
-	}{c.ID, &c.HostConfig}
+		id string
+	}{c.ID}
 
 	// check to see if the container is already running
 	ctr, err := dc.InspectContainer(args.id)
@@ -392,8 +383,8 @@ func (c *Container) Start() error {
 		return ErrAlreadyStarted
 	}
 
-	glog.V(2).Infof("starting container %s: %+v", args.id, args.hostConfig)
-	err = dc.StartContainer(args.id, args.hostConfig)
+	glog.V(2).Infof("starting container %s", args.id)
+	err = dc.StartContainer(args.id, nil)
 	if err != nil {
 		glog.V(2).Infof("unable to start %s: %v", args.id, err)
 		return err

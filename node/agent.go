@@ -363,12 +363,13 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
 	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
-	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{Name: state.ID, Config: config},
-		*hostconfig,
+	cd := dockerclient.CreateContainerOptions{
+		Name:       state.ID,
+		Config:     config,
+		HostConfig: hostconfig,
 	}
 
-	ctr, err := docker.NewContainer(cd, false, 10*time.Second, nil, nil)
+	ctr, err := docker.NewContainer(&cd, false, 10*time.Second, nil, nil)
 	if err != nil {
 		glog.Errorf("Error trying to create container %v: %v", config, err)
 		return err
