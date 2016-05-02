@@ -501,6 +501,8 @@
                                     ServiceEndpoint: endpoint.Application,
                                     ApplicationId: service.id,
                                     Value: service.name +" - "+ endpoint.Application,
+                                    TLS: port.TLS,
+                                    Protocol: port.Protocol,
                                     type: "port",
                                 });
                             });

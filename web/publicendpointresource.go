@@ -235,6 +235,8 @@ type portRequest struct {
 	ServiceID   string
 	Application string
 	PortName    string
+	TLS			bool
+	Protocol    string
 }
 
 // Returns the service, application, and portnumber from the request
@@ -270,7 +272,7 @@ func getPortContext(r *rest.Request, client *node.ControlClient) (*svc.Service, 
 	// Validate the port number
 	_, err = strconv.Atoi(strings.Split(portName, ":")[1])
 	if err != nil {
-		err := fmt.Errorf("Port must be a number greater than 1024 and less then 65536")
+		err := fmt.Errorf("Port must be a number between 1 and 65536")
 		return nil, "", "", err
 	}
 
@@ -288,6 +290,9 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
+	glog.V(0).Infof("Add PORT with %s %#v", r.URL.Path, r)
+	glog.V(0).Infof("request = %#v", request)
+
 	// Validate the port number
 	scrubbedPort := svc.ScrubPortString(request.PortName)
 	portParts := strings.Split(scrubbedPort, ":")
@@ -299,14 +304,14 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 	port, err := strconv.Atoi(portParts[1])
 	if err != nil {
-		err := fmt.Errorf("Port must be a number greater than 1024 and less then 65536")
+		err := fmt.Errorf("Port must be a number between 1 and 65536")
 		glog.Error(err)
 		restServerError(w, err)
 		return
 	}
 
-	if port < 1024 || port > 65535 {
-		err := fmt.Errorf("Port must be greater than 1024 and less then 65536")
+	if port < 1 || port > 65535 {
+		err := fmt.Errorf("Port must be a number between 1 and 65536")
 		glog.Error(err)
 		restServerError(w, err)
 		return
@@ -372,14 +377,15 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 		return
 	}
 
-	err = service.AddPort(request.Application, scrubbedPort)
+	err = service.AddPort(request.Application, scrubbedPort, request.TLS, request.Protocol)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(2).Infof("Port (%s) added to service (%s)", request.PortName, service.Name)
+	glog.V(2).Infof("Port (%s) added to service (%s), TLS=%s, protocol=%s",
+					request.PortName, service.Name, request.TLS, request.Protocol)
 
 	var unused int
 	err = client.UpdateService(*service, &unused)

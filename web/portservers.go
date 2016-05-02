@@ -14,6 +14,7 @@
 package web
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	domainService "github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/control-center/serviced/zzk/service"
@@ -42,29 +44,29 @@ func init() {
 
 // Removes the port from our local cache and updates the service so the UI will flip to "disabled".
 //  Only needs to be called if the port is being disabled unexpectedly due to an error
-func disablePort(publicEndpointKey service.PublicEndpointKey) {
+func disablePort(node service.ServicePublicEndpointNode) {
 	//TODO: Add control plane methods to enable/disable public endpoints so we don't have to do a GetService and then UpdateService
 
 	// remove the port from our local cache
-	delete(allports, publicEndpointKey.Name())
+	delete(allports, node.Name)
 
 	// find the endpoint that matches this port number for this service (there will only be 1)
 	var myService domainService.Service
 	var myEndpoint domainService.ServiceEndpoint
 	var unused int
-	cpDao.GetService(publicEndpointKey.ServiceID(), &myService)
+	cpDao.GetService(node.ServiceID, &myService)
 	for _, endpoint := range myService.Endpoints {
 		for _, endpointPort := range endpoint.PortList {
-			if endpointPort.PortAddr == publicEndpointKey.Name() {
+			if endpointPort.PortAddr == node.Name {
 				myEndpoint = endpoint
 			}
 		}
 	}
 
 	// disable port
-	myService.EnablePort(myEndpoint.Name, publicEndpointKey.Name(), false)
+	myService.EnablePort(myEndpoint.Name, node.Name, false)
 	if err := cpDao.UpdateService(myService, &unused); err != nil {
-		glog.Errorf("Error in disablePort(%s): %v", string(publicEndpointKey), err)
+		glog.Errorf("Error in disablePort(%s:%s): %v", node.ServiceID, node.Name, err)
 	}
 }
 
@@ -73,16 +75,56 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
-func (sc *ServiceConfig) createPublicPortServer(publicEndpointKey service.PublicEndpointKey, stopChan chan bool, shutdown <-chan (interface{})) error {
-	port := publicEndpointKey.Name()
-	listener, err := net.Listen("tcp", port)
+func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpointNode, stopChan chan bool, shutdown <-chan (interface{})) error {
+	port := node.Name
+	useTLS := node.TLS
+
+	// Declare our listener..
+	var listener net.Listener
+	var err error
+
+	glog.V(1).Infof("About to listen on port %s; TLS=%t", port, useTLS)
+
+	if useTLS {
+		// Gather our certs files.
+		certFile, keyFile := sc.getCertFiles()
+
+		// Create our certificate from the cert files (strings).
+		glog.V(2).Infof("Loading certs from %s, %s", certFile, keyFile)
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			glog.Errorf("Could not set up tls certificate for public endpoint on port %s for %s: %s", port, node.ServiceID, err)
+			disablePort(node)
+			return err
+		}
+
+		// The list of certs to use for our secure listener on this port.
+		certs := []tls.Certificate { cert }
+
+		// This cipher suites and tls min version change may not be needed with golang 1.5
+		// https://github.com/golang/go/issues/10094
+		// https://github.com/golang/go/issues/9364
+		config := &tls.Config{
+			MinVersion:               utils.MinTLS(),
+			PreferServerCipherSuites: true,
+			CipherSuites:             utils.CipherSuites(),
+			Certificates:             certs,
+		}
+
+		glog.V(1).Infof("Listening with TLS")
+		listener, err = tls.Listen("tcp", port, config)
+	} else {
+		glog.V(1).Infof("Listening without TLS")
+		listener, err = net.Listen("tcp", port)
+	}
 
 	if err != nil {
-		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s - %s", port, publicEndpointKey, err)
-		disablePort(publicEndpointKey)
+		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s: %s", port, node.ServiceID, err)
+		disablePort(node)
 		return err
 	}
-	glog.Infof("Listening on port %s", port)
+
+	glog.Infof("Listening on port %s; TLS=%t", port, useTLS)
 
 	go func() {
 		for {
@@ -94,10 +136,10 @@ func (sc *ServiceConfig) createPublicPortServer(publicEndpointKey service.Public
 			}
 
 			// lookup remote endpoint for this public port
-			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", publicEndpointKey.Name(), int(publicEndpointKey.Type())))
+			pepEPInfo, err := sc.getPublicEndpoint(fmt.Sprintf("%s-%d", node.Name, int(node.Type)))
 			if err != nil {
 				// This happens if an endpoint is accessed and the containers have died or not come up yet.
-				glog.Errorf("Error retrieving public endpoint %s:  %s", publicEndpointKey, err)
+				glog.Errorf("Error retrieving public endpoint %s-%d: %s", node.Name, int(node.Type), err)
 				// close the accepted connection and continue waiting for connections.
 				if err := localConn.Close(); err != nil {
 					glog.Errorf("Error closing client connection: %s", err)
@@ -115,7 +157,7 @@ func (sc *ServiceConfig) createPublicPortServer(publicEndpointKey service.Public
 			}
 			remoteConn, err := getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
 			if err != nil {
-				glog.Errorf("Error getting remote connection for public endpoint %s: %v", publicEndpointKey, err)
+				glog.Errorf("Error getting remote connection for public endpoint %s-%d: %v", node.Name, int(node.Type), err)
 				continue
 			}
 
@@ -153,6 +195,8 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	cancelChan := make(chan interface{})
+	zkServicePEPService := service.ZKServicePublicEndpoints
+	
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		allportsLock.Lock()
 		defer allportsLock.Unlock()
@@ -162,15 +206,25 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		// start all servers that have been not started and enabled
 		newPorts := make(map[string]chan bool)
 		for _, pepID := range childIDs {
-			publicEndpointKey := service.PublicEndpointKey(pepID)
-			if publicEndpointKey.Type() == registry.EPTypePort && publicEndpointKey.IsEnabled() {
-				port := publicEndpointKey.Name()
+			
+			// The pepID is the ZK child key. Get the node so we have all of the node data.
+			glog.V(1).Infof("zkServicePEPService: %s, pepID: %s", zkServicePEPService, pepID)
+			nodePath := fmt.Sprintf("%s/%s", zkServicePEPService, pepID)
+			var node service.ServicePublicEndpointNode
+			err := rootConn.Get(nodePath, &node)
+			if err != nil {
+				glog.Errorf("Unable to get the ZK Node from PepID")
+				continue
+			}
+			
+			if node.Type == registry.EPTypePort && node.Enabled {
+				port := node.Name
 				stopChan, running := allports[port]
 
 				if !running {
 					// recently enabled port - port should be opened
 					stopChan = make(chan bool)
-					if err := sc.createPublicPortServer(publicEndpointKey, stopChan, shutdown); err != nil {
+					if err := sc.createPublicPortServer(node, stopChan, shutdown); err != nil {
 						continue
 					}
 				}
@@ -194,7 +248,6 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	for {
-		zkServicePEPService := service.ZKServicePublicEndpoints
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServicePEPService)
 		err := registry.WatchChildren(rootConn, zkServicePEPService, cancelChan, syncPorts, pepWatchError)
 		if err != nil {
