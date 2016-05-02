@@ -24,7 +24,6 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
 	"github.com/control-center/serviced/utils"
@@ -154,7 +153,6 @@ func runScript(c *ServicedCli, ctx *cli.Context, fileName string, config *script
 	}()
 
 	config.NoOp = ctx.Bool("no-op")
-	config.DockerRegistry = docker.DEFAULT_REGISTRY
 	err := c.driver.ScriptRun(fileName, config, stopChan)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

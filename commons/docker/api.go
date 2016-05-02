@@ -29,7 +29,6 @@ import (
 
 const DockerLatest = "latest"
 
-var DEFAULT_REGISTRY = "localhost:5000"
 var pushLock sync.Mutex
 
 // Container represents a Docker container.

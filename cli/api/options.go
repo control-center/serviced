@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/rpcutils"
@@ -224,7 +223,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		HostAliases:          config.StringSlice("VHOST_ALIASES", []string{}),
 		Verbosity:            config.IntVal("LOG_LEVEL", 0),
 		StaticIPs:            config.StringSlice("STATIC_IPS", []string{}),
-		DockerRegistry:       config.StringVal("DOCKER_REGISTRY", getDefaultDockerRegistry()),
+		DockerRegistry:       config.StringVal("DOCKER_REGISTRY", "localhost:5000"),
 		MaxContainerAge:      config.IntVal("MAX_CONTAINER_AGE", 60*60*24),
 		MaxDFSTimeout:        config.IntVal("MAX_DFS_TIMEOUT", 60*5),
 		VirtualAddressSubnet: config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
@@ -271,14 +270,6 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
 
 	return options
-}
-
-func getDefaultDockerRegistry() string {
-	if hostname, err := os.Hostname(); err != nil {
-		return docker.DEFAULT_REGISTRY
-	} else {
-		return fmt.Sprintf("%s:5000", hostname)
-	}
 }
 
 func getDefaultVarPath(home string) string {
