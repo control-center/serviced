@@ -2,37 +2,46 @@
     <strong>VHost</strong> public endpoints are accessible by hostname (eg, <span class="inline-code">https://zenoss.mckraken</span>), while <strong>Port</strong> public endpoints are accessible by ip:port or hostname:port (eg: <span class="inline-code">myhost:54321</span> or <span class="inline-code">10.87.1.100:54321</span>).
 </div><br>
 
-<label for="add_vhost_vhost" translate>public_endpoint_type</label><br>
+<label for="add_vhost_vhost"><span translate>public_endpoint_type</span>:</label><br>
 <div class="btn-group">
-    <label class="btn btn-primary" ng-class="{active: publicEndpoints.add.type === 'vhost'}">
-        <input type="radio" name="public_endpoint_type" value="vhost" ng-model="publicEndpoints.add.type">
-        <span translate>public_endpoint_vhost</span>
-    </label>
     <label class="btn btn-primary" ng-class="{active: publicEndpoints.add.type === 'port'}">
         <input type="radio" name="public_endpoint_type" value="port" ng-model="publicEndpoints.add.type">
         <span translate>public_endpoint_port</span>
     </label>
+    <label class="btn btn-primary" ng-class="{active: publicEndpoints.add.type === 'vhost'}">
+        <input type="radio" name="public_endpoint_type" value="vhost" ng-model="publicEndpoints.add.type">
+        <span translate>public_endpoint_vhost</span>
+    </label>
 </div><br><br>
 
 <div class="form-group">
-    <label for="add_vhost_application" translate>add_vhost_application_endpoint</label>
+    <label for="add_vhost_application"><span translate>add_vhost_application_endpoint</span>:</label>
     <select focusme id="add_vhost_application" ng-model="publicEndpoints.add.app_ep" ng-options="opt as opt.Value for opt in exportedServiceEndpoints.data"  class="form-control"></select>
 </div>
 
 <div ng-show="publicEndpoints.add.type === 'vhost'">
     <div class="form-group">
-        <label for="add_vhost_vhost" translate>public_endpoint_hostname</label>
+        <label for="add_vhost_vhost"><span translate>translate>public_endpoint_hostname</span>:</label>
         <input type="text" id="add_vhost_vhost" ng-model="publicEndpoints.add.name" class="form-control"></input>
     </div>
 </div>
 
 <div ng-show="publicEndpoints.add.type === 'port'">
+    
     <div class="form-group">
-        <label for="add_public_endpoint_port" translate>public_endpoint_portnumber</label>
-        <input type="text" id="add_public_endpoint_port" ng-model="publicEndpoints.add.port" class="form-control" placeholder="ip:port"></input>
+        <label for="new_host_name"><span translate>label_host</span>:</label>
+        <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
+             placeholder="{{'placeholder_host'|translate}}" ng-model="publicEndpoints.add.host" />
+        <label for="add_public_endpoint_port"><span translate>label_port</span>:</label>
+        <input type="text" id="add_public_endpoint_port" ng-model="publicEndpoints.add.port"
+            class="form-control" placeholder="54321" ng-pattern="/^[0-9]+$/" />
+    </div>
+    <div class="form-group">
+        <label for="add_port_protocol"><span translate>label_protocol</span>:</label>
+        <select focusme id="add_port_protocol" ng-model="publicEndpoints.add.protocol" ng-options="opt as opt.Label for opt in protocols" class="form-control"></select>
     </div>
 </div>
 
 <div class="warningMessage">
-    After the public endpoint is added, the selected service will automatically be restarted.
+    After the public endpoint is added, the selected service will be restarted if currently running.
 </div>
