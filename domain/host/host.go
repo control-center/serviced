@@ -65,7 +65,6 @@ type Host struct {
 		Date      string
 		Gitcommit string
 		Gitbranch string
-		Giturl    string
 		Buildtag  string
 		Release   string
 	}
