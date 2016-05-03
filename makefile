@@ -86,7 +86,7 @@ IN_DOCKER = 0
 GO        = go
 
 # Verify that we are running with the right go version
-GOVERSION ?= go1.6
+MIN_GO_VERSION ?= go1.6
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
@@ -110,8 +110,8 @@ default build all: goversion $(build_TARGETS)
 
 .PHONY: goversion
 goversion:
-ifeq "$(shell go version | grep $(GOVERSION))" ""
-	$(error "Build requires go version $(GOVERSION)")
+ifeq "$(shell go version | grep $(MIN_GO_VERSION))" ""
+	$(error "Build requires go version $(MIN_GO_VERSION)")
 endif
 
 .PHONY: build_isvcs
