@@ -40,26 +40,26 @@ import (
 )
 
 var Version string
+var GoVersion string
 var Date string
 var Gitcommit string
 var Gitbranch string
-var Giturl string
 var Buildtag string
 
 var (
-	name    = "serviced-storage"
-	App     = &ServicedStorage{
-		name:    name,
-		Parser:  flags.NewNamedParser(name, flags.Default),
+	name = "serviced-storage"
+	App  = &ServicedStorage{
+		name:   name,
+		Parser: flags.NewNamedParser(name, flags.Default),
 	}
 )
 
 func init() {
 	servicedversion.Version = Version
+	servicedversion.GoVersion = GoVersion
 	servicedversion.Date = Date
 	servicedversion.Gitcommit = Gitcommit
 	servicedversion.Gitbranch = Gitbranch
-	servicedversion.Giturl = Giturl
 	servicedversion.Buildtag = Buildtag
 
 	App.version = fmt.Sprintf("%s - %s", servicedversion.Version, servicedversion.Gitcommit)

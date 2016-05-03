@@ -12,7 +12,8 @@
 # limitations under the License.
 
 VERSION := $(shell cat ./VERSION)
-DATE := '$(shell date -u)'
+DATE := $(shell date -u '+%a_%b_%d_%H:%M:%S_%Z_%Y')
+GO_VERSION := $(shell go version | awk '{print $$3}')
 
 # GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
 # assume it will get set because the above can cause network traffic on every run
@@ -22,19 +23,18 @@ GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 GOBUILD_TAGS  ?= $(shell bash build-tags.sh)
 GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 
-
-
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
 
 
 LDFLAGS = \
-		  -ldflags "-X main.Version=$(VERSION)" \
-		  -ldflags "-X main.Giturl='$(GIT_URL)'" \
-		  -ldflags "-X main.Gitcommit=$(GIT_COMMIT)" \
-		  -ldflags "-X main.Gitbranch=$(GIT_BRANCH)" \
-		  -ldflags "-X main.Date=$(DATE)" \
-		  -ldflags "-X main.Buildtag=$(BUILD_TAG)"
+		  -ldflags "-X main.Version=$(VERSION) \
+		  			-X main.GoVersion=$(GO_VERSION) \
+		  			-X main.Gitcommit=$(GIT_COMMIT) \
+		  			-X main.Gitbranch=$(GIT_BRANCH) \
+		  			-X main.Buildtag=$(BUILD_TAG) \
+					-X main.Date=$(DATE)" 
+#		  			-X main.Giturl=$(GIT_URL)" \ 
 
 #---------------------#
 # Macros              #
