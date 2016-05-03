@@ -103,18 +103,21 @@ func (s *S) TestAddPort(t *C) {
 	}
 
 	var err error
-	if err = svc.AddPort("empty_server", ":1234"); err == nil {
+	if err = svc.AddPort("empty_server", ":1234", false, "http"); err == nil {
 		t.Errorf("Expected error adding port")
 	}
 
-	if err = svc.AddPort("server", ":1234"); err != nil {
+	if err = svc.AddPort("server", ":1234", false, "http"); err != nil {
 		t.Errorf("Unexpected error adding port: %v", err)
 	}
 
 	//no duplicate ports can be added
-	if err = svc.AddPort("server", "1234"); err != nil {
+	if err = svc.AddPort("server", "1234", false, "http"); err != nil {
 		t.Errorf("Unexpected error adding port: %v", err)
 	}
+	
+	// TODO: More tests for proper port range, etc, need to be added
+	// once the code is added to the facade/cli.
 
 	if len(svc.Endpoints[0].PortList) != 1 && (svc.Endpoints[0].PortList)[0].PortAddr != ":1234" {
 		t.Errorf("Public port incorrect, %+v should contain port address", svc.Endpoints[0].PortList)

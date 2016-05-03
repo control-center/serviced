@@ -104,6 +104,27 @@ func getPortServices(port uint8) (map[string]struct{}, bool, registry.PublicEndp
 	return getPublicEndpointServices(fmt.Sprintf("%d", port), registry.EPTypePort)
 }
 
+// Returns the cert files
+func (sc *ServiceConfig) getCertFiles() (string, string) {
+	certFile := sc.certPEMFile
+	if len(certFile) == 0 {
+		tempCertFile, err := proxy.TempCertFile()
+		if err != nil {
+			glog.Fatalf("Could not prepare cert.pem file: %s", err)
+		}
+		certFile = tempCertFile
+	}
+	keyFile := sc.keyPEMFile
+	if len(keyFile) == 0 {
+		tempKeyFile, err := proxy.TempKeyFile()
+		if err != nil {
+			glog.Fatalf("Could not prepare key.pem file: %s", err)
+		}
+		keyFile = tempKeyFile
+	}
+	return certFile, keyFile
+}
+
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
@@ -176,23 +197,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
-	certFile := sc.certPEMFile
-	if len(certFile) == 0 {
-		tempCertFile, err := proxy.TempCertFile()
-		if err != nil {
-			glog.Fatalf("Could not prepare cert.pem file: %s", err)
-		}
-		certFile = tempCertFile
-	}
-	keyFile := sc.keyPEMFile
-	if len(keyFile) == 0 {
-		tempKeyFile, err := proxy.TempKeyFile()
-		if err != nil {
-			glog.Fatalf("Could not prepare key.pem file: %s", err)
-		}
-		keyFile = tempKeyFile
-	}
-
+	certFile, keyFile := sc.getCertFiles()
+	
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
 			// bindPort has already been validated, so the Split/access below won't break.

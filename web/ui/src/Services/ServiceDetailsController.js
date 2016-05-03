@@ -36,12 +36,20 @@
 
 
         $scope.modalAddPublicEndpoint = function() {
+            $scope.protocols = [];
+            $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
+            $scope.protocols.push({ Label: "HTTP", UseTLS: false, Protocol: "http" });
+            $scope.protocols.push({ Label: "Other, secure (TLS)", UseTLS: true, Protocol: "" });
+            $scope.protocols.push({ Label: "Other, non-secure", UseTLS: false, Protocol: "" });            
+            
             // default public endpoint options
             $scope.publicEndpoints.add = {
-                type: "vhost",
+                type: "port",
                 app_ep: $scope.exportedServiceEndpoints.data[0],
                 name: "",
-                port: ""
+                host: $scope.defaultHostAlias,
+                port: "",
+                protocol: $scope.protocols[0],
             };
 
             // returns an error string if newPublicEndpoint's vhost is invalid
@@ -69,26 +77,26 @@
 
             // returns an error string if newPublicEndpoint's port is invalid
             var validatePort = function(newPublicEndpoint){
-
+                var host = newPublicEndpoint.host;
                 var port = newPublicEndpoint.port;
+
+                if(!host || !host.length){
+                    return "Missing host name";
+                }
+
+                // if invalid characters
+                var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
+                if(!re.test(host)){
+                    return $translate.instant("host_name_invalid") + ": " + host;
+                }                
 
                 // if no port
                 if(!port || !port.length){
                     return "Missing port";
                 }
 
-                // if port already exists
-                for (var i in $scope.publicEndpoints.data) {
-                    if (+port === $scope.publicEndpoints.data[i].PortAddr) {
-                       return "Port number already in use: "+ newPublicEndpoint.port;
-                    }
-                }
-
-                if(+port < 1024){
-                    return "Port must be greater than 1024";
-                }
-                if(+port > 65536){
-                    return "Port must be less than 65536";
+                if(+port < 1 || +port > 65536){
+                    return "Port must be between 1 and 65536";
                 }
 
                 // TODO - add more reserved ports
@@ -170,10 +178,12 @@
                 var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
                 return resourcesFactory.addVHost(serviceId, serviceEndpoint, name);
             } else if(newPublicEndpoint.type === "port"){
-                var port = newPublicEndpoint.port;
+                var port = newPublicEndpoint.host + ":" + newPublicEndpoint.port;
                 var serviceId = newPublicEndpoint.app_ep.ApplicationId;
                 var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
-                return resourcesFactory.addPort(serviceId, serviceEndpoint, port);
+                var usetls = newPublicEndpoint.protocol.UseTLS;
+                var protocol = newPublicEndpoint.protocol.Protocol;
+                return resourcesFactory.addPort(serviceId, serviceEndpoint, port, usetls, protocol);
             }
         };
 
@@ -288,13 +298,30 @@
                 var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
                 return location.protocol + "//" + host + port;
             } else if(publicEndpoint.type === "port"){
+                var host = "";
+                var protocol = publicEndpoint.Protocol;
                 if(publicEndpoint.PortAddr.startsWith(":")){
-                    var host = $scope.defaultHostAlias;
-                    // Port public endpoint port listeners are always on http
-                    return "http://" + host + publicEndpoint.PortAddr;
-                }else{
-                    return "http://" + publicEndpoint.PortAddr;
+                    host = $scope.defaultHostAlias;
                 }
+                if(protocol !== "") {
+                    return "http" + (publicEndpoint.UseTLS ? "s" : "") + "://" + host + publicEndpoint.PortAddr;
+                } else {
+                    return host + publicEndpoint.PortAddr;
+                }
+            }
+        };
+        
+        $scope.publicEndpointProtocol = function(publicEndpoint) {
+            if(publicEndpoint.type === "vhost"){
+                return "https";
+            } else {
+                if (publicEndpoint.Protocol !== "") {
+                    return publicEndpoint.Protocol;
+                }
+                if (publicEndpoint.UseTLS) {
+                    return "other (TLS)";
+                }
+                return "other";
             }
         };
 
