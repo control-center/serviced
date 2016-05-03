@@ -34,9 +34,9 @@ func (c *ServicedCli) initVersion() {
 // serviced version
 func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	fmt.Printf("Version:    %s\n", servicedversion.Version)
+	fmt.Printf("GoVersion:  %s\n", servicedversion.GoVersion)
 	fmt.Printf("Gitcommit:  %s\n", servicedversion.Gitcommit)
 	fmt.Printf("Gitbranch:  %s\n", servicedversion.Gitbranch)
-	fmt.Printf("Giturl:     %s\n", servicedversion.Giturl)
 	fmt.Printf("Date:       %s\n", servicedversion.Date)
 	fmt.Printf("Buildtag:   %s\n", servicedversion.Buildtag)
 	fmt.Printf("Release:    %s\n", servicedversion.Release)

@@ -86,7 +86,6 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	host.ServiceD.Version = servicedversion.Version
 	host.ServiceD.Gitbranch = servicedversion.Gitbranch
 	host.ServiceD.Gitcommit = servicedversion.Gitcommit
-	host.ServiceD.Giturl = servicedversion.Giturl
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
 	host.ServiceD.Release = servicedversion.Release
