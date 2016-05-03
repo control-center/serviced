@@ -8,7 +8,7 @@
 # TMP=/tmp
 
 # Set the number of processors used by serviced
-# GOMAXPROCS=4
+# GOMAXPROCS=2
 
 # Set enable/disable the agent role, set to 1/0, respectively
 # SERVICED_AGENT=0
