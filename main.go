@@ -26,19 +26,21 @@ import (
 
 const conffile = "/etc/default/serviced"
 
-var Version string
-var Date string
-var Gitcommit string
-var Gitbranch string
-var Giturl string
-var Buildtag string
+var (
+	Version   string
+	GoVersion string
+	Date      string
+	Gitcommit string
+	Gitbranch string
+	Buildtag  string
+)
 
 func main() {
 	servicedversion.Version = Version
+	servicedversion.GoVersion = GoVersion
 	servicedversion.Date = Date
 	servicedversion.Gitcommit = Gitcommit
 	servicedversion.Gitbranch = Gitbranch
-	servicedversion.Giturl = Giturl
 	servicedversion.Buildtag = Buildtag
 
 	config, err := getConfigs(os.Args)

@@ -27,20 +27,22 @@ import (
 	"strings"
 )
 
-var Version string
-var Date string
-var Gitbranch string
-var Gitcommit string
-var Giturl string
-var Buildtag string
-var Release string
+var (
+	Version   string
+	GoVersion string
+	Date      string
+	Gitcommit string
+	Gitbranch string
+	Buildtag  string
+	Release   string
+)
 
 type ServicedVersion struct {
 	Version   string
+	GoVersion string
 	Date      string
-	Gitbranch string
 	Gitcommit string
-	Giturl    string
+	Gitbranch string
 	Buildtag  string
 	Release   string
 }
@@ -54,13 +56,12 @@ func init() {
 }
 
 func GetVersion() ServicedVersion {
-
 	return ServicedVersion{
 		Version:   Version,
+		GoVersion: GoVersion,
 		Date:      Date,
-		Gitbranch: Gitbranch,
 		Gitcommit: Gitcommit,
-		Giturl:    Giturl,
+		Gitbranch: Gitbranch,
 		Buildtag:  Buildtag,
 		Release:   Release,
 	}
