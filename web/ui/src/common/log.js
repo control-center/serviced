@@ -32,23 +32,23 @@
 
     const logFunctions = {
         [DEBUG]: function(...args){
-            $log.debug("[DEBUG: "+ getCallingFn(DEBUG_DEPTH) +"]\n", ...args);
+            $log.debug("[DEBUG: "+ getCallingFn(DEBUG_DEPTH) +"] ", ...args);
         },
 
         [LOG]: function(...args){
-            $log.log("[LOG: "+ getCallingFn(DEBUG_DEPTH) +"]\n", ...args);
+            $log.log("[LOG: "+ getCallingFn(DEBUG_DEPTH) +"] ", ...args);
         },
 
         [INFO]: function(...args){
-            $log.info("[INFO: "+ getCallingFn(DEBUG_DEPTH) +"]\n", ...args);
+            $log.info("[INFO: "+ getCallingFn(DEBUG_DEPTH) +"] ", ...args);
         },
 
         [WARN]: function(...args){
-            $log.warn("[WARN: "+ getCallingFn(DEBUG_DEPTH) +"]\n", ...args);
+            $log.warn("[WARN: "+ getCallingFn(DEBUG_DEPTH) +"] ", ...args);
         },
 
         [ERROR]: function(...args){
-            $log.error("[ERROR: "+ getCallingFn(DEBUG_DEPTH) +"]\n", ...args);
+            $log.error("[ERROR: "+ getCallingFn(DEBUG_DEPTH) +"] ", ...args);
         }
     };
 
