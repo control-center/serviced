@@ -395,15 +395,13 @@ func DriverTestSnapshotContainerMounts(c *C, drivername volume.DriverType, root 
 	vol := createBase(c, driver, "Base")
 	verifyBase(c, driver, vol)
 
-	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd: []string{"bash", "-c",
-					"for ((i=1;i<=600;i++)); do ls /test/sentinel && exit 1 ; sleep 1; done"},
-			},
+	cd := &dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image: "ubuntu:latest",
+			Cmd: []string{"bash", "-c",
+				"for ((i=1;i<=600;i++)); do ls /test/sentinel && exit 1 ; sleep 1; done"},
 		},
-		dockerclient.HostConfig{
+		HostConfig: &dockerclient.HostConfig{
 			Binds: []string{vol.Path() + ":/test"},
 		},
 	}
