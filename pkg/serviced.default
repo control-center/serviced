@@ -8,7 +8,7 @@
 # TMP=/tmp
 
 # Set the number of processors used by serviced
-# GOMAXPROCS=
+# GOMAXPROCS=2
 
 # Set enable/disable the agent role, set to 1/0, respectively
 # SERVICED_AGENT=1
@@ -20,7 +20,7 @@
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
 
 # Set the local docker registry
-# SERVICED_DOCKER_REGISTRY={{SERVICED_MASTER_IP}}:5000
+# SERVICED_DOCKER_REGISTRY=localhost:5000
 
 # Set the outbound IP that serviced will broadcast on
 # SERVICED_OUTBOUND_IP=10.0.0.29
