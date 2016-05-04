@@ -89,8 +89,8 @@ end
 
 Then (/^I should see an empty Hosts page$/) do
     expect(@hosts_page).to have_no_host_entry
-    @hosts_page.assert_text("Showing 0 Results")
-    @hosts_page.assert_text("No Data Found")
+    expect(@hosts_page).to have_content("Showing 0 Results")
+    expect(@hosts_page).to have_content("No Data Found")
 end
 
 Then (/^the Port field should be flagged as invalid$/) do
