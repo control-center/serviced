@@ -284,6 +284,7 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.weekly
 default_INSTCMD = cp
 $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:serviced-fstrim
+$(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += serviced-controller/serviced-controller:serviced-controller
