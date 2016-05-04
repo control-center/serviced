@@ -30,6 +30,8 @@ import (
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
+	
+	"net/http"
 )
 
 var (
@@ -75,17 +77,80 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
+// For HTTPS connections, we need to inject a header for downstream servers.
+func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode, stopChan chan bool, shutdown <-chan (interface{})) error {
+	port := node.Name
+	useTLS := true
+	
+	glog.V(1).Infof("About to listen on port (https) %s; UseTLS=%t", port, useTLS)
+	glog.V(0).Infof("About to listen on port (https) %s; UseTLS=%t", port, useTLS)
+
+	// Copied from cpserver.go (needs to reuse)
+	httphandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.V(2).Infof("httphandler (port) handling request: %+v", r)
+		glog.V(0).Infof("httphandler (port) handling request: %+v", r)
+
+		pepKey := registry.GetPublicEndpointKey(node.Name, node.Type)
+		pepEP, err := sc.getPublicEndpoint(string(pepKey))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		
+		rp := sc.getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
+		glog.V(1).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
+		glog.V(0).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
+	
+		// Set up the X-Forwarded-Proto header so that downstream servers know
+		// the request originated as HTTPS.
+		if _, found := r.Header["X-Forwarded-Proto"]; !found {
+			r.Header.Set("X-Forwarded-Proto", "https")
+		}
+	
+		rp.ServeHTTP(w, r)
+		return
+	}
+
+	portServer := http.NewServeMux()
+	portServer.HandleFunc("/", httphandler)
+
+	// FIXME: bubble up these errors to the caller
+	certFile, keyFile := sc.getCertFiles()
+	
+	go func() {
+		// This cipher suites and tls min version change may not be needed with golang 1.5
+		// https://github.com/golang/go/issues/10094
+		// https://github.com/golang/go/issues/9364
+		config := &tls.Config{
+			MinVersion:               utils.MinTLS(),
+			PreferServerCipherSuites: true,
+			CipherSuites:             utils.CipherSuites(),
+		}
+		server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
+		err := server.ListenAndServeTLS(certFile, keyFile)
+		if err != nil {
+			glog.Fatalf("could not setup HTTPS (port) webserver: %s", err)
+		}
+	}()
+	
+	return nil
+}
+
 func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpointNode, stopChan chan bool, shutdown <-chan (interface{})) error {
 	port := node.Name
 	useTLS := node.UseTLS
-
+	proto := node.Protocol
+	
 	// Declare our listener..
 	var listener net.Listener
 	var err error
 
 	glog.V(1).Infof("About to listen on port %s; UseTLS=%t", port, useTLS)
 
-	if useTLS {
+	if proto == "https" {
+		// We have to set up an HttpListener to inject headers for downstram servers.
+		return sc.createPortHttpServer(node, stopChan, shutdown)
+	} else if useTLS {
 		// Gather our certs files.
 		certFile, keyFile := sc.getCertFiles()
 
