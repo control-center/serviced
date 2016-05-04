@@ -15,6 +15,7 @@ package volume
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
 )
 
@@ -140,4 +142,19 @@ func DefaultSnapshotLabel(tenant, label string) string {
 		label = prefix + label
 	}
 	return label
+}
+
+const blockSize uint64 = 64 * 1024
+
+func ToBytes(from uint64) string {
+	return units.BytesSize(float64(from))
+}
+func BlocksToBytes(blocks uint64) string {
+	return ToBytes(blockSize * blocks)
+}
+func Percent(amt, total uint64) string {
+	return fmt.Sprintf("%.2g%%", 100*(float64(amt)/float64(total)))
+}
+func BytesToBlocks(bytes uint64) uint64 {
+	return bytes / blockSize
 }

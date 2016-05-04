@@ -242,13 +242,16 @@ func (sr *StatsReporter) updateHostStats() {
 
 func (sr *StatsReporter) updateStorageStats() {
 	volumeStatuses := volume.GetStatus()
-	if volumeStatuses == nil || volumeStatuses.StatusMap == nil {
+	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
 		glog.Errorf("Unexpected error getting volume status")
 		return
 	}
-
-	for _, volumeStatus := range volumeStatuses.StatusMap {
-		for _, volumeUsage := range volumeStatus.UsageData {
+	for _, volumeStatus := range volumeStatuses.GetAllStatuses() {
+		for _, volumeUsage := range volumeStatus.GetUsageData() {
+			if volumeUsage.MetricName != "" {
+				metrics.GetOrRegisterGauge(volumeUsage.MetricName, sr.hostRegistry).Update(int64(volumeUsage.Value))
+				continue
+			}
 			fields := strings.Fields(volumeUsage.Type)
 			if len(fields) < 1 {
 				glog.Errorf("Error parsing volume usage %s", volumeUsage.Type)

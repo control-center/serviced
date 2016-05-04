@@ -37,8 +37,8 @@ func (c *ServicedCli) initVolume() {
 				Action:      c.cmdVolumeStatus,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
-						Name:   "verbose, v",
-						Usage:  "Show JSON format",
+						Name:  "verbose, v",
+						Usage: "Show JSON format",
 					},
 				},
 			},
@@ -62,9 +62,9 @@ func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
 }
 
 func printStatuses(statuses *volume.Statuses) {
-	for path, status := range statuses.StatusMap {
+	for path, status := range statuses.GetAllStatuses() {
 		fmt.Printf("Status for volume %s:\n", path)
-		printStatusText(&status)
+		printStatusText(status)
 	}
 }
 
@@ -76,6 +76,6 @@ func printStatusesJson(statuses *volume.Statuses) {
 	}
 }
 
-func printStatusText(status *volume.Status) {
+func printStatusText(status volume.Status) {
 	fmt.Printf("%s\n", status.String())
 }

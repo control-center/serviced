@@ -151,7 +151,7 @@ func (d *NFSDriver) Remove(volumeName string) error {
 	return ErrNotSupported
 }
 
-func (d *NFSDriver) Status() (*volume.Status, error) {
+func (d *NFSDriver) Status() (volume.Status, error) {
 	return nil, ErrNotSupported
 }
 
