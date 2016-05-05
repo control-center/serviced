@@ -46,6 +46,10 @@ func (s *S) TestAddVirtualHost(t *C) {
 		t.Errorf("Expected error adding vhost")
 	}
 
+	if err = svc.AddVirtualHost("server", "name.something"); err == nil {
+		t.Errorf("Expected error adding vhost with '.'")
+	}
+
 	if err = svc.AddVirtualHost("server", "name"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
@@ -115,7 +119,7 @@ func (s *S) TestAddPort(t *C) {
 	if err = svc.AddPort("server", "1234", false, "http"); err != nil {
 		t.Errorf("Unexpected error adding port: %v", err)
 	}
-	
+
 	// TODO: More tests for proper port range, etc, need to be added
 	// once the code is added to the facade/cli.
 
