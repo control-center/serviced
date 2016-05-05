@@ -171,7 +171,7 @@ func (s *FacadeIntegrationTest) TestRestoreHosts(c *C) {
 	hosts3 := []host.Host{
 		{
 			ID:      "deadb11f",
-			PoolID:  "poolid2",
+			PoolID:  "poolid",
 			Name:    "h1",
 			IPAddr:  "192.168.0.1",
 			RPCPort: 65535,
@@ -186,7 +186,7 @@ func (s *FacadeIntegrationTest) TestRestoreHosts(c *C) {
 		},
 	}
 	err = s.Facade.RestoreHosts(s.CTX, hosts3)
-	c.Assert(err, NotNil)
+	c.Assert(err, IsNil)
 	actual, err = s.Facade.GetHosts(s.CTX)
 	c.Assert(err, IsNil)
 	for i := range actual {
@@ -194,7 +194,7 @@ func (s *FacadeIntegrationTest) TestRestoreHosts(c *C) {
 		actual[i].CreatedAt = time.Time{}
 		actual[i].UpdatedAt = time.Time{}
 	}
-	c.Assert(actual, DeepEquals, hosts1)
+	c.Assert(actual, DeepEquals, hosts3)
 }
 
 func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
