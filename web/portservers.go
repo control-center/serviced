@@ -113,8 +113,13 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 	portServer := http.NewServeMux()
 	portServer.HandleFunc("/", httphandler)
 
-	// FIXME: bubble up these errors to the caller
-	certFile, keyFile := sc.getCertFiles()
+	// Get the certificates and handle the error.
+	certFile, keyFile, err := sc.getCertFiles()
+	if err != nil {
+		glog.Errorf("Error getting certificates for HTTPS port %s: %s", port, err)
+		disablePort(node)
+		return err
+	}
 
 	// Setup certificates and serve the requests.	
 	go func() {
@@ -151,8 +156,13 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 		// We have to set up an HttpListener to inject headers for downstram servers.
 		return sc.createPortHttpServer(node)
 	} else if useTLS {
-		// Gather our certs files.
-		certFile, keyFile := sc.getCertFiles()
+		// Gather our certs files and handle the error.
+		certFile, keyFile, err := sc.getCertFiles()
+		if err != nil {
+			glog.Errorf("Error getting certificates for TLS port %s: %s", port, err)
+			disablePort(node)
+			return err
+		}
 
 		// Create our certificate from the cert files (strings).
 		glog.V(2).Infof("Loading certs from %s, %s", certFile, keyFile)
