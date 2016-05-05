@@ -78,17 +78,16 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 }
 
 // For HTTPS connections, we need to inject a header for downstream servers.
-func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode, stopChan chan bool, shutdown <-chan (interface{})) error {
+func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode) error {
 	port := node.Name
 	useTLS := true
 	
 	glog.V(1).Infof("About to listen on port (https) %s; UseTLS=%t", port, useTLS)
-	glog.V(0).Infof("About to listen on port (https) %s; UseTLS=%t", port, useTLS)
 
-	// Copied from cpserver.go (needs to reuse)
+	// Setup a handler for the port https endpoint.  This differs from the
+	// handler for cc/vhosts.
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler (port) handling request: %+v", r)
-		glog.V(0).Infof("httphandler (port) handling request: %+v", r)
 
 		pepKey := registry.GetPublicEndpointKey(node.Name, node.Type)
 		pepEP, err := sc.getPublicEndpoint(string(pepKey))
@@ -99,7 +98,6 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 		
 		rp := sc.getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 		glog.V(1).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
-		glog.V(0).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
 	
 		// Set up the X-Forwarded-Proto header so that downstream servers know
 		// the request originated as HTTPS.
@@ -111,12 +109,14 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 		return
 	}
 
+	// Create a new port server with a default handler.
 	portServer := http.NewServeMux()
 	portServer.HandleFunc("/", httphandler)
 
 	// FIXME: bubble up these errors to the caller
 	certFile, keyFile := sc.getCertFiles()
-	
+
+	// Setup certificates and serve the requests.	
 	go func() {
 		// This cipher suites and tls min version change may not be needed with golang 1.5
 		// https://github.com/golang/go/issues/10094
@@ -149,7 +149,7 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 
 	if proto == "https" {
 		// We have to set up an HttpListener to inject headers for downstram servers.
-		return sc.createPortHttpServer(node, stopChan, shutdown)
+		return sc.createPortHttpServer(node)
 	} else if useTLS {
 		// Gather our certs files.
 		certFile, keyFile := sc.getCertFiles()
