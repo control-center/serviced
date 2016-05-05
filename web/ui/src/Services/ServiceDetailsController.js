@@ -306,16 +306,24 @@
                 var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
                 return location.protocol + "//" + host + port;
             } else if(publicEndpoint.type === "port"){
-                var host = "";
-                var protocol = publicEndpoint.Protocol;
-                if(publicEndpoint.PortAddr.startsWith(":")){
-                    host = $scope.defaultHostAlias;
+                // Port public endpoint
+                var portAddr = publicEndpoint.PortAddr;
+                var protocol = publicEndpoint.Protocol.toLowerCase();
+                if(portAddr.startsWith(":")){
+                    portAddr = $scope.defaultHostAlias + portAddr;
                 }
+                // Remove the port for standard http/https ports.
                 if(protocol !== "") {
-                    return "http" + (publicEndpoint.UseTLS ? "s" : "") + "://" + host + publicEndpoint.PortAddr;
+                    var parts = portAddr.split(":");
+                    if (protocol == "http" && parts[1] == "80") {
+                        portAddr = parts[0];
+                    } else if (protocol == "https" && parts[1] == "443") {
+                        portAddr = parts[0];
+                    }
+                    return protocol + "://" + portAddr;
                 } else {
-                    return host + publicEndpoint.PortAddr;
-                }
+                    return portAddr;
+                }                
             }
         };
         

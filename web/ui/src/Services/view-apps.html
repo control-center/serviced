@@ -38,10 +38,10 @@
 
           <td data-title="'label_public_endpoints'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
-                  <span ng-repeat="vhost in aggregateVHosts(service) track by $index">
+                  <div ng-repeat="vhost in aggregateVHosts(service) track by $index">
                       <health-status ng-if="service.desiredState !== 1 || !vhost.Enabled">{{publicEndpointURL(vhost)}}</health-status>
                       <a ng-if="service.desiredState === 1 && vhost.Enabled" href="{{publicEndpointURL(vhost)}}" target="_blank" class="link">{{publicEndpointURL(vhost)}}</a>
-                  </span>
+                  </div>
               </span>
               <span ng-if="service.isIsvc()" class="ntsh">N/A</span>
               <span ng-if="service.deploying" class="ntsh">N/A</span>
