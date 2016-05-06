@@ -46,6 +46,7 @@ type HealthStatusCache struct {
 	mu   *sync.Mutex
 	data map[HealthStatusKey]HealthStatusItem
 	stop chan struct{}
+	wg   *sync.WaitGroup
 }
 
 // New returns a new HealthStatusCache instance
@@ -53,6 +54,7 @@ func New() *HealthStatusCache {
 	cache := &HealthStatusCache{
 		mu:   &sync.Mutex{},
 		data: make(map[HealthStatusKey]HealthStatusItem),
+		wg:   &sync.WaitGroup{},
 	}
 	return cache
 }
@@ -62,12 +64,19 @@ func New() *HealthStatusCache {
 func (cache *HealthStatusCache) SetPurgeFrequency(interval time.Duration) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	cache.setPurgeFrequency(interval)
+}
+
+func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 	if cache.stop != nil {
 		close(cache.stop)
+		cache.wg.Wait()
 	}
 	if interval > 0 {
 		cache.stop = make(chan struct{})
-		go func(stop <-chan struct{}) {
+		cache.wg.Add(1)
+		go func() {
+			defer cache.wg.Done()
 			timer := time.NewTimer(interval)
 			defer timer.Stop()
 			for {
@@ -75,15 +84,14 @@ func (cache *HealthStatusCache) SetPurgeFrequency(interval time.Duration) {
 				case <-timer.C:
 					cache.DeleteExpired()
 					timer.Reset(interval)
-				case <-stop:
+				case <-cache.stop:
 					return
 				}
 			}
-		}(cache.stop)
+		}()
 	} else {
 		cache.stop = nil
 	}
-	return
 }
 
 // Size returns the size of the cache.
