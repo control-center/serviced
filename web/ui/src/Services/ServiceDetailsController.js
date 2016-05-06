@@ -315,9 +315,9 @@
                 // Remove the port for standard http/https ports.
                 if(protocol !== "") {
                     var parts = portAddr.split(":");
-                    if (protocol == "http" && parts[1] == "80") {
+                    if (protocol === "http" && parts[1] === "80") {
                         portAddr = parts[0];
-                    } else if (protocol == "https" && parts[1] == "443") {
+                    } else if (protocol === "https" && parts[1] === "443") {
                         portAddr = parts[0];
                     }
                     return protocol + "://" + portAddr;
