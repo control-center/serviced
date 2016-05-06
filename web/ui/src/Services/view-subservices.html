@@ -67,9 +67,7 @@
               <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{publicEndpoint.type}}</td>
               <td data-title="'public_endpoint_protocol'|translate">{{publicEndpointProtocol(publicEndpoint)}}</td>
               <td data-title="'public_endpoint_url'|translate" sortable="'publicEndpointURL(publicEndpoint)'">
-                  <health-status ng-if="!isServiceRunning(publicEndpoint.ApplicationId) || !publicEndpoint.Enabled"><b>{{publicEndpointURL(publicEndpoint)}}</b></health-status>
-                  <a ng-if="isServiceRunning(publicEndpoint.ApplicationId) && publicEndpoint.Enabled && publicEndpoint.Protocol != ''" href="{{publicEndpointURL(publicEndpoint)}}" target="_blank" class="link">{{publicEndpointURL(publicEndpoint)}}</a>
-                  <span ng-if="isServiceRunning(publicEndpoint.ApplicationId) && publicEndpoint.Enabled && publicEndpoint.Protocol == ''">{{publicEndpointURL(publicEndpoint)}}</span>
+                  <public-endpoint-link public-endpoint="publicEndpoint"></public-endpoint-link>
               </td>
               <td data-title="'actions'|translate">
                   <button ng-class="{disabled: publicEndpoint.Enabled }" ng-click="clickEndpointEnable(publicEndpoint)" class="btn btn-link action">
