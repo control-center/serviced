@@ -85,7 +85,7 @@ export DESCRIPTION
 all: desc
 
 desc:
-	echo "Usage: make deb or make rpm. Both options package $(FULL_NAME)-$(PKG_VERSION)."
+	echo "Usage: make deb, make tgz, or make rpm. Both options package $(FULL_NAME)-$(PKG_VERSION)."
 
 .PHONY: clean_files
 clean_files:
@@ -164,7 +164,7 @@ deb: stage_deb
 		-d libdevmapper1.02.1 \
 		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'docker-engine (= 1.9.0-0~trusty)' \
+		-d 'docker-engine (= 1.10.3-0~trusty)' \
 		-d logrotate \
 		-d rsync \
 		-d lvm2 \
@@ -199,7 +199,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'docker-engine = 1.9.0' \
+		-d 'docker-engine = 1.10.3' \
 		-d logrotate \
 		-d rsync \
 		-d lvm2 \
