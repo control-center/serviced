@@ -122,6 +122,11 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 
 // AsyncBackup is the same as backup, but asynchronous
 func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err error) {
+	ctx := datastore.Get()
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock("backup")
+	inprogress.Reset()
+	dfslocker.Unlock()
 	go dao.Backup(dirpath, filename)
 	return
 }
@@ -160,6 +165,11 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 
 // AsyncRestore is the same as restore, but asynchronous.
 func (dao *ControlPlaneDao) AsyncRestore(filename string, unused *int) (err error) {
+	ctx := datastore.Get()
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock("restore")
+	inprogress.Reset()
+	dfslocker.Unlock()
 	go dao.Restore(filename, unused)
 	return
 }
