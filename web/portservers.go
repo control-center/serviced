@@ -134,7 +134,7 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 		server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
-			glog.Fatalf("could not setup HTTPS (port) webserver: %s", err)
+			glog.Errorf("could not setup HTTPS (port) webserver: %s", err)
 		}
 	}()
 	
