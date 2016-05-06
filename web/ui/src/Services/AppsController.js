@@ -101,43 +101,13 @@
                     endpoint.PortList.forEach(port => endPoints.push(port));
                 }
             });
-
-            endPoints.sort((ep1, ep2) =>
-                $scope.publicEndpointURL(ep1).localeCompare($scope.publicEndpointURL(ep2)));
-
+            
             return endPoints;
         }, function(service){
             return service.id + service.model.DatabaseVersion;
         });
 
-        // given an endpoint, return a url to it
-        $scope.publicEndpointURL = function(publicEndpoint) {
-            if ("Name" in publicEndpoint){
-                var port = $location.port() === "" ? "" : ":"+$location.port();
-                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
-                return $location.protocol() + "://" + host + port;
-            } else if ("PortAddr" in publicEndpoint){
-                // Port public endpoint
-                var portAddr = publicEndpoint.PortAddr;
-                var protocol = publicEndpoint.Protocol.toLowerCase();
-                if(portAddr.startsWith(":")){
-                    portAddr = $scope.defaultHostAlias + portAddr;
-                }
-                // Remove the port for standard http/https ports.
-                if(protocol !== "") {
-                    var parts = portAddr.split(":");
-                    if (protocol === "http" && parts[1] === "80") {
-                        portAddr = parts[0];
-                    } else if (protocol === "https" && parts[1] === "443") {
-                        portAddr = parts[0];
-                    }
-                    return protocol + "://" + portAddr;
-                } else {
-                    return portAddr;
-                }                
-            }
-        };
-
+        
         $scope.modal_removeService = function(service) {
             $modalService.create({
                 template: $translate.instant("warning_remove_service"),

@@ -299,33 +299,6 @@
                 });
         };
 
-
-        $scope.publicEndpointURL = function(publicEndpoint) {
-            if(publicEndpoint.type === "vhost"){
-                var port = location.port === "" ? "" : ":"+location.port;
-                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
-                return location.protocol + "//" + host + port;
-            } else if(publicEndpoint.type === "port"){
-                // Port public endpoint
-                var portAddr = publicEndpoint.PortAddr;
-                var protocol = publicEndpoint.Protocol.toLowerCase();
-                if(portAddr.startsWith(":")){
-                    portAddr = $scope.defaultHostAlias + portAddr;
-                }
-                // Remove the port for standard http/https ports.
-                if(protocol !== "") {
-                    var parts = portAddr.split(":");
-                    if (protocol === "http" && parts[1] === "80") {
-                        portAddr = parts[0];
-                    } else if (protocol === "https" && parts[1] === "443") {
-                        portAddr = parts[0];
-                    }
-                    return protocol + "://" + portAddr;
-                } else {
-                    return portAddr;
-                }                
-            }
-        };
         
         $scope.publicEndpointProtocol = function(publicEndpoint) {
             if(publicEndpoint.type === "vhost"){
@@ -743,11 +716,6 @@
             $scope.params.serviceId = id;
             $scope.services.current = servicesFactory.get($scope.params.serviceId);
             $scope.update();
-        };
-
-        $scope.isServiceRunning = function(id) {
-            var service = servicesFactory.get(id);
-            return service.desiredState === 1;
         };
 
         $scope.update = function(){
