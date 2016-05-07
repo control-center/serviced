@@ -74,6 +74,7 @@ controlplane.
             suffix: '.json'
         });
         $translateProvider.preferredLanguage('en_US');
+        $translateProvider.fallbackLanguage('en_US');
     }]).
     config(['DSCacheFactoryProvider', function(DSCacheFactory){
         DSCacheFactory.setCacheDefaults({
