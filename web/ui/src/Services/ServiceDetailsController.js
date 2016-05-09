@@ -930,7 +930,6 @@
 
             $scope.publicEndpointsTable = {
                 sorting: {
-                    Name: "asc",
                     ServiceEndpoint: "asc"
                 }
             };
