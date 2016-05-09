@@ -290,26 +290,6 @@
                     servicesFactory.update(true);
                 });
         };
-
-
-        $scope.publicEndpointURL = function(publicEndpoint) {
-            if(publicEndpoint.type === "vhost"){
-                var port = location.port === "" ? "" : ":"+location.port;
-                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
-                return location.protocol + "//" + host + port;
-            } else if(publicEndpoint.type === "port"){
-                var host = "";
-                var protocol = publicEndpoint.Protocol;
-                if(publicEndpoint.PortAddr.startsWith(":")){
-                    host = $scope.defaultHostAlias;
-                }
-                if(protocol !== "") {
-                    return "http" + (publicEndpoint.UseTLS ? "s" : "") + "://" + host + publicEndpoint.PortAddr;
-                } else {
-                    return host + publicEndpoint.PortAddr;
-                }
-            }
-        };
         
         $scope.publicEndpointProtocol = function(publicEndpoint) {
             if(publicEndpoint.type === "vhost"){
@@ -785,7 +765,6 @@
 
             $scope.publicEndpointsTable = {
                 sorting: {
-                    Name: "asc",
                     ServiceEndpoint: "asc"
                 }
             };

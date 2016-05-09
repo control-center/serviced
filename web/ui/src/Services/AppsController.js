@@ -109,18 +109,6 @@
             return service.id + service.model.DatabaseVersion;
         });
 
-        // given an endpoint, return a url to it
-        $scope.publicEndpointURL = function(publicEndpoint) {
-            if ("Name" in publicEndpoint){
-                var port = $location.port() === "" ? "" : ":"+$location.port();
-                var host = publicEndpoint.Name.indexOf('.') === -1 ? publicEndpoint.Name + "." + $scope.defaultHostAlias : publicEndpoint.Name;
-                return $location.protocol() + "://" + host + port;
-            } else if ("PortNumber" in publicEndpoint){
-                // Port public endpoint port listeners are always on http
-                return "http://" + $scope.defaultHostAlias + publicEndpoint.PortAddr;
-            }
-        };
-
         $scope.modal_removeService = function(service) {
             $modalService.create({
                 template: $translate.instant("warning_remove_service"),

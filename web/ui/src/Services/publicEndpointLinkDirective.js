@@ -15,7 +15,7 @@
             scope: {
                 publicEndpoint: "=",
                 state: "@",
-                hostAlias: "@",
+                hostAlias: "=",
             },
             link: function ($scope, element, attrs){
                 var publicEndpoint = $scope.publicEndpoint;
@@ -27,14 +27,14 @@
                     if ("Name" in publicEndpoint){
                         var port = $location.port() === "" ? "" : ":" + $location.port();
                         var host = publicEndpoint.Name.indexOf('.') === -1 ?
-                            publicEndpoint.Name + "." + $scope.hostAlias : publicEndpoint.Name;
+                            publicEndpoint.Name + ".{{hostAlias}}" : publicEndpoint.Name;
                         url = $location.protocol() + "://" + host + port;
                     } else if ("PortAddr" in publicEndpoint){
                         // Port public endpoint
                         var portAddr = publicEndpoint.PortAddr;
                         var protocol = publicEndpoint.Protocol.toLowerCase();
                         if(portAddr.startsWith(":")){
-                            portAddr = $scope.hostAlias + portAddr;
+                            portAddr = "{{hostAlias}}" + portAddr;
                         }
                         // Remove the port for standard http/https ports.
                         if(protocol !== "") {
