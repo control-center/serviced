@@ -120,12 +120,13 @@ func getPortServices(port uint8) (map[string]struct{}, bool, registry.PublicEndp
 }
 
 // Returns the cert files
-func (sc *ServiceConfig) getCertFiles() (string, string) {
+func (sc *ServiceConfig) getCertFiles() (string, string, error) {
 	certFile := sc.certPEMFile
 	if len(certFile) == 0 {
 		tempCertFile, err := proxy.TempCertFile()
 		if err != nil {
 			glog.Fatalf("Could not prepare cert.pem file: %s", err)
+			return "", "", err
 		}
 		certFile = tempCertFile
 	}
@@ -134,10 +135,11 @@ func (sc *ServiceConfig) getCertFiles() (string, string) {
 		tempKeyFile, err := proxy.TempKeyFile()
 		if err != nil {
 			glog.Fatalf("Could not prepare key.pem file: %s", err)
+			return "", "", err
 		}
 		keyFile = tempKeyFile
 	}
-	return certFile, keyFile
+	return certFile, keyFile, nil
 }
 
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
@@ -218,7 +220,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
-	certFile, keyFile := sc.getCertFiles()
+	certFile, keyFile, err := sc.getCertFiles()
 	
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
