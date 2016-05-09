@@ -14,10 +14,11 @@
             restrict: "E",
             scope: {
                 publicEndpoint: "=",
-                state: "=",
+                state: "@",
+                hostAlias: "=",
             },
-            link: function (scope, element, attrs){
-                var publicEndpoint = scope.publicEndpoint;
+            link: function ($scope, element, attrs){
+                var publicEndpoint = $scope.publicEndpoint;
 
                 // A method to return the displayed URL for an endpoint.
                 var getUrl = function(publicEndpoint){
@@ -26,14 +27,14 @@
                     if ("Name" in publicEndpoint){
                         var port = $location.port() === "" ? "" : ":" + $location.port();
                         var host = publicEndpoint.Name.indexOf('.') === -1 ?
-                            publicEndpoint.Name + "." + scope.defaultHostAlias : publicEndpoint.Name;
+                            publicEndpoint.Name + ".{{hostAlias}}" : publicEndpoint.Name;
                         url = $location.protocol() + "://" + host + port;
                     } else if ("PortAddr" in publicEndpoint){
                         // Port public endpoint
                         var portAddr = publicEndpoint.PortAddr;
                         var protocol = publicEndpoint.Protocol.toLowerCase();
                         if(portAddr.startsWith(":")){
-                            portAddr = scope.defaultHostAlias + portAddr;
+                            portAddr = "{{hostAlias}}" + portAddr;
                         }
                         // Remove the port for standard http/https ports.
                         if(protocol !== "") {
@@ -86,7 +87,7 @@
                     }
                 } else {
                     // This is a top level application.  Check the state and..
-                    if (scope.state !== 1 || !publicEndpoint.Enabled){
+                    if (+$scope.state !== 1 || !publicEndpoint.Enabled){
                         // .. show the url as a label with a bootstrap popover..
                         html = '<span>' + url + '</span>';
                         popover = true;
@@ -97,7 +98,7 @@
                 }
                 
                 // Compile the element.
-                var el =$compile(html)(scope);
+                var el =$compile(html)($scope);
                 if (popover){
                     addPopover(el, "vhost_unavailable");
                 }
