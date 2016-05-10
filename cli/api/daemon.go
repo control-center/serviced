@@ -52,14 +52,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
-	// Need to do btrfs driver initializations
-	_ "github.com/control-center/serviced/volume/btrfs"
-	// Need to do rsync driver initializations
-	_ "github.com/control-center/serviced/volume/rsync"
-	// Need to do devicemapper driver initializations
-	_ "github.com/control-center/serviced/volume/devicemapper"
-	// Need to do nfs driver initializations
-	_ "github.com/control-center/serviced/volume/nfs"
+
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
 
@@ -73,7 +66,6 @@ import (
 	"net/http"
 	"net/rpc"
 	"net/rpc/jsonrpc"
-	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -85,12 +77,11 @@ import (
 	"time"
 
 	// Needed for profiling
-	"net/http/httputil"
+
 	_ "net/http/pprof"
 )
 
 var minDockerVersion = version{1, 9, 0}
-var dockerRegistry = "localhost:5000"
 
 const (
 	localhost = "127.0.0.1"
@@ -159,7 +150,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
-	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
+	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
 		glog.Fatalf("Could not set es-serviced option: %s", err)
@@ -174,7 +165,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
-	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList))
+	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.Start(); err != nil {
 		glog.Fatalf("Could not start isvcs: %s", err)
@@ -231,74 +222,6 @@ func (d *daemon) startRPC() {
 	}()
 }
 
-func (d *daemon) startDockerRegistryProxy() {
-	host, port, err := net.SplitHostPort(options.DockerRegistry)
-	if err != nil {
-		glog.Fatalf("Could not parse docker registry: %s", err)
-	}
-
-	if isLocalAddress := func(host string) bool {
-		addrs, err := net.LookupIP(host)
-		if err != nil {
-			glog.Fatalf("Could not resolve ips for docker registry host %s: %s", host, err)
-		}
-		for _, addr := range addrs {
-			if addr.IsLoopback() {
-				glog.Infof("Docker registry host %s is a loopback address at %s", host, addr)
-				return true
-			}
-		}
-
-		iaddrs, err := net.InterfaceAddrs()
-		if err != nil {
-			glog.Fatalf("Could not look up interface address: %s", err)
-		}
-		for _, iaddr := range iaddrs {
-			var ip net.IP
-			switch iaddr.(type) {
-			case *net.IPNet:
-				ip = iaddr.(*net.IPNet).IP
-			case *net.IPAddr:
-				ip = iaddr.(*net.IPAddr).IP
-			default:
-				continue
-			}
-
-			if !ip.IsLoopback() {
-				glog.Infof("Checking interface address at %s", iaddr)
-				for _, addr := range addrs {
-					if addr.Equal(ip) {
-						glog.Infof("Host %s is a local address at %s", host, ip)
-						return true
-					}
-				}
-			}
-		}
-
-		glog.Infof("Host %s is not a local address", host)
-		return false
-	}(host); isLocalAddress && port == "5000" {
-		return
-	}
-
-	glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
-		Scheme: "http",
-		Host:   options.DockerRegistry,
-	})
-	proxy.Director = func(r *http.Request) {
-		r.Host = options.DockerRegistry
-		r.URL.Host = r.Host
-		r.URL.Scheme = "http"
-	}
-	http.Handle("/", proxy)
-	go func() {
-		if err := http.ListenAndServe(dockerRegistry, nil); err != nil {
-			glog.Fatalf("Unable to bind to docker registry port (:5000) %s. Is another instance already running?", err)
-		}
-	}()
-}
-
 func (d *daemon) run() (err error) {
 	if d.hostID, err = utils.HostID(); err != nil {
 		glog.Fatalf("Could not get host ID: %s", err)
@@ -323,7 +246,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	// set up the registry
-	d.reg = registry.NewRegistryListener(d.docker, dockerRegistry, d.hostID)
+	d.reg = registry.NewRegistryListener(d.docker, options.DockerRegistry, d.hostID)
 
 	// Initialize the storage driver
 	if !filepath.IsAbs(options.VolumesPath) {
@@ -333,7 +256,6 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VolumesPath, options.StorageArgs, options.StorageOptions, err)
 	}
 	d.startRPC()
-	d.startDockerRegistryProxy()
 
 	//Start the zookeeper client
 	localClient, err := d.initZK(options.Zookeepers)
@@ -403,6 +325,7 @@ func (d *daemon) initContext() (datastore.Context, error) {
 }
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
+	coordzk.RegisterZKLogger()
 	dsn := coordzk.NewDSN(zks, time.Second*15).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	return coordclient.New("zookeeper", dsn, "/", nil)
@@ -692,7 +615,7 @@ func (d *daemon) startAgent() error {
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
 			UseTLS:               options.TLS,
-			DockerRegistry:       dockerRegistry,
+			DockerRegistry:       options.DockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 			ControllerBinary:     options.ControllerBinary,
@@ -712,19 +635,19 @@ func (d *daemon) startAgent() error {
 		}()
 
 		// register the API
-		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		if err = d.rpcServer.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
-			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
+		glog.V(0).Infoln("registering ControlCenterAgent service")
+		if err = d.rpcServer.RegisterName("ControlCenterAgent", hostAgent); err != nil {
+			glog.Fatalf("could not register RPC server named ControlCenterAgent: %v", err)
 		}
 
 		if options.Master {
-			rpcutils.RegisterLocal("ControlPlaneAgent", hostAgent)
+			rpcutils.RegisterLocal("ControlCenterAgent", hostAgent)
 		}
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
 			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master)
+			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
 			if err != nil {
 				glog.Errorf("Error kicking off stats reporter %v", err)
 			} else {
@@ -738,11 +661,9 @@ func (d *daemon) startAgent() error {
 
 	agentServer := agent.NewServer(d.staticIPs)
 	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
-		glog.Fatalf("could not register Agent RPC server: %v", err)
+		glog.Fatalf("could not register RPC server named Agent: %v", err)
 	}
-	if err != nil {
-		glog.Fatalf("Could not start ControlPlane agent: %v", err)
-	}
+
 	if options.Master {
 		rpcutils.RegisterLocal("Agent", agentServer)
 	}
@@ -750,7 +671,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry, options.ControllerBinary, options.UIPort)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry, options.ControllerBinary, options.UIPort)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -770,17 +691,17 @@ func (d *daemon) registerMasterRPC() error {
 	}
 	rpcutils.RegisterLocal("Master", server)
 	if err := d.rpcServer.RegisterName("Master", server); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+		return fmt.Errorf("could not register RPC server named Master: %v", err)
 	}
 
 	// register the deprecated rpc servers
 	rpcutils.RegisterLocal("LoadBalancer", d.cpDao)
 	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+		return fmt.Errorf("could not register RPC server named LoadBalancer: %v", err)
 	}
-	rpcutils.RegisterLocal("ControlPlane", d.cpDao)
-	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
-		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
+	rpcutils.RegisterLocal("ControlCenter", d.cpDao)
+	if err := d.rpcServer.RegisterName("ControlCenter", d.cpDao); err != nil {
+		return fmt.Errorf("could not register RPC server named ControlCenter: %v", err)
 	}
 	return nil
 }
@@ -861,8 +782,19 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases,
-		options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile, options.UIPollFrequency)
+	cpserver := web.NewServiceConfig(
+		options.UIPort,
+		options.Endpoint,
+		options.ReportStats,
+		options.HostAliases,
+		options.TLS,
+		options.MuxPort,
+		options.AdminGroup,
+		options.CertPEMFile,
+		options.KeyPEMFile,
+		options.UIPollFrequency,
+		options.SnapshotSpacePercent,
+		d.facade)
 	web.SetServiceStatsCacheTimeout(options.SvcStatsCacheTimeout)
 	go cpserver.Serve(d.shutdown)
 	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)

@@ -81,6 +81,9 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		uiConfig:    uiCfg,
 	}
 	adminGroup = aGroup
+
+	snapshotSpacePercent = configuredSnapshotSpacePercent
+
 	return &cfg
 }
 
