@@ -282,3 +282,19 @@ func (s *DockerSuite) TestFindImageByHash(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(actualhash, Equals, lowerLayerHash)
 }
+
+// Make sure that IsImageNotFound returns true for the errors produced by
+//  calling certain methods with a non-existant image
+func (s *DockerSuite) TestIsImageNotFound(c *C) {
+	// test on FindImage
+	_, err := s.docker.FindImage("fakebox")
+	c.Assert(IsImageNotFound(err), Equals, true)
+
+	// test on TagImage
+	err = s.docker.TagImage("fakebox", "localhost:5000/busybox:tag")
+	c.Assert(IsImageNotFound(err), Equals, true)
+
+	// test on PullImage
+	err = s.docker.PullImage("localhost:5000/fakebox:fake")
+	c.Assert(IsImageNotFound(err), Equals, true)
+}
