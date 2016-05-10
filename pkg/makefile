@@ -224,6 +224,6 @@ rpm: stage_rpm
 # Make a TGZ
 TAR_NAME=$(FULL_NAME)-$(PKG_VERSION)-$(ITERATION).tgz
 tgz: stage_tgz
-        tar cvfz /tmp/$(TAR_NAME) -C $(PKGROOT)/ .
-        chown $(DUID):$(DGID) /tmp/$(TAR_NAME)
-        mv /tmp/$(TAR_NAME) .
+	tar cvfz /tmp/$(TAR_NAME) -C $(PKGROOT)/ .
+	chown $(DUID):$(DGID) /tmp/$(TAR_NAME)
+	mv /tmp/$(TAR_NAME) .
