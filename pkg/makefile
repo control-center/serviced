@@ -35,7 +35,7 @@ DEB_PRIORITY  = extra
 CATEGORY      = admin
 
 # Package versions will follow the following idiom:
-#   
+#
 #   BUILD_NUMBER=1234
 #   RELEASE_PHASE=#ignored
 #   NIGHTLY: serviced-1.0.0-0.0.1234.unstable (where 1234 is the build number)
@@ -105,7 +105,7 @@ clean_files:
 
 .PHONY: clean_dirs
 clean_dirs = $(PKGROOT) build
-clean_dirs: 
+clean_dirs:
 	@for dir in $(clean_dirs) ;\
 	do \
 		if [ -d "$${dir}" ];then \
@@ -222,7 +222,8 @@ rpm: stage_rpm
 		.
 
 # Make a TGZ
+TAR_NAME=$(FULL_NAME)-$(PKG_VERSION)-$(ITERATION).tgz
 tgz: stage_tgz
-	tar cvfz /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz -C $(PKGROOT)/ .
+	tar cvfz /tmp/$(TAR_NAME) -C $(PKGROOT)/ .
 	chown $(DUID):$(DGID) /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz
-	mv /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz .
+	mv /tmp/$(TAR_NAME) .
