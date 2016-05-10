@@ -102,6 +102,7 @@ type Options struct {
 	AllowLoopBack              string            // Allow loop back devices for DM storage, string val of bool
 	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
+	SnapshotSpacePercent int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 }
 
 // LoadOptions overwrites the existing server options
@@ -251,6 +252,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		AllowLoopBack:              strconv.FormatBool(config.BoolVal("ALLOW_LOOP_BACK", false)),
 		UIPollFrequency:            config.IntVal("UI_POLL_FREQUENCY", 3),
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
+		SnapshotSpacePercent: 	    config.IntVal("SNAPSHOT_USE_PERCENT", 20),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

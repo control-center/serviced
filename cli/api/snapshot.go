@@ -92,6 +92,7 @@ func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 		Message:     cfg.Message,
 		Tag:         cfg.Tag,
 		ContainerID: cfg.DockerID,
+		SnapshotSpacePercent: options.SnapshotSpacePercent,
 	}
 	var snapshotID string
 	if err := client.Snapshot(req, &snapshotID); err != nil {
