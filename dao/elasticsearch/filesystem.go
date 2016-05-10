@@ -122,13 +122,13 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 }
 
 // AsyncBackup is the same as backup, but asynchronous
-func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err error) {
+func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
 	ctx := datastore.Get()
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock("backup")
 	inprogress.Reset()
 	dfslocker.Unlock()
-	go dao.Backup(dirpath, filename)
+	go dao.Backup(backupRequest, filename)
 	return
 }
 
