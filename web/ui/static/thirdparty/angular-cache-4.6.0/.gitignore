@@ -1,0 +1,19 @@
+node_modules/
+npm-debug.log
+
+.DS_Store
+
+libpeerconnection.log
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+coverage/Chrome*/*
+coverage/Phantom*/*
+coverage/Firefox*/*
+coverage/
+
+bower_components/
+
+build_examples/**/bundle.js

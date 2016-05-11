@@ -21,9 +21,9 @@ var DEBUG = false;
  * Main module & controllers
  ******************************************************************************/
 var controlplane = angular.module('controlplane', [
-    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate',
+    'ngRoute', 'ngCookies','ngDragDrop','ngSanitize','pascalprecht.translate',
     'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
-    'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
+    'modalService', 'angular-cache', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
     'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log'
@@ -74,9 +74,10 @@ controlplane.
             suffix: '.json'
         });
         $translateProvider.preferredLanguage('en_US');
+        $translateProvider.useSanitizeValueStrategy('sanitizeParameters');
     }]).
-    config(['DSCacheFactoryProvider', function(DSCacheFactory){
-        DSCacheFactory.setCacheDefaults({
+    config(['CacheFactoryProvider', function(CacheFactoryProvider){
+        angular.extend(CacheFactoryProvider.defaults, {
             // Items will not be deleted until they are requested
             // and have expired
             deleteOnExpire: 'passive',
