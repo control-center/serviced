@@ -44,6 +44,7 @@ func IsImageNotFound(err error) bool {
 		var checks = []*regexp.Regexp{
 			regexp.MustCompile("Tag .* not found in repository .*"),
 			regexp.MustCompile("Error: image .* not found"),
+			regexp.MustCompile("could not find image"),
 		}
 		for _, check := range checks {
 			if ok := check.MatchString(err.Error()); ok {
