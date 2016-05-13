@@ -62,7 +62,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 	fi
 
 .PHONY: test
-test: build
+test: build translation_test
 	@if [ -x "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp test'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
@@ -77,6 +77,11 @@ test: build
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
 
+.PHONY: translation_test
+translation_test:
+	echo "Checking translation files.."
+	/bin/bash ./testTranslation.sh
+	
 .PHONY: clean
 clean:
 	rm -rf build
