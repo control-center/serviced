@@ -16,6 +16,8 @@ package health
 import (
 	"sync"
 	"time"
+	"fmt"
+	"os"
 )
 
 // HealthStatusKey is the key to the health status item in the cache.
@@ -68,9 +70,12 @@ func (cache *HealthStatusCache) SetPurgeFrequency(interval time.Duration) {
 }
 
 func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
+	fmt.Fprintf(os.Stderr, "setPurgeFrequency for %.02f seconds STARTED\n", interval.Seconds())
 	if cache.stop != nil {
 		close(cache.stop)
+		fmt.Fprintf(os.Stderr, "setPurgeFrequency: Waiting ...\n")
 		cache.wg.Wait()
+		fmt.Fprintf(os.Stderr, "setPurgeFrequency: Wait finished\n")
 	}
 	if interval > 0 {
 		cache.stop = make(chan struct{})
@@ -92,6 +97,7 @@ func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 	} else {
 		cache.stop = nil
 	}
+	fmt.Fprintf(os.Stderr, "setPurgeFrequency for %.02f seconds FINISHED\n", interval.Seconds())
 }
 
 // Size returns the size of the cache.
