@@ -525,12 +525,11 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 			return err
 		}
 		d.DevicePrefix = prefix
-		var cmd *exec.Cmd
 		switch enableLVMMonitoring {
 		case "y":
 			if thinPoolDev != "" {
 				glog.V(1).Infof("Enabling LVM Monitoring for thin pool device %s", thinPoolDev)
-				cmd = exec.Command("lvchange", "--monitor", "y", thinPoolDev)
+				cmd := exec.Command("lvchange", "--monitor", "y", thinPoolDev)
 				output, err := cmd.CombinedOutput()
 				if err != nil {
 					glog.Errorf("Could not run command %v: %s (%s)", cmd, string(output), err)
@@ -542,7 +541,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		case "n", "":
 			if thinPoolDev != "" {
 				glog.V(1).Infof("Disabling LVM Monitoring for thin pool device %s", thinPoolDev)
-				cmd = exec.Command("lvchange", "--monitor", "n", thinPoolDev)
+				cmd := exec.Command("lvchange", "--monitor", "n", thinPoolDev)
 				output, err := cmd.CombinedOutput()
 				if err != nil {
 					glog.Errorf("Could not run command %v: %s (%s)", cmd, string(output), err)
