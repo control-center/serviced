@@ -17,6 +17,8 @@ package health_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"time"
 
 	. "github.com/control-center/serviced/health"
@@ -33,6 +35,25 @@ type jsonhealthcheck struct {
 var _ = Suite(&HealthCheckTestSuite{})
 
 type HealthCheckTestSuite struct{}
+
+// FIXME: This is temporary code to diagnose occassional build failures where some test in this package is getting
+//        wedged such that the GO test runner cancels the test after 10 minutes.  Once the problem has been isolated
+//        and fixed, these setup and teardown methods will be removed.
+func (s *HealthCheckTestSuite) SetUpSuite(c *C) {
+	fmt.Fprintf(os.Stderr, " STARTED HealthCheckTestSuite\n")
+}
+
+func (s *HealthCheckTestSuite) SetUpTest(c *C) {
+	fmt.Fprintf(os.Stderr, " STARTED %s\n", c.TestName())
+}
+
+func (s *HealthCheckTestSuite) TearDownTest(c *C) {
+	fmt.Fprintf(os.Stderr, "FINISHED %s\n", c.TestName())
+}
+
+func (s *HealthCheckTestSuite) TearDownSuite(c *C) {
+	fmt.Fprintf(os.Stderr, "FINISHED HealthCheckTestSuite\n")
+}
 
 func (s *HealthCheckTestSuite) TestMarshalJSON(c *C) {
 	// Verify the marshaller
