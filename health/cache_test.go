@@ -11,9 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build unit
+
 package health_test
 
 import (
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -26,6 +30,25 @@ func Test(t *testing.T) { TestingT(t) }
 var _ = Suite(&HealthStatusCacheTestSuite{})
 
 type HealthStatusCacheTestSuite struct{}
+
+// FIXME: This is temporary code to diagnose occassional build failures where some test in this package is getting
+//        wedged such that the GO test runner cancels the test after 10 minutes.  Once the problem has been isolated
+//        and fixed, these setup and teardown methods will be removed.
+func (s *HealthStatusCacheTestSuite) SetUpSuite(c *C) {
+	fmt.Fprintf(os.Stderr, " STARTED HealthStatusCacheTestSuite\n")
+}
+
+func (s *HealthStatusCacheTestSuite) SetUpTest(c *C) {
+	fmt.Fprintf(os.Stderr, " STARTED %s\n", c.TestName())
+}
+
+func (s *HealthStatusCacheTestSuite) TearDownTest(c *C) {
+	fmt.Fprintf(os.Stderr, "FINISHED %s\n", c.TestName())
+}
+
+func (s *HealthStatusCacheTestSuite) TearDownSuite(c *C) {
+	fmt.Fprintf(os.Stderr, "FINISHED HealthStatusCacheTestSuite\n")
+}
 
 func (s *HealthStatusCacheTestSuite) TestCRUD_NotExists(c *C) {
 	// Get an item from the cache that does not exist
