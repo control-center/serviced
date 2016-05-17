@@ -3,7 +3,7 @@
 // integers. Ranges do not overlap, and each interval has maximal extent (i.e.,
 // is not adjacent to another range).
 //
-// See http://web.engr.oregonstate.edu/~erwig/papers/dietNode_JFP98.pdf
+// See https://web.engr.oregonstate.edu/~erwig/papers/Diet_JFP98.pdf
 //
 // This implementation is a modified version of the original that allows the
 // insertion of an entire range at a time.
