@@ -79,7 +79,7 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 func NewProcessExecutorServer(port, dockerRegistry, controllerBinary, uiport string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary, uiport: uiport},
+		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary},
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
@@ -292,7 +292,8 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	cmd, err := StartDocker(cfg, e.dockerRegistry, e.port, e.controllerBinary, e.uiport)
+	//Control center is always available in a container on port 443 regardless of the ui port
+	cmd, err := StartDocker(cfg, e.dockerRegistry, e.port, e.controllerBinary)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -335,7 +336,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
-func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string, uiport string) (*exec.Cmd, error) {
+func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control center client to look up the service
@@ -448,7 +449,8 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string, ui
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
-	argv = append(argv, "-e", fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(uiport, ":")[1]))
+	//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
+	argv = append(argv, "-e", "SERVICED_UI_PORT=443")
 
 	argv = append(argv, image)
 	argv = append(argv, proxycmd...)
