@@ -40,67 +40,68 @@ var options Options
 
 // Options are the server options
 type Options struct {
-	Endpoint             string // the endpoint address to make RPC requests to
-	UIPort               string
-	NFSClient            string
-	RPCPort              string
-	Listen               string
-	OutboundIP           string // outbound ip to listen on
-	Master               bool
-	DockerDNS            []string
-	Agent                bool
-	MuxPort              int
-	TLS                  bool
-	KeyPEMFile           string
-	CertPEMFile          string
-	VolumesPath          string
-	IsvcsPath            string
-	BackupsPath          string
-	ResourcePath         string
-	Zookeepers           []string
-	ReportStats          bool
-	HostStats            string
-	StatsPeriod          int
-	SvcStatsCacheTimeout int
-	MCUsername           string
-	MCPasswd             string
-	Mount                []string
-	ResourcePeriod       int
-	FSType               volume.DriverType
-	ESStartupTimeout     int
-	HostAliases          []string
-	Verbosity            int
-	StaticIPs            []string
-	DockerRegistry       string
-	CPUProfile           string // write cpu profile to file
-	MaxContainerAge      int    // max container age in seconds
-	MaxDFSTimeout        int    // max timeout for snapshot
-	VirtualAddressSubnet string
-	MasterPoolID         string
-	LogstashES           string //logstatsh elasticsearch host:port
-	LogstashMaxDays      int    // Days to keep logstash indices
-	LogstashMaxSize      int    // Max size of logstash data
-	LogstashCycleTime    int    // Logstash purging cycle time in hours
-	LogstashURL          string
-	DebugPort            int    // Port to listen for profile clients
-	AdminGroup           string // user group that can log in to control center
-	MaxRPCClients        int    // the max number of rpc clients to an endpoint
-	RPCDialTimeout       int
-	RPCCertVerify        string            //  server certificate verify for rpc connections, string val of bool
-	RPCDisableTLS        string            //  Disable TLS for RPC connections, string val of bool
-	SnapshotTTL          int               // hours to keep snapshots around, zero for infinity
-	StorageArgs          []string          // command-line arguments for storage options
-	StorageOptions       map[string]string // environment arguments for storage options
-	ControllerBinary     string            // Path to the container controller binary
-	StartISVCS           []string          // ISVCS to start when running as an agent
-	IsvcsZKID            int               // Zookeeper server id when running as a quorum
-	IsvcsZKQuorum        []string          // Members of the zookeeper quorum
-	TLSCiphers           []string          // List of tls ciphers supported
-	TLSMinVersion        string            // Minimum TLS version supported
-	DockerLogDriver      string            // Which log driver to use with containers
-	DockerLogConfigList  []string          // List of comma-separated key=value options for docker logging
-	AllowLoopBack        string            // Allow loop back devices for DM storage, string val of bool
-	UIPollFrequency      int               // frequency in seconds that UI should poll for service changes
+	Endpoint                   string // the endpoint address to make RPC requests to
+	UIPort                     string
+	NFSClient                  string
+	RPCPort                    string
+	Listen                     string
+	OutboundIP                 string // outbound ip to listen on
+	Master                     bool
+	DockerDNS                  []string
+	Agent                      bool
+	MuxPort                    int
+	TLS                        bool
+	KeyPEMFile                 string
+	CertPEMFile                string
+	VolumesPath                string
+	IsvcsPath                  string
+	BackupsPath                string
+	ResourcePath               string
+	Zookeepers                 []string
+	ReportStats                bool
+	HostStats                  string
+	StatsPeriod                int
+	SvcStatsCacheTimeout       int
+	MCUsername                 string
+	MCPasswd                   string
+	Mount                      []string
+	ResourcePeriod             int
+	FSType                     volume.DriverType
+	ESStartupTimeout           int
+	HostAliases                []string
+	Verbosity                  int
+	StaticIPs                  []string
+	DockerRegistry             string
+	CPUProfile                 string // write cpu profile to file
+	MaxContainerAge            int    // max container age in seconds
+	MaxDFSTimeout              int    // max timeout for snapshot
+	VirtualAddressSubnet       string
+	MasterPoolID               string
+	LogstashES                 string //logstash elasticsearch host:port
+	LogstashMaxDays            int    // Days to keep logstash indices
+	LogstashMaxSize            int    // Max size of logstash data
+	LogstashCycleTime          int    // Logstash purging cycle time in hours
+	LogstashURL                string
+	DebugPort                  int    // Port to listen for profile clients
+	AdminGroup                 string // user group that can log in to control center
+	MaxRPCClients              int    // the max number of rpc clients to an endpoint
+	RPCDialTimeout             int
+	RPCCertVerify              string            //  server certificate verify for rpc connections, string val of bool
+	RPCDisableTLS              string            //  Disable TLS for RPC connections, string val of bool
+	SnapshotTTL                int               // hours to keep snapshots around, zero for infinity
+	StorageArgs                []string          // command-line arguments for storage options
+	StorageOptions             map[string]string // environment arguments for storage options
+	ControllerBinary           string            // Path to the container controller binary
+	StartISVCS                 []string          // ISVCS to start when running as an agent
+	IsvcsZKID                  int               // Zookeeper server id when running as a quorum
+	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
+	TLSCiphers                 []string          // List of tls ciphers supported
+	TLSMinVersion              string            // Minimum TLS version supported
+	DockerLogDriver            string            // Which log driver to use with containers
+	DockerLogConfigList        []string          // List of comma-separated key=value options for docker logging
+	AllowLoopBack              string            // Allow loop back devices for DM storage, string val of bool
+	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
+	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 }
 
 // LoadOptions overwrites the existing server options
@@ -202,53 +203,54 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	options := Options{
-		UIPort:               config.StringVal("UI_PORT", ":443"),
-		NFSClient:            config.StringVal("NFS_CLIENT", "1"),
-		RPCPort:              config.StringVal("RPC_PORT", fmt.Sprintf("%d", DefaultRPCPort)),
-		OutboundIP:           config.StringVal("OUTBOUND_IP", ""),
-		DockerDNS:            config.StringSlice("DOCKER_DNS", []string{}),
-		Master:               config.BoolVal("MASTER", false),
-		Agent:                config.BoolVal("AGENT", false),
-		MuxPort:              config.IntVal("MUX_PORT", 22250),
-		KeyPEMFile:           config.StringVal("KEY_FILE", ""),
-		CertPEMFile:          config.StringVal("CERT_FILE", ""),
-		Zookeepers:           config.StringSlice("ZK", []string{}),
-		HostStats:            config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
-		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
-		SvcStatsCacheTimeout: config.IntVal("SVCSTATS_CACHE_TIMEOUT", 5),
-		MCUsername:           "scott",
-		MCPasswd:             "tiger",
-		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "devicemapper")),
-		ESStartupTimeout:     getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)),
-		HostAliases:          config.StringSlice("VHOST_ALIASES", []string{}),
-		Verbosity:            config.IntVal("LOG_LEVEL", 0),
-		StaticIPs:            config.StringSlice("STATIC_IPS", []string{}),
-		DockerRegistry:       config.StringVal("DOCKER_REGISTRY", "localhost:5000"),
-		MaxContainerAge:      config.IntVal("MAX_CONTAINER_AGE", 60*60*24),
-		MaxDFSTimeout:        config.IntVal("MAX_DFS_TIMEOUT", 60*5),
-		VirtualAddressSubnet: config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
-		MasterPoolID:         config.StringVal("MASTER_POOLID", "default"),
-		LogstashES:           config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
-		LogstashURL:          config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
-		LogstashMaxDays:      config.IntVal("LOGSTASH_MAX_DAYS", 14),
-		LogstashMaxSize:      config.IntVal("LOGSTASH_MAX_SIZE", 10),
-		LogstashCycleTime:    config.IntVal("LOGSTASH_CYCLE_TIME", 6),
-		DebugPort:            config.IntVal("DEBUG_PORT", 6006),
-		AdminGroup:           config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
-		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
-		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
-		RPCCertVerify:        strconv.FormatBool(config.BoolVal("RPC_CERT_VERIFY", false)),
-		RPCDisableTLS:        strconv.FormatBool(config.BoolVal("RPC_DISABLE_TLS", false)),
-		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
-		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
-		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
-		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
-		TLSCiphers:           config.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers()),
-		TLSMinVersion:        config.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
-		DockerLogDriver:      config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
-		DockerLogConfigList:  config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
-		AllowLoopBack:        strconv.FormatBool(config.BoolVal("ALLOW_LOOP_BACK", false)),
-		UIPollFrequency:      config.IntVal("UI_POLL_FREQUENCY", 3),
+		UIPort:                     config.StringVal("UI_PORT", ":443"),
+		NFSClient:                  config.StringVal("NFS_CLIENT", "1"),
+		RPCPort:                    config.StringVal("RPC_PORT", fmt.Sprintf("%d", DefaultRPCPort)),
+		OutboundIP:                 config.StringVal("OUTBOUND_IP", ""),
+		DockerDNS:                  config.StringSlice("DOCKER_DNS", []string{}),
+		Master:                     config.BoolVal("MASTER", false),
+		Agent:                      config.BoolVal("AGENT", false),
+		MuxPort:                    config.IntVal("MUX_PORT", 22250),
+		KeyPEMFile:                 config.StringVal("KEY_FILE", ""),
+		CertPEMFile:                config.StringVal("CERT_FILE", ""),
+		Zookeepers:                 config.StringSlice("ZK", []string{}),
+		HostStats:                  config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
+		StatsPeriod:                config.IntVal("STATS_PERIOD", 10),
+		SvcStatsCacheTimeout:       config.IntVal("SVCSTATS_CACHE_TIMEOUT", 5),
+		MCUsername:                 "scott",
+		MCPasswd:                   "tiger",
+		FSType:                     volume.DriverType(config.StringVal("FS_TYPE", "devicemapper")),
+		ESStartupTimeout:           getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)),
+		HostAliases:                config.StringSlice("VHOST_ALIASES", []string{}),
+		Verbosity:                  config.IntVal("LOG_LEVEL", 0),
+		StaticIPs:                  config.StringSlice("STATIC_IPS", []string{}),
+		DockerRegistry:             config.StringVal("DOCKER_REGISTRY", "localhost:5000"),
+		MaxContainerAge:            config.IntVal("MAX_CONTAINER_AGE", 60*60*24),
+		MaxDFSTimeout:              config.IntVal("MAX_DFS_TIMEOUT", 60*5),
+		VirtualAddressSubnet:       config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
+		MasterPoolID:               config.StringVal("MASTER_POOLID", "default"),
+		LogstashES:                 config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
+		LogstashURL:                config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
+		LogstashMaxDays:            config.IntVal("LOGSTASH_MAX_DAYS", 14),
+		LogstashMaxSize:            config.IntVal("LOGSTASH_MAX_SIZE", 10),
+		LogstashCycleTime:          config.IntVal("LOGSTASH_CYCLE_TIME", 6),
+		DebugPort:                  config.IntVal("DEBUG_PORT", 6006),
+		AdminGroup:                 config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
+		MaxRPCClients:              config.IntVal("MAX_RPC_CLIENTS", 3),
+		RPCDialTimeout:             config.IntVal("RPC_DIAL_TIMEOUT", 30),
+		RPCCertVerify:              strconv.FormatBool(config.BoolVal("RPC_CERT_VERIFY", false)),
+		RPCDisableTLS:              strconv.FormatBool(config.BoolVal("RPC_DISABLE_TLS", false)),
+		SnapshotTTL:                config.IntVal("SNAPSHOT_TTL", 12),
+		StartISVCS:                 config.StringSlice("ISVCS_START", []string{}),
+		IsvcsZKID:                  config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
+		IsvcsZKQuorum:              config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
+		TLSCiphers:                 config.StringSlice("TLS_CIPHERS", utils.GetDefaultCiphers()),
+		TLSMinVersion:              config.StringVal("TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
+		DockerLogDriver:            config.StringVal("DOCKER_LOG_DRIVER", "json-file"),
+		DockerLogConfigList:        config.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
+		AllowLoopBack:              strconv.FormatBool(config.BoolVal("ALLOW_LOOP_BACK", false)),
+		UIPollFrequency:            config.IntVal("UI_POLL_FREQUENCY", 3),
+		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

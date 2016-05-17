@@ -31,6 +31,12 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
+var storageStatsUpdateInterval time.Duration = 300
+
+func SetStorageStatsUpdateInterval(interval int) {
+	storageStatsUpdateInterval = time.Duration(interval)
+}
+
 // DeviceBlockStats represents a devicemapper device
 type DeviceBlockStats struct {
 	DeviceID int
@@ -276,7 +282,7 @@ func getDeviceBlockStats(pool string) (map[int]*DeviceBlockStats, error) {
 			return nil, err
 		}
 		statscache.cache[pool] = &cachedStat{
-			expiry: time.Now().Add(10 * time.Second),
+			expiry: time.Now().Add(storageStatsUpdateInterval * time.Second),
 			pool:   pool,
 			value:  value,
 		}
