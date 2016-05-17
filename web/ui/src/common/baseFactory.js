@@ -107,6 +107,8 @@
                 })
                 .error((data, status) => {
                     log.warn("Unable to update factory", data);
+                    // TODO - include status?
+                    deferred.reject(data);
                 })
                 .finally(() => {
                     // notify the first request is complete
