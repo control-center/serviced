@@ -16,8 +16,8 @@ package health
 import (
 	"sync"
 	"time"
-	//"fmt"
-	//"os"
+	"fmt"
+	"os"
 )
 
 // HealthStatusKey is the key to the health status item in the cache.
@@ -49,6 +49,7 @@ type HealthStatusCache struct {
 	data map[HealthStatusKey]HealthStatusItem
 	stop chan struct{}
 	wg   *sync.WaitGroup
+	counter int
 }
 
 // New returns a new HealthStatusCache instance
@@ -64,22 +65,29 @@ func New() *HealthStatusCache {
 // SetPurgeFrequency sets the autopurge interval for cache cleanup.
 // Stops autopurge if interval is <= 0.
 func (cache *HealthStatusCache) SetPurgeFrequency(interval time.Duration) {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
+	//cache.mu.Lock()
+	//defer cache.mu.Unlock()
 	cache.setPurgeFrequency(interval)
 }
 
 func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 	//fmt.Fprintf(os.Stderr, "setPurgeFrequency for %.02f seconds STARTED\n", interval.Seconds())
+	cache.mu.Lock()
 	if cache.stop != nil {
 		close(cache.stop)
 		cache.stop = nil
-		//fmt.Fprintf(os.Stderr, "setPurgeFrequency: Waiting ...\n")
+		cache.mu.Unlock()
+
+		//fmt.Fprintf(os.Stderr, "setPurgeFrequency(%.02f): Waiting (counter=%d)...\n", interval.Seconds(), cache.counter)
 		cache.wg.Wait()
 		//fmt.Fprintf(os.Stderr, "setPurgeFrequency: Wait finished\n")
+		cache.mu.Lock()
 	}
+	defer cache.mu.Unlock()
+
 	if interval > 0 {
 		cache.stop = make(chan struct{})
+
 		cache.wg.Add(1)
 		go func(stopChannel chan struct{}) {
 			defer cache.wg.Done()
@@ -88,15 +96,23 @@ func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 			for {
 				select {
 				case <-timer.C:
+					cache.counter++
 					cache.DeleteExpired()
+					rc :=
 					timer.Reset(interval)
+					//fmt.Fprintf(os.Stderr, "setPurgeFrequency: reset timer, rc=%s\n", rc)
+					if cache.counter > 3 {
+						fmt.Fprintf(os.Stderr, "setPurgeFrequency: reset timer, rc=%s\n", rc)
+					}
 				case <-stopChannel:
+					//fmt.Fprintf(os.Stderr, "setPurgeFrequency: stopping\n")
 					return
 				}
 			}
 		}(cache.stop)
 	} else {
 		cache.stop = nil
+		cache.counter = 0
 	}
 	//fmt.Fprintf(os.Stderr, "setPurgeFrequency for %.02f seconds FINISHED\n", interval.Seconds())
 }
