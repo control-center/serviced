@@ -6,10 +6,10 @@
 
     controlplane.controller("HostsController", ["$scope", "$routeParams", "$location",
         "$filter", "resourcesFactory", "authService", "$modalService",
-        "$interval", "$translate", "$notification", "miscUtils", "hostsFactory",
+        "$interval", "$timeout", "$translate", "$notification", "miscUtils", "hostsFactory",
         "poolsFactory", "servicesFactory", "areUIReady",
     function($scope, $routeParams, $location, $filter, resourcesFactory,
-    authService, $modalService, $interval, $translate, $notification,
+    authService, $modalService, $interval, $timeout, $translate, $notification,
     utils, hostsFactory, poolsFactory, servicesFactory, areUIReady){
         // Ensure logged in
         authService.checkLogin($scope);
@@ -126,12 +126,18 @@
             hostsFactory.update()
                 .then(() => {
                     $scope.hosts = hostsFactory.hostList;
+                }, () => {
+                    // wait a sec and try again
+                    $timeout(update, 1000);
                 });
 
             poolsFactory.update()
                 .then(() => {
                     $scope.pools = poolsFactory.poolList;
                     $scope.resetNewHost();
+                }, () => {
+                    // wait a sec and try again
+                    $timeout(update, 1000);
                 });
         }
 
