@@ -436,6 +436,7 @@ docker_buildandpackage: docker_ok
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build:$(BUILD_VERSION) make \
+		NODEJS=/usr/bin/node \
 		IN_DOCKER=1 \
 		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
 		GOPATH=$(docker_GOPATH) \
