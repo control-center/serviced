@@ -30,15 +30,15 @@ RemoveAllVirtualIPs removes (unbinds) all virtual IPs on the agent
 */
 func RemoveAllVirtualIPs() error {
 	// confirm the virtual IP is on this host and remove it
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
 	}
 	glog.V(2).Infof("Removing all virtual IPs...")
 	for _, virtualIP := range interfaceMap {
-		if err := unbindVirtualIP(virtualIP); err != nil {
-			return fmt.Errorf("unbindVirtualIP failed: %v", err)
+		if err := removeVirtualIP(virtualIP.IP); err != nil {
+			return fmt.Errorf("removeVirtualIP failed: %v", err)
 		}
 	}
 	glog.V(2).Infof("All virtual IPs have been removed.")
@@ -364,14 +364,14 @@ func generateInterfaceName(virtualIP pool.VirtualIP, virtualInterfaceIndex int) 
 }
 
 // create an interface map of virtual interfaces configured on the agent
-func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
+func createVirtualInterfaceMap() (map[string]pool.VirtualIP, error) {
 	interfaceMap := make(map[string]pool.VirtualIP)
 
 	//ip addr show | awk '/zvip/{print $NF}'
 	virtualInterfaceNames, err := exec.Command("bash", "-c", "ip addr show | awk '/"+virtualInterfacePrefix+"/{print $NF}'").CombinedOutput()
 	if err != nil {
 		glog.Warningf("Determining virtual interfaces failed: %v", err)
-		return err, interfaceMap
+		return interfaceMap, err
 	}
 	glog.V(2).Infof("Control plane virtual interfaces: %v", string(virtualInterfaceNames))
 
@@ -379,7 +379,7 @@ func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
 		bindInterfaceAndIndex := strings.Split(virtualInterfaceName, virtualInterfacePrefix)
 		if len(bindInterfaceAndIndex) != 2 {
 			err := fmt.Errorf("Unexpected interface format: %v", bindInterfaceAndIndex)
-			return err, interfaceMap
+			return interfaceMap, err
 		}
 		bindInterface := strings.TrimSpace(string(bindInterfaceAndIndex[0]))
 
@@ -387,32 +387,26 @@ func createVirtualInterfaceMap() (error, map[string]pool.VirtualIP) {
 		virtualIPAddressAndCIDR, err := exec.Command("bash", "-c", "ip addr show | awk '/"+virtualInterfaceName+"/ {print $2}'").CombinedOutput()
 		if err != nil {
 			glog.Warningf("Determining IP address of interface %v failed: %v", virtualInterfaceName, err)
-			return err, interfaceMap
+			return interfaceMap, err
 		}
 
-		virtualIPAddressAndCIDRStr := strings.Split(string(virtualIPAddressAndCIDR), "/")
-		if len(virtualIPAddressAndCIDRStr) != 2 {
-			err := fmt.Errorf("Unexpected IPAddress/CIDR format: %v", virtualIPAddressAndCIDRStr)
-			return err, interfaceMap
+		virtualIPAddress, network, err := net.ParseCIDR(strings.TrimSpace(string(virtualIPAddressAndCIDR)))
+		if err != nil {
+			return interfaceMap, err
 		}
-		virtualIPAddress := strings.TrimSpace(virtualIPAddressAndCIDRStr[0])
-		cidr := strings.TrimSpace(virtualIPAddressAndCIDRStr[1])
-		netmask := convertCIDRToNetmask(cidr)
-		if netmask == "" {
-			return fmt.Errorf("Illegal CIDR: %v", cidr), interfaceMap
-		}
+		netmask := net.IP(network.Mask)
 
-		interfaceMap[virtualInterfaceName] = pool.VirtualIP{PoolID: "", IP: strings.TrimSpace(string(virtualIPAddress)), Netmask: netmask, BindInterface: bindInterface}
+		interfaceMap[virtualInterfaceName] = pool.VirtualIP{PoolID: "", IP: virtualIPAddress.String(), Netmask: netmask.String(), BindInterface: bindInterface}
 	}
 
-	return nil, interfaceMap
+	return interfaceMap, nil
 }
 
 // add (bind) a virtual IP on the agent
 func addVirtualIP(virtualIPToAdd pool.VirtualIP, virtualInterfaceIndex int) error {
 	// confirm the virtual IP is not already on this host
 	virtualIPAlreadyHere := false
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
@@ -442,7 +436,7 @@ func addVirtualIP(virtualIPToAdd pool.VirtualIP, virtualInterfaceIndex int) erro
 // remove (unbind) a virtual IP from the agent
 func removeVirtualIP(virtualIPAddress string) error {
 	// confirm the VIP is on this host and remove it
-	err, interfaceMap := createVirtualInterfaceMap()
+	interfaceMap, err := createVirtualInterfaceMap()
 	if err != nil {
 		glog.Warningf("Creating virtual interface map failed")
 		return err
@@ -456,7 +450,7 @@ func removeVirtualIP(virtualIPAddress string) error {
 		}
 	}
 
-	glog.Warningf("Requested virtual IP address: %v is not on this host.", virtualIPAddress)
+	glog.Infof("Requested virtual IP address: %v was not on this host.", virtualIPAddress)
 	return nil
 }
 
@@ -496,83 +490,4 @@ func unbindVirtualIP(virtualIP pool.VirtualIP) error {
 
 	glog.Infof("Removed virtual interface: %+v", virtualIP)
 	return nil
-}
-
-func convertCIDRToNetmask(cidr string) string {
-	switch {
-	case cidr == "0":
-		return "0.0.0.0"
-	case cidr == "1":
-		return "128.0.0.0"
-	case cidr == "2":
-		return "192.0.0.0"
-	case cidr == "3":
-		return "224.0.0.0"
-	case cidr == "4":
-		return "240.0.0.0"
-	case cidr == "5":
-		return "248.0.0.0"
-	case cidr == "6":
-		return "252.0.0.0"
-	case cidr == "7":
-		return "254.0.0.0"
-
-	// class A
-	case cidr == "8":
-		return "255.0.0.0"
-	case cidr == "9":
-		return "255.128.0.0"
-	case cidr == "10":
-		return "255.192.0.0"
-	case cidr == "11":
-		return "255.224.0.0"
-	case cidr == "12":
-		return "255.240.0.0"
-	case cidr == "13":
-		return "255.248.0.0"
-	case cidr == "14":
-		return "255.252.0.0"
-	case cidr == "15":
-		return "255.254.0.0"
-
-	// class B
-	case cidr == "16":
-		return "255.255.0.0"
-	case cidr == "17":
-		return "255.255.128.0"
-	case cidr == "18":
-		return "255.255.192.0"
-	case cidr == "19":
-		return "255.255.224.0"
-	case cidr == "20":
-		return "255.255.240.0"
-	case cidr == "21":
-		return "255.255.248.0"
-	case cidr == "22":
-		return "255.255.252.0"
-	case cidr == "23":
-		return "255.255.254.0"
-
-	// class C
-	case cidr == "24":
-		return "255.255.255.0"
-
-	case cidr == "25":
-		return "255.255.255.128"
-	case cidr == "26":
-		return "255.255.255.192"
-	case cidr == "27":
-		return "255.255.255.224"
-	case cidr == "28":
-		return "255.255.255.240"
-	case cidr == "29":
-		return "255.255.255.248"
-	case cidr == "30":
-		return "255.255.255.252"
-	case cidr == "31":
-		return "255.255.255.254"
-	case cidr == "32":
-		return "255.255.255.255"
-	}
-	return ""
 }

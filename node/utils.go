@@ -7,7 +7,7 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package serviced
+package node
 
 import (
 	"github.com/zenoss/glog"

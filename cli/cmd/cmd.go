@@ -89,6 +89,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &cli.StringSlice{}, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
+		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60), "maximum age of a stopped container before removing"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},

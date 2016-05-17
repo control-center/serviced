@@ -8,7 +8,7 @@
 // serviced.
 
 // This file tests the LoadBalancer interface aspect of the host agent.
-package serviced
+package node
 
 import (
 	"github.com/zenoss/serviced/dao"

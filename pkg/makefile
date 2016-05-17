@@ -79,8 +79,8 @@ stage: build pkgroot
 
 	# Stage binary
 	mkdir -p pkgroot$(INSTALL_DIR)/bin
-	cp ../serviced/serviced pkgroot$(INSTALL_DIR)/bin
-	cp ../serviced/nsinit pkgroot$(INSTALL_DIR)/bin
+	cp ../serviced pkgroot$(INSTALL_DIR)/bin
+	cp ../nsinit pkgroot$(INSTALL_DIR)/bin
 
 	# Stage web files
 	mkdir -p pkgroot$(INSTALL_DIR)/share/web
@@ -106,7 +106,7 @@ stage: build pkgroot
 
 	# add serviced bash complete file to etc/bash_completion.d
 	mkdir -p pkgroot/etc/bash_completion.d
-	cp ../serviced/serviced-bash-completion.sh pkgroot/etc/bash_completion.d/serviced
+	cp ../serviced-bash-completion.sh pkgroot/etc/bash_completion.d/serviced
 
 
 stage_deb: stage

@@ -3,14 +3,14 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/dao"
 
 	"net/url"
 )
 
 // restServiceAutomaticAssignIP rest resource for automatic assigning ips to a service
-func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)
@@ -29,7 +29,7 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 }
 
 // restServiceManualAssignIP rest resource for manual assigning ips to a service
-func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)

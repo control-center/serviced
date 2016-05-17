@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/domain/service"
 
 	"net/url"
@@ -18,7 +18,7 @@ type virtualHostRequest struct {
 }
 
 // restAddVirtualHost parses payload, adds the vhost to the service, then updates the service
-func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var request virtualHostRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
@@ -83,7 +83,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *service
 }
 
 // restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
-func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceId: %v", err)
@@ -139,7 +139,7 @@ type virtualHost struct {
 }
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var services []*service.Service
 	err := client.GetServices(&empty, &services)
 	if err != nil {

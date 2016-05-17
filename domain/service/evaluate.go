@@ -6,7 +6,7 @@ package service
 
 import (
 	"github.com/zenoss/glog"
-	"math"
+
 	"bytes"
 	"encoding/json"
 	"text/template"
@@ -66,9 +66,10 @@ func (service *Service) EvaluateRunsTemplate(gs GetService) (err error) {
 // then an empty string is returned.
 func (service *Service) evaluateTemplate(gs GetService, serviceTemplate string) string {
 	functions := template.FuncMap{
-		"parent":  parent(gs),
-		"context": context(),
+		"parent":       parent(gs),
+		"context":      context(),
 		"percentScale": percentScale,
+		"bytesToMB":    bytesToMB,
 	}
 
 	glog.V(3).Infof("Evaluating template string %v", serviceTemplate)
@@ -136,16 +137,31 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService) (err error) {
 }
 
 func percentScale(x uint64, percentage float64) uint64 {
-	return uint64(math.Floor(float64(x) * percentage))
+	return uint64(round(float64(x) * percentage))
+}
+
+func bytesToMB(x uint64) uint64 {
+	return uint64(round(float64(x) / (1048576.0))) // 1024.0 * 1024
+}
+
+// round value - convert to int64
+func round(value float64) int64 {
+	if value < 0.0 {
+		value -= 0.5
+	} else {
+		value += 0.5
+	}
+	return int64(value)
 }
 
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
 func (service *Service) EvaluateEndpointTemplates(gs GetService) (err error) {
 	functions := template.FuncMap{
-		"parent":  parent(gs),
-		"context": context(),
+		"parent":       parent(gs),
+		"context":      context(),
 		"percentScale": percentScale,
+		"bytesToMB":    bytesToMB,
 	}
 
 	for i, ep := range service.Endpoints {

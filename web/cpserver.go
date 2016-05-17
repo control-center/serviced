@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/proxy"
 	"github.com/zenoss/serviced/rpc/master"
 )
@@ -147,7 +147,7 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	}
 	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
-		proxy := serviced.NewReverseProxy(path, targetURL)
+		proxy := node.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
 	// Add on a glob to match subpaths
@@ -200,9 +200,9 @@ func (sc *ServiceConfig) isCollectingStats() handlerFunc {
 	}
 }
 
-func (sc *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
+func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	// setup the client
-	c, err = serviced.NewControlClient(sc.agentPort)
+	c, err = node.NewControlClient(sc.agentPort)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client: %v", err)
 	}

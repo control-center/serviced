@@ -14,7 +14,7 @@ func TestBuildPoolMonitoringProfile(t *testing.T) {
 		t.Fatalf("Failed to build pool monitoring profile: err=%s", err)
 	}
 
-	if len(pool.MonitoringProfile.Metrics) <= 0 {
+	if len(pool.MonitoringProfile.MetricConfigs) <= 0 {
 		t.Fatalf("Failed to build pool monitoring profile: pool=%+v", pool)
 	}
 }

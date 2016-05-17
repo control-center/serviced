@@ -3,7 +3,7 @@ package health
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"sync"
@@ -26,7 +26,7 @@ var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
-func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	packet := messagePacket{time.Now().UTC().Unix(), healthStatuses}
 	w.WriteJson(&packet)
 }

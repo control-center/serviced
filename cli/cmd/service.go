@@ -9,7 +9,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/cli/api"
 	"github.com/zenoss/serviced/dao"
 )
@@ -460,8 +460,8 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 }
 
 // sendLogMessage sends a log message to the host agent
-func sendLogMessage(lbClientPort string, serviceLogInfo serviced.ServiceLogInfo) error {
-	client, err := serviced.NewLBClient(lbClientPort)
+func sendLogMessage(lbClientPort string, serviceLogInfo node.ServiceLogInfo) error {
+	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return err
@@ -502,7 +502,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 	if err := c.driver.StartProxy(options); err != nil {
 		sendLogMessage(options.ServicedEndpoint,
-			serviced.ServiceLogInfo{
+			node.ServiceLogInfo{
 				ServiceID: options.ServiceID,
 				Message:   "container controller terminated with: " + err.Error(),
 			})
@@ -582,7 +582,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if len(args) > 2 {
 		argv = args[2:]
 	}
-	saveAs = serviced.GetLabel(serviceID)
+	saveAs = node.GetLabel(serviceID)
 	isTTY = ctx.GlobalBool("interactive")
 
 	config := api.ShellConfig{

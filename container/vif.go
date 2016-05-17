@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
+	"github.com/zenoss/serviced/node"
 )
 
 type vif struct {
@@ -151,7 +151,7 @@ func (viface *vif) redirectCommand(from, to, protocol string) error {
 			return err
 		}
 	}
-	err := serviced.AddToEtcHosts(viface.hostname, viface.ip)
+	err := node.AddToEtcHosts(viface.hostname, viface.ip)
 	if err != nil {
 		glog.Errorf("Unable to add %s to /etc/hosts", viface.hostname)
 		return err
