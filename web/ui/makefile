@@ -19,7 +19,6 @@ serviced_build_DOCKERDIR = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
-NODEJS = $(shell which node)
 docker_working_DIR = /mnt
 
 .PHONY: default
@@ -40,13 +39,13 @@ build: $(controlplane_JS)
 # rebuild and publish zenoss/serviced-build with the NPM dependencies.
 #
 npmInstall:
-	if [ -x "$(NODEJS)" ]; then \
+	if [ "$(NODEJS)" ]; then \
 		./npmLink.sh; \
 		npm install; \
 	fi
 
 $(controlplane_JS): src/*.js src/**/*.js
-	@if [ -x "$(NODEJS)" ]; then \
+	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp release'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp release; \
@@ -63,7 +62,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 
 .PHONY: test
 test: build translation_test
-	@if [ -x "$(NODEJS)" ]; then \
+	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp test'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp test; \
@@ -81,7 +80,7 @@ test: build translation_test
 translation_test:
 	echo "Checking translation files.."
 	/bin/bash ./testTranslation.sh
-	
+
 .PHONY: clean
 clean:
 	rm -rf build

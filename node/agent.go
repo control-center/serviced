@@ -708,7 +708,8 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
-		fmt.Sprintf("SERVICED_UI_PORT=%s", strings.Split(a.uiport, ":")[1]),
+		//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
+		"SERVICED_UI_PORT=443",
 		fmt.Sprintf("SERVICED_MASTER_IP=%s", strings.Split(a.master, ":")[0]),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
 		// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
