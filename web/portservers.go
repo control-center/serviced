@@ -139,7 +139,7 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 			server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
 			err := server.ListenAndServeTLS(certFile, keyFile)
 			if err != nil {
-				glog.Errorf("could not setup %s (port) webserver: %s", proto, err)
+				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
 			}
 		}()
 	} else {
@@ -149,7 +149,7 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 			server := &http.Server{Addr: port, Handler: portServer}
 			err := server.ListenAndServe()
 			if err != nil {
-				glog.Errorf("could not setup %s (port) webserver: %s", proto, err)
+				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
 			}
 		}()
 	}
