@@ -74,7 +74,7 @@ func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 	if cache.stop != nil {
 		close(cache.stop)
 		//cache.stop = nil
-		fmt.Fprintf(os.Stderr, "setPurgeFrequency: Waiting ...\n")
+		//fmt.Fprintf(os.Stderr, "setPurgeFrequency: Waiting ...\n")
 		cache.wg.Wait()
 		fmt.Fprintf(os.Stderr, "setPurgeFrequency: Wait finished\n")
 	}
