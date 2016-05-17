@@ -239,7 +239,8 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationen
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
-	endpoint.ProxyPort = uint16(port)
+	//control center should always be reachable on port 443 in a container
+	endpoint.ProxyPort = uint16(443)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
