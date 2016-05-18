@@ -80,11 +80,12 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 // For HTTPS connections, we need to inject a header for downstream servers.
 func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode) error {
 	port := node.Name
-	useTLS := true
+	proto := node.Protocol
+	useTLS := node.UseTLS
 	
-	glog.V(1).Infof("About to listen on port (https) %s; UseTLS=%t", port, useTLS)
+	glog.V(1).Infof("About to listen on port (%s) %s; UseTLS=%t", proto, port, useTLS)
 
-	// Setup a handler for the port https endpoint.  This differs from the
+	// Setup a handler for the port http(s) endpoint.  This differs from the
 	// handler for cc/vhosts.
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler (port) handling request: %+v", r)
@@ -102,7 +103,7 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 		// Set up the X-Forwarded-Proto header so that downstream servers know
 		// the request originated as HTTPS.
 		if _, found := r.Header["X-Forwarded-Proto"]; !found {
-			r.Header.Set("X-Forwarded-Proto", "https")
+			r.Header.Set("X-Forwarded-Proto", proto)
 		}
 	
 		rp.ServeHTTP(w, r)
@@ -113,30 +114,45 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 	portServer := http.NewServeMux()
 	portServer.HandleFunc("/", httphandler)
 
-	// Get the certificates and handle the error.
-	certFile, keyFile, err := sc.getCertFiles()
-	if err != nil {
-		glog.Errorf("Error getting certificates for HTTPS port %s: %s", port, err)
-		disablePort(node)
-		return err
-	}
-
-	// Setup certificates and serve the requests.	
-	go func() {
-		// This cipher suites and tls min version change may not be needed with golang 1.5
-		// https://github.com/golang/go/issues/10094
-		// https://github.com/golang/go/issues/9364
-		config := &tls.Config{
-			MinVersion:               utils.MinTLS(),
-			PreferServerCipherSuites: true,
-			CipherSuites:             utils.CipherSuites(),
-		}
-		server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
-		err := server.ListenAndServeTLS(certFile, keyFile)
+	// HTTPS requires configuring the certificates for TLS.
+	if useTLS {
+		// Get the certificates and handle the error.
+		glog.V(2).Infof("Getting TLS certificates for port: %s", port)
+		certFile, keyFile, err := sc.getCertFiles()
 		if err != nil {
-			glog.Errorf("could not setup HTTPS (port) webserver: %s", err)
+			glog.Errorf("Error getting certificates for HTTPS port %s: %s", port, err)
+			disablePort(node)
+			return err
 		}
-	}()
+	
+		// Setup certificates and serve the requests.	
+		glog.V(2).Infof("Starting secure port endpoint server for port: %s", port)
+		go func() {
+			// This cipher suites and tls min version change may not be needed with golang 1.5
+			// https://github.com/golang/go/issues/10094
+			// https://github.com/golang/go/issues/9364
+			config := &tls.Config{
+				MinVersion:               utils.MinTLS(),
+				PreferServerCipherSuites: true,
+				CipherSuites:             utils.CipherSuites(),
+			}
+			server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
+			err := server.ListenAndServeTLS(certFile, keyFile)
+			if err != nil {
+				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
+			}
+		}()
+	} else {
+		// HTTP just needs a request server.
+		glog.V(2).Infof("Starting port endpoint server for port: %s", port)
+		go func() {
+			server := &http.Server{Addr: port, Handler: portServer}
+			err := server.ListenAndServe()
+			if err != nil {
+				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
+			}
+		}()
+	}
 	
 	return nil
 }
@@ -152,7 +168,7 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 
 	glog.V(1).Infof("About to listen on port %s; UseTLS=%t", port, useTLS)
 
-	if proto == "https" {
+	if proto == "https" || proto == "http" {
 		// We have to set up an HttpListener to inject headers for downstram servers.
 		return sc.createPortHttpServer(node)
 	} else if useTLS {
