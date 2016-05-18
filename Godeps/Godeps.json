@@ -37,6 +37,11 @@
 			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
 		},
 		{
+			"ImportPath": "github.com/docker/go-units",
+			"Comment": "v0.3.0",
+			"Rev": "5d2041e26a699eaca682e2ea41c8f891e1060444"
+		},
+		{
 			"ImportPath": "github.com/docker/distribution",
 			"Comment": "v2.2.0-12-ga33095a",
 			"Rev": "a33095af80fa2dfeac65be78185428f31bef190a"
