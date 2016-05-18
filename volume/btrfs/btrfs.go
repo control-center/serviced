@@ -188,7 +188,7 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 	return nil
 }
 
-func (d *BtrfsDriver) Status() (*volume.Status, error) {
+func (d *BtrfsDriver) Status() (volume.Status, error) {
 	glog.V(2).Info("btrfs.Status()")
 	rootDir := d.root
 	dfstatus, err := volume.RunBtrFSCmd(d.sudoer, "filesystem", "df", "-b", rootDir)
@@ -209,7 +209,7 @@ func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	glog.V(2).Infof("dfData = %v", dfData)
 
 	usage := dfDataToUsageData(dfData)
-	response := &volume.Status{
+	response := &volume.SimpleStatus{
 		Driver:     volume.DriverTypeBtrFS,
 		UsageData:  usage,
 		DriverData: map[string]string{"DataFile": rootDir},
