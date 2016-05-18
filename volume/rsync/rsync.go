@@ -198,7 +198,7 @@ func appendIfConvertSucceeds(result []volume.Usage, field string, label string, 
 }
 
 // Status implements volume.Driver.Status
-func (d *RsyncDriver) Status() (*volume.Status, error) {
+func (d *RsyncDriver) Status() (volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
 
 	outBytes, err := runcmd("df", "--output=source,size,used,avail", "-B1", d.root)
@@ -209,7 +209,7 @@ func (d *RsyncDriver) Status() (*volume.Status, error) {
 		return nil, err2
 	}
 
-	response := &volume.Status{
+	response := &volume.SimpleStatus{
 		Driver:     volume.DriverTypeRsync,
 		UsageData:  dfResult,
 		DriverData: map[string]string{"DataFile": d.root},
