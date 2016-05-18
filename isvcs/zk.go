@@ -14,9 +14,10 @@
 package isvcs
 
 import (
-	"github.com/control-center/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 
+	"io/ioutil"
+	"net"
 	"time"
 )
 
@@ -79,39 +80,73 @@ func initZK() {
 // a health check for zookeeper
 func zkHealthCheck(halt <-chan struct{}) error {
 	for {
-		// establish a zookeeper connection
-		conn, ec, err := zk.Connect([]string{"127.0.0.1:2181"}, time.Second*10)
-		defer func() {
-			if conn != nil {
-				conn.Close()
+		select {
+		case <-halt:
+			glog.V(1).Infof("Quit healthcheck for zookeeper")
+			return nil
+		default:
+			// Try ruok.
+			ruok, err := zkFourLetterWord("127.0.0.1:2181", "ruok", time.Second*10)
+			if err != nil {
+				glog.Warningf("No response to ruok from ZooKeeper: %s", err)
+				time.Sleep(1 * time.Second)
+				continue
 			}
-		}()
-		if err != nil {
-			glog.V(1).Infof("Could not connect to zookeeper: %s", err)
-			time.Sleep(1 * time.Second)
-		} else {
-			//wait for session
-			sesstionTimeout := 5 * time.Second
-			sessionTimer := time.NewTimer(sesstionTimeout)
-			defer sessionTimer.Stop()
-			timedOut := false
-			for !timedOut {
-				select {
-				case e := <-ec:
-					if e.State == zk.StateHasSession {
-						// success
-						glog.V(1).Infof("Zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
-						return nil
-					}
-				case <-halt:
-					glog.V(1).Infof("Quit healthcheck for zookeeper")
-					return nil
-				case <-sessionTimer.C:
-					//Fall through loop and try again
-					glog.V(1).Infof("ZK Session not available in %s", sesstionTimeout)
-					timedOut = true
-				}
+
+			// ruok should respond either with "imok" or not at all.
+			// If for some reason that isn't the case, there's a problem.
+			glog.V(2).Infof("ruok: \"%s\"", ruok)
+			if string(ruok) != "imok" {
+				glog.Warningf("Improper response to ruok from ZooKeeper: %s", ruok)
+				time.Sleep(1 * time.Second)
+				continue
 			}
+
+			// Since ruok works, try stat next.
+			stat, err := zkFourLetterWord("127.0.0.1:2181", "stat", time.Second*10)
+			if err != nil {
+				glog.Warningf("No response to stat from ZooKeeper: %s", err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
+			glog.V(2).Infof("stat: \"%s\"", stat)
+			if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
+				glog.Warningf("ZooKeeper is running, but still establishing quorum.")
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			// We can optionally parse stat for information including this node's role or the number of connections.
+
+			return nil
 		}
 	}
+
+}
+
+// transcribed from upstream samuel/go-zookeeper
+func zkFourLetterWord(server, command string, timeout time.Duration) ([]byte, error) {
+	conn, err := net.DialTimeout("tcp", server, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	defer conn.Close()
+
+	conn.SetWriteDeadline(time.Now().Add(timeout))
+
+	_, err = conn.Write([]byte(command))
+	if err != nil {
+		return nil, err
+	}
+
+	conn.SetReadDeadline(time.Now().Add(timeout))
+
+	resp, err := ioutil.ReadAll(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
