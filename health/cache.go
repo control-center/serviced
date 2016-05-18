@@ -63,19 +63,22 @@ func New() *HealthStatusCache {
 // Stops autopurge if interval is <= 0.
 func (cache *HealthStatusCache) SetPurgeFrequency(interval time.Duration) {
 	cache.mu.Lock()
-	defer cache.mu.Unlock()
-	cache.setPurgeFrequency(interval)
-}
-
-func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 	if cache.stop != nil {
 		close(cache.stop)
+		// Unlock before the Wait to avoid deadlock with DeleteExpired()
+		cache.mu.Unlock()
+
 		cache.wg.Wait()
+
+		// Reacquire the lock because we're about to change something in cache
+		cache.mu.Lock()
 	}
+	defer cache.mu.Unlock()
+
 	if interval > 0 {
 		cache.stop = make(chan struct{})
 		cache.wg.Add(1)
-		go func() {
+		go func(stopChannel chan struct{}) {
 			defer cache.wg.Done()
 			timer := time.NewTimer(interval)
 			defer timer.Stop()
@@ -84,11 +87,11 @@ func (cache *HealthStatusCache) setPurgeFrequency(interval time.Duration) {
 				case <-timer.C:
 					cache.DeleteExpired()
 					timer.Reset(interval)
-				case <-cache.stop:
+				case <-stopChannel:
 					return
 				}
 			}
-		}()
+		}(cache.stop)
 	} else {
 		cache.stop = nil
 	}
