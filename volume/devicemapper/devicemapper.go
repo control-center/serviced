@@ -1062,7 +1062,13 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStats, error) {
 	var result []volume.TenantStorageStats
 	status := d.DeviceSet.Status()
-	blockstats, err := getDeviceBlockStats(status.PoolName)
+	// If this is loop-lvm, the metadata device will be in status.MetadataFile
+	mdDevice := status.MetadataFile
+	if mdDevice == "" {
+		// It's direct-lvm, so build the metadata device from the pool name
+		mdDevice = fmt.Sprintf("/dev/mapper/%s_tmeta", status.PoolName)
+	}
+	blockstats, err := getDeviceBlockStats(status.PoolName, mdDevice)
 	if err != nil {
 		return nil, err
 	}
