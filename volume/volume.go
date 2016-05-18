@@ -14,9 +14,7 @@
 package volume
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -31,22 +29,6 @@ type DriverInit func(root string, args []string) (Driver, error)
 
 // DriverType represents a driver type.
 type DriverType string
-
-type Usage struct {
-	Label string
-	Type  string
-	Value uint64
-}
-
-type Status struct { // see Docker - look at their status struct and borrow heavily.
-	Driver     DriverType
-	DriverData map[string]string
-	UsageData  []Usage
-}
-
-type Statuses struct {
-	StatusMap map[string]Status
-}
 
 type SnapshotInfo struct {
 	Name     string
@@ -125,7 +107,7 @@ type Driver interface {
 	// Cleanup releases any runtime resources held by the driver itself.
 	Cleanup() error
 	// Status gets the status of the volume
-	Status() (*Status, error)
+	Status() (Status, error)
 }
 
 // Volume maps, in the end, to a directory on the filesystem available to the
@@ -352,25 +334,6 @@ func ShutdownAll() error {
 	return nil
 }
 
-// GetStatus retrieves the status for the volumeNames passed in. If volumeNames is empty, it getst all statuses.
-func GetStatus() *Statuses {
-	result := &Statuses{}
-	result.StatusMap = make(map[string]Status)
-	driverMap := getDrivers()
-	for path, driver := range *driverMap {
-		status, err := driver.Status()
-		if err != nil {
-			glog.Warningf("Error getting driver status for path %s: %v", path, err)
-		}
-		if status != nil {
-			result.StatusMap[path] = *status
-		} else {
-			glog.Warningf("nil status returned for path %s", path)
-		}
-	}
-	return result
-}
-
 // getDrivers retrieves the driver for each volumeName passed in.
 // if volumeNames is empty, the function returns all drivers, with their roots.
 func getDrivers() *map[string]Driver {
@@ -388,17 +351,4 @@ func StringToDriverType(name string) (DriverType, error) {
 		return DriverTypeDeviceMapper, nil
 	}
 	return "", ErrDriverNotSupported
-}
-
-func (s Status) String() string {
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("Driver:                 %s\n", s.Driver))
-	for key, value := range s.DriverData {
-		buffer.WriteString(fmt.Sprintf("%-24s%s\n", fmt.Sprintf("%s:", key), value))
-	}
-	buffer.WriteString(fmt.Sprintf("Usage Data:\n"))
-	for _, usage := range s.UsageData {
-		buffer.WriteString(fmt.Sprintf("\t%s %s: %d\n", usage.Label, usage.Type, usage.Value))
-	}
-	return buffer.String()
 }

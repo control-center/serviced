@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -83,6 +82,17 @@ func (d *DeviceMapperDriver) DriverType() volume.DriverType {
 func getTenant(from string) string {
 	parts := strings.Split(from, "_")
 	return parts[0]
+}
+
+func (d *DeviceMapperDriver) ListTenants() (result []string) {
+	set := make(map[string]struct{})
+	for _, vol := range d.List() {
+		set[getTenant(vol)] = struct{}{}
+	}
+	for k := range set {
+		result = append(result, k)
+	}
+	return
 }
 
 // Create implements volume.Driver.Create
@@ -490,6 +500,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	if d.DeviceSet == nil {
+		d.options = append(d.options, "dm.fs=ext4")
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options, nil, nil)
 		if err != nil {
 			return err
@@ -505,33 +516,6 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	return nil
-}
-
-func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
-	glog.V(2).Info("devicemapper.Status()")
-	dockerStatus := d.DeviceSet.Status()
-	// convert dockerStatus to our status and return
-	result := &volume.Status{
-		Driver: volume.DriverTypeDeviceMapper,
-		DriverData: map[string]string{
-			"PoolName":          dockerStatus.PoolName,
-			"DataFile":          dockerStatus.DataFile,
-			"DataLoopback":      dockerStatus.DataLoopback,
-			"MetadataFile":      dockerStatus.MetadataFile,
-			"MetadataLoopback":  dockerStatus.MetadataLoopback,
-			"SectorSize":        strconv.FormatUint(dockerStatus.SectorSize, 10),
-			"UdevSyncSupported": strconv.FormatBool(dockerStatus.UdevSyncSupported),
-		},
-		UsageData: []volume.Usage{
-			{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available},
-			{Label: "Data", Type: "Used", Value: dockerStatus.Data.Used},
-			{Label: "Data", Type: "Total", Value: dockerStatus.Data.Total},
-			{Label: "Metadata", Type: "Available", Value: dockerStatus.Metadata.Available},
-			{Label: "Metadata", Type: "Used", Value: dockerStatus.Metadata.Used},
-			{Label: "Metadata", Type: "Total", Value: dockerStatus.Metadata.Total},
-		},
-	}
-	return result, nil
 }
 
 // Name implements volume.Volume.Name
@@ -938,6 +922,152 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	}
 
 	return tarOut.Close()
+}
+
+func (d *DeviceMapperDriver) Status() (volume.Status, error) {
+	glog.V(2).Info("devicemapper.Status()")
+	dockerStatus := d.DeviceSet.Status()
+	tss, err := d.GetTenantStorageStats()
+	if err != nil {
+		return nil, err
+	}
+	driverType := "direct-lvm"
+	if dockerStatus.DataLoopback != "" {
+		driverType = "loop-lvm"
+	}
+	usageData := []volume.Usage{
+		// Store under older value names in case anybody's looking for it
+		{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available,
+			MetricName: "storage.available"},
+		{Label: "Data", Type: "Used", Value: dockerStatus.Data.Used,
+			MetricName: "storage.used"},
+		{Label: "Data", Type: "Total", Value: dockerStatus.Data.Total,
+			MetricName: "storage.total"},
+		// Now store under useful names
+		{Value: dockerStatus.Data.Available, MetricName: "storage.pool.data.available"},
+		{Value: dockerStatus.Data.Used, MetricName: "storage.pool.data.used"},
+		{Value: dockerStatus.Data.Total, MetricName: "storage.pool.data.total"},
+		{Value: dockerStatus.Metadata.Available, MetricName: "storage.pool.metadata.available"},
+		{Value: dockerStatus.Metadata.Used, MetricName: "storage.pool.metadata.used"},
+		{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
+	}
+
+	var unallocated uint64
+
+	// Add in tenant storage metrics
+	for _, tenant := range tss {
+		usageData = append(usageData, []volume.Usage{
+			{MetricName: fmt.Sprintf("storage.filesystem.total.%s", tenant.TenantID),
+				Value: tenant.FilesystemTotal},
+			{MetricName: fmt.Sprintf("storage.filesystem.available.%s", tenant.TenantID),
+				Value: tenant.FilesystemAvailable},
+			{MetricName: fmt.Sprintf("storage.filesystem.used.%s", tenant.TenantID),
+				Value: tenant.FilesystemUsed},
+			{MetricName: fmt.Sprintf("storage.device.total.%s", tenant.TenantID),
+				Value: tenant.DeviceTotalBlocks},
+			{MetricName: fmt.Sprintf("storage.device.allocated.%s", tenant.TenantID),
+				Value: tenant.DeviceAllocatedBlocks},
+			{MetricName: fmt.Sprintf("storage.snapshot.allocated.%s", tenant.TenantID),
+				Value: tenant.SnapshotAllocatedBlocks},
+			{MetricName: fmt.Sprintf("storage.snapshot.count.%s", tenant.TenantID),
+				Value: uint64(tenant.NumberSnapshots)},
+		}...)
+		unallocated += tenant.DeviceUnallocatedBlocks
+	}
+
+	// convert dockerStatus to our status and return
+	result := &volume.DeviceMapperStatus{
+		Driver:     volume.DriverTypeDeviceMapper,
+		DriverType: driverType,
+		DriverPath: d.root,
+		PoolName:   dockerStatus.PoolName,
+
+		PoolDataTotal:     dockerStatus.Data.Total,
+		PoolDataAvailable: dockerStatus.Data.Available,
+		PoolDataUsed:      dockerStatus.Data.Used,
+
+		PoolMetadataTotal:     dockerStatus.Metadata.Total,
+		PoolMetadataAvailable: dockerStatus.Metadata.Available,
+		PoolMetadataUsed:      dockerStatus.Metadata.Used,
+
+		UsageData: usageData,
+		Tenants:   tss,
+	}
+
+	if unallocated > volume.BytesToBlocks(dockerStatus.Data.Available) {
+		overage := volume.BlocksToBytes(unallocated - volume.BytesToBlocks(dockerStatus.Data.Available))
+		result.Errors = append(result.Errors, fmt.Sprintf(`!!!	Warning: your thin pool is currently oversubscribed by %s. You should
+	enlarge it by at least %s using LVM tools and/or delete some snapshots.`, overage, overage))
+	}
+
+	return result, nil
+}
+
+// GetTenantStorageStats returns storage stats for each tenant in the system.
+func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStats, error) {
+	var result []volume.TenantStorageStats
+	status := d.DeviceSet.Status()
+	blockstats, err := getDeviceBlockStats(status.PoolName)
+	if err != nil {
+		return nil, err
+	}
+	for _, tenant := range d.ListTenants() {
+		var devInfo devInfo
+		vol, err := d.newVolume(tenant)
+		if err != nil {
+			return nil, err
+		}
+		if err := d.readDeviceInfo(vol.Metadata.CurrentDevice(), &devInfo); err != nil {
+			return nil, err
+		}
+		if stats, ok := blockstats[devInfo.DeviceID]; ok {
+			tss := volume.TenantStorageStats{TenantID: tenant, VolumePath: vol.Path()}
+			tss.DeviceAllocatedBlocks = stats.diet.Total()
+			tss.NumberSnapshots = len(vol.Metadata.snapshotMetadata.Snapshots)
+			dev := vol.Metadata.CurrentDevice()
+			// This will activate the device
+			if _, err := d.DeviceSet.GetDeviceStatus(dev); err != nil {
+				return nil, err
+			}
+			devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
+			total, free, err := getFilesystemStats(devicename)
+			if err != nil {
+				return nil, err
+			}
+			size, err := getDeviceSize(devicename)
+			if err != nil {
+				return nil, err
+			}
+			tss.FilesystemTotal = total
+			tss.FilesystemAvailable = free
+			tss.FilesystemUsed = total - free
+			tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+			tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
+			last := stats
+			for _, device := range vol.Metadata.snapshotMetadata.Snapshots {
+				if err := d.readDeviceInfo(device, &devInfo); err != nil {
+					return nil, err
+				}
+				snapstats := blockstats[devInfo.DeviceID]
+				tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
+				last = snapstats
+			}
+			if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
+				tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
+	are unused by the filesystem. This is not a problem; however, if you want
+	the thin pool to reclaim the space for use by snapshots or another
+	application, run:
+
+		$ fstrim %s`, volume.BlocksToBytes(tss.DeviceAllocatedBlocks-volume.BytesToBlocks(tss.FilesystemUsed)), vol.Path()))
+			}
+			result = append(result, tss)
+
+		} else {
+			// Something is horribly wrong; there is no device matching your tenant
+			return nil, fmt.Errorf("Tenant %s doesn't have an associated device", tenant)
+		}
+	}
+	return result, nil
 }
 
 // Import implements volume.Volume.Import
