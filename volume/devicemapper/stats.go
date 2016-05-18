@@ -98,9 +98,8 @@ func getMetadataBlock(pool string) (string, error) {
 	return strings.TrimSpace(parts[6]), nil
 }
 
-func getDevices(pool, block string) (map[int]*DeviceBlockStats, error) {
-	metadev := fmt.Sprintf("%s_tmeta", pool)
-	cmd := exec.Command("thin_dump", "-f", "xml", metadev, "-m", block)
+func getDevices(pool, block, metadatadev string) (map[int]*DeviceBlockStats, error) {
+	cmd := exec.Command("thin_dump", "-f", "xml", metadatadev, "-m", block)
 	stdout, err := cmd.StdoutPipe()
 	cmd.Stderr = os.Stderr
 	if err != nil {
@@ -245,7 +244,7 @@ type cachedStat struct {
 	value  map[int]*DeviceBlockStats
 }
 
-func getDeviceBlockStats(pool string) (map[int]*DeviceBlockStats, error) {
+func getDeviceBlockStats(pool, metadatadev string) (map[int]*DeviceBlockStats, error) {
 	var value map[int]*DeviceBlockStats
 	pool = fmt.Sprintf("/dev/mapper/%s", strings.TrimPrefix(pool, "/dev/mapper/"))
 	statscache.locks.LockKey(pool)
@@ -277,7 +276,7 @@ func getDeviceBlockStats(pool string) (map[int]*DeviceBlockStats, error) {
 		}
 		// Dump the metadata from the snapshot to XML, parse it, and return the
 		// resulting DeviceBlockStats objects.
-		value, err = getDevices(pool, block)
+		value, err = getDevices(pool, block, metadatadev)
 		if err != nil {
 			return nil, err
 		}
