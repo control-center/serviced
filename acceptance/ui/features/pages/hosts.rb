@@ -9,7 +9,7 @@ class Hosts < SitePrism::Page
 
     element :addHost_button, "[ng-click='modalAddHost()']"
     element :hostsMap_button, "a[href='/#/hostsmap'][class='btn-link']"
-    element :hostHost_input, "#new_host_name"
+    element :hostHost_input, "[id='new_host_name']"
     element :rpcPort_input, "#new_host_port"
     element :resourcePool_input, "[name='new_host_parent']"
     element :ramLimit_input, "[name='new_host_ram_commitment']"
