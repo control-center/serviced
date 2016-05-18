@@ -8,6 +8,7 @@ describe('LanguageController', function() {
     beforeEach(module('controlplaneTest'));
     beforeEach(module(logMock));
     beforeEach(module(miscUtilsMock));
+    //COOKIETODO
 
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
@@ -35,7 +36,7 @@ describe('LanguageController', function() {
 
         $scope.setUserLanguage();
 
-        expect($cookies.Language).toEqual(mockUserData.language);
+        expect($cookies.get("Language")).toEqual(mockUserData.language);
         expect(miscUtils.updateLanguage).toHaveBeenCalledWith($scope, $cookies, $translate)
     });
 

@@ -59,23 +59,15 @@
              * @param {object} scope The 'loggedIn' property will be set if true
              */
             checkLogin: function($scope) {
-                $scope.dev = $cookieStore.get('ZDevMode');
-                if (loggedIn) {
+                $scope.dev = $cookieStore.get("ZDevMode");
+                if (loggedIn || $cookies.get("ZCPToken")) {
                     $scope.loggedIn = true;
                     $scope.user = {
-                        username: $cookies.ZUsername
+                        username: $cookies.get("ZUsername")
                     };
                     return;
-                }
-                if ($cookies.ZCPToken) {
-                    loggedIn = true;
-                    $scope.loggedIn = true;
-                    $scope.user = {
-                        username: $cookies.ZUsername
-                    };
-                } else {
-                    utils.unauthorized($location);
-                }
+                } 
+                utils.unauthorized($location);
             }
         };
     }]);

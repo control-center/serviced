@@ -41,7 +41,7 @@
 
                 // don't auto-show this wizard again
                 // NOTE: $cookies can only deal with string values
-                $cookies.autoRunWizardHasRun = "true";
+                $cookies.put("autoRunWizardHasRun","true");
             });
         };
 
@@ -389,7 +389,7 @@
 
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
-                if(!$cookies.autoRunWizardHasRun && $scope.apps.length === 1){
+                if(!$cookies.get("autoRunWizardHasRun") && $scope.apps.length === 1){
                     $scope.modal_deployWizard();
                 }
             });

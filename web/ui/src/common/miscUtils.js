@@ -69,12 +69,7 @@
             },
 
             updateLanguage: function($scope, $cookies, $translate){
-                var ln = 'en_US';
-                if ($cookies.Language === undefined) {
-
-                } else {
-                    ln = $cookies.Language;
-                }
+                var ln = $cookies.get("Language") || "en_US";
                 if ($scope.user) {
                     $scope.user.language = ln;
                 }
