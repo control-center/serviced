@@ -231,7 +231,11 @@ docker_build: docker_ok
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build:$(BUILD_VERSION) \
-	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
+	make \
+		NODEJS=/usr/bin/node \
+		GOPATH=$(docker_GOPATH) \
+		IN_DOCKER=1 \
+		build
 
 #---------------------#
 # Install targets     #
