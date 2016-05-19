@@ -1239,10 +1239,6 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 					glog.Errorf("Could not resize snapshot volume; not importing snapshot %s: %s", label, err)
 					return err
 				}
-				if err := v.driver.resize(v.volumeDevice(), volInfo.Size); err != nil {
-					glog.Errorf("Could not resize base volume; not importing snapshot %s: %s", label, err)
-					return err
-				}
 			}
 		} else if strings.HasPrefix(header.Name, volumedir) {
 			header.Name = strings.Replace(header.Name, volumedir, label, 1)
