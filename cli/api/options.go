@@ -108,6 +108,7 @@ type Options struct {
 	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
+	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 }
 
 // LoadOptions overwrites the existing server options
@@ -262,6 +263,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		UIPollFrequency:            config.IntVal("UI_POLL_FREQUENCY", 3),
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
+		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

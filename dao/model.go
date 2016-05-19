@@ -181,3 +181,8 @@ type HealthStatusRequest struct {
 	Value   health.HealthStatus
 	Expires time.Duration
 }
+
+type BackupRequest struct {
+	Dirpath			string
+	SnapshotSpacePercent	int
+}
