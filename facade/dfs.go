@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
@@ -62,8 +63,6 @@ var registryVersionInfos = map[int]registryVersionInfo{
 
 // Backup takes a backup of all installed applications
 func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent int) error {
-	// Do not DFSLock here, ControlPlaneDao does that
-
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
 	glog.Infof("Starting backup")
@@ -169,7 +168,7 @@ func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error 
 }
 
 // DFSLock returns the locker for the dfs
-func (f *Facade) DFSLock(ctx datastore.Context) dfs.DFSLocker {
+func (f *Facade) DFSLock(ctx datastore.Context) sync.Locker {
 	return f.dfs
 }
 
@@ -280,12 +279,6 @@ func (f *Facade) Download(imageID, tenantID string) error {
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
-	if err := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); err != nil {
-		glog.Warningf("Cannot reset registry: %s", err)
-		return err
-	}
-	defer f.DFSLock(ctx).Unlock()
-
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		return err
@@ -314,12 +307,6 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // If force is true for a local registry, upgrade again even if previous upgrade was successful.
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
-	if err := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); err != nil {
-		glog.Warningf("Cannot migrate registry: %s", err)
-		return err
-	}
-	defer f.DFSLock(ctx).Unlock()
-
 	success := true // indicates a successful migration
 	if fromRegistryHost == "" {
 		// check if a local docker migration is needed
@@ -416,7 +403,6 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 
 // Restore restores application data from a backup.
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
-	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning restore from backup")
 	if err := f.dfs.Restore(r, backupInfo); err != nil {
 		glog.Errorf("Could not restore from backup: %s", err)
@@ -451,7 +437,6 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 // Rollback rolls back an application to state described in the provided
 // snapshot.
 func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) error {
-	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning rollback of snapshot %s", snapshotID)
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
@@ -485,7 +470,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 		}
 		serviceids[i] = svc.ID
 	}
-	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
+	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during rollback of snapshot %s: %s", service.SVCStop, snapshotID, err)
 		return err
 	}
@@ -505,7 +490,6 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 
 // Snapshot takes a snapshot for a particular application.
 func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string, snapshotSpacePercent int) (string, error) {
-	// Do not DFSLock here, ControlPlaneDao does that
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not get tenant id of service %s: %s", serviceID, err)
@@ -541,7 +525,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 	}
-	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {
+	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during snapshot of %s: %s", service.SVCStop, tenantID, err)
 		return "", err
 	}
@@ -591,18 +575,21 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 		}
 
 		// Not found, so make a new one
-		containerDefinition := &dockerclient.CreateContainerOptions{
-			Name: containerName,
-			Config: &dockerclient.Config{
-				User:       "root",
-				WorkingDir: "/tmp/registry",
-				Image:      info.imageId,
-				Env:        []string{"SETTINGS_FLAVOR=local"},
+		containerDefinition := &docker.ContainerDefinition{
+			dockerclient.CreateContainerOptions{
+				Name: containerName,
+				Config: &dockerclient.Config{
+					User:       "root",
+					WorkingDir: "/tmp/registry",
+					Image:      info.imageId,
+					Env:        []string{"SETTINGS_FLAVOR=local"},
+				},
+				// HostConfig: &dockerclient.HostConfig{
+				// 	Binds:        []string{bindMount},
+				// 	PortBindings: portBindings,
+				// },
 			},
-			HostConfig: &dockerclient.HostConfig{
-				Binds:        []string{bindMount},
-				PortBindings: portBindings,
-			},
+			dockerclient.HostConfig{},
 		}
 
 		glog.Infof("Creating container %s from image %s", containerDefinition.Name, containerDefinition.Config.Image)
@@ -616,6 +603,8 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 	os.MkdirAll(storagePath, 0755)
 
 	// Make sure container is running
+	container.HostConfig.Binds = []string{bindMount}
+	container.HostConfig.PortBindings = portBindings
 	glog.Infof("Starting container %s for Docker registry v%d at %s", container.Name, info.version, url)
 	if err = container.Start(); err != nil {
 		glog.Errorf("Could not start container %s: %s", container.Name, err)
