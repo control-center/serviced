@@ -122,8 +122,8 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 }
 
 // AsyncBackup is the same as backup, but asynchronous
-func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err error) {
-	go dao.Backup(dirpath, filename)
+func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
+	go dao.Backup(backupRequest, filename)
 	return
 }
 
