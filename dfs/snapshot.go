@@ -33,6 +33,7 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo, spaceFactor int) (
 		freeSpace, err := ensureFreeSpace(vol, dfs, spaceFactor)
 		if err != nil {
 			glog.Errorf("Could not determine freespace on devicemapper device %s", err)
+			return "", err
 		}
 		if !freeSpace {
 			return "", errors.New("There is not enough diskspace to complete your request. You should enlarge your thin pool using LVM tools and/or delete some snapshots")

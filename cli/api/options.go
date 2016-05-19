@@ -103,7 +103,7 @@ type Options struct {
 	AllowLoopBack              string            // Allow loop back devices for DM storage, string val of bool
 	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
-	SnapshotSpacePercent int                     // Percent of tenant volume size that is assumed to be needed to create a snapshot
+	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 }
 
 // LoadOptions overwrites the existing server options
