@@ -1,5 +1,5 @@
 <p>
-    <span translate>label_username</span>:&nbsp;{{cookies.ZUsername}}</p>
+    <span translate>label_username</span>:&nbsp;{{cookies.get("ZUsername")}}</p>
 <div class="btn-group" ng-controller="LanguageController">
   <label ng-class="getLanguageClass('en_US')">
     <input type="radio" name="user_language" ng-change="setUserLanguage()" ng-model="user.language" value="en_US">English</input>
