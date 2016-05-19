@@ -38,6 +38,8 @@ import (
 
 var empty interface{}
 
+var snapshotSpacePercent int
+
 type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
 
@@ -817,7 +819,11 @@ func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	dir := ""
 	filePath := ""
-	err := client.AsyncBackup(dir, &filePath)
+	req := dao.BackupRequest{
+		Dirpath: 		dir,
+		SnapshotSpacePercent: 	snapshotSpacePercent,
+	}
+	err := client.AsyncBackup(req, &filePath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		restServerError(w, err)

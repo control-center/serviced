@@ -16,6 +16,7 @@ package api
 import (
 	"fmt"
 	"path/filepath"
+	"github.com/control-center/serviced/dao"
 )
 
 // Dump all templates and services to a tgz file.
@@ -28,7 +29,11 @@ func (a *api) Backup(dirpath string) (string, error) {
 	}
 
 	var path string
-	if err := client.Backup(dirpath, &path); err != nil {
+	req := dao.BackupRequest{
+		Dirpath: 		dirpath,
+		SnapshotSpacePercent: 	options.SnapshotSpacePercent,
+	}
+	if err := client.Backup(req, &path); err != nil {
 		return "", err
 	}
 
