@@ -88,10 +88,10 @@ func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 		return "", err
 	}
 	req := dao.SnapshotRequest{
-		ServiceID:   cfg.ServiceID,
-		Message:     cfg.Message,
-		Tag:         cfg.Tag,
-		ContainerID: cfg.DockerID,
+		ServiceID:            cfg.ServiceID,
+		Message:              cfg.Message,
+		Tag:                  cfg.Tag,
+		ContainerID:          cfg.DockerID,
 		SnapshotSpacePercent: options.SnapshotSpacePercent,
 	}
 	var snapshotID string

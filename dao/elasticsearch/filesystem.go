@@ -262,7 +262,6 @@ func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *stri
 	if req.ContainerID != "" {
 		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, tagList, req.SnapshotSpacePercent)
 	} else {
-		glog.Warningf("Using percent %s", req.SnapshotSpacePercent)
 		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, tagList, req.SnapshotSpacePercent)
 	}
 	return

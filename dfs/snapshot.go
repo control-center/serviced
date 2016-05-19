@@ -28,8 +28,15 @@ const (
 func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo, spaceFactor int) (string, error) {
 	label := generateSnapshotLabel()
 	vol, err := dfs.disk.Get(data.TenantID)
-	if !ensureFreeSpace(vol, dfs, spaceFactor) {
-		return "Not Enough Diskspace", errors.New("Not Enough Diskspace")
+
+	if volume.DriverTypeDeviceMapper == dfs.disk.DriverType() {
+		freeSpace, err := ensureFreeSpace(vol, dfs, spaceFactor)
+		if err != nil {
+			glog.Errorf("Could not determine freespace on devicemapper device %s", err)
+		}
+		if !freeSpace {
+			return "", errors.New("There is not enough diskspace to complete your request. You should enlarge your thin pool using LVM tools and/or delete some snapshots")
+		}
 	}
 	if err != nil {
 		glog.Errorf("Could not get volume for tenant %s: %s", data.TenantID, err)
@@ -100,6 +107,23 @@ func generateSnapshotLabel() string {
 }
 
 // checks to see if there is enough free space on volume to perform a snapshot
-func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpacePercent int) bool {
-	return true
+func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpacePercent int) (bool, error) {
+	status := volume.GetStatus()
+	statusMap := status.DeviceMapperStatusMap[dfs.disk.Root()]
+	var amountNeeded float64
+	foundTenant := false
+	for i := 0; i < len(statusMap.Tenants); i++ {
+		currentTenant := statusMap.Tenants[i]
+		if currentTenant.TenantID == vol.Tenant() {
+			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent / 100)
+			foundTenant = true
+		}
+	}
+	if !foundTenant {
+		return false, errors.New("Unable to find storage information for volume")
+	}
+	if amountNeeded > float64(statusMap.PoolDataAvailable) {
+		return false, nil
+	}
+	return true, nil
 }
