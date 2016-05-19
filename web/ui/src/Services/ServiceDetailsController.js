@@ -732,7 +732,7 @@
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
 
                 // update serviceTreeState
-                $scope.serviceTreeState = CCUIState.get($cookies.ZUsername, "serviceTreeState");
+                $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
 
                 // update pools
                 $scope.pools = poolsFactory.poolList;
@@ -786,7 +786,7 @@
         };
 
         // expand/collapse state of service tree nodes
-        $scope.serviceTreeState = CCUIState.get($cookies.ZUsername, "serviceTreeState");
+        $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
         // servicedTreeState is a collection of objects
         // describing if nodes in a service tree are hidden or collapsed.
         // It is first keyed by the id of the current service context (the
