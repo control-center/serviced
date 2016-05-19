@@ -176,7 +176,71 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 	if err != nil {
 		return err
 	}
-	return vol.Resize(size)
+	if err := d.resize(vol.volumeDevice(), size); err != nil {
+		return err
+	}
+	newSize := volume.FilesystemBytesSize(vol.Path())
+	human := units.BytesSize(float64(newSize))
+	glog.Infof("Resized filesystem. New size: %s", human)
+	return nil
+}
+
+func (d *DeviceMapperDriver) resize(device string, size uint64) error {
+	deviceName := fmt.Sprintf("%s-%s", d.DevicePrefix, device)
+
+	// Get the active table for the device
+	start, oldSectors, targetType, params, err := devicemapper.GetTable(deviceName)
+	if err != nil {
+		return err
+	}
+	// Figure out how many sectors we need
+	newSectors := size / 512
+	if newSectors <= oldSectors {
+		return ErrNoShrinkage
+	}
+	// Create the new table description using the sectors computed
+	oldTable := fmt.Sprintf("%d %d %s %s", start, oldSectors, targetType, params)
+	newTable := fmt.Sprintf("%d %d %s %s", start, newSectors, targetType, params)
+	glog.V(2).Infof("Replacing old table (%s) with new table (%s)", oldTable, newTable)
+	// Update the device
+	curSize, err := getDeviceSize(fmt.Sprintf("/dev/mapper/%s", deviceName))
+	if err != nil {
+		glog.Errorf("Could not get size of device %s: %s", deviceName, err)
+		return err
+	}
+	if err := d.resizeDevice(device, size); err != nil {
+		glog.Errorf("Could not reset size of device %s: %s", deviceName, err)
+		return err
+	}
+	if err := func() (err error) {
+		// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
+		// exposed, so we'll shell out rather than muck with ioctl
+		dmsetupLoad := exec.Command("dmsetup", "load", deviceName)
+		dmsetupLoad.Stdin = strings.NewReader(newTable)
+		if output, err := dmsetupLoad.CombinedOutput(); err != nil {
+			glog.Errorf("Unable to load new table (%s)", string(output))
+			return err
+		}
+		glog.V(2).Infof("Inactive table slot updated with new size")
+
+		// "Resume" the device to load the inactive table into the active slot
+		if err := devicemapper.ResumeDevice(deviceName); err != nil {
+			return err
+		}
+		glog.V(2).Infof("Loaded inactive table into the active slot")
+
+		// Resize the filesystem to use the new space
+		dmDevice := fmt.Sprintf("/dev/mapper/%s", deviceName)
+		if err := resize2fs(dmDevice); err != nil {
+			glog.Errorf("Unable to resize filesystem: %s", err)
+			return err
+		}
+		return nil
+	}(); err != nil {
+		d.resizeDevice(device, curSize)
+		return err
+	}
+	return nil
 }
 
 // Get implements volume.Driver.Get
@@ -1171,8 +1235,12 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			}
 			if volInfo.Size > size {
 				glog.Warningf("Snapshot volume is size is greater than base volume; expanding")
-				if err := v.Resize(volInfo.Size); err != nil {
-					glog.Errorf("Could not resize volume; not importing snapshot %s: %s", label, err)
+				if err := v.driver.resize(device, volInfo.Size); err != nil {
+					glog.Errorf("Could not resize snapshot volume; not importing snapshot %s: %s", label, err)
+					return err
+				}
+				if err := v.driver.resize(v.volumeDevice(), volInfo.Size); err != nil {
+					glog.Errorf("Could not resize base volume; not importing snapshot %s: %s", label, err)
 					return err
 				}
 			}
@@ -1192,67 +1260,6 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		return errors.New("incompatible snapshot")
 	}
 	return v.Metadata.AddSnapshot(label, device)
-}
-
-func (v *DeviceMapperVolume) Resize(size uint64) error {
-	deviceName := v.deviceName()
-
-	// Get the active table for the device
-	start, oldSectors, targetType, params, err := devicemapper.GetTable(deviceName)
-	if err != nil {
-		return err
-	}
-	// Figure out how many sectors we need
-	newSectors := size / 512
-	if newSectors <= oldSectors {
-		return ErrNoShrinkage
-	}
-	// Create the new table description using the sectors computed
-	oldTable := fmt.Sprintf("%d %d %s %s", start, oldSectors, targetType, params)
-	newTable := fmt.Sprintf("%d %d %s %s", start, newSectors, targetType, params)
-	glog.V(2).Infof("Replacing old table (%s) with new table (%s)", oldTable, newTable)
-	// Update the device
-	curSize, err := v.SizeOf()
-	if err != nil {
-		glog.Errorf("Could not get size of device %s: %s", deviceName, err)
-		return err
-	}
-	if err := v.driver.resizeDevice(v.volumeDevice(), size); err != nil {
-		glog.Errorf("Could not reset size of device %s: %s", deviceName, err)
-		return err
-	}
-	if err := func() (err error) {
-		// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
-		// exposed, so we'll shell out rather than muck with ioctl
-		dmsetupLoad := exec.Command("dmsetup", "load", deviceName)
-		dmsetupLoad.Stdin = strings.NewReader(newTable)
-		if output, err := dmsetupLoad.CombinedOutput(); err != nil {
-			glog.Errorf("Unable to load new table (%s)", string(output))
-			return err
-		}
-		glog.V(2).Infof("Inactive table slot updated with new size")
-
-		// "Resume" the device to load the inactive table into the active slot
-		if err := devicemapper.ResumeDevice(deviceName); err != nil {
-			return err
-		}
-		glog.V(2).Infof("Loaded inactive table into the active slot")
-
-		// Resize the filesystem to use the new space
-		dmDevice := fmt.Sprintf("/dev/mapper/%s", deviceName)
-		if err := resize2fs(dmDevice); err != nil {
-			glog.Errorf("Unable to resize filesystem: %s", err)
-			return err
-		}
-		return nil
-	}(); err != nil {
-		v.driver.resizeDevice(v.volumeDevice(), curSize)
-		return err
-	}
-	newSize := volume.FilesystemBytesSize(v.Path())
-	human := units.BytesSize(float64(newSize))
-	glog.Infof("Resized filesystem. New size: %s", human)
-	return nil
 }
 
 func (v *DeviceMapperVolume) SizeOf() (uint64, error) {

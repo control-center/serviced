@@ -127,7 +127,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	// Set up export volume with larger volume base size
 	root1 := c.MkDir()
-	basesize1, err := units.RAMInBytes("12G")
+	basesize1, err := units.RAMInBytes("15M")
 	c.Assert(err, IsNil)
 	drv1, err := Init(root1, []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
 	c.Assert(err, IsNil)
@@ -135,21 +135,25 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	vol1, err := drv1.Create("basetest")
 	c.Assert(err, IsNil)
 	defer drv1.Remove("basetest")
-	v1, ok := vol1.(*DeviceMapperVolume)
-	c.Assert(ok, Equals, true)
-	size, err := v1.SizeOf()
-	c.Assert(err, IsNil)
-	c.Assert(size, Equals, uint64(basesize1))
+
+	// dump 12MB of data into this device
 	f1, err := ioutil.TempFile(vol1.Path(), "dump-")
 	c.Assert(err, IsNil)
+	defer f1.Close()
+	garbage := make([]byte, 1024*1024)
+	for i := 0; i < 12; i++ {
+		_, err = f1.Write(garbage)
+		c.Assert(err, IsNil)
+	}
 	err = f1.Close()
 	c.Assert(err, IsNil)
-	err = v1.Snapshot("snap", "testing import/export", []string{})
+
+	err = vol1.Snapshot("snap", "testing import/export", []string{})
 	c.Assert(err, IsNil)
 
 	// Set up import volume with smaller volume base size
 	root2 := c.MkDir()
-	basesize2, err := units.RAMInBytes("10G")
+	basesize2, err := units.RAMInBytes("10M")
 	c.Assert(err, IsNil)
 	drv2, err := Init(root2, []string{fmt.Sprintf("dm.basesize=%d", basesize2)})
 	c.Assert(err, IsNil)
@@ -157,11 +161,6 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	vol2, err := drv2.Create("basetest")
 	c.Assert(err, IsNil)
 	defer drv2.Remove("basetest")
-	v2, ok := vol2.(*DeviceMapperVolume)
-	c.Assert(ok, Equals, true)
-	size, err = v2.SizeOf()
-	c.Assert(err, IsNil)
-	c.Assert(size, Equals, uint64(basesize2))
 
 	// Do export/import
 	wg := &sync.WaitGroup{}
@@ -169,36 +168,21 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	r, w := io.Pipe()
 	go func() {
 		defer wg.Done()
-		c.Check(vol1.Export("snap", "", w), IsNil)
+		err := vol1.Export("snap", "", w)
+		if err != nil {
+			w.Close()
+		}
+		c.Check(err, IsNil)
 	}()
 	go func() {
 		defer wg.Done()
-		c.Check(vol2.Import("snap", r), IsNil)
+		err := vol2.Import("snap", r)
+		if err != nil {
+			r.Close()
+		}
+		c.Check(err, IsNil)
 	}()
 	wg.Wait()
-
-	// Verify the size of the base volume
-	size, err = v2.SizeOf()
-	c.Assert(err, IsNil)
-	c.Assert(size, Equals, uint64(basesize1))
-
-	// Verify the size of snapshot
-	snaps, err := vol2.Snapshots()
-	c.Assert(err, IsNil)
-	c.Assert(snaps, HasLen, 1)
-	err = drv2.Release("basetest")
-	c.Assert(err, IsNil)
-	err = os.MkdirAll(filepath.Join(root2, "basetest_snap"), 0755)
-	c.Assert(err, IsNil)
-	snapVol, err := drv2.Get(snaps[0])
-	c.Assert(err, IsNil)
-	defer drv2.Remove("basetest_snap")
-	sv, ok := snapVol.(*DeviceMapperVolume)
-	c.Assert(ok, Equals, true)
-	size, err = sv.SizeOf()
-	c.Assert(err, IsNil)
-	c.Assert(size, Equals, uint64(basesize1))
-
 }
 
 func (s *DeviceMapperSuite) TestSnapShotContainerMounts(c *C) {
