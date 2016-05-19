@@ -17,8 +17,11 @@ package devicemapper_test
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -27,8 +30,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/drivertest"
+	"github.com/docker/go-units"
 	// Register the devicemapper driver
-	_ "github.com/control-center/serviced/volume/devicemapper"
+	. "github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
 )
 
@@ -118,6 +122,83 @@ func (s *DeviceMapperSuite) TestDeviceMapperSnapshotTags(c *C) {
 
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
+}
+
+func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
+	// Set up export volume with larger volume base size
+	root1 := c.MkDir()
+	basesize1, err := units.RAMInBytes("12G")
+	c.Assert(err, IsNil)
+	drv1, err := Init(root1, []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
+	c.Assert(err, IsNil)
+	defer drv1.Cleanup()
+	vol1, err := drv1.Create("basetest")
+	c.Assert(err, IsNil)
+	defer drv1.Remove("basetest")
+	v1, ok := vol1.(*DeviceMapperVolume)
+	c.Assert(ok, Equals, true)
+	size, err := v1.SizeOf()
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, uint64(basesize1))
+	f1, err := ioutil.TempFile(vol1.Path(), "dump-")
+	c.Assert(err, IsNil)
+	err = f1.Close()
+	c.Assert(err, IsNil)
+	err = v1.Snapshot("snap", "testing import/export", []string{})
+	c.Assert(err, IsNil)
+
+	// Set up import volume with smaller volume base size
+	root2 := c.MkDir()
+	basesize2, err := units.RAMInBytes("10G")
+	c.Assert(err, IsNil)
+	drv2, err := Init(root2, []string{fmt.Sprintf("dm.basesize=%d", basesize2)})
+	c.Assert(err, IsNil)
+	defer drv2.Cleanup()
+	vol2, err := drv2.Create("basetest")
+	c.Assert(err, IsNil)
+	defer drv2.Remove("basetest")
+	v2, ok := vol2.(*DeviceMapperVolume)
+	c.Assert(ok, Equals, true)
+	size, err = v2.SizeOf()
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, uint64(basesize2))
+
+	// Do export/import
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	r, w := io.Pipe()
+	go func() {
+		defer wg.Done()
+		c.Check(vol1.Export("snap", "", w), IsNil)
+	}()
+	go func() {
+		defer wg.Done()
+		c.Check(vol2.Import("snap", r), IsNil)
+	}()
+	wg.Wait()
+
+	// Verify the size of the base volume
+	size, err = v2.SizeOf()
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, uint64(basesize1))
+
+	// Verify the size of snapshot
+	snaps, err := vol2.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(snaps, HasLen, 1)
+	err = drv2.Release("basetest")
+	c.Assert(err, IsNil)
+	err = os.MkdirAll(filepath.Join(root2, "basetest_snap"), 0755)
+	c.Assert(err, IsNil)
+	snapVol, err := drv2.Get(snaps[0])
+	c.Assert(err, IsNil)
+	defer drv2.Remove("basetest_snap")
+	sv, ok := snapVol.(*DeviceMapperVolume)
+	c.Assert(ok, Equals, true)
+	size, err = sv.SizeOf()
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, uint64(basesize1))
+
 }
 
 func (s *DeviceMapperSuite) TestSnapShotContainerMounts(c *C) {
