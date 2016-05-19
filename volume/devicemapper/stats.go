@@ -17,7 +17,6 @@ package devicemapper
 
 import (
 	"bufio"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -178,18 +177,13 @@ func parseMetadata(r io.Reader) (map[int]*DeviceBlockStats, error) {
 }
 
 func getDeviceSize(dev string) (uint64, error) {
-	var output map[string][]map[string]string
-	cmd := exec.Command("lsblk", "-b", "--output", "SIZE", "--json", dev)
-	out, err := cmd.CombinedOutput()
+	cmd := exec.Command("lsblk", "-dbno", "SIZE", dev)
+	out, err := cmd.Output()
 	if err != nil {
 		return 0, err
 	}
-	if err := json.Unmarshal(out, &output); err != nil {
-		return 0, err
-	}
-	n := output["blockdevices"][0]["size"]
 	var size uint64
-	if size, err = strconv.ParseUint(n, 10, 64); err != nil {
+	if size, err = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64); err != nil {
 		return 0, err
 	}
 	return size, nil
