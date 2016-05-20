@@ -156,7 +156,7 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 			return
 		}
 
-		rp := getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
+		rp := sc.getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 		glog.V(1).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
 
 		// Set up the X-Forwarded-Proto header so that downstream servers know
@@ -295,13 +295,13 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 
 			// setup remote connection
 			var remoteAddr string
-			_, isLocalContainer := localAddrs[pepEPInfo.hostIP]
+			_, isLocalContainer := sc.localAddrs[pepEPInfo.hostIP]
 			if isLocalContainer {
 				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.privateIP, pepEPInfo.epPort)
 			} else {
 				remoteAddr = fmt.Sprintf("%s:%d", pepEPInfo.hostIP, sc.muxPort)
 			}
-			remoteConn, err := getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
+			remoteConn, err := sc.getRemoteConnection(remoteAddr, isLocalContainer, sc.muxPort, pepEPInfo.privateIP, pepEPInfo.epPort, sc.muxTLS && (sc.muxPort > 0))
 			if err != nil {
 				glog.Errorf("Error getting remote connection for public endpoint %s-%d: %v", node.Name, int(node.Type), err)
 				continue
