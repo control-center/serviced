@@ -17,6 +17,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -30,8 +31,6 @@ import (
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-	
-	"net/http"
 )
 
 var (
@@ -77,17 +76,77 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 	go sc.syncAllPublicPorts(shutdown)
 }
 
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+// Adapted from golang net/http/server.go
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+	StopChan chan bool
+	port     string
+}
+
+func newKeepAliveListener(listener net.Listener, stopChan chan bool, port string) *tcpKeepAliveListener {
+	return &tcpKeepAliveListener{listener.(*net.TCPListener), stopChan, port}
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	for {
+		ln.SetDeadline(time.Now().Add(time.Second))
+		select {
+		case <-ln.StopChan:
+			glog.V(2).Infof("Keep Alive listener port closing for port %s", ln.port)
+			return nil, keepAliveListenerError{fmt.Errorf("Port closed for port %s", ln.port)}
+		default:
+		}
+
+		conn, err := ln.AcceptTCP()
+		if err != nil {
+			switch err := err.(type) {
+			case net.Error:
+				if err.Timeout() {
+					continue
+				}
+			}
+			return nil, err
+		}
+		conn.SetKeepAlive(true)
+		conn.SetKeepAlivePeriod(3 * time.Minute)
+
+		// and return the connection.
+		return conn, nil
+	}
+}
+
+type keepAliveListenerError struct {
+	error
+}
+
 // For HTTPS connections, we need to inject a header for downstream servers.
-func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode) error {
+func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpointNode,
+	listener net.Listener, tlsConfig *tls.Config, stopChan chan bool) error {
 	port := node.Name
 	proto := node.Protocol
-	useTLS := node.UseTLS
-	
-	glog.V(1).Infof("About to listen on port (%s) %s; UseTLS=%t", proto, port, useTLS)
+	portClosed := false
 
 	// Setup a handler for the port http(s) endpoint.  This differs from the
-	// handler for cc/vhosts.
+	// handler for vhosts.
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
+		// Notify any active connections that the endpoint is not available if they refresh the browser.
+		if portClosed {
+			// Listener.Close() stops listening but does not close active connections.
+			// https://github.com/golang/go/blob/b6b4004d5a5bf7099ac9ab76777797236da7fe63/src/net/tcpsock.go#L229-230
+			// Sending a response code doesn't close the connection; see the next comment.
+			//http.Error(w, fmt.Sprintf("public endpoint %s not available", port), http.StatusServiceUnavailable)
+
+			// We have to close this connection.  The browser will reuse the active connection, so if a
+			// user connects, then the endpoint is stopped - that connection will get a port closed notice. Even
+			// if the endpoint is restarted, the browser will reuse the connection to the closed listener.  This
+			// ensures that they reconnect on the new connection each time they refresh the browser.
+			w.Header().Set("Connection", "close")
+			return
+		}
 		glog.V(2).Infof("httphandler (port) handling request: %+v", r)
 
 		pepKey := registry.GetPublicEndpointKey(node.Name, node.Type)
@@ -96,64 +155,55 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		
+
 		rp := sc.getReverseProxy(pepEP.hostIP, sc.muxPort, pepEP.privateIP, pepEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 		glog.V(1).Infof("Time to set up %s public endpoint proxy for %v", pepKey, r.URL)
-	
+
 		// Set up the X-Forwarded-Proto header so that downstream servers know
 		// the request originated as HTTPS.
 		if _, found := r.Header["X-Forwarded-Proto"]; !found {
 			r.Header.Set("X-Forwarded-Proto", proto)
 		}
-	
+
 		rp.ServeHTTP(w, r)
 		return
 	}
 
 	// Create a new port server with a default handler.
+	glog.V(2).Infof("Creating server mux for %s", port)
 	portServer := http.NewServeMux()
 	portServer.HandleFunc("/", httphandler)
 
 	// HTTPS requires configuring the certificates for TLS.
-	if useTLS {
-		// Get the certificates and handle the error.
-		glog.V(2).Infof("Getting TLS certificates for port: %s", port)
-		certFile, keyFile, err := sc.getCertFiles()
-		if err != nil {
-			glog.Errorf("Error getting certificates for HTTPS port %s: %s", port, err)
-			disablePort(node)
-			return err
+	glog.V(0).Infof("Starting port endpoint %s server for port: %s", proto, port)
+	go func() {
+		glog.V(2).Infof("Creating %s server for port: %s", proto, port)
+		server := &http.Server{Addr: port, Handler: portServer}
+
+		// Create a keep alive listener with a stopChan
+		keepAliveListener := newKeepAliveListener(listener.(*net.TCPListener), stopChan, port)
+
+		// If we're using TLS we need to wrap the connection.
+		if tlsConfig != nil {
+			glog.V(2).Infof("Configuring port %s for TLS", port)
+			listener = tls.NewListener(keepAliveListener, tlsConfig)
 		}
-	
-		// Setup certificates and serve the requests.	
-		glog.V(2).Infof("Starting secure port endpoint server for port: %s", port)
+
+		// The server.Serve() method will block.
 		go func() {
-			// This cipher suites and tls min version change may not be needed with golang 1.5
-			// https://github.com/golang/go/issues/10094
-			// https://github.com/golang/go/issues/9364
-			config := &tls.Config{
-				MinVersion:               utils.MinTLS(),
-				PreferServerCipherSuites: true,
-				CipherSuites:             utils.CipherSuites(),
-			}
-			server := &http.Server{Addr: port, TLSConfig: config, Handler: portServer}
-			err := server.ListenAndServeTLS(certFile, keyFile)
-			if err != nil {
-				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
-			}
+			glog.V(2).Infof("Calling server.Serve(listener): %s port %s", proto, port)
+			server.Serve(listener)
 		}()
-	} else {
-		// HTTP just needs a request server.
-		glog.V(2).Infof("Starting port endpoint server for port: %s", port)
-		go func() {
-			server := &http.Server{Addr: port, Handler: portServer}
-			err := server.ListenAndServe()
-			if err != nil {
-				glog.Errorf("could not set up %s server for port endpoint %s: %s", proto, port, err)
-			}
-		}()
-	}
-	
+
+		glog.V(2).Infof("Waiting for stopChan: %s port %s", proto, port)
+		<-stopChan
+		glog.V(1).Infof("Closing the listener: %s port %s", proto, port)
+		// Close the listener.
+		listener.Close()
+		portClosed = true
+		glog.V(0).Infof("Closed %s port endpoint server for port: %s", proto, port)
+	}()
+
 	return nil
 }
 
@@ -161,17 +211,15 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 	port := node.Name
 	useTLS := node.UseTLS
 	proto := node.Protocol
-	
+
 	// Declare our listener..
 	var listener net.Listener
 	var err error
+	var tlsConfig *tls.Config
 
 	glog.V(1).Infof("About to listen on port %s; UseTLS=%t", port, useTLS)
 
-	if proto == "https" || proto == "http" {
-		// We have to set up an HttpListener to inject headers for downstram servers.
-		return sc.createPortHttpServer(node)
-	} else if useTLS {
+	if useTLS {
 		// Gather our certs files and handle the error.
 		certFile, keyFile, err := sc.getCertFiles()
 		if err != nil {
@@ -190,29 +238,31 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 		}
 
 		// The list of certs to use for our secure listener on this port.
-		certs := []tls.Certificate { cert }
+		certs := []tls.Certificate{cert}
 
 		// This cipher suites and tls min version change may not be needed with golang 1.5
 		// https://github.com/golang/go/issues/10094
 		// https://github.com/golang/go/issues/9364
-		config := &tls.Config{
+		tlsConfig = &tls.Config{
 			MinVersion:               utils.MinTLS(),
 			PreferServerCipherSuites: true,
 			CipherSuites:             utils.CipherSuites(),
 			Certificates:             certs,
 		}
-
-		glog.V(1).Infof("Listening with TLS")
-		listener, err = tls.Listen("tcp", port, config)
-	} else {
-		glog.V(1).Infof("Listening without TLS")
-		listener, err = net.Listen("tcp", port)
 	}
 
+	// Start listening on the port with a non-tls connection.
+	listener, err = net.Listen("tcp", port)
 	if err != nil {
 		glog.Errorf("Could not setup TCP listener for port %s for public endpoint %s: %s", port, node.ServiceID, err)
 		disablePort(node)
 		return err
+	}
+
+	// If we're using http/https we setup a handler.
+	if proto == "http" || proto == "https" {
+		glog.V(0).Infof("Creating port %s server for port %s", proto, port)
+		return sc.createPortHttpServer(node, listener, tlsConfig, stopChan)
 	}
 
 	glog.Infof("Listening on port %s; UseTLS=%t", port, useTLS)
@@ -224,6 +274,11 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 			if err != nil {
 				glog.V(1).Infof("Stopping accept on port %s", port)
 				return
+			}
+
+			// If we're using TLS we need to wrap the connection.
+			if tlsConfig != nil {
+				localConn = tls.Server(localConn, tlsConfig)
 			}
 
 			// lookup remote endpoint for this public port
@@ -287,7 +342,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 
 	cancelChan := make(chan interface{})
 	zkServicePEPService := service.ZKServicePublicEndpoints
-	
+
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		allportsLock.Lock()
 		defer allportsLock.Unlock()
@@ -297,7 +352,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		// start all servers that have been not started and enabled
 		newPorts := make(map[string]chan bool)
 		for _, pepID := range childIDs {
-			
+
 			// The pepID is the ZK child key. Get the node so we have all of the node data.
 			glog.V(1).Infof("zkServicePEPService: %s, pepID: %s", zkServicePEPService, pepID)
 			nodePath := fmt.Sprintf("%s/%s", zkServicePEPService, pepID)
@@ -307,7 +362,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 				glog.Errorf("Unable to get the ZK Node from PepID")
 				continue
 			}
-			
+
 			if node.Type == registry.EPTypePort && node.Enabled {
 				port := node.Name
 				stopChan, running := allports[port]
