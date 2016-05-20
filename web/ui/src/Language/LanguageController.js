@@ -9,7 +9,7 @@
         $scope.name = 'language';
         $scope.setUserLanguage = function() {
             log.log('User clicked', $scope.user.language);
-            $cookies.Language = $scope.user.language;
+            $cookies.put("Language",$scope.user.language);
             utils.updateLanguage($scope, $cookies, $translate);
         };
         $scope.getLanguageClass = function(language) {

@@ -50,6 +50,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/web"
@@ -351,6 +352,8 @@ func (d *daemon) startMaster() (err error) {
 		if !volume.IsBtrfsFilesystem(options.VolumesPath) {
 			return fmt.Errorf("path %s is not btrfs", options.VolumesPath)
 		}
+	} else if options.FSType == "devicemapper" {
+		devicemapper.SetStorageStatsUpdateInterval(options.StorageStatsUpdateInterval)
 	}
 	if d.disk, err = volume.GetDriver(options.VolumesPath); err != nil {
 		glog.Errorf("Could not get volume driver at %s: %s", options.VolumesPath, err)
@@ -360,6 +363,7 @@ func (d *daemon) startMaster() (err error) {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	}
+
 	//set tenant volumes on nfs storagedriver
 	glog.Infoln("Finding volumes")
 	tenantVolumes := make(map[string]struct{})
@@ -789,6 +793,7 @@ func (d *daemon) initWeb() {
 		options.CertPEMFile,
 		options.KeyPEMFile,
 		options.UIPollFrequency,
+		options.SnapshotSpacePercent,
 		d.facade)
 	web.SetServiceStatsCacheTimeout(options.SvcStatsCacheTimeout)
 	go cpserver.Serve(d.shutdown)

@@ -113,7 +113,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.DockerRegistry, options.Endpoint, options.ControllerBinary, options.UIPort)
+	cmd, err := shell.StartDocker(&cfg, options.DockerRegistry, options.Endpoint, options.ControllerBinary)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -189,7 +189,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	}
 
 	// TODO: change me to use sockets
-	cmd, err := shell.StartDocker(&cfg, options.DockerRegistry, options.Endpoint, options.ControllerBinary, options.UIPort)
+	cmd, err := shell.StartDocker(&cfg, options.DockerRegistry, options.Endpoint, options.ControllerBinary)
 	if err != nil {
 		return 1, fmt.Errorf("failed to connect to service: %s", err)
 	}
@@ -247,7 +247,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 			// Commit the container
 			label := ""
 			glog.V(0).Infof("Committing container")
-			if err := client.Snapshot(dao.SnapshotRequest{ContainerID: container.ID}, &label); err != nil {
+			if err := client.Snapshot(dao.SnapshotRequest{ContainerID: container.ID, SnapshotSpacePercent: options.SnapshotSpacePercent}, &label); err != nil {
 				glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
 			}
 		}

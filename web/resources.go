@@ -38,6 +38,8 @@ import (
 
 var empty interface{}
 
+var snapshotSpacePercent int
+
 type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
 
@@ -775,7 +777,7 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 
 func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	volumeStatuses := volume.GetStatus()
-	if volumeStatuses == nil || volumeStatuses.StatusMap == nil {
+	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
 		err := fmt.Errorf("Unexpected error getting volume status")
 		glog.Errorf("%s", err)
 		restServerError(w, err)
@@ -789,8 +791,9 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	// REST collections should return arrays, not maps
-	storageInfo := make([]VolumeInfo, 0, len(volumeStatuses.StatusMap))
-	for volumeName, volumeStatus := range volumeStatuses.StatusMap {
+	statuses := volumeStatuses.GetAllStatuses()
+	storageInfo := make([]VolumeInfo, 0, len(statuses))
+	for volumeName, volumeStatus := range statuses {
 		volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
 		tags := map[string][]string{}
 		profile, err := volumeProfile.ReBuild("1h-ago", tags)
@@ -816,7 +819,11 @@ func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	dir := ""
 	filePath := ""
-	err := client.AsyncBackup(dir, &filePath)
+	req := dao.BackupRequest{
+		Dirpath: 		dir,
+		SnapshotSpacePercent: 	snapshotSpacePercent,
+	}
+	err := client.AsyncBackup(req, &filePath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		restServerError(w, err)

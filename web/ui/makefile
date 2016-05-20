@@ -19,7 +19,6 @@ serviced_build_DOCKERDIR = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
-NODEJS = $(shell which node)
 docker_working_DIR = /mnt
 
 .PHONY: default
@@ -40,13 +39,13 @@ build: $(controlplane_JS)
 # rebuild and publish zenoss/serviced-build with the NPM dependencies.
 #
 npmInstall:
-	if [ -x "$(NODEJS)" ]; then \
+	if [ "$(NODEJS)" ]; then \
 		./npmLink.sh; \
 		npm install; \
 	fi
 
 $(controlplane_JS): src/*.js src/**/*.js
-	@if [ -x "$(NODEJS)" ]; then \
+	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp release'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp release; \
@@ -62,8 +61,8 @@ $(controlplane_JS): src/*.js src/**/*.js
 	fi
 
 .PHONY: test
-test: build
-	@if [ -x "$(NODEJS)" ]; then \
+test: build translation_test
+	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp test'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp test; \
@@ -76,6 +75,11 @@ test: build
 		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
+
+.PHONY: translation_test
+translation_test:
+	echo "Checking translation files.."
+	/bin/bash ./testTranslation.sh
 
 .PHONY: clean
 clean:

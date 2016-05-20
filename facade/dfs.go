@@ -61,7 +61,7 @@ var registryVersionInfos = map[int]registryVersionInfo{
 }
 
 // Backup takes a backup of all installed applications
-func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
+func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent int) error {
 	// Do not DFSLock here, ControlPlaneDao does that
 
 	stime := time.Now()
@@ -93,7 +93,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
 	snapshots := make([]string, len(tenants))
 	for i, tenant := range tenants {
 		tag := fmt.Sprintf("backup-%s-%s", tenant, stime)
-		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag})
+		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag}, snapshotSpacePercent)
 		if err != nil {
 			glog.Errorf("Could not snapshot %s: %s", tenant, err)
 			return err
@@ -131,13 +131,13 @@ func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo
 }
 
 // Commit commits a container to the docker registry and takes a snapshot.
-func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []string) (string, error) {
+func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []string, snapshotSpacePercent int) (string, error) {
 	tenantID, err := f.dfs.Commit(ctrID)
 	if err != nil {
 		glog.Errorf("Could not commit container %s: %s", ctrID, err)
 		return "", err
 	}
-	snapshotID, err := f.Snapshot(ctx, tenantID, message, tags)
+	snapshotID, err := f.Snapshot(ctx, tenantID, message, tags, snapshotSpacePercent)
 	if err != nil {
 		glog.Errorf("Could not snapshot %s: %s", tenantID, err)
 		return "", err
@@ -506,7 +506,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 }
 
 // Snapshot takes a snapshot for a particular application.
-func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string) (string, error) {
+func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string, snapshotSpacePercent int) (string, error) {
 	// Do not DFSLock here, ControlPlaneDao does that
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
@@ -557,7 +557,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 		Services: svcs,
 		Images:   images,
 	}
-	snapshotID, err := f.dfs.Snapshot(data)
+	snapshotID, err := f.dfs.Snapshot(data, snapshotSpacePercent)
 	if err != nil {
 		glog.Errorf("Could not snapshot disk and images for tenant %s: %s", tenantID, err)
 		return "", err

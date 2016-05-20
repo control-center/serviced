@@ -153,6 +153,10 @@
 # Default: 60     (1 minute)
 # SERVICED_MONITOR_DFS_REMOTE_UPDATE_INTERVAL=60
 
+# The interval, in seconds, at which low-level storage stats will be pulled and
+# analyzed from the devicemapper kernel driver table.
+# SERVICED_STORAGE_STATS_UPDATE_INTERVAL=300
+
 # The interval, in seconds, at which a serviced instance configured as master
 # checks the modification times of the /opt/serviced/var/monitor/<IP-Address>
 # files of active serviced instances configured as agents. The value of this
@@ -179,9 +183,6 @@
 # zookeeper quorum.  This takes the form of <ZKID#>@<IPAddress>:<PeerPort>:<LeaderPort>
 # SERVICED_ISVCS_ZOOKEEPER_QUORUM=1@host1:2888:3888,2@host2:2888:3888,3@host3:2888:3888
 
-# Arbitrary serviced daemon args
-# SERVICED_OPTS=
-
 # Specify the log driver for all docker containers logs, including isvc containers on the master node.
 # Direct port of Docker --log-driver option. Values include json-file, syslog, journald, gelf, fluentd, and none.
 # SERVICED_DOCKER_LOG_DRIVER=json-file
@@ -190,3 +191,10 @@
 # For log drivers which do not need additional arguments (e.g. journald), use a single comma as the value
 # of SERVICED_DOCKER_LOG_CONFIG and the system will use the defaults for that type of log driver.
 # SERVICED_DOCKER_LOG_CONFIG=max-file=5,max-size=10m
+
+# Arbitrary serviced daemon args
+# SERVICED_OPTS=
+
+# Percent of tenant volume size that is assumed to be used.  This is used to determine if the volume has enough
+# free space for creating a snapshot.  Defaults to 20
+# SERVICED_SNAPSHOT_USE_PERCENT=20
