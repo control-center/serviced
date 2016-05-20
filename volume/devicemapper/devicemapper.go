@@ -489,6 +489,18 @@ func (d *DeviceMapperDriver) poolDir() string {
 	return filepath.Join(d.root, ".devicemapper")
 }
 
+func (d *DeviceMapperDriver) baseSize() uint64 {
+	for _, opt := range d.options {
+		if strings.HasPrefix(opt, "dm.basesize=") {
+			size, err := units.RAMInBytes(strings.TrimPrefix(opt, "dm.basesize="))
+			if err == nil {
+				return uint64(size)
+			}
+		}
+	}
+	return 100 * 1024 * 1024 * 1024 // 100G
+}
+
 // snapshotDir returns the path under which volume metadata will be stored
 func (d *DeviceMapperDriver) MetadataDir() string {
 	return filepath.Join(d.poolDir(), "volumes")
@@ -1185,6 +1197,22 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
 		return err
 	}
+	// The size of the staging volume is determined by the size of the
+	// tenant volume; we need it to be based off of the dm.basesize value if it
+	// is smaller.
+	curSize, err := v.SizeOf()
+	if err != nil {
+		glog.Errorf("Cannot determine size of snapshot volume: %s", err)
+		return err
+	}
+	if baseSize := v.driver.baseSize(); baseSize > curSize {
+		glog.Warningf("dm.basesize is greater than snapshot volume; expanding")
+		if err := v.driver.resize(device, baseSize); err != nil {
+			glog.Errorf("Could not resize snapshot volume; not importing snapshot %s: %s", label, err)
+			return err
+		}
+		curSize = baseSize
+	}
 	defer func() {
 		mp := filepath.Join(mountpoint, label)
 		glog.V(2).Infof("Unmounting imported snapshot device %s", device)
@@ -1228,13 +1256,8 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 				glog.Errorf("Could not read device info: %s", err)
 				return err
 			}
-			size, err := v.SizeOf()
-			if err != nil {
-				glog.Errorf("Could not get the size of the parent device: %s", err)
-				return err
-			}
-			if volInfo.Size > size {
-				glog.Warningf("Snapshot volume is size is greater than base volume; expanding")
+			if volInfo.Size > curSize {
+				glog.Warningf("Device size from import is greater than snapshot volume; expanding.")
 				if err := v.driver.resize(device, volInfo.Size); err != nil {
 					glog.Errorf("Could not resize snapshot volume; not importing snapshot %s: %s", label, err)
 					return err
