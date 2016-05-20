@@ -165,13 +165,9 @@ Pool space allocated to {{.NumberSnapshots}} snapshots:	{{blocksToBytes .Snapsho
 Virtual device unallocated space:	{{blocksToBytes .DeviceUnallocatedBlocks}} (vs. {{bytes $parent.PoolDataAvailable}} available in pool)
 {{range .Errors}}
 {{.}}
-{{end -}}
-{{end -}}
-{{end -}}
-{{range .Errors}}
+{{end}}{{end}}{{end}}{{range .Errors}}
 {{.}}
-{{end -}}
-`
+{{end}}`
 
 var funcMap = template.FuncMap{
 	"bytes":         ToBytes,
