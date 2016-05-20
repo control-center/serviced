@@ -29,7 +29,13 @@ type Image struct {
 }
 
 func (image *Image) String() string {
-	return fmt.Sprintf("%s/%s:%s", image.Library, image.Repo, image.Tag)
+	imageStr := fmt.Sprintf("%s/%s", image.Library, image.Repo)
+
+	if len(image.Tag) > 0 {
+		imageStr = fmt.Sprintf("%s:%s", imageStr, image.Tag)
+	}
+
+	return imageStr
 }
 
 func (image *Image) ID() string {
