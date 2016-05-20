@@ -793,6 +793,7 @@ func (d *daemon) initWeb() {
 		options.CertPEMFile,
 		options.KeyPEMFile,
 		options.UIPollFrequency,
+		options.SnapshotSpacePercent,
 		d.facade)
 	web.SetServiceStatsCacheTimeout(options.SvcStatsCacheTimeout)
 	go cpserver.Serve(d.shutdown)
