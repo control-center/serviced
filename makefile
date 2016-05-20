@@ -169,7 +169,7 @@ FORCE:
 serviced: $(GODEP)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	#make govet
+	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
 serviced-controller: $(GODEP)
