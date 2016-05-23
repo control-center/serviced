@@ -1332,7 +1332,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			if volInfo.Size > size {
 				glog.Warning("Device size from import %s is greater than size of staging device; expanding.", label, deviceID)
 				if err := v.driver.resize(deviceID, volInfo.Size); err != nil {
-					glog.Errorf("Could not resize device %s; not importing snapshot %s: %s", label, err)
+					glog.Errorf("Could not resize device %s; not importing snapshot %s: %s", deviceID, label, err)
 					return err
 				}
 				glog.V(2).Infof("Device %s is now %s", deviceID, units.HumanSize(float64(volInfo.Size)))
