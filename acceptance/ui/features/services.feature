@@ -44,7 +44,6 @@ Feature: Service Management
       And I should see "Host:"
       And I should see "Port:"
       And I should see "Protocol:"
-      And I click "Cancel"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - VHost mode visible fields
@@ -55,7 +54,6 @@ Feature: Service Management
       And I choose VHost type
     Then I should see the Add Public Endpoint dialog
       And I should see VHost fields
-      And I click "Cancel"
 
   @services_endpoint
   Scenario: Public Endpoint dialg - Port mode visible fields
@@ -64,7 +62,10 @@ Feature: Service Management
       And I click "Add Public Endpoint"
       And I should see the Add Public Endpoint dialog
     Then I should see Port fields
-      And I click "Cancel"
+    And I should see Port "placeholder" to be "table://services/childServiceWithVHost/port_placeholder"
+    And I should see Host "placeholder" to be "table://services/childServiceWithVHost/host_placeholder"
+    And "table://services/childServiceWithVHost/svc_default" should be selected for Service Endpoint
+    And "table://services/childServiceWithVHost/protocol_default" should be selected for Protocol
 
   @services_endpoint
   Scenario: Public Endpoint dialog - no port given
@@ -74,7 +75,6 @@ Feature: Service Management
       And I should see the Add Public Endpoint dialog
       And I click "Add and Restart Service"
     Then I should see "Missing port"
-      And I click "Cancel"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - bad port given
@@ -85,7 +85,6 @@ Feature: Service Management
       And I fill in Port "99999"
       And I click "Add and Restart Service"
     Then I should see "Port must be between 1 and 65536"
-      And I click "Cancel"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - bad host given
@@ -97,7 +96,6 @@ Feature: Service Management
       And I fill in Port "23456"
       And I click "Add and Restart Service"
     Then I should see "no such host"
-      And I click "Cancel"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - add https
@@ -112,7 +110,7 @@ Feature: Service Management
       And I click "Add and Restart Service"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
-      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_https" type:"port" protocol:"table://services/childServiceWithVHost/protocol_https_o" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_https"
+      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_https" type:"port" protocol:"table://services/childServiceWithVHost/protocol_https_display" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_https"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - add http
@@ -127,7 +125,7 @@ Feature: Service Management
       And I click "Add and Restart Service"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
-      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_http" type:"port" protocol:"table://services/childServiceWithVHost/protocol_http_o" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_http"
+      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_http" type:"port" protocol:"table://services/childServiceWithVHost/protocol_http_display" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_http"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - add tls
@@ -142,7 +140,7 @@ Feature: Service Management
       And I click "Add and Restart Service"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
-      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_tls" type:"port" protocol:"table://services/childServiceWithVHost/protocol_tls_o" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_tls"
+      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_tls" type:"port" protocol:"table://services/childServiceWithVHost/protocol_tls_display" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_tls"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - add other
@@ -157,7 +155,7 @@ Feature: Service Management
       And I click "Add and Restart Service"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
-      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_other" type:"port" protocol:"table://services/childServiceWithVHost/protocol_other_o" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_other"
+      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_other" type:"port" protocol:"table://services/childServiceWithVHost/protocol_other_display" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_other"
 
   @services_endpoint
   Scenario: Public Endpoint dialog - remove https
@@ -200,7 +198,7 @@ Feature: Service Management
       And I click "Add and Restart Service"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
-      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_https" type:"port" protocol:"table://services/childServiceWithVHost/protocol_https_o" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_https"
+      And Endpoint details should be service:"table://services/childServiceWithVHost/name" endpoint:"table://services/childServiceWithVHost/endpoint_https" type:"port" protocol:"table://services/childServiceWithVHost/protocol_https_display" host:"table://services/childServiceWithVHost/host" port:"table://services/childServiceWithVHost/port_https"
 
   @services_endpoint_na
   Scenario: Public Endpoint dialog - remove https

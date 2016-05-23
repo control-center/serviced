@@ -12,11 +12,11 @@ Then (/^I should see the Add Public Endpoint dialog$/) do
 end
 
 Then (/^I choose Port type$/) do
-    @service_page.find("div.btn-group", "//input[@value='port']" ).click
+    @service_page.buttonPortType.click
 end
 
 Then (/^I choose VHost type$/) do
-    @service_page.find("div.btn-group", "//input[@value='vhost']" ).click
+    @service_page.buttonVHostType.click
 end
 
 Then (/^I select Service "([^"]*)" - "([^"]*)"$/) do |service, endpoint|
@@ -32,21 +32,43 @@ Then (/^I fill in Port "([^"]*)"$/) do |port|
     @service_page.newPort_input.set getTableValue(port)
 end
 
+Then (/^I should see Port "([^"]*)" to be "([^"]*)"$/) do |attr, val|
+    expect(@service_page.newPort_input[attr].eql?(getTableValue(val)))
+end
+
+Then (/^I should see Host "([^"]*)" to be "([^"]*)"$/) do |attr, val|
+    expect(@service_page.newHostName_input[attr].eql?(getTableValue(val)))
+end
+
 Then (/^I select Protocol "([^"]*)"$/) do |protocol|
     @service_page.addProtocol_select.select getTableValue(protocol)
 end
 
 Then (/^I should see Port fields$/) do
     initServicePageObj()
+
     expect(@service_page.addVHostApp_select.visible?).to be true
     expect(@service_page.newHostName_input.visible?).to be true
     expect(@service_page.newPort_input.visible?).to be true
     expect(@service_page.addProtocol_select.visible?).to be true
+    expect(@service_page.buttonPortType.visible?).to be true
+    expect(@service_page.buttonVHostType.visible?).to be true
+
 end
 
 Then (/^I should see VHost fields$/) do
     initServicePageObj()
     expect(@service_page.addVHostApp_select.visible? && @service_page.newVHost_input.visible?).to be true
+end
+
+Then (/^"([^"]*)" should be selected for Service Endpoint$/) do |expected|
+    initServicePageObj()
+    expect(@service_page.addVHostApp_select.find('option[selected]')).to have_content getTableValue(expected)
+end
+
+Then (/^"([^"]*)" should be selected for Protocol$/) do |expected|
+    initServicePageObj()
+    expect(@service_page.addProtocol_select.find('option[selected]')).to have_content getTableValue(expected)
 end
 
 Then (/^Endpoint details should be service:"([^"]*)" endpoint:"([^"]*)" type:"([^"]*)" protocol:"([^"]*)" host:"([^"]*)" port:"([^"]*)"$/) do |svc, ep, type, proto, host, port|

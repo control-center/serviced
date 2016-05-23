@@ -16,6 +16,10 @@ class Service < SitePrism::Page
     element :addPublicEndpoint_dialog, ".modal-content"
     element :addVHostApp_select,    :xpath, "//select[@id='add_vhost_application']"
 
+    # type selector
+    element :buttonPortType,        "div.btn-group", "//input[@value='port']"
+    element :buttonVHostType,       "div.btn-group", "//input[@value='vhost']"
+
     # type port
     element :newHostName_input,     :xpath, "//input[@name='new_host_name']"
     element :newPort_input,         :xpath, "//input[@id='add_public_endpoint_port']"

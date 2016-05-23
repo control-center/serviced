@@ -11,6 +11,11 @@
     },
 
     "childServiceWithVHost": {
+      "svc_default": "s2 - websvc",
+      "protocol_default" : "HTTPS",
+      "port_placeholder" : 54321,
+      "host_placeholder" : "example.com",
+
       "name": "s2",
       "vhostName" : "websvc",
       "publicPortNumber": 1234,
@@ -18,22 +23,22 @@
 
       "endpoint_https"  : "websvc",
       "protocol_https"  : "HTTPS",
-      "protocol_https_o"  : "HTTPS",
+      "protocol_https_display"  : "HTTPS",
       "port_https"      : "23510",
 
       "endpoint_http" : "websvc1",
       "protocol_http" : "HTTP",
-      "protocol_http_o" : "HTTP",
+      "protocol_http_display" : "HTTP",
       "port_http"     : "23511",
 
       "endpoint_tls" : "websvc2",
       "protocol_tls" : "Other, secure (TLS)",
-      "protocol_tls_o" : "other (TLS)",
+      "protocol_tls_display" : "other (TLS)",
       "port_tls"     : "23512",
 
       "endpoint_other" : "websvc3",
       "protocol_other" : "Other, non-secure",
-      "protocol_other_o" : "other",
+      "protocol_other_display" : "other",
       "port_other"     : "23513",
 
       "configFile": "etc/bar.txt"
