@@ -251,6 +251,7 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 // restoreVolume restores the application data contained in the tarfile to the
 // DFS volume denoted by tenant and label
 func (dfs *DistributedFilesystem) restoreVolume(tenant, label string, tarfile io.Reader) ([]string, error) {
+	var snapshotErr error
 	vol, err := dfs.disk.Create(tenant)
 	if err == volume.ErrVolumeExists {
 		if vol, err = dfs.disk.Get(tenant); err != nil {
@@ -260,10 +261,20 @@ func (dfs *DistributedFilesystem) restoreVolume(tenant, label string, tarfile io
 	} else if err != nil {
 		glog.Errorf("Could not create volume for tenant %s: %s", tenant, err)
 		return nil, err
+	} else {
+		// CC-2219: Remove the tenant volume if we created it. Snapshot import
+		// volumes are derived from the parent volume that they are associated.
+		// If the user decides that they need to reallocate the size of the
+		// base volume, we need to make sure that we clean up the volume that
+		// we created.
+		defer func() {
+			if snapshotErr != nil {
+				dfs.disk.Remove(tenant)
+			}
+		}()
 	}
 	// Lets expedite this if this restore had already imported the snapshot
 	// But delete the snapshot if it doesn't have the right information
-	var snapshotErr error
 	defer func() {
 		if snapshotErr != nil {
 			vol.RemoveSnapshot(label)
