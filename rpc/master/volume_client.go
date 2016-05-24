@@ -18,7 +18,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
-//GetVolumeStatus gets status information for the given volume or nil
+// GetVolumeStatus gets status information for the given volume or nil
 func (c *Client) GetVolumeStatus() (*volume.Statuses, error) {
 	response := &volume.Statuses{}
 	if err := c.call("GetVolumeStatus", empty, response); err != nil {
