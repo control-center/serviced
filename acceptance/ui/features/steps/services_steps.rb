@@ -25,11 +25,15 @@ Then (/^I select Service "([^"]*)" - "([^"]*)"$/) do |service, endpoint|
 end
 
 Then (/^I fill in Host "([^"]*)"$/) do |host|
-    @service_page.newHostName_input.set getTableValue(host)
+    host=getTableValue(host)
+    @service_page.newHostName_input.set host
+    expect(@service_page.newHostName_input.value.should eq host)
 end
 
 Then (/^I fill in Port "([^"]*)"$/) do |port|
-    @service_page.newPort_input.set getTableValue(port)
+    port = getTableValue(port)
+    @service_page.newPort_input.set port
+    expect(@service_page.newPort_input.value.should eq port)
 end
 
 Then (/^I should see Port "([^"]*)" to be "([^"]*)"$/) do |attr, val|
@@ -71,14 +75,17 @@ Then (/^"([^"]*)" should be selected for Protocol$/) do |expected|
     expect(@service_page.addProtocol_select.find('option[selected]')).to have_content getTableValue(expected)
 end
 
-Then (/^Endpoint details should be service:"([^"]*)" endpoint:"([^"]*)" type:"([^"]*)" protocol:"([^"]*)" host:"([^"]*)" port:"([^"]*)"$/) do |svc, ep, type, proto, host, port|
-    svc=getTableValue(svc).upcase()
-    ep=getTableValue(ep).upcase()
-    type=getTableValue(type).upcase()
-    proto=getTableValue(proto).upcase()
-    host=getTableValue(host).upcase()
-    port=getTableValue(port).upcase()
-    expect(checkEndpointRow(svc, ep, type, proto, host, port)).to be true
+Then (/^I should see only one endpoint entry of Port "([^"]*)"$/) do |port|
+    initServicePageObj()
+    port = getTableValue(port)
+    expect(checkEP_UniqueColumn('URL', port))
+end
+
+Then (/^I should see the endpoint entry with both "([^"]*)" and "([^"]*)"$/) do |c1, c2|
+    initServicePageObj()
+    c1 = getTableValue(c1)
+    c2 = getTableValue(c2)
+    expect(checkEP_find(c1, c2))
 end
 
 Then (/^I delete Endpoint "([^"]*)"$/) do |entry|
@@ -104,10 +111,22 @@ def deleteEndpoint(name)
     return false
 end
 
-def checkEndpointRow(svc, ep, type, proto, host, port)
+def checkEP_UniqueColumn(ctitle, cvalue)
+    found = 0
+    @service_page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr//td[@data-title-text=#{ctitle}]").each do |td|
+        if td.text.include?(cvalue)
+            found += 1
+        end
+    end
+    return true if found == 1
+
+    return false
+end
+
+def checkEP_find(c1, c2)
     @service_page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
         line=tr.text.upcase()
-        if  line.include?(svc) && line.include?(ep) && line.include?(type) && line.include?(proto) && line.include?(port)
+        if  line.include?(c1) && line.include?(c2) 
             return true
         end
     end

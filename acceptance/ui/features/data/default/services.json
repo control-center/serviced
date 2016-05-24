@@ -13,7 +13,7 @@
     "childServiceWithVHost": {
       "svc_default": "s2 - websvc",
       "protocol_default" : "HTTPS",
-      "port_placeholder" : 54321,
+      "port_placeholder" : "54321",
       "host_placeholder" : "example.com",
 
       "name": "s2",
