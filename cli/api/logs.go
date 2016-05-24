@@ -102,46 +102,9 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	elastigo.Domain = parts[0]
 	elastigo.Port = parts[1]
 
-	query := "*"
-	if len(config.ServiceIDs) > 0 {
-		services, e := a.GetServices()
-		if e != nil {
-			return e
-		}
-		serviceMap := make(map[string]service.Service)
-		for _, service := range services {
-			serviceMap[service.ID] = service
-		}
-		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
-		for _, serviceID := range config.ServiceIDs {
-			serviceIDMap[serviceID] = true
-		}
-		for _, service := range services {
-			srvc := service
-			for {
-				found := false
-				for _, serviceID := range config.ServiceIDs {
-					if srvc.ID == serviceID {
-						serviceIDMap[service.ID] = true
-						found = true
-						break
-					}
-				}
-				if found || srvc.ParentServiceID == "" {
-					break
-				}
-				srvc = serviceMap[srvc.ParentServiceID]
-			}
-		}
-		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes
-		queryParts := []string{}
-		for serviceID := range serviceIDMap {
-			if re.FindStringIndex(serviceID) == nil {
-				return fmt.Errorf("invalid service ID format: %s", serviceID)
-			}
-			queryParts = append(queryParts, fmt.Sprintf("\"%s\"", strings.Replace(serviceID, "-", "\\-", -1)))
-		}
-		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
+	query, err := buildQuery(config, a.GetServices)
+	if err != nil {
+		return err
 	}
 
 	// Get a temporary directory
@@ -288,6 +251,54 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	}
 
 	return nil
+}
+
+func buildQuery(config ExportLogsConfig, getServices func()([]service.Service, error) ) (string, error) {
+	query := "*"
+	if len(config.ServiceIDs) > 0 {
+		services, e := getServices()
+		if e != nil {
+			return "", e
+		}
+		serviceMap := make(map[string]service.Service)
+		for _, service := range services {
+			serviceMap[service.ID] = service
+		}
+		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
+		for _, serviceID := range config.ServiceIDs {
+			serviceIDMap[serviceID] = true
+		}
+		for _, service := range services {
+			srvc := service
+			for {
+				found := false
+				for _, serviceID := range config.ServiceIDs {
+					if srvc.ID == serviceID {
+						serviceIDMap[service.ID] = true
+						found = true
+						break
+					}
+				}
+				if found || srvc.ParentServiceID == "" {
+					break
+				}
+				srvc = serviceMap[srvc.ParentServiceID]
+			}
+		}
+		re := regexp.MustCompile("\\A[\\w\\-]+\\z") //only letters, numbers, underscores, and dashes
+		queryParts := []string{}
+		for serviceID := range serviceIDMap {
+			if re.FindStringIndex(serviceID) == nil {
+				return "", fmt.Errorf("invalid service ID format: %s", serviceID)
+			}
+			queryParts = append(queryParts, fmt.Sprintf("\"%s\"", strings.Replace(serviceID, "-", "\\-", -1)))
+		}
+		// sort the query parts for predictable testability of the query string
+		sort.Sort(sort.StringSlice(queryParts))
+
+		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
+	}
+	return query, nil
 }
 
 // NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
