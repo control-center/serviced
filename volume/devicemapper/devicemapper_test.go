@@ -17,8 +17,11 @@ package devicemapper_test
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"testing"
 
@@ -27,8 +30,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/drivertest"
+	"github.com/docker/go-units"
 	// Register the devicemapper driver
-	_ "github.com/control-center/serviced/volume/devicemapper"
+	. "github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
 )
 
@@ -118,6 +122,67 @@ func (s *DeviceMapperSuite) TestDeviceMapperSnapshotTags(c *C) {
 
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
+}
+
+func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
+	// Set up export volume with larger volume base size
+	root1 := c.MkDir()
+	basesize1, err := units.RAMInBytes("15M")
+	c.Assert(err, IsNil)
+	drv1, err := Init(root1, []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
+	c.Assert(err, IsNil)
+	defer drv1.Cleanup()
+	vol1, err := drv1.Create("basetest")
+	c.Assert(err, IsNil)
+	defer drv1.Remove("basetest")
+
+	// dump 12MB of data into this device
+	f1, err := ioutil.TempFile(vol1.Path(), "dump-")
+	c.Assert(err, IsNil)
+	defer f1.Close()
+	garbage := make([]byte, 1024*1024)
+	for i := 0; i < 12; i++ {
+		_, err = f1.Write(garbage)
+		c.Assert(err, IsNil)
+	}
+	err = f1.Close()
+	c.Assert(err, IsNil)
+
+	err = vol1.Snapshot("snap", "testing import/export", []string{})
+	c.Assert(err, IsNil)
+
+	// Set up import volume with smaller volume base size
+	root2 := c.MkDir()
+	basesize2, err := units.RAMInBytes("10M")
+	c.Assert(err, IsNil)
+	drv2, err := Init(root2, []string{fmt.Sprintf("dm.basesize=%d", basesize2)})
+	c.Assert(err, IsNil)
+	defer drv2.Cleanup()
+	vol2, err := drv2.Create("basetest")
+	c.Assert(err, IsNil)
+	defer drv2.Remove("basetest")
+
+	// Do export/import
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	r, w := io.Pipe()
+	go func() {
+		defer wg.Done()
+		err := vol1.Export("snap", "", w)
+		if err != nil {
+			w.Close()
+		}
+		c.Check(err, IsNil)
+	}()
+	go func() {
+		defer wg.Done()
+		err := vol2.Import("snap", r)
+		if err != nil {
+			r.Close()
+		}
+		c.Check(err, IsNil)
+	}()
+	wg.Wait()
 }
 
 func (s *DeviceMapperSuite) TestSnapShotContainerMounts(c *C) {
