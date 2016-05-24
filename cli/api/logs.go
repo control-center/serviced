@@ -52,7 +52,7 @@ type ExportLogsConfig struct {
 func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	var e error
 	files := []*os.File{}
-	fileIndex := make(map[string]map[string]int) // host => filename => index
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
 	// make sure we can write to outfile
 	if config.Outfile == "" {
@@ -191,14 +191,15 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 			hits := result.Hits.Hits
 			total := len(hits)
 			for i := 0; i < total; i++ {
-				host, logfile, compactLines, warningMessage, e := parseLogSource(hits[i].Source)
+				message, e := parseLogSource(hits[i].Source)
 				if e != nil {
 					return e
 				}
-				if _, found := fileIndex[host]; !found {
-					fileIndex[host] = make(map[string]int)
+				if _, found := fileIndex[message.ContainerID]; !found {
+					fileIndex[message.ContainerID] = make(map[string]int)
 				}
-				if _, found := fileIndex[host][logfile]; !found {
+				// add a new tempfile
+				if _, found := fileIndex[message.ContainerID][message.File]; !found {
 					index := len(files)
 					filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
 					file, e := os.Create(filename)
@@ -210,20 +211,20 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 							err = fmt.Errorf("failed to close file '%s' cleanly: %s", filename, e)
 						}
 					}()
-					fileIndex[host][logfile] = index
+					fileIndex[message.ContainerID][message.File] = index
 					files = append(files, file)
 				}
-				index := fileIndex[host][logfile]
+				index := fileIndex[message.ContainerID][message.File]
 				file := files[index]
 				filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
-				for _, line := range compactLines {
+				for _, line := range message.Lines {
 					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
 					if _, e := file.WriteString(formatted); e != nil {
 						return fmt.Errorf("failed writing to file %s: %s", filename, e)
 					}
 				}
-				if len(warningMessage) > 0 {
-					if _, e := parseWarningsFile.WriteString(warningMessage); e != nil {
+				if len(message.Warnings) > 0 {
+					if _, e := parseWarningsFile.WriteString(message.Warnings); e != nil {
 						return fmt.Errorf("failed writing to file %s: %s", parseWarningsFilename, e)
 					}
 					numWarnings++
@@ -239,7 +240,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	glog.Infof("Starting part 2 of 3: sort output files")
 
 	indexData := []string{}
-	for host, logfileIndex := range fileIndex {
+	for containerID, logfileIndex := range fileIndex {
 		for logfile, i := range logfileIndex {
 			filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", i))
 			tmpfilename := filepath.Join(tempdir, fmt.Sprintf("%03d.log.tmp", i))
@@ -262,11 +263,12 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 			if output, e := cmd.CombinedOutput(); e != nil {
 				return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
 			}
-			indexData = append(indexData, fmt.Sprintf("%03d.log\t%s\t%s", i, strconv.Quote(host), strconv.Quote(logfile)))
+			indexData = append(indexData, fmt.Sprintf("%03d.log\t%s\t%s",
+				i, strconv.Quote(containerID), strconv.Quote(logfile)))
 		}
 	}
 	sort.Strings(indexData)
-	indexData = append([]string{"INDEX OF LOG FILES", "File\tHost\tOriginal Filename"}, indexData...)
+	indexData = append([]string{"INDEX OF LOG FILES", "File\tContainer ID\tOriginal Filename"}, indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -288,26 +290,35 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	return nil
 }
 
+// NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
+//       executed inside a docker container, the value is actually the container ID, not the name of docker host.
 type logSingleLine struct {
-	Host      string    `json:"host"`
-	File      string    `json:"file"`
-	Timestamp time.Time `json:"@timestamp"`
-	Offset    string    `json:"offset"`
-	Message   string    `json:"message"`
+	ContainerID string    `json:"host"`
+	File        string    `json:"file"`
+	Timestamp   time.Time `json:"@timestamp"`
+	Offset      string    `json:"offset"`
+	Message     string    `json:"message"`
 }
 
 type logMultiLine struct {
-	Host      string    `json:"host"`
-	File      string    `json:"file"`
-	Timestamp time.Time `json:"@timestamp"`
-	Offset    []string  `json:"offset"`
-	Message   string    `json:"message"`
+	ContainerID string    `json:"host"`
+	File        string    `json:"file"`
+	Timestamp   time.Time `json:"@timestamp"`
+	Offset      []string  `json:"offset"`
+	Message     string    `json:"message"`
 }
 
 type compactLogLine struct {
 	Timestamp int64 //nanoseconds since the epoch, truncated at the minute to hide jitter
 	Offset    uint64
 	Message   string
+}
+
+type parsedMessage struct {
+	ContainerID string
+	File        string
+	Lines       []compactLogLine
+	Warnings    string
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
@@ -367,8 +378,8 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 	return result
 }
 
-// return: host, file, lines, error
-func parseLogSource(source []byte) (string, string, []compactLogLine, string, error) {
+// return: containerID, file, lines, error
+func parseLogSource(source []byte) (*parsedMessage, error) {
 	warnings := ""
 
 	// attempt to unmarshal into singleLine
@@ -379,7 +390,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, string, er
 			var e error
 			offset, e = strconv.ParseUint(line.Offset, 10, 64)
 			if e != nil {
-				return "", "", nil, warnings, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+				return nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
 			}
 		}
 		compactLine := compactLogLine{
@@ -387,19 +398,24 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, string, er
 			Offset:    offset,
 			Message:   line.Message,
 		}
-		return line.Host, line.File, []compactLogLine{compactLine}, warnings, nil
+		message := &parsedMessage{
+			ContainerID: line.ContainerID,
+			File:        line.File,
+			Lines:       []compactLogLine{compactLine},
+		}
+		return message, nil
 	}
 
 	// attempt to unmarshal into multiLine
 	var multiLine logMultiLine
 	if e := json.Unmarshal(source, &multiLine); e != nil {
-		return "", "", nil, warnings, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
+		return nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
 
 	// build offsets - list of uint64
 	offsets, e := convertOffsets(multiLine.Offset)
 	if e != nil {
-		return "", "", nil, warnings, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
+		return nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
 
 	// verify number of lines in message against number of offsets
@@ -407,7 +423,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, string, er
 	if len(offsets)+1 == len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s\n",
-			multiLine.Host, multiLine.File, len(messages), len(offsets), source)
+			multiLine.ContainerID, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
 			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-2]
@@ -416,12 +432,12 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, string, er
 	} else if len(offsets) > len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s\n",
-			multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
 		warnings += fmt.Sprintf(
 			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
-			multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+			multiLine.ContainerID, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = generateOffsets(messages, offsets)
 		warnings += fmt.Sprintf("new offsets: %v", offsets)
 	}
@@ -444,7 +460,13 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, string, er
 		})
 	}
 
-	return multiLine.Host, multiLine.File, compactLines, warnings, nil
+	message := &parsedMessage{
+		ContainerID: multiLine.ContainerID,
+		File:        multiLine.File,
+		Lines:       compactLines,
+		Warnings:    warnings,
+	}
+	return message, nil
 }
 
 // NormalizeYYYYMMDD matches optional non-digits, 4 digits, optional non-digits,
