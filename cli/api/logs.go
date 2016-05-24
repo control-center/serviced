@@ -52,7 +52,7 @@ type ExportLogsConfig struct {
 // guarantee that it will be safe to write to at the end of the function
 func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	var e error
-	files := []*os.File{}
+	outputFiles := []outputFileInfo{}
 	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
 	e = validateConfiguration(&config)
@@ -140,8 +140,8 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 					fileIndex[message.ContainerID] = make(map[string]int)
 				}
 				// add a new tempfile
-				if _, found := fileIndex[message.ContainerID][message.File]; !found {
-					index := len(files)
+				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
+					index := len(outputFiles)
 					filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
 					file, e := os.Create(filename)
 					if e != nil {
@@ -152,15 +152,23 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 							err = fmt.Errorf("failed to close file '%s' cleanly: %s", filename, e)
 						}
 					}()
-					fileIndex[message.ContainerID][message.File] = index
-					files = append(files, file)
+					fileIndex[message.ContainerID][message.LogFileName] = index
+					outputFile := outputFileInfo{
+						File:        file,
+						ContainerID: message.ContainerID,
+						LogFileName: message.LogFileName,
+					}
+					outputFiles = append(outputFiles, outputFile)
+					if config.Debug {
+						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
+					}
 				}
-				index := fileIndex[message.ContainerID][message.File]
-				file := files[index]
+				index := fileIndex[message.ContainerID][message.LogFileName]
+				outputFile := outputFiles[index]
 				filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
 				for _, line := range message.Lines {
 					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
-					if _, e := file.WriteString(formatted); e != nil {
+					if _, e := outputFile.File.WriteString(formatted); e != nil {
 						return fmt.Errorf("failed writing to file %s: %s", filename, e)
 					}
 				}
@@ -178,7 +186,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", config.FromDate, config.ToDate)
 	}
 
-	glog.Infof("Starting part 2 of 3: sort output files")
+	glog.Infof("Starting part 2 of 3: sort %d output files", len(outputFiles))
 
 	indexData := []string{}
 	for containerID, logfileIndex := range fileIndex {
@@ -351,11 +359,19 @@ type compactLogLine struct {
 	Message   string
 }
 
+// Represents a set of log messages from a since instance of a single application log
 type parsedMessage struct {
-	ContainerID string
-	File        string
-	Lines       []compactLogLine
-	Warnings    string
+	ContainerID string              // The original Container ID of the application log file
+	LogFileName string              // The name of the application log file
+	Lines       []compactLogLine    // One or more lines of log messages from the file.
+	Warnings    string              // Warnings from the our logstash results parser
+}
+
+// Represents one file output by this routine
+type outputFileInfo struct {
+	File        *os.File            // The temporary file on disk holding the log messages
+	ContainerID string              // The original Container ID of the application log file
+	LogFileName string              // The name of the application log file
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
@@ -437,7 +453,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 		}
 		message := &parsedMessage{
 			ContainerID: line.ContainerID,
-			File:        line.File,
+			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
 		}
 		return message, nil
@@ -499,7 +515,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 
 	message := &parsedMessage{
 		ContainerID: multiLine.ContainerID,
-		File:        multiLine.File,
+		LogFileName: multiLine.File,
 		Lines:       compactLines,
 		Warnings:    warnings,
 	}
