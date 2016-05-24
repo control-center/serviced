@@ -39,6 +39,7 @@ type ExportLogsConfig struct {
 	FromDate   string
 	ToDate     string
 	Outfile    string
+	Debug      bool
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -54,45 +55,9 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	files := []*os.File{}
 	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
-	// make sure we can write to outfile
-	if config.Outfile == "" {
-		pwd, e := os.Getwd()
-		if e != nil {
-			return fmt.Errorf("could not determine current directory: %s", e)
-		}
-		now := time.Now().UTC()
-		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
-		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		config.Outfile = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
-	}
-	fp, e := filepath.Abs(config.Outfile)
+	e = validateConfiguration(&config)
 	if e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.Outfile, e)
-	}
-	config.Outfile = filepath.Clean(fp)
-	tgzfile, e := os.Create(config.Outfile)
-	if e != nil {
-		return fmt.Errorf("could not create %s: %s", config.Outfile, e)
-	}
-	tgzfile.Close()
-	if e = os.Remove(config.Outfile); e != nil {
-		return fmt.Errorf("could not remove %s: %s", config.Outfile, e)
-	}
-
-	// Validate and normalize the date range filter attributes "from" and "to"
-	if config.FromDate == "" && config.ToDate == "" {
-		config.ToDate = time.Now().UTC().Format("2006.01.02")
-		config.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
-	}
-	if config.FromDate != "" {
-		if config.FromDate, e = NormalizeYYYYMMDD(config.FromDate); e != nil {
-			return e
-		}
-	}
-	if config.ToDate != "" {
-		if config.ToDate, e = NormalizeYYYYMMDD(config.ToDate); e != nil {
-			return e
-		}
+		return e
 	}
 
 	parts := strings.Split(options.LogstashES, ":")
@@ -105,6 +70,8 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	query, err := buildQuery(config, a.GetServices)
 	if err != nil {
 		return err
+	} else if config.Debug {
+		glog.Infof("Looking for services based on this query: %s", query)
 	}
 
 	// Get a temporary directory
@@ -116,7 +83,9 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 
 	days, e := LogstashDays()
 	if e != nil {
-		return e
+		return fmt.Errorf("could not determine range of days in the logstash repo: %s", e)
+	} else if config.Debug {
+		glog.Infof("Found %d days of logs in logstash", len(days))
 	}
 
 	// create a file to hold parse warnings
@@ -142,11 +111,20 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 			foundIndexedDay = true
 		}
 
+		if config.Debug {
+			glog.Infof("Querying logstash for day %s", yyyymmdd)
+		}
+
 		logstashIndex := fmt.Sprintf("logstash-%s", yyyymmdd)
 		result, e := core.SearchUri(logstashIndex, "", query, "1m", 1000)
 		if e != nil {
-			return fmt.Errorf("failed to search elasticsearch: %s", e)
+			return fmt.Errorf("failed to search elasticsearch for day %s: %s", yyyymmdd, e)
 		}
+
+		if config.Debug {
+			glog.Infof("Found %d log messages for %s", result.Hits.Total, yyyymmdd)
+		}
+
 		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
 		remaining := result.Hits.Total > 0
 		for remaining {
@@ -250,6 +228,54 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		glog.Warningf("warnings for log parse are included in the tar file as: %s", filepath.Join(filepath.Base(tempdir), filepath.Base(parseWarningsFilename)))
 	}
 
+	return nil
+}
+
+func validateConfiguration(config *ExportLogsConfig) error {
+	// make sure we can write to outfile
+	if config.Outfile == "" {
+		pwd, e := os.Getwd()
+		if e != nil {
+			return fmt.Errorf("could not determine current directory: %s", e)
+		}
+		now := time.Now().UTC()
+		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
+		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
+		config.Outfile = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+	}
+	fp, e := filepath.Abs(config.Outfile)
+	if e != nil {
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.Outfile, e)
+	}
+	config.Outfile = filepath.Clean(fp)
+	tgzfile, e := os.Create(config.Outfile)
+	if e != nil {
+		return fmt.Errorf("could not create %s: %s", config.Outfile, e)
+	}
+	tgzfile.Close()
+	if e = os.Remove(config.Outfile); e != nil {
+		return fmt.Errorf("could not remove %s: %s", config.Outfile, e)
+	}
+
+	// Validate and normalize the date range filter attributes "from" and "to"
+	if config.FromDate == "" && config.ToDate == "" {
+		config.ToDate = time.Now().UTC().Format("2006.01.02")
+		config.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
+	}
+	if config.FromDate != "" {
+		if config.FromDate, e = NormalizeYYYYMMDD(config.FromDate); e != nil {
+			return e
+		}
+	}
+	if config.ToDate != "" {
+		if config.ToDate, e = NormalizeYYYYMMDD(config.ToDate); e != nil {
+			return e
+		}
+	}
+
+	if config.Debug {
+		glog.Infof("Normalized date range: %s - %s", config.FromDate, config.ToDate)
+	}
 	return nil
 }
 
