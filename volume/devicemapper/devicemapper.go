@@ -26,7 +26,10 @@ import (
 )
 
 var (
-	ErrNoShrinkage = errors.New("you can't shrink a device")
+	ErrNoShrinkage          = errors.New("you can't shrink a device")
+	ErrInvalidOption        = errors.New("invalid option")
+	ErrInvalidArg           = errors.New("invalid argument")
+	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
 )
 
 func init() {
@@ -39,6 +42,10 @@ type devInfo struct {
 	TransactionID uint64 `json:"transaction_id"`
 	Initialized   bool   `json:"initialized"`
 	Deleted       bool   `json:"deleted"`
+}
+
+type volumeInfo struct {
+	Size uint64
 }
 
 type DeviceMapperDriver struct {
@@ -99,44 +106,123 @@ func (d *DeviceMapperDriver) ListTenants() (result []string) {
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Create() (%s) START", volumeName)
 	defer glog.V(2).Infof("Create() (%s) END", volumeName)
+
+	// Do not create if the device already exists
 	if d.Exists(volumeName) {
 		return nil, volume.ErrVolumeExists
 	}
+
 	// Create a new device
-	volumeDevice, err := utils.NewUUID62()
+	deviceHash, err := d.addDevice("")
 	if err != nil {
 		return nil, err
 	}
-	if err := d.DeviceSet.AddDevice(volumeDevice, ""); err != nil {
-		return nil, err
-	}
-	glog.V(1).Infof("Allocated new device %s", volumeDevice)
+	glog.V(1).Infof("Allocated new device %s", deviceHash)
+
 	// Create the mount target directory if it doesn't exist
 	mountpoint := d.volumeDir(volumeName)
 	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	glog.V(1).Infof("Ensured existence of mount point %s", mountpoint)
+
+	// Create the metadata directory if it doesn't exist.
 	md := d.MetadataDir()
 	if err := os.MkdirAll(md, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	glog.V(1).Infof("Ensured existence of metadata dir %s", md)
+
+	// Instantiate the volume
 	vol, err := d.newVolume(volumeName)
 	if err != nil {
 		return nil, err
 	}
-	if err := vol.Metadata.SetCurrentDevice(volumeDevice); err != nil {
+
+	// Set the device as HEAD
+	if err := vol.Metadata.SetCurrentDevice(deviceHash); err != nil {
 		return nil, err
 	}
-	glog.V(1).Infof("Set current device to %s", volumeDevice)
-	if err := d.DeviceSet.MountDevice(volumeDevice, mountpoint, volumeName); err != nil {
+	glog.V(1).Infof("Set current device to %s", deviceHash)
+
+	// Mount the device
+	if err := d.DeviceSet.MountDevice(deviceHash, mountpoint, volumeName); err != nil {
 		return nil, err
 	}
-	glog.V(1).Infof("Mounted device %s to %s", volumeDevice, mountpoint)
+	glog.V(1).Infof("Mounted device %s to %s", deviceHash, mountpoint)
+
 	return vol, nil
 }
 
+// addDevice creates a new dm device and returns its device ID
+func (d *DeviceMapperDriver) addDevice(headDeviceHash string) (string, error) {
+
+	// Generate the device ID.
+	deviceHash, err := utils.NewUUID62()
+	if err != nil {
+		return "", err
+	}
+
+	// Create the device.
+	if err := d.DeviceSet.AddDevice(deviceHash, headDeviceHash); err != nil {
+		glog.Errorf("Unable to create device %s: %s", deviceHash, err)
+		return "", err
+	}
+
+	if headDeviceHash == "" {
+
+		// Activate the device.
+		d.DeviceSet.GetDeviceStatus(deviceHash)
+
+		// CC-2219: Ensure the device base size is equal or greater than the
+		// configured dm.basesize.
+		size, err := d.deviceSize(deviceHash)
+		if err != nil {
+			glog.Errorf("Could not read the size of device %s: %s", deviceHash, err)
+			return "", err
+		}
+		if baseSize := d.baseSize(); baseSize > size {
+
+			// Make the device to match dm.basesize
+			glog.V(2).Infof("Device size is smaller than dm.basesize; expanding")
+			if err := d.resize(deviceHash, baseSize); err != nil {
+				glog.Errorf("Could not update the size of the device %s: %s", deviceHash, err)
+				return "", err
+			}
+		}
+	}
+
+	return deviceHash, nil
+}
+
+// baseSize returns value of dm.basesize if it is set, otherwise returns 100G.
+func (d *DeviceMapperDriver) baseSize() uint64 {
+	for _, option := range d.options {
+		if strings.HasPrefix(option, "dm.basesize=") {
+			if size, err := units.RAMInBytes(strings.TrimPrefix(option, "dm.basesize=")); err == nil {
+				return uint64(size)
+			}
+		}
+	}
+	return 100 * units.GiB
+}
+
+// deviceSize returns the size of a device.
+func (d *DeviceMapperDriver) deviceSize(deviceHash string) (uint64, error) {
+	return getDeviceSize(d.devicePath(deviceHash))
+}
+
+// devicePath returns the /dev/mapper path of a device
+func (d *DeviceMapperDriver) devicePath(deviceHash string) string {
+	return fmt.Sprintf("/dev/mapper/%s", d.deviceName(deviceHash))
+}
+
+// deviceName returns the name of a device.
+func (d *DeviceMapperDriver) deviceName(deviceHash string) string {
+	return fmt.Sprintf("%s-%s", d.DevicePrefix, deviceHash)
+}
+
+// newVolume builds the volume object from its volume name
 func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, error) {
 	tenant := getTenant(volumeName)
 	metadata, err := NewMetadata(d.MetadataPath(tenant))
@@ -167,20 +253,33 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 	if err != nil {
 		return err
 	}
+	if err := d.resize(vol.deviceHash(), size); err != nil {
+		return err
+	}
+	newSize := volume.FilesystemBytesSize(vol.Path())
+	human := units.BytesSize(float64(newSize))
+	glog.Infof("Resized filesystem. New size: %s", human)
+	return nil
+}
 
-	dev := vol.Metadata.CurrentDevice()
-	devicename := fmt.Sprintf("%s-%s", d.DevicePrefix, dev)
+func (d *DeviceMapperDriver) resize(deviceHash string, size uint64) error {
+
+	// Get the current size of the device
+	curSize, err := d.deviceSize(deviceHash)
+	if err != nil {
+		glog.Errorf("Could not get the current size of the device %s: %s", deviceHash, err)
+		return err
+	}
 
 	// Get the active table for the device
-	start, oldSectors, targetType, params, err := devicemapper.GetTable(devicename)
+	deviceName := d.deviceName(deviceHash)
+	start, oldSectors, targetType, params, err := devicemapper.GetTable(deviceName)
 	if err != nil {
 		return err
 	}
 
 	// Figure out how many sectors we need
 	newSectors := size / 512
-
-	// If the new table size isn't larger than the old, it's invalid
 	if newSectors <= oldSectors {
 		return ErrNoShrinkage
 	}
@@ -190,20 +289,16 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 	newTable := fmt.Sprintf("%d %d %s %s", start, newSectors, targetType, params)
 	glog.V(2).Infof("Replacing old table (%s) with new table (%s)", oldTable, newTable)
 
-	// Set the device size
-	var devInfo devInfo
-	if err := d.readDeviceInfo(dev, &devInfo); err != nil {
-		glog.Errorf("Could not read info for device %s: %s", dev, err)
+	// Update the device info
+	if err := d.resizeDevice(deviceHash, size); err != nil {
+		glog.Errorf("Could not reset size of device %s: %s", deviceName, err)
 		return err
 	}
-	if err := d.resizeDevice(dev, size); err != nil {
-		glog.Errorf("Could not set size on device %s: %s", dev, err)
-		return err
-	}
-	err = func() error {
+	if err := func() (err error) {
+
 		// Would love to do this with libdevmapper, but DM_TABLE_LOAD isn't
 		// exposed, so we'll shell out rather than muck with ioctl
-		dmsetupLoad := exec.Command("dmsetup", "load", devicename)
+		dmsetupLoad := exec.Command("dmsetup", "load", deviceName)
 		dmsetupLoad.Stdin = strings.NewReader(newTable)
 		if output, err := dmsetupLoad.CombinedOutput(); err != nil {
 			glog.Errorf("Unable to load new table (%s)", string(output))
@@ -212,27 +307,21 @@ func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
 		glog.V(2).Infof("Inactive table slot updated with new size")
 
 		// "Resume" the device to load the inactive table into the active slot
-		if err := devicemapper.ResumeDevice(devicename); err != nil {
+		if err := devicemapper.ResumeDevice(deviceName); err != nil {
 			return err
 		}
 		glog.V(2).Infof("Loaded inactive table into the active slot")
 
 		// Resize the filesystem to use the new space
-		dmDevice := fmt.Sprintf("/dev/mapper/%s", devicename)
-		resize2fs := exec.Command("resize2fs", dmDevice)
-		if output, err := resize2fs.CombinedOutput(); err != nil {
-			glog.Errorf("Unable to resize filesystem (%s)", string(output))
+		if err := resize2fs(d.devicePath(deviceHash)); err != nil {
+			glog.Errorf("Unable to resize filesystem: %s", err)
 			return err
 		}
 		return nil
-	}()
-	if err != nil {
-		defer d.resizeDevice(dev, devInfo.Size)
+	}(); err != nil {
+		d.resizeDevice(deviceHash, curSize)
 		return err
 	}
-	newSize := volume.FilesystemBytesSize(vol.Path())
-	human := units.BytesSize(float64(newSize))
-	glog.Infof("Resized filesystem. New size: %s", human)
 	return nil
 }
 
@@ -247,15 +336,15 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 		return nil, err
 	}
 	if mounted, _ := devmapper.Mounted(vol.Path()); !mounted {
-		device := vol.Metadata.CurrentDevice()
+		deviceHash := vol.deviceHash()
 		mountpoint := vol.Path()
 		label := vol.Tenant()
 
-		if err := d.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
-			glog.Errorf("Error mounting device %q on %q for volume %q: %s", device, mountpoint, volumeName, err)
+		if err := d.DeviceSet.MountDevice(deviceHash, mountpoint, label); err != nil {
+			glog.Errorf("Error mounting device %q on %q for volume %q: %s", deviceHash, mountpoint, volumeName, err)
 			return nil, err
 		}
-		glog.V(2).Infof("Mounted device %s to %s", device, mountpoint)
+		glog.V(2).Infof("Mounted device %s to %s", deviceHash, mountpoint)
 	} else {
 		glog.V(2).Infof("%s is already a mount point", vol.Path())
 	}
@@ -323,9 +412,9 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 			return err
 		}
 	}
-	devices := vol.Metadata.ListDevices()
-	for _, device := range devices {
-		if device == "" {
+	deviceHashes := vol.Metadata.ListDevices()
+	for _, deviceHash := range deviceHashes {
+		if deviceHash == "" {
 			// this can happen when all previously active devices have been deactivated
 			continue
 		}
@@ -333,21 +422,21 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 		// Perversely, deactivateDevice() will not actually work unless the device is activated.
 		// GetDeviceStatus() will both verify that device is valid, and it has the side-effect of activating
 		// the device if the device is not active.
-		if status, err := d.DeviceSet.GetDeviceStatus(device); err != nil {
-			glog.Errorf("For volume %s, unable to get status for device %q: %s", volumeName, device, err)
+		if status, err := d.DeviceSet.GetDeviceStatus(deviceHash); err != nil {
+			glog.Errorf("For volume %s, unable to get status for device %q: %s", volumeName, deviceHash, err)
 			continue
 		} else if status == nil {
-			glog.V(2).Infof("For volume %s, no status available for device %q", volumeName, device)
+			glog.V(2).Infof("For volume %s, no status available for device %q", volumeName, deviceHash)
 		} else {
-			glog.V(2).Infof("For volume %s, status for device %q: %v", volumeName, device, status)
+			glog.V(2).Infof("For volume %s, status for device %q: %v", volumeName, deviceHash, status)
 		}
 
-		glog.V(1).Infof("Deactivating device (%s)", device)
+		glog.V(1).Infof("Deactivating device (%s)", deviceHash)
 		d.DeviceSet.Lock()
-		err := d.deactivateDevice(device)
+		err := d.deactivateDevice(deviceHash)
 		d.DeviceSet.Unlock()
 		if err != nil {
-			glog.Errorf("Error removing device %q for volume %s: %s", device, volumeName, err)
+			glog.Errorf("Error removing device %q for volume %s: %s", deviceHash, volumeName, err)
 			return err
 		}
 		glog.V(2).Infof("Deactivated device")
@@ -382,7 +471,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		glog.V(1).Infof("Error releasing device: %s", err)
 	}
 	glog.V(1).Infof("Removing volume %s", volumeName)
-	if err := d.DeviceSet.DeleteDevice(v.volumeDevice(), false); err != nil {
+	if err := d.DeviceSet.DeleteDevice(v.deviceHash(), false); err != nil {
 		glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		return err
 	}
@@ -393,15 +482,15 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 }
 
 // Issues the underlying dm remove operation.
-func (d *DeviceMapperDriver) deactivateDevice(devname string) error {
-	glog.V(2).Infof("deactivateDevice START(%s)", devname)
-	defer glog.V(2).Infof("deactivateDevice END(%s)", devname)
+func (d *DeviceMapperDriver) deactivateDevice(deviceHash string) error {
+	glog.V(2).Infof("deactivateDevice START(%s)", deviceHash)
+	defer glog.V(2).Infof("deactivateDevice END(%s)", deviceHash)
 
 	var err error
 
-	devicename := fmt.Sprintf("%s-%s", d.DevicePrefix, devname)
+	deviceName := d.deviceName(deviceHash)
 	for i := 0; i < 200; i++ {
-		err = devicemapper.RemoveDevice(devicename)
+		err = devicemapper.RemoveDevice(deviceName)
 		if err == nil {
 			break
 		}
@@ -420,23 +509,23 @@ func (d *DeviceMapperDriver) deactivateDevice(devname string) error {
 }
 
 // readDeviceInfo loads the device info from metadata
-func (d *DeviceMapperDriver) readDeviceInfo(devname string, devInfo *devInfo) error {
-	fh, err := os.Open(d.deviceInfoPath(devname))
+func (d *DeviceMapperDriver) readDeviceInfo(deviceHash string, devInfo *devInfo) error {
+	fh, err := os.Open(d.deviceInfoPath(deviceHash))
 	if err != nil {
-		glog.Errorf("Could not read device info for %s: %s", devname, err)
+		glog.Errorf("Could not read device info for %s: %s", deviceHash, err)
 		return err
 	}
 	defer fh.Close()
 	if err := json.NewDecoder(fh).Decode(devInfo); err != nil {
-		glog.Errorf("Could not decode device info for %s: %s", devname, err)
+		glog.Errorf("Could not decode device info for %s: %s", deviceHash, err)
 		return err
 	}
 	return nil
 }
 
 // writeDeviceInfo performs an atomic write to the device metadata file
-func (d *DeviceMapperDriver) writeDeviceInfo(devname string, devInfo devInfo) error {
-	devInfoPath := d.deviceInfoPath(devname)
+func (d *DeviceMapperDriver) writeDeviceInfo(deviceHash string, devInfo devInfo) error {
+	devInfoPath := d.deviceInfoPath(deviceHash)
 	fs, err := os.Stat(devInfoPath)
 	if err != nil {
 		glog.Errorf("Could not stat file %s: %s", devInfoPath, err)
@@ -444,33 +533,33 @@ func (d *DeviceMapperDriver) writeDeviceInfo(devname string, devInfo devInfo) er
 	}
 	data, err := json.Marshal(devInfo)
 	if err != nil {
-		glog.Errorf("Could not marshal info for device %s: %s", devname, err)
+		glog.Errorf("Could not marshal info for device %s: %s", deviceHash, err)
 		return err
 	}
 	if err := atomicfile.WriteFile(devInfoPath, data, fs.Mode()); err != nil {
-		glog.Errorf("Could not update info for device %s: %s", devname, err)
+		glog.Errorf("Could not update info for device %s: %s", deviceHash, err)
 		return err
 	}
 	return nil
 }
 
 // resizeDevice sets the device size in its metadata property
-func (d *DeviceMapperDriver) resizeDevice(devname string, size uint64) error {
+func (d *DeviceMapperDriver) resizeDevice(deviceHash string, size uint64) error {
 	var devInfo devInfo
-	if err := d.readDeviceInfo(devname, &devInfo); err != nil {
-		glog.Errorf("Could not read info for device %s: %s", devname, err)
+	if err := d.readDeviceInfo(deviceHash, &devInfo); err != nil {
+		glog.Errorf("Could not read info for device %s: %s", deviceHash, err)
 		return err
 	}
 	devInfo.Size = size
-	if err := d.writeDeviceInfo(devname, devInfo); err != nil {
-		glog.Errorf("Could not write info for device %s: %s", devname, err)
+	if err := d.writeDeviceInfo(deviceHash, devInfo); err != nil {
+		glog.Errorf("Could not write info for device %s: %s", deviceHash, err)
 		return err
 	}
 	return nil
 }
 
-func (d *DeviceMapperDriver) deviceInfoPath(devname string) string {
-	return filepath.Join(d.poolDir(), "metadata", devname)
+func (d *DeviceMapperDriver) deviceInfoPath(deviceHash string) string {
+	return filepath.Join(d.poolDir(), "metadata", deviceHash)
 }
 
 func (d *DeviceMapperDriver) volumeDir(volumeName string) string {
@@ -646,13 +735,9 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	v.Lock()
 	defer v.Unlock()
 	// Create a new device based on the current one
-	activeDevice := v.volumeDevice()
-	snapshotDevice, err := utils.NewUUID62()
+	activeDeviceHash := v.deviceHash()
+	snapshotDeviceHash, err := v.driver.addDevice(activeDeviceHash)
 	if err != nil {
-		return err
-	}
-	glog.V(2).Infof("Creating snapshot device %s based on %s", snapshotDevice, activeDevice)
-	if err := v.driver.DeviceSet.AddDevice(snapshotDevice, activeDevice); err != nil {
 		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
 	}
@@ -669,8 +754,8 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 		return err
 	}
 	// Save the new HEAD as the snapshot
-	glog.V(2).Infof("Saving device %s as snapshot %s", snapshotDevice, label)
-	if err := v.Metadata.AddSnapshot(label, snapshotDevice); err != nil {
+	glog.V(2).Infof("Saving device %s as snapshot %s", snapshotDeviceHash, label)
+	if err := v.Metadata.AddSnapshot(label, snapshotDeviceHash); err != nil {
 		glog.Errorf("Unable to save snapshot metadata: %s", err)
 		return err
 	}
@@ -781,7 +866,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	rawLabel := v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
-	device, err := v.Metadata.LookupSnapshotDevice(rawLabel)
+	deviceHash, err := v.Metadata.LookupSnapshotDevice(rawLabel)
 	if err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
@@ -796,13 +881,13 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		return err
 	}
 	// Delete the device itself
-	glog.V(2).Infof("Deactivating snapshot device %s", device)
+	glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 	v.driver.DeviceSet.Lock()
-	if err := v.driver.deactivateDevice(device); err != nil {
-		glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+	if err := v.driver.deactivateDevice(deviceHash); err != nil {
+		glog.V(2).Infof("Error deactivating device (%s): %s", deviceHash, err)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(device, false); err != nil {
+	if err := v.driver.DeviceSet.DeleteDevice(deviceHash, false); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
@@ -823,40 +908,48 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 	label = v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
-	current := v.volumeDevice()
-	device, err := v.Metadata.LookupSnapshotDevice(label)
+
+	// Get the hash of the current device and of the snapshot
+	curDeviceHash := v.deviceHash()
+	snapDeviceHash, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
 	}
-	// Make a new device based on the snapshot
-	newHead, err := utils.NewUUID62()
+
+	// Make a new device for the snapshot to load
+	newDeviceHash, err := v.driver.addDevice(snapDeviceHash)
 	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("Creating new head device %s based on snapshot %s", newHead, device)
-	if err := v.driver.DeviceSet.AddDevice(newHead, device); err != nil {
-		return err
-	}
-	// Now unmount the current device and mount the new one
-	glog.V(2).Infof("Unmounting old head device %s", current)
+	glog.V(2).Infof("Created new head device %s based on snapshot %s", newDeviceHash, snapDeviceHash)
+
+	// Unmount the current device and mount the new one
 	if err := v.unmount(); err != nil {
 		return err
 	}
-	glog.V(2).Infof("Rollback(): mounting new head device %s", newHead)
-	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
+	glog.V(2).Infof("Unmounted old head device %s", curDeviceHash)
+
+	// Rollback to the new device
+	if err := v.driver.DeviceSet.MountDevice(newDeviceHash, v.path, v.name); err != nil {
 		return err
 	}
-	glog.V(2).Infof("Deactivating old head device %s", current)
+	glog.V(2).Infof("Rollback(): mounting new head device %s", newDeviceHash)
+
+	// Clean up the old device
 	v.driver.DeviceSet.Lock()
-	if err := v.driver.deactivateDevice(current); err != nil {
-		glog.V(2).Infof("Error removing device: %s", err)
+	if err := v.driver.deactivateDevice(curDeviceHash); err != nil {
+		glog.V(2).Infof("Could not remove device: %s", err)
+	} else {
+		glog.V(2).Infof("Deactivated old head device %s", curDeviceHash)
 	}
 	v.driver.DeviceSet.Unlock()
-	glog.V(2).Infof("Deleting old head device %s", current)
-	if err := v.driver.DeviceSet.DeleteDevice(current, false); err != nil {
-		glog.Warningf("Error cleaning up device %s: %s", current, err)
+	if err := v.driver.DeviceSet.DeleteDevice(curDeviceHash, false); err != nil {
+		glog.Warningf("Error cleaning up old head device %s: %s", curDeviceHash, err)
+	} else {
+		glog.V(2).Infof("Deleted old head device %s", curDeviceHash)
 	}
-	return v.Metadata.SetCurrentDevice(newHead)
+
+	return v.Metadata.SetCurrentDevice(newDeviceHash)
 }
 
 // Export implements volume.Volume.Export
@@ -871,43 +964,61 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	if err != nil {
 		return err
 	}
-	//defer os.RemoveAll(mountpoint)
-	device, err := v.Metadata.LookupSnapshotDevice(label)
+	defer os.RemoveAll(mountpoint)
+	deviceHash, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
 	}
-	glog.V(2).Infof("Mounting temporary export device %s", device)
-	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
+	glog.V(2).Infof("Mounting temporary export device %s", deviceHash)
+	if err := v.driver.DeviceSet.MountDevice(deviceHash, mountpoint, label); err != nil {
 		return err
 	}
-	defer func() {
-		glog.V(2).Infof("Unmounting temporary export device %s", device)
+	defer func(d *DeviceMapperDriver, deviceHash, mountpoint string) {
 		// We use the provided UnmountDevice func here, rather than our own
 		// unmount(), because we DO care about Docker's internal bookkeeping
 		// here. Without this, DeviceSet.DeleteDevice will fail.
-		if err := v.driver.DeviceSet.UnmountDevice(device); err != nil {
+		if err := v.driver.DeviceSet.UnmountDevice(deviceHash); err != nil {
 			glog.V(2).Infof("Error unmounting (%s): %s", mountpoint, err)
 		}
-		glog.V(2).Infof("Deactivating temporary export device %s", device)
-		v.driver.DeviceSet.Lock()
-		if err := v.driver.deactivateDevice(device); err != nil {
-			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+		d.DeviceSet.Lock()
+		if err := d.deactivateDevice(deviceHash); err != nil {
+			glog.V(2).Infof("Error deactivating device %s: %s", deviceHash, err)
 		}
-		v.driver.DeviceSet.Unlock()
-		// Be a good citizen and clean up the mountpoint
-		os.RemoveAll(mountpoint)
-	}()
+		d.DeviceSet.Unlock()
+	}(v.driver, deviceHash, mountpoint)
 
 	tarOut := tar.NewWriter(writer)
 
 	// Set the driver type
-	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
+	drivertype := []byte(v.Driver().DriverType())
+	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len(drivertype))}
 	if err := tarOut.WriteHeader(header); err != nil {
-		glog.Errorf("Could not export driver type header: %s", err)
+		glog.Errorf("Could not export driver type header for snapshot %s: %s", label, err)
 		return err
 	}
-	if _, err := fmt.Fprint(tarOut, v.Driver().DriverType()); err != nil {
-		glog.Errorf("Could not export driver type: %s", err)
+	if _, err := tarOut.Write(drivertype); err != nil {
+		glog.Errorf("Could not export driver type for snapshot %s: %s", label, err)
+		return err
+	}
+
+	// Set the device metadata
+	size, err := v.SizeOf()
+	if err != nil {
+		glog.Errorf("Could not get the size of the device for snapshot %s: %s", label, err)
+		return err
+	}
+	volInfo, err := json.Marshal(volumeInfo{Size: size})
+	if err != nil {
+		glog.Errorf("Could not marshal device info for snapshot %s: %s", label, err)
+		return err
+	}
+	header = &tar.Header{Name: fmt.Sprintf("%s-device", label), Size: int64(len(volInfo))}
+	if err := tarOut.WriteHeader(header); err != nil {
+		glog.Errorf("Could not export device info header for snapshot %s: %s", label, err)
+		return err
+	}
+	if _, err := tarOut.Write(volInfo); err != nil {
+		glog.Errorf("Could not export device info for snapshot %s: %s", label, err)
 		return err
 	}
 
@@ -1080,86 +1191,155 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	glog.V(2).Infof("Import() (%s) START", v.name)
 	defer glog.V(2).Infof("Import() (%s) END", v.name)
+
+	// Do not try to import if the snapshot label exists on the volume.
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
+
+	// Ensure that we are getting the full snapshot label and not just the
+	// suffix.
 	label = v.rawSnapshotLabel(label)
-	// set up the device
-	mountpoint, err := ioutil.TempDir("", "serviced-import-volume-")
+
+	// Set up the mountpoint
+	mountpoint, err := ioutil.TempDir(v.driver.Root(), label+"_import-")
 	if err != nil {
+		glog.Errorf("Could not create mountpoint to import snapshot %s: %s", label, err)
 		return err
 	}
 	defer os.RemoveAll(mountpoint)
-	device, err := utils.NewUUID62()
+	glog.V(2).Infof("Created mountpoint at %s for snapshot %s", mountpoint, label)
+
+	// Create the staging device for the snapshot
+	// TODO: remove the staging device on failure
+	deviceHash, err := v.driver.addDevice("")
 	if err != nil {
+		glog.Errorf("Unable to create staging device at mountpoint %s for snapshot %s: %s", mountpoint, label, err)
 		return err
 	}
-	glog.V(2).Infof("Creating imported snapshot device %s", device)
-	if err := v.driver.DeviceSet.AddDevice(device, ""); err != nil {
+	glog.V(2).Infof("Created a staging device %s for snapshot %s", deviceHash, label)
+
+	// Mount the staging device
+	if err := v.driver.DeviceSet.MountDevice(deviceHash, mountpoint, label+"_import"); err != nil {
+		glog.Errorf("Could not stage the device %s at mountpoint %s for snapshot %s: %s", deviceHash, mountpoint, label, err)
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(mountpoint, label), 0755); err != nil {
-		return err
-	}
-	glog.V(2).Infof("Mounting imported snapshot device %s", device)
-	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
-		return err
-	}
-	defer func() {
-		mp := filepath.Join(mountpoint, label)
-		glog.V(2).Infof("Unmounting imported snapshot device %s", device)
+	glog.V(2).Infof("Mounted staging device %s at mountpoint %s for snapshot %s", deviceHash, mountpoint, label)
+	defer func(d *DeviceMapperDriver, deviceHash, mountpoint string) {
 		// We use the provided UnmountDevice func here, rather than our own
 		// unmount(), because we DO care about Docker's internal bookkeeping
 		// here. Without this, DeviceSet.DeleteDevice will fail.
-		if err := v.driver.DeviceSet.UnmountDevice(device); err != nil {
-			glog.V(2).Infof("Error unmounting (%s): %s", mp, err)
+		if err := v.driver.DeviceSet.UnmountDevice(deviceHash); err != nil {
+			glog.V(2).Infof("Error unmounting (%s): %s", mountpoint, err)
 		}
-		glog.V(2).Infof("Deactivating imported snapshot device %s", device)
-		v.driver.DeviceSet.Lock()
-		if err := v.driver.deactivateDevice(device); err != nil {
-			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+		d.DeviceSet.Lock()
+		if err := d.deactivateDevice(deviceHash); err != nil {
+			glog.V(2).Infof("Error deactivating device %s: %s", deviceHash, err)
 		}
-		v.driver.DeviceSet.Unlock()
-	}()
-	// write volume and metadata
-	driverfile := fmt.Sprintf("%s-driver", label)
-	volumedir := fmt.Sprintf("%s-volume", label)
-	metadatadir := fmt.Sprintf("%s-metadata", label)
-	var drivertype string
+		d.DeviceSet.Unlock()
+	}(v.driver, deviceHash, mountpoint)
+
+	// Set up the metadata directory
+	// TODO: clean up the metadata on failure
+	metaPath := filepath.Join(v.driver.MetadataDir(), filepath.Base(mountpoint))
+	if err := os.MkdirAll(metaPath, 0755); err != nil {
+		glog.Errorf("Unable to create snapshot metadata directory at %s: %s", metaPath, err)
+		return err
+	}
+	glog.V(2).Infof("Set up metadata path %s for snapshot %s", metaPath, label, err)
+
+	// Read the volume and metadata from the stream and write to disk
+	var (
+		driverFile = label + "-driver"   // Filesystem type of export volume
+		deviceFile = label + "-device"   // Information about the device (if available)
+		volumeDir  = label + "-volume"   // Volume data
+		metaDir    = label + "-metadata" // Metadata
+	)
+	driverType := ""
 	tarfile := tar.NewReader(reader)
 	for {
 		header, err := tarfile.Next()
 		if err == io.EOF {
+			if driverType == "" {
+				return ErrIncompatibleSnapshot
+			}
 			break
 		} else if err != nil {
-			glog.Errorf("Could not import archive: %s", err)
+			glog.Errorf("Could not import archive for label %s: %s", label, err)
 			return err
 		}
-		if header.Name == driverfile {
-			buf := bytes.NewBufferString("")
-			if _, err := buf.ReadFrom(tarfile); err != nil {
+		if header.Name == driverFile {
+
+			// Get the driver type of the volume and figure out if it is a
+			// valid driver.
+			bfr := &bytes.Buffer{}
+			if _, err := bfr.ReadFrom(tarfile); err != nil {
+				glog.Errorf("Could not read from %s: %s", driverFile, err)
 				return err
 			}
-			drivertype = buf.String()
-		} else if strings.HasPrefix(header.Name, volumedir) {
-			header.Name = strings.Replace(header.Name, volumedir, label, 1)
+			driverType = bfr.String()
+			glog.V(2).Infof("Volume driver type is %s", driverType)
+		} else if header.Name == deviceFile {
+
+			// Update the staging device to match the provided settings
+			volInfo := volumeInfo{}
+			if err := json.NewDecoder(tarfile).Decode(&volInfo); err != nil {
+				glog.Errorf("Could not read from %s: %s", deviceFile, err)
+				return err
+			}
+
+			// Ensure the size of the device is greater than or equal to the
+			// value specified in the settings.
+			size, err := v.driver.deviceSize(deviceHash)
+			if err != nil {
+				glog.Errorf("Could not determine the size of the staging device %s: %s", deviceHash, err)
+				return err
+			}
+			if volInfo.Size > size {
+				glog.Warning("Device size from import %s is greater than size of staging device; expanding.", label, deviceHash)
+				if err := v.driver.resize(deviceHash, volInfo.Size); err != nil {
+					glog.Errorf("Could not resize device %s; not importing snapshot %s: %s", deviceHash, label, err)
+					return err
+				}
+				glog.V(2).Infof("Device %s is now %s", deviceHash, units.HumanSize(float64(volInfo.Size)))
+			}
+		} else if strings.HasPrefix(header.Name, volumeDir) {
+
+			// Untar into mountpoint
+			header.Name = strings.TrimPrefix(header.Name, volumeDir)
 			if err := volume.ImportArchiveHeader(header, tarfile, mountpoint); err != nil {
 				return err
 			}
-		} else if strings.HasPrefix(header.Name, metadatadir) {
-			header.Name = strings.Replace(header.Name, metadatadir, label, 1)
-			if err := volume.ImportArchiveHeader(header, tarfile, v.driver.MetadataDir()); err != nil {
+		} else if strings.HasPrefix(header.Name, metaDir) {
+
+			// Untar into the metadata
+			header.Name = strings.TrimPrefix(header.Name, metaDir)
+			if err := volume.ImportArchiveHeader(header, tarfile, metaPath); err != nil {
 				return err
 			}
 		}
 	}
-	if drivertype == "" {
-		return errors.New("incompatible snapshot")
+
+	// Add device as a snapshot of this volume.
+	if err := v.Metadata.AddSnapshot(label, deviceHash); err != nil {
+		glog.Errorf("Could not save device %s as snapshot %s: %s", deviceHash, label, err)
+		return err
 	}
-	return v.Metadata.AddSnapshot(label, device)
+
+	// Set the snapshot metadata path
+	if err := os.Rename(metaPath, filepath.Join(filepath.Dir(metaPath), label)); err != nil {
+		glog.Errorf("Could not set device metadata for snapshot %s: %s", label, err)
+		return err
+	}
+
+	return nil
 }
 
-func (v *DeviceMapperVolume) volumeDevice() string {
+func (v *DeviceMapperVolume) SizeOf() (uint64, error) {
+	return v.driver.deviceSize(v.deviceHash())
+}
+
+func (v *DeviceMapperVolume) deviceHash() string {
 	return v.Metadata.CurrentDevice()
 }
 
