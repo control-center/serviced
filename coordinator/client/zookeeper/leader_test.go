@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 )
 
 func TestLeader(t *testing.T) {
@@ -54,10 +54,13 @@ func TestLeader(t *testing.T) {
 	leader1Node := &testNodeT{
 		Name: "leader1",
 	}
-	leader1 := conn.NewLeader("/like/a/boss", leader1Node)
+	leader1, err := conn.NewLeader("/like/a/boss")
+	if err != nil {
+		t.Fatal("unexpected error initializing leader")
+	}
 	leaderDone1 := make(chan struct{})
 	defer close(leaderDone1)
-	_, err = leader1.TakeLead(leaderDone1)
+	_, err = leader1.TakeLead(leader1Node, leaderDone1)
 	if err != nil {
 		t.Fatalf("could not take lead! %s", err)
 	}
@@ -65,12 +68,15 @@ func TestLeader(t *testing.T) {
 	leader2Node := &testNodeT{
 		Name: "leader2",
 	}
-	leader2 := conn.NewLeader("/like/a/boss", leader2Node)
+	leader2, err := conn.NewLeader("/like/a/boss")
+	if err != nil {
+		t.Fatal("unexpected error initializing leader")
+	}
 	leader2Response := make(chan error)
 	leaderDone2 := make(chan struct{})
 	defer close(leaderDone2)
 	go func() {
-		_, err := leader2.TakeLead(leaderDone2)
+		_, err := leader2.TakeLead(leader2Node, leaderDone2)
 		leader2Response <- err
 	}()
 
@@ -84,7 +90,10 @@ func TestLeader(t *testing.T) {
 		Name: "",
 	}
 	// get current Leader
-	currentLeader := conn.NewLeader("/like/a/boss", nil)
+	currentLeader, err := conn.NewLeader("/like/a/boss")
+	if err != nil {
+		t.Fatalf("unexpected error initializing leader: %s", err)
+	}
 	err = currentLeader.Current(currentLeaderNode)
 	if err != nil {
 		t.Fatalf("unexpected error getting current leader:%s", err)

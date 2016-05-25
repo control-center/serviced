@@ -16,14 +16,13 @@ package zookeeper
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
+	"path"
 	"strconv"
 	"strings"
 
 	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/zenoss/glog"
 )
 
 var (
@@ -40,161 +39,104 @@ var (
 
 // Leader is an object to facilitate creating an election in zookeeper.
 type Leader struct {
-	c        *Connection
+	c        *zklib.Conn
 	path     string
 	lockPath string
-	seq      uint64
-	node     client.Node
 }
 
-func parseSeq(path string) (uint64, error) {
-	parts := strings.Split(path, "-")
-	return strconv.ParseUint(parts[len(parts)-1], 10, 64)
-}
-
-func (l *Leader) prefix() string {
-	return join(l.path, "leader-")
+// NewLeader instantiates a new leader for a given path
+func NewLeader(conn *zklib.Conn, path string) *Leader {
+	return &Leader{
+		c:        conn,
+		path:     path,
+		lockPath: "",
+	}
 }
 
 // Current returns the currect elected leader and deserializes it in to node.
 // It will return ErrNoLeaderFound if no leader has been elected.
-func (l *Leader) Current(node client.Node) (err error) {
-
-	children, _, err := l.c.conn.Children(l.path)
+func (l *Leader) Current(node client.Node) error {
+	path, _, err := l.getLowestSequence()
+	if err != nil {
+		return err
+	}
+	bytes, stat, err := l.c.Get(path)
 	if err != nil {
 		return xlateError(err)
 	}
-
-	var lowestSeq uint64
-	lowestSeq = math.MaxUint64
-	path := ""
-	for _, p := range children {
-		s, err := parseSeq(p)
-		if err != nil {
-			return xlateError(err)
-		}
-		if s < lowestSeq {
-			lowestSeq = s
-			path = p
-		}
+	if len(bytes) == 0 {
+		return client.ErrEmptyNode
 	}
-	if lowestSeq == math.MaxUint64 {
-		return ErrNoLeaderFound
+	if err := json.Unmarshal(bytes, node); err != nil {
+		return client.ErrSerialization
 	}
-	path = fmt.Sprintf("%s/%s", l.path, path)
-	data, stat, err := l.c.conn.Get(path)
-	err = json.Unmarshal(data, node)
 	node.SetVersion(stat)
-	return xlateError(err)
+	return nil
 }
 
-// TakeLead attempts to aquire the leader role. When aquired it return a
+// TakeLead attempts to aquire the leader role. When aquired it returns a
 // channel on the leader node so the caller can react to changes in zookeeper
-func (l *Leader) TakeLead(done <-chan struct{}) (echan <-chan client.Event, err error) {
+func (l *Leader) TakeLead(node client.Node, cancel <-chan struct{}) (<-chan client.Event, error) {
 	if l.lockPath != "" {
 		return nil, ErrDeadlock
 	}
-
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		return nil, xlateError(err)
+	}
 	prefix := l.prefix()
-
-	data, err := json.Marshal(l.node)
+	if err := l.ensurePath(prefix); err != nil {
+		return nil, err
+	}
+	l.lockPath, err = l.c.CreateProtectedEphemeralSequential(prefix, bytes, zklib.WorldACL(zklib.PermAll))
 	if err != nil {
-		return nil, xlateError(err)
+		return nil, err
 	}
-
-	path := ""
-	for i := 0; i < 3; i++ {
-		if l.c.conn == nil {
-			// TODO: race condition exists
-			return nil, fmt.Errorf("connection lost")
-		}
-		path, err = l.c.conn.CreateProtectedEphemeralSequential(prefix, data, zklib.WorldACL(zklib.PermAll))
-
-		if err == zklib.ErrNoNode {
-			// Create parent node.
-			parts := strings.Split(l.path, "/")
-			pth := ""
-			for _, p := range parts[1:] {
-				pth += "/" + p
-				if l.c.conn == nil {
-					// TODO: race condition exists
-					return nil, fmt.Errorf("connection lost")
-				}
-				_, err := l.c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-				if err != nil && err != zklib.ErrNodeExists {
-					return nil, xlateError(err)
-				}
-			}
-		} else if err == nil {
-			break
-		} else {
-			return nil, xlateError(err)
-		}
-	}
+	lockSeq, err := parseSeq(l.lockPath)
 	if err != nil {
-		return nil, xlateError(err)
+		return nil, err
 	}
-	seq, err := parseSeq(path)
-	if err != nil {
-		return nil, xlateError(err)
-	}
-
 	// This implements the leader election recipe recommeded by ZooKeeper
 	// https://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection
 	for {
-		children, _, err := l.c.conn.Children(l.path)
+		leader, seq, err := l.getLowestSequence()
 		if err != nil {
-			return nil, xlateError(err)
+			return nil, err
 		}
-
-		lowestSeq := seq
-		var prevSeq uint64
-		prevSeqPath := ""
-		// find the lowest sequenced node
-		for _, p := range children {
-			s, err := parseSeq(p)
-			if err != nil {
-				return nil, xlateError(err)
-			}
-			if s < lowestSeq {
-				lowestSeq = s
-			}
-			if s < seq && s > prevSeq {
-				prevSeq = s
-				prevSeqPath = p
-			}
-		}
-
-		if seq == lowestSeq {
-			// Acquired the lock
-			break
-		}
-
-		// Wait on the node next in line for the lock
-		_, _, ch, err := l.c.conn.GetW(l.path + "/" + prevSeqPath)
+		exists, _, ch, err := l.c.ExistsW(leader)
 		if err != nil && err != zklib.ErrNoNode {
 			return nil, xlateError(err)
-		} else if err != nil && err == zklib.ErrNoNode {
-			// try again
+		} else if !exists {
+			l.c.CancelEvent(ch)
 			continue
 		}
-
-		ev := <-ch
-		if ev.Err != nil {
+		if leader == l.lockPath {
+			return l.toClientEvent(ch, cancel), nil
+		} else if seq > lockSeq {
+			l.c.CancelEvent(ch)
+			return nil, client.ErrNoNode
+		}
+		if ev := <-ch; ev.Err != nil {
 			return nil, xlateError(ev.Err)
 		}
 	}
+}
 
-	glog.Infof("w %s", path)
-	_, _, event, err := l.c.conn.GetW(path)
-	glog.Infof("calling wait on %s: %s", path, err)
-	if err == nil {
-		l.seq = seq
-		l.lockPath = path
-	} else {
-		l.c.Delete(path)
-	}
-	return l.c.toClientEvent(event, done), xlateError(err)
+func (l *Leader) toClientEvent(ch <-chan zklib.Event, cancel <-chan struct{}) <-chan client.Event {
+	evCh := make(chan client.Event, 1)
+	go func() {
+		select {
+		case zkEv := <-ch:
+			ev := client.Event{Type: client.EventType(zkEv.Type)}
+			select {
+			case evCh <- ev:
+			case <-cancel:
+			}
+		case <-cancel:
+			l.c.CancelEvent(ch)
+		}
+	}()
+	return evCh
 }
 
 // ReleaseLead release the current leader role. It will return ErrNotLocked if
@@ -203,14 +145,61 @@ func (l *Leader) ReleaseLead() error {
 	if l.lockPath == "" {
 		return ErrNotLocked
 	}
-	if l.c.conn == nil {
-		// TODO: race condition exists
-		return fmt.Errorf("lost connection")
-	}
-	if err := l.c.conn.Delete(l.lockPath, -1); err != nil {
+	if err := l.c.Delete(l.lockPath, -1); err != nil {
 		return xlateError(err)
 	}
 	l.lockPath = ""
-	l.seq = 0
 	return nil
+}
+
+// prefix returns the node's name prefix
+func (l *Leader) prefix() string {
+	return path.Join(l.path, "leader-")
+}
+
+// getLowestSequence returns the node in the path of the lowest sequence
+func (l *Leader) getLowestSequence() (string, uint64, error) {
+	children, _, err := l.c.Children(l.path)
+	if err != nil {
+		return "", 0, xlateError(err)
+	}
+	var lowestSeq uint64 = math.MaxUint64
+	firstChild := ""
+	for _, p := range children {
+		s, err := parseSeq(p)
+		if err != nil {
+			return "", 0, xlateError(err)
+		}
+		if s < lowestSeq {
+			lowestSeq = s
+			firstChild = p
+		}
+	}
+	if lowestSeq == math.MaxUint64 {
+		return "", 0, ErrNoLeaderFound
+	}
+	return path.Join(l.path, firstChild), lowestSeq, nil
+}
+
+// ensurePath makes sure the dirpath leading to the node is available
+func (l *Leader) ensurePath(p string) error {
+	dp := path.Dir(p)
+	exists, _, err := l.c.Exists(dp)
+	if err != nil && err != zklib.ErrNoNode {
+		return xlateError(err)
+	}
+	if !exists {
+		if err := l.ensurePath(dp); err != nil {
+			return err
+		}
+		if _, err := l.c.Create(dp, []byte{}, 0, zklib.WorldACL(zklib.PermAll)); err != nil && err != zklib.ErrNodeExists {
+			return xlateError(err)
+		}
+	}
+	return nil
+}
+
+func parseSeq(path string) (uint64, error) {
+	parts := strings.Split(path, "-")
+	return strconv.ParseUint(parts[len(parts)-1], 10, 64)
 }

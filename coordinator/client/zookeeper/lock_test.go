@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 )
 
 func TestLock(t *testing.T) {
@@ -51,13 +51,19 @@ func TestLock(t *testing.T) {
 	}
 
 	// create  a lock & lock it
-	lock := conn.NewLock("/foo/bar")
+	lock, err := conn.NewLock("/foo/bar")
+	if err != nil {
+		t.Fatalf("unexpected error initializing lock: %s", err)
+	}
 	if err = lock.Lock(); err != nil {
 		t.Fatalf("unexpected error aquiring lock: %s", err)
 	}
 
 	// create a second lock and test that a locking attempt blocks
-	lock2 := conn.NewLock("/foo/bar")
+	lock2, err := conn.NewLock("/foo/bar")
+	if err != nil {
+		t.Fatalf("unexpected error initializing lock: %s", err)
+	}
 	lock2Response := make(chan error)
 	go func() {
 		lock2Response <- lock2.Lock()

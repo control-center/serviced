@@ -24,7 +24,7 @@ const (
 )
 
 // ServiceLock initializes a new lock for services
-func ServiceLock(conn client.Connection) client.Lock {
+func ServiceLock(conn client.Connection) (client.Lock, error) {
 	return conn.NewLock(zkServiceLock)
 }
 

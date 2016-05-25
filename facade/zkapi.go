@@ -154,7 +154,11 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	locker := zkservice.ServiceLock(conn)
+	locker, err := zkservice.ServiceLock(conn)
+	if err != nil {
+		glog.Errorf("Could not initialize service lock: %s", err)
+		return err
+	}
 	if err := locker.Lock(); err != nil {
 		glog.Errorf("Could not disable service scheduling for pool %s: %s", host.PoolID, err)
 		return err

@@ -19,8 +19,8 @@
 package node
 
 import (
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -254,7 +254,11 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 
 	// use zookeeper lock of basename of hostPath (volume name)
 	zkVolumeInitLock := path.Join("/locks/volumeinit", filepath.Base(hostPath))
-	lock := conn.NewLock(zkVolumeInitLock)
+	lock, err := conn.NewLock(zkVolumeInitLock)
+	if err != nil {
+		glog.Errorf("Could not initialize lock for %s: %s", zkVolumeInitLock, err)
+		return err
+	}
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not acquire lock for %s: %s", zkVolumeInitLock, err)
 		return err
@@ -280,7 +284,6 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 	// start initializing dfs volume dir with dir in image
 	starttime := time.Now()
 
-	var err error
 	var output []byte
 	command := [...]string{
 		"docker", "run",

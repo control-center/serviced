@@ -77,10 +77,13 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		conn.CreateDir(storageClientsPath)
 	}
 
-	leader := conn.NewLeader("/storage/leader", node)
+	leader, err := conn.NewLeader("/storage/leader")
+	if err != nil {
+		return err
+	}
 	leaderDone := make(chan struct{})
 	defer close(leaderDone)
-	leaderW, err := leader.TakeLead(leaderDone)
+	leaderW, err := leader.TakeLead(node, leaderDone)
 	if err != zookeeper.ErrDeadlock && err != nil {
 		glog.Errorf("Could not take storage lead: %s", err)
 		return err

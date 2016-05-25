@@ -162,10 +162,17 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 
 	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
-	leader := zzk.NewHostLeader(l.conn, l.hostID, "", l.GetPath(ip))
+	leader, err := l.conn.NewLeader(l.GetPath(ip))
+	if err != nil {
+		glog.Errorf("Could not initialize leader node for ip %s: %s", ip, err)
+		return
+	}
+	hlnode := zzk.HostLeader{
+		HostID: l.hostID,
+	}
 	leaderDone := make(chan struct{})
 	defer close(leaderDone)
-	_, err := leader.TakeLead(leaderDone)
+	_, err = leader.TakeLead(&hlnode, leaderDone)
 	if err != nil {
 		glog.Errorf("Error while trying to acquire a lock for %s: %s", ip, err)
 		return
@@ -338,6 +345,9 @@ func RemoveVirtualIP(conn client.Connection, ip string) error {
 }
 
 func GetHostID(conn client.Connection, ip string) (string, error) {
-	leader := zzk.NewHostLeader(conn, "", "", vippath(ip))
+	leader, err := conn.NewLeader(vippath(ip))
+	if err != nil {
+		return "", err
+	}
 	return zzk.GetHostID(leader)
 }
