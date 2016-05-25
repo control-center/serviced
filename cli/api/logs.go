@@ -28,10 +28,30 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/service"
-	elastigo "github.com/zenoss/elastigo/api"
-	"github.com/zenoss/elastigo/core"
+	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
 )
+
+// This interface is primarily provided for unit-testing ExportLogs().
+// Admittedly a very leaky abstraction around only a handful of elastigo calls.
+// A better implementation would be to design an interface around all of
+// the elastigo APIs which are needed by ExportLogs and the datastore package. Alternatively, maybe we need create
+// a package just for interfacing withES Logstash.
+// Either way that effort is outside the scope of making ExportLogs() testable.
+type logDriver interface {
+	// Sets the ES Logstash connection info; logstashES should be in the format hostname:port
+	SetLogstashInfo(logstashES string) error
+
+	// Returns a list of all the dates for which logs are available
+	// The strings are in YYYY.MM.DD format, and in reverse chronological order.
+	LogstashDays() ([]string, error)
+
+	// Start a new search of ES logstash for a given date
+	StartSearch(logstashIndex string, query string) (elastigocore.SearchResult, error)
+
+	// Scroll to the next set of search results
+	ScrollSearch(scrollID string) (elastigocore.SearchResult, error)
+}
 
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
@@ -40,6 +60,7 @@ type ExportLogsConfig struct {
 	ToDate     string
 	Outfile    string
 	Debug      bool
+	Driver     logDriver  // Driver to work with logstash ES instance; if nil a default driver will be used.
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -60,12 +81,10 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		return e
 	}
 
-	parts := strings.Split(options.LogstashES, ":")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid logstash-es host:port %s", options.LogstashES)
+	e = config.Driver.SetLogstashInfo(options.LogstashES)
+	if e != nil {
+		return e
 	}
-	elastigo.Domain = parts[0]
-	elastigo.Port = parts[1]
 
 	query, err := buildQuery(config, a.GetServices)
 	if err != nil {
@@ -81,7 +100,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	}
 	defer os.RemoveAll(tempdir)
 
-	days, e := LogstashDays()
+	days, e := config.Driver.LogstashDays()
 	if e != nil {
 		return fmt.Errorf("could not determine range of days in the logstash repo: %s", e)
 	} else if config.Debug {
@@ -100,6 +119,15 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		}
 	}()
 
+	// Close all of the temporary files when we're done
+	defer func() {
+		for _, outputFile := range outputFiles {
+			if e := outputFile.File.Close(); e != nil && err == nil {
+				err = fmt.Errorf("failed to close file '%s' cleanly: %s", outputFile.Name, e)
+			}
+		}
+	}()
+
 	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", tempdir)
 	numWarnings := 0
 	foundIndexedDay := false
@@ -115,8 +143,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 			glog.Infof("Querying logstash for day %s", yyyymmdd)
 		}
 
-		logstashIndex := fmt.Sprintf("logstash-%s", yyyymmdd)
-		result, e := core.SearchUri(logstashIndex, "", query, "1m", 1000)
+		result, e := config.Driver.StartSearch(yyyymmdd, query)
 		if e != nil {
 			return fmt.Errorf("failed to search elasticsearch for day %s: %s", yyyymmdd, e)
 		}
@@ -128,7 +155,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
 		remaining := result.Hits.Total > 0
 		for remaining {
-			result, e = core.Scroll(false, result.ScrollId, "1m")
+			result, e = config.Driver.ScrollSearch(result.ScrollId)
 			hits := result.Hits.Hits
 			total := len(hits)
 			for i := 0; i < total; i++ {
@@ -147,14 +174,10 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 					if e != nil {
 						return fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					defer func() {
-						if e := file.Close(); e != nil && err == nil {
-							err = fmt.Errorf("failed to close file '%s' cleanly: %s", filename, e)
-						}
-					}()
 					fileIndex[message.ContainerID][message.LogFileName] = index
 					outputFile := outputFileInfo{
 						File:        file,
+						Name:        filename,
 						ContainerID: message.ContainerID,
 						LogFileName: message.LogFileName,
 					}
@@ -240,6 +263,10 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 }
 
 func validateConfiguration(config *ExportLogsConfig) error {
+	if config.Driver == nil {
+		config.Driver = &elastigoLogDriver{}
+	}
+
 	// make sure we can write to outfile
 	if config.Outfile == "" {
 		pwd, e := os.Getwd()
@@ -370,6 +397,7 @@ type parsedMessage struct {
 // Represents one file output by this routine
 type outputFileInfo struct {
 	File        *os.File            // The temporary file on disk holding the log messages
+	Name        string              // The name of the temporary file on disk holding the log mesasges
 	ContainerID string              // The original Container ID of the application log file
 	LogFileName string              // The name of the application log file
 }
@@ -535,29 +563,6 @@ func NormalizeYYYYMMDD(s string) (string, error) {
 
 var yyyymmddMatcher = regexp.MustCompile("\\A[^0-9]*([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})[^0-9]*\\z")
 
-// Returns a list of all the dates with a logstash-YYYY.MM.DD index available in ElasticSearch.
-// The strings are in YYYY.MM.DD format, and in reverse chronological order.
-var LogstashDays = func() ([]string, error) {
-	response, e := elastigo.DoCommand("GET", "/_aliases", nil)
-	if e != nil {
-		return []string{}, fmt.Errorf("couldn't fetch list of indices: %s", e)
-	}
-	var aliasMap map[string]interface{}
-	if e = json.Unmarshal(response, &aliasMap); e != nil {
-		return []string{}, fmt.Errorf("couldn't parse response (%s): %s", response, e)
-	}
-	result := make([]string, 0, len(aliasMap))
-	for index := range aliasMap {
-		if trimmed := strings.TrimPrefix(index, "logstash-"); trimmed != index {
-			if trimmed, e = NormalizeYYYYMMDD(trimmed); e != nil {
-				trimmed = ""
-			}
-			result = append(result, trimmed)
-		}
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(result)))
-	return result, nil
-}
 
 func truncateToMinute(nanos int64) int64 {
 	return nanos / int64(time.Minute) * int64(time.Minute)
