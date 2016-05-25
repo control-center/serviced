@@ -63,6 +63,15 @@ type ExportLogsConfig struct {
 	Driver     logDriver  // Driver to work with logstash ES instance; if nil a default driver will be used.
 }
 
+type logExporter struct {
+	ExportLogsConfig
+	query                 string
+	days                  []string
+	tempdir               string
+	parseWarningsFilename string
+	parseWarningsFile     *os.File
+}
+
 // ExportLogs exports logs from ElasticSearch.
 // serviceIds: list of services to select (includes their children). Empty slice means no filter
 // from: yyyy.mm.dd (inclusive), "" means unbounded
@@ -71,53 +80,29 @@ type ExportLogsConfig struct {
 //
 // TODO: This code is racy - creating then erasing the output file does not
 // guarantee that it will be safe to write to at the end of the function
-func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
+func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	var e error
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
-
-	e = validateConfiguration(&config)
+	e = validateConfiguration(&configParam)
 	if e != nil {
 		return e
 	}
 
-	e = config.Driver.SetLogstashInfo(options.LogstashES)
-	if e != nil {
-		return e
-	}
-
-	query, err := buildQuery(config, a.GetServices)
-	if err != nil {
-		return err
-	} else if config.Debug {
-		glog.Infof("Looking for services based on this query: %s", query)
-	}
-
-	// Get a temporary directory
-	tempdir, e := ioutil.TempDir("", "serviced-log-export-")
-	if e != nil {
-		return fmt.Errorf("could not create temp directory: %s", e)
-	}
-	defer os.RemoveAll(tempdir)
-
-	days, e := config.Driver.LogstashDays()
-	if e != nil {
-		return fmt.Errorf("could not determine range of days in the logstash repo: %s", e)
-	} else if config.Debug {
-		glog.Infof("Found %d days of logs in logstash", len(days))
-	}
-
-	// create a file to hold parse warnings
-	parseWarningsFilename := filepath.Join(tempdir, "warnings.log")
-	parseWarningsFile, e := os.Create(parseWarningsFilename)
-	if e != nil {
-		return fmt.Errorf("failed to create file %s: %s", parseWarningsFilename, e)
-	}
-	defer func() {
-		if e := parseWarningsFile.Close(); e != nil && err == nil {
-			err = fmt.Errorf("failed to close file '%s' cleanly: %s", parseWarningsFilename, e)
+	var exporter *logExporter
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
 		}
 	}()
+
+	exporter, e = buildExporter(configParam, a.GetServices)
+	if e != nil {
+		return e
+	}
+
+	numWarnings := 0
+	foundIndexedDay := false
+	outputFiles := []outputFileInfo{}
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
 	// Close all of the temporary files when we're done
 	defer func() {
@@ -128,85 +113,12 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		}
 	}()
 
-	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", tempdir)
-	numWarnings := 0
-	foundIndexedDay := false
-	for _, yyyymmdd := range days {
-		// Skip the indexes that are filtered out by the date range
-		if (config.FromDate != "" && yyyymmdd < config.FromDate) || (config.ToDate != "" && yyyymmdd > config.ToDate) {
-			continue
-		} else {
-			foundIndexedDay = true
-		}
-
-		if config.Debug {
-			glog.Infof("Querying logstash for day %s", yyyymmdd)
-		}
-
-		result, e := config.Driver.StartSearch(yyyymmdd, query)
-		if e != nil {
-			return fmt.Errorf("failed to search elasticsearch for day %s: %s", yyyymmdd, e)
-		}
-
-		if config.Debug {
-			glog.Infof("Found %d log messages for %s", result.Hits.Total, yyyymmdd)
-		}
-
-		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
-		remaining := result.Hits.Total > 0
-		for remaining {
-			result, e = config.Driver.ScrollSearch(result.ScrollId)
-			hits := result.Hits.Hits
-			total := len(hits)
-			for i := 0; i < total; i++ {
-				message, e := parseLogSource(hits[i].Source)
-				if e != nil {
-					return e
-				}
-				if _, found := fileIndex[message.ContainerID]; !found {
-					fileIndex[message.ContainerID] = make(map[string]int)
-				}
-				// add a new tempfile
-				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
-					index := len(outputFiles)
-					filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
-					file, e := os.Create(filename)
-					if e != nil {
-						return fmt.Errorf("failed to create file %s: %s", filename, e)
-					}
-					fileIndex[message.ContainerID][message.LogFileName] = index
-					outputFile := outputFileInfo{
-						File:        file,
-						Name:        filename,
-						ContainerID: message.ContainerID,
-						LogFileName: message.LogFileName,
-					}
-					outputFiles = append(outputFiles, outputFile)
-					if config.Debug {
-						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
-					}
-				}
-				index := fileIndex[message.ContainerID][message.LogFileName]
-				outputFile := outputFiles[index]
-				filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", index))
-				for _, line := range message.Lines {
-					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
-					if _, e := outputFile.File.WriteString(formatted); e != nil {
-						return fmt.Errorf("failed writing to file %s: %s", filename, e)
-					}
-				}
-				if len(message.Warnings) > 0 {
-					if _, e := parseWarningsFile.WriteString(message.Warnings); e != nil {
-						return fmt.Errorf("failed writing to file %s: %s", parseWarningsFilename, e)
-					}
-					numWarnings++
-				}
-			}
-			remaining = len(hits) > 0
-		}
-	}
-	if !foundIndexedDay {
-		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", config.FromDate, config.ToDate)
+	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", exporter.tempdir)
+	foundIndexedDay, numWarnings, e = exporter.retrieveLogs(outputFiles, fileIndex)
+	if e != nil {
+		return e
+	} else if !foundIndexedDay {
+		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", exporter.FromDate, exporter.ToDate)
 	}
 
 	glog.Infof("Starting part 2 of 3: sort %d output files", len(outputFiles))
@@ -214,8 +126,8 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	indexData := []string{}
 	for containerID, logfileIndex := range fileIndex {
 		for logfile, i := range logfileIndex {
-			filename := filepath.Join(tempdir, fmt.Sprintf("%03d.log", i))
-			tmpfilename := filepath.Join(tempdir, fmt.Sprintf("%03d.log.tmp", i))
+			filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
+			tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
 			cmd := exec.Command("sort", filename, "-uo", tmpfilename)
 			if output, e := cmd.CombinedOutput(); e != nil {
 				return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
@@ -242,21 +154,22 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	sort.Strings(indexData)
 	indexData = append([]string{"INDEX OF LOG FILES", "File\tContainer ID\tOriginal Filename"}, indexData...)
 	indexData = append(indexData, "")
-	indexFile := filepath.Join(tempdir, "index.txt")
+	indexFile := filepath.Join(exporter.tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
 	if e != nil {
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
-	glog.Infof("Starting part 3 of 3: generate tar file: %s", config.Outfile)
+	glog.Infof("Starting part 3 of 3: generate tar file: %s", exporter.Outfile)
 
-	cmd := exec.Command("tar", "-czf", config.Outfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
+	cmd := exec.Command("tar", "-czf", exporter.Outfile, "-C", filepath.Dir(exporter.tempdir), filepath.Base(exporter.tempdir))
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed to write tgz cmd:%+v, error:%v, output:%s", cmd, e, string(output))
 	}
 
 	if numWarnings != 0 {
-		glog.Warningf("warnings for log parse are included in the tar file as: %s", filepath.Join(filepath.Base(tempdir), filepath.Base(parseWarningsFilename)))
+		glog.Warningf("warnings for log parse are included in the tar file as: %s",
+			filepath.Join(filepath.Base(exporter.tempdir), filepath.Base(exporter.parseWarningsFilename)))
 	}
 
 	return nil
@@ -265,6 +178,11 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 func validateConfiguration(config *ExportLogsConfig) error {
 	if config.Driver == nil {
 		config.Driver = &elastigoLogDriver{}
+	}
+
+	err := config.Driver.SetLogstashInfo(options.LogstashES)
+	if err != nil {
+		return err
 	}
 
 	// make sure we can write to outfile
@@ -314,9 +232,50 @@ func validateConfiguration(config *ExportLogsConfig) error {
 	return nil
 }
 
-func buildQuery(config ExportLogsConfig, getServices func()([]service.Service, error) ) (string, error) {
+func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error)) (exporter *logExporter, err error) {
+	exporter = &logExporter{ExportLogsConfig: configParam}
+	exporter.query, err = exporter.buildQuery(getServices)
+	if err != nil {
+		return nil, fmt.Errorf("Could not build query: %s", err)
+	}
+
+	exporter.days, err = exporter.Driver.LogstashDays()
+	if err != nil {
+		return nil, fmt.Errorf("could not determine range of days in the logstash repo: %s", err)
+	} else if exporter.Debug {
+		glog.Infof("Found %d days of logs in logstash", len(exporter.days))
+	}
+
+	// Get a temporary directory
+	exporter.tempdir, err = ioutil.TempDir("", "serviced-log-export-")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temp directory: %s", err)
+	}
+
+	// create a file to hold parse warnings
+	exporter.parseWarningsFilename = filepath.Join(exporter.tempdir, "warnings.log")
+	exporter.parseWarningsFile, err = os.Create(exporter.parseWarningsFilename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file %s: %s", exporter.parseWarningsFilename, err)
+	}
+
+	return exporter, nil
+}
+func (exporter *logExporter) cleanup() {
+	if exporter.tempdir != "" {
+		defer os.RemoveAll(exporter.tempdir)
+	}
+
+	if exporter.parseWarningsFile != nil {
+		if e := exporter.parseWarningsFile.Close(); e != nil {
+			glog.Errorf("failed to close file '%s' cleanly: %s", exporter.parseWarningsFilename, e)
+		}
+	}
+}
+
+func (exporter *logExporter) buildQuery(getServices func()([]service.Service, error) ) (string, error) {
 	query := "*"
-	if len(config.ServiceIDs) > 0 {
+	if len(exporter.ServiceIDs) > 0 {
 		services, e := getServices()
 		if e != nil {
 			return "", e
@@ -326,14 +285,14 @@ func buildQuery(config ExportLogsConfig, getServices func()([]service.Service, e
 			serviceMap[service.ID] = service
 		}
 		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
-		for _, serviceID := range config.ServiceIDs {
+		for _, serviceID := range exporter.ServiceIDs {
 			serviceIDMap[serviceID] = true
 		}
 		for _, service := range services {
 			srvc := service
 			for {
 				found := false
-				for _, serviceID := range config.ServiceIDs {
+				for _, serviceID := range exporter.ServiceIDs {
 					if srvc.ID == serviceID {
 						serviceIDMap[service.ID] = true
 						found = true
@@ -359,7 +318,90 @@ func buildQuery(config ExportLogsConfig, getServices func()([]service.Service, e
 
 		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
 	}
+	if exporter.Debug {
+		glog.Infof("Looking for services based on this query: %s", query)
+	}
 	return query, nil
+}
+
+func (exporter *logExporter) retrieveLogs(outputFiles []outputFileInfo, fileIndex map[string]map[string]int) (foundIndexedDay bool, numWarnings int, e error) {
+	numWarnings = 0
+	foundIndexedDay = false
+	for _, yyyymmdd := range exporter.days {
+		// Skip the indexes that are filtered out by the date range
+		if (exporter.FromDate != "" && yyyymmdd < exporter.FromDate) || (exporter.ToDate != "" && yyyymmdd > exporter.ToDate) {
+			continue
+		} else {
+			foundIndexedDay = true
+		}
+
+		if exporter.Debug {
+			glog.Infof("Querying logstash for day %s", yyyymmdd)
+		}
+
+		result, e := exporter.Driver.StartSearch(yyyymmdd, exporter.query)
+		if e != nil {
+			return foundIndexedDay, numWarnings, fmt.Errorf("failed to search elasticsearch for day %s: %s", yyyymmdd, e)
+		}
+
+		if exporter.Debug {
+			glog.Infof("Found %d log messages for %s", result.Hits.Total, yyyymmdd)
+		}
+
+		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
+		remaining := result.Hits.Total > 0
+		for remaining {
+			result, e = exporter.Driver.ScrollSearch(result.ScrollId)
+			hits := result.Hits.Hits
+			total := len(hits)
+			for i := 0; i < total; i++ {
+				message, e := parseLogSource(hits[i].Source)
+				if e != nil {
+					return foundIndexedDay, numWarnings, e
+				}
+				if _, found := fileIndex[message.ContainerID]; !found {
+					fileIndex[message.ContainerID] = make(map[string]int)
+				}
+				// add a new tempfile
+				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
+					index := len(outputFiles)
+					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+					file, e := os.Create(filename)
+					if e != nil {
+						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
+					}
+					fileIndex[message.ContainerID][message.LogFileName] = index
+					outputFile := outputFileInfo{
+						File:        file,
+						Name:        filename,
+						ContainerID: message.ContainerID,
+						LogFileName: message.LogFileName,
+					}
+					outputFiles = append(outputFiles, outputFile)
+					if exporter.Debug {
+						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
+					}
+				}
+				index := fileIndex[message.ContainerID][message.LogFileName]
+				outputFile := outputFiles[index]
+				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
+				for _, line := range message.Lines {
+					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
+					if _, e := outputFile.File.WriteString(formatted); e != nil {
+						return foundIndexedDay, numWarnings, fmt.Errorf("failed writing to file %s: %s", filename, e)
+					}
+				}
+				if len(message.Warnings) > 0 {
+					if _, e := exporter.parseWarningsFile.WriteString(message.Warnings); e != nil {
+						return foundIndexedDay, numWarnings, fmt.Errorf("failed writing to file %s: %s", exporter.parseWarningsFilename, e)
+					}
+					numWarnings++
+				}
+			}
+			remaining = len(hits) > 0
+		}
+	}
+	return foundIndexedDay, numWarnings, nil
 }
 
 // NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when

@@ -71,12 +71,13 @@ func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
 	config := ExportLogsConfig{ServiceIDs: []string{}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		c.Fatalf("GetServices called when it should not have been")
 		return []service.Service{}, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "*")
 	c.Assert(err, IsNil)
@@ -85,11 +86,12 @@ func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
 // If the DB has no services, we will at least query for the specified serviceID (e.g. could be logs from a deleted service)
 func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
 	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "service:(\"servicedID1\")")
 	c.Assert(err, IsNil)
@@ -98,11 +100,12 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
 func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 	serviceID := "someServiceID"
 	config := ExportLogsConfig{ServiceIDs: []string{serviceID}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		return []service.Service{{ID: serviceID}}, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, fmt.Sprintf("service:(\"%s\")", serviceID))
 	c.Assert(err, IsNil)
@@ -111,7 +114,8 @@ func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 	parentServiceID := "parentServiceID"
 	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
 			{ID: parentServiceID},
 			{ID: "child1", ParentServiceID: parentServiceID},
@@ -120,7 +124,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 		return services, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, fmt.Sprintf("service:(\"child1\" OR \"child2\" OR \"%s\")", parentServiceID))
 	c.Assert(err, IsNil)
@@ -128,7 +132,8 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
 			{ID: "service1"},
 			{ID: "service2"},
@@ -137,7 +142,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 		return services, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
@@ -145,7 +150,8 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
 			{ID: "service1"},
 			{ID: "service2", ParentServiceID: "service1"},
@@ -154,7 +160,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 		return services, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
@@ -163,11 +169,12 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 	expectedError := fmt.Errorf("GetServices failed")
 	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		return nil, expectedError
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "")
 	c.Assert(err, Equals, expectedError)
@@ -175,11 +182,12 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_InvalidServiceIDs(c *C) {
 	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}}
-	noServicesDefined := func() ([]service.Service, error) {
+	exporter := logExporter{ExportLogsConfig: config}
+	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
 	}
 
-	query, err := buildQuery(config, noServicesDefined)
+	query, err := exporter.buildQuery(getServices)
 
 	c.Assert(query, Equals, "")
 	c.Assert(err, ErrorMatches, "invalid service ID format: .*")
