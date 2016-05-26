@@ -19,6 +19,48 @@
                   "Enabled": true
                 }
               ]
+            },
+            {
+              "Name": "websvc1",
+              "Application": "websvc1",
+              "PortNumber": 9091,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1235",
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Name": "websvc2",
+              "Application": "websvc2",
+              "PortNumber": 9092,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1236",
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Name": "websvc3",
+              "Application": "websvc3",
+              "PortNumber": 9093,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1237",
+                  "Enabled": true
+                }
+              ]
             }
           ],
           "ConfigFiles": {
