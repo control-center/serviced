@@ -219,7 +219,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
 	c.Assert(len(exporter.outputFiles), Equals, 0)
-	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
@@ -241,7 +240,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, ErrorMatches, fmt.Sprintf(".*%s", expectedError))
 	c.Assert(len(exporter.outputFiles), Equals, 0)
-	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
@@ -262,7 +260,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
 	c.Assert(len(exporter.outputFiles), Equals, 0)
-	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *C) {
@@ -305,7 +302,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
-	c.Assert(len(exporter.fileIndex), Equals, 1)
 }
 
 // Same as the previous test, but tests multiple messages for the same file split across
@@ -353,7 +349,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 2)
-	c.Assert(len(exporter.fileIndex), Equals, 1)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
@@ -413,7 +408,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
 	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
 	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
-	c.Assert(len(exporter.fileIndex), Equals, 2)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {

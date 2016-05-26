@@ -73,7 +73,6 @@ type logExporter struct {
 	parseWarningsFile     *os.File
 	hostMap               map[string]host.Host
 	outputFiles           []outputFileInfo
-	fileIndex             map[string]map[string]int     // containerID => filename => index
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -117,38 +116,36 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	glog.Infof("Starting part 2 of 3: sort %d output files", len(exporter.outputFiles))
 
 	indexData := []string{}
-	for _, logfileIndex := range exporter.fileIndex {
-		for _, i := range logfileIndex {
-			filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
-			tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
-			cmd := exec.Command("sort", filename, "-uo", tmpfilename)
-			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
-			}
-			if numWarnings == 0 {
-				cmd = exec.Command("mv", tmpfilename, filename)
-				if output, e := cmd.CombinedOutput(); e != nil {
-					return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
-				}
-			} else {
-				cmd = exec.Command("cp", tmpfilename, filename)
-				if output, e := cmd.CombinedOutput(); e != nil {
-					return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
-				}
-			}
-			cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
-			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
-			}
-			outputFile := exporter.outputFiles[i]
-			indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
-				i,
-				outputFile.LineCount,
-				strconv.Quote(exporter.getHostName(outputFile.HostID)),
-				strconv.Quote(outputFile.HostID),
-				strconv.Quote(outputFile.ContainerID),
-				strconv.Quote(outputFile.LogFileName)))
+	for i, outputFile := range exporter.outputFiles {
+		filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
+		tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
+		cmd := exec.Command("sort", filename, "-uo", tmpfilename)
+		if output, e := cmd.CombinedOutput(); e != nil {
+			return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
 		}
+		if numWarnings == 0 {
+			cmd = exec.Command("mv", tmpfilename, filename)
+			if output, e := cmd.CombinedOutput(); e != nil {
+				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+			}
+		} else {
+			cmd = exec.Command("cp", tmpfilename, filename)
+			if output, e := cmd.CombinedOutput(); e != nil {
+				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+			}
+		}
+		cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
+		if output, e := cmd.CombinedOutput(); e != nil {
+			return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
+		}
+		//outputFile := exporter.outputFiles[i]
+		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
+			i,
+			outputFile.LineCount,
+			strconv.Quote(exporter.getHostName(outputFile.HostID)),
+			strconv.Quote(outputFile.HostID),
+			strconv.Quote(outputFile.ContainerID),
+			strconv.Quote(outputFile.LogFileName)))
 	}
 	sort.Strings(indexData)
 	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tOriginal Filename"}, indexData...)
@@ -233,7 +230,6 @@ func validateConfiguration(config *ExportLogsConfig) error {
 
 func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error) ) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
-	exporter.fileIndex = make(map[string]map[string]int)
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
 		return nil, fmt.Errorf("Could not build query: %s", err)
@@ -339,6 +335,9 @@ func (exporter *logExporter) buildQuery(getServices func()([]service.Service, er
 func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings int, e error) {
 	numWarnings = 0
 	foundIndexedDay = false
+	// fileIndex is a map of containerID => map of app log filename => index into exporter.outputFiles
+	// for the info about that container/app-log instance
+	fileIndex := make(map[string]map[string]int)
 	for _, yyyymmdd := range exporter.days {
 		// Skip the indexes that are filtered out by the date range
 		if (exporter.FromDate != "" && yyyymmdd < exporter.FromDate) || (exporter.ToDate != "" && yyyymmdd > exporter.ToDate) {
@@ -375,18 +374,18 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					return foundIndexedDay, numWarnings, e
 				}
 
-				if _, found := exporter.fileIndex[message.ContainerID]; !found {
-					exporter.fileIndex[message.ContainerID] = make(map[string]int)
+				if _, found := fileIndex[message.ContainerID]; !found {
+					fileIndex[message.ContainerID] = make(map[string]int)
 				}
 				// add a new tempfile
-				if _, found := exporter.fileIndex[message.ContainerID][message.LogFileName]; !found {
+				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
 					index := len(exporter.outputFiles)
 					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
 					file, e := os.Create(filename)
 					if e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					exporter.fileIndex[message.ContainerID][message.LogFileName] = index
+					fileIndex[message.ContainerID][message.LogFileName] = index
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
@@ -399,7 +398,7 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
 					}
 				}
-				index := exporter.fileIndex[message.ContainerID][message.LogFileName]
+				index := fileIndex[message.ContainerID][message.LogFileName]
 				exporter.outputFiles[index].LineCount += len(message.Lines)
 				file := exporter.outputFiles[index].File
 				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
