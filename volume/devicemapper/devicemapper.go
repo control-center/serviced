@@ -1235,7 +1235,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 				if err := d.readDeviceInfo(device, &devInfo); err != nil {
 					return nil, err
 				}
-				if snapstats := blockstats[devInfo.DeviceID]; snapstats != nil {
+				if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
 					tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
 					last = snapstats
 				}
