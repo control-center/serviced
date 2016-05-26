@@ -1235,9 +1235,10 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 				if err := d.readDeviceInfo(device, &devInfo); err != nil {
 					return nil, err
 				}
-				snapstats := blockstats[devInfo.DeviceID]
-				tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
-				last = snapstats
+				if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
+					tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
+					last = snapstats
+				}
 			}
 			if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
 				tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
@@ -1258,7 +1259,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 }
 
 // Import implements volume.Volume.Import
-func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
+func (v *DeviceMapperVolume) Import(label string, reader io.Reader) (err error) {
 	glog.V(2).Infof("Import() (%s) START", v.name)
 	defer glog.V(2).Infof("Import() (%s) END", v.name)
 
@@ -1271,23 +1272,51 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	// suffix.
 	label = v.rawSnapshotLabel(label)
 
-	// Set up the mountpoint
+	// Set up the mountpoint to load the snapshot
 	mountpoint, err := ioutil.TempDir(v.driver.Root(), label+"_import-")
 	if err != nil {
 		glog.Errorf("Could not create mountpoint to import snapshot %s: %s", label, err)
 		return err
 	}
-	defer os.RemoveAll(mountpoint)
 	glog.V(2).Infof("Created mountpoint at %s for snapshot %s", mountpoint, label)
+	defer os.RemoveAll(mountpoint)
 
-	// Create the staging device for the snapshot
-	// TODO: remove the staging device on failure
+	// Set up the staging device for the snapshot
 	deviceHash, err := v.driver.addDevice("")
 	if err != nil {
 		glog.Errorf("Unable to create staging device at mountpoint %s for snapshot %s: %s", mountpoint, label, err)
 		return err
 	}
 	glog.V(2).Infof("Created a staging device %s for snapshot %s", deviceHash, label)
+	defer func() {
+		if err != nil {
+			v.driver.DeviceSet.DeleteDevice(deviceHash, false)
+		}
+	}()
+
+	// Set up the metadata directory
+	metaPath := filepath.Join(v.driver.MetadataDir(), filepath.Base(mountpoint))
+	if err = os.MkdirAll(metaPath, 0755); err != nil {
+		glog.Errorf("Could not create metadata path for snapshot %s at %s: %s", label, metaPath, err)
+		return err
+	}
+	glog.V(2).Infof("Created metadata path %s for snapshot %s", metaPath, label)
+	defer func() {
+		if err != nil {
+			os.RemoveAll(metaPath)
+		}
+	}()
+
+	if err = v.loadSnapshotImport(reader, label, deviceHash, mountpoint, metaPath); err != nil {
+		return err
+	}
+	glog.V(2).Infof("Successfully loaded snapshot %s", label)
+
+	return nil
+}
+
+// loadSnapshotImport loads a volume from a reader to the provided mointpoint
+func (v *DeviceMapperVolume) loadSnapshotImport(reader io.Reader, label, deviceHash, mountpoint, metaPath string) error {
 
 	// Mount the staging device
 	if err := v.driver.DeviceSet.MountDevice(deviceHash, mountpoint, label+"_import"); err != nil {
@@ -1308,15 +1337,6 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		}
 		d.DeviceSet.Unlock()
 	}(v.driver, deviceHash, mountpoint)
-
-	// Set up the metadata directory
-	// TODO: clean up the metadata on failure
-	metaPath := filepath.Join(v.driver.MetadataDir(), filepath.Base(mountpoint))
-	if err := os.MkdirAll(metaPath, 0755); err != nil {
-		glog.Errorf("Unable to create snapshot metadata directory at %s: %s", metaPath, err)
-		return err
-	}
-	glog.V(2).Infof("Set up metadata path %s for snapshot %s", metaPath, label, err)
 
 	// Read the volume and metadata from the stream and write to disk
 	var (
@@ -1397,7 +1417,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	}
 
 	// Set the snapshot metadata path
-	if err := os.Rename(metaPath, filepath.Join(filepath.Dir(metaPath), label)); err != nil {
+	if err := os.Rename(metaPath, filepath.Join(v.driver.MetadataDir(), label)); err != nil {
 		glog.Errorf("Could not set device metadata for snapshot %s: %s", label, err)
 		return err
 	}
