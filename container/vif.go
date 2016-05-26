@@ -16,6 +16,8 @@ package container
 import (
 	"fmt"
 	"net"
+	"math"
+	"strconv"
 	"os"
 	"os/exec"
 	"strings"
@@ -26,7 +28,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const defaultSubnet string = "10.3" // /16 subnet for virtual addresses
+const defaultSubnet string = "10.3.0.0/16" // /16 subnet for virtual addresses
 
 type vif struct {
 	name     string
@@ -51,7 +53,7 @@ func NewVIFRegistry() *VIFRegistry {
 
 // SetSubnet sets the subnet used for virtual addresses
 func (reg *VIFRegistry) SetSubnet(subnet string) error {
-	if err := validation.IsSubnet16(subnet); err != nil {
+	if err := validation.IsSubnetCIDR(subnet); err != nil {
 		return err
 	}
 	reg.subnet = subnet
@@ -60,14 +62,26 @@ func (reg *VIFRegistry) SetSubnet(subnet string) error {
 }
 
 func (reg *VIFRegistry) nextIP() (string, error) {
+    _, mask, _ := net.ParseCIDR(reg.subnet)
+	parts := strings.Split(mask, "/")
+	subnet := parts[0]
+	d := parts[1]/8
+
 	n := len(reg.vifs) + 2
-	if n > (255 * 255) {
+	if n > math.Pow(255, 4-d) {
 		return "", fmt.Errorf("unable to allocate IPs for %d interfaces", n)
 	}
-	o3 := (n / 255)
-	o4 := (n - (o3 * 255))
-	// ZEN-11478: made the subnet configurable
-	return fmt.Sprintf("%s.%d.%d", reg.subnet, o3, o4), nil
+
+	o1 := (n / math.Pow(255, 3))
+	o2 := (n / math.Pow(255, 2) - (o1 * math.Pow(255, 3)))
+	o3 := (n / math.Pow(255, 1) - (o2 * math.Pow(255, 2)) - (o1 * math.Pow(255, 3)))
+	o4 := (n / math.Pow(255, 0) - (o3 * math.Pow(255, 1)) - (o2 * math.Pow(255, 2)) - (o1 * math.Pow(255, 3)))
+    // full formula (with math.Pow(255, 0)) left for readability.
+
+	subparts := strings.Split(subnet, ".")[:d]
+    subocts := []string{strconv.Itoa(o1),strconv.Itoa(o2),strconv.Itoa(o3),strconv.Itoa(o4)}[d:]
+
+	return fmt.Sprintf("%s.%s", strings.Join(subparts, "."), strings.Join(subocts, ".")), nil
 }
 
 // RegisterVirtualAddress takes care of the entire virtual address setup. It
