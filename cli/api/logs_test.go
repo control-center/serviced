@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"github.com/control-center/serviced/cli/api/mocks"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/stretchr/testify/mock"
 	"github.com/zenoss/elastigo/core"
@@ -385,7 +386,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "file": "file2", "message": "message1"}`), },
+				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1"}`), },
 			},
 		},
 	}
@@ -402,9 +403,13 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
 	c.Assert(len(exporter.outputFiles), Equals, 2)
+	c.Assert(exporter.outputFiles[0].HostID, Equals, "")
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+
+	c.Assert(exporter.outputFiles[1].HostID, Equals, "hostID2")
 	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
 	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
 	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
@@ -462,7 +467,10 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
 	}
+	getHostMap := func()(map[string]host.Host, error) {
+		return make(map[string]host.Host), nil
+	}
 
-	exporter, err := buildExporter(config, getServices)
+	exporter, err := buildExporter(config, getServices, getHostMap)
 	return exporter, mockLogDriver, err
 }

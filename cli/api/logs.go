@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
@@ -70,6 +71,7 @@ type logExporter struct {
 	tempdir               string
 	parseWarningsFilename string
 	parseWarningsFile     *os.File
+	hostMap               map[string]host.Host
 	outputFiles           []outputFileInfo
 	fileIndex             map[string]map[string]int     // containerID => filename => index
 }
@@ -96,7 +98,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		}
 	}()
 
-	exporter, e = buildExporter(configParam, a.GetServices)
+	exporter, e = buildExporter(configParam, a.GetServices, a.GetHostMap)
 	if e != nil {
 		return e
 	}
@@ -115,8 +117,8 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	glog.Infof("Starting part 2 of 3: sort %d output files", len(exporter.outputFiles))
 
 	indexData := []string{}
-	for containerID, logfileIndex := range exporter.fileIndex {
-		for logfile, i := range logfileIndex {
+	for _, logfileIndex := range exporter.fileIndex {
+		for _, i := range logfileIndex {
 			filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
 			tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
 			cmd := exec.Command("sort", filename, "-uo", tmpfilename)
@@ -138,12 +140,18 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 			if output, e := cmd.CombinedOutput(); e != nil {
 				return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
 			}
-			indexData = append(indexData, fmt.Sprintf("%03d.log\t%s\t%s",
-				i, strconv.Quote(containerID), strconv.Quote(logfile)))
+			outputFile := exporter.outputFiles[i]
+			indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
+				i,
+				outputFile.LineCount,
+				strconv.Quote(exporter.getHostName(outputFile.HostID)),
+				strconv.Quote(outputFile.HostID),
+				strconv.Quote(outputFile.ContainerID),
+				strconv.Quote(outputFile.LogFileName)))
 		}
 	}
 	sort.Strings(indexData)
-	indexData = append([]string{"INDEX OF LOG FILES", "File\tContainer ID\tOriginal Filename"}, indexData...)
+	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tOriginal Filename"}, indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(exporter.tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -223,7 +231,7 @@ func validateConfiguration(config *ExportLogsConfig) error {
 	return nil
 }
 
-func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error)) (exporter *logExporter, err error) {
+func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error) ) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.fileIndex = make(map[string]map[string]int)
 	exporter.query, err = exporter.buildQuery(getServices)
@@ -251,6 +259,11 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 		return nil, fmt.Errorf("failed to create file %s: %s", exporter.parseWarningsFilename, err)
 	}
 
+	exporter.hostMap, err = getHostMap()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get list of host: %s", err)
+	}
+
 	return exporter, nil
 }
 func (exporter *logExporter) cleanup() {
@@ -272,7 +285,7 @@ func (exporter *logExporter) cleanup() {
 	}
 }
 
-func (exporter *logExporter) buildQuery(getServices func()([]service.Service, error) ) (string, error) {
+func (exporter *logExporter) buildQuery(getServices func()([]service.Service, error)) (string, error) {
 	query := "*"
 	if len(exporter.ServiceIDs) > 0 {
 		services, e := getServices()
@@ -377,6 +390,7 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
+						HostID:      message.HostID,
 						ContainerID: message.ContainerID,
 						LogFileName: message.LogFileName,
 					}
@@ -408,9 +422,26 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 	return foundIndexedDay, numWarnings, nil
 }
 
+// Lookup a hostID in the map.
+func (exporter *logExporter) getHostName(hostID string) string {
+	if hostID == "" {
+		// Probably a message that was logged before we added the 'ccWorkerID' field
+		return ""
+	} else if host, ok := exporter.hostMap[hostID]; !ok {
+		// either the CC worker node was retired or
+		// the hostID of the worker node was changed after we had captured some logs
+		return "unknown"
+	} else {
+		return host.Name
+	}
+}
+
 // NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
 //       executed inside a docker container, the value is actually the container ID, not the name of docker host.
+//       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
+//       means that some installations may have older log messages with no 'ccWorkerID' field.
 type logSingleLine struct {
+	HostID      string    `json:"ccWorkerID"`
 	ContainerID string    `json:"host"`
 	File        string    `json:"file"`
 	Timestamp   time.Time `json:"@timestamp"`
@@ -419,6 +450,7 @@ type logSingleLine struct {
 }
 
 type logMultiLine struct {
+	HostID      string    `json:"ccWorkerID"`
 	ContainerID string    `json:"host"`
 	File        string    `json:"file"`
 	Timestamp   time.Time `json:"@timestamp"`
@@ -434,6 +466,7 @@ type compactLogLine struct {
 
 // Represents a set of log messages from a since instance of a single application log
 type parsedMessage struct {
+	HostID      string              // The ID of the CC worker node that hosted ContainerID
 	ContainerID string              // The original Container ID of the application log file
 	LogFileName string              // The name of the application log file
 	Lines       []compactLogLine    // One or more lines of log messages from the file.
@@ -444,6 +477,7 @@ type parsedMessage struct {
 type outputFileInfo struct {
 	File        *os.File            // The temporary file on disk holding the log messages
 	Name        string              // The name of the temporary file on disk holding the log mesasges
+	HostID      string              // The ID of the CC worker node that hosted ContainerID
 	ContainerID string              // The original Container ID of the application log file
 	LogFileName string              // The name of the application log file
 	LineCount   int                 // number of message lines in the application log file
@@ -527,6 +561,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 			Message:   line.Message,
 		}
 		message := &parsedMessage{
+			HostID:      line.HostID,
 			ContainerID: line.ContainerID,
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
@@ -589,6 +624,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 	}
 
 	message := &parsedMessage{
+		HostID:      multiLine.HostID,
 		ContainerID: multiLine.ContainerID,
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
