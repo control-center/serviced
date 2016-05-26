@@ -1235,9 +1235,10 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 				if err := d.readDeviceInfo(device, &devInfo); err != nil {
 					return nil, err
 				}
-				snapstats := blockstats[devInfo.DeviceID]
-				tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
-				last = snapstats
+				if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
+					tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
+					last = snapstats
+				}
 			}
 			if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
 				tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
