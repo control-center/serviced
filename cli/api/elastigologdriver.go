@@ -34,7 +34,7 @@ type elastigoLogDriver struct {
 }
 
 // Verify that the elastigoLogDriver implements the interface
-var _ logDriver = &elastigoLogDriver{}
+var _ ExportLogDriver = &elastigoLogDriver{}
 
 // Sets the ES Logstash connection info; logstashES should be in the format hostname:port
 func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {

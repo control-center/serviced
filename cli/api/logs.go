@@ -38,7 +38,7 @@ import (
 // the elastigo APIs which are needed by ExportLogs and the datastore package. Alternatively, maybe we need create
 // a package just for interfacing withES Logstash.
 // Either way that effort is outside the scope of making ExportLogs() testable.
-type logDriver interface {
+type ExportLogDriver interface {
 	// Sets the ES Logstash connection info; logstashES should be in the format hostname:port
 	SetLogstashInfo(logstashES string) error
 
@@ -60,7 +60,7 @@ type ExportLogsConfig struct {
 	ToDate     string
 	Outfile    string
 	Debug      bool
-	Driver     logDriver  // Driver to work with logstash ES instance; if nil a default driver will be used.
+	Driver ExportLogDriver // Driver to work with logstash ES instance; if nil a default driver will be used.
 }
 
 type logExporter struct {
@@ -352,13 +352,20 @@ func (exporter *logExporter) retrieveLogs(outputFiles []outputFileInfo, fileInde
 		remaining := result.Hits.Total > 0
 		for remaining {
 			result, e = exporter.Driver.ScrollSearch(result.ScrollId)
+			if e != nil {
+				return foundIndexedDay, numWarnings, e
+			}
 			hits := result.Hits.Hits
 			total := len(hits)
+			fmt.Printf("got %d hits, scrollID=%s\n", total, result.ScrollId)
 			for i := 0; i < total; i++ {
 				message, e := parseLogSource(hits[i].Source)
 				if e != nil {
 					return foundIndexedDay, numWarnings, e
 				}
+
+				fmt.Printf("message=%#v\n", message)
+
 				if _, found := fileIndex[message.ContainerID]; !found {
 					fileIndex[message.ContainerID] = make(map[string]int)
 				}

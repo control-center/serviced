@@ -16,12 +16,15 @@
 package api
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 
+	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/stretchr/testify/mock"
+	"github.com/zenoss/elastigo/core"
 	. "gopkg.in/check.v1"
-	"fmt"
 )
 
 func (s *TestAPISuite) testConvertOffsets(c *C, received []string, expected []uint64) {
@@ -191,4 +194,149 @@ func (s *TestAPISuite) TestLogs_BuildQuery_InvalidServiceIDs(c *C) {
 
 	c.Assert(query, Equals, "")
 	c.Assert(err, ErrorMatches, "invalid service ID format: .*")
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
+	logstashDays := []string{"2112.01.01"}
+	serviceIDs := []string{"someServiceID"}
+	fromDate := "2015.01.01"
+	toDate := "2015.01.01"
+	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return(core.SearchResult{}, fmt.Errorf("StartSearch was called unexpectedly"))
+	outputFiles := []outputFileInfo{}
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+
+	c.Assert(foundIndexedDay, Equals, false)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
+	logstashDays := []string{"2112.01.01"}
+	serviceIDs := []string{"someServiceID"}
+	fromDate := logstashDays[0]
+	toDate := logstashDays[0]
+	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	expectedError := fmt.Errorf("StartSearch failed")
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return(core.SearchResult{}, expectedError)
+	outputFiles := []outputFileInfo{}
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, ErrorMatches, fmt.Sprintf(".*%s", expectedError))
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
+	logstashDays := []string{"2112.01.01"}
+	serviceIDs := []string{"someServiceID"}
+	fromDate := logstashDays[0]
+	toDate := logstashDays[0]
+	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return(core.SearchResult{}, nil)
+	outputFiles := []outputFileInfo{}
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+	c.Assert(len(outputFiles), Equals, 0)
+	c.Assert(len(fileIndex), Equals, 0)
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasAHit(c *C) {
+	logstashDays := []string{"2112.01.01"}
+	serviceIDs := []string{"someServiceID"}
+	fromDate := logstashDays[0]
+	toDate := logstashDays[0]
+	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	searchResult := core.SearchResult{
+		ScrollId: "search1",
+		Hits: core.Hits{
+			Total:    1,
+			Hits:  []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			},
+		},
+	}
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return(searchResult, nil)
+
+	firstSearchResult := searchResult
+	firstSearchResult.ScrollId = "lastSearch"
+	lastSearchResult := core.SearchResult{
+		ScrollId: "lastSearch",
+		Hits: core.Hits{
+			Total:    0,
+			Hits:  []core.Hit{},
+		},
+	}
+	mockLogDriver.On("ScrollSearch", searchResult.ScrollId).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(lastSearchResult, nil)
+
+	outputFiles := []outputFileInfo{}
+	fileIndex := make(map[string]map[string]int) // containerID => filename => index
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+	c.Assert(len(outputFiles), Equals, 0)
+	c.Assert(len(fileIndex), Equals, 0)
+}
+
+func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *mocks.ExportLogDriver, error) {
+	mockLogDriver := &mocks.ExportLogDriver{}
+	mockLogDriver.On("LogstashDays").Return(logstashDays, nil)
+
+	config := ExportLogsConfig{
+		ServiceIDs: serviceIDs,
+		FromDate:   fromDate,
+		ToDate:     toDate,
+		Driver:     mockLogDriver,
+	}
+	getServices := func() ([]service.Service, error) {
+		return []service.Service{}, nil
+	}
+
+	exporter, err := buildExporter(config, getServices)
+	return exporter, mockLogDriver, err
 }
