@@ -70,6 +70,8 @@ type logExporter struct {
 	tempdir               string
 	parseWarningsFilename string
 	parseWarningsFile     *os.File
+	outputFiles           []outputFileInfo
+	fileIndex             map[string]map[string]int     // containerID => filename => index
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -101,30 +103,19 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	numWarnings := 0
 	foundIndexedDay := false
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
-
-	// Close all of the temporary files when we're done
-	defer func() {
-		for _, outputFile := range outputFiles {
-			if e := outputFile.File.Close(); e != nil && err == nil {
-				err = fmt.Errorf("failed to close file '%s' cleanly: %s", outputFile.Name, e)
-			}
-		}
-	}()
 
 	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", exporter.tempdir)
-	foundIndexedDay, numWarnings, e = exporter.retrieveLogs(outputFiles, fileIndex)
+	foundIndexedDay, numWarnings, e = exporter.retrieveLogs()
 	if e != nil {
 		return e
 	} else if !foundIndexedDay {
 		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", exporter.FromDate, exporter.ToDate)
 	}
 
-	glog.Infof("Starting part 2 of 3: sort %d output files", len(outputFiles))
+	glog.Infof("Starting part 2 of 3: sort %d output files", len(exporter.outputFiles))
 
 	indexData := []string{}
-	for containerID, logfileIndex := range fileIndex {
+	for containerID, logfileIndex := range exporter.fileIndex {
 		for logfile, i := range logfileIndex {
 			filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
 			tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
@@ -234,6 +225,7 @@ func validateConfiguration(config *ExportLogsConfig) error {
 
 func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error)) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
+	exporter.fileIndex = make(map[string]map[string]int)
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
 		return nil, fmt.Errorf("Could not build query: %s", err)
@@ -262,14 +254,21 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 	return exporter, nil
 }
 func (exporter *logExporter) cleanup() {
-	if exporter.tempdir != "" {
-		defer os.RemoveAll(exporter.tempdir)
+	// Close all of the temporary files when we're done
+	for _, outputFile := range exporter.outputFiles {
+		if e := outputFile.File.Close(); e != nil {
+			glog.Errorf("failed to close file '%s' cleanly: %s", outputFile.Name, e)
+		}
 	}
 
 	if exporter.parseWarningsFile != nil {
 		if e := exporter.parseWarningsFile.Close(); e != nil {
 			glog.Errorf("failed to close file '%s' cleanly: %s", exporter.parseWarningsFilename, e)
 		}
+	}
+
+	if exporter.tempdir != "" {
+		defer os.RemoveAll(exporter.tempdir)
 	}
 }
 
@@ -324,7 +323,7 @@ func (exporter *logExporter) buildQuery(getServices func()([]service.Service, er
 	return query, nil
 }
 
-func (exporter *logExporter) retrieveLogs(outputFiles []outputFileInfo, fileIndex map[string]map[string]int) (foundIndexedDay bool, numWarnings int, e error) {
+func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings int, e error) {
 	numWarnings = 0
 	foundIndexedDay = false
 	for _, yyyymmdd := range exporter.days {
@@ -357,44 +356,42 @@ func (exporter *logExporter) retrieveLogs(outputFiles []outputFileInfo, fileInde
 			}
 			hits := result.Hits.Hits
 			total := len(hits)
-			fmt.Printf("got %d hits, scrollID=%s\n", total, result.ScrollId)
 			for i := 0; i < total; i++ {
 				message, e := parseLogSource(hits[i].Source)
 				if e != nil {
 					return foundIndexedDay, numWarnings, e
 				}
 
-				fmt.Printf("message=%#v\n", message)
-
-				if _, found := fileIndex[message.ContainerID]; !found {
-					fileIndex[message.ContainerID] = make(map[string]int)
+				if _, found := exporter.fileIndex[message.ContainerID]; !found {
+					exporter.fileIndex[message.ContainerID] = make(map[string]int)
 				}
 				// add a new tempfile
-				if _, found := fileIndex[message.ContainerID][message.LogFileName]; !found {
-					index := len(outputFiles)
+				if _, found := exporter.fileIndex[message.ContainerID][message.LogFileName]; !found {
+					index := len(exporter.outputFiles)
 					filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
 					file, e := os.Create(filename)
 					if e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed to create file %s: %s", filename, e)
 					}
-					fileIndex[message.ContainerID][message.LogFileName] = index
+					exporter.fileIndex[message.ContainerID][message.LogFileName] = index
 					outputFile := outputFileInfo{
 						File:        file,
 						Name:        filename,
 						ContainerID: message.ContainerID,
 						LogFileName: message.LogFileName,
 					}
-					outputFiles = append(outputFiles, outputFile)
+					exporter.outputFiles = append(exporter.outputFiles, outputFile)
 					if exporter.Debug {
 						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
 					}
 				}
-				index := fileIndex[message.ContainerID][message.LogFileName]
-				outputFile := outputFiles[index]
+				index := exporter.fileIndex[message.ContainerID][message.LogFileName]
+				exporter.outputFiles[index].LineCount += len(message.Lines)
+				file := exporter.outputFiles[index].File
 				filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", index))
 				for _, line := range message.Lines {
 					formatted := fmt.Sprintf("%016x\t%016x\t%s\n", line.Timestamp, line.Offset, line.Message)
-					if _, e := outputFile.File.WriteString(formatted); e != nil {
+					if _, e := file.WriteString(formatted); e != nil {
 						return foundIndexedDay, numWarnings, fmt.Errorf("failed writing to file %s: %s", filename, e)
 					}
 				}
@@ -449,6 +446,7 @@ type outputFileInfo struct {
 	Name        string              // The name of the temporary file on disk holding the log mesasges
 	ContainerID string              // The original Container ID of the application log file
 	LogFileName string              // The name of the application log file
+	LineCount   int                 // number of message lines in the application log file
 }
 
 var newline = regexp.MustCompile("\\r?\\n")

@@ -73,7 +73,7 @@ func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{}}
+	config := ExportLogsConfig{ServiceIDs: []string{}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		c.Fatalf("GetServices called when it should not have been")
@@ -88,7 +88,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
 
 // If the DB has no services, we will at least query for the specified serviceID (e.g. could be logs from a deleted service)
 func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
@@ -102,7 +102,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 	serviceID := "someServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{serviceID}}
+	config := ExportLogsConfig{ServiceIDs: []string{serviceID}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{{ID: serviceID}}, nil
@@ -116,7 +116,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 	parentServiceID := "parentServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}}
+	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -134,7 +134,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -152,7 +152,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -171,7 +171,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 	expectedError := fmt.Errorf("GetServices failed")
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return nil, expectedError
@@ -184,7 +184,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_InvalidServiceIDs(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}}
+	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}, Debug:true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
@@ -211,22 +211,18 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 		Return(core.SearchResult{}, fmt.Errorf("StartSearch was called unexpectedly"))
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
-	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
 	c.Assert(foundIndexedDay, Equals, false)
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
+	c.Assert(len(exporter.outputFiles), Equals, 0)
+	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
-	logstashDays := []string{"2112.01.01"}
-	serviceIDs := []string{"someServiceID"}
-	fromDate := logstashDays[0]
-	toDate := logstashDays[0]
-	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
 			exporter.cleanup()
@@ -237,22 +233,18 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 	expectedError := fmt.Errorf("StartSearch failed")
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 		Return(core.SearchResult{}, expectedError)
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
-	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
 	c.Assert(foundIndexedDay, Equals, true)
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, ErrorMatches, fmt.Sprintf(".*%s", expectedError))
+	c.Assert(len(exporter.outputFiles), Equals, 0)
+	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
-	logstashDays := []string{"2112.01.01"}
-	serviceIDs := []string{"someServiceID"}
-	fromDate := logstashDays[0]
-	toDate := logstashDays[0]
-	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
 			exporter.cleanup()
@@ -262,24 +254,18 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
 		Return(core.SearchResult{}, nil)
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
 
-	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
 	c.Assert(foundIndexedDay, Equals, true)
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
-	c.Assert(len(outputFiles), Equals, 0)
-	c.Assert(len(fileIndex), Equals, 0)
+	c.Assert(len(exporter.outputFiles), Equals, 0)
+	c.Assert(len(exporter.fileIndex), Equals, 0)
 }
 
-func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasAHit(c *C) {
-	logstashDays := []string{"2112.01.01"}
-	serviceIDs := []string{"someServiceID"}
-	fromDate := logstashDays[0]
-	toDate := logstashDays[0]
-	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
+func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *C) {
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
 			exporter.cleanup()
@@ -287,7 +273,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasAHit(c *C) {
 	}()
 	c.Assert(err, IsNil)
 
-	searchResult := core.SearchResult{
+	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
 			Total:    1,
@@ -296,31 +282,170 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasAHit(c *C) {
 			},
 		},
 	}
-	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(searchResult, nil)
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
 
-	firstSearchResult := searchResult
+	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
+	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
+	// value of ScrollID for mutliple calls
+	firstSearchResult := searchStart
 	firstSearchResult.ScrollId = "lastSearch"
 	lastSearchResult := core.SearchResult{
 		ScrollId: "lastSearch",
-		Hits: core.Hits{
-			Total:    0,
-			Hits:  []core.Hit{},
-		},
 	}
-	mockLogDriver.On("ScrollSearch", searchResult.ScrollId).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
 	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(lastSearchResult, nil)
 
-	outputFiles := []outputFileInfo{}
-	fileIndex := make(map[string]map[string]int) // containerID => filename => index
-
-	foundIndexedDay, numWarnings, err := exporter.retrieveLogs(outputFiles, fileIndex)
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
 	c.Assert(foundIndexedDay, Equals, true)
 	c.Assert(numWarnings, Equals, 0)
 	c.Assert(err, IsNil)
-	c.Assert(len(outputFiles), Equals, 0)
-	c.Assert(len(fileIndex), Equals, 0)
+	c.Assert(len(exporter.outputFiles), Equals, 1)
+	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+	c.Assert(len(exporter.fileIndex), Equals, 1)
+}
+
+// Same as the previous test, but tests multiple messages for the same file split across
+//     more than one call to ScrollSearch()
+func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c *C) {
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	searchStart := core.SearchResult{
+		ScrollId: "search1",
+		Hits: core.Hits{
+			Total:    1,
+			Hits:  []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			},
+		},
+	}
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
+
+	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
+	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
+	// value of ScrollID for mutliple calls
+	firstSearchResult := searchStart
+	firstSearchResult.ScrollId = "search2"
+	secondSearchResult := searchStart
+	secondSearchResult.ScrollId = "lastSearch"
+	lastSearchResult := core.SearchResult{
+		ScrollId: "lastSearch",
+	}
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(secondSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollId).Return(lastSearchResult, nil)
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+	c.Assert(len(exporter.outputFiles), Equals, 1)
+	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].LineCount, Equals, 2)
+	c.Assert(len(exporter.fileIndex), Equals, 1)
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	searchStart := core.SearchResult{
+		ScrollId: "search1",
+		Hits: core.Hits{
+			Total:    1,
+			Hits:  []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			},
+		},
+	}
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
+
+	// Because ScrollSearch() does not accept a pointer, we have to fake things a little by using separate
+	// values of ScrollID for for each call, but in reality a real interaction with ES would reuse the same
+	// value of ScrollID for mutliple calls
+	firstSearchResult := searchStart
+	firstSearchResult.ScrollId = "search2"
+	secondSearchResult := core.SearchResult{
+		ScrollId: "lastSearch",
+		Hits: core.Hits{
+			Total: 1,
+			Hits:  []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container2", "file": "file2", "message": "message1"}`), },
+			},
+		},
+	}
+	lastSearchResult := core.SearchResult{
+		ScrollId: "lastSearch",
+	}
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", firstSearchResult.ScrollId).Return(secondSearchResult, nil)
+	mockLogDriver.On("ScrollSearch", secondSearchResult.ScrollId).Return(lastSearchResult, nil)
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, IsNil)
+	c.Assert(len(exporter.outputFiles), Equals, 2)
+	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
+	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
+	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
+	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
+	c.Assert(len(exporter.fileIndex), Equals, 2)
+}
+
+func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
+	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
+	defer func () {
+		if exporter != nil {
+			exporter.cleanup()
+		}
+	}()
+	c.Assert(err, IsNil)
+
+	searchStart := core.SearchResult{
+		ScrollId: "search1",
+		Hits: core.Hits{
+			Total:    1,
+			Hits:  []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			},
+		},
+	}
+	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
+	expectedError := fmt.Errorf("ScrollSearch failed")
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(core.SearchResult{}, expectedError)
+
+	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
+
+	c.Assert(foundIndexedDay, Equals, true)
+	c.Assert(numWarnings, Equals, 0)
+	c.Assert(err, Equals, expectedError)
+}
+
+func setupSimpleRetrieveLogTest() (*logExporter, *mocks.ExportLogDriver, error) {
+	logstashDays := []string{"2112.01.01"}
+	serviceIDs := []string{"someServiceID"}
+	fromDate := logstashDays[0]
+	toDate := logstashDays[0]
+	return setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
 }
 
 func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *mocks.ExportLogDriver, error) {
@@ -332,6 +457,7 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 		FromDate:   fromDate,
 		ToDate:     toDate,
 		Driver:     mockLogDriver,
+		Debug:      true,
 	}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
