@@ -889,39 +889,42 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 }
 
 func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	volumeStatuses := volume.GetStatus()
-	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
-		err := fmt.Errorf("Unexpected error getting volume status")
-		glog.Errorf("%s", err)
-		restServerError(w, err)
-		return
-	}
+	// CC-2253: disabling this until we fix this
+	/*
+		volumeStatuses := volume.GetStatus()
+		if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
+			err := fmt.Errorf("Unexpected error getting volume status")
+			glog.Errorf("%s", err)
+			restServerError(w, err)
+			return
+		}
 
+
+		// REST collections should return arrays, not maps
+		statuses := volumeStatuses.GetAllStatuses()
+		storageInfo := make([]VolumeInfo, 0, len(statuses))
+		for volumeName, volumeStatus := range statuses {
+			volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
+			tags := map[string][]string{}
+			profile, err := volumeProfile.ReBuild("1h-ago", tags)
+			if err != nil {
+				glog.Errorf("Unexpected error getting volume statuses: %v", err)
+				restServerError(w, err)
+				return
+			}
+			//add graphs to profile
+			profile.GraphConfigs = make([]domain.GraphConfig, 1)
+			profile.GraphConfigs[0] = newVolumeUsageGraph(tags)
+			volumeInfo.MonitoringProfile = *profile
+			storageInfo = append(storageInfo, volumeInfo)
+		}
+	*/
 	type VolumeInfo struct {
 		Name              string
 		Status            volume.Status
 		MonitoringProfile domain.MonitorProfile
 	}
-
-	// REST collections should return arrays, not maps
-	statuses := volumeStatuses.GetAllStatuses()
-	storageInfo := make([]VolumeInfo, 0, len(statuses))
-	for volumeName, volumeStatus := range statuses {
-		volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
-		tags := map[string][]string{}
-		profile, err := volumeProfile.ReBuild("1h-ago", tags)
-		if err != nil {
-			glog.Errorf("Unexpected error getting volume statuses: %v", err)
-			restServerError(w, err)
-			return
-		}
-		//add graphs to profile
-		profile.GraphConfigs = make([]domain.GraphConfig, 1)
-		profile.GraphConfigs[0] = newVolumeUsageGraph(tags)
-		volumeInfo.MonitoringProfile = *profile
-		storageInfo = append(storageInfo, volumeInfo)
-	}
-
+	storageInfo := []VolumeInfo{}
 	w.WriteJson(storageInfo)
 }
 
