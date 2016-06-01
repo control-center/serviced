@@ -39,7 +39,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 	// write the backup metadata
 	if err := dfs.writeBackupMetadata(data, tarOut); err != nil {
-		glog.V(2).Infof("Unable to write backup metadata: %s", err)
+		glog.Errorf("Unable to write backup metadata: %s", err)
 		return err
 	}
 
@@ -58,7 +58,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not find image %s: %s", image, err)
 			return err
 		}
-		glog.V(2).Infof("Prepared Docker image %s for backup", image)
+		glog.Infof("Prepared Docker image %s for backup", image)
 		images = append(images, image)
 	}
 
@@ -69,7 +69,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			return err
 		}
 		// load the images from this snapshot
-		glog.V(2).Infof("Preparing images for tenant %s", info.TenantID)
+		glog.Infof("Preparing images for tenant %s", info.TenantID)
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
 			glog.Errorf("Could not receive images metadata for tenant %s: %s", info.TenantID, err)
@@ -92,7 +92,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 				glog.Errorf("Could not get the image path from registry %s: %s", img, err)
 				return err
 			}
-			glog.V(2).Infof("Prepared Docker image %s for backup", image)
+			glog.Infof("Prepared Docker image %s for backup", image)
 			images = append(images, image)
 		}
 		timer.Stop()
@@ -108,6 +108,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not export snapshot %s for backup: %s", snapshot, err)
 			return err
 		}
+		glog.Infof("Exported snapshot %s to backup", snapshot)
 	}
 	// dump the images from all the snapshots into the backup
 	imageReader, errchan := dfs.dockerSavePipe(images...)
@@ -120,7 +121,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		glog.Errorf("Could not export images %v for backup: %s", images, err)
 		return err
 	}
-
+	glog.Infof("Exported images to backup")
 	tarOut.Close()
 	return nil
 }
