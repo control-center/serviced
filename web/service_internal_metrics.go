@@ -289,6 +289,46 @@ func addInternalGraphConfigs(svc *service.Service) {
 			},
 		},
 	)
+
+	//Memory threshold
+	svc.MonitoringProfile.ThresholdConfigs = append(
+		svc.MonitoringProfile.ThresholdConfigs,
+		domain.ThresholdConfig{
+					ID: "memoryUsage",
+					Name: "Memory Usage",
+					Description: "Memory threshold (fill in the value in bytes)",
+					MetricSource: "internalMemoryUsage",
+					DataPoints: []string{"cgroup.memory.totalrss"},
+					Type: "MinMax",
+					Threshold:    domain.MinMaxThreshold{Min: "", Max: ""},
+					EventTags: map[string]interface{}{
+						"Severity":    3,
+						"Resolution":  "Memory threshold",
+						"Explanation": "Memory threshold",
+						"EventClass":  "/Status",
+					},
+		},
+	)
+
+	// CPU threshold
+	svc.MonitoringProfile.ThresholdConfigs = append(
+                svc.MonitoringProfile.ThresholdConfigs,
+                domain.ThresholdConfig{
+                                        ID: "CPU.exceeds",
+                                        Name: "CPU Exceeds",
+                                        Description: "CPU threshold",
+                                        MetricSource: "internalusage",
+                                        DataPoints: []string{"docker.usageinkernelmode", "docker.usageinusermode"},
+                                        Type: "MinMax",
+                                        Threshold:    domain.MinMaxThreshold{Min: "", Max: "0.7"},
+                                        EventTags: map[string]interface{}{
+                                                "Severity":    3,
+                                                "Resolution":  "CPU threshold",
+                                                "Explanation": "CPU threshold",
+                                                "EventClass":  "/Status",
+                                        },
+		},
+        )
 }
 
 // addInternalMetrics adds internal metrics to the config. It assumes that
