@@ -32,6 +32,44 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *DFSTestSuite) TestBackup_DelayOnExportError(c *C) {
+	buf := bytes.NewBufferString("")
+	backupInfo := BackupInfo{
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Hosts: []host.Host{
+			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots: []string{"BASE_LABEL"},
+		Timestamp: time.Now().UTC(),
+	}
+	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
+	info := &volume.SnapshotInfo{
+		Name:     "BASE_LABEL",
+		TenantID: "BASE",
+		Label:    "LABEL",
+		Created:  time.Now().UTC(),
+	}
+	vol.On("SnapshotInfo", "BASE_LABEL").Return(info, nil)
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{bytes.NewBufferString("[]")}, nil)
+	vol.On("Export", "LABEL", "", mock.AnythingOfType("*io.PipeWriter")).Return(ErrTestExportFailed).After(500 * time.Millisecond)
+
+	timeout := time.NewTimer(time.Second)
+	errC := make(chan error)
+	go func() {
+		errC <- s.dfs.Backup(backupInfo, buf)
+		timeout.Stop()
+	}()
+
+	select {
+	case err := <-errC:
+		c.Assert(err, Equals, ErrTestExportFailed)
+	case <-timeout.C:
+		c.Fatalf("Timed out waiting for %s", ErrTestExportFailed)
+	}
+}
+
 func (s *DFSTestSuite) TestBackup_ImageNotFound(c *C) {
 	buf := bytes.NewBufferString("")
 	backupInfo := BackupInfo{
