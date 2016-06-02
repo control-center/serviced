@@ -62,20 +62,20 @@ func (reg *VIFRegistry) SetSubnet(subnet string) error {
 }
 
 func (reg *VIFRegistry) nextIP() (string, error) {
-    _, mask, _ := net.ParseCIDR(reg.subnet)
-	parts := strings.Split(mask, "/")
+	parts := strings.Split(reg.subnet, "/")
 	subnet := parts[0]
-	d := parts[1]/8
+	d := strconv.Atoi(parts[1])/8
 
 	n := len(reg.vifs) + 2
-	if n > math.Pow(255, 4-d) {
+	if n > int(math.Pow(255, 4-d)) {
 		return "", fmt.Errorf("unable to allocate IPs for %d interfaces", n)
 	}
 
-	o1 := (n / math.Pow(255, 3))
-	o2 := (n / math.Pow(255, 2) - (o1 * math.Pow(255, 3)))
-	o3 := (n / math.Pow(255, 1) - (o2 * math.Pow(255, 2)) - (o1 * math.Pow(255, 3)))
-	o4 := (n / math.Pow(255, 0) - (o3 * math.Pow(255, 1)) - (o2 * math.Pow(255, 2)) - (o1 * math.Pow(255, 3)))
+	o1 := (n / int(math.Pow(255, 3)))
+	o2 := (n / int(math.Pow(255, 2)) - (o1 * int(math.Pow(255, 3))))
+	o3 := (n / int(math.Pow(255, 1)) - (o2 * int(math.Pow(255, 2))) - (o1 * int(math.Pow(255, 3))))
+	o4 := (n / int(math.Pow(255, 0)) - (o3 * int(math.Pow(255, 1))) - (o2 * int(math.Pow(255, 2))) -
+	      (o1 * int(math.Pow(255, 3))))
     // full formula (with math.Pow(255, 0)) left for readability.
 
 	subparts := strings.Split(subnet, ".")[:d]
