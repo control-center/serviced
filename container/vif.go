@@ -68,7 +68,7 @@ func (reg *VIFRegistry) nextIP() (string, error) {
 	d := m/8
 
 	n := len(reg.vifs) + 2
-	if n > int(math.Pow(255, 4-d)) {
+	if n > int(math.Pow(255, float64(4-d))) {
 		return "", fmt.Errorf("unable to allocate IPs for %d interfaces", n)
 	}
 
