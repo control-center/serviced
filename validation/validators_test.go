@@ -73,8 +73,8 @@ func (vs *ValidationSuite) Test_IsSubnetCIDR(c *C) {
 		"9.0.0.0/16",     // non-private subnet
 		"10.0.0.0/16",    // start of private subnet 10.0 - 10.255
 		"10.0.0.0/24",    // start of private subnet 10.0.0 - 10.0.255
-		"10.3.0.0/16",    //   private subnet
-		"10.3.0.0/24",    //   private subnet
+		"10.3.2.1/16",    //   private subnet
+		"10.3.3.3/24",    //   private subnet
 		"10.20.0.0/16",   //   private subnet
 		"10.255.0.0/16",  // end of private subnet
 		"11.0.0.0/16",    // non-private subnet
