@@ -135,21 +135,20 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 			return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
 		}
 		if numWarnings == 0 {
-			cmd = exec.Command("mv", tmpfilename, filename)
-			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+			if e := os.Rename(tmpfilename, filename); e != nil {
+				return fmt.Errorf("failed moving %s %s, error: %s", tmpfilename, filename, e)
 			}
 		} else {
 			cmd = exec.Command("cp", tmpfilename, filename)
 			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+				return fmt.Errorf("failed copying %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
 			}
 		}
 		cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
 		if output, e := cmd.CombinedOutput(); e != nil {
 			return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
 		}
-		//outputFile := exporter.outputFiles[i]
+
 		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
 			i,
 			outputFile.LineCount,
