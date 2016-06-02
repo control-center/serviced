@@ -82,14 +82,28 @@ type ExportLogsConfig struct {
 	outFile     *os.File
 }
 
+// logExporter is used internally to manage various operations required to export the application logs. It serves
+// as a container for all of the intermediate data used during the export operation.
 type logExporter struct {
 	ExportLogsConfig
+
+	// The ES-logstash query string
 	query                 string
+
+	// A list of dates for which ES-logstash has logs from any service
 	days                  []string
+
+	// The fully-qualified path to the temporary directory used to accummulate the application logs
 	tempdir               string
+
+	// The name of the file used to store the collected set of parser warnings
 	parseWarningsFilename string
 	parseWarningsFile     *os.File
+
+	// A map of hostid to host info used to populate the index file on completion of the export
 	hostMap               map[string]host.Host
+
+	// A list of the output files created by the export process
 	outputFiles           []outputFileInfo
 }
 
@@ -128,25 +142,8 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	indexData := []string{}
 	for i, outputFile := range exporter.outputFiles {
-		filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", i))
-		tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", i))
-		cmd := exec.Command("sort", filename, "-uo", tmpfilename)
-		if output, e := cmd.CombinedOutput(); e != nil {
-			return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
-		}
-		if numWarnings == 0 {
-			if e := os.Rename(tmpfilename, filename); e != nil {
-				return fmt.Errorf("failed moving %s %s, error: %s", tmpfilename, filename, e)
-			}
-		} else {
-			cmd = exec.Command("cp", tmpfilename, filename)
-			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed copying %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
-			}
-		}
-		cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
-		if output, e := cmd.CombinedOutput(); e != nil {
-			return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
+		if e := exporter.organizeAndGroomLogFile(i, numWarnings); e != nil {
+			return e
 		}
 
 		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
@@ -239,6 +236,7 @@ func validateConfiguration(config *ExportLogsConfig) error {
 	return nil
 }
 
+// Builds an instance of logExporter to use for the current export operation.
 func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error) ) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.query, err = exporter.buildQuery(getServices)
@@ -273,8 +271,10 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 
 	return exporter, nil
 }
+
+// Responsible for cleaning up all of the files/directories created during the export
 func (exporter *logExporter) cleanup() {
-	// Close all of the temporary files when we're done
+	// Close all of the temporary files
 	for _, outputFile := range exporter.outputFiles {
 		if e := outputFile.File.Close(); e != nil {
 			glog.Errorf("failed to close file '%s' cleanly: %s", outputFile.Name, e)
@@ -287,6 +287,7 @@ func (exporter *logExporter) cleanup() {
 		}
 	}
 
+	// close the tar file
 	if exporter.outFile != nil {
 		exporter.outFile.Close()
 	}
@@ -296,6 +297,7 @@ func (exporter *logExporter) cleanup() {
 	}
 }
 
+// Builds an ES-logstash query string based on the list of service IDs requested.
 func (exporter *logExporter) buildQuery(getServices func()([]service.Service, error)) (string, error) {
 	query := "*"
 	if len(exporter.ServiceIDs) > 0 {
@@ -347,6 +349,9 @@ func (exporter *logExporter) buildQuery(getServices func()([]service.Service, er
 	return query, nil
 }
 
+// Retrieve log data from ES-logstash, writing the log messages to separate files based on each unique
+// combination of containerID and log-file-name. Depending on the lifespan of the container and the date range
+// defined by exporter.days, some of the files created by this method may have messages from multiple dates.
 func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings int, e error) {
 	numWarnings = 0
 	foundIndexedDay = false
@@ -436,7 +441,40 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 	return foundIndexedDay, numWarnings, nil
 }
 
-// Lookup a hostID in the map.
+// Organize and cleanup the log messages retrieved from logstash.
+//
+// The data returned by ES-logstash is not necessarily ordered by time.  The output files created by retrieveLogs()
+// are formatted as "<LogstashTimestamp> <offset> <logMessage>". This method will sort the output file content by
+// timestamp and offset, and then truncate those fields from the output file such that all that remains are the
+// application log messages ordered from oldest first to newest last.
+func (exporter *logExporter) organizeAndGroomLogFile(fileIndex, numWarnings int) error {
+	filename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log", fileIndex))
+	tmpfilename := filepath.Join(exporter.tempdir, fmt.Sprintf("%03d.log.tmp", fileIndex))
+	cmd := exec.Command("sort", filename, "-uo", tmpfilename)
+	if output, e := cmd.CombinedOutput(); e != nil {
+		return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
+	}
+	if numWarnings == 0 {
+		if e := os.Rename(tmpfilename, filename); e != nil {
+			return fmt.Errorf("failed moving %s %s, error: %s", tmpfilename, filename, e)
+		}
+	} else {
+		cmd = exec.Command("cp", tmpfilename, filename)
+		if output, e := cmd.CombinedOutput(); e != nil {
+			return fmt.Errorf("failed copying %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+		}
+	}
+
+	// Remove the logstash timestamp and offset fields from the output file, so that all that remains is the
+	// message reported by the application (which may or may not include an application-level timestamp).
+	cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
+	if output, e := cmd.CombinedOutput(); e != nil {
+		return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
+	}
+	return nil
+}
+
+// Finds a host name based on a hostID.
 func (exporter *logExporter) getHostName(hostID string) string {
 	if hostID == "" {
 		// Probably a message that was logged before we added the 'ccWorkerID' field
