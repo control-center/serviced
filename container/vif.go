@@ -64,7 +64,7 @@ func (reg *VIFRegistry) SetSubnet(subnet string) error {
 func (reg *VIFRegistry) nextIP() (string, error) {
 	parts := strings.Split(reg.subnet, "/")
 	subnet := parts[0]
-	d := strconv.Atoi(parts[1])/8
+	d, _ := strconv.Atoi(parts[1])/8
 
 	n := len(reg.vifs) + 2
 	if n > int(math.Pow(255, 4-d)) {
