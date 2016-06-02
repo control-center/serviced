@@ -14,6 +14,8 @@
 package api
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/volume"
 	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
 )
@@ -56,12 +59,27 @@ type ExportLogDriver interface {
 
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
-	ServiceIDs []string
-	FromDate   string
-	ToDate     string
-	Outfile    string
-	Debug      bool
-	Driver ExportLogDriver // Driver to work with logstash ES instance; if nil a default driver will be used.
+	// A list of one or more serviced IDs to export logs for (including children)
+	ServiceIDs  []string
+
+	// In the format yyyy.mm.dd (inclusive), "" means unbounded
+	FromDate    string
+
+	// In the format yyyy.mm.dd (inclusive), "" means unbounded
+	ToDate      string
+
+        // Name of the compressed tar file containing all of the exported logs. If not specified, defaults to
+	// "./serviced-log-export-<TIMESTAMP>.tgz" where <TIMESTAMP> is an RFC3339-like string (e.g. 2016-06-02T143843Z)
+	OutFileName string
+
+	// Set to true to default more verbose logging
+	Debug       bool
+
+	// Driver to work with logstash ES instance; if nil a default driver will be used. Primarily used for testing.
+	Driver      ExportLogDriver
+
+	// the file opened for OutFileName
+	outFile     *os.File
 }
 
 type logExporter struct {
@@ -76,13 +94,6 @@ type logExporter struct {
 }
 
 // ExportLogs exports logs from ElasticSearch.
-// serviceIds: list of services to select (includes their children). Empty slice means no filter
-// from: yyyy.mm.dd (inclusive), "" means unbounded
-// to: yyyy.mm.dd (inclusive), "" means unbounded
-// outfile: the exported logs will tgz'd and written here. "" means "./serviced-log-export.tgz".
-//
-// TODO: This code is racy - creating then erasing the output file does not
-// guarantee that it will be safe to write to at the end of the function
 func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	var e error
 	e = validateConfiguration(&configParam)
@@ -156,11 +167,13 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
-	glog.Infof("Starting part 3 of 3: generate tar file: %s", exporter.Outfile)
-
-	cmd := exec.Command("tar", "-czf", exporter.Outfile, "-C", filepath.Dir(exporter.tempdir), filepath.Base(exporter.tempdir))
-	if output, e := cmd.CombinedOutput(); e != nil {
-		return fmt.Errorf("failed to write tgz cmd:%+v, error:%v, output:%s", cmd, e, string(output))
+	glog.Infof("Starting part 3 of 3: generate tar file: %s", exporter.OutFileName)
+	gz := gzip.NewWriter(exporter.outFile)
+	defer gz.Close()
+	tarfile := tar.NewWriter(gz)
+	defer tarfile.Close()
+	if e := volume.ExportDirectory(tarfile, exporter.tempdir, filepath.Base(exporter.tempdir)); e != nil {
+		return fmt.Errorf("failed to write tgz %s: %s", exporter.OutFileName, e)
 	}
 
 	if numWarnings != 0 {
@@ -182,7 +195,7 @@ func validateConfiguration(config *ExportLogsConfig) error {
 	}
 
 	// make sure we can write to outfile
-	if config.Outfile == "" {
+	if config.OutFileName == "" {
 		pwd, e := os.Getwd()
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
@@ -190,20 +203,19 @@ func validateConfiguration(config *ExportLogsConfig) error {
 		now := time.Now().UTC()
 		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
 		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		config.Outfile = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+		config.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
 	}
-	fp, e := filepath.Abs(config.Outfile)
+	fp, e := filepath.Abs(config.OutFileName)
 	if e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.Outfile, e)
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.OutFileName, e)
 	}
-	config.Outfile = filepath.Clean(fp)
-	tgzfile, e := os.Create(config.Outfile)
+	config.OutFileName = filepath.Clean(fp)
+
+	// Create the file in exclusive mode to avoid race with a concurrent invocation
+	// of the same command on the same node
+	config.outFile, e = os.OpenFile(config.OutFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
 	if e != nil {
-		return fmt.Errorf("could not create %s: %s", config.Outfile, e)
-	}
-	tgzfile.Close()
-	if e = os.Remove(config.Outfile); e != nil {
-		return fmt.Errorf("could not remove %s: %s", config.Outfile, e)
+		return fmt.Errorf("Could not create backup for %s: %s", config.OutFileName, e)
 	}
 
 	// Validate and normalize the date range filter attributes "from" and "to"
@@ -276,8 +288,12 @@ func (exporter *logExporter) cleanup() {
 		}
 	}
 
+	if exporter.outFile != nil {
+		exporter.outFile.Close()
+	}
+
 	if exporter.tempdir != "" {
-		defer os.RemoveAll(exporter.tempdir)
+		os.RemoveAll(exporter.tempdir)
 	}
 }
 

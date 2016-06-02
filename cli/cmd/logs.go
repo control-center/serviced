@@ -78,11 +78,11 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	serviceIDs := ctx.StringSlice("service")
 
 	cfg := api.ExportLogsConfig{
-		ServiceIDs: serviceIDs,
-		FromDate:   from,
-		ToDate:     to,
-		Outfile:    outfile,
-		Debug:      ctx.Bool("debug"),
+		ServiceIDs:  serviceIDs,
+		FromDate:    from,
+		ToDate:      to,
+		OutFileName: outfile,
+		Debug:       ctx.Bool("debug"),
 	}
 
 	if err := c.driver.ExportLogs(cfg); err != nil {
