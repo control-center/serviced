@@ -39,7 +39,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 	// write the backup metadata
 	if err := dfs.writeBackupMetadata(data, tarOut); err != nil {
-		glog.V(2).Infof("Unable to write backup metadata: %s", err)
+		glog.Errorf("Unable to write backup metadata: %s", err)
 		return err
 	}
 
@@ -58,7 +58,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			glog.Errorf("Could not find image %s: %s", image, err)
 			return err
 		}
-		glog.V(2).Infof("Prepared Docker image %s for backup", image)
+		glog.Infof("Prepared Docker image %s for backup", image)
 		images = append(images, image)
 	}
 
@@ -69,7 +69,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			return err
 		}
 		// load the images from this snapshot
-		glog.V(2).Infof("Preparing images for tenant %s", info.TenantID)
+		glog.Infof("Preparing images for tenant %s", info.TenantID)
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
 			glog.Errorf("Could not receive images metadata for tenant %s: %s", info.TenantID, err)
@@ -92,100 +92,88 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 				glog.Errorf("Could not get the image path from registry %s: %s", img, err)
 				return err
 			}
-			glog.V(2).Infof("Prepared Docker image %s for backup", image)
+			glog.Infof("Prepared Docker image %s for backup", image)
 			images = append(images, image)
 		}
 		timer.Stop()
+		// dump the snapshot into the backup
 		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
-
 		snapReader, errchan := dfs.snapshotSavePipe(vol, info.Label)
-		snapTar := tar.NewReader(snapReader)
-		for {
-			select {
-			case err := <-errchan:
-				if err != nil {
-					glog.Errorf("Unable to export snapshot: %s", err)
-					return err
-				}
-			default:
-			}
-			header, err := snapTar.Next()
-			if err == io.EOF {
-				// We done
-				break
-			}
-			if err != nil {
-				return err
-			}
-			// Rewrite the header name to include the prefix
-			header.Name = filepath.Join(prefix, header.Name)
-			// Write it down the out pipe
-			if err := tarOut.WriteHeader(header); err != nil {
-				return err
-			}
-			if _, err := io.Copy(tarOut, snapTar); err != nil {
-				return err
-			}
+		if err := rewriteTar(prefix, tarOut, snapReader); err != nil {
+			// be a good citizen and clean up any running threads
+			<-errchan
+			glog.Errorf("Could not write snapshot %s to backup: %s", snapshot, err)
+			return err
+		} else if err := <-errchan; err != nil {
+			glog.Errorf("Could not export snapshot %s for backup: %s", snapshot, err)
+			return err
 		}
+		glog.Infof("Exported snapshot %s to backup", snapshot)
 	}
-
+	// dump the images from all the snapshots into the backup
 	imageReader, errchan := dfs.dockerSavePipe(images...)
-	imageTar := tar.NewReader(imageReader)
-
-	for {
-		select {
-		case err := <-errchan:
-			if err != nil {
-				glog.Errorf("Unable to export snapshot: %s", err)
-				return err
-			}
-		default:
-		}
-		header, err := imageTar.Next()
-		if err == io.EOF {
-			// No more image stuffz
-			break
-		}
-		if err != nil {
-			return err
-		}
-		// Rewrite the header name to include the prefix
-		header.Name = filepath.Join(DockerImagesFile, header.Name)
-		if err := tarOut.WriteHeader(header); err != nil {
-			return err
-		}
-		if _, err := io.Copy(tarOut, imageTar); err != nil {
-			return err
-		}
+	if err := rewriteTar(DockerImagesFile, tarOut, imageReader); err != nil {
+		// be a good citizen and clean up any running threads
+		<-errchan
+		glog.Errorf("Could not write images %v to backup: %s", images, err)
+		return err
+	} else if err := <-errchan; err != nil {
+		glog.Errorf("Could not export images %v for backup: %s", images, err)
+		return err
 	}
+	glog.Infof("Exported images to backup")
 	tarOut.Close()
 	return nil
 }
 
-// dockerSavePipe streams the tar archive output by Docker to pipe's stdout
-func (dfs *DistributedFilesystem) dockerSavePipe(images ...string) (*io.PipeReader, <-chan error) {
+// savePipe is a generic io pipe that returns the reader
+func savePipe(do func(w io.Writer) error) (*io.PipeReader, <-chan error) {
 	r, w := io.Pipe()
 	errchan := make(chan error)
 	go func() {
-		if err := dfs.docker.SaveImages(images, w); err != nil {
-			errchan <- err
-		}
+		err := do(w)
 		w.Close()
+		errchan <- err
 	}()
 	return r, errchan
 }
 
+// dockerSavePipe streams the tar archive output by Docker to pipe's stdout
+func (dfs *DistributedFilesystem) dockerSavePipe(images ...string) (*io.PipeReader, <-chan error) {
+	return savePipe(func(w io.Writer) error {
+		return dfs.docker.SaveImages(images, w)
+	})
+}
+
 // snapshotSavePipe returns a pipe that exports a given volume to the pipe's stdout
 func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label string) (*io.PipeReader, <-chan error) {
-	r, w := io.Pipe()
-	errchan := make(chan error)
-	go func() {
-		if err := vol.Export(label, "", w); err != nil {
-			errchan <- err
+	return savePipe(func(w io.Writer) error {
+		return vol.Export(label, "", w)
+	})
+}
+
+// rewriteTar interprets an pipe reader as a tar reader and rewrites the
+// headers so they can get written to the outfile.
+func rewriteTar(prefix string, tarWriter *tar.Writer, r *io.PipeReader) error {
+	defer r.Close()
+	tarReader := tar.NewReader(r)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
 		}
-		w.Close()
-	}()
-	return r, errchan
+		// Rewrite the header to include the prefix
+		header.Name = filepath.Join(prefix, header.Name)
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return err
+		}
+		if _, err := io.Copy(tarWriter, tarReader); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeBackupMetadata writes out a tar stream containing a file containing the

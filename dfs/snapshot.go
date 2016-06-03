@@ -16,9 +16,10 @@ package dfs
 import (
 	"time"
 
-	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/volume"
 	"errors"
+
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -111,6 +112,7 @@ func generateSnapshotLabel() string {
 
 // checks to see if there is enough free space on volume to perform a snapshot
 func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpacePercent int) (bool, error) {
+	glog.Warningf("Calling volume.GetStatus()")
 	status := volume.GetStatus()
 	statusMap := status.DeviceMapperStatusMap[dfs.disk.Root()]
 	var amountNeeded float64
@@ -118,7 +120,7 @@ func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpac
 	for i := 0; i < len(statusMap.Tenants); i++ {
 		currentTenant := statusMap.Tenants[i]
 		if currentTenant.TenantID == vol.Tenant() {
-			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent / 100)
+			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent/100)
 			foundTenant = true
 		}
 	}

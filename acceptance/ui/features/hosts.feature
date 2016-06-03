@@ -82,7 +82,8 @@ Feature: Host Management
       And I click "Add Host"
     Then I should see "Error"
       And I should see "The port number must be between 1 and 65535"
-      And I should see an empty Hosts page
+      And I click "Cancel"
+    And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid RAM Limit field
     Given there are no hosts added

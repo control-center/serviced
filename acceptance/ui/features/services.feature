@@ -30,3 +30,4 @@ Feature: Service Management
       And VHost "table://services/childServiceWithVHost/vhostName" should exist
       And Public Port "table://services/childServiceWithVHost/publicPortNumber" should exist
       And I should see "table://services/childServiceWithVHost/configFile"
+
