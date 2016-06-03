@@ -13,6 +13,8 @@
 
 VERSION := $(shell cat ./VERSION)
 DATE := '$(shell date -u)'
+GO_VERSION := $(shell go version | awk '{print $$3}')
+EXPECTED_GO_VERSION ?= go1.4.2
 
 # GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
 # assume it will get set because the above can cause network traffic on every run
@@ -115,7 +117,14 @@ endif
 # Build targets       #
 #---------------------#
 .PHONY: default build all
-default build all: $(build_TARGETS)
+default build all: goversion $(build_TARGETS)
+
+.PHONY: goversion
+goversion:
+# Verify that we are running with the right go version
+ifneq "$(GO_VERSION)" "$(EXPECTED_GO_VERSION)"
+        $(error "Build requires go version $(EXPECTED_GO_VERSION), found $(GO_VERSION)")
+endif
 
 .PHONY: build_isvcs
 build_isvcs:
