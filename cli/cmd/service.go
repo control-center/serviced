@@ -315,7 +315,35 @@ func (c *ServicedCli) initService() {
 						Usage: "verify endpoints",
 					},
 				},
-			},
+			}, {
+				Name:        "public-endpoints",
+				Usage:       "Displays public endpoints for a service",
+				Description: "serviced service public-endpoints [SERVICEID] [ENDPOINTNAME]",
+                Action:      c.cmdPublicEndpointList,
+                Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "ascii, a",
+						Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+					},
+                    cli.BoolFlag{
+                        Name:  "ports",
+                        Usage: "Show port public endpoints",
+                    },
+                    cli.BoolFlag{
+                        Name:  "vhosts",
+                        Usage: "Show vhost public endpoints",
+                    },
+					cli.StringFlag{
+						Name:  "show-fields",
+						Value: "Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled",
+						Usage: "Comma-delimited list describing which fields to display",
+					},
+                    cli.BoolFlag{
+                        Name:  "verbose, v",
+                        Usage: "Show JSON format",
+                    },
+                },
+            },
 		},
 	})
 }
