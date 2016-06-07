@@ -1194,7 +1194,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		// It's direct-lvm, so build the metadata device from the pool name
 		mdDevice = fmt.Sprintf("/dev/mapper/%s_tmeta", status.PoolName)
 	}
-	blockstats, err := getDeviceBlockStats(status.PoolName, mdDevice)
+	blockstats, err := d.getDeviceBlockStats(status.PoolName, mdDevice)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,8 +1251,8 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 			result = append(result, tss)
 
 		} else {
-			// Something is horribly wrong; there is no device matching your tenant
-			return nil, fmt.Errorf("Tenant %s doesn't have an associated device", tenant)
+			// There is no device matching the tenant
+			return nil, fmt.Errorf("Tenant %s DFS has not yet been initialized", tenant)
 		}
 	}
 	return result, nil

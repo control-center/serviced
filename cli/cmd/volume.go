@@ -20,6 +20,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 // Initializer for serviced pool subcommands
@@ -47,22 +48,17 @@ func (c *ServicedCli) initVolume() {
 
 // serviced volume status
 func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
-	// CC-2253: pulling this command until we can fix this
-	/*
-		response, err := c.driver.GetVolumeStatus()
-		if err != nil {
-			glog.Errorf("error getting volume status: %v", err)
-			return
-		}
-		if ctx.Bool("verbose") {
-			printStatusesJson(response)
-		} else {
-			printStatuses(response)
-		}
+	response, err := c.driver.GetVolumeStatus()
+	if err != nil {
+		glog.Errorf("error getting volume status: %v", err)
 		return
-	*/
-
-	fmt.Println("Operation not available")
+	}
+	if ctx.Bool("verbose") {
+		printStatusesJson(response)
+	} else {
+		printStatuses(response)
+	}
+	return
 }
 
 func printStatuses(statuses *volume.Statuses) {

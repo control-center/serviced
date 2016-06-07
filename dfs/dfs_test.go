@@ -57,6 +57,7 @@ var (
 	ErrTestNoHash                  = errors.New("unable to get hash of image")
 	ErrTestShareNotAdded           = errors.New("could not create share")
 	ErrTestShareNotSynced          = errors.New("could not sync shares")
+	ErrTestExportFailed            = errors.New("could not export snapshot")
 )
 
 type NopCloser struct {

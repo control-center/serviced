@@ -274,15 +274,9 @@ func (sr *StatsReporter) updateStorageStats() {
 func (sr *StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
-
-	// CC-2253: Pulling this code to get a release out, will restore as soon as
-	// the problems are worked out.
-	/*
-		if sr.isMasterHost {
-			sr.updateStorageStats()
-		}
-	*/
-
+	if sr.isMasterHost {
+		sr.updateStorageStats()
+	}
 	// Stats for the containers.
 	var running []dao.RunningService
 	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)
