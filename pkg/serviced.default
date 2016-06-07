@@ -169,6 +169,10 @@
 # Default: 1    (enable)
 # SERVICED_MONITOR_DFS_MASTER_RESTART=1
 
+# Set to 1 in order to prevent this host from attempting to mount the DFS
+# Default: 1
+# SERVICED_NFS_CLIENT=1
+
 # Overrides the default for the service migration image.
 # SERVICED_SERVICE_MIGRATION_TAG=1.0.2
 
