@@ -136,7 +136,7 @@ func ValidateCommonOptions(opts Options) error {
 	}
 
 	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
-	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
+	if err := validation.IsSubnetCIDR(opts.VirtualAddressSubnet); err != nil {
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
 
@@ -228,7 +228,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		DockerRegistry:             config.StringVal("DOCKER_REGISTRY", getDefaultDockerRegistry()),
 		MaxContainerAge:            config.IntVal("MAX_CONTAINER_AGE", 60*60*24),
 		MaxDFSTimeout:              config.IntVal("MAX_DFS_TIMEOUT", 60*5),
-		VirtualAddressSubnet:       config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
+		VirtualAddressSubnet:       config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3.0.0/16"),
 		MasterPoolID:               config.StringVal("MASTER_POOLID", "default"),
 		LogstashES:                 config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
 		LogstashURL:                config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
