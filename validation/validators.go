@@ -59,6 +59,15 @@ func IsSubnet16(value string) error {
 	return nil
 }
 
+//IsSubnetCIDR checks to see if the value is a valid cidr subnet.  Returns an error if not valid
+func IsSubnetCIDR(value string) error {
+	_, _, err := net.ParseCIDR(value)
+	if nil != err {
+		return NewViolation(fmt.Sprintf("invalid subnet %s", value))
+	}
+	return nil
+}
+
 //StringsEqual checks to see that strings are equal, optional msg to use instead of default
 func StringsEqual(expected string, other string, errMsg string) error {
 	if expected != other {
