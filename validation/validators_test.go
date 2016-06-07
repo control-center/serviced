@@ -67,6 +67,55 @@ func (vs *ValidationSuite) Test_IsSubnet16(c *C) {
 	}
 }
 
+func (vs *ValidationSuite) Test_IsSubnetCIDR(c *C) {
+
+	subnetsValid := []string{
+		"9.0.0.0/16",     // non-private subnet
+		"10.0.0.0/16",    // start of private subnet 10.0 - 10.255
+		"10.0.0.0/24",    // start of private subnet 10.0.0 - 10.0.255
+		"10.3.2.1/16",    //   private subnet
+		"10.3.3.3/24",    //   private subnet
+		"10.20.0.0/16",   //   private subnet
+		"10.255.0.0/16",  // end of private subnet
+		"11.0.0.0/16",    // non-private subnet
+		"172.15.0.0/16",  // non-private subnet
+		"172.16.0.0/16",  // start of private subnet 172.16 - 172.31
+		"172.31.0.0/16",  // end of private subnet
+		"172.32.0.0/16",  // non-private subnet
+		"192.167.0.0/16", // non-private subnet
+		"192.168.0.0/16", // private subnet 192.168
+		"192.168.1.0/24", // private subnet 192.168.1
+		"192.169.0.0/16", // non-private subnet
+	}
+
+	for _, subnet := range subnetsValid {
+		if err := IsSubnetCIDR(subnet); err != nil {
+			c.Fatalf("Unexpected error validating valid subnet %s: %v", subnet, err)
+		}
+	}
+
+	subnetsInvalid := []string{
+		"10",
+		"10.10.10",
+		"10.10.10.10",
+		"10.300",
+		"10.y",
+		"x.y",
+		"10.0.0.0/35",
+		"10.400.10.325",
+		"10.10.280.10/500",
+		"10.300.0.0",
+		"10.y.0.0/24",
+		"x.y.0.0/16",
+	}
+
+	for _, subnet := range subnetsInvalid {
+		if err := IsSubnetCIDR(subnet); err == nil {
+			c.Fatalf("Unexpected non-error validating invalid subnet %s: %v", subnet, err)
+		}
+	}
+}
+
 func (vs *ValidationSuite) Test_IsValidHostID(c *C) {
 	hostIDsValid := []string{
 		"570a276e", // 10.87.110.39
