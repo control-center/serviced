@@ -13,7 +13,7 @@
 
 package master
 
-import ()
+import "github.com/control-center/serviced/domain/service"
 
 // Use a new image for a given service - this will pull the image and tag it
 func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
@@ -28,4 +28,14 @@ func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error 
 func (s *Server) WaitService(request *WaitServiceRequest, throwaway *string) error {
 	err := s.f.WaitService(s.context(), request.State, request.Timeout, request.Recursive, request.ServiceIDs...)
 	return err
+}
+
+// Get a specific service
+func (s *Server) GetService(serviceID string, svc *service.Service) error {
+	sv, err := s.f.GetService(s.context(), serviceID)
+	if err != nil {
+		return err
+	}
+	*svc = *sv
+	return nil
 }
