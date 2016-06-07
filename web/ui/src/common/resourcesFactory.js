@@ -7,8 +7,8 @@
     const DELETE = "delete";
     const POST = "post";
 
-    controlplane.factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval", "miscUtils",
-    function($http, $location, $notification, DSCacheFactory, $q, $interval, utils) {
+    controlplane.factory("resourcesFactory", ["$http", "$location", "$notification", "CacheFactory", "$q", "$interval", "miscUtils",
+    function($http, $location, $notification, CacheFactory, $q, $interval, utils) {
         // add function to $http service to allow for noCacheGet requests
         $http.noCacheGet = function(location){
           return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
