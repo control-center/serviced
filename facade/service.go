@@ -998,16 +998,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 
 		switch desiredState {
 		case service.SVCRestart:
-			// shutdown all service instances
-			var states []servicestate.ServiceState
-			if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			if err := f.shutdownInstances(svc); err != nil {
 				return err
-			}
-
-			for _, state := range states {
-				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
-					return err
-				}
 			}
 			svc.DesiredState = int(service.SVCRun)
 		default:
@@ -1026,6 +1018,21 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor)
 	return affected, err
+}
+
+// Shutdown all service instances of the given service.
+func (f *Facade) shutdownInstances(svc *service.Service) error {
+	var states []servicestate.ServiceState
+	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+		return err
+	}
+
+	for _, state := range states {
+		if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // validateServiceSchedule verifies whether a service can be scheduled to start.

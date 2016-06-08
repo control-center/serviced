@@ -324,7 +324,7 @@ func (c *ServicedCli) initService() {
 						Name:        "list",
 						Usage:       "Lists public endpoints for a service",
 						Description: "serviced service public-endpoints list [SERVICEID] [ENDPOINTNAME]",
-						Action:      c.cmdPublicEndpointsList,
+						Action:      c.cmdPublicEndpointsListAll,
 						Flags: []cli.Flag{
 							cli.BoolFlag{
 								Name:  "ascii, a",
@@ -380,19 +380,27 @@ func (c *ServicedCli) initService() {
 								Usage:       "Add a port public endpoint to a service",
 								Description: "serviced service public-endpoints port add <SERVICEID> <ENDPOINTNAME> <PORTADDR> <PROTOCOL> <ENABLED>",
 								Action:      c.cmdPublicEndpointsPortAdd,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "restart, r",
+										Usage: "Restart the service after adding the port if the service is currently running",
+									},
+								},
 							},
-							{
-								Name:        "remove",
-								Usage:       "Remove a port public endpoint from a service",
-								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
-								Action:      c.cmdPublicEndpointsPortRemove,
-							},
-							{
-								Name:        "enable",
-								Usage:       "Enable/Disable a port public endpoint for a service",
-								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> <true|false>",
-								Action:      c.cmdPublicEndpointsPortEnable,
-							},
+							/*
+								{
+									Name:        "remove",
+									Usage:       "Remove a port public endpoint from a service",
+									Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
+									Action:      c.cmdPublicEndpointsPortRemove,
+								},
+								{
+									Name:        "enable",
+									Usage:       "Enable/Disable a port public endpoint for a service",
+									Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> <true|false>",
+									Action:      c.cmdPublicEndpointsPortEnable,
+								},
+							*/
 						},
 					},
 					{
@@ -421,24 +429,26 @@ func (c *ServicedCli) initService() {
 									},
 								},
 							},
-							{
-								Name:        "add",
-								Usage:       "Add a vhost public endpoint to a service",
-								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
-								Action:      c.cmdPublicEndpointsVhostAdd,
-							},
-							{
-								Name:        "remove",
-								Usage:       "Remove a vhost public endpoint from a service",
-								Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
-								Action:      c.cmdPublicEndpointsVhostRemove,
-							},
-							{
-								Name:        "enable",
-								Usage:       "Enable/Disable a vhost public endpoint for a service",
-								Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>",
-								Action:      c.cmdPublicEndpointsVhostEnable,
-							},
+							/*
+								{
+									Name:        "add",
+									Usage:       "Add a vhost public endpoint to a service",
+									Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
+									Action:      c.cmdPublicEndpointsVhostAdd,
+								},
+								{
+									Name:        "remove",
+									Usage:       "Remove a vhost public endpoint from a service",
+									Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
+									Action:      c.cmdPublicEndpointsVhostRemove,
+								},
+								{
+									Name:        "enable",
+									Usage:       "Enable/Disable a vhost public endpoint for a service",
+									Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>",
+									Action:      c.cmdPublicEndpointsVhostEnable,
+								},
+							*/
 						},
 					},
 				},

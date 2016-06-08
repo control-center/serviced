@@ -50,10 +50,10 @@ func NewPublicEndpoint(service string, serviceID string, endpoint string, epType
 }
 
 // serviced service public-endpoints
-func (c *ServicedCli) cmdPublicEndpointsList(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsListAll(ctx *cli.Context) {
 	// If they specify only vhosts/ports, return those.  If they didn't specify
 	// either then both are returned.
-	showPublicEndpointsList(
+	cmdPublicEndpointsList(
 		c,
 		ctx,
 		ctx.Bool("vhosts") || (!ctx.Bool("vhosts") && !ctx.Bool("ports")),
@@ -63,7 +63,7 @@ func (c *ServicedCli) cmdPublicEndpointsList(ctx *cli.Context) {
 
 // Method that executes the serviced service public-endpoints list.  Also called from the
 // port list *, and vhost list * subcommands.
-func showPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, showPorts bool) {
+func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, showPorts bool) {
 	var services []service.Service
 
 	if len(ctx.Args()) > 0 {
@@ -212,7 +212,7 @@ func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Se
 // List port public endpoints
 // serviced service public-endpoints port list [SERVICEID] [ENDPOINTNAME]
 func (c *ServicedCli) cmdPublicEndpointsPortList(ctx *cli.Context) {
-	showPublicEndpointsList(c, ctx, false, true)
+	cmdPublicEndpointsList(c, ctx, false, true)
 }
 
 // Add a port public endpoint
@@ -229,6 +229,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 	portAddr := ctx.Args()[2]
 	protocol := ctx.Args()[3]
 	isEnabled, err := strconv.ParseBool(ctx.Args()[4])
+	restart := ctx.Bool("restart")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
 		return
@@ -260,7 +261,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 		return
 	}
 
-	port, err := c.driver.AddPublicEndpointPort(svc.ID, endpointName, portAddr, usetls, protocol, isEnabled)
+	port, err := c.driver.AddPublicEndpointPort(svc.ID, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	} else {
@@ -291,7 +292,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 // List vhost public endpoints
 // serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]
 func (c *ServicedCli) cmdPublicEndpointsVhostList(ctx *cli.Context) {
-	showPublicEndpointsList(c, ctx, true, false)
+	cmdPublicEndpointsList(c, ctx, true, false)
 }
 
 // Enable/Disable a port public endpoint

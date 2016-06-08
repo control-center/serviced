@@ -233,6 +233,7 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 // json object for adding/removing a port with a service
 type portRequest struct {
 	ServiceID   string
+	ServiceName string
 	Application string
 	PortName    string
 	UseTLS      bool
@@ -295,38 +296,16 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	// Get the service for this service id.
-	service, err := facade.GetService(dataCtx, request.ServiceID)
-	if err != nil {
-		err = fmt.Errorf("Could not find service %s: %s", request.ServiceID, err)
-		restServerError(w, err)
-		return
-	}
-
 	port, err := facade.AddPublicEndpointPort(dataCtx, request.ServiceID, request.Application,
-		request.PortName, request.UseTLS, request.Protocol, true)
+		request.PortName, request.UseTLS, request.Protocol, true, true)
 	if err != nil {
-		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
+		glog.Errorf("Error adding port to service (%s): %v", request.ServiceName, err)
 		restServerError(w, err)
 		return
 	}
 
 	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
-		port.PortAddr, service.Name, port.UseTLS, port.Protocol)
-
-	// Restart the service if it is running
-	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		if _, err = facade.RestartService(dataCtx, dao.ScheduleServiceRequest{ServiceID: service.ID}); err != nil {
-			glog.Errorf("Error restarting service %s: %s. Trying again in 10 seconds.", service.Name, err)
-			time.Sleep(10 * time.Second)
-			if _, err = facade.RestartService(dataCtx, dao.ScheduleServiceRequest{ServiceID: service.ID}); err != nil {
-				glog.Errorf("Error restarting service %s: %s. Aborting.", service.Name, err)
-				err = fmt.Errorf("Error restarting service %s.  Service will need to be restarted manually.", service.Name)
-				restServerError(w, err)
-				return
-			}
-		}
-	}
+		port.PortAddr, request.ServiceName, port.UseTLS, port.Protocol)
 
 	restSuccess(w)
 }

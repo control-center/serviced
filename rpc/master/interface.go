@@ -136,5 +136,5 @@ type ClientInterface interface {
 	DockerOverride(newImage, oldImage string) error
 
 	// Public Endpoint Management Functions
-	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error)
+	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
 }

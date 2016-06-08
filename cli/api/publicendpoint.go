@@ -19,11 +19,11 @@ import (
 
 // Add a new port public endpoint.
 func (a *api) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool,
-	protocol string, isEnabled bool) (*servicedefinition.Port, error) {
+	protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	return client.AddPublicEndpointPort(serviceid, endpointName, portAddr, usetls, protocol, isEnabled)
+	return client.AddPublicEndpointPort(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 }
