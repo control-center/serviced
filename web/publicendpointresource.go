@@ -26,9 +26,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"time"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // json object for adding/removing a virtual host with a service
@@ -235,7 +235,7 @@ type portRequest struct {
 	ServiceID   string
 	Application string
 	PortName    string
-	UseTLS		bool
+	UseTLS      bool
 	Protocol    string
 }
 
@@ -295,7 +295,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-    // Get the service for this service id.
+	// Get the service for this service id.
 	service, err := facade.GetService(dataCtx, request.ServiceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", request.ServiceID, err)
@@ -304,7 +304,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	port, err := facade.AddPublicEndpointPort(dataCtx, request.ServiceID, request.Application,
-                                              request.PortName, request.UseTLS, request.Protocol, true)
+		request.PortName, request.UseTLS, request.Protocol, true)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
@@ -312,7 +312,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
-					port.PortAddr, service.Name, port.UseTLS, port.Protocol)
+		port.PortAddr, service.Name, port.UseTLS, port.Protocol)
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {

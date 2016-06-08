@@ -14,19 +14,19 @@
 package facade
 
 import (
-    "fmt"
-    "net"
-    "strings"
+	"fmt"
+	"net"
+	"strings"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
 )
 
 // Adds a port public endpoint to a service
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
-                                       usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
+	usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
 	// Validate the port number
 	scrubbedPort := service.ScrubPortString(portAddr)
 	portParts := strings.Split(scrubbedPort, ":")
@@ -37,14 +37,14 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	}
 
 	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
-    // This has the added benefit of validating the port address before it gets added to the service
-    // definition.
+	// This has the added benefit of validating the port address before it gets added to the service
+	// definition.
 	if err := checkPort("tcp", fmt.Sprintf("%s", scrubbedPort)); err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 
-    // Get the service for this service id.
+	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -53,46 +53,46 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	}
 
 	// check other ports for redundancy
-    if services, err := f.GetAllServices(ctx); err != nil {
+	if services, err := f.GetAllServices(ctx); err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
 		glog.Error(err)
 		return nil, err
-    } else {
-        for _, service := range services {
-            if service.Endpoints == nil {
-                continue
-            }
+	} else {
+		for _, service := range services {
+			if service.Endpoints == nil {
+				continue
+			}
 
-            for _, endpoint := range service.Endpoints {
-                for _, epPort := range endpoint.PortList {
-                    if scrubbedPort == epPort.PortAddr {
-                        err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
-                        glog.Error(err)
-                        return nil, err
-                    }
-                }
-            }
-        }
-    }
+			for _, endpoint := range service.Endpoints {
+				for _, epPort := range endpoint.PortList {
+					if scrubbedPort == epPort.PortAddr {
+						err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
+						glog.Error(err)
+						return nil, err
+					}
+				}
+			}
+		}
+	}
 
-    // Add the port to the service definition.
-    port, err := svc.AddPort(endpointName, portAddr, usetls, protocol, isEnabled)
-    if err != nil {
+	// Add the port to the service definition.
+	port, err := svc.AddPort(endpointName, portAddr, usetls, protocol, isEnabled)
+	if err != nil {
 		glog.Error(err)
-        return nil, err
-    }
+		return nil, err
+	}
 
-    glog.V(2).Infof("Added port public endpoint %s to service %s", portAddr, svc.Name)
+	glog.V(2).Infof("Added port public endpoint %s to service %s", portAddr, svc.Name)
 
-    // Update the service.
+	// Update the service.
 	err = f.UpdateService(ctx, *svc)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 
-    glog.V(2).Infof("Service %s updated after adding port public endpoint", svc.Name)
-    return port, nil
+	glog.V(2).Infof("Service %s updated after adding port public endpoint", svc.Name)
+	return port, nil
 }
 
 // Try to open the port.  If the port opens, we're good. Otherwise return the error.

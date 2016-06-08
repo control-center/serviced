@@ -385,7 +385,7 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 						ports = append(ports, port)
 					}
 				}
-                port := &servicedefinition.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}
+				port := &servicedefinition.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}
 				ep.PortList = append(ports, *port)
 				return port, nil
 			}

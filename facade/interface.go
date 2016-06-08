@@ -49,13 +49,13 @@ type FacadeInterface interface {
 
 	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
 
-    StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+	StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
-    RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+	RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
-    PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+	PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
-    StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+	StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
@@ -106,6 +106,6 @@ type FacadeInterface interface {
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 
 	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]health.HealthCheck, error)
-    
-    AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error)
+
+	AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error)
 }

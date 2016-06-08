@@ -20,23 +20,23 @@ import (
 // Defines a request to add a port public endpoints to a service
 type PublicEndpointPortRequest struct {
 	Serviceid    string
-    EndpointName string
-    PortAddr     string
-    UseTLS       bool
-    Protocol     string
-    IsEnabled    bool
+	EndpointName string
+	PortAddr     string
+	UseTLS       bool
+	Protocol     string
+	IsEnabled    bool
 }
 
 // Adds a port public endpoint to a service.
 func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool,
-                                       protocol string, isEnabled bool) (*servicedefinition.Port, error) {
+	protocol string, isEnabled bool) (*servicedefinition.Port, error) {
 	request := &PublicEndpointPortRequest{
 		Serviceid:    serviceid,
 		EndpointName: endpointName,
 		PortAddr:     portAddr,
-        UseTLS:       usetls,
+		UseTLS:       usetls,
 		Protocol:     protocol,
-        IsEnabled:    isEnabled,
+		IsEnabled:    isEnabled,
 	}
 	var result servicedefinition.Port
 	err := c.call("AddPublicEndpointPort", request, &result)

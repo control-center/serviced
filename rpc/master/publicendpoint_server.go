@@ -19,11 +19,11 @@ import (
 
 // Adds a port public endpoint to a service.
 func (s *Server) AddPublicEndpointPort(request *PublicEndpointPortRequest, reply *servicedefinition.Port) error {
-	port, err := s.f.AddPublicEndpointPort(s.context(), request.Serviceid,request.EndpointName, request.PortAddr,
-                                           request.UseTLS, request.Protocol, request.IsEnabled)
-    if err != nil {
-        return err
-    }
-    *reply = *port
-    return err
+	port, err := s.f.AddPublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.PortAddr,
+		request.UseTLS, request.Protocol, request.IsEnabled)
+	if err != nil {
+		return err
+	}
+	*reply = *port
+	return err
 }
