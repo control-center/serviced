@@ -25,7 +25,6 @@ import (
 	"time"
 
 	. "github.com/control-center/serviced/dfs"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
@@ -70,9 +69,6 @@ func (s *DFSTestSuite) BenchmarkBackup(c *C) {
 		BaseImages: []string{"library/repo:tag"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{SnapshotName},
 		Timestamp: now,
