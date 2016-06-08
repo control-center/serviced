@@ -22,7 +22,6 @@ import (
 	"time"
 
 	. "github.com/control-center/serviced/dfs"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	. "gopkg.in/check.v1"
@@ -81,9 +80,6 @@ func (s *DFSTestSuite) TestBackupInfo_Success(c *C) {
 		BaseImages: []string{"library/repo:tag"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"testtenant_testlabel"},
 		Timestamp: time.Now().UTC(),
