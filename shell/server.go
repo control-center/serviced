@@ -29,8 +29,10 @@ import (
 	"github.com/control-center/go-socket.io"
 	"github.com/zenoss/glog"
 
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/node"
 	worker "github.com/control-center/serviced/rpc/agent"
-	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -335,15 +337,16 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistry, controller string) (*exec.Cmd, error) {
 	// look up the service on the master
-	masterClient, err := master.NewClient(masterAddress)
+	//FIXME: use rpc instead of dao
+	masterClient, err := node.NewControlClient(masterAddress)
 	if err != nil {
 		glog.Errorf("Could not connect to the master server at %s: %s", masterAddress, err)
 		return nil, err
 	}
 	defer masterClient.Close()
 	glog.Infof("Connected to master at %s", masterAddress)
-	svc, err := masterClient.GetService(cfg.ServiceID)
-	if err != nil {
+	svc := &service.Service{}
+	if err := masterClient.GetService(cfg.ServiceID, svc); err != nil {
 		glog.Errorf("Could not get service %s: %s", cfg.ServiceID, err)
 		return nil, err
 	}
@@ -430,9 +433,13 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	}
 
 	// set the systemuser and password
-	// FIXME: wtf?!?!?!
-	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=system_user "))
-	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD= "))
+	systemUser := &user.User{}
+	if err := masterClient.GetSystemUser(0, systemUser); err != nil {
+		glog.Errorf("Unable to get system user account for client: %s", err)
+	}
+
+	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
+	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))
