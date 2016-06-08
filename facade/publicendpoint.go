@@ -1,0 +1,112 @@
+// Copyright 2016 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package facade
+
+import (
+    "fmt"
+    "net"
+    "strings"
+
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
+)
+
+// Adds a port public endpoint to a service
+func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
+                                       usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
+	// Validate the port number
+	scrubbedPort := service.ScrubPortString(portAddr)
+	portParts := strings.Split(scrubbedPort, ":")
+	if len(portParts) < 2 {
+		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
+		glog.Error(err)
+		return nil, err
+	}
+
+	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
+    // This has the added benefit of validating the port address before it gets added to the service
+    // definition.
+	if err := checkPort("tcp", fmt.Sprintf("%s", scrubbedPort)); err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+    // Get the service for this service id.
+	svc, err := f.GetService(ctx, serviceID)
+	if err != nil {
+		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
+		glog.Error(err)
+		return nil, err
+	}
+
+	// check other ports for redundancy
+    if services, err := f.GetAllServices(ctx); err != nil {
+		err = fmt.Errorf("Could not get the list of services: %s", err)
+		glog.Error(err)
+		return nil, err
+    } else {
+        for _, service := range services {
+            if service.Endpoints == nil {
+                continue
+            }
+
+            for _, endpoint := range service.Endpoints {
+                for _, epPort := range endpoint.PortList {
+                    if scrubbedPort == epPort.PortAddr {
+                        err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
+                        glog.Error(err)
+                        return nil, err
+                    }
+                }
+            }
+        }
+    }
+
+    // Add the port to the service definition.
+    port, err := svc.AddPort(endpointName, portAddr, usetls, protocol, isEnabled)
+    if err != nil {
+		glog.Error(err)
+        return nil, err
+    }
+
+    glog.V(2).Infof("Added port public endpoint %s to service %s", portAddr, svc.Name)
+
+    // Update the service.
+	err = f.UpdateService(ctx, *svc)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+    glog.V(2).Infof("Service %s updated after adding port public endpoint", svc.Name)
+    return port, nil
+}
+
+// Try to open the port.  If the port opens, we're good. Otherwise return the error.
+func checkPort(network string, laddr string) error {
+	glog.V(2).Infof("Checking %s port %s", network, laddr)
+	listener, err := net.Listen(network, laddr)
+	if err != nil {
+		// Port isn't available.
+		glog.V(2).Infof("Port Listen failed; something else is using this port.")
+		return err
+	} else {
+		// Port was opened. Make sure we close it.
+		glog.V(2).Infof("Port Listen succeeded. Closing the listener.")
+		listener.Close()
+	}
+	return nil
+}

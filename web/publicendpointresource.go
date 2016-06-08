@@ -280,7 +280,7 @@ func getPortContext(r *rest.Request, client *node.ControlClient) (*svc.Service, 
 }
 
 // restAddPort parses payload, adds the port to the service, then updates the service
-func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	glog.V(1).Infof("Add PORT with %s %#v", r.URL.Path, r)
 
 	var request portRequest
@@ -291,93 +291,20 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	glog.V(0).Infof("Add PORT with %s %#v", r.URL.Path, r)
-	glog.V(0).Infof("request = %#v", request)
 
-	// Validate the port number
-	scrubbedPort := svc.ScrubPortString(request.PortName)
-	portParts := strings.Split(scrubbedPort, ":")
-	if len(portParts) <= 1 {
-		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-	port, err := strconv.Atoi(portParts[1])
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+    // Get the service for this service id.
+	service, err := facade.GetService(dataCtx, request.ServiceID)
 	if err != nil {
-		err := fmt.Errorf("Port must be a number between 1 and 65536")
-		glog.Error(err)
+		err = fmt.Errorf("Could not find service %s: %s", request.ServiceID, err)
 		restServerError(w, err)
 		return
 	}
 
-	if port < 1 || port > 65535 {
-		err := fmt.Errorf("Port must be a number between 1 and 65536")
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	switch port {
-	case 5000:
-		fallthrough
-	case 8080:
-		err := fmt.Errorf("Port %d is reserved", port)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	var services []svc.Service
-	var serviceRequest dao.ServiceRequest
-	if err := client.GetServices(serviceRequest, &services); err != nil {
-		err := fmt.Errorf("Could not get services: %v", err)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	var service *svc.Service
-	for _, _service := range services {
-		if _service.ID == request.ServiceID {
-			service = &_service
-			break
-		}
-	}
-
-	if service == nil {
-		err := fmt.Errorf("Could not find service: %s", request.ServiceID)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	//checkout other ports for redundancy
-	for _, service := range services {
-		if service.Endpoints == nil {
-			continue
-		}
-
-		for _, endpoint := range service.Endpoints {
-			for _, epPort := range endpoint.PortList {
-				if scrubbedPort == epPort.PortAddr {
-					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
-					glog.Error(err)
-					restServerError(w, err)
-					return
-				}
-			}
-		}
-	}
-
-	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
-	err = checkPort("tcp", fmt.Sprintf("%s", scrubbedPort))
-	if err != nil {
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	err = service.AddPort(request.Application, scrubbedPort, request.UseTLS, request.Protocol)
+	port, err := facade.AddPublicEndpointPort(dataCtx, request.ServiceID, request.Application,
+                                              request.PortName, request.UseTLS, request.Protocol, true)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", service.Name, err)
 		restServerError(w, err)
@@ -385,24 +312,14 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, client *node.ControlCl
 	}
 
 	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
-					request.PortName, service.Name, request.UseTLS, request.Protocol)
-
-	var unused int
-	err = client.UpdateService(*service, &unused)
-	if err != nil {
-		glog.Errorf("Unexpected error adding port to service (%s): %v", service.Name, err)
-		restServerError(w, err)
-		return
-	}
-
-	glog.V(2).Infof("Service (%s) updated", service.Name)
+					port.PortAddr, service.Name, port.UseTLS, port.Protocol)
 
 	// Restart the service if it is running
 	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+		if _, err = facade.RestartService(dataCtx, dao.ScheduleServiceRequest{ServiceID: service.ID}); err != nil {
 			glog.Errorf("Error restarting service %s: %s. Trying again in 10 seconds.", service.Name, err)
 			time.Sleep(10 * time.Second)
-			if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
+			if _, err = facade.RestartService(dataCtx, dao.ScheduleServiceRequest{ServiceID: service.ID}); err != nil {
 				glog.Errorf("Error restarting service %s: %s. Aborting.", service.Name, err)
 				err = fmt.Errorf("Error restarting service %s.  Service will need to be restarted manually.", service.Name)
 				restServerError(w, err)

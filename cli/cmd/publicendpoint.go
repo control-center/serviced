@@ -17,38 +17,53 @@ import (
 	"encoding/json"
     "fmt"
 	"os"
+    "strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/domain/service"
 )
 
 // The vhost and port public endpoint structures are different, so we'll
-// make a unified structure for output that matches the UI table.
+// make a unified structure for output (both text and json) that matches
+// the UI table.  This is only needed for output, not for api commands.
 type PublicEndpoint struct {
-    Service string
-    ServiceID string
-    Endpoint string
-    EpType string
-    Protocol string
-    Name string
-    Enabled bool
+    Service     string
+    ServiceID   string
+    Application string
+    EpType      string
+    Protocol    string
+    Name        string
+    Enabled     bool
 }
 
 func NewPublicEndpoint(service string, serviceID string, endpoint string, epType string,
                            protocol string, name string, enabled bool) PublicEndpoint {
 	return PublicEndpoint{
-        Service   : service,
-        ServiceID : serviceID,
-        Endpoint  : endpoint,
-        EpType    : epType,
-        Protocol  : protocol,
-        Name      : name,
-        Enabled   : enabled,
+        Service     : service,
+        ServiceID   : serviceID,
+        Application : endpoint,
+        EpType      : epType,
+        Protocol    : protocol,
+        Name        : name,
+        Enabled     : enabled,
 	}
 }
 
 // serviced service public-endpoints
-func (c *ServicedCli) cmdPublicEndpointList(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsList(ctx *cli.Context) {
+    // If they specify only vhosts/ports, return those.  If they didn't specify
+    // either then both are returned.
+    _cmdPublicEndpointsList(
+        c,
+        ctx,
+        ctx.Bool("vhosts") || (!ctx.Bool("vhosts") && !ctx.Bool("ports")),
+        ctx.Bool("ports") || (!ctx.Bool("vhosts") && !ctx.Bool("ports")),
+    )
+}
+
+// Method that executes the serviced service public-endpoints list.  Also called from the
+// port list *, and vhost list * subcommands.
+func _cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, showPorts bool) {
     var services []service.Service
 
 	if len(ctx.Args()) > 0 {
@@ -73,7 +88,7 @@ func (c *ServicedCli) cmdPublicEndpointList(ctx *cli.Context) {
     }
     
     // Get the list of public endpoints requested.
-    publicEndpoints, err := c.getPublicEndpoints(ctx, services)
+    publicEndpoints, err := c.getPublicEndpoints(ctx, services, showVHosts, showPorts)
     // If there was an error getting the endpoints, show the error now.
     if err != nil {
         fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -116,7 +131,7 @@ func (c *ServicedCli) cmdPublicEndpointList(ctx *cli.Context) {
         t.AddRow(map[string]interface{}{
             "Service":   pep.Service,
             "ServiceID": pep.ServiceID,
-            "Endpoint":  pep.Endpoint,
+            "Endpoint":  pep.Application,
             "Type":      pep.EpType,
             "Protocol":  pep.Protocol,
             "Name":      pep.Name,
@@ -126,15 +141,12 @@ func (c *ServicedCli) cmdPublicEndpointList(ctx *cli.Context) {
 
     t.Padding = 6
     t.Print()
+    return
 }
 
 // Create a unified list of vhosts and port based public endpoints.
-func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Service) ([]PublicEndpoint, error) {
-    // If they specify only vhosts/ports, show those.  If they didn't specify
-    // either then both are shown.
-    showVHosts := ctx.Bool("vhosts") || (!ctx.Bool("vhosts") && !ctx.Bool("ports"))
-    showPorts := ctx.Bool("ports") || (!ctx.Bool("vhosts") && !ctx.Bool("ports"))
-
+func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Service,
+        showVHosts bool, showPorts bool) ([]PublicEndpoint, error) {
     publicEndpoints := []PublicEndpoint{}
 
     // See if they provided the endpoint name
@@ -156,7 +168,7 @@ func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Se
                     publicEndpoint := NewPublicEndpoint(
                         svc.Name,
                         svc.ID,
-                        ep.Name,
+                        ep.Application,
                         "vhost",
                         "https",
                         vhost.Name,
@@ -170,7 +182,7 @@ func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Se
                     publicEndpoint := NewPublicEndpoint(
                         svc.Name,
                         svc.ID,
-                        ep.Name,
+                        ep.Application,
                         "port",
                         port.Protocol,
                         port.PortAddr,
@@ -188,3 +200,180 @@ func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Se
     
     return publicEndpoints, nil
 }
+
+// List port public endpoints
+// serviced service public-endpoints port list [SERVICEID] [ENDPOINTNAME]
+func (c *ServicedCli) cmdPublicEndpointsPortList(ctx *cli.Context)  {
+    _cmdPublicEndpointsList(c, ctx, false, true)
+}
+
+// Add a port public endpoint
+// serviced service public-endpoints port add <SERVICEID> <ENDPOINTNAME> <PORTADDR> <PROTOCOL> <ENABLED>
+func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context)  {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 5 {
+		cli.ShowCommandHelp(ctx, "add")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    portAddr := ctx.Args()[2]
+    protocol := ctx.Args()[3]
+    isEnabled, err := strconv.ParseBool(ctx.Args()[4])
+    if err != nil {
+        fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+        return
+    }
+    
+    // Determine if tls should be on.
+    usetls := false
+    switch(protocol) {
+        case "http":
+            break
+        case "https":
+            usetls = true
+            break
+        case "other":
+            protocol = "" // Stored as an empty string.
+        case "other-tls":
+            protocol = "" // Stored as an empty string.
+            usetls = true
+            break
+        default:
+            fmt.Fprintln(os.Stderr, "The protocol must be one of: https, http, other-tls, other")
+            return
+    }
+
+    // We need the serviceid, but they may have provided the service id or name.
+    svc, err := c.searchForService(serviceid)
+    if err != nil {
+        fmt.Fprintln(os.Stderr, err)
+        return
+    }
+
+    port, err := c.driver.AddPublicEndpointPort(svc.ID, endpointName, portAddr, usetls, protocol, isEnabled)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "%s\n", err)
+    } else {
+        fmt.Printf("%s\n", port.PortAddr)
+    }
+    return
+}
+
+// Remove a port public endpoint
+// serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>
+func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context)  {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 3 {
+		cli.ShowCommandHelp(ctx, "remove")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    portAddr := ctx.Args()[2]
+
+    fmt.Printf("service: %s, endpoint: %s, portAddr: %s\n",
+                serviceid, endpointName, portAddr)
+
+    return
+}
+
+// List vhost public endpoints
+// serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]
+func (c *ServicedCli) cmdPublicEndpointsVhostList(ctx *cli.Context)  {
+    _cmdPublicEndpointsList(c, ctx, true, false)
+}
+
+// Enable/Disable a port public endpoint
+// serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> <true|false>
+func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 4 {
+		cli.ShowCommandHelp(ctx, "enable")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    portAddr := ctx.Args()[2]
+    isEnabled, err := strconv.ParseBool(ctx.Args()[3])
+    if err != nil {
+        fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+        return
+    }
+
+    fmt.Printf("service: %s, endpoint: %s, portAddr: %s, enabled: %t\n",
+            serviceid, endpointName, portAddr, isEnabled)
+
+    return
+}
+
+// Add a vhost public endpoint
+// serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>"
+func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 4 {
+		cli.ShowCommandHelp(ctx, "add")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    vhostName := ctx.Args()[2]
+    isEnabled, err := strconv.ParseBool(ctx.Args()[3])
+    if err != nil {
+        fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+        return
+    }
+
+    fmt.Printf("service: %s, endpoint: %s, vhost: %s, enabled: %t\n",
+            serviceid, endpointName, vhostName, isEnabled)
+
+    return
+}
+
+// Remove a vhost public endpoint
+// serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>
+func (c *ServicedCli) cmdPublicEndpointsVhostRemove(ctx *cli.Context) {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 3 {
+		cli.ShowCommandHelp(ctx, "remove")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    vhostName := ctx.Args()[2]
+
+    fmt.Printf("service: %s, endpoint: %s, vhost: %s\n",
+        serviceid, endpointName, vhostName)
+
+    return
+}
+
+// Enable/Disable a vhost public endpoint
+// serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>
+func (c *ServicedCli) cmdPublicEndpointsVhostEnable(ctx *cli.Context) {
+    // Make sure we have each argument.
+    if len(ctx.Args()) != 4 {
+		cli.ShowCommandHelp(ctx, "enable")
+		return
+    }
+
+    serviceid := ctx.Args()[0]
+    endpointName := ctx.Args()[1]
+    vhostName := ctx.Args()[2]
+    isEnabled, err := strconv.ParseBool(ctx.Args()[3])
+    if err != nil {
+        fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
+        return
+    }
+
+    fmt.Printf("service: %s, endpoint: %s, vhost: %s, enabled: %t\n",
+            serviceid, endpointName, vhostName, isEnabled)
+
+    return    
+}
+

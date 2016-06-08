@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/metrics"
@@ -119,4 +120,7 @@ type API interface {
 
 	// Volumes
 	GetVolumeStatus() (*volume.Statuses, error)
+
+    // Public endpoints
+    AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error)
 }
