@@ -24,16 +24,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/control-center/go-socket.io"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
+	worker "github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -76,10 +75,10 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	return server
 }
 
-func NewProcessExecutorServer(port, dockerRegistry, controllerBinary, uiport string) *ProcessServer {
+func NewProcessExecutorServer(masterAddress, agentAddress, dockerRegistry, controllerBinary string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary},
+		actor: &Executor{masterAddress: masterAddress, agentAddress: agentAddress, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary},
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
@@ -293,7 +292,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 	}
 
 	//Control center is always available in a container on port 443 regardless of the ui port
-	cmd, err := StartDocker(cfg, e.dockerRegistry, e.port, e.controllerBinary)
+	cmd, err := StartDocker(cfg, e.masterAddress, e.agentAddress, e.dockerRegistry, e.controllerBinary)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -336,49 +335,45 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
-func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*exec.Cmd, error) {
-	var svc service.Service
-
-	// Create a control center client to look up the service
-	cp, err := node.NewControlClient(port)
+func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistry, controller string) (*exec.Cmd, error) {
+	// look up the service on the master
+	//FIXME: use rpc instead of dao
+	masterClient, err := node.NewControlClient(masterAddress)
 	if err != nil {
-		glog.Errorf("could not create a control center client %v", err)
+		glog.Errorf("Could not connect to the master server at %s: %s", masterAddress, err)
 		return nil, err
 	}
-	glog.Infof("Connected to the control center at port %s", port)
+	defer masterClient.Close()
+	glog.Infof("Connected to master at %s", masterAddress)
+	svc := &service.Service{}
+	if err := masterClient.GetService(cfg.ServiceID, svc); err != nil {
+		glog.Errorf("Could not get service %s: %s", cfg.ServiceID, err)
+		return nil, err
+	}
 
-	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
-		glog.Errorf("unable to find service %s", cfg.ServiceID)
-		return nil, err
-	}
+	// can we create a shell for this service?
 	if svc.DisableShell {
-		glog.Errorf("Could not start shell for service %s (%s): %s", svc.Name, svc.ID, ErrShellDisabled)
+		glog.Warningf("Shell commands are disabled for service %s (%s)", svc.Name, svc.ID)
+		return nil, ErrShellDisabled
+	} else if svc.ImageID == "" {
+		glog.Warningf("No image is configured for service %s (%s)", svc.Name, svc.ID)
 		return nil, ErrShellDisabled
 	}
-	// make sure docker image is present
-	imageID, err := commons.ParseImageID(svc.ImageID)
+
+	// lets make sure the image exists locally and is the latest
+	workerClient, err := worker.NewClient(workerAddress)
 	if err != nil {
-		glog.Errorf("Could not parse image %s: %s", svc.ImageID, err)
+		glog.Errorf("Could not connect to the worker server at %s: %s", workerAddress, err)
 		return nil, err
 	}
-	image := (&registry.Image{
-		Library: imageID.User,
-		Repo:    imageID.Repo,
-		Tag:     imageID.Tag,
-	}).String()
-	image = dockerRegistry + "/" + image
-	glog.Infof("Getting image %s", image)
-	if _, err = docker.FindImage(image, false); err != nil {
-		if docker.IsImageNotFound(err) {
-			if err := docker.PullImage(image); err != nil {
-				glog.Errorf("unable to pull image %s: %s", image, err)
-				return nil, err
-			}
-		} else {
-			glog.Errorf("unable to inspect image %s: %s", image, err)
-			return nil, err
-		}
+	defer workerClient.Close()
+	glog.Infof("Connected to agent at %s; pulling image %s", workerAddress, svc.ImageID)
+	image, err := workerClient.PullImage(dockerRegistry, svc.ImageID, time.Minute)
+	if err != nil {
+		glog.Errorf("Could not pull image %s: %s", svc.ImageID, err)
+		return nil, err
 	}
+	glog.Infof("Pulled image %s, setting up shell", image)
 
 	dir, binary := filepath.Split(controller)
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
@@ -438,12 +433,11 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	}
 
 	// set the systemuser and password
-	unused := 0
-	systemUser := user.User{}
-	err = cp.GetSystemUser(unused, &systemUser)
-	if err != nil {
-		glog.Errorf("Unable to get system user account for client %s", err)
+	systemUser := &user.User{}
+	if err := masterClient.GetSystemUser(0, systemUser); err != nil {
+		glog.Errorf("Unable to get system user account for client: %s", err)
 	}
+
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
 	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
@@ -455,14 +449,7 @@ func StartDocker(cfg *ProcessConfig, dockerRegistry, port, controller string) (*
 	argv = append(argv, image)
 	argv = append(argv, proxycmd...)
 
-	// wait for the DFS to be ready in order to start container on the latest image
-	glog.Infof("Acquiring image from the dfs...")
-	if err := cp.ReadyDFS(svc.ID, new(int)); err != nil {
-		glog.Errorf("Could not ready dfs: %s", err)
-		return nil, err
-	}
-	glog.Infof("Acquired!  Starting shell")
-
 	glog.V(1).Infof("command: docker %+v", argv)
+	glog.Infof("Shell initialized for service %s (%s), starting", svc.Name, svc.ID)
 	return exec.Command(docker, argv...), nil
 }

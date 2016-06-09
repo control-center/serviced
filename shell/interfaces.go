@@ -74,7 +74,8 @@ type Forwarder struct {
 }
 
 type Executor struct {
-	port             string
+	masterAddress    string
+	agentAddress     string
 	dockerRegistry   string
 	controllerBinary string
 }

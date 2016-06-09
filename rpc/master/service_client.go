@@ -14,9 +14,10 @@
 package master
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
-	"time"
 )
 
 type ServiceUseRequest struct {
@@ -58,4 +59,11 @@ func (c *Client) WaitService(serviceIDs []string, state service.DesiredState, ti
 	throwaway := ""
 	err := c.call("WaitService", waitSvcRequest, &throwaway)
 	return err
+}
+
+// GetService returns a service with a particular service id.
+func (c *Client) GetService(serviceID string) (*service.Service, error) {
+	svc := &service.Service{}
+	err := c.call("GetService", serviceID, svc)
+	return svc, err
 }

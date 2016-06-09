@@ -671,7 +671,8 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry, options.ControllerBinary, options.UIPort)
+		agentEndpoint := "localhost:" + options.RPCPort
+		sio := shell.NewProcessExecutorServer(options.Endpoint, agentEndpoint, options.DockerRegistry, options.ControllerBinary)
 		http.ListenAndServe(":50000", sio)
 	}()
 
