@@ -76,23 +76,23 @@ var DefaultTestServices = []service.Service{
 				CommitOnSuccess: false,
 			},
 		},
-        Endpoints: []service.ServiceEndpoint{
-            service.ServiceEndpoint {
-                Application: "zproxy",
-                Name: "zproxy",
-                PortList: DefaultTestPublicEndpointPorts,
-                PortNumber: 8080,
-                Protocol: "tcp",
-                Purpose: "export",
-            },
-            service.ServiceEndpoint {
-                Application: "zope",
-                Name: "zope",
-                PortNumber: 9080,
-                Protocol: "tcp",
-                Purpose: "import",
-            },
-        },
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortList:    DefaultTestPublicEndpointPorts,
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+			},
+			service.ServiceEndpoint{
+				Application: "zope",
+				Name:        "zope",
+				PortNumber:  9080,
+				Protocol:    "tcp",
+				Purpose:     "import",
+			},
+		},
 	}, {
 		ID:             "test-service-2",
 		Name:           "Zope",

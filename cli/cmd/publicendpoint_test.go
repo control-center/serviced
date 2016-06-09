@@ -16,8 +16,8 @@
 package cmd
 
 import (
-    "errors"
-    "fmt"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/control-center/serviced/cli/api"
@@ -38,8 +38,8 @@ var (
 
 type PublicEndpointTest struct {
 	api.API
-	fail    bool
-	ports   []servicedefinition.Port
+	fail  bool
+	ports []servicedefinition.Port
 }
 
 func (t ServiceAPITest) AddPublicEndpointPort(serviceID, endpointName, portAddr string,
@@ -62,27 +62,27 @@ func ExampleServicedCLI_CmdPublicEndpointsList_usage(t *testing.T) {
 	output := pipe(InitSnapshotAPITest, "serviced", "service", "public-endpoints", "list", "-h")
 	expected :=
 		"NAME:\n" +
-		"   list - Lists public endpoints for a service\n" +
-		"\n" +
-		"USAGE:\n" +
-		"   command list [command options] [arguments...]\n" +
-		"\n" +
-		"DESCRIPTION:\n" +
-		"   serviced service public-endpoints list [SERVICEID] [ENDPOINTNAME]\n" +
-		"\n" +
-		"OPTIONS:\n" +
-		"   --ascii, -a                                                                  use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)\n" +
-		"   --ports                                                                      Show port public endpoints\n" +
-		"   --vhosts                                                                     Show vhost public endpoints\n" +
-		"   --show-fields 'Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled'        Comma-delimited list describing which fields to display\n" +
-		"   --verbose, -v                                                                Show JSON format"
+			"   list - Lists public endpoints for a service\n" +
+			"\n" +
+			"USAGE:\n" +
+			"   command list [command options] [arguments...]\n" +
+			"\n" +
+			"DESCRIPTION:\n" +
+			"   serviced service public-endpoints list [SERVICEID] [ENDPOINTNAME]\n" +
+			"\n" +
+			"OPTIONS:\n" +
+			"   --ascii, -a                                                                  use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)\n" +
+			"   --ports                                                                      Show port public endpoints\n" +
+			"   --vhosts                                                                     Show vhost public endpoints\n" +
+			"   --show-fields 'Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled'        Comma-delimited list describing which fields to display\n" +
+			"   --verbose, -v                                                                Show JSON format"
 
 	outStr := TrimLines(fmt.Sprintf("%s", output))
 	expected = TrimLines(expected)
 
 	if expected != outStr {
 		t.Fatalf("\ngot:\n%s\nwant:\n%s", outStr, expected)
-	}    
+	}
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_InvalidService() {
@@ -172,9 +172,9 @@ func ExampleServicedCLI_CmdPublicEndpointsList_endpoint_service1_fields() {
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "--show-fields", "'Service,Name,Enabled'", "Zenoss", "zproxy")
 	//InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "Zenoss", "zproxy", "--show-fields", "'Service,Service,Name,Enabled,Enabled'")
 
-    // For whatever reason, the testcase outputs blanks for the first and last column.  Duplicating the column
-    // names shows the actual output (surrounded by blank columns).  This does not happen from the CLI issuing
-    // the same command.
+	// For whatever reason, the testcase outputs blanks for the first and last column.  Duplicating the column
+	// names shows the actual output (surrounded by blank columns).  This does not happen from the CLI issuing
+	// the same command.
 
 	// xOutput:
 	// Service       Name        Enabled
@@ -231,22 +231,22 @@ func ExampleServicedCLI_CmdPublicEndpointsList_endpoint_service1_verbose() {
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd() {
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "http", "true")
 
-    // Output:
-    // :22222
+	// Output:
+	// :22222
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd_InvalidEnable() {
 	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "http", "invalid")
 
-    // Output:
-    // The enabled flag must be true or false
+	// Output:
+	// The enabled flag must be true or false
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd_InvalidProtocol() {
 	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "invalid", "true")
 
-    // Output:
-    // The protocol must be one of: https, http, other-tls, other
+	// Output:
+	// The protocol must be one of: https, http, other-tls, other
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd_ValidProtocol() {
@@ -255,9 +255,9 @@ func ExampleServicedCLI_CmdPublicEndpointsPortAdd_ValidProtocol() {
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "other", "true")
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "other-tls", "true")
 
-    // Output:
-    // :22222
-    // :22222
-    // :22222
-    // :22222
+	// Output:
+	// :22222
+	// :22222
+	// :22222
+	// :22222
 }
