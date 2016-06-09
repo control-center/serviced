@@ -19,9 +19,10 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/domain/service"
+	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(t *C) {
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: starting")
 
 	// Add a service so we can test our public endpoint.
@@ -36,7 +37,6 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(t *C) {
 			service.ServiceEndpoint{
 				Application: "zproxy",
 				Name:        "zproxy",
-				PortList:    DefaultTestPublicEndpointPorts,
 				PortNumber:  8080,
 				Protocol:    "tcp",
 				Purpose:     "export",
@@ -55,7 +55,6 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(t *C) {
 			service.ServiceEndpoint{
 				Application: "service2",
 				Name:        "service2",
-				PortList:    DefaultTestPublicEndpointPorts,
 				PortNumber:  9090,
 				Protocol:    "tcp",
 				Purpose:     "export",
@@ -75,55 +74,55 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(t *C) {
 	// Add a valid port.
 	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
-	t.Assert(err, IsNil)
+	c.Assert(err, IsNil)
 	if port == nil {
-		t.Errorf("Adding a valid public endpoint port returned a nil port")
+		c.Errorf("Adding a valid public endpoint port returned a nil port")
 	}
 
 	// Add a duplicate port.
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding a duplicate port")
+		c.Errorf("Expected failure adding a duplicate port")
 	}
 
 	// Add a port with an invalid port range.
 	portAddr = ":70000"
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding an invalid port address %s", portAddr)
+		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
 	}
 
 	portAddr = ":0"
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding an invalid port address %s", portAddr)
+		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
 	}
 
 	portAddr = ":-1"
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding an invalid port address %s", portAddr)
+		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
 	}
 
 	// Add a port for an invalid service.
 	portAddr = ":22223"
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, "invalid", endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, "invalid", endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding a port to an invalid service", portAddr)
+		c.Errorf("Expected failure adding a port to an invalid service", portAddr)
 	}
 
 	// Add a port to a service that's defined in another service.
 	// Add a port for an invalid service.
 	portAddr = ":22222"
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, endpointName, portAddr,
+	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		t.Errorf("Expected failure adding a port that already exists in another service", portAddr)
+		c.Errorf("Expected failure adding a port that already exists in another service", portAddr)
 	}
 
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
