@@ -18,11 +18,9 @@ import (
 	"net"
 	"strings"
 
-	//"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	//"github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
 )
 
@@ -34,6 +32,12 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	portParts := strings.Split(scrubbedPort, ":")
 	if len(portParts) < 2 {
 		err := fmt.Errorf("Invalid port address. Port address be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
+		glog.Error(err)
+		return nil, err
+	}
+
+	if portAddr == "0" || strings.HasSuffix(portAddr, ":0") {
+		err := fmt.Errorf("Invalid port address. Port 0 is invalid.")
 		glog.Error(err)
 		return nil, err
 	}
