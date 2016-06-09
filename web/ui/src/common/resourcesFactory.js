@@ -93,9 +93,10 @@
                 url: (serviceID, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName, usetls, protocol) => {
+                payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
                     return JSON.stringify({
                         'ServiceID': serviceID,
+                        'ServiceName': serviceName,
                         'Application': endpointName,
                         'PortName': portName,
                         'UseTLS': usetls,

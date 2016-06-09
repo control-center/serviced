@@ -188,10 +188,11 @@
             } else if(newPublicEndpoint.type === "port"){
                 var port = newPublicEndpoint.host + ":" + newPublicEndpoint.port;
                 var serviceId = newPublicEndpoint.app_ep.ApplicationId;
+                var serviceName = newPublicEndpoint.ap_ep.Application;
                 var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
                 var usetls = newPublicEndpoint.protocol.UseTLS;
                 var protocol = newPublicEndpoint.protocol.Protocol;
-                return resourcesFactory.addPort(serviceId, serviceEndpoint, port, usetls, protocol);
+                return resourcesFactory.addPort(serviceId, serviceName, serviceEndpoint, port, usetls, protocol);
             }
         };
 
