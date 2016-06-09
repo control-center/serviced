@@ -19,10 +19,10 @@ import (
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/units"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 )
 
 var (
@@ -592,7 +592,16 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		d.options = append(d.options, "dm.fs=ext4")
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options, nil, nil)
 		if err != nil {
-			return err
+			//Try recreating the base image because sometimes something deletes it
+			glog.Errorf("Error creating device set attempting to recreate base thin device")
+			deviceSet, err = devmapper.NewDeviceSet(poolPath, false , d.options, nil, nil)
+			if err != nil {
+				return err
+			}
+			err = deviceSet.CreateBaseImage()
+			if err != nil {
+				return err
+			}
 		}
 		d.DeviceSet = deviceSet
 		prefix, err := GetDevicePrefix(poolPath)
