@@ -186,6 +186,14 @@ type DevStatus struct {
 	HighestMappedSector uint64
 }
 
+type ThinpoolInitError struct {
+	msg string
+}
+
+func (e ThinpoolInitError) Error() string {
+	return e.msg
+}
+
 func getDevName(name string) string {
 	return "/dev/mapper/" + name
 }
@@ -950,12 +958,12 @@ func (devices *DeviceSet) checkThinPool() error {
 		return err
 	}
 	if dataUsed != 0 {
-		return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
-			devices.thinPoolDevice)
+		return ThinpoolInitError{fmt.Sprintf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
+			devices.thinPoolDevice)}
 	}
 	if transactionID != 0 {
-		return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
-			devices.thinPoolDevice)
+		return ThinpoolInitError{fmt.Sprintf("Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
+			devices.thinPoolDevice)}
 	}
 	return nil
 }
