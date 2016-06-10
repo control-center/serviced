@@ -25,7 +25,6 @@ import (
 	"time"
 
 	. "github.com/control-center/serviced/dfs"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
@@ -45,9 +44,6 @@ func (s *DFSTestSuite) TestRestore_LoadImages(c *C) {
 		BaseImages: []string{"library/repo:tag"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -72,9 +68,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshot(c *C) {
 		BaseImages: []string{},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -108,9 +101,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesCreate(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
@@ -141,9 +131,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesGet(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
@@ -172,9 +159,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNotFound(c *C) {
 		BaseImages: []string{"some/image:now"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -207,9 +191,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoPush(c *C) {
 		BaseImages: []string{"some/image:now"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -245,9 +226,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
@@ -280,9 +258,6 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 		BaseImages: []string{},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots:     []string{"BASE_LABEL"},
 		Timestamp:     time.Now().UTC(),

@@ -26,11 +26,17 @@ const (
 )
 
 //createFields makes the map of tags for the logstash config including the type
-func createFields(service *service.Service, instanceID string, logConfig *servicedefinition.LogConfig) map[string]string {
+func createFields(hostID string, service *service.Service, instanceID string, logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
 	fields["service"] = service.ID
 	fields["instance"] = instanceID
+
+	// CC-2234: Note that logstash is hardcoded to inject a field named 'host' into to every message, but when run from within
+	// a docker container, the value is actually the container id, not the name of the docker host. So this tag is
+	// named a little differently to distinguish it from the tag named 'host'
+	fields["ccWorkerID"] = hostID
+
 	for _, tag := range logConfig.LogTags {
 		fields[tag.Name] = tag.Value
 	}
@@ -51,7 +57,7 @@ func formatTagsForConfFile(tags map[string]string) string {
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
-func writeLogstashAgentConfig(confPath string, service *service.Service, instanceID string, resourcePath string) error {
+func writeLogstashAgentConfig(confPath string, hostID string, service *service.Service, instanceID string, resourcePath string) error {
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
@@ -61,14 +67,14 @@ func writeLogstashAgentConfig(confPath string, service *service.Service, instanc
 			"paths": [ "%s" ],
 			"fields": %s
 		}`
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(service, instanceID, &service.LogConfigs[0])))
+	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &service.LogConfigs[0])))
 	for _, logConfig := range service.LogConfigs[1:] {
 		logstashForwarderLogConf = logstashForwarderLogConf + `,
 				{
 					"paths": [ "%s" ],
 					"fields": %s
 				}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(service, instanceID, &logConfig)))
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
 	}
 
 	logstashForwarderShipperConf := `
