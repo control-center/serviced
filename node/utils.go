@@ -252,6 +252,26 @@ func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 // with the registry.
 func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
+	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
+	dotfileHostPath := path.Join(filepath.Dir(hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(hostPath)))
+	dotfiles := []string{dotfileCompatibility, dotfileHostPath}
+
+	initialized := func() bool {
+		// return if service volume has been initialized
+		for _, dotfile := range dotfiles {
+			_, err := os.Stat(dotfile)
+			if err == nil {
+				glog.V(2).Infof("DFS volume initialized earlier for src:%s dst:%s image:%s user:%s perm:%s", hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
+				return true
+			}
+		}
+		return false
+	}
+
+	// check if directory is initialzed or being initialized before getting a ZK lock
+	if initialized(){
+		return nil
+	}
 	// use zookeeper lock of basename of hostPath (volume name)
 	zkVolumeInitLock := path.Join("/locks/volumeinit", filepath.Base(hostPath))
 	lock, err := conn.NewLock(zkVolumeInitLock)
@@ -268,19 +288,10 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 			glog.Errorf("Could not unlock %s: %s", zkVolumeInitLock, err)
 		}
 	}()
-
-	// return if service volume has been initialized
-	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
-	dotfileHostPath := path.Join(filepath.Dir(hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(hostPath)))
-	dotfiles := []string{dotfileCompatibility, dotfileHostPath}
-	for _, dotfileHostPath := range dotfiles {
-		_, err := os.Stat(dotfileHostPath)
-		if err == nil {
-			glog.V(2).Infof("DFS volume initialized earlier for src:%s dst:%s image:%s user:%s perm:%s", hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
-			return nil
-		}
+	//double check to make sure that it wasn't initialized while waiting for loc
+	if initialized(){
+		return nil
 	}
-
 	// start initializing dfs volume dir with dir in image
 	starttime := time.Now()
 

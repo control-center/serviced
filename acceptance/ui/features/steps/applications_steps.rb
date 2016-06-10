@@ -136,9 +136,9 @@ end
 
 def visitApplicationsPage()
     @applications_page = Applications.new
+    supressDeployWizard()
     @applications_page.load
     expect(@applications_page).to be_displayed
-    closeDeployWizard()
 end
 
 def fillInDeploymentID(id)

@@ -23,7 +23,6 @@ import (
 	"time"
 
 	. "github.com/control-center/serviced/dfs"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
@@ -37,9 +36,6 @@ func (s *DFSTestSuite) TestBackup_DelayOnExportError(c *C) {
 	backupInfo := BackupInfo{
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -80,9 +76,6 @@ func (s *DFSTestSuite) TestBackup_ImageNotFound(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
 		Snapshots: []string{"testtenant_testlabel"},
 		Timestamp: time.Now().UTC(),
 	}
@@ -105,9 +98,6 @@ func (s *DFSTestSuite) TestBackup_SkipTemplateImage(c *C) {
 		BaseImages: []string{"library/repo:tag"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
@@ -161,9 +151,6 @@ func (s *DFSTestSuite) TestBackup(c *C) {
 		BaseImages: []string{"library/repo:tag"},
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-		},
-		Hosts: []host.Host{
-			{ID: "test-host-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
