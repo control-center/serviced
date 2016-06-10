@@ -30,6 +30,7 @@ var (
 	ErrInvalidOption        = errors.New("invalid option")
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
+	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
 )
 
 func init() {
@@ -471,7 +472,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		glog.V(1).Infof("Error releasing device: %s", err)
 	}
 	glog.V(1).Infof("Removing volume %s", volumeName)
-	if err := d.DeviceSet.DeleteDevice(v.deviceHash(), false); err != nil {
+	if err := d.deleteDevice(v.deviceHash(), false); err != nil {
 		glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		return err
 	}
@@ -618,6 +619,14 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	return nil
+}
+
+func (d *DeviceMapperDriver) deleteDevice(deviceName string, syncDelete bool) error {
+	if deviceName == "base" || deviceName == "" {
+		glog.Errorf("Request to delete base device '%s' will not be honored", deviceName)
+		return ErrDeleteBaseDevice
+	}
+	return d.DeviceSet.DeleteDevice(deviceName, syncDelete)
 }
 
 // Name implements volume.Volume.Name
@@ -900,7 +909,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.V(2).Infof("Error deactivating device (%s): %s", deviceHash, err)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(deviceHash, false); err != nil {
+	if err := v.driver.deleteDevice(deviceHash, false); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
@@ -956,7 +965,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 		glog.V(2).Infof("Deactivated old head device %s", curDeviceHash)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(curDeviceHash, false); err != nil {
+	if err := v.driver.deleteDevice(curDeviceHash, false); err != nil {
 		glog.Warningf("Error cleaning up old head device %s: %s", curDeviceHash, err)
 	} else {
 		glog.V(2).Infof("Deleted old head device %s", curDeviceHash)
@@ -1233,7 +1242,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) (err error) 
 	glog.V(2).Infof("Created a staging device %s for snapshot %s", deviceHash, label)
 	defer func() {
 		if err != nil {
-			v.driver.DeviceSet.DeleteDevice(deviceHash, false)
+			v.driver.deleteDevice(deviceHash, false)
 		}
 	}()
 
