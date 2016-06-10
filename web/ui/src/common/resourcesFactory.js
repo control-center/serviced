@@ -90,7 +90,7 @@
             },
             addPort: {
                 method: PUT,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
                 payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {

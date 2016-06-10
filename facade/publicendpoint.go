@@ -18,6 +18,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -90,18 +91,20 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 
 	glog.V(2).Infof("Added port public endpoint %s to service %s", portAddr, svc.Name)
 
-	// If the restart flag is given and the service is running, shut down all running instances.
-	if restart && (svc.DesiredState == int(service.SVCRun) || svc.DesiredState == int(service.SVCRestart)) {
-		if err := f.shutdownInstances(svc); err != nil {
-			return nil, err
-		}
-	}
-
-	// Update the service.  This saves the new port configuration and will restart the
-	// service if svc.DesiredState was configured for service.SVCRun or service.SVCRestart.
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
 		return nil, err
+	}
+
+	glog.V(2).Infof("Service (%s) updated", svc.Name)
+
+	// Restart the service if it is running
+	if svc.DesiredState == int(service.SVCRun) || svc.DesiredState == int(service.SVCRestart) {
+		if _, err = f.RestartService(ctx, dao.ScheduleServiceRequest{ServiceID: svc.ID}); err != nil {
+			err = fmt.Errorf("Error restarting service %s: %s", svc.Name, err)
+			glog.Error(err)
+			return nil, err
+		}
 	}
 
 	glog.V(2).Infof("Service %s updated after adding port public endpoint", svc.Name)
