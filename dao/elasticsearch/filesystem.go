@@ -115,6 +115,11 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 	}
 	defer fh.Close()
 	w := gzip.NewWriter(fh)
+	// CC-2292: Limit concurrency of backup gzipping
+	// This setting will cause the writer to process up to 2 100KB blocks
+	// at a time before the writer blocks. The default was 16 250KB blocks.
+	// Smaller blocks will allow other goroutines to get time more frequently.
+	w.SetConcurrency(100000, 2)
 	defer w.Close()
 	err = dao.facade.Backup(ctx, w)
 	return
