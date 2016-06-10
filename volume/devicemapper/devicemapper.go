@@ -30,6 +30,7 @@ var (
 	ErrInvalidOption        = errors.New("invalid option")
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
+	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
 )
 
 func init() {
@@ -616,10 +617,13 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 	return nil
 }
 
+// Wrapper around DeviceSet.DeleteDevice to prevent deleting the base device
 func (d *DeviceMapperDriver) deleteDevice(deviceName string, thisBool bool) error {
 	if deviceName == "base" || deviceName == "" {
-		glog.Warningf("About to delete the base device!!!")
+		glog.Errorf("Request to delete base device '%s' will not be honored", deviceName)
+		return ErrDeleteBaseDevice
 	}
+
 	return d.DeviceSet.DeleteDevice(deviceName, thisBool)
 }
 
