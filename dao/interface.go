@@ -101,10 +101,11 @@ type FindChildRequest struct {
 }
 
 type SnapshotRequest struct {
-	ServiceID   string
-	Message     string
-	Tag         string
-	ContainerID string
+	ServiceID            string
+	Message              string
+	Tag                  string
+	ContainerID          string
+	SnapshotSpacePercent int
 }
 
 type TagSnapshotRequest struct {
@@ -282,10 +283,10 @@ type ControlPlane interface {
 
 	// Backup captures the state of the application stack and writes the output
 	// to disk.
-	Backup(dirpath string, filename *string) (err error)
+	Backup(backupRequest BackupRequest, filename *string) (err error)
 
 	// AsyncBackup is the same as backup but asynchronous
-	AsyncBackup(dirpath string, filename *string) (err error)
+	AsyncBackup(backupRequest BackupRequest, filename *string) (err error)
 
 	// Restore reverts the full application stack from a backup file
 	Restore(filename string, unused *int) (err error)

@@ -63,7 +63,7 @@ var uiConfig UIConfig
 
 // NewServiceConfig creates a new ServiceConfig
 func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int,
-	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int) *ServiceConfig {
+	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int, configuredSnapshotSpacePercent int) *ServiceConfig {
 
 	uiCfg := UIConfig{
 		PollFrequency: pollFrequency,
@@ -81,6 +81,9 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		uiConfig:    uiCfg,
 	}
 	adminGroup = aGroup
+
+	snapshotSpacePercent = configuredSnapshotSpacePercent
+
 	return &cfg
 }
 

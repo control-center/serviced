@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/volume"
+	"errors"
 )
 
 const (
@@ -25,9 +27,20 @@ const (
 )
 
 // Snapshot saves the current state of a particular application
-func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
+func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo, spaceFactor int) (string, error) {
 	label := generateSnapshotLabel()
 	vol, err := dfs.disk.Get(data.TenantID)
+
+	if volume.DriverTypeDeviceMapper == dfs.disk.DriverType() {
+		freeSpace, err := ensureFreeSpace(vol, dfs, spaceFactor)
+		if err != nil {
+			glog.Errorf("Could not determine freespace on devicemapper device %s", err)
+			return "", err
+		}
+		if !freeSpace {
+			return "", errors.New("There is not enough diskspace to complete your request. You should enlarge your thin pool using LVM tools and/or delete some snapshots")
+		}
+	}
 	if err != nil {
 		glog.Errorf("Could not get volume for tenant %s: %s", data.TenantID, err)
 		return "", err
@@ -94,4 +107,26 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 // generateSnapshotLabel creates a label for a snapshot
 func generateSnapshotLabel() string {
 	return time.Now().UTC().Format("20060102-150405.000")
+}
+
+// checks to see if there is enough free space on volume to perform a snapshot
+func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpacePercent int) (bool, error) {
+	status := volume.GetStatus()
+	statusMap := status.DeviceMapperStatusMap[dfs.disk.Root()]
+	var amountNeeded float64
+	foundTenant := false
+	for i := 0; i < len(statusMap.Tenants); i++ {
+		currentTenant := statusMap.Tenants[i]
+		if currentTenant.TenantID == vol.Tenant() {
+			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent / 100)
+			foundTenant = true
+		}
+	}
+	if !foundTenant {
+		return false, errors.New("Unable to find storage information for volume")
+	}
+	if amountNeeded > float64(statusMap.PoolDataAvailable) {
+		return false, nil
+	}
+	return true, nil
 }

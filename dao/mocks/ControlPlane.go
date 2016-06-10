@@ -619,7 +619,8 @@ func (_m *ControlPlane) GetServicesHealth(unused int, results *map[string]map[in
 }
 
 // Backup provides a mock function with given fields: dirpath, filename
-func (_m *ControlPlane) Backup(dirpath string, filename *string) error {
+func (_m *ControlPlane) Backup(backupRequest dao.BackupRequest, filename *string) error {
+	dirpath := backupRequest.Dirpath
 	ret := _m.Called(dirpath, filename)
 
 	var r0 error
@@ -633,7 +634,8 @@ func (_m *ControlPlane) Backup(dirpath string, filename *string) error {
 }
 
 // AsyncBackup provides a mock function with given fields: dirpath, filename
-func (_m *ControlPlane) AsyncBackup(dirpath string, filename *string) error {
+func (_m *ControlPlane) AsyncBackup(backupRequest dao.BackupRequest, filename *string) error {
+	dirpath := backupRequest.Dirpath
 	ret := _m.Called(dirpath, filename)
 
 	var r0 error
