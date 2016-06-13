@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
 )
 
@@ -72,6 +73,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	restart := false
 
 	// Add a valid port.
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
 	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	c.Assert(err, IsNil)
