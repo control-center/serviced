@@ -124,7 +124,7 @@ func (z *zkf) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpoin
 	}
 	if len(publicEndpointEphemeralNodes) > 0 {
 		if publicEndpoint := publicEndpointEphemeralNodes[0]; publicEndpoint.ServiceID != serviceID {
-			err := fmt.Errorf("public end point %s is already running under service %s", publicendpoint, publicEndpoint.ServiceID)
+			err := fmt.Errorf("public end point %s is already running under service %s", publicendpoint, publicEndpoint.Application)
 			return err
 		}
 	}
