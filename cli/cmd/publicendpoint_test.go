@@ -169,14 +169,9 @@ func ExampleServicedCLI_CmdPublicEndpointsList_endpointInvalid() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_endpoint_service1_fields() {
-	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "--show-fields", "'Service,Name,Enabled'", "Zenoss", "zproxy")
-	//InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "Zenoss", "zproxy", "--show-fields", "'Service,Service,Name,Enabled,Enabled'")
+	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "--show-fields", "Service,Name,Enabled", "Zenoss", "zproxy")
 
-	// For whatever reason, the testcase outputs blanks for the first and last column.  Duplicating the column
-	// names shows the actual output (surrounded by blank columns).  This does not happen from the CLI issuing
-	// the same command.
-
-	// xOutput:
+	// Output:
 	// Service       Name        Enabled
 	//   Zenoss      :22222      true
 	//   Zenoss      :22223      true

@@ -28,6 +28,7 @@ import (
 // Adds a port public endpoint to a service
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
 	usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+
 	// Validate the port number
 	scrubbedPort := service.ScrubPortString(portAddr)
 	portParts := strings.Split(scrubbedPort, ":")
@@ -85,6 +86,14 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	// Add the port to the service definition.
 	port, err := svc.AddPort(endpointName, portAddr, usetls, protocol, isEnabled)
 	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	// Make sure no other service currently has zzk data for this port -- this would result
+	// in the service getting turned off during restart but not being able to start again.
+	if err := f.validateServiceStart(ctx, svc); err != nil {
+		// We don't call UpdateService() service here; effectively unwinding the svc.AddPort() call above.
 		glog.Error(err)
 		return nil, err
 	}

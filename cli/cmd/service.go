@@ -412,7 +412,7 @@ func (c *ServicedCli) initService() {
 								Name:        "list",
 								Usage:       "List vhost public endpoints for a service",
 								Description: "serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]",
-								Action:      c.cmdPublicEndpointsPortList,
+								Action:      c.cmdPublicEndpointsVhostList,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
 										Name:  "ascii, a",
