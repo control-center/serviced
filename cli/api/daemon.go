@@ -404,7 +404,7 @@ func (d *daemon) initContext() (datastore.Context, error) {
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	coordzk.RegisterZKLogger()
-	dsn := coordzk.NewDSN(zks, time.Second*15).String()
+	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	return coordclient.New("zookeeper", dsn, "/", nil)
 }

@@ -198,3 +198,6 @@
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
+
+# Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
+# SERVICED_ZK_SESSION_TIMEOUT=15
