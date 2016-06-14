@@ -700,6 +700,7 @@ func (d *daemon) startAgent() error {
 			LogstashURL:          options.LogstashURL,
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
+			ZKSessionTimeout:     options.ZKSessionTimeout,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
