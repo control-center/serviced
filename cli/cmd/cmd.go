@@ -110,6 +110,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
+		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -251,6 +252,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		AllowLoopBack:              ctx.GlobalString("allow-loop-back"),
 		UIPollFrequency:            ctx.GlobalInt("ui-poll-frequency"),
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
+		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
