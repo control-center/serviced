@@ -95,15 +95,16 @@ type HostAgent struct {
 	dockerLogDriver      string
 	dockerLogConfig      map[string]string
 	pullreg              registry.Registry
+	zkSessionTimeout     int
 }
 
-func getZkDSN(zookeepers []string) string {
+func getZkDSN(zookeepers []string, timeout int) string {
 	if len(zookeepers) == 0 {
 		zookeepers = []string{"127.0.0.1:2181"}
 	}
 	dsn := coordzk.DSN{
 		Servers: zookeepers,
-		Timeout: time.Second * 15,
+		Timeout: time.Duration(timeout) * time.Second,
 	}
 	return dsn.String()
 }
@@ -127,6 +128,7 @@ type AgentOptions struct {
 	LogstashURL          string
 	DockerLogDriver      string
 	DockerLogConfig      map[string]string
+	ZKSessionTimeout     int
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -148,9 +150,10 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.logstashURL = options.LogstashURL
 	agent.dockerLogDriver = options.DockerLogDriver
 	agent.dockerLogConfig = options.DockerLogConfig
+	agent.zkSessionTimeout = options.ZKSessionTimeout
 
 	var err error
-	dsn := getZkDSN(options.Zookeepers)
+	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
 	if agent.zkClient, err = coordclient.New("zookeeper", dsn, "", nil); err != nil {
 		return nil, err
 	}
