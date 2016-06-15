@@ -219,6 +219,8 @@ func getFilesystemStats(dev string) (uint64, uint64, error) {
 	if err = cmd.Start(); err != nil {
 		return 0, 0, err
 	}
+	defer cmd.Wait()
+	defer out.Close()
 	scanner := bufio.NewScanner(out)
 	var blocksize, totalblocks, freeblocks uint64
 	for scanner.Scan() {
