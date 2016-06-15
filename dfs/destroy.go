@@ -22,31 +22,34 @@ import (
 func (dfs *DistributedFilesystem) Destroy(tenantID string) error {
 	vol, err := dfs.disk.Get(tenantID)
 	if err != nil {
-		glog.Errorf("Could not get volume for tenant %s: %s", tenantID, err)
-		return err
-	}
-	snapshots, err := vol.Snapshots()
-	if err != nil {
-		glog.Errorf("Could not get snapshots for tenant %s: %s", tenantID, err)
-		return err
-	}
-	for _, snapshot := range snapshots {
-		if err := dfs.Delete(snapshot); err != nil {
-			glog.Errorf("Could not remove snapshot %s for tenant %s: %s", snapshot, tenantID, err)
-			return err
+		glog.Errorf("Error destroying DFS:  Could not get volume for tenant %s: %s", tenantID, err)
+	} else {
+		// Remove all the stuff we need a volume object for
+		snapshots, err := vol.Snapshots()
+		if err != nil {
+			glog.Errorf("Could not get snapshots for tenant %s: %s", tenantID, err)
+		} else {
+			for _, snapshot := range snapshots {
+				if err := dfs.Delete(snapshot); err != nil {
+					glog.Errorf("Could not remove snapshot %s for tenant %s: %s", snapshot, tenantID, err)
+				}
+			}
+		}
+
+		if err := dfs.unexport(vol.Path()); err != nil {
+			glog.Errorf("Could not unexport path %s: %s", vol.Path(), err)
 		}
 	}
+
 	if err := dfs.deleteImages(tenantID, docker.Latest); err != nil {
-		return err
+		glog.Errorf("Could not delete images for tenant %s: %s", tenantID, err)
 	}
-	if err := dfs.unexport(vol.Path()); err != nil {
-		glog.Errorf("Could not unexport path %s: %s", vol.Path(), err)
-		return err
-	}
+
 	if err := dfs.disk.Remove(tenantID); err != nil {
 		glog.Errorf("Could not remove application data for tenant %s: %s", tenantID, err)
 		return err
 	}
+
 	return nil
 }
 
