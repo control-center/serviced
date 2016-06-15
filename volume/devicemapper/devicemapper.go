@@ -31,6 +31,7 @@ var (
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
 	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
+	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device")
 )
 
 func init() {
@@ -240,6 +241,22 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 	return vol, nil
 }
 
+// loadVolume builds a volume object from an existing volume.  This is a wrapper around newVolume that returns an error
+//  if the deviceHash returned is empty or equal to the base device
+func (d *DeviceMapperDriver) loadVolume(volumeName string) (*DeviceMapperVolume, error) {
+	vol, err := d.newVolume(volumeName)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceHash := vol.deviceHash()
+	if deviceHash == "" || deviceHash == "base" {
+		return nil, ErrBaseDeviceHash
+	}
+
+	return vol, err
+}
+
 // GetTenant implements volume.Driver.GetTenant
 func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error) {
 	if !d.Exists(volumeName) {
@@ -250,7 +267,7 @@ func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error)
 
 // Resize implements volume.Driver.Resize.
 func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		return err
 	}
@@ -331,7 +348,7 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Get() (%s) START", volumeName)
 	defer glog.V(2).Infof("Get() (%s) END", volumeName)
 	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
 		return nil, err
@@ -386,7 +403,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 	}
 	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
 	for _, volname := range d.List() {
-		_, err := d.newVolume(volname)
+		_, err := d.loadVolume(volname)
 		if err != nil {
 			glog.V(1).Infof("Unable to get volume %s; skipping", volname)
 			continue
@@ -402,7 +419,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 func (d *DeviceMapperDriver) Release(volumeName string) error {
 	glog.V(2).Infof("Release() (%s) START", volumeName)
 	defer glog.V(2).Infof("Release() (%s) END", volumeName)
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		return err
 	}
@@ -453,7 +470,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		return nil
 	}
 	// get the volume
-	v, err := d.newVolume(volumeName)
+	v, err := d.loadVolume(volumeName)
 	if err != nil {
 		return err
 	}
@@ -1152,7 +1169,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 	}
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
-		vol, err := d.newVolume(tenant)
+		vol, err := d.loadVolume(tenant)
 		if err != nil {
 			return nil, err
 		}
