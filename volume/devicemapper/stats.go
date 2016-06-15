@@ -212,10 +212,12 @@ func getDeviceSize(dev string) (uint64, error) {
 // information.
 func getFilesystemStats(dev string) (uint64, uint64, error) {
 	cmd := exec.Command("dumpe2fs", dev)
+	defer cmd.Wait()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return 0, 0, err
 	}
+	defer out.Close()
 	if err = cmd.Start(); err != nil {
 		return 0, 0, err
 	}
