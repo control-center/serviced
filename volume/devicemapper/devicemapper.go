@@ -475,27 +475,35 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 	// get the volume
 	v, err := d.loadVolume(volumeName)
 	if err != nil {
-		return err
-	}
-	// remove the snapshots
-	glog.V(1).Infof("Removing snapshots from %s", volumeName)
-	snapshots, err := v.Snapshots()
-	if err != nil {
-		return err
-	}
-	for _, snapshot := range snapshots {
-		if err := v.RemoveSnapshot(snapshot); err != nil {
-			return err
+		//log the error, but continue trying to remove things
+		glog.Errorf("Error loading volume %s: %s", volumeName, err)
+	} else {
+		// remove the snapshots
+		glog.V(1).Infof("Removing snapshots from %s", volumeName)
+		snapshots, err := v.Snapshots()
+		if err != nil {
+			glog.Errorf("Error getting list of snapshots for volume %s: %s", volumeName, err)
+		} else {
+			for _, snapshot := range snapshots {
+				if err := v.RemoveSnapshot(snapshot); err != nil {
+					glog.Errorf("Could not remove snapshot: %s", err)
+				}
+			}
+		}
+
+		// Release the device (requires another call to loadVolume)
+		if err := d.Release(volumeName); err != nil {
+			glog.V(1).Infof("Error releasing device: %s", err)
+		}
+
+		// Delete the device
+		glog.V(1).Infof("Removing volume %s", volumeName)
+		if err := d.deleteDevice(v.deviceHash(), false); err != nil {
+			glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		}
 	}
-	if err := d.Release(volumeName); err != nil {
-		glog.V(1).Infof("Error releasing device: %s", err)
-	}
-	glog.V(1).Infof("Removing volume %s", volumeName)
-	if err := d.deleteDevice(v.deviceHash(), false); err != nil {
-		glog.Errorf("Could not delete device %s: %s", volumeName, err)
-		return err
-	}
+
+	// Remove the metadata directory
 	if err := os.RemoveAll(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
 		return err
 	}
