@@ -101,12 +101,17 @@ end
 def visitHostsPage()
     oldWait = setDefaultWaitTime(180)
     @hosts_page = Hosts.new
+    supressDeployWizard()
+    # printf "....load host page..."
     @hosts_page.load
+    # printf "done\n....wait for page..."
     expect(@hosts_page).to be_displayed
+    # printf "done\n....wait for animation..."
     setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
     @hosts_page.has_no_css?(".loading_wrapper")
+    # printf "done\n"
 end
 
 def fillInHost(host)

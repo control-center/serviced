@@ -28,6 +28,7 @@ import (
 
 	"github.com/control-center/serviced/commons/diet"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 var storageStatsUpdateInterval time.Duration = 300
@@ -71,22 +72,6 @@ func hasMetadataSnap(pool string) (bool, error) {
 	return block != "-", nil
 }
 
-func reserveMetadataSnap(pool string) error {
-	cmd := exec.Command("dmsetup", "message", pool, "0", "reserve_metadata_snap")
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func releaseMetadataSnap(pool string) error {
-	cmd := exec.Command("dmsetup", "message", pool, "0", "release_metadata_snap")
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func getMetadataBlock(pool string) (string, error) {
 	cmd := exec.Command("dmsetup", "status", pool)
 	out, err := cmd.Output()
@@ -97,6 +82,36 @@ func getMetadataBlock(pool string) (string, error) {
 	return strings.TrimSpace(parts[6]), nil
 }
 
+// reserveMetadataSnap reserves a userspace snapshot of a thin pool's metadata.
+// We shell out to send the message to the device-mapper subsystem, but we lock
+// our internal DeviceSet to avoid any complications with creating or removing
+// devices simultaneously.
+func (d *DeviceMapperDriver) reserveMetadataSnap(pool string) error {
+	d.DeviceSet.Lock()
+	defer d.DeviceSet.Unlock()
+	cmd := exec.Command("dmsetup", "message", pool, "0", "reserve_metadata_snap")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// releaseMetadataSnap releases an existing userspace snapshot of a thin pool's
+// metadata.  We shell out to send the message to the device-mapper subsystem,
+// but we lock our internal DeviceSet to avoid any complications with creating
+// or removing devices simultaneously.
+func (d *DeviceMapperDriver) releaseMetadataSnap(pool string) error {
+	d.DeviceSet.Lock()
+	defer d.DeviceSet.Unlock()
+	cmd := exec.Command("dmsetup", "message", pool, "0", "release_metadata_snap")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// getDevices acts on an existing userspace metadata snapshot, and has no
+// potential devicemapper conflicts. It simply dumps the XML and parses it.
 func getDevices(pool, block, metadatadev string) (map[int]*DeviceBlockStats, error) {
 	cmd := exec.Command("thin_dump", "-f", "xml", metadatadev, "-m", block)
 	stdout, err := cmd.StdoutPipe()
@@ -176,6 +191,8 @@ func parseMetadata(r io.Reader) (map[int]*DeviceBlockStats, error) {
 	return devices, nil
 }
 
+// getDeviceSize calls lsblk in a subprocess to retrieve the size in bytes of
+// a given device.
 func getDeviceSize(dev string) (uint64, error) {
 	cmd := exec.Command("lsblk", "-dbno", "SIZE", dev)
 	out, err := cmd.Output()
@@ -189,12 +206,18 @@ func getDeviceSize(dev string) (uint64, error) {
 	return size, nil
 }
 
+// getFilesystemStats calls dumpe2fs in a subprocess to retrieve filesystem
+// statistics. Currently, only ext2/3/4 filesystems are supported by this call;
+// XFS filesystems appear to require mounting in order to retrieve the same
+// information.
 func getFilesystemStats(dev string) (uint64, uint64, error) {
 	cmd := exec.Command("dumpe2fs", dev)
+	defer cmd.Wait()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return 0, 0, err
 	}
+	defer out.Close()
 	if err = cmd.Start(); err != nil {
 		return 0, 0, err
 	}
@@ -238,13 +261,14 @@ type cachedStat struct {
 	value  map[int]*DeviceBlockStats
 }
 
-func getDeviceBlockStats(pool, metadatadev string) (map[int]*DeviceBlockStats, error) {
+func (d *DeviceMapperDriver) getDeviceBlockStats(pool, metadatadev string) (map[int]*DeviceBlockStats, error) {
 	var value map[int]*DeviceBlockStats
 	pool = fmt.Sprintf("/dev/mapper/%s", strings.TrimPrefix(pool, "/dev/mapper/"))
 	statscache.locks.LockKey(pool)
 	defer statscache.locks.UnlockKey(pool)
 	val, ok := statscache.cache[pool]
 	if !ok || time.Now().After(val.expiry) {
+		glog.Infof("Refreshing storage stats cache from thin pool metadata")
 		// Check for an existing snapshot of the metadata device.
 		hasSnap, err := hasMetadataSnap(pool)
 		if err != nil {
@@ -254,15 +278,15 @@ func getDeviceBlockStats(pool, metadatadev string) (map[int]*DeviceBlockStats, e
 		// of band processes
 		if hasSnap {
 			// Release the existing snapshot.
-			if err := releaseMetadataSnap(pool); err != nil {
+			if err := d.releaseMetadataSnap(pool); err != nil {
 				return nil, err
 			}
 		}
 		// Take a userspace-accessible snapshot of the metadata device.
-		if err := reserveMetadataSnap(pool); err != nil {
+		if err := d.reserveMetadataSnap(pool); err != nil {
 			return nil, err
 		}
-		defer releaseMetadataSnap(pool)
+		defer d.releaseMetadataSnap(pool)
 		// Ask for the block at which the metadata snap is accessible
 		block, err := getMetadataBlock(pool)
 		if err != nil {
@@ -274,10 +298,14 @@ func getDeviceBlockStats(pool, metadatadev string) (map[int]*DeviceBlockStats, e
 		if err != nil {
 			return nil, err
 		}
-		statscache.cache[pool] = &cachedStat{
-			expiry: time.Now().Add(storageStatsUpdateInterval * time.Second),
-			pool:   pool,
-			value:  value,
+		// Don't cache if there aren't any devices besides the base device yet
+		// (e.g., initial deployment)
+		if len(value) > 1 {
+			statscache.cache[pool] = &cachedStat{
+				expiry: time.Now().Add(storageStatsUpdateInterval * time.Second),
+				pool:   pool,
+				value:  value,
+			}
 		}
 	} else {
 		value = val.value

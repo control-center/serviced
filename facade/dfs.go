@@ -79,12 +79,6 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent
 		return err
 	}
 	glog.Infof("Loaded resource pools")
-	hosts, err := f.GetHosts(ctx)
-	if err != nil {
-		glog.Errorf("Could not get hosts: %s", err)
-		return err
-	}
-	glog.Infof("Loaded hosts")
 	tenants, err := f.getTenantIDs(ctx)
 	if err != nil {
 		glog.Errorf("Could not get tenants: %s", err)
@@ -107,7 +101,6 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent
 		Templates:     templates,
 		BaseImages:    images,
 		Pools:         pools,
-		Hosts:         hosts,
 		Snapshots:     snapshots,
 		Timestamp:     stime,
 		BackupVersion: 1,
@@ -434,11 +427,6 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 		return err
 	}
 	glog.Infof("Restored resource pools")
-	if err := f.RestoreHosts(ctx, backupInfo.Hosts); err != nil {
-		glog.Errorf("Could not restore hosts from backup: %s", err)
-		return err
-	}
-	glog.Infof("Loaded hosts")
 	for _, snapshot := range backupInfo.Snapshots {
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			glog.Errorf("Could not rollback snapshot %s: %s", snapshot, err)

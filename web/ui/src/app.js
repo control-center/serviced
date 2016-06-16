@@ -23,7 +23,7 @@ var DEBUG = false;
 var controlplane = angular.module('controlplane', [
     'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate',
     'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
-    'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
+    'modalService', 'angular-cache', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
     'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log'
@@ -75,9 +75,10 @@ controlplane.
         });
         $translateProvider.preferredLanguage('en_US');
         $translateProvider.fallbackLanguage('en_US');
+        $translateProvider.useSanitizeValueStrategy('escape');
     }]).
-    config(['DSCacheFactoryProvider', function(DSCacheFactory){
-        DSCacheFactory.setCacheDefaults({
+    config(['CacheFactoryProvider', function(CacheFactoryProvider){
+        angular.extend(CacheFactoryProvider.defaults, {
             // Items will not be deleted until they are requested
             // and have expired
             deleteOnExpire: 'passive',

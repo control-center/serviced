@@ -103,6 +103,7 @@ type Options struct {
 	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
+	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 }
 
 // LoadOptions overwrites the existing server options
@@ -136,7 +137,7 @@ func ValidateCommonOptions(opts Options) error {
 	}
 
 	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
-	if err := validation.IsSubnet16(opts.VirtualAddressSubnet); err != nil {
+	if err := validation.IsSubnetCIDR(opts.VirtualAddressSubnet); err != nil {
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
 	}
 
@@ -228,7 +229,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		DockerRegistry:             config.StringVal("DOCKER_REGISTRY", "localhost:5000"),
 		MaxContainerAge:            config.IntVal("MAX_CONTAINER_AGE", 60*60*24),
 		MaxDFSTimeout:              config.IntVal("MAX_DFS_TIMEOUT", 60*5),
-		VirtualAddressSubnet:       config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
+		VirtualAddressSubnet:       config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3.0.0/16"),
 		MasterPoolID:               config.StringVal("MASTER_POOLID", "default"),
 		LogstashES:                 config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
 		LogstashURL:                config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)),
@@ -253,6 +254,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		UIPollFrequency:            config.IntVal("UI_POLL_FREQUENCY", 3),
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
+		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

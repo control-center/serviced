@@ -169,6 +169,10 @@
 # Default: 1    (enable)
 # SERVICED_MONITOR_DFS_MASTER_RESTART=1
 
+# Set to 0 in order to prevent this host from attempting to mount the DFS
+# Default: 1
+# SERVICED_NFS_CLIENT=1
+
 # Overrides the default for the service migration image.
 # SERVICED_SERVICE_MIGRATION_TAG=1.0.2
 
@@ -198,3 +202,6 @@
 # Percent of tenant volume size that is assumed to be used.  This is used to determine if the volume has enough
 # free space for creating a snapshot.  Defaults to 20
 # SERVICED_SNAPSHOT_USE_PERCENT=20
+
+# Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
+# SERVICED_ZK_SESSION_TIMEOUT=15

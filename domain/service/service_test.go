@@ -107,16 +107,16 @@ func (s *S) TestAddPort(t *C) {
 	}
 
 	var err error
-	if err = svc.AddPort("empty_server", ":1234", false, "http"); err == nil {
+	if _, err = svc.AddPort("empty_server", ":1234", false, "http", true); err == nil {
 		t.Errorf("Expected error adding port")
 	}
 
-	if err = svc.AddPort("server", ":1234", false, "http"); err != nil {
+	if _, err = svc.AddPort("server", ":1234", false, "http", true); err != nil {
 		t.Errorf("Unexpected error adding port: %v", err)
 	}
 
 	//no duplicate ports can be added
-	if err = svc.AddPort("server", "1234", false, "http"); err != nil {
+	if _, err = svc.AddPort("server", "1234", false, "http", true); err != nil {
 		t.Errorf("Unexpected error adding port: %v", err)
 	}
 

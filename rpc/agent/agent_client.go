@@ -14,6 +14,8 @@
 package agent
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
@@ -55,4 +57,17 @@ func (c *Client) GetDockerLogs(dockerID string) (string, error) {
 	var logs string
 	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs, 0)
 	return logs, err
+}
+
+// PullImage pulls the image from the provided registry and returns the local
+// image tag.
+func (c *Client) PullImage(registry, image string, timeout time.Duration) (string, error) {
+	req := PullImageRequest{
+		Registry: registry,
+		Image:    image,
+		Timeout:  timeout,
+	}
+	imageTag := ""
+	err := c.rpcClient.Call("Agent.PullImage", req, &imageTag, 0)
+	return imageTag, err
 }

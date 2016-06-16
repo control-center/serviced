@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/health"
@@ -127,7 +128,7 @@ func (m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Desi
 
 	return r0
 }
-func (m *FacadeInterface)AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error) {
+func (m *FacadeInterface) AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error) {
 	ret := m.Called(ctx, assignmentRequest)
 
 	r0 := ret.Error(0)
@@ -169,7 +170,7 @@ func (m *FacadeInterface) DeployTemplate(ctx datastore.Context, poolID string, t
 	ret := m.Called(ctx, poolID, templateID, deploymentID)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func()[]string); ok {
+	if rf, ok := ret.Get(0).(func() []string); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
@@ -190,7 +191,7 @@ func (m *FacadeInterface) DeployTemplateActive() (active []map[string]string, er
 	ret := m.Called()
 
 	var r0 []map[string]string
-	if rf, ok := ret.Get(0).(func()[]map[string]string); ok {
+	if rf, ok := ret.Get(0).(func() []map[string]string); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
@@ -211,7 +212,7 @@ func (m *FacadeInterface) DeployTemplateStatus(deploymentID string) (status stri
 	ret := m.Called(deploymentID)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func()string); ok {
+	if rf, ok := ret.Get(0).(func() string); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
@@ -257,7 +258,7 @@ func (m *FacadeInterface) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 
 	return r0, r1
 }
-func (m* FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
+func (m *FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	ret := m.Called(ctx)
 
 	var r0 []string
@@ -268,14 +269,14 @@ func (m* FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, err
 
 	return r0, r1
 }
-func (m* FacadeInterface) UpdateHost(ctx datastore.Context, entity *host.Host) error {
+func (m *FacadeInterface) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	ret := m.Called(ctx, entity)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m* FacadeInterface) RemoveHost(ctx datastore.Context, hostID string) error {
+func (m *FacadeInterface) RemoveHost(ctx datastore.Context, hostID string) error {
 	ret := m.Called(ctx, hostID)
 
 	r0 := ret.Error(0)
@@ -377,4 +378,15 @@ func (_m *FacadeInterface) UpgradeRegistry(ctx datastore.Context, fromRegistryHo
 	}
 
 	return r0
+}
+func (m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+	ret := m.Called(ctx, serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
+
+	var r0 *servicedefinition.Port
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*servicedefinition.Port)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
 }

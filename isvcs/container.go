@@ -432,7 +432,21 @@ func (svc *IService) start() (<-chan int, error) {
 	select {
 	case err := <-svc.startupHealthcheck():
 		if err != nil {
-			glog.Errorf("Healthcheck for %s failed: %s", svc.Name, err)
+			err = fmt.Errorf("Startup healthcheck for %s failed after %3.0f seconds: %s", svc.Name, svc.StartupTimeout.Seconds(), err)
+			glog.Error(err)
+			// Dump last 10000 lines of container if possible.
+			if output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput(); err != nil {
+				glog.Errorf("Could not get logs for container %s", ctr.ID)
+			} else {
+				prefix := fmt.Sprintf("ctr-%s: ", svc.Name)
+				split := strings.Split(string(output), "\n")
+				for i, s := range split {
+					split[i] = prefix + s
+				}
+				final := strings.Join(split, "\n")
+				glog.Warningf("Last 10000 lines of container %s:\n %s", ctr.ID, string(final))
+
+			}
 			svc.stop()
 			return nil, err
 		}

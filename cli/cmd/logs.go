@@ -55,6 +55,10 @@ func (c *ServicedCli) initLog() {
 						Value: "",
 						Usage: "path to output file",
 					},
+					cli.BoolFlag{
+						Name:  "debug, d",
+						Usage: "Show additional diagnostic messages",
+					},
 				},
 			},
 		},
@@ -84,10 +88,11 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	}
 
 	cfg := api.ExportLogsConfig{
-		ServiceIDs: serviceIDs,
-		FromDate:   from,
-		ToDate:     to,
-		Outfile:    outfile,
+		ServiceIDs:  serviceIDs,
+		FromDate:    from,
+		ToDate:      to,
+		OutFileName: outfile,
+		Debug:       ctx.Bool("debug"),
 	}
 
 	if err := c.driver.ExportLogs(cfg); err != nil {

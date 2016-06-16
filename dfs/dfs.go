@@ -21,7 +21,6 @@ import (
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/dfs/registry"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -77,7 +76,6 @@ type BackupInfo struct {
 	Templates     []servicetemplate.ServiceTemplate
 	BaseImages    []string
 	Pools         []pool.ResourcePool
-	Hosts         []host.Host
 	Snapshots     []string
 	Timestamp     time.Time
 	BackupVersion int

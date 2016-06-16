@@ -14,7 +14,12 @@
 package agent
 
 import (
+	"time"
+
+	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -69,5 +74,48 @@ func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
 		return err
 	}
 	*logs = string(output)
+	return nil
+}
+
+// PullImageRequest request to pull an image from a remote registry.
+type PullImageRequest struct {
+	Registry string
+	Image    string
+	Timeout  time.Duration
+}
+
+// PullImage pulls a registry image into the local repository.  Returns the
+// current image tag.
+func (a *AgentServer) PullImage(req PullImageRequest, image *string) error {
+
+	// set up the connections
+	docker, err := docker.NewDockerClient()
+	if err != nil {
+		glog.Errorf("Could not connect to docker client: %s", err)
+		return err
+	}
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not acquire coordinator connection: %s", err)
+		return err
+	}
+
+	// pull the image from the registry
+	reg := registry.NewRegistryListener(docker, req.Registry, "")
+	reg.SetConnection(conn)
+	timer := time.NewTimer(req.Timeout)
+	defer timer.Stop()
+	if err := reg.PullImage(timer.C, req.Image); err != nil {
+		glog.Errorf("Could not pull image %s from registry %s: %s", req.Image, req.Registry, err)
+		return err
+	}
+
+	// get the tag of the image pulled
+	*image, err = reg.ImagePath(req.Image)
+	if err != nil {
+		glog.Errorf("Could not get image id for %s from registry %s: %s", req.Image, req.Registry, err)
+		return err
+	}
+
 	return nil
 }

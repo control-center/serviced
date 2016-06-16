@@ -326,7 +326,7 @@ func (d *daemon) initContext() (datastore.Context, error) {
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	coordzk.RegisterZKLogger()
-	dsn := coordzk.NewDSN(zks, time.Second*15).String()
+	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
 	glog.Infof("zookeeper dsn: %s", dsn)
 	return coordclient.New("zookeeper", dsn, "/", nil)
 }
@@ -622,6 +622,7 @@ func (d *daemon) startAgent() error {
 			LogstashURL:          options.LogstashURL,
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
+			ZKSessionTimeout:     options.ZKSessionTimeout,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
@@ -671,7 +672,8 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry, options.ControllerBinary, options.UIPort)
+		agentEndpoint := "localhost:" + options.RPCPort
+		sio := shell.NewProcessExecutorServer(options.Endpoint, agentEndpoint, options.DockerRegistry, options.ControllerBinary)
 		http.ListenAndServe(":50000", sio)
 	}()
 
