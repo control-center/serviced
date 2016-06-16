@@ -27,7 +27,7 @@ const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
 	IMAGE_TAG     = "v43"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v3"
+	ZK_IMAGE_TAG  = "v4"
 )
 
 func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
