@@ -20,11 +20,10 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/stretchr/testify/mock"
-	"github.com/zenoss/elastigo/core"
+	elastigocore "github.com/zenoss/elastigo/core"
 	. "gopkg.in/check.v1"
 )
 
@@ -211,7 +210,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 	c.Assert(err, IsNil)
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, fmt.Errorf("StartSearch was called unexpectedly"))
+		Return(elastigocore.SearchResult{}, fmt.Errorf("StartSearch was called unexpectedly"))
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -232,7 +231,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 
 	expectedError := fmt.Errorf("StartSearch failed")
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, expectedError)
+		Return(elastigocore.SearchResult{}, expectedError)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -252,7 +251,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 	c.Assert(err, IsNil)
 
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return(core.SearchResult{}, nil)
+		Return(elastigocore.SearchResult{}, nil)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -271,12 +270,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	}()
 	c.Assert(err, IsNil)
 
-	searchStart := core.SearchResult{
+	searchStart := elastigocore.SearchResult{
 		ScrollId: "search1",
-		Hits: core.Hits{
+		Hits: elastigocore.Hits{
 			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			Hits:  []elastigocore.Hit{
+				elastigocore.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
 			},
 		},
 	}
@@ -287,7 +286,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
 	firstSearchResult.ScrollId = "lastSearch"
-	lastSearchResult := core.SearchResult{
+	lastSearchResult := elastigocore.SearchResult{
 		ScrollId: "lastSearch",
 	}
 	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
@@ -315,12 +314,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	}()
 	c.Assert(err, IsNil)
 
-	searchStart := core.SearchResult{
+	searchStart := elastigocore.SearchResult{
 		ScrollId: "search1",
-		Hits: core.Hits{
+		Hits: elastigocore.Hits{
 			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			Hits:  []elastigocore.Hit{
+				elastigocore.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
 			},
 		},
 	}
@@ -333,7 +332,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	firstSearchResult.ScrollId = "search2"
 	secondSearchResult := searchStart
 	secondSearchResult.ScrollId = "lastSearch"
-	lastSearchResult := core.SearchResult{
+	lastSearchResult := elastigocore.SearchResult{
 		ScrollId: "lastSearch",
 	}
 	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
@@ -360,12 +359,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	}()
 	c.Assert(err, IsNil)
 
-	searchStart := core.SearchResult{
+	searchStart := elastigocore.SearchResult{
 		ScrollId: "search1",
-		Hits: core.Hits{
+		Hits: elastigocore.Hits{
 			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			Hits:  []elastigocore.Hit{
+				elastigocore.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
 			},
 		},
 	}
@@ -376,16 +375,16 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	// value of ScrollID for mutliple calls
 	firstSearchResult := searchStart
 	firstSearchResult.ScrollId = "search2"
-	secondSearchResult := core.SearchResult{
+	secondSearchResult := elastigocore.SearchResult{
 		ScrollId: "lastSearch",
-		Hits: core.Hits{
+		Hits: elastigocore.Hits{
 			Total: 1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1"}`), },
+			Hits:  []elastigocore.Hit{
+				elastigocore.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1"}`), },
 			},
 		},
 	}
-	lastSearchResult := core.SearchResult{
+	lastSearchResult := elastigocore.SearchResult{
 		ScrollId: "lastSearch",
 	}
 	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(firstSearchResult, nil)
@@ -419,18 +418,18 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	}()
 	c.Assert(err, IsNil)
 
-	searchStart := core.SearchResult{
+	searchStart := elastigocore.SearchResult{
 		ScrollId: "search1",
-		Hits: core.Hits{
+		Hits: elastigocore.Hits{
 			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+			Hits:  []elastigocore.Hit{
+				elastigocore.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
 			},
 		},
 	}
 	mockLogDriver.On("StartSearch", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(searchStart, nil)
 	expectedError := fmt.Errorf("ScrollSearch failed")
-	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(core.SearchResult{}, expectedError)
+	mockLogDriver.On("ScrollSearch", searchStart.ScrollId).Return(elastigocore.SearchResult{}, expectedError)
 
 	foundIndexedDay, numWarnings, err := exporter.retrieveLogs()
 
@@ -439,7 +438,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	c.Assert(err, Equals, expectedError)
 }
 
-func setupSimpleRetrieveLogTest() (*logExporter, *mocks.ExportLogDriver, error) {
+func setupSimpleRetrieveLogTest() (*logExporter, *MockExportLogDriver, error) {
 	logstashDays := []string{"2112.01.01"}
 	serviceIDs := []string{"someServiceID"}
 	fromDate := logstashDays[0]
@@ -447,8 +446,8 @@ func setupSimpleRetrieveLogTest() (*logExporter, *mocks.ExportLogDriver, error) 
 	return setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
 }
 
-func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *mocks.ExportLogDriver, error) {
-	mockLogDriver := &mocks.ExportLogDriver{}
+func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate string) (*logExporter, *MockExportLogDriver, error) {
+	mockLogDriver := &MockExportLogDriver{}
 	mockLogDriver.On("LogstashDays").Return(logstashDays, nil)
 
 	config := ExportLogsConfig{
@@ -467,4 +466,80 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 
 	exporter, err := buildExporter(config, getServices, getHostMap)
 	return exporter, mockLogDriver, err
+}
+
+type MockExportLogDriver struct {
+	mock.Mock
+}
+
+func (_m *MockExportLogDriver) SetLogstashInfo(logstashES string) error {
+	ret := _m.Called(logstashES)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(logstashES)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *MockExportLogDriver) LogstashDays() ([]string, error) {
+	ret := _m.Called()
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func() []string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *MockExportLogDriver) StartSearch(logstashIndex string, query string) (elastigocore.SearchResult, error) {
+	ret := _m.Called(logstashIndex, query)
+
+	var r0 elastigocore.SearchResult
+	if rf, ok := ret.Get(0).(func(string, string) elastigocore.SearchResult); ok {
+		r0 = rf(logstashIndex, query)
+	} else {
+		r0 = ret.Get(0).(elastigocore.SearchResult)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(logstashIndex, query)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *MockExportLogDriver) ScrollSearch(scrollID string) (elastigocore.SearchResult, error) {
+	ret := _m.Called(scrollID)
+
+	var r0 elastigocore.SearchResult
+	if rf, ok := ret.Get(0).(func(string) elastigocore.SearchResult); ok {
+		r0 = rf(scrollID)
+	} else {
+		r0 = ret.Get(0).(elastigocore.SearchResult)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(scrollID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
