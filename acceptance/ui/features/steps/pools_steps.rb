@@ -1,39 +1,39 @@
 Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
-    @pools_page.wait_for_pool_names(getDefaultWaitTime())
-    if @pools_page.pool_names.size < 4
-        removeAllPoolsExceptDefault()
-        addPoolJson("pool2")
-        addPoolJson("pool3")
-        addPoolJson("pool4")
+    CC.UI.PoolsPage.wait_for_pool_names(getDefaultWaitTime())
+    if CC.UI.PoolsPage.pool_names.size < 4
+        CC.CLI.remove_all_pools_except_default()
+        CC.CLI.add_pool_json("pool2")
+        CC.CLI.add_pool_json("pool3")
+        CC.CLI.add_pool_json("pool4")
     end
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the default resource pool is added$/) do
-    if (!checkPoolExistsCLI("default"))
-        addDefaultPool()
+    if (!CC.CLI.check_pool_exists("default"))
+        CC.CLI.add_default_pool()
     end
 end
 
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
-        removeAllPoolsExceptDefault()
+        CC.CLI.remove_all_pools_except_default()
     end
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
-    if (!checkPoolExistsCLI(pool))
-        addPool(pool, "added for tests")
+    if (!CC.CLI.check_pool_exists(pool))
+        CC.CLI.add_pool(pool, "added for tests")
     end
 end
 
 Given (/^(?:|that )the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
     if (isNotInRows(pool))
-        addPool(pool, "added for virtual IP")
+        CC.CLI.add_pool(pool, "added for virtual IP")
     end
     viewDetails(pool, "pools")
     if (isNotInRows("table://virtualips/" + ip + "/ip"))
@@ -44,10 +44,10 @@ end
 Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
     if (isNotInRows(pool))
-        addPool(pool, "added for no virtual IPs")
+        CC.CLI.add_pool(pool, "added for no virtual IPs")
     else
         viewDetails(pool, "pools")
-        if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
+        if (CC.UI.PoolsPage.virtualIps_table.has_no_text?("No Data Found"))
             removeAllEntries("address")
         end
     end
@@ -58,7 +58,7 @@ When (/^I am on the resource pool page$/) do
 end
 
 When (/^I remove all resource pools$/) do
-    removeAllPoolsExceptDefaultCLI()
+    CC.CLI.remove_all_resource_pools_except_default()
 end
 
 When (/^I click the add Resource Pool button$/) do
@@ -74,7 +74,7 @@ When (/^I fill in the Description field with "(.*?)"$/) do |description|
 end
 
 When (/^I add the "(.*?)" pool$/) do |pool|
-    addPoolJson(pool)
+    CC.CLI.add_pool_json(pool)
 end
 
 When (/^I click the Add Virtual IP button$/) do
@@ -98,27 +98,27 @@ When (/^I fill in the Interface field with "(.*?)"$/) do |interface|
 end
 
 Then (/^I should see the add Resource Pool button$/) do
-    @pools_page.addPool_button.visible?
+    CC.UI.PoolsPage.addPool_button.visible?
 end
 
 Then (/^I should see the Resource Pool name field$/) do
-    @pools_page.poolName_input.visible?
+    CC.UI.PoolsPage.poolName_input.visible?
 end
 
 Then (/^I should see the Description field$/) do
-    @pools_page.description_input.visible?
+    CC.UI.PoolsPage.description_input.visible?
 end
 
 Then (/^I should see the IP field$/) do
-    @pools_page.ip_input.visible?
+    CC.UI.PoolsPage.ip_input.visible?
 end
 
 Then (/^I should see the Netmask field$/) do
-    @pools_page.netmask_input.visible?
+    CC.UI.PoolsPage.netmask_input.visible?
 end
 
 Then (/^I should see the Interface field$/) do
-    @pools_page.interface_input.visible?
+    CC.UI.PoolsPage.interface_input.visible?
 end
 
 Then (/^the "(.*)" button should (not )?be disabled$/) do |name, enabled|
@@ -132,47 +132,46 @@ end
 
 def visitPoolsPage()
     oldWait = setDefaultWaitTime(180)
-    @pools_page = Pools.new
-    @pools_page.navbar.resourcePools.click()
-    expect(@pools_page).to be_displayed
+    CC.UI.PoolsPage.navbar.resourcePools.click()
+    expect(CC.UI.PoolsPage).to be_displayed
     setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
-    @pools_page.has_no_css?(".loading_wrapper")
+    CC.UI.PoolsPage.has_no_css?(".loading_wrapper")
 end
 
 def clickAddPoolButton()
-    @pools_page.addPool_button.click()
+    CC.UI.PoolsPage.addPool_button.click()
     # wait till modal is done loading
-    expect(@pools_page).to have_no_css(".uilock", :visible => true)
+    expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end
 
 def fillInResourcePoolField(name)
-    @pools_page.poolName_input.set getTableValue(name)
+    CC.UI.PoolsPage.poolName_input.set getTableValue(name)
 end
 
 def fillInDescriptionField(description)
-    @pools_page.description_input.set getTableValue(description)
+    CC.UI.PoolsPage.description_input.set getTableValue(description)
 end
 
 def clickAddVirtualIpButton()
-    @pools_page.addVirtualIp_button.click()
+    CC.UI.PoolsPage.addVirtualIp_button.click()
 end
 
 def fillInIpField(address)
-    @pools_page.ip_input.set getTableValue(address)
+    CC.UI.PoolsPage.ip_input.set getTableValue(address)
 end
 
 def fillInNetmaskField(netmask)
-    @pools_page.netmask_input.set getTableValue(netmask)
+    CC.UI.PoolsPage.netmask_input.set getTableValue(netmask)
 end
 
 def fillInInterfaceField(interface)
-    @pools_page.interface_input.set getTableValue(interface)
+    CC.UI.PoolsPage.interface_input.set getTableValue(interface)
 end
 
 def addVirtualIpButton()
-    @pools_page.dialogAddVirtualIp_button.click()
+    CC.UI.PoolsPage.dialogAddVirtualIp_button.click()
 end
 
 def addVirtualIp(ip, netmask, interface)
@@ -188,73 +187,9 @@ def addVirtualIpJson(ip)
         "table://virtualips/" + ip + "/interface")
 end
 
-def addPool(name, description)
-    addPoolCLI(name, description)
-end
-
 def addPoolUI(name, description)
     clickAddPoolButton()
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
-end
-
-def addPoolCLI(name, description)
-    servicedCLI = getServicedCLI()
-    nameValue =  getTableValue(name)
-    # description is not used by the CLI
-    # descriptionValue =  getTableValue(description)
-    cmd = "#{servicedCLI} pool add '#{nameValue}' 2>&1"
-
-    result = `#{cmd}`
-
-    verifyCLIExitSuccess($?, result)
-    expect(result.strip).to eq(nameValue.to_s)
-end
-
-def addDefaultPool()
-    addPoolJson("defaultPool")
-end
-
-def addPoolJson(pool)
-    addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
-end
-
-def checkPoolExistsCLI(poolName)
-    servicedCLI = getServicedCLI()
-    result = `#{servicedCLI} pool list 2>&1`
-    verifyCLIExitSuccess($?, result)
-
-    matchData = result.match /^#{poolName}$/
-    return matchData != nil
-end
-
-def removeAllPoolsExceptDefault()
-    removeAllServicesCLI()
-    removeAllHostsCLI()
-    removeAllPoolsExceptDefaultCLI()
-end
-
-def removeAllPoolsExceptDefaultCLI()
-    servicedCLI = getServicedCLI()
-    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | grep -v ^default | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
-    result = `#{cmd}`
-    verifyCLIExitSuccess($?, result)
-
-    # verify all of the hosts were really removed
-    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID"
-    result = `#{cmd}`
-    verifyCLIExitSuccess($?, result)
-    expect(result.strip).to eq("default")
-end
-
-def removeVirtualIPsFromDefaultPoolCLI()
-    servicedCLI = getServicedCLI()
-    # cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress "
-    # result = `#{cmd}`
-    # printf "ips:\n---\n%s\n---\n", result
-
-    cmd = "#{servicedCLI} pool list-ips --show-fields IPAddress default 2>/dev/null | grep -v ^IPAddress | xargs --no-run-if-empty #{servicedCLI} pool remove-virtual-ip default 2>&1"
-    result = `#{cmd}`
-    verifyCLIExitSuccess($?, result)
 end

@@ -15,7 +15,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - check all labels
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
     Then I should see the Add Public Endpoint dialog
       And I should see "Type:"
       And I should see "Port"
@@ -28,17 +28,16 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - VHost mode visible fields
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I choose VHost type
     Then I should see the Add Public Endpoint dialog
       And I should see VHost fields
 
-  @testme
   Scenario: Public Endpoint dialg - Port mode visible fields
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
     Then I should see Port fields
     And I should see Port "placeholder" to be "table://services/childServiceWithVHost/port_placeholder"
@@ -46,20 +45,18 @@ Feature: Service Management
     And "table://services/childServiceWithVHost/svc_default" should be selected for Service Endpoint
     And "table://services/childServiceWithVHost/protocol_default" should be selected for Protocol
 
-  @testme
   Scenario: Public Endpoint dialog - no port given
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I click "Add and Restart Service"
     Then I should see "Missing port"
 
-  @testme
   Scenario: Public Endpoint dialog - bad port given
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I fill in Port "99999"
       And I click "Add and Restart Service"
@@ -69,7 +66,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - bad host given
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I fill in Host "a.b.c.d"
       And I fill in Port "table://services/childServiceWithVHost/port_placeholder"
@@ -79,7 +76,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - add https
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I select Service "table://services/childServiceWithVHost/name" - "table://services/childServiceWithVHost/endpoint_https"
       And I fill in Host "table://services/childServiceWithVHost/host"
@@ -98,7 +95,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - add http
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I select Service "table://services/childServiceWithVHost/name" - "table://services/childServiceWithVHost/endpoint_http"
       And I fill in Host "table://services/childServiceWithVHost/host"
@@ -117,7 +114,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - add tls
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I select Service "table://services/childServiceWithVHost/name" - "table://services/childServiceWithVHost/endpoint_tls"
       And I fill in Host "table://services/childServiceWithVHost/host"
@@ -136,7 +133,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - add other
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I select Service "table://services/childServiceWithVHost/name" - "table://services/childServiceWithVHost/endpoint_other"
       And I fill in Host "table://services/childServiceWithVHost/host"
@@ -179,7 +176,7 @@ Feature: Service Management
   Scenario: Public Endpoint dialog - Re-add https again
     When I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
-      And I click "Add Public Endpoint"
+      And I click the add Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I select Service "table://services/childServiceWithVHost/name" - "table://services/childServiceWithVHost/endpoint_https"
       And I fill in Host "table://services/childServiceWithVHost/host"

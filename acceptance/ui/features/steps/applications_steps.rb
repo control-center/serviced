@@ -3,12 +3,12 @@
 # (depending on previous tests)
 Given (/^(?:|that )multiple applications and application templates have been added$/) do
     visitApplicationsPage()
-    within(@applications_page.services_table) do
+    within(CC.UI.ApplicationsPage.services_table) do
         if has_text?("Showing 1 Result")
             # add application
         end
     end
-    within(@applications_page.templates_table) do
+    within(CC.UI.ApplicationsPage.templates_table) do
         if has_text?("Showing 0 Results") || has_text?("Showing 1 Result")
             # add application templates
         end
@@ -16,20 +16,21 @@ Given (/^(?:|that )multiple applications and application templates have been add
 end
 
 Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
-    exists = checkServiceExistsCLI(app)
-    removeServiceCLI(app) if exists
+    CC.CLI.remove_service(app) if CC.CLI.check_service_exists(app)
 end
 
 Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
-    visitApplicationsPage()
-    exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
-    addService(app, "default", id) if !exists
+    #visitApplicationsPage()
+    #exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
+    #addService(app, "default", id) if !exists
+
+    CC.CLI.add_service(app, "default", id) if !CC.CLI.check_service_with_id_exists(app, id)
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the test template is added$/) do
-    exists = checkTemplateExistsCLI("testsvc")
-    addTemplateCLI(TEMPLATE_DIR) if !exists
+    exists = CC.CLI.check_template_exists?("testsvc")
+    CC.CLI.add_template(TEMPLATE_DIR) if !exists
 end
 
 When(/^I am on the applications page for the first time$/) do
@@ -42,16 +43,17 @@ When(/^I am on the applications page$/) do
 end
 
 When(/^I click the add Application button$/) do
-    @applications_page.addApp_button.click()
+    CC.UI.ApplicationsPage.addApp_button.click()
 end
 
 When(/^I click the add Application Template button$/) do
-    @applications_page.addAppTemplate_button.click()
+    CC.UI.ApplicationsPage.addAppTemplate_button.click()
 end
 
 When(/^I click the Services Map button$/) do
-    @applications_page.servicesMap_button.click()
-    @servicesMap_page = ServicesMap.new
+    CC.UI.ApplicationsPage.servicesMap_button.click()
+    # wait for the loading animation to clear
+    CC.UI.ApplicationsPage.has_no_content?("One moment please")
 end
 
 When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
@@ -59,13 +61,17 @@ When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
 end
 
 When(/^I remove "(.*?)" from the Applications list$/) do |name|
-    within(@applications_page.services_table, :text => name) do
-        click_link_or_button("Delete")
+    within(CC.UI.ApplicationsPage.services_table, :text => name) do
+        # The cucumber UI sometimes thinks there are multiple sevices,
+        # throwing an "Ambiguous match" error.  Just try to remove the
+        # first match to test for the prompt dialog.
+        click_link_or_button("Delete", match: :first)
+        #click_link_or_button("Delete")
     end
 end
 
 When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
-    within(@applications_page.templates_table, :text => name) do
+    within(CC.UI.ApplicationsPage.templates_table, :text => name) do
         click_link_or_button("Delete")
     end
 end
@@ -80,7 +86,7 @@ Then (/^I should see that the application has not been deployed$/) do
 end
 
 Then (/^the "Status" column should be sorted with active applications on (top|the bottom)$/) do |order|
-    list = @applications_page.status_icons
+    list = CC.UI.ApplicationsPage.status_icons
     for i in 0..(list.size - 2)
         if order == "top"
             # assuming - (ng-isolate-scope down) before + (ng-isolate-scope good)
@@ -92,7 +98,7 @@ Then (/^the "Status" column should be sorted with active applications on (top|th
 end
 
 Then (/^I should see "(.*?)" in the Services Map$/) do |node|
-    within(@servicesMap_page.map) do
+    within(CC.UI.ServicesMapPage.map) do
         assert_text(getTableValue(node))
     end
 end
@@ -120,7 +126,7 @@ end
 
 def checkServiceRows(row)
     found = false
-    within(@applications_page.services_table) do
+    within(CC.UI.ApplicationsPage.services_table) do
         found = page.has_text?(getTableValue(row))
     end
     return found
@@ -128,25 +134,25 @@ end
 
 def checkTemplateRows(row)
     found = false
-    within(@applications_page.templates_table) do
+    within(CC.UI.ApplicationsPage.templates_table) do
         found = page.has_text?(getTableValue(row))
     end
     return found
 end
 
 def visitApplicationsPage()
-    @applications_page = Applications.new
-    supressDeployWizard()
-    @applications_page.load
-    expect(@applications_page).to be_displayed
+    CC.UI.ApplicationsPage.load
+    expect(CC.UI.ApplicationsPage).to be_displayed
 end
 
 def fillInDeploymentID(id)
-    @applications_page.deploymentID_field.set getTableValue(id)
+    CC.UI.ApplicationsPage.deploymentID_field.set getTableValue(id)
 end
 
+# This method adds a service using the UI, but is called from
+# a Given step.. so we'll use the CLI for that.
 def addService(name, pool, id)
-    @applications_page.addApp_button.click()
+    CC.UI.ApplicationsPage.addApp_button.click()
     selectOption(name)
     click_link_or_button("Next")
     selectOption(pool)
@@ -154,61 +160,6 @@ def addService(name, pool, id)
     fillInDeploymentID(id)
     click_link_or_button("Deploy")
     expect(page).to have_content("App deployed successfully", wait: 120)
-end
-
-def checkServiceExistsCLI(serviceName)
-    serviceName = getTableValue(serviceName)
-    servicedCLI = getServicedCLI()
-
-    result = `#{servicedCLI} service list --show-fields Name 2>&1`
-    verifyCLIExitSuccess($?, result)
-
-    matchData = result.match /^#{serviceName}$/
-    return matchData != nil
-end
-
-def removeServiceCLI(serviceName)
-    serviceName = getTableValue(serviceName)
-    servicedCLI = getServicedCLI()
-
-    result = `#{servicedCLI} service rm #{serviceName} 2>&1`
-    verifyCLIExitSuccess($?, result)
-end
-
-def removeAllServicesCLI()
-    servicedCLI = getServicedCLI()
-
-    result = `#{servicedCLI} service list --show-fields ServiceID 2>&1 | grep -v ServiceID | xargs --no-run-if-empty #{servicedCLI} service rm 2>&1`
-    verifyCLIExitSuccess($?, result)
-end
-
-def addTemplateCLI(dir)
-    servicedCLI = getServicedCLI()
-    result = `#{servicedCLI} template compile #{dir} | #{servicedCLI} template add`
-    verifyCLIExitSuccess($?, result)
-
-    templateID = result
-    result = `#{servicedCLI} template list #{templateID}`
-
-    verifyCLIExitSuccess($?, result)
-    expect(result.lines.count).not_to eq(0)
-end
-
-def checkTemplateExistsCLI(templateName)
-    templateName = getTableValue(templateName)
-    servicedCLI = getServicedCLI()
-    result = `#{servicedCLI} template list --show-fields Name 2>&1`
-    verifyCLIExitSuccess($?, result)
-
-    matchData = result.match /^#{templateName}$/
-    return matchData != nil
-end
-
-def removeAllTemplatesCLI()
-    servicedCLI = getServicedCLI()
-
-    result = `#{servicedCLI} template list --show-fields TemplateID 2>&1 | grep -v TemplateID | xargs --no-run-if-empty #{servicedCLI} template rm 2>&1`
-    verifyCLIExitSuccess($?, result)
 end
 
 def closeDeployWizard()
