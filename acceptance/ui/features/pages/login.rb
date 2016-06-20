@@ -5,7 +5,7 @@ class ErrorMessage < SitePrism::Section
 end
 
 class Login < SitePrism::Page
-    set_url applicationURL("#/login?disable-animation=true&loglevel=debug")
+    set_url applicationURL("#/login?disable-animation=true&loglevel=debug&no-focusme=true")
     set_url_matcher /login/
 
     section :error_message, ErrorMessage, ".notification.bg-danger"
