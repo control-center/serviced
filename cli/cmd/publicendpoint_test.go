@@ -16,7 +16,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -32,10 +31,6 @@ var DefaultTestPublicEndpointPorts = []servicedefinition.Port{
 	servicedefinition.Port{PortAddr: ":22225", Enabled: false, UseTLS: false, Protocol: ""},
 }
 
-var (
-	ErrBadEnabledFlag = errors.New("The enabled flag must be true or false")
-)
-
 type PublicEndpointTest struct {
 	api.API
 	fail  bool
@@ -48,6 +43,13 @@ func (t ServiceAPITest) AddPublicEndpointPort(serviceID, endpointName, portAddr 
 		return nil, t.errs["AddPublicEndpointPort"]
 	}
 	return &servicedefinition.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}, nil
+}
+
+func (t ServiceAPITest) RemovePublicEndpointPort(serviceID, endpointName, portAddr string) error {
+	if t.errs["RemovePublicEndpointPort"] != nil {
+		return t.errs["RemovePublicEndpointPort"]
+	}
+	return nil
 }
 
 func InitPublicEndpointPortTest(args ...string) {
@@ -254,5 +256,12 @@ func ExampleServicedCLI_CmdPublicEndpointsPortAdd_ValidProtocol() {
 	// :22222
 	// :22222
 	// :22222
+	// :22222
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsPortRemove() {
+	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "remove", "Zenoss", "zproxy", ":22222")
+
+	// Output:
 	// :22222
 }

@@ -27,3 +27,13 @@ func (a *api) AddPublicEndpointPort(serviceid, endpointName, portAddr string, us
 
 	return client.AddPublicEndpointPort(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 }
+
+// Remove a port public endpoint.
+func (a *api) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.RemovePublicEndpointPort(serviceid, endpointName, portAddr)
+}

@@ -44,3 +44,13 @@ func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string,
 	err := c.call("AddPublicEndpointPort", request, &result)
 	return &result, err
 }
+
+// Remove a port public endpoint from a service.
+func (c *Client) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
+	request := &PublicEndpointPortRequest{
+		Serviceid:    serviceid,
+		EndpointName: endpointName,
+		PortAddr:     portAddr,
+	}
+	return c.call("RemovePublicEndpointPort", request, nil)
+}

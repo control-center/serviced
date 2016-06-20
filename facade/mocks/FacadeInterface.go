@@ -379,6 +379,7 @@ func (_m *FacadeInterface) UpgradeRegistry(ctx datastore.Context, fromRegistryHo
 
 	return r0
 }
+
 func (m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	ret := m.Called(ctx, serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 
@@ -389,4 +390,10 @@ func (m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid
 	r1 := ret.Error(1)
 
 	return r0, r1
+}
+
+func (m *FacadeInterface) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
+	ret := m.Called(ctx, serviceid, endpointName, portAddr)
+	r0 := ret.Error(0)
+	return r0
 }

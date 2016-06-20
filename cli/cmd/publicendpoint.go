@@ -283,9 +283,19 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 	endpointName := ctx.Args()[1]
 	portAddr := ctx.Args()[2]
 
-	fmt.Printf("service: %s, endpoint: %s, portAddr: %s\n",
-		serviceid, endpointName, portAddr)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
+	err = c.driver.RemovePublicEndpointPort(svc.ID, endpointName, portAddr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", portAddr)
+	}
 	return
 }
 
