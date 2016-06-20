@@ -153,6 +153,13 @@ func (dfs *DistributedFilesystem) restoreVersion1(r io.Reader, data *BackupInfo)
 				if err != nil {
 					// Store the error for returning outside this func
 					errs = append(errs, err)
+
+					// Close the read end of the pipe so that any ongoing
+					//  attempts to write don't hang
+					if closeErr := r.Close(); closeErr != nil {
+						glog.Errorf("Error closing pipe:  %s", closeErr)
+					}
+
 					return
 				}
 				// Save off the images implicated by this volume, so we can tag
