@@ -10,12 +10,12 @@
         "$scope", "$routeParams", "$location",
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
-        "$cookies", "servicesFactory", "miscUtils",
+        "servicedConfig", "servicesFactory", "miscUtils",
         "ngTableParams", "$filter", "poolsFactory",
     function($scope, $routeParams, $location,
     $notification, resourcesFactory, authService,
     $modalService, $translate, $timeout,
-    $cookies, servicesFactory, utils,
+    servicedConfig, servicesFactory, utils,
     NgTableParams, $filter, poolsFactory){
 
         // Ensure logged in
@@ -40,8 +40,7 @@
                 $('#addApp').modal('show');
 
                 // don't auto-show this wizard again
-                // NOTE: $cookies can only deal with string values
-                $cookies.put("autoRunWizardHasRun","true");
+                servicedConfig.set("autoRunWizardHasRun", "true");
             });
         };
 
@@ -101,13 +100,13 @@
                     endpoint.PortList.forEach(port => endPoints.push(port));
                 }
             });
-            
+
             return endPoints;
         }, function(service){
             return service.id + service.model.DatabaseVersion;
         });
 
-        
+
         $scope.modal_removeService = function(service) {
             $modalService.create({
                 template: $translate.instant("warning_remove_service"),
@@ -389,7 +388,7 @@
 
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
-                if(!$cookies.get("autoRunWizardHasRun") && $scope.apps.length === 1){
+                if(!servicedConfig.get("autoRunWizardHasRun") && $scope.apps.length === 1){
                     $scope.modal_deployWizard();
                 }
             });

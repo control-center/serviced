@@ -5,8 +5,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("NavbarController", ["$scope", "$rootScope", "$cookies", "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory", "$modalService", "miscUtils",
-    function($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService, utils){
+    controlplane.controller("NavbarController", ["$scope", "$rootScope", "servicedConfig", "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory", "$modalService", "miscUtils",
+    function($scope, $rootScope, servicedConfig, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService, utils){
         $scope.name = 'navbar';
         $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
@@ -88,7 +88,7 @@
             });
         };
 
-        utils.updateLanguage($scope, $cookies, $translate);
+        utils.updateLanguage($scope, servicedConfig, $translate);
 
         var helpMap = {
             '/static/partials/login.html': 'login.html',
@@ -107,7 +107,7 @@
             }
         };
 
-        $scope.cookies = $cookies;
+        $scope.servicedConfig = servicedConfig;
 
     }]);
 })();

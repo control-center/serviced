@@ -68,8 +68,8 @@
                 return mode;
             },
 
-            updateLanguage: function($scope, $cookies, $translate){
-                var ln = $cookies.get("Language") || "en_US";
+            updateLanguage: function($scope, servicedConfig, $translate){
+                var ln = servicedConfig.get("Language") || "en_US";
                 if ($scope.user) {
                     $scope.user.language = ln;
                 }

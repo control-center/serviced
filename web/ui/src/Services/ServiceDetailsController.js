@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies",
+    "poolsFactory", "CCUIState", "servicedConfig",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies){
+    poolsFactory, CCUIState, servicedConfig){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -48,8 +48,8 @@
             $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
             $scope.protocols.push({ Label: "HTTP", UseTLS: false, Protocol: "http" });
             $scope.protocols.push({ Label: "Other, secure (TLS)", UseTLS: true, Protocol: "" });
-            $scope.protocols.push({ Label: "Other, non-secure", UseTLS: false, Protocol: "" });            
-            
+            $scope.protocols.push({ Label: "Other, non-secure", UseTLS: false, Protocol: "" });
+
             // default public endpoint options
             $scope.publicEndpoints.add = {
                 type: "port",
@@ -96,7 +96,7 @@
                 var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
                 if(!re.test(host)){
                     return $translate.instant("host_name_invalid") + ": " + host;
-                }                
+                }
 
                 // if no port
                 if(!port || !port.length){
@@ -300,7 +300,7 @@
                 });
         };
 
-        
+
         $scope.publicEndpointProtocol = function(publicEndpoint) {
             if(publicEndpoint.type === "vhost"){
                 return "https";
@@ -733,7 +733,7 @@
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
 
                 // update serviceTreeState
-                $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
+                $scope.serviceTreeState = CCUIState.get(servicedConfig.get("ZUsername"), "serviceTreeState");
 
                 // update pools
                 $scope.pools = poolsFactory.poolList;
@@ -787,7 +787,7 @@
         };
 
         // expand/collapse state of service tree nodes
-        $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
+        $scope.serviceTreeState = CCUIState.get(servicedConfig.get("ZUsername"), "serviceTreeState");
         // servicedTreeState is a collection of objects
         // describing if nodes in a service tree are hidden or collapsed.
         // It is first keyed by the id of the current service context (the

@@ -164,27 +164,33 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(["$rootScope", "$window", "$location", "areUIReady", "log",
-    function($rootScope, $window, $location, areUIReady, log){
+    .run(["$rootScope", "$window", "$location", "areUIReady", "log", "servicedConfig",
+    function($rootScope, $window, $location, areUIReady, log, servicedConfig){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
         });
 
-        var queryParams = $location.search(),
-            disableAnimation = false;
+        var queryParams = $location.search();
+
+        // set some default configs that should
+        // reset on every page load
+        servicedConfig.set("disableAnimation", false);
+        servicedConfig.set("loglevel", "warn");
 
         // option to disable animation for
         // acceptance tests
         if(queryParams["disable-animation"] === "true"){
-            disableAnimation = true;
+            servicedConfig.set("disableAnimation", true);
             $("body").addClass("no-animation");
         }
 
         // set log level
         if(queryParams["loglevel"]){
-            log.setLogLevel(log.level[queryParams["loglevel"]]);
-            log.info(`set log level to ${queryParams["loglevel"]}`);
+            let logLevel = queryParams["loglevel"];
+            servicedConfig.set("loglevel", logLevel);
+            log.setLogLevel(log.level[logLevel]);
+            log.info(`set log level to ${logLevel}`);
         }
 
         var loaderEl = $(".loading_wrapper"),
@@ -199,7 +205,7 @@ controlplane.
 
             setTimeout(function(){
                 if(!isCleared){
-                    if(disableAnimation){
+                    if(servicedConfig.get("disableAnimation")){
                         clearLoader();
                     } else {
                         loaderEl.addClass("hide_it").one("transitionend", clearLoader);
