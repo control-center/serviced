@@ -1,5 +1,5 @@
 @services_endpoint @screenshot
-Feature: Service Management
+Feature: Service Endpoints
   In order to use Control Center
   As a CC admin user
   I want to manage deployed services

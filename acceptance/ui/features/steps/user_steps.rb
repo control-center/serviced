@@ -3,7 +3,7 @@ Given (/^(?:|that )I have messages$/) do
     if zeroMessages
         visitHostsPage()
         removeAllEntries("host")
-        CC.CLI.add_default_host()
+        CC.CLI.host.add_default_host()
         removeAllEntries("host")
     end
 end

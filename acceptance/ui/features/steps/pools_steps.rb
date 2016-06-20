@@ -2,38 +2,38 @@ Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
     CC.UI.PoolsPage.wait_for_pool_names(getDefaultWaitTime())
     if CC.UI.PoolsPage.pool_names.size < 4
-        CC.CLI.remove_all_pools_except_default()
-        CC.CLI.add_pool_json("pool2")
-        CC.CLI.add_pool_json("pool3")
-        CC.CLI.add_pool_json("pool4")
+        CC.CLI.pool.remove_all_resource_pools_except_default()
+        CC.CLI.pool.add_pool_json("pool2")
+        CC.CLI.pool.add_pool_json("pool3")
+        CC.CLI.pool.add_pool_json("pool4")
     end
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the default resource pool is added$/) do
-    if (!CC.CLI.check_pool_exists("default"))
-        CC.CLI.add_default_pool()
+    if (!CC.CLI.pool.check_pool_exists("default"))
+        CC.CLI.pool.add_default_pool()
     end
 end
 
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
-        CC.CLI.remove_all_pools_except_default()
+        CC.CLI.pool.remove_all_resource_pools_except_default()
     end
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
-    if (!CC.CLI.check_pool_exists(pool))
-        CC.CLI.add_pool(pool, "added for tests")
+    if (!CC.CLI.pool.check_pool_exists(pool))
+        CC.CLI.pool.add_pool(pool, "added for tests")
     end
 end
 
 Given (/^(?:|that )the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
     if (isNotInRows(pool))
-        CC.CLI.add_pool(pool, "added for virtual IP")
+        CC.CLI.pool.add_pool(pool, "added for virtual IP")
     end
     viewDetails(pool, "pools")
     if (isNotInRows("table://virtualips/" + ip + "/ip"))
@@ -44,7 +44,7 @@ end
 Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
     if (isNotInRows(pool))
-        CC.CLI.add_pool(pool, "added for no virtual IPs")
+        CC.CLI.pool.add_pool(pool, "added for no virtual IPs")
     else
         viewDetails(pool, "pools")
         if (CC.UI.PoolsPage.virtualIps_table.has_no_text?("No Data Found"))
@@ -58,7 +58,7 @@ When (/^I am on the resource pool page$/) do
 end
 
 When (/^I remove all resource pools$/) do
-    CC.CLI.remove_all_resource_pools_except_default()
+    CC.CLI.pool.remove_all_resource_pools_except_default()
 end
 
 When (/^I click the add Resource Pool button$/) do
@@ -74,7 +74,7 @@ When (/^I fill in the Description field with "(.*?)"$/) do |description|
 end
 
 When (/^I add the "(.*?)" pool$/) do |pool|
-    CC.CLI.add_pool_json(pool)
+    CC.CLI.pool.add_pool_json(pool)
 end
 
 When (/^I click the Add Virtual IP button$/) do

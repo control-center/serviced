@@ -1,6 +1,8 @@
 require_relative './cli'
 require_relative './ui'
 
+include ::CCApi
+
 #
 # Returns the same CLI or UI instance across all
 # test scenarios.

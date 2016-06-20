@@ -1,9 +1,9 @@
 Then (/^VHost "([^"]*)" should exist$/) do |vhost|
-    expect(CC.UI.check_vhost_exists?(vhost))
+    expect(CC.UI.ServicesPage.check_vhost_exists?(vhost))
 end
 
 Then (/^Public Port "([^"]*)" should exist$/) do |port|
-    expect(CC.UI.check_public_port_exists?(port))
+    expect(CC.UI.ServicesPage.check_public_port_exists?(port))
 end
 
 Then (/^I should see the Add Public Endpoint dialog$/) do
@@ -70,20 +70,20 @@ end
 
 Then (/^I should see only one endpoint entry of Port "([^"]*)"$/) do |port|
     port = getTableValue(port)
-    expect(CC.UI.check_endpoint_unique_column?('URL', port))
+    expect(CC.UI.ServicesPage.check_endpoint_unique_column?('URL', port))
 end
 
 Then (/^I should see the endpoint entry with both "([^"]*)" and "([^"]*)"$/) do |c1, c2|
     c1 = getTableValue(c1)
     c2 = getTableValue(c2)
-    expect(CC.UI.check_endpoint_find?(c1, c2))
+    expect(CC.UI.ServicesPage.check_endpoint_find?(c1, c2))
 end
 
 Then (/^I delete Endpoint "([^"]*)"$/) do |entry|
-    CC.UI.remove_publicendpoint(entry)
+    CC.UI.ServicesPage.remove_publicendpoint(entry)
 end
 
 When (/^I click the Add Public Endpoint button$/) do
-    CC.UI.click_add_publicendpoint_button()
+    CC.UI.ServicesPage.click_add_publicendpoint_button()
 end
 

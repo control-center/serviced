@@ -20,23 +20,24 @@ Before('@login-required') do
 end
 
 After('@clean_hosts') do
-  CC.CLI.remove_all_hosts()
+  CC.CLI.host.remove_all_hosts()
 end
 
 After('@clean_pools') do
-  CC.CLI.remove_all_pools_except_default()
+  CC.CLI.host.remove_all_hosts() # Remove hosts so pools can be removed
+  CC.CLI.pool.remove_all_resource_pools_except_default()
 end
 
 After('@clean_templates') do
-  CC.CLI.remove_all_templates()
+  CC.CLI.template.remove_all_templates()
 end
 
 After('@clean_services') do
-  CC.CLI.remove_all_services()
+  CC.CLI.service.remove_all_services()
 end
 
 After('@clean_virtualips') do
-  CC.CLI.remove_virtual_ips_from_default_pool()
+  CC.CLI.pool.remove_virtual_ips_from_default_pool()
 end
 
 # Before running any tests, clean the slate.
@@ -44,15 +45,15 @@ require_relative '../api/CC'
 RSpec.configure do |config|
   puts "\nInitializing the environment.."
   puts "  Removing virtual ips"
-  CC.CLI.remove_virtual_ips_from_default_pool()
+  CC.CLI.pool.remove_virtual_ips_from_default_pool()
   puts "  Removing hosts"
-  CC.CLI.remove_all_hosts()
+  CC.CLI.host.remove_all_hosts()
   puts "  Removing resource pools"
-  CC.CLI.remove_all_pools_except_default()
+  CC.CLI.pool.remove_all_resource_pools_except_default()
   puts "  Removing services"
-  CC.CLI.remove_all_services()
+  CC.CLI.service.remove_all_services()
   puts "  Removing templates"
-  CC.CLI.remove_all_templates()
+  CC.CLI.template.remove_all_templates()
   puts
 end
 

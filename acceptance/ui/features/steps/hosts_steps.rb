@@ -2,21 +2,21 @@ Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
     CC.UI.HostsPage.wait_for_host_entries(getDefaultWaitTime())
     if CC.UI.HostsPage.host_entries.size < 5
-        CC.CLI.remove_all_hosts()
-        CC.CLI.add_default_host()
-        CC.CLI.add_host_json("host2")
-        CC.CLI.add_host_json("host3")
-        CC.CLI.add_host_json("host4")
-        CC.CLI.add_host_json("host5")
+        CC.CLI.host.remove_all_hosts()
+        CC.CLI.host.add_default_host()
+        CC.CLI.host.add_host_json("host2")
+        CC.CLI.host.add_host_json("host3")
+        CC.CLI.host.add_host_json("host4")
+        CC.CLI.host.add_host_json("host5")
     end
 end
 
 Given (/^(?:|that )there are no hosts added$/) do
-    CC.CLI.remove_all_hosts()
+    CC.CLI.host.remove_all_hosts()
 end
 
 Given (/^(?:|that )only the default host is added$/) do
-    CC.CLI.ensure_only_default_host_exists()
+    CC.CLI.host.ensure_only_default_host_exists()
 end
 
 When (/^I am on the hosts page$/) do
@@ -48,7 +48,7 @@ When (/^I click the Hosts Map button$/) do
 end
 
 When (/^I add the "(.*?)" host$/) do |host|
-    CC.CLI.add_host_json(host)
+    CC.CLI.host.add_host_json(host)
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|

@@ -16,7 +16,7 @@ Given (/^(?:|that )multiple applications and application templates have been add
 end
 
 Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
-    CC.CLI.remove_service(app) if CC.CLI.check_service_exists(app)
+    CC.CLI.service.remove_service(app) if CC.CLI.service.check_service_exists(app)
 end
 
 Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
@@ -24,13 +24,13 @@ Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is add
     #exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
     #addService(app, "default", id) if !exists
 
-    CC.CLI.add_service(app, "default", id) if !CC.CLI.check_service_with_id_exists(app, id)
+    CC.CLI.template.deploy(app, "default", id) if !CC.CLI.service.service_with_id_exists?(app, id)
 end
 
 # Note this step definition is optimized to use the CLI exclusively so that it can be called before user login
 Given (/^(?:|that )the test template is added$/) do
-    exists = CC.CLI.check_template_exists?("testsvc")
-    CC.CLI.add_template(TEMPLATE_DIR) if !exists
+    exists = CC.CLI.template.check_template_exists?("testsvc")
+    CC.CLI.template.add_template(TEMPLATE_DIR) if !exists
 end
 
 When(/^I am on the applications page for the first time$/) do
