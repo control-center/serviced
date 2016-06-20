@@ -20,6 +20,6 @@ Feature: CLI Validation
     Then I should see the port public endpoint "port1" in the service
 
   Scenario: Delete the port public endpoint
-    Given PENDING that the "port0" port is added
+    Given that the "port0" port is added
       And the port public endpoint "port0" is removed
     Then I should not see the port public endpoint "port0" in the service

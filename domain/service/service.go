@@ -410,19 +410,19 @@ func (s *Service) RemovePort(application string, portAddr string) error {
 				break
 			}
 
-			found := false
+			portFound := false
 			var ports = make([]servicedefinition.Port, 0)
 			for _, port := range ep.PortList {
 				if port.PortAddr != portAddr {
 					ports = append(ports, port)
 				} else {
-					found = true
+					portFound = true
 				}
 			}
 
-			//error removing an unknown vhost
-			if !found {
-				break
+			//error removing an unknown port
+			if !portFound {
+				return fmt.Errorf("endpoint %s does not have a port endpoint %s", application, portAddr)
 			}
 
 			ep.PortList = ports
