@@ -1,26 +1,22 @@
 Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
-    @hosts_page.wait_for_host_entries(getDefaultWaitTime())
-    if @hosts_page.host_entries.size < 5
-        removeAllHostsCLI()
-        addDefaultHost()
-        addHostJson("host2")
-        addHostJson("host3")
-        addHostJson("host4")
-        addHostJson("host5")
+    CC.UI.HostsPage.wait_for_host_entries(getDefaultWaitTime())
+    if CC.UI.HostsPage.host_entries.size < 5
+        CC.CLI.host.remove_all_hosts()
+        CC.CLI.host.add_default_host()
+        CC.CLI.host.add_host_json("host2")
+        CC.CLI.host.add_host_json("host3")
+        CC.CLI.host.add_host_json("host4")
+        CC.CLI.host.add_host_json("host5")
     end
 end
 
 Given (/^(?:|that )there are no hosts added$/) do
-    removeAllHostsCLI()
+    CC.CLI.host.remove_all_hosts()
 end
 
 Given (/^(?:|that )only the default host is added$/) do
-    visitHostsPage()
-    if (page.has_no_content?("Showing 1 Result") || isNotInRows("table://hosts/defaultHost/name"))
-        removeAllHostsCLI()
-        addDefaultHost()
-    end
+    CC.CLI.host.ensure_only_default_host_exists()
 end
 
 When (/^I am on the hosts page$/) do
@@ -48,15 +44,15 @@ When (/^I click the add Host button$/) do
 end
 
 When (/^I click the Hosts Map button$/) do
-    @hosts_page.hostsMap_button.click()
+    CC.UI.HostsPage.hostsMap_button.click()
 end
 
 When (/^I add the "(.*?)" host$/) do |host|
-    addHostJson(host)
+    CC.CLI.host.add_host_json(host)
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
-    list = @hosts_page.active_icons
+    list = CC.UI.HostsPage.active_icons
     for i in 0..(list.size - 2)
         if order == "top"
              # assuming + (good ng-scope) before - (down ng-scope) before ! (bad ng-scope)
@@ -68,96 +64,70 @@ Then (/^the "Active" column should be sorted with active hosts on (top|the botto
 end
 
 Then (/^I should see the Add Host dialog$/) do
-    @hosts_page.addHost_dialog.visible?
+    CC.UI.HostsPage.addHost_dialog.visible?
 end
 
 Then (/^I should see the Host field$/) do
-    @hosts_page.hostHost_input.visible?
+    CC.UI.HostsPage.hostHost_input.visible?
 end
 
 Then (/^I should see the Port field$/) do
-    @hosts_page.rpcPort_input.visible?
+    CC.UI.HostsPage.rpcPort_input.visible?
 end
 
 Then (/^I should see the Resource Pool ID field$/) do
-    @hosts_page.resourcePool_input.visible?
+    CC.UI.HostsPage.resourcePool_input.visible?
 end
 
 Then (/^I should see the RAM Limit field$/) do
-    @hosts_page.ramLimit_input.visible?
+    CC.UI.HostsPage.ramLimit_input.visible?
 end
 
 Then (/^I should see an empty Hosts page$/) do
-    expect(@hosts_page).to have_no_host_entry
-    expect(@hosts_page).to have_content("Showing 0 Results")
-    expect(@hosts_page).to have_content("No Data Found")
+    expect(CC.UI.HostsPage).to have_no_host_entry
+    expect(CC.UI.HostsPage).to have_content("Showing 0 Results")
+    expect(CC.UI.HostsPage).to have_content("No Data Found")
 end
 
 Then (/^the Port field should be flagged as invalid$/) do
-    expect(@hosts_page.rpcPort_input[:class]).to include("ng-invalid")
+    expect(CC.UI.HostsPage.rpcPort_input[:class]).to include("ng-invalid")
 end
 
 
 def visitHostsPage()
     oldWait = setDefaultWaitTime(180)
-    @hosts_page = Hosts.new
-    supressDeployWizard()
     # printf "....load host page..."
-    @hosts_page.load
+    CC.UI.HostsPage.load
     # printf "done\n....wait for page..."
-    expect(@hosts_page).to be_displayed
+    expect(CC.UI.HostsPage).to be_displayed
     # printf "done\n....wait for animation..."
     setDefaultWaitTime(oldWait)
 
     # wait till loading animation clears
-    @hosts_page.has_no_css?(".loading_wrapper")
+    CC.UI.HostsPage.has_no_css?(".loading_wrapper")
     # printf "done\n"
 end
 
 def fillInHost(host)
-    # hosts can be added from deploy wizard, so
-    # the hosts_page object might not exist
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
-    @hosts_page.hostHost_input.set getTableValue(host)
+    CC.UI.HostsPage.hostHost_input.set getTableValue(host)
 end
 
 def fillInPort(port)
-    # hosts can be added from deploy wizard, so
-    # the hosts_page object might not exist
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
-    @hosts_page.rpcPort_input.set getTableValue(port)
+    CC.UI.HostsPage.rpcPort_input.set getTableValue(port)
 end
 
 def fillInResourcePool(pool)
-    # hosts can be added from deploy wizard, so
-    # the hosts_page object might not exist
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
-    @hosts_page.resourcePool_input.select getTableValue(pool)
+    CC.UI.HostsPage.resourcePool_input.select getTableValue(pool)
 end
 
 def fillInRAMLimit(commitment)
-    # hosts can be added from deploy wizard, so
-    # the hosts_page object might not exist
-    if @hosts_page == nil
-         @hosts_page = Hosts.new
-    end
-    @hosts_page.ramLimit_input.set getTableValue(commitment)
+    CC.UI.HostsPage.ramLimit_input.set getTableValue(commitment)
 end
 
 def clickAddHostButton()
-    @hosts_page.addHost_button.click
+    CC.UI.HostsPage.addHost_button.click
     # wait till modal is done loading
-    expect(@hosts_page).to have_no_css(".uilock", :visible => true)
-end
-
-def addHost(name, port, pool, commitment, hostID)
-    addHostCLI(name, port, pool, commitment, hostID)
+    expect(CC.UI.HostsPage).to have_no_css(".uilock", :visible => true)
 end
 
 def addHostUI(name, port, pool, commitment)
@@ -169,48 +139,3 @@ def addHostUI(name, port, pool, commitment)
     click_link_or_button("Add Host")
 end
 
-def addHostCLI(name, port, pool, commitment, hostID)
-    servicedCLI = getServicedCLI()
-    nameValue =  getTableValue(name)
-    portValue =  getTableValue(port)
-    poolValue =  getTableValue(pool)
-    commitmentValue =  getTableValue(commitment)
-    cmd = "#{servicedCLI} host add '#{nameValue}:#{portValue}' '#{poolValue}' --memory '#{commitmentValue}' 2>&1"
-
-    result = `#{cmd}`
-
-    hostIDValue =  getTableValue(hostID)
-    verifyCLIExitSuccess($?, result)
-    expect(result.strip).to eq(hostIDValue.to_s)
-
-    refreshPage()
-end
-
-def addDefaultHost()
-    addHostJson("defaultHost")
-end
-
-def addHostJson(host)
-    name = "table://hosts/" + host + "/hostName"
-    port = "table://hosts/" + host + "/rpcPort"
-    pool = "table://hosts/" + host + "/pool"
-    commitment = "table://hosts/" + host + "/commitment"
-    hostID = "table://hosts/" + host + "/hostID"
-
-    addHost(name, port, pool, commitment, hostID)
-end
-
-def removeAllHostsCLI()
-    servicedCLI = getServicedCLI()
-    cmd = "#{servicedCLI} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} host rm 2>&1"
-    result = `#{cmd}`
-    verifyCLIExitSuccess($?, result)
-
-    # verify all of the hosts were really removed
-    cmd = "#{servicedCLI} host list 2>&1"
-    result = `#{cmd}`
-    verifyCLIExitSuccess($?, result)
-    expect(result).to include("no hosts found")
-
-    refreshPage()
-end

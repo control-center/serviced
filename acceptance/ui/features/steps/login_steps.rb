@@ -1,21 +1,21 @@
 When(/^I am on the login page$/) do
-    visitLoginPage()
+    CC.UI.visit_login_page()
 end
 
 When(/^I fill in the user id field with "(.*?)"$/) do |userid|
-    @login_page.userid_field.set userid
+    CC.UI.LoginPage.userid_field.set userid
 end
 
 When(/^I fill in the user id field with the default user id$/) do
-    fillInDefaultUserID()
+    CC.UI.LoginPage.userid_field.set applicationUserID()
 end
 
 When(/^I fill in the password field with "(.*?)"$/) do |password|
-    @login_page.password_field.set password
+    CC.UI.LoginPage.password_field.set password
 end
 
 When(/^I fill in the password field with the default password$/) do
-    fillInDefaultPassword()
+    CC.UI.LoginPage.password_field.set applicationPassword()
 end
 
 #
@@ -26,36 +26,13 @@ end
 #    when-I-click step.
 #
 When (/^I click the sign-in button$/) do
-    clickSignInButton()
+    CC.UI.LoginPage.signin_button.click
 end
 
 And (/^I close the deploy wizard if present$/) do
     closeDeployWizard()
 end
 
-def visitLoginPage()
-    oldWait = setDefaultWaitTime(180)
-    @login_page = Login.new
-    @login_page.load
-    expect(@login_page).to be_displayed
-    setDefaultWaitTime(oldWait)
-
-    # wait till loading animation clears
-    @login_page.has_no_css?(".loading_wrapper")
-end
-
-def fillInDefaultUserID()
-    @login_page.userid_field.set applicationUserID()
-end
-
-def fillInDefaultPassword()
-    @login_page.password_field.set applicationPassword()
-end
-
-def clickSignInButton()
-    @login_page.signin_button.click
-end
-
 Then(/^I should see the login error "(.*?)"$/) do |text|
-    expect(@login_page.error_message.text).to have_content text
+    expect(CC.UI.LoginPage.error_message.text).to have_content text
 end

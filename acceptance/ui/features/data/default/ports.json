@@ -1,0 +1,18 @@
+{
+    "ports": {
+        "port0": {
+            "Service": "s2",
+            "Endpoint": "websvc",
+            "PortAddr": ":1234",
+            "Protocol": "other",
+            "Enabled": true
+        },
+        "port1": {
+            "Service": "s2",
+            "Endpoint": "websvc",
+            "PortAddr": ":33333",
+            "Protocol": "https",
+            "Enabled": true
+        }
+    }
+}
