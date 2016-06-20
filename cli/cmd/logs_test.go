@@ -60,6 +60,11 @@ func (s *TestLogsSuite) TearDownTest(c *C) {
 
 func (s *TestLogsSuite) TestLogsSomething(c *C) {
 	//call cmdExportLogs, verify that searchForService() is called
+	fmt.Fprintf(os.Stderr, " TestLogsSomething()")
+	fakeAPI := &apimocks.API{}
+	//TODO:add proper arguments to below, then set expectations for calls.
+	// fakeAPI.ExportLogs()
+	fakeAPI.On("")
 	cli := New(s.mockAPI, utils.TestConfigReader(make(map[string]string)))
 
 	app := cgcli.NewApp()
