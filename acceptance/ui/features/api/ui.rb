@@ -134,8 +134,8 @@ class UI
         if page.driver.browser.manage.all_cookies != nil
             page.driver.browser.manage.all_cookies.each do |cookie|
                 printf "....cookie: %s\n",cookie[:name]
-                return
             end
+            return
         else
             printf "....no cookies\n"
         end
