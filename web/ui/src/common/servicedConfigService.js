@@ -4,7 +4,7 @@
 (function(){
     "use strict";
 
-    var resourcesFactory, $q, $cookies;
+    var resourcesFactory, $q, $cookies, log;
 
     class ServicedConfig {
         constructor(){
@@ -26,6 +26,7 @@
                 .then(response => {
                     this._config = angular.merge(this._config, response);
                     d.resolve(this._config);
+                    log.info(this._config);
                 },
                 err => {
                     d.reject(err);
@@ -74,11 +75,12 @@
     var servicedConfig = new ServicedConfig();
 
     angular.module("servicedConfig", [])
-    .factory("servicedConfig", ["$q", "resourcesFactory", "$cookies",
-    function(_$q, _resourcesFactory, _$cookies){
+    .factory("servicedConfig", ["$q", "resourcesFactory", "$cookies", "log",
+    function(_$q, _resourcesFactory, _$cookies, _log){
         resourcesFactory = _resourcesFactory;
         $q = _$q;
         $cookies = _$cookies;
+        log = _log;
         servicedConfig._update();
         return servicedConfig;
     }]);

@@ -5,7 +5,9 @@
     angular.module('modalService', []).
     factory("$modalService", [
         "$rootScope", "$templateCache", "$http", "$interpolate", "$compile", "$translate", "$notification",
-        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification){
+        "servicedConfig",
+        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
+            servicedConfig){
 
             var defaultModalTemplate = '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">\
                 <div class="modal-dialog {{bigModal}}">\
@@ -93,6 +95,13 @@
                 this.$el.on("hidden.bs.modal", function(){
                     this.destroy();
                 }.bind(this));
+
+                // determine if focusme directive should be followed
+                this.shouldFocusme = true;
+                if(servicedConfig.get("noFocusme")){
+                    this.shouldFocusme = false;
+                }
+                console.log("shouldFocusme", this.shouldFocusme);
             }
 
             Modal.prototype = {
@@ -224,8 +233,14 @@
 
                 // perform onShow function after modal is visible
                 modal.$el.one("shown.bs.modal.", function(){
-                    // search for and autofocus the focusme element
-                    modal.$el.find("[focusme]").first().focus();
+                    // if this modal has an input thatuses the `focusme`
+                    // attribute, we can automatically move the cursor
+                    // to that input, however, for acceptance tests we
+                    // want to turn that off.
+                    if(modal.shouldFocusme){
+                        // search for and autofocus the focusme element
+                        modal.$el.find("[focusme]").first().focus();
+                    }
 
                     // call user provided onShow function
                     setTimeout(() => {

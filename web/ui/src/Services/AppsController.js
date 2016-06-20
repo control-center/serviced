@@ -40,7 +40,7 @@
                 $('#addApp').modal('show');
 
                 // don't auto-show this wizard again
-                servicedConfig.set("autoRunWizardHasRun", "true");
+                servicedConfig.set("autoRunWizardHasRun", true);
             });
         };
 

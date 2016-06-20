@@ -177,12 +177,19 @@ controlplane.
         // reset on every page load
         servicedConfig.set("disableAnimation", false);
         servicedConfig.set("loglevel", "warn");
+        servicedConfig.set("noFocusme", false);
 
         // option to disable animation for
         // acceptance tests
         if(queryParams["disable-animation"] === "true"){
             servicedConfig.set("disableAnimation", true);
             $("body").addClass("no-animation");
+        }
+
+        // option to disable focusme for
+        // acceptance tests
+        if(queryParams["no-focusme"] === "true"){
+            servicedConfig.set("noFocusme", true);
         }
 
         // set log level
