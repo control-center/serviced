@@ -19,6 +19,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"path"
@@ -280,6 +281,33 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 	c.Assert(err, IsNil)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
+}
+
+func (s *DFSTestSuite) TestRestore_ImportSnapshot_FailGettingVolume(c *C) {
+	ErrNoVolume := errors.New("error getting volume")
+
+	buf := bytes.NewBufferString("")
+	tarfile := tar.NewWriter(buf)
+	backupInfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots: []string{"BASE_LABEL"},
+		Timestamp: time.Now().UTC(),
+	}
+	s.writeBackupInfo(c, tarfile, backupInfo)
+	err := tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL"), Size: 0})
+	c.Assert(err, IsNil)
+	tarfile.Close()
+	s.disk.On("Create", "BASE").Return(&volumemocks.Volume{}, volume.ErrVolumeExists)
+	s.disk.On("Get", "BASE").Return(&volumemocks.Volume{}, ErrNoVolume)
+	err = s.dfs.Restore(buf, &backupInfo)
+	c.Assert(err, Equals, ErrNoVolume)
+	s.disk.AssertExpectations(c)
 }
 
 func (s *DFSTestSuite) writeBackupInfo(c *C, tarfile *tar.Writer, backupInfo BackupInfo) {

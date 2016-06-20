@@ -202,3 +202,6 @@
 # Percent of tenant volume size that is assumed to be used.  This is used to determine if the volume has enough
 # free space for creating a snapshot.  Defaults to 20
 # SERVICED_SNAPSHOT_USE_PERCENT=20
+
+# Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
+# SERVICED_ZK_SESSION_TIMEOUT=15

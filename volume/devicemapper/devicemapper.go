@@ -21,10 +21,10 @@ import (
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 )
 
 var (
@@ -32,6 +32,8 @@ var (
 	ErrInvalidOption        = errors.New("invalid option")
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
+	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
+	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device, remove the application and restore from backup or redeploy")
 )
 
 func init() {
@@ -242,6 +244,22 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 	return vol, nil
 }
 
+// loadVolume builds a volume object from an existing volume.  This is a wrapper around newVolume that returns an error
+//  if the deviceHash returned is empty or equal to the base device
+func (d *DeviceMapperDriver) loadVolume(volumeName string) (*DeviceMapperVolume, error) {
+	vol, err := d.newVolume(volumeName)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceHash := vol.deviceHash()
+	if deviceHash == "" || deviceHash == "base" {
+		return nil, ErrBaseDeviceHash
+	}
+
+	return vol, err
+}
+
 // GetTenant implements volume.Driver.GetTenant
 func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error) {
 	if !d.Exists(volumeName) {
@@ -252,7 +270,7 @@ func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error)
 
 // Resize implements volume.Driver.Resize.
 func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		return err
 	}
@@ -333,7 +351,7 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Get() (%s) START", volumeName)
 	defer glog.V(2).Infof("Get() (%s) END", volumeName)
 	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
 		return nil, err
@@ -388,7 +406,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 	}
 	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
 	for _, volname := range d.List() {
-		_, err := d.newVolume(volname)
+		_, err := d.loadVolume(volname)
 		if err != nil {
 			glog.V(1).Infof("Unable to get volume %s; skipping", volname)
 			continue
@@ -404,7 +422,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 func (d *DeviceMapperDriver) Release(volumeName string) error {
 	glog.V(2).Infof("Release() (%s) START", volumeName)
 	defer glog.V(2).Infof("Release() (%s) END", volumeName)
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.loadVolume(volumeName)
 	if err != nil {
 		return err
 	}
@@ -455,29 +473,37 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		return nil
 	}
 	// get the volume
-	v, err := d.newVolume(volumeName)
+	v, err := d.loadVolume(volumeName)
 	if err != nil {
-		return err
-	}
-	// remove the snapshots
-	glog.V(1).Infof("Removing snapshots from %s", volumeName)
-	snapshots, err := v.Snapshots()
-	if err != nil {
-		return err
-	}
-	for _, snapshot := range snapshots {
-		if err := v.RemoveSnapshot(snapshot); err != nil {
-			return err
+		//log the error, but continue trying to remove things
+		glog.Errorf("Error loading volume %s: %s", volumeName, err)
+	} else {
+		// remove the snapshots
+		glog.V(1).Infof("Removing snapshots from %s", volumeName)
+		snapshots, err := v.Snapshots()
+		if err != nil {
+			glog.Errorf("Error getting list of snapshots for volume %s: %s", volumeName, err)
+		} else {
+			for _, snapshot := range snapshots {
+				if err := v.RemoveSnapshot(snapshot); err != nil {
+					glog.Errorf("Could not remove snapshot: %s", err)
+				}
+			}
+		}
+
+		// Release the device (requires another call to loadVolume)
+		if err := d.Release(volumeName); err != nil {
+			glog.V(1).Infof("Error releasing device: %s", err)
+		}
+
+		// Delete the device
+		glog.V(1).Infof("Removing volume %s", volumeName)
+		if err := d.deleteDevice(v.deviceHash(), false); err != nil {
+			glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		}
 	}
-	if err := d.Release(volumeName); err != nil {
-		glog.V(1).Infof("Error releasing device: %s", err)
-	}
-	glog.V(1).Infof("Removing volume %s", volumeName)
-	if err := d.DeviceSet.DeleteDevice(v.deviceHash(), false); err != nil {
-		glog.Errorf("Could not delete device %s: %s", volumeName, err)
-		return err
-	}
+
+	// Remove the metadata directory
 	if err := os.RemoveAll(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
 		return err
 	}
@@ -633,7 +659,20 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		dmoptions = append(dmoptions, "dm.fs=ext4")
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, dmoptions, nil, nil)
 		if err != nil {
-			return err
+			if _, thinError := err.(devmapper.ThinpoolInitError); thinError {
+				//Try recreating the base image because sometimes something deletes it
+				glog.Errorf("Error intializing thin pool device, %s, attempting to create to new base device", err)
+				deviceSet, err = devmapper.NewDeviceSet(poolPath, false, d.options, nil, nil)
+				if err != nil {
+					return err
+				}
+				err = deviceSet.CreateBaseImage()
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
 		}
 		d.DeviceSet = deviceSet
 		prefix, err := GetDevicePrefix(poolPath)
@@ -675,6 +714,14 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	return nil
+}
+
+func (d *DeviceMapperDriver) deleteDevice(deviceName string, syncDelete bool) error {
+	if deviceName == "base" || deviceName == "" {
+		glog.Errorf("Request to delete base device '%s' will not be honored", deviceName)
+		return ErrDeleteBaseDevice
+	}
+	return d.DeviceSet.DeleteDevice(deviceName, syncDelete)
 }
 
 // Name implements volume.Volume.Name
@@ -957,7 +1004,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.V(2).Infof("Error deactivating device (%s): %s", deviceHash, err)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(deviceHash, false); err != nil {
+	if err := v.driver.deleteDevice(deviceHash, false); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
@@ -1013,7 +1060,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 		glog.V(2).Infof("Deactivated old head device %s", curDeviceHash)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(curDeviceHash, false); err != nil {
+	if err := v.driver.deleteDevice(curDeviceHash, false); err != nil {
 		glog.Warningf("Error cleaning up old head device %s: %s", curDeviceHash, err)
 	} else {
 		glog.V(2).Infof("Deleted old head device %s", curDeviceHash)
@@ -1200,7 +1247,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 	}
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
-		vol, err := d.newVolume(tenant)
+		vol, err := d.loadVolume(tenant)
 		if err != nil {
 			return nil, err
 		}
@@ -1290,7 +1337,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) (err error) 
 	glog.V(2).Infof("Created a staging device %s for snapshot %s", deviceHash, label)
 	defer func() {
 		if err != nil {
-			v.driver.DeviceSet.DeleteDevice(deviceHash, false)
+			v.driver.deleteDevice(deviceHash, false)
 		}
 	}()
 
