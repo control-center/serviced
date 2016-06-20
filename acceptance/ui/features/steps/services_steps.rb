@@ -83,7 +83,7 @@ Then (/^I delete Endpoint "([^"]*)"$/) do |entry|
     CC.UI.remove_publicendpoint(entry)
 end
 
-When (/^I click the add Add Public Endpoint button$/) do
+When (/^I click the Add Public Endpoint button$/) do
     CC.UI.click_add_publicendpoint_button()
 end
 

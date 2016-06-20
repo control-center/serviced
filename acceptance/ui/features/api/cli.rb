@@ -62,7 +62,6 @@ class CLI
         host = getTableValue("table://hosts/defaultHost/name")
         json = get_json("%{serviced} host list -v")
         if (json.length != 1 || findArrayMatch(json, "Name", host) == nil)
-        #if (page.has_no_content?("Showing 1 Result") || isNotInRows("table://hosts/defaultHost/name"))
             remove_all_hosts()
             add_default_host()
         end

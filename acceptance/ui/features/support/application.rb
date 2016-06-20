@@ -1,5 +1,4 @@
 require 'uri'
-require 'json'
 
 #
 # Returns the full application URL given a path relative to the application's base URL
