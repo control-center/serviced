@@ -29,13 +29,11 @@
                     success(function(data, status) {
                         // Ensure that the auth service knows that we are logged in
                         setLoggedIn(true, creds.Username);
-
                         successCallback();
                     }).
                     error(function(data, status) {
                         // Ensure that the auth service knows that the login failed
                         setLoggedIn(false);
-
                         failCallback();
                     });
             },

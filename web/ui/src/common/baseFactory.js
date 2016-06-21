@@ -17,30 +17,20 @@
 (function() {
     'use strict';
 
-    const DEFAULT_UPDATE_FREQUENCY = 3000;
-    var updateFrequency = DEFAULT_UPDATE_FREQUENCY;
-
-    var $q, $interval, $rootScope, log;
+    var $q, $interval, $rootScope, log, servicedConfig;
 
     angular.module('baseFactory', []).
     factory("baseFactory", ["$q", "$interval", "$rootScope", "servicedConfig", "log",
-    function(_$q, _$interval, _$rootScope, servicedConfig, _log){
+    function(_$q, _$interval, _$rootScope, _servicedConfig, _log){
 
         $q = _$q;
         $interval = _$interval;
         $rootScope = _$rootScope;
         log = _log;
+        servicedConfig = _servicedConfig;
 
-        servicedConfig.getConfig()
-            .then(config => {
-                updateFrequency = config.PollFrequency * 1000;
-            }).catch(err => {
-                let errMessage = err.statusText;
-                if(err.data && err.data.Detail){
-                    errMessage = err.data.Detail;
-                }
-                log.error("could not load serviced config:", errMessage);
-            });
+        // force a config update if not already done
+        servicedConfig.update();
 
         return BaseFactory;
     }]);
@@ -64,6 +54,10 @@
 
     BaseFactory.prototype = {
         constructor: BaseFactory,
+
+        getUpdateFrequency: function(){
+            return servicedConfig.get("PollFrequency") * 1000;
+        },
 
         // TODO - debounce
         // update calls the provided update function, iterates the results,
@@ -124,7 +118,7 @@
         // begins auto-update
         activate: function(){
             if(!this.updatePromise){
-                this.updatePromise = $interval(() => this.update(), updateFrequency);
+                this.updatePromise = $interval(() => this.update(), this.getUpdateFrequency());
             }
         },
 

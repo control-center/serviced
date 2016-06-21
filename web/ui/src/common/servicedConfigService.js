@@ -4,11 +4,14 @@
 (function(){
     "use strict";
 
-    var resourcesFactory, $q, $cookies, log;
+    var $http, $q, $cookies, log;
 
     class ServicedConfig {
         constructor(){
-            this._config = {};
+            // TODO - gather all defaults here
+            this._config = {
+                PollFrequency: 10
+            };
         }
 
         _update(){
@@ -21,28 +24,44 @@
             this._config.autoRunWizardHasRun = $cookies.get("autoRunWizardHasRun");
 
             // get config values from serviced
-            resourcesFactory.getUIConfig()
-                // TODO - errors
+            // NOTE - using $http directly instead of resource service
+            // because resource service automatically redirects on
+            // unauthorized, and we want to just try again here
+            $http.get("/config")
                 .then(response => {
-                    this._config = angular.merge(this._config, response);
+                    // TODO - handle error response
+                    this._config = angular.merge(this._config, response.data);
                     d.resolve(this._config);
                     log.info(this._config);
                 },
                 err => {
-                    d.reject(err);
+                    let errMessage = err.statusText;
+                    if(err.data && err.data.Detail){
+                        errMessage = err.data.Detail;
+                    }
+                    log.error("failed to load serviced config with error:", "'"+ errMessage +"'.", "using default values");
+                    log.info(this._config);
+                    d.resolve(this._config);
+                    // this allows the next call to try again
+                    this._d = undefined;
                 });
 
             this._d = d.promise;
             return this._d;
         }
 
-        getConfig(){
+        // fetches config if not already fetched and
+        // waits till all configs have been gathered
+        // before fulfilling a promise.
+        update(){
             if(!this._d){
                 this._update();
             }
             return this._d;
         }
 
+        // gets a config value, but does not attempt
+        // to fetch any missing config values
         get(key){
             let val = this._config[key];
             if(val === "true"){
@@ -75,9 +94,9 @@
     var servicedConfig = new ServicedConfig();
 
     angular.module("servicedConfig", [])
-    .factory("servicedConfig", ["$q", "resourcesFactory", "$cookies", "log",
-    function(_$q, _resourcesFactory, _$cookies, _log){
-        resourcesFactory = _resourcesFactory;
+    .factory("servicedConfig", ["$q", "$http", "$cookies", "log",
+    function(_$q, _$http, _$cookies, _log){
+        $http = _$http;
         $q = _$q;
         $cookies = _$cookies;
         log = _log;
