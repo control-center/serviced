@@ -1,5 +1,5 @@
 Given (/^(?:|that )the admin user is logged in$/) do
-    loginAsDefaultUser()
+    CC.UI.login()
 end
 
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
@@ -303,35 +303,6 @@ def getTableValue(valueOrTableUrl)
     end
 end
 
-def getServicedCLI()
-    return "/capybara/serviced --endpoint #{TARGET_HOST}:4979"
-end
-
-#
-# Login if not already logged in. 
-#
-# Note that by saving cookies after the first successful login and restoring them
-#   on subsequent calls (thus bypassing the need to login), dramatically improves performance for all
-#   test cases.
-def loginAsDefaultUser()
-
-  visitLoginPage()
-  supressDeployWizard()
-  fillInDefaultUserID()
-  fillInDefaultPassword()
-  clickSignInButton()
-
-end
-
-#
-# Verify that CLI exit status is 0.
-# If it fails, include the command output in the error message.
-#
-def verifyCLIExitSuccess(processStatus, output)
-    errorMsg = "CLI return code %d is not 0. Command Output=%s" % [processStatus.exitstatus, output]
-    expect(processStatus.exitstatus).to eq(0), errorMsg
-end
-
 def getDefaultWaitTime()
     return Capybara.default_max_wait_time
 end
@@ -347,24 +318,4 @@ def visitDefaultPage()
   visitApplicationsPage()
 end
 
-def dumpCookies()
-    if page.driver.browser.manage.all_cookies != nil
-        page.driver.browser.manage.all_cookies.each do |cookie|
-            printf "....cookie: %s\n",cookie[:name]
-            return
-        end
-    else
-        printf "....no cookies\n"
-    end
-end
 
-def supressDeployWizard()
-    # dumpCookies()
-    deploywizcookie = page.driver.browser.manage.cookie_named("autoRunWizardHasRun")
-    if deploywizcookie != nil
-        return
-    end
-    page.driver.browser.manage.add_cookie(
-        {name:"autoRunWizardHasRun", value:"true"}
-    )
-end

@@ -35,6 +35,11 @@ def retryMethod(function, retries, delay)
             # Make an attempt at the method call, catching errors.
             function.call()
             return # Success.
+        rescue RSpec::Expectations::ExpectationNotMetError => e
+            printf("retryMethod: %s\n" % [e.message])
+            printf("** Sleeping %d seconds before retrying.\n" % [delay])
+            #printf("page source:\n%s\n" % page.html) if page
+            sleep delay
         rescue StandardError => e
             printf("retryMethod: %s\n" % [e.message])
             printf("** Sleeping %d seconds before retrying.\n" % [delay])

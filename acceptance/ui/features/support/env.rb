@@ -47,6 +47,15 @@ def parseJson(data)
     return data
 end
 
+# Loops through the items in the array and returns the
+# item that matches the given property or nil.
+def findArrayMatch(array, property, match)
+    array.each do |item|
+        return item if item[property] == match
+    end
+    return nil
+end
+
 #
 # Set defaults
 Capybara.default_max_wait_time = 10

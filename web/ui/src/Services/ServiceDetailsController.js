@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "servicedConfig",
+    "poolsFactory", "CCUIState", "servicedConfig", "areUIReady",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, servicedConfig){
+    poolsFactory, CCUIState, servicedConfig, areUIReady){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -44,6 +44,7 @@
 
 
         $scope.modalAddPublicEndpoint = function() {
+            areUIReady.lock();
             $scope.protocols = [];
             $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
             $scope.protocols.push({ Label: "HTTP", UseTLS: false, Protocol: "http" });
@@ -175,6 +176,9 @@
                         }
                     }
                 },
+                onShow: () => {
+                    areUIReady.unlock();
+                }
             });
         };
 
