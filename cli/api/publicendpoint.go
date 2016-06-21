@@ -37,3 +37,13 @@ func (a *api) RemovePublicEndpointPort(serviceid, endpointName, portAddr string)
 
 	return client.RemovePublicEndpointPort(serviceid, endpointName, portAddr)
 }
+
+// Enable/Disable a port public endpoint.
+func (a *api) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.EnablePublicEndpointPort(serviceid, endpointName, portAddr, isEnabled)
+}

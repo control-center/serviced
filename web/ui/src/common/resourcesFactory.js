@@ -112,21 +112,33 @@
             },
             enablePort: {
                 method: POST,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName, portIP) => {
+                payload: (serviceID, serviceName, endpointName, portName) => {
                     return JSON.stringify({
-                        'Enable': true
+                        'ServiceID': serviceID,
+                        'ServiceName': serviceName,
+                        'Application': endpointName,
+                        'PortName': portName,
+                        'IsEnabled': true
                     });
                 }
             },
             disablePort: {
                 method: POST,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:false});}
+                payload: (serviceID, serviceName, endpointName, portName) => {
+                    return JSON.stringify({
+                        'ServiceID': serviceID,
+                        'ServiceName': serviceName,
+                        'Application': endpointName,
+                        'PortName': portName,
+                        'IsEnabled': false
+                    });
+                }
             },
             getServiceInstances: {
                 method: GET,

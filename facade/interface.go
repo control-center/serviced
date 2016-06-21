@@ -102,4 +102,6 @@ type FacadeInterface interface {
 	AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
 
 	RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error
+
+	EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error
 }

@@ -404,7 +404,7 @@
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId,  publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -419,13 +419,11 @@
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
-
             }
-
         };
 
         $scope.clickEditContext = function() {
