@@ -95,74 +95,57 @@ func (d * DeviceMapperDriver) cleanUpSnapshots() {
     if err != nil || snapshotsInMetadata == nil {
         return
     }
-
+ 
     glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
 
     for _, snapshotOnDisk := range snapshotsOnDisk {
-        inMetadata := false
-        for _, snapshotInMetadata := range snapshotsInMetadata {
-            if snapshotOnDisk == snapshotInMetadata {
-                inMetadata = true
-            }
-        }
-        
-        if !inMetadata {
-            glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
+		if _, ok := snapshotsInMetadata[snapshotOnDisk]; !ok {
+			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
             os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
-        }
-    } 
+		}
+    }
 }
+ 
+func (d * DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]struct{}, error) { 
+    snapshots := make(map[string]struct{})
 
-
-func (d * DeviceMapperDriver) getSnapshotsFromMetadata() ([]string, error) { 
-    var snapshots []string
-
-    for _, volname := range d.List() {
+    for _, volname := range d.ListTenants() {
 		volume, err := d.newVolume(volname)
 		if err != nil {
-			return nil, err
-		}
-
+ 			return nil, err
+ 		}
+ 
         for _, s := range volume.Metadata.ListSnapshots() {
-            snapshots = append(snapshots, s)
+            snapshots[s] = struct{}{}
         }
 	}
 
     return snapshots, nil
 }
-
+ 
 func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {  
     var snapshots []string
-
-    files, err := ioutil.ReadDir(d.MetadataDir())
+ 
+	files, err := ioutil.ReadDir(d.MetadataDir())
 	if err != nil {
 		return nil, err
 	} 
-    
-    for _, file := range files {
-        isSnapshot, err := d.isSnapshot(filepath.Join(d.MetadataDir(), file.Name()))
-        if err == nil && isSnapshot {
-            snapshots = append(snapshots, file.Name())
-        }
-    }
 
-	return snapshots, nil
-}
+	for _, file := range files {
+		for _, volname := range d.ListTenants() {
+			volume, err := d.newVolume(volname)
+			if err != nil {
+				return nil, err
+			}
+	
+			if !volume.isInvalidSnapshot(file.Name()) {
+				snapshots = append(snapshots, file.Name())
+				break
+			}
+		}
+	}
 
-func (d* DeviceMapperDriver) isSnapshot(directory string) (bool, error) {
-    files, err := ioutil.ReadDir(directory)
-	if err != nil {
-        return false, err
-	} 
-
-    for _, file := range files {
-        if file.Name() == ".snapshot" {
-            return true, nil
-        }
-    }
-
-    glog.V(2).Infof("%v. is not snapshot", directory)
-    return false, nil
+ 	return snapshots, nil
 }
 
 // Root implements volume.Driver.Root
