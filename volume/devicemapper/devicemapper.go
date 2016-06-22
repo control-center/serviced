@@ -73,8 +73,8 @@ func Init(root string, options []string) (volume.Driver, error) {
 		options: options,
 	}
 
-	d.cleanUpSnapshots()
-	
+	driver.cleanUpSnapshots()
+
 	if err := driver.ensureInitialized(); err != nil {
 		return nil, err
 	}
