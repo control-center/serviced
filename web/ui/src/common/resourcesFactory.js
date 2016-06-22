@@ -95,10 +95,7 @@
                 },
                 payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'ServiceName': serviceName,
-                        'Application': endpointName,
-                        'PortName': portName,
+                        'ServiceName': serviceName,  /* Used in messages/logs */
                         'UseTLS': usetls,
                         'Protocol': protocol
                     });
@@ -117,10 +114,7 @@
                 },
                 payload: (serviceID, serviceName, endpointName, portName) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'ServiceName': serviceName,
-                        'Application': endpointName,
-                        'PortName': portName,
+                        'ServiceName': serviceName,  /* Used in messages/logs */
                         'IsEnabled': true
                     });
                 }
@@ -132,10 +126,7 @@
                 },
                 payload: (serviceID, serviceName, endpointName, portName) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'ServiceName': serviceName,
                         'Application': endpointName,
-                        'PortName': portName,
                         'IsEnabled': false
                     });
                 }

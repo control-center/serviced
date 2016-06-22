@@ -229,12 +229,10 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	restSuccess(w)
 }
 
-// json object for adding/removing a port with a service
+// json payload object for adding/removing/enabling a port with a service. other
+// properties are retrieved from the url
 type portRequest struct {
-	ServiceID   string
 	ServiceName string
-	Application string
-	PortName    string
 	UseTLS      bool
 	Protocol    string
 	IsEnabled   bool
@@ -277,8 +275,16 @@ func getPortContext(r *rest.Request) (string, string, string, error) {
 func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	glog.V(1).Infof("Add PORT with %s %#v", r.URL.Path, r)
 
+	serviceid, application, port, err := getPortContext(r)
+	if err != nil {
+		err := fmt.Errorf("Error removing port from service (%s): %v", serviceid, err)
+		glog.Error(err)
+		restServerError(w, err)
+		return
+	}
+
 	var request portRequest
-	err := r.DecodeJsonPayload(&request)
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
@@ -289,8 +295,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	port, err := facade.AddPublicEndpointPort(dataCtx, request.ServiceID, request.Application,
-		request.PortName, request.UseTLS, request.Protocol, true, true)
+	_, err = facade.AddPublicEndpointPort(dataCtx, serviceid, application,
+		port, request.UseTLS, request.Protocol, true, true)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", request.ServiceName, err)
 		restServerError(w, err)
@@ -298,7 +304,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
-		port.PortAddr, request.ServiceName, port.UseTLS, port.Protocol)
+		port, request.ServiceName, request.UseTLS, request.Protocol)
 
 	restSuccess(w)
 }
@@ -332,29 +338,36 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 func restPortEnable(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	glog.V(1).Infof("Enable/Disable PORT with %s %#v", r.URL.Path, r)
 
-	// TODO: Add the service name to the payload.
+	serviceid, application, port, err := getPortContext(r)
+	if err != nil {
+		err := fmt.Errorf("Error removing port from service (%s): %v", serviceid, err)
+		glog.Error(err)
+		restServerError(w, err)
+		return
+	}
+
 	var request portRequest
-	err := r.DecodeJsonPayload(&request)
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 
-	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", request.IsEnabled, request.ServiceName, request.PortName)
+	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", request.IsEnabled, request.ServiceName, port)
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	err = facade.EnablePublicEndpointPort(dataCtx, request.ServiceID, request.Application,
-		request.PortName, request.IsEnabled)
+	err = facade.EnablePublicEndpointPort(dataCtx, serviceid, application,
+		port, request.IsEnabled)
 	if err != nil {
 		glog.Errorf("Error setting enabled=%t for service (%s) port %s: %v", request.IsEnabled,
-			request.ServiceName, request.PortName, err)
+			request.ServiceName, port, err)
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(2).Infof("Port (%s) enabled=%t set for service (%s)", request.PortName, request.IsEnabled,
+	glog.V(2).Infof("Port (%s) enabled=%t set for service (%s)", port, request.IsEnabled,
 		request.ServiceName)
 
 	restSuccess(w)
