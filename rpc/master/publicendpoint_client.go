@@ -54,3 +54,14 @@ func (c *Client) RemovePublicEndpointPort(serviceid, endpointName, portAddr stri
 	}
 	return c.call("RemovePublicEndpointPort", request, nil)
 }
+
+// Enable/disable a port public endpoint for a service.
+func (c *Client) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+	request := &PublicEndpointPortRequest{
+		Serviceid:    serviceid,
+		EndpointName: endpointName,
+		PortAddr:     portAddr,
+		IsEnabled:    isEnabled,
+	}
+	return c.call("EnablePublicEndpointPort", request, nil)
+}

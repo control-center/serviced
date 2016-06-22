@@ -107,12 +107,6 @@
                 if(+port < 1 || +port > 65536){
                     return "Port must be between 1 and 65536";
                 }
-
-                // TODO - add more reserved ports
-                var reservedPorts = [5000, 8080];
-                if(reservedPorts.indexOf(+port) !== -1){
-                    return "Port "+ port +" is reserved";
-                }
             };
 
             $modalService.create({
@@ -404,7 +398,7 @@
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId,  publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -419,13 +413,11 @@
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
-
             }
-
         };
 
         $scope.clickEditContext = function() {
