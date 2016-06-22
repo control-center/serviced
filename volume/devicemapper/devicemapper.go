@@ -75,12 +75,82 @@ func Init(root string, options []string) (volume.Driver, error) {
 		options: options,
 	}
 
+	driver.cleanUpSnapshots()
+
 	if err := driver.ensureInitialized(); err != nil {
 		return nil, err
 	}
 	return driver, nil
 }
 
+
+// If there any snapshots on disk that are not tied to a device in the metadata, the 
+// snapshot should be removed.
+func (d * DeviceMapperDriver) cleanUpSnapshots() {
+    snapshotsOnDisk, err := d.getSnapshotsOnDisk()
+    if err != nil || snapshotsOnDisk == nil {
+        return
+    }
+
+    glog.V(2).Infof("Snapshots on disk: %v", snapshotsOnDisk)
+
+    snapshotsInMetadata, err := d.getSnapshotsFromMetadata()
+    if err != nil || snapshotsInMetadata == nil {
+        return
+    }
+ 
+    glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
+
+    for _, snapshotOnDisk := range snapshotsOnDisk {
+		if _, ok := snapshotsInMetadata[snapshotOnDisk]; !ok {
+			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
+            os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
+		}
+    }
+}
+ 
+func (d * DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]struct{}, error) { 
+    snapshots := make(map[string]struct{})
+
+    for _, volname := range d.ListTenants() {
+		volume, err := d.newVolume(volname)
+		if err != nil {
+ 			return nil, err
+ 		}
+ 
+        for _, s := range volume.Metadata.ListSnapshots() {
+            snapshots[s] = struct{}{}
+        }
+	}
+
+    return snapshots, nil
+}
+ 
+func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {  
+    var snapshots []string
+ 
+	files, err := ioutil.ReadDir(d.MetadataDir())
+	if err != nil {
+		return nil, err
+	} 
+
+	for _, file := range files {
+		for _, volname := range d.ListTenants() {
+			volume, err := d.newVolume(volname)
+			if err != nil {
+				return nil, err
+			}
+	
+			if !volume.isInvalidSnapshot(file.Name()) {
+				snapshots = append(snapshots, file.Name())
+				break
+			}
+		}
+	}
+
+ 	return snapshots, nil
+}
+  
 // Root implements volume.Driver.Root
 func (d *DeviceMapperDriver) Root() string {
 	return d.root
