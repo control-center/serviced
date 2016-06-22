@@ -21,7 +21,7 @@ var DEBUG = false;
  * Main module & controllers
  ******************************************************************************/
 var controlplane = angular.module('controlplane', [
-    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate',
+    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'ngSanitize',
     'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
     'modalService', 'angular-cache', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
@@ -75,7 +75,7 @@ controlplane.
         });
         $translateProvider.preferredLanguage('en_US');
         $translateProvider.fallbackLanguage('en_US');
-        $translateProvider.useSanitizeValueStrategy('escape');
+        $translateProvider.useSanitizeValueStrategy('sanitize');
     }]).
     config(['CacheFactoryProvider', function(CacheFactoryProvider){
         angular.extend(CacheFactoryProvider.defaults, {
