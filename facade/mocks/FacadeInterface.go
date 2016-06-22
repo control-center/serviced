@@ -397,3 +397,9 @@ func (m *FacadeInterface) RemovePublicEndpointPort(ctx datastore.Context, servic
 	r0 := ret.Error(0)
 	return r0
 }
+
+func (m *FacadeInterface) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
+	ret := m.Called(ctx, serviceid, endpointName, portAddr)
+	r0 := ret.Error(0)
+	return r0
+}

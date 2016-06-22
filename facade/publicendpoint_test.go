@@ -17,6 +17,7 @@ package facade
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -185,4 +186,106 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
 	}
 
 	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+			},
+		},
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+
+	// The public endpoint should be enabled.
+	svc, err := ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == false {
+		c.Errorf("Expected service port public endpoint to be enabled")
+	}
+
+	// Disable the port.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", false)
+	c.Assert(err, IsNil)
+	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == true {
+		c.Errorf("Expected service port public endpoint to be disabled")
+	}
+
+	// Enable the port.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", true)
+	c.Assert(err, IsNil)
+	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == false {
+		c.Errorf("Expected service port public endpoint to be enabled")
+	}
+
+	// Enable a port with an invalid serviceid
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid service")
+	}
+
+	// Enable a port with an invalid application/endpoint id
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid endpoint")
+	}
+
+	// Enable a port with invalid port addresses.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", "invalid", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":-5000", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":0", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":77777", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+
+	// Try to enable a port with a port number that's already in use.
+	func() {
+		// Open an unused port first.
+		listener, err := net.Listen("tcp", ":0")
+		c.Assert(err, IsNil)
+		defer listener.Close()
+		// Now try to enable a port with the same address we just opened.
+		err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", listener.Addr().String(), true)
+		if err == nil {
+			c.Errorf("Expected failure enabling a port that's already in use")
+		}
+	}()
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable: PASSED")
 }

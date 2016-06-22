@@ -32,3 +32,8 @@ func (s *Server) AddPublicEndpointPort(request *PublicEndpointPortRequest, reply
 func (s *Server) RemovePublicEndpointPort(request *PublicEndpointPortRequest, _ *struct{}) error {
 	return s.f.RemovePublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.PortAddr)
 }
+
+// Enable/disable a port public endpoint for a service.
+func (s *Server) EnablePublicEndpointPort(request *PublicEndpointPortRequest, _ *struct{}) error {
+	return s.f.EnablePublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.PortAddr, request.IsEnabled)
+}

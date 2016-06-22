@@ -24,7 +24,6 @@ import (
 	"github.com/zenoss/go-json-rest"
 
 	"fmt"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -230,14 +229,13 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	restSuccess(w)
 }
 
-// json object for adding/removing a port with a service
+// json payload object for adding/removing/enabling a port with a service. other
+// properties are retrieved from the url
 type portRequest struct {
-	ServiceID   string
 	ServiceName string
-	Application string
-	PortName    string
 	UseTLS      bool
 	Protocol    string
+	IsEnabled   bool
 }
 
 // Returns the service, application, and portnumber from the request
@@ -277,8 +275,16 @@ func getPortContext(r *rest.Request) (string, string, string, error) {
 func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	glog.V(1).Infof("Add PORT with %s %#v", r.URL.Path, r)
 
+	serviceid, application, port, err := getPortContext(r)
+	if err != nil {
+		err := fmt.Errorf("Error removing port from service (%s): %v", serviceid, err)
+		glog.Error(err)
+		restServerError(w, err)
+		return
+	}
+
 	var request portRequest
-	err := r.DecodeJsonPayload(&request)
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
@@ -289,8 +295,8 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	port, err := facade.AddPublicEndpointPort(dataCtx, request.ServiceID, request.Application,
-		request.PortName, request.UseTLS, request.Protocol, true, true)
+	_, err = facade.AddPublicEndpointPort(dataCtx, serviceid, application,
+		port, request.UseTLS, request.Protocol, true, true)
 	if err != nil {
 		glog.Errorf("Error adding port to service (%s): %v", request.ServiceName, err)
 		restServerError(w, err)
@@ -298,7 +304,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 
 	glog.V(2).Infof("Port (%s) added to service (%s), UseTLS=%s, protocol=%s",
-		port.PortAddr, request.ServiceName, port.UseTLS, port.Protocol)
+		port, request.ServiceName, request.UseTLS, request.Protocol)
 
 	restSuccess(w)
 }
@@ -329,79 +335,41 @@ func restRemovePort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	restSuccess(w)
 }
 
-// json object for enabling/disabling a port
-type portEnable struct {
-	Enable bool
-}
-
-// Try to open the port.  If the port opens, we're good. Otherwise return error.
-func checkPort(network string, laddr string) error {
-	glog.V(2).Infof("Checking %s port %s", network, laddr)
-	listener, err := net.Listen(network, laddr)
-	if err != nil {
-		// Port isn't available.
-		glog.V(2).Infof("Port Listen failed; something else is using this port.")
-		return err
-	} else {
-		// Port was opened. Make sure we close it.
-		glog.V(2).Infof("Port Listen succeeded. Closing the listener.")
-		listener.Close()
-	}
-	return nil
-}
-
-func restPortEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restPortEnable(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	glog.V(1).Infof("Enable/Disable PORT with %s %#v", r.URL.Path, r)
 
-	// TODO: Add the service name to the payload.
-	var request portEnable
-	err := r.DecodeJsonPayload(&request)
+	serviceid, application, port, err := getPortContext(r)
+	if err != nil {
+		err := fmt.Errorf("Error removing port from service (%s): %v", serviceid, err)
+		glog.Error(err)
+		restServerError(w, err)
+		return
+	}
+
+	var request portRequest
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 
-	serviceid, application, port, err := getPortContext(r)
+	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", request.IsEnabled, request.ServiceName, port)
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	err = facade.EnablePublicEndpointPort(dataCtx, serviceid, application,
+		port, request.IsEnabled)
 	if err != nil {
+		glog.Errorf("Error setting enabled=%t for service (%s) port %s: %v", request.IsEnabled,
+			request.ServiceName, port, err)
 		restServerError(w, err)
 		return
 	}
 
-	// If they're trying to enable the port, check to make sure it's available.
-	if request.Enable {
-		err = checkPort("tcp", fmt.Sprintf("%s", port))
-		if err != nil {
-			restServerError(w, err)
-			return
-		}
-	}
+	glog.V(2).Infof("Port (%s) enabled=%t set for service (%s)", port, request.IsEnabled,
+		request.ServiceName)
 
-	var service svc.Service
-	err = client.GetService(serviceid, &service)
-	if err != nil {
-		glog.Errorf("Unexpected error getting service (%s): %v", serviceid, err)
-		restServerError(w, err)
-		return
-	}
-
-	err = service.EnablePort(application, port, request.Enable)
-	if err != nil {
-		glog.Errorf("Error enabling/disabling port %s on service (%s): %v", port, service.Name, err)
-		restServerError(w, err)
-		return
-	}
-
-	glog.V(2).Infof("Port %d for service (%s) enabled", port, service.Name)
-
-	var unused int
-	err = client.UpdateService(service, &unused)
-	if err != nil {
-		glog.Errorf("Error updating port %s on service (%s): %v", port, service.Name, err)
-		restServerError(w, err)
-		return
-	}
-
-	glog.V(2).Infof("Service (%s) updated", service.Name)
 	restSuccess(w)
 }
 
