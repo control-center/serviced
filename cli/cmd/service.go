@@ -394,14 +394,12 @@ func (c *ServicedCli) initService() {
 								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
 								Action:      c.cmdPublicEndpointsPortRemove,
 							},
-							/*
-							   {
-							       Name:        "enable",
-							       Usage:       "Enable/Disable a port public endpoint for a service",
-							       Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> <true|false>",
-							       Action:      c.cmdPublicEndpointsPortEnable,
-							   },
-							*/
+							{
+								Name:        "enable",
+								Usage:       "Enable/Disable a port public endpoint for a service",
+								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false",
+								Action:      c.cmdPublicEndpointsPortEnable,
+							},
 						},
 					},
 					{
@@ -447,7 +445,7 @@ func (c *ServicedCli) initService() {
 							               {
 							                   Name:        "enable",
 							                   Usage:       "Enable/Disable a vhost public endpoint for a service",
-							                   Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>",
+							                   Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
 							                   Action:      c.cmdPublicEndpointsVhostEnable,
 							               },
 							*/

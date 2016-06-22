@@ -61,6 +61,7 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular/angular.js",
     paths.thirdpartySrc + "angular/angular-route.js",
     paths.thirdpartySrc + "angular/angular-cookies.js",
+    paths.thirdpartySrc + "angular/angular-sanitize.js",
     paths.thirdpartySrc + "angular-dragdrop/angular-dragdrop.js",
     paths.thirdpartySrc + "angular-translate/angular-translate.js",
     paths.thirdpartySrc + "angular-translate/angular-translate-loader-static-files/angular-translate-loader-static-files.js",

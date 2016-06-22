@@ -12,7 +12,7 @@ Feature: CLI Validation
 
   Scenario: List the port public endpoints
     Given that the "port0" port is added
-    When I should see the port public endpoint "port0" in the service
+    Then I should see the port public endpoint "port0" in the service
 
   Scenario: Add a new port public endpoint
     Given that the "port1" port does not exist
@@ -23,3 +23,14 @@ Feature: CLI Validation
     Given that the "port0" port is added
       And the port public endpoint "port0" is removed
     Then I should not see the port public endpoint "port0" in the service
+
+  Scenario: Disable a port public endpoint
+    Given that the "port0" port is added
+      And that the port public endpoint "port0" is disabled
+    Then the port public endpoint "port0" should be "disabled"
+
+  Scenario: Disable and enable a port public endpoint
+    Given that the "port0" port is added
+      And that the port public endpoint "port0" is disabled
+      And that the port public endpoint "port0" is enabled
+    Then the port public endpoint "port0" should be "enabled"

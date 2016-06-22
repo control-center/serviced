@@ -92,6 +92,43 @@ module CCApi
             CC.CLI.execute("%{serviced} service list --show-fields ServiceID 2>&1 | grep -v ServiceID | xargs --no-run-if-empty %{serviced} service rm")
         end
 
+        # Looks up the given port from the ports table and enables/disables it.
+        def enable_publicendpoint_port_json(name, enabled)
+            service = getTableValue("table://ports/#{name}/Service")
+            endpoint = getTableValue("table://ports/#{name}/Endpoint")
+            portAddr = getTableValue("table://ports/#{name}/PortAddr")
+            return enable_publicendpoint_port(service, endpoint, portAddr, enabled)
+        end
+
+        # Enables/disables the given port.
+        def enable_publicendpoint_port(service, endpoint, portAddr, enabled)
+            CC.CLI.execute("%{serviced} service public-endpoints port enable #{service} #{endpoint} #{portAddr} #{enabled}")
+        end
+
+        # Looks up the given port from the ports table, and returns the enabled
+        # state based on the service definition.
+        def check_publicendpoint_port_enabled_json?(name)
+            service = getTableValue("table://ports/#{name}/Service")
+            endpoint = getTableValue("table://ports/#{name}/Endpoint")
+            portAddr = getTableValue("table://ports/#{name}/PortAddr")
+            table_protocol = getTableValue("table://ports/#{name}/Protocol")
+            protocol = map_protocol_value(table_protocol)
+            usetls = map_tls_value(table_protocol)
+            enabled = getTableValue("table://ports/#{name}/Enabled")
+            return check_publicendpoint_port_exists_in_service?(service, endpoint, portAddr, protocol, usetls, enabled)
+        end
+
+        # returns the enabled state of a port based on the service definition.
+        def check_publicendpoint_port_exists_in_service?(service, endpoint, portAddr, protocol, usetls, enabled)
+            json = CC.CLI.get_json("%{serviced} service list #{service}")
+            endpoint = findArrayMatch(json["Endpoints"], "Name", endpoint)
+            fail(ArgumentError.new("endpoint #{endpoint} doesn't exist in service #{service}")) if endpoint == nil
+            port = findArrayMatch(endpoint["PortList"], "PortAddr", portAddr)
+            fail(ArgumentError.new("port #{portAddr} doesn't exist in endpoint #{endpoint}")) if port == nil
+            return true if port["Protocol"] == protocol and port["UseTLS"] == usetls and port["Enabled"] == enabled
+            return false
+        end
+
         private
 
         def add_publicendpoint_port(service, endpoint, portAddr, protocol, enabled)

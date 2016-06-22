@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/rpcutils"
@@ -205,7 +206,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	options := Options{
-		UIPort:                     config.StringVal("UI_PORT", ":443"),
+		UIPort:                     service.ScrubPortString(config.StringVal("UI_PORT", ":443")),
 		NFSClient:                  config.StringVal("NFS_CLIENT", "1"),
 		RPCPort:                    config.StringVal("RPC_PORT", fmt.Sprintf("%d", DefaultRPCPort)),
 		OutboundIP:                 config.StringVal("OUTBOUND_IP", ""),
