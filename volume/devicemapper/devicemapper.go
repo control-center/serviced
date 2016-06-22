@@ -1461,10 +1461,12 @@ func resize2fs(dmDevice string) error {
 
 func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
 	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	defer pipe.Close()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
