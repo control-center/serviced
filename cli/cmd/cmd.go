@@ -22,6 +22,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -198,7 +199,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),
 		StaticIPs:                  ctx.GlobalStringSlice("static-ip"),
-		UIPort:                     ctx.GlobalString("uiport"),
+		UIPort:                     service.ScrubPortString(ctx.GlobalString("uiport")),
 		RPCPort:                    fmt.Sprintf("%d", ctx.GlobalInt("listen")),
 		Listen:                     fmt.Sprintf(":%d", ctx.GlobalInt("listen")),
 		DockerDNS:                  ctx.GlobalStringSlice("docker-dns"),
