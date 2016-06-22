@@ -3,8 +3,7 @@ require 'site_prism'
 
 class Service < SitePrism::Page
     include ::RSpec::Matchers
-
-    set_url applicationURL("#/services?disable-animation=true&loglevel=debug")
+    set_url applicationURL("#/services?disable-animation=true&loglevel=debug&no-focusme=true")
     set_url_matcher /services/
 
     section :navbar, NavBarSection, ".navbar-collapse"

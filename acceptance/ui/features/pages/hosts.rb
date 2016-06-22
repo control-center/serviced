@@ -2,7 +2,7 @@ require_relative 'navbar'
 require 'site_prism'
 
 class Hosts < SitePrism::Page
-    set_url applicationURL("#/hosts?disable-animation=true&loglevel=debug")
+    set_url applicationURL("#/hosts?disable-animation=true&loglevel=debug&no-focusme=true")
     set_url_matcher /hosts/
 
     section :navbar, NavBarSection, ".navbar-collapse"

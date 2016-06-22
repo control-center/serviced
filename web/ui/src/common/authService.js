@@ -5,8 +5,8 @@
     "use strict";
 
     angular.module("authService", [])
-    .factory("authService", ["$cookies", "$cookieStore", "$location", "$http", "$notification", "miscUtils", "log",
-    function($cookies, $cookieStore, $location, $http, $notification, utils, log) {
+    .factory("authService", ["servicedConfig", "$location", "$http", "$notification", "miscUtils", "log",
+    function(servicedConfig, $location, $http, $notification, utils, log) {
         var loggedIn = false;
         var userName = null;
 
@@ -29,13 +29,11 @@
                     success(function(data, status) {
                         // Ensure that the auth service knows that we are logged in
                         setLoggedIn(true, creds.Username);
-
                         successCallback();
                     }).
                     error(function(data, status) {
                         // Ensure that the auth service knows that the login failed
                         setLoggedIn(false);
-
                         failCallback();
                     });
             },
@@ -59,14 +57,13 @@
              * @param {object} scope The 'loggedIn' property will be set if true
              */
             checkLogin: function($scope) {
-                $scope.dev = $cookieStore.get("ZDevMode");
-                if (loggedIn || $cookies.get("ZCPToken")) {
+                if (loggedIn || servicedConfig.get("ZCPToken")) {
                     $scope.loggedIn = true;
                     $scope.user = {
-                        username: $cookies.get("ZUsername")
+                        username: servicedConfig.get("ZUsername")
                     };
                     return;
-                } 
+                }
                 utils.unauthorized($location);
             }
         };
