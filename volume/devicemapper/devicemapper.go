@@ -21,10 +21,10 @@ import (
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 )
 
 var (
@@ -1531,10 +1531,12 @@ func resize2fs(dmDevice string) error {
 
 func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
 	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	defer pipe.Close()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
