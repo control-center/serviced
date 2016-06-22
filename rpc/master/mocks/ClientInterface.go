@@ -501,3 +501,16 @@ func (_m *ClientInterface) RemovePublicEndpointPort(serviceid, endpointName, por
 
 	return r0
 }
+
+func (_m *ClientInterface) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+	ret := _m.Called(serviceid, endpointName, portAddr, isEnabled)
+
+	var r0 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+		r0 = rf(serviceid, endpointName, portAddr, isEnabled)
+	} else {
+		r0 = ret.Error(1)
+	}
+
+	return r0
+}

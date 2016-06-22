@@ -323,9 +323,19 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 		return
 	}
 
-	fmt.Printf("service: %s, endpoint: %s, portAddr: %s, enabled: %t\n",
-		serviceid, endpointName, portAddr, isEnabled)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
+	err = c.driver.EnablePublicEndpointPort(svc.ID, endpointName, portAddr, isEnabled)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", portAddr)
+	}
 	return
 }
 
