@@ -102,47 +102,50 @@ func (d * DeviceMapperDriver) cleanUpSnapshots() {
  
     glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
 
-    for snapshotOnDisk := range snapshotsOnDisk {
+    for _, snapshotOnDisk := range snapshotsOnDisk {
 		if _, ok := snapshotsInMetadata[snapshotOnDisk]; !ok {
 			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
             os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
+		} else {
+			// Remove the snapshot on disk it was found in the metadata map.  This
+			// will leave the snapshotsInMetadata map with only snapshots that are in metadata but
+			// not on disk, so they sould all be removed from the metadata.
+			delete(snapshotsInMetadata, snapshotOnDisk)
 		}
     }
 
 	for snapshotInMetadata, volumeName := range snapshotsInMetadata {
-		if _, ok := snapshotsOnDisk[snapshotInMetadata]; !ok {
-			glog.V(2).Infof("Removing Snapshot from metadata: %v", snapshotInMetadata)
-            v, err := d.loadVolume(volumeName)
-			if err != nil {
-				continue
-			}
+		glog.V(2).Infof("Removing Snapshot from metadata: %v", snapshotInMetadata)
+		v, err := d.loadVolume(volumeName)
+		if err != nil {
+			continue
+		}
 
-			v.Lock()
-			defer v.Unlock()
+		v.Lock()
+		defer v.Unlock()
 
-			deviceHash, err := v.Metadata.LookupSnapshotDevice(snapshotInMetadata)
-			if err != nil {
-				glog.Errorf("Error removing snapshot: %v", err)
-				continue
-			}
+		deviceHash, err := v.Metadata.LookupSnapshotDevice(snapshotInMetadata)
+		if err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
+		}
 
-			// Remove the snapshot info from the volume metadata
-			if err := v.Metadata.RemoveSnapshot(snapshotInMetadata); err != nil {
-				glog.Errorf("Error removing snapshot: %v", err)
-				continue
-			}
-			
-			glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
-			v.driver.DeviceSet.Lock()
-			if err := v.driver.deactivateDevice(deviceHash); err != nil {
-				glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
-				continue
-			}
-			v.driver.DeviceSet.Unlock()
-			if err := v.driver.deleteDevice(deviceHash, false); err != nil {
-				glog.Errorf("Error removing snapshot: %v", err)
-				continue
-			}
+		// Remove the snapshot info from the volume metadata
+		if err := v.Metadata.RemoveSnapshot(snapshotInMetadata); err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
+		}
+		
+		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
+		v.driver.DeviceSet.Lock()
+		if err := v.driver.deactivateDevice(deviceHash); err != nil {
+			glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
+			continue
+		}
+		v.driver.DeviceSet.Unlock()
+		if err := v.driver.deleteDevice(deviceHash, false); err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
 		}
 	}
 }
@@ -164,8 +167,8 @@ func (d * DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, err
     return snapshots, nil
 }
 
-func (d * DeviceMapperDriver) getSnapshotsOnDisk() (map[string]struct{}, error) {  
-    snapshots := make(map[string]struct{})
+func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {  
+    var snapshots []string
  
 	files, err := ioutil.ReadDir(d.MetadataDir())
 	if err != nil {
@@ -180,7 +183,7 @@ func (d * DeviceMapperDriver) getSnapshotsOnDisk() (map[string]struct{}, error) 
 			}
 	
 			if !volume.isInvalidSnapshot(file.Name()) {
-				snapshots[file.Name()] = struct{}{}
+				snapshots = append(snapshots, file.Name())
 				break
 			}
 		}
