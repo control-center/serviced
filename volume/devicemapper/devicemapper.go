@@ -107,9 +107,9 @@ func (d * DeviceMapperDriver) cleanUpSnapshots() {
 			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
             os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
 		} else {
-			// Remove the snapshot on disk it was found in the metadata map.  This
+			// Remove the snapshot on disk since it was found in the metadata map.  This
 			// will leave the snapshotsInMetadata map with only snapshots that are in metadata but
-			// not on disk, so they sould all be removed from the metadata.
+			// not on disk, so they should all be removed from the metadata.
 			delete(snapshotsInMetadata, snapshotOnDisk)
 		}
     }
