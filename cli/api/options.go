@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/rpcutils"
@@ -103,6 +104,7 @@ type Options struct {
 	UIPollFrequency            int               // frequency in seconds that UI should poll for service changes
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
+	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 }
 
 // LoadOptions overwrites the existing server options
@@ -204,7 +206,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	options := Options{
-		UIPort:                     config.StringVal("UI_PORT", ":443"),
+		UIPort:                     service.ScrubPortString(config.StringVal("UI_PORT", ":443")),
 		NFSClient:                  config.StringVal("NFS_CLIENT", "1"),
 		RPCPort:                    config.StringVal("RPC_PORT", fmt.Sprintf("%d", DefaultRPCPort)),
 		OutboundIP:                 config.StringVal("OUTBOUND_IP", ""),
@@ -253,6 +255,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		UIPollFrequency:            config.IntVal("UI_POLL_FREQUENCY", 3),
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
+		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

@@ -203,7 +203,7 @@ func (c *ServicedCli) initService() {
 					},
 					cli.StringSliceFlag{
 						Name:  "mount",
-						Value:  &cli.StringSlice{},
+						Value: &cli.StringSlice{},
 						Usage: "bind mount: HOST_PATH[,CONTAINER_PATH]",
 					},
 				},
@@ -313,6 +313,143 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{
 						Name:  "verify, v",
 						Usage: "verify endpoints",
+					},
+				},
+			}, {
+				Name:        "public-endpoints",
+				Usage:       "Manage public endpoints for a service",
+				Description: "serviced service public-endpoints",
+				Subcommands: []cli.Command{
+					{
+						Name:        "list",
+						Usage:       "Lists public endpoints for a service",
+						Description: "serviced service public-endpoints list [SERVICEID] [ENDPOINTNAME]",
+						Action:      c.cmdPublicEndpointsListAll,
+						Flags: []cli.Flag{
+							cli.BoolFlag{
+								Name:  "ascii, a",
+								Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+							},
+							cli.BoolFlag{
+								Name:  "ports",
+								Usage: "Show port public endpoints",
+							},
+							cli.BoolFlag{
+								Name:  "vhosts",
+								Usage: "Show vhost public endpoints",
+							},
+							cli.StringFlag{
+								Name:  "show-fields",
+								Value: "Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled",
+								Usage: "Comma-delimited list describing which fields to display",
+							},
+							cli.BoolFlag{
+								Name:  "verbose, v",
+								Usage: "Show JSON format",
+							},
+						},
+					},
+					{
+						Name:        "port",
+						Usage:       "Manages port public endpoints for a service",
+						Description: "serviced service public-endpoints port",
+						Subcommands: []cli.Command{
+							{
+								Name:        "list",
+								Usage:       "List port public endpoints for a service",
+								Description: "serviced service public-endpoints port list [SERVICEID] [ENDPOINTNAME]",
+								Action:      c.cmdPublicEndpointsPortList,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "ascii, a",
+										Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+									},
+									cli.StringFlag{
+										Name:  "show-fields",
+										Value: "Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled",
+										Usage: "Comma-delimited list describing which fields to display",
+									},
+									cli.BoolFlag{
+										Name:  "verbose, v",
+										Usage: "Show JSON format",
+									},
+								},
+							},
+							{
+								Name:        "add",
+								Usage:       "Add a port public endpoint to a service",
+								Description: "serviced service public-endpoints port add <SERVICEID> <ENDPOINTNAME> <PORTADDR> <PROTOCOL> <ENABLED>",
+								Action:      c.cmdPublicEndpointsPortAdd,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "restart, r",
+										Usage: "Restart the service after adding the port if the service is currently running",
+									},
+								},
+							},
+							{
+								Name:        "remove",
+								ShortName:   "rm",
+								Usage:       "Remove a port public endpoint from a service",
+								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
+								Action:      c.cmdPublicEndpointsPortRemove,
+							},
+							{
+								Name:        "enable",
+								Usage:       "Enable/Disable a port public endpoint for a service",
+								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false",
+								Action:      c.cmdPublicEndpointsPortEnable,
+							},
+						},
+					},
+					{
+						Name:        "vhost",
+						Usage:       "Manages vhost public endpoints for a service",
+						Description: "serviced service public-endpoints vhost",
+						Subcommands: []cli.Command{
+							{
+								Name:        "list",
+								Usage:       "List vhost public endpoints for a service",
+								Description: "serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]",
+								Action:      c.cmdPublicEndpointsVhostList,
+								Flags: []cli.Flag{
+									cli.BoolFlag{
+										Name:  "ascii, a",
+										Usage: "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)",
+									},
+									cli.StringFlag{
+										Name:  "show-fields",
+										Value: "Service,ServiceID,Endpoint,Type,Protocol,Name,Enabled",
+										Usage: "Comma-delimited list describing which fields to display",
+									},
+									cli.BoolFlag{
+										Name:  "verbose, v",
+										Usage: "Show JSON format",
+									},
+								},
+							},
+							/*
+							               {
+							                   Name:        "add",
+							                   Usage:       "Add a vhost public endpoint to a service",
+							                   Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
+							                   Action:      c.cmdPublicEndpointsVhostAdd,
+							               },
+							               {
+							                   Name:        "remove",
+							   				ShortName:   "rm",
+							                   Usage:       "Remove a vhost public endpoint from a service",
+							                   Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
+							                   Action:      c.cmdPublicEndpointsVhostRemove,
+							               },
+							               {
+							                   Name:        "enable",
+							                   Usage:       "Enable/Disable a vhost public endpoint for a service",
+							                   Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
+							                   Action:      c.cmdPublicEndpointsVhostEnable,
+							               },
+							*/
+						},
 					},
 				},
 			},

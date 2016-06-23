@@ -371,7 +371,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
-func (s *Service) AddPort(application string, portAddr string, usetls bool, protocol string) error {
+func (s *Service) AddPort(application string, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
 	portAddr = ScrubPortString(portAddr)
 	if s.Endpoints != nil {
 		//find the matching endpoint
@@ -385,13 +385,14 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 						ports = append(ports, port)
 					}
 				}
-				ep.PortList = append(ports, servicedefinition.Port{PortAddr: portAddr, Enabled: true, UseTLS: usetls, Protocol: protocol})
-				return nil
+				port := &servicedefinition.Port{PortAddr: portAddr, Enabled: isEnabled, UseTLS: usetls, Protocol: protocol}
+				ep.PortList = append(ports, *port)
+				return port, nil
 			}
 		}
 	}
 
-	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
 // RemovePort Remove a port for given service
@@ -409,19 +410,19 @@ func (s *Service) RemovePort(application string, portAddr string) error {
 				break
 			}
 
-			found := false
+			portFound := false
 			var ports = make([]servicedefinition.Port, 0)
 			for _, port := range ep.PortList {
 				if port.PortAddr != portAddr {
 					ports = append(ports, port)
 				} else {
-					found = true
+					portFound = true
 				}
 			}
 
-			//error removing an unknown vhost
-			if !found {
-				break
+			//error removing an unknown port
+			if !portFound {
+				return fmt.Errorf("endpoint %s does not have a port endpoint %s", application, portAddr)
 			}
 
 			ep.PortList = ports

@@ -2,6 +2,8 @@ require_relative 'navbar'
 require 'site_prism'
 
 class Service < SitePrism::Page
+    include ::RSpec::Matchers
+
     set_url applicationURL("#/services?disable-animation=true&loglevel=debug")
     set_url_matcher /services/
 
@@ -28,4 +30,78 @@ class Service < SitePrism::Page
     # type vhost
     element :newVHost_input,        :xpath, "//input[@id='add_vhost_vhost']"
 
+    # Look up the table data for the given port and remove it using
+    # the UI.
+    def remove_publicendpoint_port_json(name)
+        remove_publicendpoint("table://ports/#{name}/PortAddr")
+    end
+
+    # Removes the public endpoint (vhost or port) by looking up the entry and
+    # clicking the delete button.
+    def remove_publicendpoint(name)
+        name = getTableValue(name)
+        self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
+            if tr.text.include?(name)
+                btn = tr.find(:xpath, ".//button[@ng-click='clickRemovePublicEndpoint(publicEndpoint)']")
+                if btn
+                    btn.click
+                    # confirm the removal
+                    cnf = find(:xpath, "//div[@class='modal-content']//button", :text => "Remove and Restart Service")
+                    cnf.click
+                    refreshPage()
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    def click_add_publicendpoint_button()
+        self.addPublicEndpoint_button.click
+        # wait till modal is done loading
+        expect(self).to have_no_css(".uilock", :visible => true)
+    end
+
+    def check_endpoint_unique_column?(ctitle, cvalue)
+        found = 0
+        self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr//td[@data-title-text=#{ctitle}]").each do |td|
+            if td.text.include?(cvalue)
+                found += 1
+            end
+        end
+        return found == 1
+    end
+
+    def check_endpoint_find?(c1, c2)
+        self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
+            line=tr.text.upcase()
+            if  line.include?(c1) && line.include?(c2)
+                return true
+            end
+        end
+        return false
+    end
+
+
+    def check_vhost_exists?(vhost)
+        vhostName = getTableValue(vhost)
+        searchStr = "https://#{vhostName}."
+
+        found = false
+        within(self.publicEndpoints_table) do
+            found = page.has_text?(searchStr)
+        end
+        return found
+    end
+
+    def check_public_port_exists?(port)
+        portName = getTableValue(port)
+        searchStr = ":#{portName}"
+
+        found = false
+        within(self.publicEndpoints_table) do
+            found = page.has_text?(searchStr)
+        end
+        return found
+    end
 end

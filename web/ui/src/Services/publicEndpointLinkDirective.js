@@ -25,7 +25,7 @@
                     // Form the url based on the endpoint properties.
                     var url = "";
                     if ("Name" in publicEndpoint){
-                        var port = $location.port() === "" ? "" : ":" + $location.port();
+                        var port = $location.port() === "" || +$location.port() === 443 ? "" : ":" + $location.port();
                         var host = publicEndpoint.Name.indexOf('.') === -1 ?
                             publicEndpoint.Name + ".{{hostAlias}}" : publicEndpoint.Name;
                         url = $location.protocol() + "://" + host + port;

@@ -6,6 +6,7 @@ import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
+import "github.com/control-center/serviced/domain/servicedefinition"
 import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/volume"
 import "time"
@@ -358,7 +359,7 @@ func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplat
 	ret := _m.Called(request)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func()[]string); ok {
+	if rf, ok := ret.Get(0).(func() []string); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
@@ -461,6 +462,54 @@ func (_m *ClientInterface) DockerOverride(newImage string, oldImage string) erro
 		r0 = rf(newImage, oldImage)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+func (_m *ClientInterface) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+	ret := _m.Called(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
+
+	var r0 *servicedefinition.Port
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string, bool, bool) *servicedefinition.Port); ok {
+		r0 = rf(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*servicedefinition.Port)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, string, bool, bool) error); ok {
+		r1 = rf(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *ClientInterface) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
+	ret := _m.Called(serviceid, endpointName, portAddr)
+
+	var r0 error
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r0 = rf(serviceid, endpointName, portAddr)
+	} else {
+		r0 = ret.Error(1)
+	}
+
+	return r0
+}
+
+func (_m *ClientInterface) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+	ret := _m.Called(serviceid, endpointName, portAddr, isEnabled)
+
+	var r0 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+		r0 = rf(serviceid, endpointName, portAddr, isEnabled)
+	} else {
+		r0 = ret.Error(1)
 	}
 
 	return r0

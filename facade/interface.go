@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
@@ -97,4 +98,10 @@ type FacadeInterface interface {
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 
 	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]health.HealthCheck, error)
+
+	AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
+
+	RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error
+
+	EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error
 }

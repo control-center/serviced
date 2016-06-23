@@ -90,14 +90,12 @@
             },
             addPort: {
                 method: PUT,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName, usetls, protocol) => {
+                payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'Application': endpointName,
-                        'PortName': portName,
+                        'ServiceName': serviceName,  /* Used in messages/logs */
                         'UseTLS': usetls,
                         'Protocol': protocol
                     });
@@ -111,21 +109,27 @@
             },
             enablePort: {
                 method: POST,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, endpointName, portName, portIP) => {
+                payload: (serviceID, serviceName, endpointName, portName) => {
                     return JSON.stringify({
-                        'Enable': true
+                        'ServiceName': serviceName,  /* Used in messages/logs */
+                        'IsEnabled': true
                     });
                 }
             },
             disablePort: {
                 method: POST,
-                url: (serviceID, endpointName, portName) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:false});}
+                payload: (serviceID, serviceName, endpointName, portName) => {
+                    return JSON.stringify({
+                        'Application': endpointName,
+                        'IsEnabled': false
+                    });
+                }
             },
             getServiceInstances: {
                 method: GET,

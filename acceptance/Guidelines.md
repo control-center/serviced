@@ -71,7 +71,7 @@ Here is an example step definition with a pseudo-code implementation of `getTabl
 
 When(/^I fill in the Host field with "(.*?)"$/) do |valueOrTableUrl|
     hostName = getTableValue(valueOrTableUrl)
-    @hosts_page.hostName_input.set hostName
+    CC.UI.HostsPage.hostName_input.set hostName
 end
 
 def getTableValue(valueOrTableUrl)
