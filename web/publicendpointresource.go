@@ -27,107 +27,61 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 )
 
-// json object for adding/removing a virtual host with a service
-type virtualHostRequest struct {
-	ServiceID       string
-	Application     string
-	VirtualHostName string
+// json payload object for adding/removing/enabling a public endpoint
+// with a service. other properties are retrieved from the url
+type endpointRequest struct {
+	ServiceName string
+	UseTLS      bool
+	Protocol    string
+	IsEnabled   bool
 }
 
 // restAddVirtualHost parses payload, adds the vhost to the service, then updates the service
-func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var request virtualHostRequest
-	err := r.DecodeJsonPayload(&request)
+func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	glog.V(1).Infof("Add VHost with %s %#v", r.URL.Path, r)
+
+	serviceid, application, vhostname, err := getVHostContext(r)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	var request endpointRequest
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 
-	var services []svc.Service
-	var serviceRequest dao.ServiceRequest
-	if err := client.GetServices(serviceRequest, &services); err != nil {
-		err := fmt.Errorf("Could not get services: %v", err)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
 
-	var service *svc.Service
-	for _, _service := range services {
-		if _service.ID == request.ServiceID {
-			service = &_service
-			break
-		}
-	}
-
-	if service == nil {
-		err := fmt.Errorf("Could not find service: %s", request.ServiceID)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	//checkout other virtual hosts for redundancy
-	_vhost := strings.ToLower(request.VirtualHostName)
-	for _, service := range services {
-		if service.Endpoints == nil {
-			continue
-		}
-
-		for _, endpoint := range service.Endpoints {
-			for _, host := range endpoint.VHostList {
-				if host.Name == _vhost {
-					err := fmt.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
-					glog.Error(err)
-					restServerError(w, err)
-					return
-				}
-			}
-		}
-	}
-
-	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
+	_, err = facade.AddPublicEndpointVHost(dataCtx, serviceid, application, vhostname, true, true)
 	if err != nil {
-		err := fmt.Errorf("Error adding vhost to service (%s): %v", service.Name, err)
-		glog.Error(err)
+		glog.Errorf("Error adding vhost to service (%s): %v", request.ServiceName, err)
 		restServerError(w, err)
 		return
 	}
 
-	var unused int
-	err = client.UpdateService(*service, &unused)
-	if err != nil {
-		err := fmt.Errorf("Error adding vhost to service (%s): %v", service.Name, err)
-		glog.Error(err)
-		restServerError(w, err)
-		return
-	}
-
-	// Restart the service if it is running
-	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error restarting service %s: %s. Trying again in 10 seconds.", service.Name, err)
-			time.Sleep(10 * time.Second)
-			if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-				glog.Errorf("Error restarting service %s: %s. Aborting.", service.Name, err)
-				err = fmt.Errorf("Error restarting service %s.  Service will need to be restarted manually.", service.Name)
-				restServerError(w, err)
-				return
-			}
-		}
-	}
-
+	glog.V(2).Infof("VHost (%s) added to service (%s)", vhostname, request.ServiceName)
 	restSuccess(w)
 }
 
 // restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
 func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 
-	service, application, vhostname, err := getVHostContext(r, client)
+	serviceid, application, vhostname, err := getVHostContext(r)
 	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	var service svc.Service
+	err = client.GetService(serviceid, &service)
+	if err != nil {
+		glog.Errorf("Unexpected error getting service (%s): %v", serviceid, err)
 		restServerError(w, err)
 		return
 	}
@@ -140,7 +94,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 
 	var unused int
-	err = client.UpdateService(*service, &unused)
+	err = client.UpdateService(service, &unused)
 	if err != nil {
 		glog.Errorf("Error removing vhost, %s, from service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
@@ -161,32 +115,25 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 }
 
 // return serviceID, application and vhostname from the URL path
-func getVHostContext(r *rest.Request, client *node.ControlClient) (*svc.Service, string, string, error) {
+func getVHostContext(r *rest.Request) (string, string, string, error) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceID: %v", err)
-		return nil, "", "", err
-	}
-
-	var service svc.Service
-	err = client.GetService(serviceID, &service)
-	if err != nil {
-		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
-		return nil, "", "", err
+		return "", "", "", err
 	}
 
 	application, err := url.QueryUnescape(r.PathParam("application"))
 	if err != nil {
 		glog.Errorf("Failed getting application: %v", err)
-		return nil, "", "", err
+		return "", "", "", err
 	}
 
 	vhostname, err := url.QueryUnescape(r.PathParam("name"))
 	if err != nil {
 		glog.Errorf("Failed getting hostname: %v", err)
-		return nil, "", "", err
+		return "", "", "", err
 	}
-	return &service, application, vhostname, nil
+	return serviceID, application, vhostname, nil
 
 }
 
@@ -205,11 +152,20 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 	glog.V(1).Infof("Enable VHOST with %s %#v", r.URL.Path, request)
 
-	service, application, vhostname, err := getVHostContext(r, client)
+	serviceid, application, vhostname, err := getVHostContext(r)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
+
+	var service svc.Service
+	err = client.GetService(serviceid, &service)
+	if err != nil {
+		glog.Errorf("Unexpected error getting service (%s): %v", serviceid, err)
+		restServerError(w, err)
+		return
+	}
+
 	glog.V(1).Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
 	err = service.EnableVirtualHost(application, vhostname, request.Enable)
 	if err != nil {
@@ -219,7 +175,7 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 
 	var unused int
-	err = client.UpdateService(*service, &unused)
+	err = client.UpdateService(service, &unused)
 	if err != nil {
 		glog.Errorf("Error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)
@@ -227,15 +183,6 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 
 	restSuccess(w)
-}
-
-// json payload object for adding/removing/enabling a port with a service. other
-// properties are retrieved from the url
-type portRequest struct {
-	ServiceName string
-	UseTLS      bool
-	Protocol    string
-	IsEnabled   bool
 }
 
 // Returns the service, application, and portnumber from the request
@@ -283,7 +230,7 @@ func restAddPort(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	var request portRequest
+	var request endpointRequest
 	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
@@ -346,7 +293,7 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		return
 	}
 
-	var request portRequest
+	var request endpointRequest
 	err = r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)

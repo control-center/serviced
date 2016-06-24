@@ -224,12 +224,12 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 		return
 	}
 
+	restart := ctx.Bool("restart")
 	serviceid := ctx.Args()[0]
 	endpointName := ctx.Args()[1]
 	portAddr := ctx.Args()[2]
 	protocol := ctx.Args()[3]
 	isEnabled, err := strconv.ParseBool(ctx.Args()[4])
-	restart := ctx.Bool("restart")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
 		return
@@ -348,6 +348,7 @@ func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
 		return
 	}
 
+	restart := ctx.Bool("restart")
 	serviceid := ctx.Args()[0]
 	endpointName := ctx.Args()[1]
 	vhostName := ctx.Args()[2]
@@ -357,9 +358,19 @@ func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
 		return
 	}
 
-	fmt.Printf("service: %s, endpoint: %s, vhost: %s, enabled: %t\n",
-		serviceid, endpointName, vhostName, isEnabled)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
+	vhost, err := c.driver.AddPublicEndpointVHost(svc.ID, endpointName, vhostName, isEnabled, restart)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", vhost.Name)
+	}
 	return
 }
 

@@ -232,3 +232,73 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
 	return nil
 }
+
+// Adds a vhost public endpoint to a service
+func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhostName string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	// Get the service for this service id.
+	svc, err := f.GetService(ctx, serviceid)
+	if err != nil {
+		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
+		glog.Error(err)
+		return nil, err
+	}
+
+	// check other virtual hosts for redundancy
+	vhostLowerName := strings.ToLower(vhostName)
+	if services, err := f.GetAllServices(ctx); err != nil {
+		err = fmt.Errorf("Could not get the list of services: %s", err)
+		glog.Error(err)
+		return nil, err
+	} else {
+		for _, otherService := range services {
+			if otherService.Endpoints == nil {
+				continue
+			}
+			for _, endpoint := range otherService.Endpoints {
+				for _, vhost := range endpoint.VHostList {
+					if strings.ToLower(vhost.Name) == vhostLowerName {
+						err := fmt.Errorf("vhost %s already defined for service: %s", vhostName, otherService.Name)
+						glog.Error(err)
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+
+	vhost, err := svc.AddVirtualHost(endpointName, vhostName)
+	if err != nil {
+		err := fmt.Errorf("Error adding vhost (%s) to service (%s): %v", vhostName, svc.Name, err)
+		glog.Error(err)
+		return nil, err
+	}
+
+	// Make sure no other service currently has zzk data for this vhost -- this would result
+	// in the service getting turned off during restart but not being able to start again.
+	if err := f.validateServiceStart(ctx, svc); err != nil {
+		// We don't call UpdateService() service here; effectively unwinding the svc.AddVirtualHost() call above.
+		glog.Error(err)
+		return nil, err
+	}
+
+	glog.V(2).Infof("Added vhost public endpoint %s to service %s", vhost.Name, svc.Name)
+
+	if err = f.UpdateService(ctx, *svc); err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	glog.V(2).Infof("Service (%s) updated", svc.Name)
+
+	// Restart the service if it is running
+	if svc.DesiredState == int(service.SVCRun) || svc.DesiredState == int(service.SVCRestart) {
+		if _, err = f.RestartService(ctx, dao.ScheduleServiceRequest{ServiceID: svc.ID}); err != nil {
+			err = fmt.Errorf("Error restarting service %s: %s", svc.Name, err)
+			glog.Error(err)
+			return nil, err
+		}
+	}
+
+	glog.V(2).Infof("Service %s updated after adding vhost public endpoint (%s)", svc.Name, vhost.Name)
+	return vhost, nil
+}
