@@ -42,20 +42,20 @@ func (s *S) TestAddVirtualHost(t *C) {
 	}
 
 	var err error
-	if err = svc.AddVirtualHost("empty_server", "name"); err == nil {
+	if _, err = svc.AddVirtualHost("empty_server", "name"); err == nil {
 		t.Errorf("Expected error adding vhost")
 	}
 
-	if err = svc.AddVirtualHost("server", "name.something"); err == nil {
+	if _, err = svc.AddVirtualHost("server", "name.something"); err == nil {
 		t.Errorf("Expected error adding vhost with '.'")
 	}
 
-	if err = svc.AddVirtualHost("server", "name"); err != nil {
+	if _, err = svc.AddVirtualHost("server", "name"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
 	//no duplicate hosts can be added... hostnames are case-insensitive
-	if err = svc.AddVirtualHost("server", "NAME"); err != nil {
+	if _, err = svc.AddVirtualHost("server", "NAME"); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 

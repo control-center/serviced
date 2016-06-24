@@ -57,14 +57,12 @@
             },
             addVHost: {
                 method: PUT,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: (serviceID, endpointName, vhostName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'Application': endpointName,
-                        'VirtualHostName': vhostName
+                        'ServiceName': serviceName,  /* Used in messages/logs */
                     });
                 }
             },
@@ -90,7 +88,7 @@
             },
             addPort: {
                 method: PUT,
-                url: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
                 payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
@@ -112,7 +110,7 @@
                 url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, serviceName, endpointName, portName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
                         'ServiceName': serviceName,  /* Used in messages/logs */
                         'IsEnabled': true
@@ -124,9 +122,9 @@
                 url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, serviceName, endpointName, portName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
-                        'Application': endpointName,
+                        'Application': serviceName,
                         'IsEnabled': false
                     });
                 }
