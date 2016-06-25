@@ -175,60 +175,46 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	}
 }
 
-// getActiveHosts returns a map of all the available hosts
-func (l *ServiceListener) getActiveHosts() (map[string]struct{}, error) {
-	hosts, err := GetActiveHosts(l.conn)
-	if err != nil {
-		return nil, err
-	}
-	hostmap := make(map[string]struct{})
-	for _, host := range hosts {
-		hostmap[host] = struct{}{}
-	}
-	return hostmap, nil
-}
-
 // getServiceStates returns all the valid service states on a service
 func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
-	// figure out which hosts are still available
-	hosts, err := l.getActiveHosts()
-	if err != nil {
-		return nil, err
-	}
 	var rss []dao.RunningService
 	for _, stateID := range stateIDs {
+
 		// get the service state
-		var state servicestate.ServiceState
-		if err := l.conn.Get(servicepath(svc.ID, stateID), &ServiceStateNode{ServiceState: &state}); err != nil {
-			if err != client.ErrNoNode {
-				glog.Errorf("Could not look up service instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
-				return nil, err
-			}
+		spth := path.Join("/services", svc.ID, stateID)
+		state := &servicestate.ServiceState{}
+		if err := l.conn.Get(spth, &ServiceStateNode{ServiceState: state}); err == client.ErrNoNode {
 			continue
+		} else if err != nil {
+			glog.Errorf("Could not look up instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			return nil, err
 		}
-		// is the host currently active?
-		var isActive bool
-		if _, isActive = hosts[state.HostID]; isActive {
-			if isActive, err = l.conn.Exists(hostpath(state.HostID, state.ID)); err != nil && err != client.ErrNoNode {
-				glog.Errorf("Could not look up host instance %s on host %s for service %s: %s", state.ID, state.HostID, state.ServiceID, err)
-				return nil, err
-			}
-		}
-		if !isActive {
-			// if the host is not active, remove the node
-			glog.Infof("Service instance %s of service %s (%s) running on host %s (%s) is not active, rescheduling", state.ID, svc.Name, svc.ID, state.HostIP, state.HostID)
-			if err := removeInstance(l.conn, state.ServiceID, state.HostID, state.ID); err != nil {
-				glog.Errorf("Could not delete service instance %s for service %s: %s", state.ID, state.ServiceID, err)
-				return nil, err
-			}
-		} else {
-			rs, err := NewRunningService(svc, &state)
+
+		// TODO: this might be too aggressive; we may need to tweak this
+		/*
+			// is the host online?
+			isOnline, err := IsHostOnline(l.conn, "", state.HostID, err)
 			if err != nil {
-				glog.Errorf("Could not get service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
+				glog.Errorf("Could check if host %s is online: %s", state.HostID, err)
 				return nil, err
 			}
-			rss = append(rss, *rs)
+
+			// if the host is not online, remove the instance
+			if !isOnline {
+				if err := removeInstance(l.conn, "", state.HostID, stateID); err != nil {
+					glog.Errorf("Could not delete instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+					return nil, err
+				}
+				continue
+			}
+		*/
+
+		rs, err := NewRunningService(svc, state)
+		if err != nil {
+			glog.Errorf("Could not get instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			return nil, err
 		}
+		rss = append(rss, *rs)
 	}
 	return rss, nil
 }
@@ -332,7 +318,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 
 			state.HostIP = host.IPAddr
 			state.InstanceID = instanceID
-			if err := addInstance(l.conn, *state); err != nil {
+			if err := addInstance(l.conn, "", *state); err != nil {
 				glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 				return false
 			}
@@ -356,7 +342,7 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
-			removeInstance(l.conn, state.ServiceID, state.HostID, state.ID)
+			removeInstance(l.conn, "", state.HostID, state.ServiceID, state.ID)
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)

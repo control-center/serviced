@@ -15,6 +15,7 @@ package service
 
 import (
 	"errors"
+	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
@@ -142,12 +143,13 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 	}
 
 	// Set the state based on the host state object
-	var hostState HostState
-	if err := conn.Get(hostpath(state.HostID, state.ID), &hostState); err != nil && err != client.ErrNoNode {
+	hpth := path.Join("/hosts", state.HostID, "instances", state.ID)
+	hdat := HostState{}
+	if err := conn.Get(hpth, &hdat); err != nil && err != client.ErrNoNode {
 		return dao.Status{}, err
 	}
 
-	if hostState.DesiredState == int(service.SVCStop) {
+	if hdat.DesiredState == int(service.SVCStop) {
 		switch status {
 		case dao.Running, dao.Paused:
 			status = dao.Stopping
@@ -156,7 +158,7 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 		default:
 			return dao.Status{}, ErrUnknownState
 		}
-	} else if hostState.DesiredState == int(service.SVCRun) {
+	} else if hdat.DesiredState == int(service.SVCRun) {
 		switch status {
 		case dao.Stopped:
 			status = dao.Starting
@@ -167,7 +169,7 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 		default:
 			return dao.Status{}, ErrUnknownState
 		}
-	} else if hostState.DesiredState == int(service.SVCPause) {
+	} else if hdat.DesiredState == int(service.SVCPause) {
 		switch status {
 		case dao.Running:
 			status = dao.Pausing

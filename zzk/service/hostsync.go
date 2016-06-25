@@ -13,6 +13,8 @@
 package service
 
 import (
+	"path"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
@@ -48,7 +50,10 @@ func (l *HostSynchronizer) Allocate() zzk.Node { return &HostNode{} }
 func (l *HostSynchronizer) GetConnection(path string) (client.Connection, error) { return nil, nil }
 
 // GetPath implements zzk.SyncHandler
-func (l *HostSynchronizer) GetPath(nodes ...string) string { return hostpath(nodes...) }
+func (l *HostSynchronizer) GetPath(nodes ...string) string {
+	parts := append([]string{"/hosts"}, nodes...)
+	return path.Join(parts...)
+}
 
 // Ready implements zzk.SyncHandler
 func (l *HostSynchronizer) Ready() error { return nil }

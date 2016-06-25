@@ -173,11 +173,11 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
-	*hosts, err = zkhost.GetActiveHosts(conn)
+	*hosts, err = zkhost.GetCurrentHosts(conn, poolID)
 	return err
 }
 
