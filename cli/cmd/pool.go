@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
@@ -91,6 +92,12 @@ func (c *ServicedCli) initPool() {
 				Description:  "serviced pool remove-virtual-ip POOLID IPADDRESS",
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdRemoveVirtualIP,
+			}, {
+				Name:         "set-conn-timeout",
+				Usage:        "Set a connection timeout for a high latency resource pool (e.g. 5m, 2h, 6.6s)",
+				Description:  "serviced pool set-conn-timeout POOLID TIMEOUT",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdSetConnTimeout,
 			},
 		},
 	})
@@ -317,5 +324,39 @@ func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
 		return
 	} else {
 		fmt.Printf("Removed virtual IP: %v from pool %v\n", args[1], args[0])
+	}
+}
+
+// serviced pool set-conn-timeout POOLID TIMEOUT
+func (c *ServicedCli) cmdSetConnTimeout(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) != 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set-conn-timeout")
+		return
+	}
+
+	connTimeout, err := time.ParseDuration(args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not parse duration: %s\n", err)
+		return
+	} else if connTimeout < 0 {
+		fmt.Fprintln(os.Stderr, "duration cannot be negative")
+		return
+	}
+
+	pool, err := c.driver.GetResourcePool(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else if pool == nil {
+		fmt.Fprintln(os.Stderr, "pool not found")
+		return
+	}
+
+	pool.ConnectionTimeout = connTimeout
+	if err := c.driver.UpdateResourcePool(*pool); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 }

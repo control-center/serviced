@@ -50,6 +50,7 @@ type API interface {
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error
+	UpdateResourcePool(pool pool.ResourcePool) error
 	GetPoolIPs(string) (*pool.PoolIPs, error)
 	AddVirtualIP(pool.VirtualIP) error
 	RemoveVirtualIP(pool.VirtualIP) error
