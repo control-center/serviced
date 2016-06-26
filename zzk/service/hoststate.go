@@ -225,6 +225,7 @@ func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- st
 		terminated := time.Now()
 		setTerminated := func(_ *HostState, ssdata *servicestate.ServiceState) {
 			ssdata.Terminated = terminated
+			ssdata.DockerID = ""
 		}
 		if err := updateInstance(l.conn, "", l.hostID, stateID, setTerminated); err != nil {
 			glog.Warningf("Could not update instance %s with the time terminated (%s): %s", stateID, terminated, err)

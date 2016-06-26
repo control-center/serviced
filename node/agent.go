@@ -850,7 +850,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	defer a.servicedChain.Remove()
 
 	_shutdown := make(chan struct{})
-	defer close(_shutdown)
+	defer func() { close(_shutdown) }()
 
 	for {
 		// handle shutdown if we are waiting for a zk connection
@@ -903,6 +903,10 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		glog.Infof("Host Agent successfully started")
 		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
 
+		close(_shutdown)
+		_shutdown = make(chan struct{})
+		wg.Wait()
+
 		select {
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
@@ -911,9 +915,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		default:
 			glog.Infof("Host Agent restarting")
 		}
-		close(_shutdown)
-		_shutdown = make(chan struct{})
-		wg.Wait()
 	}
 }
 

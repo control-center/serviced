@@ -114,7 +114,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 		} else if len(ch) > 0 && !isOnline {
 
 			// host is up, halt the countdown
-			glog.V(0).Infof("Host %s in pool %s is back online after %s", hostid, h.poolid, time.Since(outage))
+			glog.V(0).Infof("Host %s in pool %s is online after %s", hostid, h.poolid, time.Since(outage))
 			t.Stop()
 			isOnline = true
 			timedOut = false
@@ -125,6 +125,32 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 		if err != nil && err != client.ErrNoNode {
 			glog.Errorf("Could not track what instances are running on host %s in pool %s: %s", hostid, h.poolid, err)
 			return
+		}
+
+		// clean up any incongruent states
+		isRunning := false
+		for _, stateid := range ch {
+			hpth := h.GetPath(hostid, "instances", stateid)
+			hdat := HostState{}
+			if err := h.conn.Get(hpth, &hdat); err == client.ErrNoNode {
+				continue
+			} else if err != nil {
+				glog.Errorf("Could not verify instance %s on host %s in pool %s: %s", stateid, hostid, h.poolid, err)
+				return
+			}
+
+			spth := path.Join("/pools", h.poolid, "services", hdat.ServiceID, stateid)
+			if ok, err := h.conn.Exists(spth); err != nil {
+				glog.Errorf("Could not verify instance %s from service %s in pool %s: %s", stateid, hdat.ServiceID, h.poolid, err)
+				return
+			} else if !ok {
+				if err := removeInstance(h.conn, h.poolid, hostid, hdat.ServiceID, stateid); err != nil {
+					glog.Errorf("Could not remove incongruent instance %s on host %s in pool %s: %s", stateid, hostid, h.poolid, err)
+					return
+				}
+				continue
+			}
+			isRunning = true
 		}
 
 		if isOnline {
@@ -138,7 +164,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 				return
 			}
 
-		} else if len(ch) == 0 {
+		} else if !isRunning {
 
 			// I only care about an outage if I am running instances.  If I am
 			// offline and not running instances, nothing will get scheduled to
@@ -357,7 +383,7 @@ func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string)
 
 		// register the host if it isn't showing up as online
 		if len(ch) == 0 {
-			_, err = conn.CreateEphemeralIfExists(pth, &client.Dir{})
+			_, err = conn.CreateEphemeralIfExists(path.Join(pth, hostid), &client.Dir{})
 			if err != nil {
 				glog.Errorf("Could not register host %s as active: %s", hostid, err)
 				return err
@@ -367,8 +393,6 @@ func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string)
 		select {
 		case <-ev:
 		case <-cancel:
-			glog.V(2).Infof("Host %s is shutting down", hostid)
-			conn.Delete(pth)
 			return nil
 		}
 		close(stop)

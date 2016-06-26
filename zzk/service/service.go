@@ -194,6 +194,19 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 			return nil, err
 		}
 
+		// ensure the existance of the host state
+		hpth := path.Join("/pools", l.poolid, "hosts", state.HostID, "instances", stateID)
+		if ok, err := l.conn.Exists(hpth); err != nil {
+			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, state.HostID, err)
+			return nil, err
+		} else if !ok {
+			if err := removeInstance(l.conn, l.poolid, state.HostID, svc.ID, stateID); err != nil {
+				glog.Errorf("Could not remove incongruent instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+				return nil, err
+			}
+			continue
+		}
+
 		// TODO: this might be too aggressive; we may need to tweak this
 		/*
 			// is the host online?
@@ -205,7 +218,7 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 
 			// if the host is not online, remove the instance
 			if !isOnline {
-				if err := removeInstance(l.conn, l.poolid, state.HostID, stateID); err != nil {
+				if err := removeInstance(l.conn, l.poolid, state.HostID, state.ServiceID, stateID); err != nil {
 					glog.Errorf("Could not delete instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
 					return nil, err
 				}

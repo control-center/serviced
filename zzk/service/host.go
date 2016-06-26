@@ -73,9 +73,13 @@ func AddHost(conn client.Connection, host *host.Host) error {
 	return conn.Create(hpth, &hnode)
 }
 
-func UpdateHost(conn client.Connection, host *host.Host) error {
-	hpth := path.Join("/hosts", host.ID)
-	hnode := HostNode{Host: host}
+func UpdateHost(conn client.Connection, h *host.Host) error {
+	hpth := path.Join("/hosts", h.ID)
+	hnode := HostNode{}
+	if err := conn.Get(hpth, &hnode); err != nil {
+		return err
+	}
+	hnode.Host = h
 	return conn.Set(hpth, &hnode)
 }
 
@@ -104,7 +108,7 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 	// wait for all the instances to die
 	for {
 		ch, ev, err := conn.ChildrenW(path.Join(hpth, "instances"), stop)
-		if err != nil {
+		if err != nil && err != client.ErrNoNode {
 			return err
 		}
 		if len(ch) == 0 {
