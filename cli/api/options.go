@@ -105,6 +105,7 @@ type Options struct {
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
+	QuiesceTimewait            int               // Delay in rescheduling services after a host outage is detected.
 }
 
 // LoadOptions overwrites the existing server options
@@ -256,6 +257,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
+		QuiesceTimewait:            config.IntVal("QUIESCE_TIMEWAIT", 5),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

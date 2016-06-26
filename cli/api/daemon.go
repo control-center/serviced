@@ -845,7 +845,7 @@ func (d *daemon) addTemplates() {
 func (d *daemon) runScheduler() {
 	for {
 		// TODO: make quiesce timeout configurable
-		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL, 5)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL, options.QuiesceTimewait)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return
