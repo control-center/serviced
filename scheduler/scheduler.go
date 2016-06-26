@@ -15,6 +15,7 @@ package scheduler
 
 import (
 	"sync"
+	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -30,7 +31,7 @@ import (
 	"path"
 )
 
-type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int, time.Duration)
 
 type scheduler struct {
 	sync.Mutex                     // only one process can stop and start the scheduler at a time
@@ -47,12 +48,13 @@ type scheduler struct {
 	registry      *registry.EndpointRegistry
 	storageServer *storage.Server
 	pushreg       *imgreg.RegistryListener
+	qTime         time.Duration
 
 	conn coordclient.Connection
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, pushreg *imgreg.RegistryListener, snapshotTTL int) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, pushreg *imgreg.RegistryListener, snapshotTTL int, qTime int) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:         cpDao,
 		poolID:        poolID,
@@ -64,6 +66,7 @@ func NewScheduler(poolID string, instance_id string, storageServer *storage.Serv
 		snapshotTTL:   snapshotTTL,
 		storageServer: storageServer,
 		pushreg:       pushreg,
+		qTime:         time.Duration(qTime) * time.Second,
 	}
 	return s, nil
 }
@@ -252,63 +255,5 @@ func (s *scheduler) Done() {
 
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
-
-	// Get a pool-based connection
-	var conn coordclient.Connection
-	select {
-	case conn = <-zzk.Connect(zzk.GeneratePoolPath(poolID), zzk.GetLocalConnection):
-		if conn == nil {
-			return
-		}
-	case <-shutdown:
-		return
-	}
-
-	var cancel chan interface{}
-	var done chan struct{}
-
-	doneW := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&doneW)
-	for {
-		var node zkservice.PoolNode
-		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node, doneW)
-		if err != nil && err != coordclient.ErrEmptyNode {
-			glog.Errorf("Error while monitoring pool %s: %s", poolID, err)
-			return
-		}
-
-		// CC-2020: workaround to prevent churn on empty pool node
-		if node.ResourcePool != nil && node.Realm == s.realm {
-			if done == nil {
-				cancel = make(chan interface{})
-				done = make(chan struct{})
-
-				go func() {
-					defer close(done)
-					s.zkleaderFunc(cancel, conn, s.cpDao, s.facade, poolID, s.snapshotTTL)
-				}()
-			}
-		} else {
-			if done != nil {
-				close(cancel)
-				<-done
-				done = nil
-			}
-		}
-
-		select {
-		case <-event:
-		case <-done:
-			return
-		case <-shutdown:
-			if done != nil {
-				close(cancel)
-				<-done
-			}
-			return
-		}
-
-		close(doneW)
-		doneW = make(chan struct{})
-	}
+	s.zkleaderFunc(shutdown, s.conn, s.cpDao, s.facade, poolID, s.snapshotTTL, s.qTime)
 }

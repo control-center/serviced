@@ -196,8 +196,8 @@ func removeInstancesOnService(conn client.Connection, poolID, serviceID string) 
 }
 
 // pauseInstance pauses a running host state instance
-func pauseInstance(conn client.Connection, hostID, stateID string) error {
-	return updateInstance(conn, "", hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
+func pauseInstance(conn client.Connection, poolID, hostID, stateID string) error {
+	return updateInstance(conn, poolID, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
 		if hsdata.DesiredState == int(service.SVCRun) {
 			glog.V(2).Infof("Pausing service instance %s via host %s", stateID, hostID)
 			hsdata.DesiredState = int(service.SVCPause)
@@ -206,8 +206,8 @@ func pauseInstance(conn client.Connection, hostID, stateID string) error {
 }
 
 // resumeInstance resumes a paused host state instance
-func resumeInstance(conn client.Connection, hostID, stateID string) error {
-	return updateInstance(conn, "", hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
+func resumeInstance(conn client.Connection, poolID, hostID, stateID string) error {
+	return updateInstance(conn, poolID, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
 		if hsdata.DesiredState == int(service.SVCPause) {
 			glog.V(2).Infof("Resuming service instance %s via host %s", stateID, hostID)
 			hsdata.DesiredState = int(service.SVCRun)
@@ -227,8 +227,8 @@ func UpdateServiceState(conn client.Connection, state *ss.ServiceState) error {
 }
 
 // StopServiceInstance stops a host state instance
-func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
-	isOnline, err := IsHostOnline(conn, "", hostID)
+func StopServiceInstance(conn client.Connection, poolID, hostID, stateID string) error {
+	isOnline, err := IsHostOnline(conn, poolID, hostID)
 	if err != nil {
 		glog.Errorf("Could not verify whether host %s is online: %s", hostID, err)
 		return err
@@ -243,12 +243,16 @@ func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
 		}
 		return updateInstance(conn, "", hostID, stateID, stopInstance)
 	} else {
-		hpth := path.Join("/hosts", hostID, "instances")
+		basepth := ""
+		if poolID != "" {
+			basepth = path.Join("/pools", poolID)
+		}
+		hpth := path.Join(basepth, "/hosts", hostID, "instances")
 		hdata := HostState{}
 		if err := conn.Get(hpth, &hdata); err != nil {
 			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, hostID, err)
 			return err
 		}
-		return removeInstance(conn, "", hostID, hdata.ServiceID, stateID)
+		return removeInstance(conn, poolID, hostID, hdata.ServiceID, stateID)
 	}
 }

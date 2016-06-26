@@ -93,7 +93,7 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 		return err
 	}
 	for _, stateID := range ch {
-		if err := StopServiceInstance(conn, hostID, stateID); err != nil {
+		if err := StopServiceInstance(conn, "", hostID, stateID); err != nil {
 			return err
 		}
 	}

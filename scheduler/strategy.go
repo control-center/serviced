@@ -32,7 +32,7 @@ var (
 )
 
 type StrategyHost struct {
-	host     *host.Host
+	host     host.Host
 	services []strategy.ServiceConfig
 }
 
@@ -44,7 +44,7 @@ type StrategyService struct {
 	svc *service.Service
 }
 
-func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy.Strategy, facade *facade.Facade) (*host.Host, error) {
+func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.Strategy, facade *facade.Facade) (*host.Host, error) {
 
 	glog.V(2).Infof("Applying %s strategy for service %s", strat.Name(), svc.ID)
 
@@ -80,7 +80,7 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 	} else {
 		h := result.(*StrategyHost).host
 		glog.V(2).Infof("Deploying service %s to host %s", svc.ID, h.ID)
-		return h, nil
+		return &h, nil
 	}
 }
 
