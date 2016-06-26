@@ -26,6 +26,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -848,6 +849,9 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	// Clean up when we're done
 	defer a.servicedChain.Remove()
 
+	_shutdown := make(chan struct{})
+	defer close(_shutdown)
+
 	for {
 		// handle shutdown if we are waiting for a zk connection
 		var conn coordclient.Connection
@@ -861,6 +865,27 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		}
 
 		glog.Info("Got a connected client")
+
+		// A paranoid persistence to alert zookeeper that the host is
+		// indeed available.
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			t := time.NewTimer(time.Second)
+			defer t.Stop()
+			for {
+				if err := zkservice.RegisterHost(_shutdown, conn, a.hostID); err != nil {
+					t.Reset(time.Second)
+					select {
+					case <-t.C:
+					case <-_shutdown:
+						return
+					}
+				}
+				return
+			}
+		}()
 
 		// watch virtual IP zookeeper nodes
 		virtualIPListener := virtualips.NewVirtualIPListener(a, a.hostID)
@@ -881,10 +906,14 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		select {
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
+			conn.Delete(path.Join("/hosts", a.hostID, "online"))
 			return
 		default:
 			glog.Infof("Host Agent restarting")
 		}
+		close(_shutdown)
+		_shutdown = make(chan struct{})
+		wg.Wait()
 	}
 }
 

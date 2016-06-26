@@ -342,7 +342,6 @@ func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string)
 		glog.Errorf("Could not register host %s as active: %s", hostid, err)
 		return err
 	}
-	defer conn.Delete(pth)
 
 	// set up cancellable on the event watcher
 	stop := make(chan struct{})
@@ -363,14 +362,16 @@ func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string)
 				glog.Errorf("Could not register host %s as active: %s", hostid, err)
 				return err
 			}
-
 		}
 
 		select {
 		case <-ev:
 		case <-cancel:
 			glog.V(2).Infof("Host %s is shutting down", hostid)
+			conn.Delete(pth)
 			return nil
 		}
+		close(stop)
+		stop = make(chan struct{})
 	}
 }
