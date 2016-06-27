@@ -16,114 +16,164 @@
 package cmd
 
 import (
-	"flag"
-	"testing"
-	apimocks "github.com/control-center/serviced/cli/api/mocks"
-	cgcli "github.com/codegangsta/cli"
-	. "gopkg.in/check.v1"
-	//"github.com/docker/docker/cli"
-	//"github.com/stretchr/testify/assert"
-	"github.com/control-center/serviced/utils"
 	"fmt"
-	"os"
+	//"os"
+	"testing"
+
+	//api "github.com/control-center/serviced/cli/api"
+	mockapi "github.com/control-center/serviced/cli/api/mocks"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/utils"
+	//. "gopkg.in/check.v1"
+	"github.com/codegangsta/cli"
+	"flag"
+	//"io/ioutil"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/stretchr/testify/mock"
+	//"github.com/davecgh/go-spew/spew"
+	//"runtime/debug"
 )
 
-var tGlobal *testing.T
+//var tGlobal *testing.T
 
-// Hook up gocheck into the "go test" runner.
-func TestLogs(t *testing.T) {
-	TestingT(t)
+//// Hook up gocheck into the "go test" runner.
+//func TestLogs(t *testing.T) {
+//	TestingT(t)
+//
+//	// HACK ALERT: Some functions in testify.Mock require testing.T, but
+//	// 	gocheck doesn't offer access to it, so we have to save a copy in
+//	// 	a global variable :=(
+//	tGlobal = t
+//}
 
-	// HACK ALERT: Some functions in testify.Mock require testing.T, but
-	// 	gocheck doesn't offer access to it, so we have to save a copy in
-	// 	a global variable :=(
-	tGlobal = t
+type LogsAPITest struct {
+	api mockapi.API
+	fail  bool
+	//pools []pool.ResourcePool
+	//hosts []host.Host
+	services        []service.Service
+	runningServices []dao.RunningService
+	errs            map[string]error
 }
 
-type TestLogsSuite struct {
-	mockAPI *apimocks.API	// A mock implementation of the API interface
+var DefaultLogsAPITest = LogsAPITest {
+	api: 		 mockapi.API{},
+	services:        DefaultTestServices,
+	runningServices: DefaultTestRunningServices,
+	errs:            make(map[string]error, 10),
 }
 
-var _ = Suite(&TestLogsSuite{})
-
-
-func (s *TestLogsSuite) SetUpTest(c *C) {
-	fmt.Fprintf(os.Stderr, " STARTED %s\n", c.TestName())
-	s.mockAPI = &apimocks.API{}
+func InitLogsAPITest(driver api.API, args ...string) {
+	c := New(driver, utils.TestConfigReader(make(map[string]string)))
+	/*
+	// parse flags
+	set := flagSet(c.App.Name, c.App.Flags)
+	set.SetOutput(ioutil.Discard)
+	err := set.Parse(arguments[1:])
+	context := NewContext(c.App, set, set)
+	*/
+	c.exitDisabled = true
+	c.Run(args)
 }
 
-func (s *TestLogsSuite) TearDownTest(c *C) {
-	fmt.Fprintf(os.Stderr, " FINISHED %s\n", c.TestName())
-	// don't allow per-test-case values to be reused across test cases
-	s.mockAPI = nil
+func flagSet(name string, flags []cli.Flag) *flag.FlagSet {
+	set := flag.NewFlagSet(name, flag.ContinueOnError)
+
+	for _, f := range flags {
+		f.Apply(set)
+	}
+	return set
 }
 
-func (s *TestLogsSuite) TestLogsSomething(c *C) {
+func (t LogsAPITest) GetServices() ([]service.Service, error) {
+	if t.errs["GetServices"] != nil {
+		return nil, t.errs["GetServices"]
+	}
+	return t.services, nil
+}
+
+func (t LogsAPITest) GetRunningServices() ([]dao.RunningService, error) {
+	if t.errs["GetRunningServices"] != nil {
+		return nil, t.errs["GetRunningServices"]
+	}
+	return t.runningServices, nil
+}
+
+func (t LogsAPITest) GetService(id string) (*service.Service, error) {
+	if t.errs["GetService"] != nil {
+		return nil, t.errs["GetService"]
+	}
+
+	for i, s := range t.services {
+		if s.ID == id {
+			return &t.services[i], nil
+		}
+	}
+	return nil, nil
+}
+
+
+func ExampleServicedCLI_CmdLogExport_usage() {
+	InitLogsAPITest(&mockapi.API{}, "serviced", "log", "export", "service")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    export - Exports all logs
+	//
+	// USAGE:
+	//    command export [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced log export [YYYYMMDD]
+	//
+	// OPTIONS:
+	//    --from 						yyyy.mm.dd
+	//    --to 						yyyy.mm.dd
+	//    --service '--service option --service option'	service ID or name (includes all sub-services)
+	//    --out 						path to output file
+	//    --debug, -d						Show additional diagnostic messages
+}
+
+
+func TestLogsCLI_CmdLogExport_SingleServiceName(t *testing.T) {
+	fmt.Printf("TestLogsCLI_CmdExport_SingleServiceName\n")
 	//call cmdExportLogs, verify that searchForService() is called
-	fmt.Fprintf(os.Stderr, " TestLogsSomething()")
-	fakeAPI := &apimocks.API{}
-	//TODO:add proper arguments to below, then set expectations for calls.
-	// fakeAPI.ExportLogs()
-	fakeAPI.On("")
-	cli := New(s.mockAPI, utils.TestConfigReader(make(map[string]string)))
 
-	app := cgcli.NewApp()
-	set := flag.NewFlagSet("test", 0)
-	test := []string{"blah", "blah", "-break"}
-	set.Parse(test)
+	mockAPI := mockapi.API{}
 
-	ctx := cgcli.NewContext(app, set, set)
-	cli.cmdExportLogs(ctx)
+	mockAPI.On("GetServices").Return(DefaultTestServices, nil)
+	foo := func (cfg api.ExportLogsConfig) bool {
+		//debug.PrintStack()
+		//fmt.Println("MOCKING ExportLogsConfig")
+		//spew.Dump(cfg)
+		return cfg.ServiceIDs != nil
+	}
+	//mockAPI.On("ExportLogs", mock.MatchedBy(func(cfg api.ExportLogsConfig) bool { debug.PrintStack(); fmt.Println("MOCKING ExportLogsConfig"); spew.Dump(cfg); return cfg.ServiceIDs != nil })).Return(nil)
+	mockAPI.On("ExportLogs", mock.MatchedBy(foo)).Once().Return(nil)
+
+	InitLogsAPITest(&mockAPI, "serviced", "log", "export", "--service", "zencommand")
+	mockAPI.AssertExpectations(t)
 }
 
+func TestLogsCLI_CmdLogExport_MultipleServiceNames(t *testing.T) {
+	fmt.Printf("TestLogsCLI_CmdExport_MultipleServiceNames\n")
+	//call cmdExportLogs, verify that searchForService() is called
 
-//func TestConfigureContainer_DockerLog(t *testing.T) {
-//assert := assert.New(t)
-//
-//// Create a fake pull registry that doesn't pull images
-//fakeRegistry := &regmocks.Registry{}
-//fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
-//fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
-//fakeRegistry.On("PullImage", mock.Anything).Return(nil)
-//
-//// Create a fake HostAgent
-//fakeHostAgent := &HostAgent{
-//uiport:               ":443",
-//dockerLogDriver:      "fakejson-log",
-//dockerLogConfig:      map[string]string{"alpha": "one", "bravo": "two", "charlie": "three"},
-//virtualAddressSubnet: "0.0.0.0",
-//pullreg:              fakeRegistry,
-//}
-//
-//// Create a fake client that won't make any RPC calls
-//fakeClient := &mocks.ControlPlane{}
-//
-//// Create a fake service.Service
-//fakeService := &service.Service{
-//ImageID: "busybox:latest",
-//}
-//
-//// Create a fake servicestate.ServiceState
-//fakeServiceState := &servicestate.ServiceState{}
-//
-//fakeClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
-//fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
-//
-//// Call configureContainer
-//config, hostconfig, err := configureContainer(
-//fakeHostAgent,
-//fakeClient,
-//fakeService,
-//fakeServiceState,
-//fakeHostAgent.virtualAddressSubnet)
-//
-//assert.NotNil(config)
-//assert.NotNil(hostconfig)
-//assert.Nil(err)
-//
-//// Test that hostconfig values are as intended
-//assert.Equal(hostconfig.LogConfig.Type, "fakejson-log")
-//assert.Equal(hostconfig.LogConfig.Config["alpha"], "one")
-//assert.Equal(hostconfig.LogConfig.Config["bravo"], "two")
-//assert.Equal(hostconfig.LogConfig.Config["charlie"], "three")
-//}
+	mockAPI := mockapi.API{}
+
+	mockAPI.On("GetServices").Return(DefaultTestServices, nil)
+	foo := func (cfg api.ExportLogsConfig) bool {
+		//debug.PrintStack()
+		//fmt.Println("MOCKING ExportLogsConfig")
+		//spew.Dump(cfg)
+		return cfg.ServiceIDs != nil
+	}
+	//mockAPI.On("ExportLogs", mock.MatchedBy(func(cfg api.ExportLogsConfig) bool { fmt.Println("MOCKING ExportLogsConfig"); spew.Dump(cfg); return cfg.ServiceIDs != nil })).Once().Return(nil)
+	mockAPI.On("ExportLogs", mock.MatchedBy(foo)).Once().Return(nil)
+	InitLogsAPITest(&mockAPI, "serviced", "log", "export", "--service", "zencommand", "--service", "Zope")
+
+	mockAPI.AssertExpectations(t)
+}
