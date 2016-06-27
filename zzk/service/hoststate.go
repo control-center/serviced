@@ -123,7 +123,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		l.conn.Delete(hpth)
 		return
 	}
-	defer removeInstance(l.conn, "", hs.ServiceID, hs.HostID, hs.ServiceStateID)
+	defer removeInstance(l.conn, "", hs.HostID, hs.ServiceID, hs.ServiceStateID)
 	// Get the ServiceState node
 	var ss servicestate.ServiceState
 	if err := l.conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &ss}); err != nil {

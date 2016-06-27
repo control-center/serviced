@@ -241,7 +241,7 @@ func attachAndRun(dockerID, command string) error {
 // StopService terminates a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
 	if state == nil || state.DockerID == "" {
-		return errors.New("missing Docker ID")
+		return nil
 	}
 
 	ctr, err := docker.FindContainer(state.DockerID)
@@ -868,10 +868,10 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		// A paranoid persistence to alert zookeeper that the host is
 		// indeed available.
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
+		regWG := &sync.WaitGroup{}
+		regWG.Add(1)
 		go func() {
-			defer wg.Done()
+			defer regWG.Done()
 			t := time.NewTimer(time.Second)
 			defer t.Stop()
 			for {
@@ -882,6 +882,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 					case <-_shutdown:
 						return
 					}
+					continue
 				}
 				return
 			}
@@ -905,7 +906,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		close(_shutdown)
 		_shutdown = make(chan struct{})
-		wg.Wait()
+		regWG.Wait()
 
 		select {
 		case <-shutdown:

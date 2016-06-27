@@ -85,11 +85,21 @@ func UpdateHost(conn client.Connection, h *host.Host) error {
 
 func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string) error {
 	hpth := path.Join("/hosts", hostID)
-	if ok, err := conn.Exists(hpth); err != nil {
-		return err
-	} else if !ok {
+	if err := conn.CreateIfExists(path.Join(hpth, "locked"), &client.Dir{}); err == client.ErrNoNode {
 		return nil
+	} else if err != nil && err != client.ErrNodeExists {
+		return err
 	}
+
+	// lock the host from scheduling
+	mu, err := conn.NewLock(path.Join(hpth, "locked"))
+	if err != nil {
+		return err
+	}
+	if err := mu.Lock(); err != nil {
+		return err
+	}
+	defer mu.Unlock()
 
 	// stop all the instances running on that host
 	ch, err := conn.Children(path.Join(hpth, "instances"))
@@ -123,5 +133,26 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 		stop = make(chan struct{})
 	}
 
-	return conn.Delete(hpth)
+	t := conn.NewTransaction()
+	if err := rmr(conn, t, hpth); err != nil {
+		return err
+	}
+
+	return t.Commit()
+}
+
+func rmr(conn client.Connection, t client.Transaction, pth string) error {
+	ch, err := conn.Children(pth)
+	if err == client.ErrNoNode {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	for _, n := range ch {
+		if err := rmr(conn, t, path.Join(pth, n)); err != nil {
+			return err
+		}
+	}
+	t.Delete(pth)
+	return nil
 }

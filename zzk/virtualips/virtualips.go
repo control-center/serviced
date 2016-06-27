@@ -345,7 +345,7 @@ func RemoveVirtualIP(conn client.Connection, ip string) error {
 }
 
 func GetHostID(conn client.Connection, poolid, ip string) (string, error) {
-	basepth := ""
+	basepth := "/"
 	if poolid != "" {
 		basepth = path.Join("/pools", poolid)
 	}

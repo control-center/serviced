@@ -25,7 +25,7 @@ import (
 // addInstance creates a new service state and host instance
 func addInstance(conn client.Connection, poolID string, state ss.ServiceState) error {
 	glog.V(2).Infof("Adding instance %+v", state)
-	basepth := ""
+	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
 	}
@@ -64,7 +64,7 @@ func addInstance(conn client.Connection, poolID string, state ss.ServiceState) e
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, poolID, hostID, serviceID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
-	basepth := ""
+	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
 	}
@@ -80,6 +80,8 @@ func removeInstance(conn client.Connection, poolID, hostID, serviceID, stateID s
 		return err
 	} else if ok {
 		t.Delete(hpth)
+	} else {
+		glog.Infof("Nothing to remove at %s", hpth)
 	}
 
 	// Delete the service instance
@@ -88,6 +90,8 @@ func removeInstance(conn client.Connection, poolID, hostID, serviceID, stateID s
 		return err
 	} else if ok {
 		t.Delete(spth)
+	} else {
+		glog.Infof("Nothing to remove at %s", spth)
 	}
 
 	if err := t.Commit(); err != nil {
@@ -101,7 +105,7 @@ func removeInstance(conn client.Connection, poolID, hostID, serviceID, stateID s
 // updateInstance updates the service state and host instances
 func updateInstance(conn client.Connection, poolID, hostID, stateID string, mutate func(*HostState, *ss.ServiceState)) error {
 	glog.V(2).Infof("Updating instance %s", stateID)
-	basepth := ""
+	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
 	}
@@ -137,7 +141,7 @@ func updateInstance(conn client.Connection, poolID, hostID, stateID string, muta
 // delete if the instance cannot be found on the host (for when you have
 // incongruent data).
 func removeInstancesOnHost(conn client.Connection, poolID, hostID string) (count int) {
-	basepth := ""
+	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
 	}
@@ -168,7 +172,7 @@ func removeInstancesOnHost(conn client.Connection, poolID, hostID string) (count
 // not delete if the instance cannot be found on the service (for when you have
 // incongruent data).
 func removeInstancesOnService(conn client.Connection, poolID, serviceID string) (count int) {
-	basepth := ""
+	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
 	}
