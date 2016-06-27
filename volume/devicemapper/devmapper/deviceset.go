@@ -1098,7 +1098,7 @@ func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	}
 
 	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
-		return fmt.Errorf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)
+		return  fmt.Errorf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)
 	}
 
 	return nil
@@ -1111,7 +1111,8 @@ func (devices *DeviceSet) checkGrowBaseDeviceFS(info *devInfo) error {
 	}
 
 	if devices.baseFsSize < devices.getBaseDeviceSize() {
-		return fmt.Errorf("devmapper: Base device size cannot be smaller than %s", units.HumanSize(float64(devices.getBaseDeviceSize())))
+		return ThinpoolInitError{fmt.Sprintf("devmapper: Base device size cannot be smaller than %s",
+			units.HumanSize(float64(devices.getBaseDeviceSize())))}
 	}
 
 	if devices.baseFsSize == devices.getBaseDeviceSize() {
