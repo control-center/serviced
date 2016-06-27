@@ -850,10 +850,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	defer a.servicedChain.Remove()
 
 	unregister := make(chan struct{})
-	defer func() { close(unregister) }()
-
 	stop := make(chan interface{})
-	defer func() { close(stop) }()
 
 	for {
 		// handle shutdown if we are waiting for a zk connection
