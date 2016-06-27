@@ -849,8 +849,11 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	// Clean up when we're done
 	defer a.servicedChain.Remove()
 
-	_shutdown := make(chan struct{})
-	defer func() { close(_shutdown) }()
+	unregister := make(chan struct{})
+	defer func() { close(unregister) }()
+
+	stop := make(chan interface{})
+	defer func() { close(stop) }()
 
 	for {
 		// handle shutdown if we are waiting for a zk connection
@@ -866,25 +869,25 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		glog.Info("Got a connected client")
 
-		// A paranoid persistence to alert zookeeper that the host is
-		// indeed available.
-		regWG := &sync.WaitGroup{}
-		regWG.Add(1)
+		rwg := &sync.WaitGroup{}
+		rwg.Add(1)
 		go func() {
-			defer regWG.Done()
+			defer rwg.Done()
 			t := time.NewTimer(time.Second)
 			defer t.Stop()
 			for {
-				if err := zkservice.RegisterHost(_shutdown, conn, a.hostID); err != nil {
-					t.Reset(time.Second)
+				err := zkservice.RegisterHost(unregister, conn, a.hostID)
+				if err != nil {
+					t.Stop()
+					t = time.NewTimer(time.Second)
 					select {
 					case <-t.C:
-					case <-_shutdown:
+					case <-unregister:
 						return
 					}
-					continue
+				} else {
+					return
 				}
-				return
 			}
 		}()
 
@@ -901,22 +904,41 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 3) receives signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
-		glog.Infof("Host Agent successfully started")
-		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
-
-		close(_shutdown)
-		_shutdown = make(chan struct{})
-		regWG.Wait()
+		startExit := make(chan struct{})
+		go func() {
+			defer close(startExit)
+			glog.Infof("Host Agent successfully started")
+			zzk.Start(stop, conn, hsListener, virtualIPListener, actionListener)
+		}()
 
 		select {
+		case <-startExit:
+			glog.Infof("Host Agent restarting")
+			close(unregister)
+			unregister = make(chan struct{})
+			rwg.Wait()
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
+
+			lockpth := path.Join("/hosts", a.hostID, "locked")
+			err := conn.CreateIfExists(lockpth, &coordclient.Dir{})
+			if err == nil || err == coordclient.ErrNodeExists {
+				mu, _ := conn.NewLock(lockpth)
+				if mu != nil {
+					mu.Lock()
+					defer mu.Unlock()
+				}
+			}
+
+			close(stop)
+			<-startExit
+			close(unregister)
+			rwg.Wait()
 			conn.Delete(path.Join("/hosts", a.hostID, "online"))
 			return
-		default:
-			glog.Infof("Host Agent restarting")
 		}
 	}
+
 }
 
 // AttachAndRun implements zkdocker.ActionHandler; it attaches to a running

@@ -107,7 +107,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 			// host is dead, begin the countdown
 			glog.V(2).Infof("Host %s in pool %s is not available", hostid, h.poolid)
-			t.Reset(h.getTimeout())
+			t.Stop()
+			t = time.NewTimer(h.getTimeout())
 			outage = time.Now()
 			isOnline = false
 		} else if len(ch) > 0 && !isOnline {
@@ -223,12 +224,13 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 					// Okay, I am not that harsh.  I will wait just a little longer
 					// in case there was a network outage.
-					qt.Reset(h.qtime)
+					qt.Stop()
+					qt = time.NewTimer(h.qtime)
 					select {
 					case <-qt.C:
 
 						// Let's make sure we didn't get another outage while we
-						// were waiting for the pool to quiesce.
+						// we're waiting for the pool to quiesce.
 						select {
 						case <-h.isOnline:
 
@@ -399,6 +401,14 @@ func IsHostOnline(conn client.Connection, poolid, hostid string) (bool, error) {
 func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string) error {
 
 	pth := path.Join("/hosts", hostid, "online")
+
+	// clean up ephemeral nodes on exit
+	defer func() {
+		ch, _ := conn.Children(pth)
+		for _, n := range ch {
+			conn.Delete(path.Join(pth, n))
+		}
+	}()
 
 	// set up cancellable on event watcher
 	stop := make(chan struct{})
