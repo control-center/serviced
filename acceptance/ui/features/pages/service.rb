@@ -33,12 +33,18 @@ class Service < SitePrism::Page
     # Look up the table data for the given port and remove it using
     # the UI.
     def remove_publicendpoint_port_json(name)
-        remove_publicendpoint("table://ports/#{name}/PortAddr")
+        expect(emove_publicendpoint?("table://ports/#{name}/PortAddr")).to be(true)
+    end
+
+    # Look up the table data for the given vhost and remove it using
+    # the UI.
+    def remove_publicendpoint_vhost_json(name)
+        expect(remove_publicendpoint?("table://vhosts/#{name}/Name")).to be(true)
     end
 
     # Removes the public endpoint (vhost or port) by looking up the entry and
     # clicking the delete button.
-    def remove_publicendpoint(name)
+    def remove_publicendpoint?(name)
         name = getTableValue(name)
         self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
             if tr.text.include?(name)
