@@ -301,7 +301,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 
 // List vhost public endpoints
 // serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]
-func (c *ServicedCli) cmdPublicEndpointsVhostList(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostList(ctx *cli.Context) {
 	cmdPublicEndpointsList(c, ctx, true, false)
 }
 
@@ -341,7 +341,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 
 // Add a vhost public endpoint
 // serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>"
-func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 4 {
 		cli.ShowCommandHelp(ctx, "add")
@@ -376,7 +376,7 @@ func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
 
 // Remove a vhost public endpoint
 // serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>
-func (c *ServicedCli) cmdPublicEndpointsVhostRemove(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 3 {
 		cli.ShowCommandHelp(ctx, "remove")
@@ -395,7 +395,7 @@ func (c *ServicedCli) cmdPublicEndpointsVhostRemove(ctx *cli.Context) {
 
 // Enable/Disable a vhost public endpoint
 // serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false
-func (c *ServicedCli) cmdPublicEndpointsVhostEnable(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 4 {
 		cli.ShowCommandHelp(ctx, "enable")

@@ -324,14 +324,14 @@ func ExampleServicedCLI_CmdPublicEndpointsPortEnable_ValidFlags() {
 	// :22222
 }
 
-func ExampleServicedCLI_cmdPublicEndpointsVhostAdd() {
+func ExampleServicedCLI_cmdPublicEndpointsVHostAdd() {
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "add", "Zenoss", "zproxy", "zproxy2", "true")
 
 	// Output:
 	// zproxy2
 }
 
-func ExampleServicedCLI_cmdPublicEndpointsVhostAdd_InvalidArgCount() {
+func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidArgCount() {
 	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "add", "Zenoss", "zproxy", "zproxy2", "true", "invalid")
 
 	// Output:
@@ -347,14 +347,14 @@ func ExampleServicedCLI_cmdPublicEndpointsVhostAdd_InvalidArgCount() {
 	// OPTIONS:
 }
 
-func ExampleServicedCLI_cmdPublicEndpointsVhostAdd_InvalidService() {
+func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidService() {
 	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "add", "invalid", "zproxy", "zproxy2", "true")
 
 	// Output:
 	// service not found
 }
 
-func ExampleServicedCLI_cmdPublicEndpointsVhostAdd_InvalidEnableFlag() {
+func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidEnableFlag() {
 	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "add", "Zenoss", "invalid", "zproxy2", "invalid")
 
 	// Output:

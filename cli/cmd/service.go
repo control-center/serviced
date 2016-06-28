@@ -411,7 +411,7 @@ func (c *ServicedCli) initService() {
 								Name:        "list",
 								Usage:       "List vhost public endpoints for a service",
 								Description: "serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]",
-								Action:      c.cmdPublicEndpointsVhostList,
+								Action:      c.cmdPublicEndpointsVHostList,
 								Flags: []cli.Flag{
 									cli.BoolFlag{
 										Name:  "ascii, a",
@@ -432,7 +432,7 @@ func (c *ServicedCli) initService() {
 								Name:        "add",
 								Usage:       "Add a vhost public endpoint to a service",
 								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
-								Action:      c.cmdPublicEndpointsVhostAdd,
+								Action:      c.cmdPublicEndpointsVHostAdd,
 							},
 							/*
 							               {
@@ -440,14 +440,14 @@ func (c *ServicedCli) initService() {
 							   				ShortName:   "rm",
 							                   Usage:       "Remove a vhost public endpoint from a service",
 							                   Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
-							                   Action:      c.cmdPublicEndpointsVhostRemove,
+							                   Action:      c.cmdPublicEndpointsVHostRemove,
 							               },
 							*/
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a vhost public endpoint for a service",
 								Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
-								Action:      c.cmdPublicEndpointsVhostEnable,
+								Action:      c.cmdPublicEndpointsVHostEnable,
 							},
 						},
 					},
