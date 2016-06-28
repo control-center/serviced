@@ -29,9 +29,11 @@ import (
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
 	usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 
+	// Scrub the port for all checks, as this is what gets stored against the service.
+	portAddr = service.ScrubPortString(portAddr)
+
 	// Validate the port number
-	scrubbedPort := service.ScrubPortString(portAddr)
-	portParts := strings.Split(scrubbedPort, ":")
+	portParts := strings.Split(portAddr, ":")
 	if len(portParts) < 2 {
 		err := fmt.Errorf("Invalid port address. Port address must be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 		glog.Error(err)
@@ -47,7 +49,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	// Check to make sure the port is available.  Don't allow adding a port if it's already being used.
 	// This has the added benefit of validating the port address before it gets added to the service
 	// definition.
-	if err := checkPort("tcp", fmt.Sprintf("%s", scrubbedPort)); err != nil {
+	if err := checkPort("tcp", fmt.Sprintf("%s", portAddr)); err != nil {
 		glog.Error(err)
 		return nil, err
 	}
@@ -75,7 +77,7 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 
 		for _, endpoint := range service.Endpoints {
 			for _, epPort := range endpoint.PortList {
-				if scrubbedPort == epPort.PortAddr {
+				if portAddr == epPort.PortAddr {
 					err := fmt.Errorf("Port %s already defined for service: %s", epPort.PortAddr, service.Name)
 					glog.Error(err)
 					return nil, err
@@ -139,6 +141,10 @@ func checkPort(network string, laddr string) error {
 
 // Remove the port public endpoint from a service.
 func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
+
+	// Scrub the port for all checks, as this is what gets stored against the service.
+	portAddr = service.ScrubPortString(portAddr)
+
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -178,6 +184,10 @@ func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endp
 
 // Enable/Disable a port public endpoint.
 func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
+
+	// Scrub the port for all checks, as this is what gets stored against the service.
+	portAddr = service.ScrubPortString(portAddr)
+
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -206,8 +216,7 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 	// If they're trying to enable the port, check to make sure the port is valid and available.
 	if isEnabled {
 		// Validate the port number
-		scrubbedPort := service.ScrubPortString(portAddr)
-		portParts := strings.Split(scrubbedPort, ":")
+		portParts := strings.Split(portAddr, ":")
 		if len(portParts) < 2 {
 			err = fmt.Errorf("Invalid port address. Port address must be \":[PORT NUMBER]\" or \"[IP ADDRESS]:[PORT NUMBER]\"")
 			glog.Error(err)
@@ -220,7 +229,7 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 			return err
 		}
 
-		if err = checkPort("tcp", fmt.Sprintf("%s", scrubbedPort)); err != nil {
+		if err = checkPort("tcp", fmt.Sprintf("%s", portAddr)); err != nil {
 			glog.Error(err)
 			return err
 		}
