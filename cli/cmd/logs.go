@@ -31,7 +31,7 @@ func (c *ServicedCli) initLog() {
 			{
 				Name:        "export",
 				Usage:       "Exports all logs",
-				Description: "serviced log export [YYYYMMDD]",
+				Description: "serviced log export",
 				// TODO: BashComplete: c.printLogExportCompletion,
 				Action: c.cmdExportLogs,
 				Flags: []cli.Flag{
