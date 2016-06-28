@@ -15,8 +15,6 @@ package zzk
 
 import (
 	"errors"
-	"fmt"
-	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -129,39 +127,21 @@ func PathExists(conn client.Connection, p string) (bool, error) {
 
 // Ready waits for a node to be available for watching
 func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error {
-	if exists, err := PathExists(conn, p); err != nil {
-		return err
-	} else if exists {
-		return nil
-	} else if p == "/" || p == "." {
-		return fmt.Errorf("base path not found")
-	}
-
 	done := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&done)
+	defer func() { close(done) }()
 	for {
-		if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
-			return err
-		}
-
-		_, event, err := conn.ChildrenW(path.Dir(p), done)
+		ok, ev, err := conn.ExistsW(p, done)
 		if err != nil {
 			return err
-		}
-
-		if exists, err := PathExists(conn, p); err != nil {
-			return err
-		} else if exists {
+		} else if ok {
 			return nil
 		}
 
 		select {
-		case <-event:
-			// pass
+		case <-ev:
 		case <-shutdown:
 			return ErrShutdown
 		}
-
 		close(done)
 		done = make(chan struct{})
 	}

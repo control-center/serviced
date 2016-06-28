@@ -112,8 +112,8 @@ func updateInstance(conn client.Connection, poolID, hostID, stateID string, muta
 
 	// Get the current host instance
 	hpth := path.Join(basepth, "/hosts", hostID, "instances", stateID)
-	hdata := HostState{}
-	if err := conn.Get(hpth, &hdata); err != nil {
+	hdata := &HostState{}
+	if err := conn.Get(hpth, hdata); err != nil {
 		glog.Errorf("Could not get instance %s for host %s: %s", stateID, hostID, err)
 		return err
 	}
@@ -121,16 +121,16 @@ func updateInstance(conn client.Connection, poolID, hostID, stateID string, muta
 	// Get the current service instance
 	serviceID := hdata.ServiceID
 	spth := path.Join(basepth, "/services", serviceID, stateID)
-	sdata := ServiceStateNode{ServiceState: &ss.ServiceState{}}
-	if err := conn.Get(spth, &sdata); err != nil {
+	sdata := &ServiceStateNode{ServiceState: &ss.ServiceState{}}
+	if err := conn.Get(spth, sdata); err != nil {
 		glog.Errorf("Could not get instance %s from service %s: %s", stateID, serviceID, err)
 		return err
 	}
 
 	// manipulate the nodes
-	mutate(&hdata, sdata.ServiceState)
+	mutate(hdata, sdata.ServiceState)
 
-	if err := conn.NewTransaction().Set(hpth, &hdata).Set(spth, &sdata).Commit(); err != nil {
+	if err := conn.NewTransaction().Set(hpth, hdata).Set(spth, sdata).Commit(); err != nil {
 		glog.Errorf("Could not update instance %s from service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
@@ -245,7 +245,7 @@ func StopServiceInstance(conn client.Connection, poolID, hostID, stateID string)
 			glog.V(2).Infof("Stopping instance %s on host %s", s.ID, s.HostID)
 			h.DesiredState = int(service.SVCStop)
 		}
-		return updateInstance(conn, "", hostID, stateID, stopInstance)
+		return updateInstance(conn, poolID, hostID, stateID, stopInstance)
 	} else {
 		basepth := ""
 		if poolID != "" {

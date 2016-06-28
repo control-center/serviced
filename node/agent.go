@@ -199,7 +199,7 @@ func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.Serv
 
 	if !ctr.IsRunning() {
 		defer exited(state.ID)
-		return nil
+		return errors.New("container found but not running")
 	}
 
 	ctr.OnEvent(docker.Die, func(cid string) {
