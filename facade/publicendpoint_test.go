@@ -25,315 +25,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
-	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: starting")
-
-	// Add a service so we can test our public endpoint.
-	svcA := service.Service{
-		ID:           "validate-service-tenant-A",
-		Name:         "TestFacade_validateServiceTenantA",
-		DeploymentID: "deployment-id",
-		PoolID:       "pool-id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				Application: "zproxy",
-				Name:        "zproxy",
-				PortNumber:  8080,
-				Protocol:    "tcp",
-				Purpose:     "export",
-			},
-		},
-	}
-	// Add a service so we can test our public endpoint.
-	svcB := service.Service{
-		ID:           "validate-service-tenant-B",
-		Name:         "TestFacade_validateServiceTenantB",
-		DeploymentID: "deployment-id",
-		PoolID:       "pool-id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				Application: "service2",
-				Name:        "service2",
-				PortNumber:  9090,
-				Protocol:    "tcp",
-				Purpose:     "export",
-			},
-		},
-	}
-	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
-	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
-
-	endpointName := "zproxy"
-	portAddr := ":22222"
-	usetls := true
-	protocol := "http"
-	isEnabled := true
-	restart := false
-
-	// Add a valid port.
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
-	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	c.Assert(err, IsNil)
-	if port == nil {
-		c.Errorf("Adding a valid public endpoint port returned a nil port")
-	}
-
-	// Add a duplicate port.
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding a duplicate port")
-	}
-
-	// Add a port with an invalid port range.
-	portAddr = ":70000"
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
-	}
-
-	portAddr = ":0"
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
-	}
-
-	portAddr = ":-1"
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding an invalid port address %s", portAddr)
-	}
-
-	// Add a port for an invalid service.
-	portAddr = ":22223"
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, "invalid", endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding a port to an invalid service")
-	}
-
-	// Add a port to a service that's defined in another service.
-	// Add a port for an invalid service.
-	portAddr = ":22222"
-	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, endpointName, portAddr,
-		usetls, protocol, isEnabled, restart)
-	if err == nil {
-		c.Errorf("Expected failure adding a port that already exists in another service")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
-	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA := service.Service{
-		ID:           "validate-service-tenant-A",
-		Name:         "TestFacade_validateServiceTenantA",
-		DeploymentID: "deployment-id",
-		PoolID:       "pool-id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				Application: "zproxy",
-				Name:        "zproxy",
-				PortNumber:  8080,
-				Protocol:    "tcp",
-				Purpose:     "export",
-				PortList: []servicedefinition.Port{
-					servicedefinition.Port{
-						PortAddr: ":22222",
-						Enabled:  true,
-						UseTLS:   true,
-						Protocol: "https",
-					},
-				},
-			},
-		},
-	}
-	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
-
-	// Remove port.
-	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222")
-	c.Assert(err, IsNil)
-
-	// Remove port with an invalid service
-	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222")
-	if err == nil {
-		c.Errorf("Expected failure removing a port with an invalid service")
-	}
-
-	// Remove port with an invalid endpoint
-	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222")
-	if err == nil {
-		c.Errorf("Expected failure removing a port with an invalid endpoint")
-	}
-
-	// Remove port with an invalid port address
-	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":55555")
-	if err == nil {
-		c.Errorf("Expected failure removing a port with an invalid port address")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_Disable(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_Disable: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	// The public endpoint should be enabled.
-	svc, err := ft.Facade.GetService(ft.CTX, svcA.ID)
-	c.Assert(err, IsNil)
-	if svc.Endpoints[0].PortList[0].Enabled == false {
-		c.Errorf("Expected service port public endpoint to be enabled")
-	}
-
-	// Disable the port.
-	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", false)
-	c.Assert(err, IsNil)
-	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
-	c.Assert(err, IsNil)
-	if svc.Endpoints[0].PortList[0].Enabled == true {
-		c.Errorf("Expected service port public endpoint to be disabled")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_Disable: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_EnableEnabledPort(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_EnableEnabledPort: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	// Enable the port.
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", true)
-	if err == nil {
-		c.Errorf("Expected error enabling a port that's already enabled")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_EnableEnabledPort: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidService(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidService: STARTED")
-
-	// Enable a port with an invalid serviceid
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling a port with an invalid service")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidService: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidEndpoint(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidEndpoint: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	// Enable a port with an invalid application/endpoint id
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling a port with an invalid endpoint")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidEndpoint: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidPortAddr(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortAddr: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	// Enable a port with invalid port addresses.
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", "invalid", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling a port with an invalid port address")
-	}
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortAddr: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_NegativePort(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_NegativePort: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":-5000", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling a port with a negative port")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_NegativePort: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidPortZero(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortZero: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":0", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling a port with port 0")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortZero: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidPortTooHigh(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortTooHigh: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":77777", true)
-	if err == nil {
-		c.Errorf("Expected failure enabling an out of range port address")
-	}
-
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortTooHigh: PASSED")
-}
-
-func (ft *FacadeIntegrationTest) Test_PublicEndpointPort_InvalidPortInUse(c *C) {
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortInUse: STARTED")
-
-	// Add a service so we can test our public endpoint.
-	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
-
-	// Try to enable a port with a port number that's already in use.
-	func() {
-		// Open an unused port first.
-		listener, err := net.Listen("tcp", ":0")
-		c.Assert(err, IsNil)
-		defer listener.Close()
-		// Now try to enable a port with the same address we just opened.
-		err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", listener.Addr().String(), true)
-		if err == nil {
-			c.Errorf("Expected failure enabling a port that's already in use")
-		}
-	}()
-
-	fmt.Println(" ##### Test_PublicEndpointPort_InvalidPortInUse: PASSED")
-}
-
-// Perform pre-test setup for each of the VHostAdd* tests
+// Perform pre-test setup for each of the PublicEndpoint tests
 func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
 	// Add a service so we can test our public endpoint.
 	svcA := service.Service{
@@ -388,6 +80,325 @@ func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.
 	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
 	return svcA, svcB
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add mock calls.
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy-0"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":33333-1"), svcA.ID).Return(nil)
+
+	// Add a valid port.
+	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":33333",
+		true, "http", true, false)
+	c.Assert(err, IsNil)
+	if port == nil {
+		c.Errorf("Adding a valid public endpoint port returned a nil port")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_DuplicatePort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_DuplicatePort: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a duplicate port.
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding a duplicate port")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_DuplicatePort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_OutOfRangePort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_OutOfRangePort: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a port with an invalid port range.
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":70000",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding an out of range port address :70000")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_OutOfRangePort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortZero(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortZero: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":0",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding an invalid port address :0")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortZero: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_NegativePort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_NegativePort: starting")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":-1",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding a negative port address :-1")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_NegativePort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_InvalidService: starting")
+
+	// Add a service so we can test our public endpoint.
+	ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a port for an invalid service.
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22223",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding a port to an invalid service")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_PortInAnotherService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortInAnotherService: starting")
+
+	// Add a service so we can test our public endpoint.
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a port to a service that's defined in another service.
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, "service2", ":22222",
+		true, "http", true, false)
+	if err == nil {
+		c.Errorf("Expected failure adding a port that already exists in another service")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_PortInAnotherService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove port.
+	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222")
+	c.Assert(err, IsNil)
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidService: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove port with an invalid service
+	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid service")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidEndpoint(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidEndpoint: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove port with an invalid endpoint
+	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid endpoint")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidEndpoint: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove_InvalidPort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidPort: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove port with an invalid port address
+	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":55555")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid port address")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove_InvalidPort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortDisable(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortDisable: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// The public endpoint should be enabled.
+	svc, err := ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == false {
+		c.Errorf("Expected service port public endpoint to be enabled")
+	}
+
+	// Disable the port.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", false)
+	c.Assert(err, IsNil)
+	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == true {
+		c.Errorf("Expected service port public endpoint to be disabled")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortDisable: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_EnabledPort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_EnabledPort: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Enable the port.
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected error enabling a port that's already enabled")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_EnabledPort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidService: STARTED")
+
+	// Enable a port with an invalid serviceid
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid service")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidEndpoint(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidEndpoint: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Enable a port with an invalid application/endpoint id
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid endpoint")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidEndpoint: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortAddr(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortAddr: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Enable a port with invalid port addresses.
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", "invalid", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortAddr: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_NegativePort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_NegativePort: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":-5000", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with a negative port")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_NegativePort: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortZero(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortZero: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":0", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with port 0")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortZero: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortTooHigh(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortTooHigh: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	err := ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":77777", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling an out of range port address")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortTooHigh: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortInUse(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortInUse: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Try to enable a port with a port number that's already in use.
+	func() {
+		// Open an unused port first.
+		listener, err := net.Listen("tcp", ":0")
+		c.Assert(err, IsNil)
+		defer listener.Close()
+		// Now try to enable a port with the same address we just opened.
+		err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", listener.Addr().String(), true)
+		if err == nil {
+			c.Errorf("Expected failure enabling a port that's already in use")
+		}
+	}()
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortInUse: PASSED")
 }
 
 func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {
