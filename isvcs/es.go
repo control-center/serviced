@@ -133,7 +133,7 @@ func initElasticSearch() {
 			Tag:            IMAGE_TAG,
 			Command:        func() string { return "" },
 			PortBindings:   []portBinding{elasticsearch_logstashPortBinding},
-			Volumes:        map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
+			Volumes:        map[string]string{"data": "/opt/elasticsearch-2.3.3/data"},
 			Configuration:  make(map[string]interface{}),
 			HealthChecks:   healthChecks,
 			Recover:        recoverES,
@@ -149,7 +149,7 @@ func initElasticSearch() {
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
 			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
 		}
-		return fmt.Sprintf(`exec /opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
+		return fmt.Sprintf(`exec /opt/elasticsearch-2.3.3/bin/elasticsearch -Des.insecure.allow.root=true -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
 	}
 }
 
