@@ -9,14 +9,12 @@ import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
+import "github.com/control-center/serviced/domain/servicedefinition"
 import "github.com/control-center/serviced/domain/servicestate"
 import template "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/metrics"
 import "github.com/control-center/serviced/script"
-import (
-	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/domain/servicedefinition"
-)
+import "github.com/control-center/serviced/volume"
 
 type API struct {
 	mock.Mock
@@ -1069,12 +1067,12 @@ func (_m *API) GetVolumeStatus() (*volume.Statuses, error) {
 
 	return r0, r1
 }
-func (_m *API) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)  {
-	ret := _m.Called()
+func (_m *API) AddPublicEndpointPort(serviceid string, endpointName string, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+	ret := _m.Called(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 
 	var r0 *servicedefinition.Port
-	if rf, ok := ret.Get(0).(func() *servicedefinition.Port); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, string, bool, bool) *servicedefinition.Port); ok {
+		r0 = rf(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*servicedefinition.Port)
@@ -1082,11 +1080,80 @@ func (_m *API) AddPublicEndpointPort(serviceid, endpointName, portAddr string, u
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, string, bool, bool) error); ok {
+		r1 = rf(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
+}
+func (_m *API) RemovePublicEndpointPort(serviceid string, endpointName string, portAddr string) error {
+	ret := _m.Called(serviceid, endpointName, portAddr)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(serviceid, endpointName, portAddr)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) EnablePublicEndpointPort(serviceid string, endpointName string, portAddr string, isEnabled bool) error {
+	ret := _m.Called(serviceid, endpointName, portAddr, isEnabled)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, bool) error); ok {
+		r0 = rf(serviceid, endpointName, portAddr, isEnabled)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) AddPublicEndpointVHost(serviceid string, endpointName string, vhost string, isEnabled bool, restart bool) (*servicedefinition.VHost, error) {
+	ret := _m.Called(serviceid, endpointName, vhost, isEnabled, restart)
+
+	var r0 *servicedefinition.VHost
+	if rf, ok := ret.Get(0).(func(string, string, string, bool, bool) *servicedefinition.VHost); ok {
+		r0 = rf(serviceid, endpointName, vhost, isEnabled, restart)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*servicedefinition.VHost)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool, bool) error); ok {
+		r1 = rf(serviceid, endpointName, vhost, isEnabled, restart)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) RemovePublicEndpointVHost(serviceid string, endpointName string, vhost string) error {
+	ret := _m.Called(serviceid, endpointName, vhost)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(serviceid, endpointName, vhost)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) EnablePublicEndpointVHost(serviceid string, endpointName string, vhost string, isEnabled bool) error {
+	ret := _m.Called(serviceid, endpointName, vhost, isEnabled)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string, bool) error); ok {
+		r0 = rf(serviceid, endpointName, vhost, isEnabled)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
