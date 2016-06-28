@@ -1,4 +1,4 @@
-package mocks
+package apimocks
 
 import "github.com/control-center/serviced/cli/api"
 import "github.com/stretchr/testify/mock"

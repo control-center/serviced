@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/cli/api/mocks"
+	mocks "github.com/control-center/serviced/cli/api/apimocks"
 	"github.com/control-center/serviced/utils"
 	"github.com/stretchr/testify/mock"
 )
