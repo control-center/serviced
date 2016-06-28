@@ -175,11 +175,12 @@ Feature: Application Management
       And I should see an entry for "table://applications/app3/template" in the Applications table
       And I should see "Showing 3 Results" in the "Applications" table
 
-  @clean_hosts
+  @clean_hosts @clean_services
   Scenario: Remove an instance of the default template
     Given only the default host is added
       And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
-    When I remove "table://applications/defaultApp/template" from the Applications list
+    When I am on the applications page
+      And I remove "table://applications/defaultApp/template" from the Applications list
     Then I should see "Remove Application"
       And I should see "This action will permanently delete the running application"
     When I click "Remove Application"

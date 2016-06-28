@@ -21,10 +21,10 @@ import (
 	"github.com/control-center/serviced/commons/atomicfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 )
 
 var (
@@ -78,9 +78,120 @@ func Init(root string, options []string) (volume.Driver, error) {
 	if err := driver.ensureInitialized(); err != nil {
 		return nil, err
 	}
+
+	driver.cleanUpSnapshots()
+
 	return driver, nil
 }
 
+
+// If there any snapshots on disk that are not tied to a device in the metadata, the 
+// snapshot should be removed.
+func (d * DeviceMapperDriver) cleanUpSnapshots() {
+    snapshotsOnDisk, err := d.getSnapshotsOnDisk()
+    if err != nil || snapshotsOnDisk == nil {
+        return
+    }
+
+    glog.V(2).Infof("Snapshots on disk: %v", snapshotsOnDisk)
+
+    snapshotsInMetadata, err := d.getSnapshotsFromMetadata()
+    if err != nil || snapshotsInMetadata == nil {
+        return
+    }
+ 
+    glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
+
+    for _, snapshotOnDisk := range snapshotsOnDisk {
+		if _, ok := snapshotsInMetadata[snapshotOnDisk]; !ok {
+			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
+            os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
+		} else {
+			// Remove the snapshot on disk since it was found in the metadata map.  This
+			// will leave the snapshotsInMetadata map with only snapshots that are in metadata but
+			// not on disk, so they should all be removed from the metadata.
+			delete(snapshotsInMetadata, snapshotOnDisk)
+		}
+    }
+
+	for snapshotInMetadata, volumeName := range snapshotsInMetadata {
+		glog.V(2).Infof("Removing Snapshot from metadata: %v", snapshotInMetadata)
+		v, err := d.loadVolume(volumeName)
+		if err != nil {
+			continue
+		}
+
+		v.Lock()
+		defer v.Unlock()
+
+		deviceHash, err := v.Metadata.LookupSnapshotDevice(snapshotInMetadata)
+		if err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
+		}
+
+		// Remove the snapshot info from the volume metadata
+		if err := v.Metadata.RemoveSnapshot(snapshotInMetadata); err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
+		}
+		
+		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
+		v.driver.DeviceSet.Lock()
+		if err := v.driver.deactivateDevice(deviceHash); err != nil {
+			glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
+			continue
+		}
+		v.driver.DeviceSet.Unlock()
+		if err := v.driver.deleteDevice(deviceHash, false); err != nil {
+			glog.Errorf("Error removing snapshot: %v", err)
+			continue
+		}
+	}
+}
+ 
+func (d * DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, error) { 
+    snapshots := make(map[string]string)
+
+    for _, volname := range d.ListTenants() {
+		volume, err := d.newVolume(volname)
+		if err != nil {
+ 			return nil, err
+ 		}
+ 
+        for _, s := range volume.Metadata.ListSnapshots() {
+            snapshots[s] = volname
+        }
+	}
+
+    return snapshots, nil
+}
+
+func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {  
+    var snapshots []string
+ 
+	files, err := ioutil.ReadDir(d.MetadataDir())
+	if err != nil {
+		return nil, err
+	} 
+
+	for _, file := range files {
+		for _, volname := range d.ListTenants() {
+			volume, err := d.newVolume(volname)
+			if err != nil {
+				return nil, err
+			}
+	
+			if !volume.isInvalidSnapshot(file.Name()) {
+				snapshots = append(snapshots, file.Name())
+				break
+			}
+		}
+	}
+
+ 	return snapshots, nil
+}
+  
 // Root implements volume.Driver.Root
 func (d *DeviceMapperDriver) Root() string {
 	return d.root
@@ -1531,10 +1642,12 @@ func resize2fs(dmDevice string) error {
 
 func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
 	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
+	defer pipe.Close()
 	if err := cmd.Start(); err != nil {
 		return err
 	}

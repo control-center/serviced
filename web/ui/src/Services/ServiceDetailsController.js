@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies",
+    "poolsFactory", "CCUIState", "$cookies", "areUIReady",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies){
+    poolsFactory, CCUIState, $cookies, areUIReady){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -44,6 +44,7 @@
 
 
         $scope.modalAddPublicEndpoint = function() {
+            areUIReady.lock();
             $scope.protocols = [];
             $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
             $scope.protocols.push({ Label: "HTTP", UseTLS: false, Protocol: "http" });
@@ -105,12 +106,6 @@
 
                 if(+port < 1 || +port > 65536){
                     return "Port must be between 1 and 65536";
-                }
-
-                // TODO - add more reserved ports
-                var reservedPorts = [5000, 8080];
-                if(reservedPorts.indexOf(+port) !== -1){
-                    return "Port "+ port +" is reserved";
                 }
             };
 
@@ -175,21 +170,22 @@
                         }
                     }
                 },
+                onShow: () => {
+                    areUIReady.unlock();
+                }
             });
         };
 
 
         $scope.addPublicEndpoint = function(newPublicEndpoint) {
+            var serviceId = newPublicEndpoint.app_ep.ApplicationId;
+            var serviceName = newPublicEndpoint.app_ep.Application;
+            var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
             if(newPublicEndpoint.type === "vhost"){
-                var name = newPublicEndpoint.name;
-                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
-                return resourcesFactory.addVHost(serviceId, serviceEndpoint, name);
+                var vhostName = newPublicEndpoint.name;
+                return resourcesFactory.addVHost(serviceId, serviceName, serviceEndpoint, vhostName);
             } else if(newPublicEndpoint.type === "port"){
                 var port = newPublicEndpoint.host + ":" + newPublicEndpoint.port;
-                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                var serviceName = newPublicEndpoint.app_ep.Application;
-                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
                 var usetls = newPublicEndpoint.protocol.UseTLS;
                 var protocol = newPublicEndpoint.protocol.Protocol;
                 return resourcesFactory.addPort(serviceId, serviceName, serviceEndpoint, port, usetls, protocol);
@@ -400,7 +396,7 @@
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.enablePort(publicEndpoint.ApplicationId,  publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -415,13 +411,11 @@
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
             } else if(publicEndpoint.type === "port"){
-                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });
-
             }
-
         };
 
         $scope.clickEditContext = function() {

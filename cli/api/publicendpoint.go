@@ -27,3 +27,32 @@ func (a *api) AddPublicEndpointPort(serviceid, endpointName, portAddr string, us
 
 	return client.AddPublicEndpointPort(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 }
+
+// Remove a port public endpoint.
+func (a *api) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.RemovePublicEndpointPort(serviceid, endpointName, portAddr)
+}
+
+// Enable/Disable a port public endpoint.
+func (a *api) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.EnablePublicEndpointPort(serviceid, endpointName, portAddr, isEnabled)
+}
+
+func (a *api) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.AddPublicEndpointVHost(serviceid, endpointName, vhost, isEnabled, restart)
+}

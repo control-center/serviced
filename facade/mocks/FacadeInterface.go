@@ -379,12 +379,37 @@ func (_m *FacadeInterface) UpgradeRegistry(ctx datastore.Context, fromRegistryHo
 
 	return r0
 }
-func (m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+
+func (m *FacadeInterface) AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled, restart bool) (*servicedefinition.Port, error) {
 	ret := m.Called(ctx, serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 
 	var r0 *servicedefinition.Port
 	if ret.Get(0) != nil {
 		r0 = ret.Get(0).(*servicedefinition.Port)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
+
+func (m *FacadeInterface) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
+	ret := m.Called(ctx, serviceid, endpointName, portAddr)
+	r0 := ret.Error(0)
+	return r0
+}
+
+func (m *FacadeInterface) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
+	ret := m.Called(ctx, serviceid, endpointName, portAddr, isEnabled)
+	r0 := ret.Error(0)
+	return r0
+}
+
+func (m *FacadeInterface) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	ret := m.Called(ctx, serviceid, endpointName, vhost, isEnabled, restart)
+
+	var r0 *servicedefinition.VHost
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*servicedefinition.VHost)
 	}
 	r1 := ret.Error(1)
 

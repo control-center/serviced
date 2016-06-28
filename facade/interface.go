@@ -100,4 +100,10 @@ type FacadeInterface interface {
 	GetHealthChecksForService(ctx datastore.Context, id string) (map[string]health.HealthCheck, error)
 
 	AddPublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
+
+	RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error
+
+	EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error
+
+	AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
 }

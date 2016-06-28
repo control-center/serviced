@@ -17,8 +17,10 @@ package facade
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
 )
@@ -115,7 +117,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, "invalid", endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		c.Errorf("Expected failure adding a port to an invalid service", portAddr)
+		c.Errorf("Expected failure adding a port to an invalid service")
 	}
 
 	// Add a port to a service that's defined in another service.
@@ -124,8 +126,281 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	port, err = ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, endpointName, portAddr,
 		usetls, protocol, isEnabled, restart)
 	if err == nil {
-		c.Errorf("Expected failure adding a port that already exists in another service", portAddr)
+		c.Errorf("Expected failure adding a port that already exists in another service")
 	}
 
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+			},
+		},
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+
+	// Remove port.
+	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222")
+	c.Assert(err, IsNil)
+
+	// Remove port with an invalid service
+	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid service")
+	}
+
+	// Remove port with an invalid endpoint
+	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid endpoint")
+	}
+
+	// Remove port with an invalid port address
+	err = ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":55555")
+	if err == nil {
+		c.Errorf("Expected failure removing a port with an invalid port address")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortRemove: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+			},
+		},
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+
+	// The public endpoint should be enabled.
+	svc, err := ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == false {
+		c.Errorf("Expected service port public endpoint to be enabled")
+	}
+
+	// Disable the port.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", false)
+	c.Assert(err, IsNil)
+	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == true {
+		c.Errorf("Expected service port public endpoint to be disabled")
+	}
+
+	// Enable the port.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", true)
+	c.Assert(err, IsNil)
+	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == false {
+		c.Errorf("Expected service port public endpoint to be enabled")
+	}
+
+	// Enable a port with an invalid serviceid
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, "invalid", "zproxy", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid service")
+	}
+
+	// Enable a port with an invalid application/endpoint id
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "invalid", ":22222", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid endpoint")
+	}
+
+	// Enable a port with invalid port addresses.
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", "invalid", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":-5000", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":0", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":77777", true)
+	if err == nil {
+		c.Errorf("Expected failure enabling a port with an invalid port address")
+	}
+
+	// Try to enable a port with a port number that's already in use.
+	func() {
+		// Open an unused port first.
+		listener, err := net.Listen("tcp", ":0")
+		c.Assert(err, IsNil)
+		defer listener.Close()
+		// Now try to enable a port with the same address we just opened.
+		err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", listener.Addr().String(), true)
+		if err == nil {
+			c.Errorf("Expected failure enabling a port that's already in use")
+		}
+	}()
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortEnable: PASSED")
+}
+
+// Perform pre-test setup for each of the VHostAdd* tests
+func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
+	// Add a service so we can test our public endpoint.
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+				VHostList: []servicedefinition.VHost{
+					servicedefinition.VHost{
+						Name:    "zproxy",
+						Enabled: true,
+					},
+				},
+			},
+		},
+	}
+	// Add a service so we can test our public endpoint.
+	svcB := service.Service{
+		ID:           "validate-service-tenant-B",
+		Name:         "TestFacade_validateServiceTenantB",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "service2",
+				Name:        "service2",
+				PortNumber:  9090,
+				Protocol:    "tcp",
+				Purpose:     "export",
+			},
+		},
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
+	return svcA, svcB
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: STARTED")
+
+	// Add a vhost to an invalid service.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, "invalid", "zproxy", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a vhost with an invalid service id")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidEndpoint(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: STARTED")
+
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a vhost to a service with an invalid endpoint.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcA.ID, "invalid", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a vhost with an invalid endpoint")
+	}
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: STARTED")
+
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a vhost to a service, but another service already has this vhost.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "zproxy", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a duplicate vhost name")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: STARTED")
+
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Mock call expectations:
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy-0"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy2-0"), svcA.ID).Return(nil)
+
+	// Add a valid vhost entry.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy2", true, true)
+	if err != nil {
+		c.Errorf("Unexpected failure adding a valid vhost")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: PASSED")
 }

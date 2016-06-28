@@ -122,5 +122,8 @@ type API interface {
 	GetVolumeStatus() (*volume.Statuses, error)
 
 	// Public endpoints
-	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
+	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled, restart bool) (*servicedefinition.Port, error)
+	RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error
+	EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error
+	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
 }

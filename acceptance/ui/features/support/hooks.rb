@@ -16,27 +16,45 @@ end
 # See https://github.com/cucumber/cucumber/wiki/Hooks for more info about hooks
 #
 Before('@login-required') do
-  loginAsDefaultUser()
+  CC.UI.login()
 end
 
 After('@clean_hosts') do
-  removeAllHostsCLI()
+  CC.CLI.host.remove_all_hosts()
 end
 
 After('@clean_pools') do
-  removeAllPoolsExceptDefault()
+  CC.CLI.host.remove_all_hosts() # Remove hosts so pools can be removed
+  CC.CLI.pool.remove_all_resource_pools_except_default()
 end
 
 After('@clean_templates') do
-  removeAllTemplatesCLI()
+  CC.CLI.template.remove_all_templates()
 end
 
 After('@clean_services') do
-  removeAllServicesCLI()
+  CC.CLI.service.remove_all_services()
 end
 
 After('@clean_virtualips') do
-  removeVirtualIPsFromDefaultPoolCLI()
+  CC.CLI.pool.remove_virtual_ips_from_default_pool()
+end
+
+# Before running any tests, clean the slate.
+require_relative '../api/CC'
+RSpec.configure do |config|
+  puts "\nInitializing the environment.."
+  puts "  Removing virtual ips"
+  CC.CLI.pool.remove_virtual_ips_from_default_pool()
+  puts "  Removing hosts"
+  CC.CLI.host.remove_all_hosts()
+  puts "  Removing resource pools"
+  CC.CLI.pool.remove_all_resource_pools_except_default()
+  puts "  Removing services"
+  CC.CLI.service.remove_all_services()
+  puts "  Removing templates"
+  CC.CLI.template.remove_all_templates()
+  puts
 end
 
 After('@screenshot') do |scenario|

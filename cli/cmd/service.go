@@ -387,20 +387,19 @@ func (c *ServicedCli) initService() {
 									},
 								},
 							},
-							/*
-								{
-									Name:        "remove",
-									Usage:       "Remove a port public endpoint from a service",
-									Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
-									Action:      c.cmdPublicEndpointsPortRemove,
-								},
-								{
-									Name:        "enable",
-									Usage:       "Enable/Disable a port public endpoint for a service",
-									Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> <true|false>",
-									Action:      c.cmdPublicEndpointsPortEnable,
-								},
-							*/
+							{
+								Name:        "remove",
+								ShortName:   "rm",
+								Usage:       "Remove a port public endpoint from a service",
+								Description: "serviced service public-endpoints port remove <SERVICEID> <ENDPOINTNAME> <PORTADDR>",
+								Action:      c.cmdPublicEndpointsPortRemove,
+							},
+							{
+								Name:        "enable",
+								Usage:       "Enable/Disable a port public endpoint for a service",
+								Description: "serviced service public-endpoints port enable <SERVICEID> <ENDPOINTNAME> <PORTADDR> true|false",
+								Action:      c.cmdPublicEndpointsPortEnable,
+							},
 						},
 					},
 					{
@@ -429,25 +428,26 @@ func (c *ServicedCli) initService() {
 									},
 								},
 							},
+							{
+								Name:        "add",
+								Usage:       "Add a vhost public endpoint to a service",
+								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
+								Action:      c.cmdPublicEndpointsVhostAdd,
+							},
 							/*
-								{
-									Name:        "add",
-									Usage:       "Add a vhost public endpoint to a service",
-									Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
-									Action:      c.cmdPublicEndpointsVhostAdd,
-								},
-								{
-									Name:        "remove",
-									Usage:       "Remove a vhost public endpoint from a service",
-									Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
-									Action:      c.cmdPublicEndpointsVhostRemove,
-								},
-								{
-									Name:        "enable",
-									Usage:       "Enable/Disable a vhost public endpoint for a service",
-									Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>",
-									Action:      c.cmdPublicEndpointsVhostEnable,
-								},
+							               {
+							                   Name:        "remove",
+							   				ShortName:   "rm",
+							                   Usage:       "Remove a vhost public endpoint from a service",
+							                   Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
+							                   Action:      c.cmdPublicEndpointsVhostRemove,
+							               },
+							               {
+							                   Name:        "enable",
+							                   Usage:       "Enable/Disable a vhost public endpoint for a service",
+							                   Description: "serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false",
+							                   Action:      c.cmdPublicEndpointsVhostEnable,
+							               },
 							*/
 						},
 					},

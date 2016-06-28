@@ -18,12 +18,33 @@ import (
 )
 
 // Adds a port public endpoint to a service.
-func (s *Server) AddPublicEndpointPort(request *PublicEndpointPortRequest, reply *servicedefinition.Port) error {
-	port, err := s.f.AddPublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.PortAddr,
+func (s *Server) AddPublicEndpointPort(request *PublicEndpointRequest, reply *servicedefinition.Port) error {
+	port, err := s.f.AddPublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.Name,
 		request.UseTLS, request.Protocol, request.IsEnabled, request.Restart)
 	if err != nil {
 		return err
 	}
 	*reply = *port
+	return err
+}
+
+// Remove a port public endpoint from a service.
+func (s *Server) RemovePublicEndpointPort(request *PublicEndpointRequest, _ *struct{}) error {
+	return s.f.RemovePublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.Name)
+}
+
+// Enable/disable a port public endpoint for a service.
+func (s *Server) EnablePublicEndpointPort(request *PublicEndpointRequest, _ *struct{}) error {
+	return s.f.EnablePublicEndpointPort(s.context(), request.Serviceid, request.EndpointName, request.Name, request.IsEnabled)
+}
+
+// Adds a vhost public endpoint to a service.
+func (s *Server) AddPublicEndpointVHost(request *PublicEndpointRequest, reply *servicedefinition.VHost) error {
+	vhost, err := s.f.AddPublicEndpointVHost(s.context(), request.Serviceid, request.EndpointName, request.Name,
+		request.IsEnabled, request.Restart)
+	if err != nil {
+		return err
+	}
+	*reply = *vhost
 	return err
 }
