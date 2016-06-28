@@ -8,8 +8,9 @@ Given (/^(?:|that )the "([^"]*)" port does not exist$/) do |name|
     CC.CLI.service.remove_publicendpoint_port_json(name) if CC.CLI.service.check_publicendpoint_port_exists_json(name)
 end
 
-Given (/^(?:|that )the port public endpoint "([^"]*)" is removed$/) do |name|
-    CC.CLI.service.remove_publicendpoint_port_json(name)
+Given (/^(?:|that )the (port|vhost) public endpoint "([^"]*)" is removed$/) do |pepType, name|
+    CC.CLI.service.remove_publicendpoint_port_json(name) if pepType == "port"
+    CC.CLI.service.remove_publicendpoint_vhost_json(name) if pepType == "vhost"
 end
 
 Given (/^(?:|that )the (port|vhost) public endpoint "([^"]*)" is (enabled|disabled)$/) do |pepType, name, enabled|
@@ -24,10 +25,6 @@ end
 
 Given (/^(?:|that )the "([^"]*)" vhost does not exist$/) do |name|
     CC.CLI.service.remove_publicendpoint_vhost_json(name) if CC.CLI.service.check_publicendpoint_vhost_exists_json(name)
-end
-
-Given (/^(?:|that )the vhost public endpoint "([^"]*)" is removed$/) do |name|
-    CC.CLI.service.remove_publicendpoint_vhost_json(name)
 end
 
 Then(/^I should see the (port|vhost) public endpoint (.*) in the list output$/) do |pepType, name|

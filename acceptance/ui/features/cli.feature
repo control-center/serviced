@@ -53,7 +53,7 @@ Feature: CLI Validation
 
   @vhost
   Scenario: Delete the vhost public endpoint
-    Given PENDING that the "vhost0" vhost is added
+    Given that the "vhost0" vhost is added
       And the vhost public endpoint "vhost0" is removed
     Then I should not see the vhost public endpoint "vhost0" in the service
 

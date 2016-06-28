@@ -459,6 +459,64 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: PASSED")
 }
 
+func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Remove(c *C) {
+	fmt.Println(" ##### Test_PublicEndpointVHost_Remove: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove port.
+	err := ft.Facade.RemovePublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy")
+	c.Assert(err, IsNil)
+
+	fmt.Println(" ##### Test_PublicEndpointVHost_Remove: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidService: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove vhost with an invalid service
+	err := ft.Facade.RemovePublicEndpointVHost(ft.CTX, "invalid", "zproxy", "zproxy")
+	if err == nil {
+		c.Errorf("Expected failure removing a vhost with an invalid service")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidEndpoint(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidEndpoint: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove vhost with an invalid endpoint
+	err := ft.Facade.RemovePublicEndpointVHost(ft.CTX, svcA.ID, "invalid", "zproxy")
+	if err == nil {
+		c.Errorf("Expected failure removing a vhost with an invalid endpoint")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidEndpoint: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostRemove_InvalidPort(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidPort: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Remove vhost with an invalid port address
+	err := ft.Facade.RemovePublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "invalid")
+	if err == nil {
+		c.Errorf("Expected failure removing a vhost that doesn't exist")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostRemove_InvalidPort: PASSED")
+}
+
 func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Disable(c *C) {
 	fmt.Println(" ##### Test_PublicEndpointVHost_Disable: STARTED")
 
