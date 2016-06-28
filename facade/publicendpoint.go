@@ -186,12 +186,22 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 		return err
 	}
 
-	var enableString string
-	if isEnabled {
-		enableString = "enabling"
-	} else {
-		enableString = "disabling"
+	// Find the port so we can check the current enabled state.
+	port := svc.GetPort(endpointName, portAddr)
+	if port == nil {
+		err = fmt.Errorf("Port %s not found in service %s:%s", portAddr, svc.ID, svc.Name)
+		glog.Error(err)
+		return err
 	}
+
+	// If the port is already in the same state, don't do anything.
+	if port.Enabled == isEnabled {
+		err = fmt.Errorf("Port %s enabled state is already set to %t for service (%s).", portAddr, isEnabled, svc.Name)
+		glog.Warning(err)
+		return err
+	}
+
+	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", isEnabled, svc.Name, portAddr)
 
 	// If they're trying to enable the port, check to make sure the port is valid and available.
 	if isEnabled {
@@ -218,12 +228,12 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 
 	err = svc.EnablePort(endpointName, portAddr, isEnabled)
 	if err != nil {
-		err = fmt.Errorf("Error %s port %s for service (%s): %v", enableString, portAddr, svc.Name, err)
+		err = fmt.Errorf("Error setting enabled=%t for port %s, service (%s): %v", isEnabled, portAddr, svc.Name, err)
 		glog.Error(err)
 		return err
 	}
 
-	glog.V(2).Infof("Port public endpoint %s has been %s for service %s", portAddr, enableString, svc.Name)
+	glog.V(2).Infof("Port (%s) enable state set to %t for service (%s)", portAddr, isEnabled, svc.Name)
 
 	if err = f.UpdateService(ctx, *svc); err != nil {
 		glog.Error(err)
@@ -303,4 +313,48 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 
 	glog.V(2).Infof("Service %s updated after adding vhost public endpoint (%s)", svc.Name, vhost.Name)
 	return vhost, nil
+}
+
+func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error {
+	// Get the service for this service id.
+	svc, err := f.GetService(ctx, serviceid)
+	if err != nil {
+		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
+		glog.Error(err)
+		return err
+	}
+
+	// Find the vhost so we can check the current enabled state.
+	existingVHost := svc.GetVirtualHost(endpointName, vhost)
+	if existingVHost == nil {
+		err = fmt.Errorf("VHost %s not found in service %s:%s", vhost, svc.ID, svc.Name)
+		glog.Error(err)
+		return err
+	}
+
+	// If the vhost is already in the same state, don't do anything.
+	if existingVHost.Enabled == isEnabled {
+		err = fmt.Errorf("VHost %s enabled state is already set to %t for service (%s).", vhost, isEnabled, svc.Name)
+		glog.Warning(err)
+		return err
+	}
+
+	glog.V(0).Infof("Setting enabled=%t for service (%s) vhost %s", isEnabled, svc.Name, vhost)
+
+	err = svc.EnableVirtualHost(endpointName, vhost, isEnabled)
+	if err != nil {
+		err = fmt.Errorf("Error setting vhost (%s) enable state to %t for service (%s): %v", vhost, isEnabled, svc.Name, err)
+		glog.Error(err)
+		return err
+	}
+
+	glog.V(2).Infof("VHost (%s) enable state set to %t for service (%s)", vhost, isEnabled, svc.Name)
+
+	if err = f.UpdateService(ctx, *svc); err != nil {
+		glog.Error(err)
+		return err
+	}
+
+	glog.V(2).Infof("Service (%s) updated", svc.Name)
+	return nil
 }

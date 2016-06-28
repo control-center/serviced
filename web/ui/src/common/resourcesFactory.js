@@ -74,17 +74,27 @@
             },
             enableVHost: {
                 method: POST,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:true});}
+                payload: (serviceID, serviceName) => {
+                    return JSON.stringify({
+                        'ServiceName': serviceName,  /* Used in messages/logs */
+                        'IsEnabled': true
+                    });
+                }
             },
             disableVHost: {
                 method: POST,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:false});}
+                payload: (serviceID, serviceName) => {
+                    return JSON.stringify({
+                        'ServiceName': serviceName,  /* Used in messages/logs */
+                        'IsEnabled': false
+                    });
+                }
             },
             addPort: {
                 method: PUT,
