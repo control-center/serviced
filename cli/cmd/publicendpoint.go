@@ -387,8 +387,19 @@ func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	endpointName := ctx.Args()[1]
 	vhostName := ctx.Args()[2]
 
-	fmt.Printf("service: %s, endpoint: %s, vhost: %s\n",
-		serviceid, endpointName, vhostName)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	err = c.driver.RemovePublicEndpointVHost(svc.ID, endpointName, vhostName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", vhostName)
+	}
 
 	return
 }

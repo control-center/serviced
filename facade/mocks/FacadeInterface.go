@@ -416,6 +416,12 @@ func (m *FacadeInterface) AddPublicEndpointVHost(ctx datastore.Context, servicei
 	return r0, r1
 }
 
+func (m *FacadeInterface) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error {
+	ret := m.Called(ctx, serviceid, endpointName, vhost)
+	r0 := ret.Error(0)
+	return r0
+}
+
 func (m *FacadeInterface) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error {
 	ret := m.Called(ctx, serviceid, endpointName, vhost, isEnabled)
 	r0 := ret.Error(0)
