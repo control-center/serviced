@@ -48,3 +48,8 @@ func (s *Server) AddPublicEndpointVHost(request *PublicEndpointRequest, reply *s
 	*reply = *vhost
 	return err
 }
+
+// Enable/disable a vhost public endpoint for a service.
+func (s *Server) EnablePublicEndpointVHost(request *PublicEndpointRequest, _ *struct{}) error {
+	return s.f.EnablePublicEndpointVHost(s.context(), request.Serviceid, request.EndpointName, request.Name, request.IsEnabled)
+}

@@ -12,10 +12,10 @@ Given (/^(?:|that )the port public endpoint "([^"]*)" is removed$/) do |name|
     CC.CLI.service.remove_publicendpoint_port_json(name)
 end
 
-Given (/^(?:|that )the (port) public endpoint "([^"]*)" is (enabled|disabled)$/) do |pepType, name, enabled|
+Given (/^(?:|that )the (port|vhost) public endpoint "([^"]*)" is (enabled|disabled)$/) do |pepType, name, enabled|
     enabled = (enabled == "enabled" ? true : false)
     CC.CLI.service.enable_publicendpoint_port_json(name, enabled) if pepType == "port"
-    #CC.CLI.service.enable_publicendpoint_vhost_json(name, enabled) if pepType == "vhost"
+    CC.CLI.service.enable_publicendpoint_vhost_json(name, enabled) if pepType == "vhost"
 end
 
 Given (/^(?:|that )the "(.*)" vhost is added$/) do |name|
@@ -45,8 +45,8 @@ Then(/^I should not see the (port|vhost) public endpoint "([^"]*)" in the servic
     expect(CC.CLI.service.check_publicendpoint_vhost_exists_json(name)).to be(nil) if pepType == "vhost"
 end
 
-Then(/^the (port|vhost) public endpoint "([^"]*)" should be "([^"]*)"$/) do |pepType, name, enabled|
+Then(/^the (port|vhost) public endpoint "([^"]*)" should be "([^"]*)" in the service$/) do |pepType, name, enabled|
     enabled = (enabled == "enabled" ? true : false)
-    expect(CC.CLI.service.check_publicendpoint_port_enabled_json?(name)).to be(enabled) if pepType == "port"
-    expect(CC.CLI.service.check_publicendpoint_vhost_enabled_json?(name)).to be(enabled) if pepType == "vhost"
+    expect(CC.CLI.service.check_publicendpoint_port_enabled_in_service_json?(name)).to be(enabled) if pepType == "port"
+    expect(CC.CLI.service.check_publicendpoint_vhost_enabled_in_service_json?(name)).to be(enabled) if pepType == "vhost"
 end

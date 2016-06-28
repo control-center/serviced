@@ -143,4 +143,6 @@ type ClientInterface interface {
 	EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error
 
 	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
+
+	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 }

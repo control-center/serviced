@@ -536,3 +536,16 @@ func (_m *ClientInterface) AddPublicEndpointVHost(serviceid, endpointName, vhost
 
 	return r0, r1
 }
+
+func (_m *ClientInterface) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
+	ret := _m.Called(serviceid, endpointName, vhost, isEnabled)
+
+	var r0 error
+	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+		r0 = rf(serviceid, endpointName, vhost, isEnabled)
+	} else {
+		r0 = ret.Error(1)
+	}
+
+	return r0
+}

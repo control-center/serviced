@@ -66,7 +66,7 @@ func (c *Client) EnablePublicEndpointPort(serviceid, endpointName, portAddr stri
 	return c.call("EnablePublicEndpointPort", request, nil)
 }
 
-// Adds a port public endpoint to a service.
+// Adds a vhost public endpoint to a service.
 func (c *Client) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled,
 	restart bool) (*servicedefinition.VHost, error) {
 	request := &PublicEndpointRequest{
@@ -79,4 +79,15 @@ func (c *Client) AddPublicEndpointVHost(serviceid, endpointName, vhost string, i
 	var result servicedefinition.VHost
 	err := c.call("AddPublicEndpointVHost", request, &result)
 	return &result, err
+}
+
+// Enable/disable a vhost public endpoint for a service.
+func (c *Client) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
+	request := &PublicEndpointRequest{
+		Serviceid:    serviceid,
+		EndpointName: endpointName,
+		Name:         vhost,
+		IsEnabled:    isEnabled,
+	}
+	return c.call("EnablePublicEndpointVHost", request, nil)
 }
