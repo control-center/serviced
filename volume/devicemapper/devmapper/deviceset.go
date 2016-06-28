@@ -1111,8 +1111,7 @@ func (devices *DeviceSet) checkGrowBaseDeviceFS(info *devInfo) error {
 	}
 
 	if devices.baseFsSize < devices.getBaseDeviceSize() {
-		return ThinpoolInitError{fmt.Sprintf("devmapper: Base device size cannot be smaller than %s",
-			units.HumanSize(float64(devices.getBaseDeviceSize())))}
+		return fmt.Errorf("devmapper: Base device size cannot be smaller than %s", units.HumanSize(float64(devices.getBaseDeviceSize())))
 	}
 
 	if devices.baseFsSize == devices.getBaseDeviceSize() {
