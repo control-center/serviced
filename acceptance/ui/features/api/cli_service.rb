@@ -119,32 +119,66 @@ module CCApi
             return enable_publicendpoint_port(service, endpoint, portAddr, enabled)
         end
 
+        # Looks up the given vhost from the vhosts table and enables/disables it.
+        def enable_publicendpoint_vhost_json(name, enabled)
+            service = getTableValue("table://vhosts/#{name}/Service")
+            endpoint = getTableValue("table://vhosts/#{name}/Endpoint")
+            vhostName = getTableValue("table://vhosts/#{name}/Name")
+            return enable_publicendpoint_vhost(service, endpoint, vhostName, enabled)
+        end
+
         # Enables/disables the given port.
         def enable_publicendpoint_port(service, endpoint, portAddr, enabled)
             CC.CLI.execute("%{serviced} service public-endpoints port enable #{service} #{endpoint} #{portAddr} #{enabled}")
         end
 
+        # Enables/disables the given vhost.
+        def enable_publicendpoint_vhost(service, endpoint, vhostName, enabled)
+            CC.CLI.execute("%{serviced} service public-endpoints vhost enable #{service} #{endpoint} #{vhostName} #{enabled}")
+        end
+
         # Looks up the given port from the ports table, and returns the enabled
         # state based on the service definition.
-        def check_publicendpoint_port_enabled_json?(name)
+        def check_publicendpoint_port_enabled_in_service_json?(name)
             service = getTableValue("table://ports/#{name}/Service")
             endpoint = getTableValue("table://ports/#{name}/Endpoint")
             portAddr = getTableValue("table://ports/#{name}/PortAddr")
             table_protocol = getTableValue("table://ports/#{name}/Protocol")
             protocol = map_protocol_value(table_protocol)
             usetls = map_tls_value(table_protocol)
-            enabled = getTableValue("table://ports/#{name}/Enabled")
-            return check_publicendpoint_port_exists_in_service?(service, endpoint, portAddr, protocol, usetls, enabled)
+            # This method will return true if the service enabled state is true; false otherwise.
+            return check_publicendpoint_port_enabled_in_service?(service, endpoint, portAddr, protocol, usetls, true)
         end
 
-        # returns the enabled state of a port based on the service definition.
-        def check_publicendpoint_port_exists_in_service?(service, endpoint, portAddr, protocol, usetls, enabled)
+        # returns true if the enabled state of a port, based on the service definition, matches the enabled argument.
+        def check_publicendpoint_port_enabled_in_service?(service, endpoint, portAddr, protocol, usetls, enabled)
             json = CC.CLI.get_json("%{serviced} service list #{service}")
             endpoint = findArrayMatch(json["Endpoints"], "Name", endpoint)
             fail(ArgumentError.new("endpoint #{endpoint} doesn't exist in service #{service}")) if endpoint == nil
             port = findArrayMatch(endpoint["PortList"], "PortAddr", portAddr)
             fail(ArgumentError.new("port #{portAddr} doesn't exist in endpoint #{endpoint}")) if port == nil
             return true if port["Protocol"] == protocol and port["UseTLS"] == usetls and port["Enabled"] == enabled
+            return false
+        end
+
+        # Looks up the given vhost from the vhosts table, and returns the enabled
+        # state based on the service definition.
+        def check_publicendpoint_vhost_enabled_in_service_json?(name)
+            service = getTableValue("table://vhosts/#{name}/Service")
+            endpoint = getTableValue("table://vhosts/#{name}/Endpoint")
+            vhostName = getTableValue("table://vhosts/#{name}/Name")
+            # This method will return true if the service enabled state is true; false otherwise.
+            return check_publicendpoint_vhost_enabled_in_service?(service, endpoint, vhostName, true)
+        end
+
+        # returns true if the enabled state of a vhost, based on the service definition, matches the enabled argument.
+        def check_publicendpoint_vhost_enabled_in_service?(service, endpoint, vhostName, enabled)
+            json = CC.CLI.get_json("%{serviced} service list #{service}")
+            endpoint = findArrayMatch(json["Endpoints"], "Name", endpoint)
+            fail(ArgumentError.new("endpoint #{endpoint} doesn't exist in service #{service}")) if endpoint == nil
+            vhost = findArrayMatch(endpoint["VHostList"], "Name", vhostName)
+            fail(ArgumentError.new("vhost #{vhostName} doesn't exist in endpoint #{endpoint}")) if vhost == nil
+            return true if vhost["Enabled"] == enabled
             return false
         end
 

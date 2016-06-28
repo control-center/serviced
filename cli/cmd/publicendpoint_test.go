@@ -66,6 +66,13 @@ func (t ServiceAPITest) AddPublicEndpointVHost(serviceid, endpointName, vhost st
 	return &servicedefinition.VHost{Name: vhost, Enabled: isEnabled}, nil
 }
 
+func (t ServiceAPITest) EnablePublicEndpointVHost(serviceID, endpointName, vhost string, isEnabled bool) error {
+	if t.errs["EnablePublicEndpointVHost"] != nil {
+		return t.errs["EnablePublicEndpointVHost"]
+	}
+	return nil
+}
+
 func InitPublicEndpointPortTest(args ...string) {
 	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)))
 	c.exitDisabled = true
@@ -352,4 +359,43 @@ func ExampleServicedCLI_cmdPublicEndpointsVhostAdd_InvalidEnableFlag() {
 
 	// Output:
 	// The enabled flag must be true or false
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidArgCount() {
+	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "true", "invalid")
+
+	// Output:
+	// NAME:
+	//    enable - Enable/Disable a vhost public endpoint for a service
+	//
+	// USAGE:
+	//    command enable [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidService() {
+	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "invalid", "zproxy", "zproxy", "true")
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidEnableFlag() {
+	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "invalid")
+
+	// Output:
+	// The enabled flag must be true or false
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_ValidFlags() {
+	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", "zproxy", "true")
+	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", "zproxy", "false")
+
+	// Output:
+	// zproxy
+	// zproxy
 }
