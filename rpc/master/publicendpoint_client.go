@@ -18,10 +18,10 @@ import (
 )
 
 // Defines a request to add a port public endpoints to a service
-type PublicEndpointPortRequest struct {
+type PublicEndpointRequest struct {
 	Serviceid    string
 	EndpointName string
-	PortAddr     string
+	Name         string
 	UseTLS       bool
 	Protocol     string
 	IsEnabled    bool
@@ -31,10 +31,10 @@ type PublicEndpointPortRequest struct {
 // Adds a port public endpoint to a service.
 func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool,
 	protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
-	request := &PublicEndpointPortRequest{
+	request := &PublicEndpointRequest{
 		Serviceid:    serviceid,
 		EndpointName: endpointName,
-		PortAddr:     portAddr,
+		Name:         portAddr,
 		UseTLS:       usetls,
 		Protocol:     protocol,
 		IsEnabled:    isEnabled,
@@ -47,21 +47,36 @@ func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string,
 
 // Remove a port public endpoint from a service.
 func (c *Client) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
-	request := &PublicEndpointPortRequest{
+	request := &PublicEndpointRequest{
 		Serviceid:    serviceid,
 		EndpointName: endpointName,
-		PortAddr:     portAddr,
+		Name:         portAddr,
 	}
 	return c.call("RemovePublicEndpointPort", request, nil)
 }
 
 // Enable/disable a port public endpoint for a service.
 func (c *Client) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
-	request := &PublicEndpointPortRequest{
+	request := &PublicEndpointRequest{
 		Serviceid:    serviceid,
 		EndpointName: endpointName,
-		PortAddr:     portAddr,
+		Name:         portAddr,
 		IsEnabled:    isEnabled,
 	}
 	return c.call("EnablePublicEndpointPort", request, nil)
+}
+
+// Adds a port public endpoint to a service.
+func (c *Client) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled,
+	restart bool) (*servicedefinition.VHost, error) {
+	request := &PublicEndpointRequest{
+		Serviceid:    serviceid,
+		EndpointName: endpointName,
+		Name:         vhost,
+		IsEnabled:    isEnabled,
+		Restart:      restart,
+	}
+	var result servicedefinition.VHost
+	err := c.call("AddPublicEndpointVHost", request, &result)
+	return &result, err
 }

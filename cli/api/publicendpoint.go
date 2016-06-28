@@ -47,3 +47,12 @@ func (a *api) EnablePublicEndpointPort(serviceid, endpointName, portAddr string,
 
 	return client.EnablePublicEndpointPort(serviceid, endpointName, portAddr, isEnabled)
 }
+
+func (a *api) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.AddPublicEndpointVHost(serviceid, endpointName, vhost, isEnabled, restart)
+}
