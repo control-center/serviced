@@ -16,106 +16,22 @@
 package cmd
 
 import (
-	"fmt"
-	//"os"
 	"testing"
 
-	//api "github.com/control-center/serviced/cli/api"
-	mockapi "github.com/control-center/serviced/cli/api/mocks"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/utils"
-	//. "gopkg.in/check.v1"
-	"github.com/codegangsta/cli"
-	"flag"
-	//"io/ioutil"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/cli/api/mocks"
+	"github.com/control-center/serviced/utils"
 	"github.com/stretchr/testify/mock"
-	//"github.com/davecgh/go-spew/spew"
-	//"runtime/debug"
 )
 
-//var tGlobal *testing.T
-
-//// Hook up gocheck into the "go test" runner.
-//func TestLogs(t *testing.T) {
-//	TestingT(t)
-//
-//	// HACK ALERT: Some functions in testify.Mock require testing.T, but
-//	// 	gocheck doesn't offer access to it, so we have to save a copy in
-//	// 	a global variable :=(
-//	tGlobal = t
-//}
-
-type LogsAPITest struct {
-	api mockapi.API
-	fail  bool
-	//pools []pool.ResourcePool
-	//hosts []host.Host
-	services        []service.Service
-	runningServices []dao.RunningService
-	errs            map[string]error
+type LogsCLITestCase struct {
+	Args                      []string
+	ExpectedExportLogsConfig  api.ExportLogsConfig
+	Expected_GetServicesCalls int
 }
-
-var DefaultLogsAPITest = LogsAPITest {
-	api: 		 mockapi.API{},
-	services:        DefaultTestServices,
-	runningServices: DefaultTestRunningServices,
-	errs:            make(map[string]error, 10),
-}
-
-func InitLogsAPITest(driver api.API, args ...string) {
-	c := New(driver, utils.TestConfigReader(make(map[string]string)))
-	/*
-	// parse flags
-	set := flagSet(c.App.Name, c.App.Flags)
-	set.SetOutput(ioutil.Discard)
-	err := set.Parse(arguments[1:])
-	context := NewContext(c.App, set, set)
-	*/
-	c.exitDisabled = true
-	c.Run(args)
-}
-
-func flagSet(name string, flags []cli.Flag) *flag.FlagSet {
-	set := flag.NewFlagSet(name, flag.ContinueOnError)
-
-	for _, f := range flags {
-		f.Apply(set)
-	}
-	return set
-}
-
-func (t LogsAPITest) GetServices() ([]service.Service, error) {
-	if t.errs["GetServices"] != nil {
-		return nil, t.errs["GetServices"]
-	}
-	return t.services, nil
-}
-
-func (t LogsAPITest) GetRunningServices() ([]dao.RunningService, error) {
-	if t.errs["GetRunningServices"] != nil {
-		return nil, t.errs["GetRunningServices"]
-	}
-	return t.runningServices, nil
-}
-
-func (t LogsAPITest) GetService(id string) (*service.Service, error) {
-	if t.errs["GetService"] != nil {
-		return nil, t.errs["GetService"]
-	}
-
-	for i, s := range t.services {
-		if s.ID == id {
-			return &t.services[i], nil
-		}
-	}
-	return nil, nil
-}
-
 
 func ExampleServicedCLI_CmdLogExport_usage() {
-	InitLogsAPITest(&mockapi.API{}, "serviced", "log", "export", "service")
+	runLogsAPITest(&mocks.API{}, "serviced", "log", "export", "service")
 
 	// Output:
 	// Incorrect Usage.
@@ -127,7 +43,7 @@ func ExampleServicedCLI_CmdLogExport_usage() {
 	//    command export [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced log export [YYYYMMDD]
+	//    serviced log export
 	//
 	// OPTIONS:
 	//    --from 						yyyy.mm.dd
@@ -137,43 +53,134 @@ func ExampleServicedCLI_CmdLogExport_usage() {
 	//    --debug, -d						Show additional diagnostic messages
 }
 
-
 func TestLogsCLI_CmdLogExport_SingleServiceName(t *testing.T) {
-	fmt.Printf("TestLogsCLI_CmdExport_SingleServiceName\n")
-	//call cmdExportLogs, verify that searchForService() is called
-
-	mockAPI := mockapi.API{}
-
-	mockAPI.On("GetServices").Return(DefaultTestServices, nil)
-	foo := func (cfg api.ExportLogsConfig) bool {
-		//debug.PrintStack()
-		//fmt.Println("MOCKING ExportLogsConfig")
-		//spew.Dump(cfg)
-		return cfg.ServiceIDs != nil
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--service", "zencommand"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			ServiceIDs: []string{"test-service-3"},
+		},
+		Expected_GetServicesCalls: 1,
 	}
-	//mockAPI.On("ExportLogs", mock.MatchedBy(func(cfg api.ExportLogsConfig) bool { debug.PrintStack(); fmt.Println("MOCKING ExportLogsConfig"); spew.Dump(cfg); return cfg.ServiceIDs != nil })).Return(nil)
-	mockAPI.On("ExportLogs", mock.MatchedBy(foo)).Once().Return(nil)
-
-	InitLogsAPITest(&mockAPI, "serviced", "log", "export", "--service", "zencommand")
-	mockAPI.AssertExpectations(t)
+	testCmdLogExport(t, testCase)
 }
 
 func TestLogsCLI_CmdLogExport_MultipleServiceNames(t *testing.T) {
-	fmt.Printf("TestLogsCLI_CmdExport_MultipleServiceNames\n")
-	//call cmdExportLogs, verify that searchForService() is called
-
-	mockAPI := mockapi.API{}
-
-	mockAPI.On("GetServices").Return(DefaultTestServices, nil)
-	foo := func (cfg api.ExportLogsConfig) bool {
-		//debug.PrintStack()
-		//fmt.Println("MOCKING ExportLogsConfig")
-		//spew.Dump(cfg)
-		return cfg.ServiceIDs != nil
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--service", "zencommand", "--service", "Zope"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			ServiceIDs: []string{"test-service-3", "test-service-2"},
+		},
+		Expected_GetServicesCalls: 2,
 	}
-	//mockAPI.On("ExportLogs", mock.MatchedBy(func(cfg api.ExportLogsConfig) bool { fmt.Println("MOCKING ExportLogsConfig"); spew.Dump(cfg); return cfg.ServiceIDs != nil })).Once().Return(nil)
-	mockAPI.On("ExportLogs", mock.MatchedBy(foo)).Once().Return(nil)
-	InitLogsAPITest(&mockAPI, "serviced", "log", "export", "--service", "zencommand", "--service", "Zope")
+	testCmdLogExport(t, testCase)
+}
 
+func TestLogsCLI_CmdLogExport_FromToDate(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--service", "test-service-3", "--from", "2001.05.01", "--to", "2010.06.27"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			ServiceIDs: []string{"test-service-3"},
+			FromDate:   "2001.05.01",
+			ToDate:     "2010.06.27",
+		},
+		Expected_GetServicesCalls: 1,
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_FromDateOnly(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--from", "2015.09.21"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			FromDate: "2015.09.21",
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+func TestLogsCLI_CmdLogExport_ToDateOnly(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--to", "2015.09.21"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			ToDate: "2015.09.21",
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_Debug(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--debug"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			Debug: true,
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+func TestLogsCLI_CmdLogExport_OutFileName(t *testing.T) {
+	testCase := LogsCLITestCase{
+		Args: []string{"serviced", "log", "export", "--out", "TestOutFileName"},
+		ExpectedExportLogsConfig: api.ExportLogsConfig{
+			OutFileName: "TestOutFileName",
+		},
+	}
+	testCmdLogExport(t, testCase)
+}
+
+// compareStringSlices compares the contents of two string slices, without order.
+// It was 'borrowed' from http://stackoverflow.com/a/36000696
+func compareStringSlices(x, y []string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	// create a map of string -> int
+	diff := make(map[string]int, len(x))
+	for _, xval := range x {
+		// 0 value for int is 0, so just increment a counter for the string
+		diff[xval]++
+	}
+	for _, yval := range y {
+		// If the string _y is not in diff bail out early
+		if _, ok := diff[yval]; !ok {
+			return false
+		}
+		diff[yval] -= 1
+		if diff[yval] == 0 {
+			delete(diff, yval)
+		}
+	}
+	if len(diff) == 0 {
+		return true
+	}
+	return false
+}
+
+// makeMatcher() returns a function that can be passed to the MatchedBy() function for mocking.
+// It takes an api.ExportLogsConfig struct and returns a function that returns true if
+func makeMatcher(c api.ExportLogsConfig) func(api.ExportLogsConfig) bool {
+	return func(tc api.ExportLogsConfig) bool {
+		//fmt.Println("Matcher: Expected:")
+		//spew.Dump(c)
+		//fmt.Println("MATCHER: Test Case:")
+		//spew.Dump(tc)
+		return compareStringSlices(c.ServiceIDs, tc.ServiceIDs) && c.FromDate == tc.FromDate && c.ToDate == tc.ToDate && c.Debug == tc.Debug
+	}
+}
+
+func testCmdLogExport(t *testing.T, tc LogsCLITestCase) {
+	mockAPI := mocks.API{}
+
+	if tc.Expected_GetServicesCalls > 0 {
+		mockAPI.On("GetServices").Times(tc.Expected_GetServicesCalls).Return(DefaultTestServices, nil) // DefaultTestServices from cmd/service_test.go
+	}
+	matcher := makeMatcher(tc.ExpectedExportLogsConfig)
+	mockAPI.On("ExportLogs", mock.MatchedBy(matcher)).Once().Return(nil)
+	runLogsAPITest(&mockAPI, tc.Args...)
 	mockAPI.AssertExpectations(t)
+}
+
+func runLogsAPITest(driver api.API, args ...string) {
+	c := New(driver, utils.TestConfigReader(make(map[string]string)))
+	c.exitDisabled = true
+	c.Run(args)
 }
