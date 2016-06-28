@@ -137,20 +137,9 @@ func getVHostContext(r *rest.Request) (string, string, string, error) {
 
 }
 
-// json object for enabling/disabling a virtual host
-type virtualHostEnable struct {
-	Enable bool
-}
-
 // restVirtualHostEnable enables or disables a virtual host endpoint
-func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var request virtualHostEnable
-	err := r.DecodeJsonPayload(&request)
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-	glog.V(1).Infof("Enable VHOST with %s %#v", r.URL.Path, request)
+func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	glog.V(1).Infof("Enable/Disable VHOST with %s %#v", r.URL.Path, r)
 
 	serviceid, application, vhostname, err := getVHostContext(r)
 	if err != nil {
@@ -158,26 +147,19 @@ func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node
 		return
 	}
 
-	var service svc.Service
-	err = client.GetService(serviceid, &service)
+	var request endpointRequest
+	err = r.DecodeJsonPayload(&request)
 	if err != nil {
-		glog.Errorf("Unexpected error getting service (%s): %v", serviceid, err)
-		restServerError(w, err)
+		restBadRequest(w, err)
 		return
 	}
 
-	glog.V(1).Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
-	err = service.EnableVirtualHost(application, vhostname, request.Enable)
-	if err != nil {
-		glog.Errorf("Error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
-		restServerError(w, err)
-		return
-	}
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
 
-	var unused int
-	err = client.UpdateService(service, &unused)
+	err = facade.EnablePublicEndpointVHost(dataCtx, serviceid, application, vhostname, request.IsEnabled)
 	if err != nil {
-		glog.Errorf("Error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
+		glog.Errorf("Error enabling/disabling vhost %s on service (%s): %v", vhostname, request.ServiceName, err)
 		restServerError(w, err)
 		return
 	}
@@ -299,8 +281,6 @@ func restPortEnable(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 		restBadRequest(w, err)
 		return
 	}
-
-	glog.V(0).Infof("Setting enabled=%t for service (%s) port %s", request.IsEnabled, request.ServiceName, port)
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()

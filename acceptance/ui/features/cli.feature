@@ -31,14 +31,14 @@ Feature: CLI Validation
   Scenario: Disable a port public endpoint
     Given that the "port0" port is added
       And that the port public endpoint "port0" is disabled
-    Then the port public endpoint "port0" should be "disabled"
+    Then the port public endpoint "port0" should be "disabled" in the service
 
   @port
   Scenario: Disable and enable a port public endpoint
     Given that the "port0" port is added
       And that the port public endpoint "port0" is disabled
       And that the port public endpoint "port0" is enabled
-    Then the port public endpoint "port0" should be "enabled"
+    Then the port public endpoint "port0" should be "enabled" in the service
 
   @vhost
   Scenario: List the vhost public endpoints
@@ -56,3 +56,16 @@ Feature: CLI Validation
     Given PENDING that the "vhost0" vhost is added
       And the vhost public endpoint "vhost0" is removed
     Then I should not see the vhost public endpoint "vhost0" in the service
+
+  @vhost
+  Scenario: Disable a port vhost endpoint
+    Given that the "vhost0" vhost is added
+      And that the vhost public endpoint "vhost0" is disabled
+    Then the vhost public endpoint "vhost0" should be "disabled" in the service
+
+  @vhost
+  Scenario: Disable and enable a vhost public endpoint
+    Given that the "vhost0" vhost is added
+      And that the vhost public endpoint "vhost0" is disabled
+      And that the vhost public endpoint "vhost0" is enabled
+    Then the vhost public endpoint "vhost0" should be "enabled" in the service

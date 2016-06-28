@@ -371,6 +371,27 @@ func (s *Service) AddVirtualHost(application, vhostName string) (*servicedefinit
 	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
+// Returns the matching VHost entry or nil if not found.
+func (s *Service) GetVirtualHost(application, vhostName string) *servicedefinition.VHost {
+	if s.Endpoints != nil {
+		//find the matching endpoint
+		for i := range s.Endpoints {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				vhostNameLower := strings.ToLower(vhostName)
+				for _, vhost := range ep.VHostList {
+					if strings.ToLower(vhost.Name) == vhostNameLower {
+						return &vhost
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // AddPort Add a port for given service, this method avoids duplicate ports
 func (s *Service) AddPort(application string, portAddr string, usetls bool, protocol string, isEnabled bool) (*servicedefinition.Port, error) {
 	portAddr = ScrubPortString(portAddr)
@@ -381,8 +402,9 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 
 			if ep.Application == application && ep.Purpose == "export" {
 				var ports = make([]servicedefinition.Port, 0)
+				portAddrLower := strings.ToLower(portAddr)
 				for _, port := range ep.PortList {
-					if port.PortAddr != portAddr {
+					if strings.ToLower(port.PortAddr) != portAddrLower {
 						ports = append(ports, port)
 					}
 				}
@@ -394,6 +416,27 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 	}
 
 	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// Returns the matching Port entry or nil if not found.
+func (s *Service) GetPort(application, portAddr string) *servicedefinition.Port {
+	if s.Endpoints != nil {
+		//find the matching endpoint
+		for i := range s.Endpoints {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				portAddrLower := strings.ToLower(portAddr)
+				for _, port := range ep.PortList {
+					if strings.ToLower(port.PortAddr) == portAddrLower {
+						return &port
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // RemovePort Remove a port for given service
