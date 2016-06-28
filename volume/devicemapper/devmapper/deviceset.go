@@ -980,7 +980,7 @@ func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
 	}
 
 	if err := devices.verifyBaseDeviceUUID(baseInfo); err != nil {
-		return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+		return ThinpoolInitError{fmt.Sprintf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)}
 	}
 
 	return nil
