@@ -341,10 +341,10 @@ func (s *Service) GetServicePorts() []ServiceEndpoint {
 }
 
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
-func (s *Service) AddVirtualHost(application, vhostName string) error {
+func (s *Service) AddVirtualHost(application, vhostName string) (*servicedefinition.VHost, error) {
 	// We currently don't allow vhosts that contain a '.'
 	if strings.Contains(vhostName, ".") {
-		return fmt.Errorf("Virtual host name must not contain a '.'")
+		return nil, fmt.Errorf("Virtual host name must not contain a '.'")
 	}
 
 	if s.Endpoints != nil {
@@ -361,13 +361,14 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName, Enabled: true})
-				return nil
+				vhost := &servicedefinition.VHost{Name: _vhostName, Enabled: true}
+				ep.VHostList = append(vhosts, *vhost)
+				return vhost, nil
 			}
 		}
 	}
 
-	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
@@ -523,7 +524,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 				}
 				//error removing an unknown vhost
 				if !found {
-					break
+					return fmt.Errorf("endpoint %s does not have a vhost endpoint %s", application, vhostName)
 				}
 
 				ep.VHostList = vhosts

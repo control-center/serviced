@@ -289,3 +289,118 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable(c *C) {
 
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable: PASSED")
 }
+
+// Perform pre-test setup for each of the VHostAdd* tests
+func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.Service, service.Service) {
+	// Add a service so we can test our public endpoint.
+	svcA := service.Service{
+		ID:           "validate-service-tenant-A",
+		Name:         "TestFacade_validateServiceTenantA",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+				VHostList: []servicedefinition.VHost{
+					servicedefinition.VHost{
+						Name:    "zproxy",
+						Enabled: true,
+					},
+				},
+			},
+		},
+	}
+	// Add a service so we can test our public endpoint.
+	svcB := service.Service{
+		ID:           "validate-service-tenant-B",
+		Name:         "TestFacade_validateServiceTenantB",
+		DeploymentID: "deployment-id",
+		PoolID:       "pool-id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "service2",
+				Name:        "service2",
+				PortNumber:  9090,
+				Protocol:    "tcp",
+				Purpose:     "export",
+			},
+		},
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
+	return svcA, svcB
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: STARTED")
+
+	// Add a vhost to an invalid service.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, "invalid", "zproxy", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a vhost with an invalid service id")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidService: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidEndpoint(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: STARTED")
+
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a vhost to a service with an invalid endpoint.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcA.ID, "invalid", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a vhost with an invalid endpoint")
+	}
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidEndpoint: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: STARTED")
+
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add a vhost to a service, but another service already has this vhost.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "zproxy", "zproxy", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a duplicate vhost name")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: STARTED")
+
+	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
+
+	// Mock call expectations:
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy-0"), svcA.ID).Return(nil)
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy2-0"), svcA.ID).Return(nil)
+
+	// Add a valid vhost entry.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy2", true, true)
+	if err != nil {
+		c.Errorf("Unexpected failure adding a valid vhost")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd: PASSED")
+}
