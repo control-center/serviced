@@ -16,6 +16,7 @@ package facade
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 
 	"github.com/control-center/serviced/dao"
@@ -24,6 +25,8 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
 )
+
+var vhostNameRegex = regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]).)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9-]*[A-Za-z0-9])$")
 
 // Adds a port public endpoint to a service
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
@@ -259,6 +262,13 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
+		glog.Error(err)
+		return nil, err
+	}
+
+	// Make sure the name doesn't contain invalid characters.
+	if !vhostNameRegex.MatchString(vhostName) {
+		err = fmt.Errorf("Invalid virtual host name: %s", vhostName)
 		glog.Error(err)
 		return nil, err
 	}

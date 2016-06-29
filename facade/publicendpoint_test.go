@@ -432,12 +432,29 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_DuplicateVHost(c *
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
 
 	// Add a vhost to a service, but another service already has this vhost.
-	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "zproxy", "zproxy", true, true)
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "service2", "zproxy", true, true)
 	if err == nil {
 		c.Errorf("Expected failure adding a duplicate vhost name")
 	}
 
 	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_DuplicateVHost: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidVHostName(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidVHostName: STARTED")
+
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Mock call expectations:
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test#$%-0"), svcB.ID).Return(nil)
+
+	// Add a vhost to a service with a vhost name that contains invalid characters.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "service2", "test#$%", true, true)
+	if err == nil {
+		c.Errorf("Expected failure adding a vhost with invalid characters")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_InvalidVHostName: PASSED")
 }
 
 func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
