@@ -15,7 +15,6 @@ package scheduler
 
 import (
 	"sync"
-	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -31,7 +30,7 @@ import (
 	"path"
 )
 
-type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int, time.Duration)
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
 
 type scheduler struct {
 	sync.Mutex                     // only one process can stop and start the scheduler at a time
@@ -48,13 +47,12 @@ type scheduler struct {
 	registry      *registry.EndpointRegistry
 	storageServer *storage.Server
 	pushreg       *imgreg.RegistryListener
-	qTime         time.Duration
 
 	conn coordclient.Connection
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, pushreg *imgreg.RegistryListener, snapshotTTL int, qTime int) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, pushreg *imgreg.RegistryListener, snapshotTTL int) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:         cpDao,
 		poolID:        poolID,
@@ -66,7 +64,6 @@ func NewScheduler(poolID string, instance_id string, storageServer *storage.Serv
 		snapshotTTL:   snapshotTTL,
 		storageServer: storageServer,
 		pushreg:       pushreg,
-		qTime:         time.Duration(qTime) * time.Second,
 	}
 	return s, nil
 }
@@ -255,5 +252,5 @@ func (s *scheduler) Done() {
 
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
-	s.zkleaderFunc(shutdown, s.conn, s.cpDao, s.facade, poolID, s.snapshotTTL, s.qTime)
+	s.zkleaderFunc(shutdown, s.conn, s.cpDao, s.facade, poolID, s.snapshotTTL)
 }

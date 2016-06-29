@@ -47,10 +47,10 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int, qTime time.Duration) {
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int) {
 
 	// creates a listener for the host registry
-	hreg := zkservice.NewHostRegistryListener(poolID, qTime)
+	hreg := zkservice.NewHostRegistryListener(poolID)
 
 	glog.V(0).Info("Processing leader duties")
 	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}

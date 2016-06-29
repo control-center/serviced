@@ -205,6 +205,3 @@
 
 # Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
 # SERVICED_ZK_SESSION_TIMEOUT=15
-
-# Rescheduling delay in seconds after detecting a host outage. Defaults to 5.
-# SERVICED_QUIESCE_TIMEWAIT=5

@@ -15,6 +15,7 @@ package service
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -28,15 +29,13 @@ import (
 type HostRegistryListener struct {
 	conn     client.Connection
 	poolid   string
-	qtime    time.Duration
 	isOnline chan struct{}
 }
 
 // NewHostRegistryListener instantiates a new host registry listener
-func NewHostRegistryListener(poolid string, qtime time.Duration) *HostRegistryListener {
+func NewHostRegistryListener(poolid string) *HostRegistryListener {
 	return &HostRegistryListener{
 		poolid:   poolid,
-		qtime:    qtime,
 		isOnline: make(chan struct{}),
 	}
 }
@@ -74,14 +73,11 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 	}
 
 	// set up the connection timeout timer and track outage times.
-	t := time.NewTimer(h.getTimeout())
+	t := time.NewTimer(0)
 	defer t.Stop()
 	outage := time.Now()
 	isOnline := false
-
-	// set up quiesce timeout timer
-	qt := time.NewTimer(h.qtime)
-	defer qt.Stop()
+	once := &sync.Once{}
 
 	// set up cancellable on coordinator events
 	stop := make(chan struct{})
@@ -107,8 +103,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 			// host is dead, begin the countdown
 			glog.V(2).Infof("Host %s in pool %s is not available", hostid, h.poolid)
-			t.Stop()
-			t = time.NewTimer(h.getTimeout())
+			once = &sync.Once{}
 			outage = time.Now()
 			isOnline = false
 		} else if len(ch) > 0 && !isOnline {
@@ -212,40 +207,33 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 		} else {
 
-			// This is an initial outage of a host running service instances.
-			// Let's wait and see if the host comes back.
+			// Is this a host outage or a network outage (assuming all hosts
+			// are on the same network).  Check to see if any other hosts are
+			// online.
 			select {
-			case <-t.C:
+			case <-h.isOnline:
 
-				// My initial reconnect timed out, so I will reschedule as soon as
-				// anything is available.
+				// only run this during initial outage
+				once.Do(func() {
+					t.Stop()
+					t = time.NewTimer(h.getTimeout())
+				})
+
+				// It might be that something bad happened to the host.  Lets
+				// wait a little while and see if it comes back.
 				select {
-				case <-h.isOnline:
+				case <-t.C:
 
-					// Okay, I am not that harsh.  I will wait just a little longer
-					// in case there was a network outage.
-					qt.Stop()
-					qt = time.NewTimer(h.qtime)
+					// reset the timer so that it will fire again on the next
+					// pass
+					t.Reset(0)
+
+					// we have exceeded the wait timeout, so reschedule as soon
+					// as possible.
 					select {
-					case <-qt.C:
-
-						// Let's make sure we didn't get another outage while we
-						// we're waiting for the pool to quiesce.
-						select {
-						case <-h.isOnline:
-
-							// Well, I tried...
-							count := removeInstancesOnHost(h.conn, h.poolid, hostid)
-							glog.Warningf("Unexpected outage of host %s in pool %s. Cleaned up %d orphaned nodes", hostid, h.poolid, count)
-
-						case <-ev:
-
-							// Looks like we came back after all.
-
-						case <-cancel:
-							return
-						}
-
+					case <-h.isOnline:
+						count := removeInstancesOnHost(h.conn, h.poolid, hostid)
+						glog.Warningf("Unexpected outage of host %s in pool %s.  Cleaned up %d orphaned nodes", hostid, h.poolid, count)
 					case <-ev:
 					case <-cancel:
 						return
@@ -258,7 +246,6 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 			case <-cancel:
 				return
 			}
-
 		}
 
 		close(stop)
