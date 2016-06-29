@@ -42,20 +42,20 @@ func (s *S) TestAddVirtualHost(t *C) {
 	}
 
 	var err error
-	if _, err = svc.AddVirtualHost("empty_server", "name"); err == nil {
+	if _, err = svc.AddVirtualHost("empty_server", "name", true); err == nil {
 		t.Errorf("Expected error adding vhost")
 	}
 
-	if _, err = svc.AddVirtualHost("server", "name.something"); err == nil {
+	if _, err = svc.AddVirtualHost("server", "name.something", true); err == nil {
 		t.Errorf("Expected error adding vhost with '.'")
 	}
 
-	if _, err = svc.AddVirtualHost("server", "name"); err != nil {
+	if _, err = svc.AddVirtualHost("server", "name", true); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
 	//no duplicate hosts can be added... hostnames are case-insensitive
-	if _, err = svc.AddVirtualHost("server", "NAME"); err != nil {
+	if _, err = svc.AddVirtualHost("server", "NAME", true); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
@@ -65,6 +65,14 @@ func (s *S) TestAddVirtualHost(t *C) {
 
 	if svc.Endpoints[0].VHostList[0].Enabled != true {
 		t.Errorf("Virtualhost %s should be enabled", svc.Endpoints[0].VHostList[0].Name)
+	}
+
+	if _, err = svc.AddVirtualHost("server", "name2", false); err != nil {
+		t.Errorf("Unexpected error adding vhost: %v", err)
+	}
+	
+	if svc.Endpoints[0].VHostList[1].Enabled != false {
+		t.Errorf("Virtualhost %s should be disabled", svc.Endpoints[0].VHostList[1].Name)
 	}
 }
 
@@ -129,6 +137,14 @@ func (s *S) TestAddPort(t *C) {
 
 	if svc.Endpoints[0].PortList[0].Enabled != true {
 		t.Errorf("Port %s should be enabled", svc.Endpoints[0].PortList[0].PortAddr)
+	}
+
+	if _, err = svc.AddPort("server", ":12345", false, "http", false); err != nil {
+		t.Errorf("Unexpected error adding port: %v", err)
+	}
+
+	if svc.Endpoints[0].PortList[1].Enabled != false {
+		t.Errorf("Port %s should be disabled", svc.Endpoints[0].PortList[0].PortAddr)
 	}
 }
 

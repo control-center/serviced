@@ -341,7 +341,7 @@ func (s *Service) GetServicePorts() []ServiceEndpoint {
 }
 
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
-func (s *Service) AddVirtualHost(application, vhostName string) (*servicedefinition.VHost, error) {
+func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) (*servicedefinition.VHost, error) {
 	// We currently don't allow vhosts that contain a '.'
 	if strings.Contains(vhostName, ".") {
 		return nil, fmt.Errorf("Virtual host name must not contain a '.'")
@@ -361,7 +361,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) (*servicedefinit
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				vhost := &servicedefinition.VHost{Name: _vhostName, Enabled: true}
+				vhost := &servicedefinition.VHost{Name: _vhostName, Enabled: isEnabled}
 				ep.VHostList = append(vhosts, *vhost)
 				return vhost, nil
 			}
