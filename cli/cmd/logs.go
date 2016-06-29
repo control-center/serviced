@@ -31,7 +31,7 @@ func (c *ServicedCli) initLog() {
 			{
 				Name:        "export",
 				Usage:       "Exports all logs",
-				Description: "serviced log export [YYYYMMDD]",
+				Description: "serviced log export",
 				// TODO: BashComplete: c.printLogExportCompletion,
 				Action: c.cmdExportLogs,
 				Flags: []cli.Flag{
@@ -48,7 +48,7 @@ func (c *ServicedCli) initLog() {
 					cli.StringSliceFlag{
 						Name:  "service",
 						Value: &cli.StringSlice{},
-						Usage: "service ID (includes all sub-services)",
+						Usage: "service ID or name (includes all sub-services)",
 					},
 					cli.StringFlag{
 						Name:  "out",
@@ -75,7 +75,17 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	from := ctx.String("from")
 	to := ctx.String("to")
 	outfile := ctx.String("out")
-	serviceIDs := ctx.StringSlice("service")
+
+	var serviceIDs []string
+	services := ctx.StringSlice("service")
+        for _, service := range(services) {
+		svc, err := c.searchForService(service)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		serviceIDs = append(serviceIDs, svc.ID)
+	}
 
 	cfg := api.ExportLogsConfig{
 		ServiceIDs:  serviceIDs,
