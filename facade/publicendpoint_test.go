@@ -104,6 +104,29 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd: PASSED")
 }
 
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_VerifyEnabledFlag(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_VerifyEnabledFlag: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Add mock calls.
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":12345-1"), svcB.ID).Return(nil)
+
+	// Add a new vhost with enabled=false.
+	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, "service2", ":12345", true, "http", false, false)
+	c.Assert(err, IsNil)
+
+	// Check to make sure the new vhost is *not* enabled.
+	svc, err := ft.Facade.GetService(ft.CTX, svcB.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].PortList[0].Enabled == true {
+		c.Errorf("Expected port public endpoint to be disabled")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_VerifyEnabledFlag: PASSED")
+}
+
 func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_DuplicatePort(c *C) {
 	fmt.Println(" ##### Test_PublicEndpoint_PortAdd_DuplicatePort: starting")
 
@@ -399,6 +422,29 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortEnable_InvalidPortInUse
 	}()
 
 	fmt.Println(" ##### Test_PublicEndpoint_PortEnable_InvalidPortInUse: PASSED")
+}
+
+func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag(c *C) {
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag: STARTED")
+
+	// Add a service so we can test our public endpoint.
+	_, svcB := ft.setupServiceWithPublicEndpoints(c)
+
+	// Mock call expectations:
+	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("service2-0"), svcB.ID).Return(nil)
+
+	// Add a new vhost with enabled=false.
+	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "service2", "service2", false, false)
+	c.Assert(err, IsNil)
+
+	// Check to make sure the new vhost is *not* enabled.
+	svc, err := ft.Facade.GetService(ft.CTX, svcB.ID)
+	c.Assert(err, IsNil)
+	if svc.Endpoints[0].VHostList[0].Enabled == true {
+		c.Errorf("Expected service vhost public endpoint to be disabled")
+	}
+
+	fmt.Println(" ##### Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag: PASSED")
 }
 
 func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidService(c *C) {

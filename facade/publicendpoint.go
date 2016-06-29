@@ -297,7 +297,7 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 		}
 	}
 
-	vhost, err := svc.AddVirtualHost(endpointName, vhostName)
+	vhost, err := svc.AddVirtualHost(endpointName, vhostName, isEnabled)
 	if err != nil {
 		err := fmt.Errorf("Error adding vhost (%s) to service (%s): %v", vhostName, svc.Name, err)
 		glog.Error(err)
