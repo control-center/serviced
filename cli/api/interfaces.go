@@ -126,6 +126,6 @@ type API interface {
 	RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error
 	EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error
 	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
-
+	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 }

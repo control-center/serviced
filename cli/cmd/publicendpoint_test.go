@@ -66,6 +66,13 @@ func (t ServiceAPITest) AddPublicEndpointVHost(serviceid, endpointName, vhost st
 	return &servicedefinition.VHost{Name: vhost, Enabled: isEnabled}, nil
 }
 
+func (t ServiceAPITest) RemovePublicEndpointVHost(serviceID, endpointName, vhost string) error {
+	if t.errs["RemovePublicEndpointVHost"] != nil {
+		return t.errs["RemovePublicEndpointVHost"]
+	}
+	return nil
+}
+
 func (t ServiceAPITest) EnablePublicEndpointVHost(serviceID, endpointName, vhost string, isEnabled bool) error {
 	if t.errs["EnablePublicEndpointVHost"] != nil {
 		return t.errs["EnablePublicEndpointVHost"]
@@ -359,6 +366,13 @@ func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidEnableFlag() {
 
 	// Output:
 	// The enabled flag must be true or false
+}
+
+func ExampleServicedCLI_CmdPublicEndpointsVHostRemove() {
+	InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "remove", "Zenoss", "zproxy", "zproxy")
+
+	// Output:
+	// zproxy
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidArgCount() {

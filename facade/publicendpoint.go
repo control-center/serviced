@@ -178,7 +178,7 @@ func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endp
 		}
 	}
 
-	glog.V(2).Infof("Service %s updated after adding removing public endpoint %s", svc.Name, portAddr)
+	glog.V(2).Infof("Service %s updated after removing port public endpoint %s", svc.Name, portAddr)
 	return nil
 }
 
@@ -322,6 +322,45 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 
 	glog.V(2).Infof("Service %s updated after adding vhost public endpoint (%s)", svc.Name, vhost.Name)
 	return vhost, nil
+}
+
+// Remove the vhost public endpoint from a service.
+func (f *Facade) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error {
+	// Get the service for this service id.
+	svc, err := f.GetService(ctx, serviceid)
+	if err != nil {
+		err = fmt.Errorf("Could not find service %s: %s", serviceid, err)
+		glog.Error(err)
+		return err
+	}
+
+	err = svc.RemoveVirtualHost(endpointName, vhost)
+	if err != nil {
+		err = fmt.Errorf("Error removing vhost %s from service (%s): %v", vhost, svc.Name, err)
+		glog.Error(err)
+		return err
+	}
+
+	glog.V(2).Infof("Removed vhost public endpoint %s from service %s", vhost, svc.Name)
+
+	if err = f.UpdateService(ctx, *svc); err != nil {
+		glog.Error(err)
+		return err
+	}
+
+	glog.V(2).Infof("Service (%s) updated", svc.Name)
+
+	// Restart the service if it is running
+	if svc.DesiredState == int(service.SVCRun) || svc.DesiredState == int(service.SVCRestart) {
+		if _, err = f.RestartService(ctx, dao.ScheduleServiceRequest{ServiceID: svc.ID}); err != nil {
+			err = fmt.Errorf("Error restarting service %s: %s", svc.Name, err)
+			glog.Error(err)
+			return err
+		}
+	}
+
+	glog.V(2).Infof("Service %s updated after removing vhost public endpoint %s", svc.Name, vhost)
+	return nil
 }
 
 func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error {

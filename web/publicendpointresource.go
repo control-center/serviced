@@ -70,45 +70,23 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 }
 
 // restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
-func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-
-	serviceid, application, vhostname, err := getVHostContext(r)
+func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceid, application, vhost, err := getVHostContext(r)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
 
-	var service svc.Service
-	err = client.GetService(serviceid, &service)
+	glog.V(2).Info("Removing vhost %d from service (%s)", vhost, serviceid)
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	err = facade.RemovePublicEndpointVHost(dataCtx, serviceid, application, vhost)
 	if err != nil {
-		glog.Errorf("Unexpected error getting service (%s): %v", serviceid, err)
+		glog.Error(err)
 		restServerError(w, err)
 		return
-	}
-
-	err = service.RemoveVirtualHost(application, vhostname)
-	if err != nil {
-		glog.Errorf("Error removing vhost, %s, from service (%s): %v", vhostname, service.Name, err)
-		restServerError(w, err)
-		return
-	}
-
-	var unused int
-	err = client.UpdateService(service, &unused)
-	if err != nil {
-		glog.Errorf("Error removing vhost, %s, from service (%s): %v", vhostname, service.Name, err)
-		restServerError(w, err)
-		return
-	}
-
-	// Restart the service if it is running
-	if service.DesiredState == int(svc.SVCRun) || service.DesiredState == int(svc.SVCRestart) {
-		if err = client.RestartService(dao.ScheduleServiceRequest{ServiceID: service.ID}, &unused); err != nil {
-			glog.Errorf("Error Starting service %s: %s", service.Name, err)
-			err = fmt.Errorf("Error restarting service %s.  Service will need to be started manually.", service.Name)
-			restServerError(w, err)
-			return
-		}
 	}
 
 	restSuccess(w)

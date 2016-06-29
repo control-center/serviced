@@ -144,5 +144,7 @@ type ClientInterface interface {
 
 	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
 
+	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
+
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 }

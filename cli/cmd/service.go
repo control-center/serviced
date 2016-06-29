@@ -434,15 +434,13 @@ func (c *ServicedCli) initService() {
 								Description: "serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>",
 								Action:      c.cmdPublicEndpointsVHostAdd,
 							},
-							/*
-							               {
-							                   Name:        "remove",
-							   				ShortName:   "rm",
-							                   Usage:       "Remove a vhost public endpoint from a service",
-							                   Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
-							                   Action:      c.cmdPublicEndpointsVHostRemove,
-							               },
-							*/
+							{
+								Name:        "remove",
+								ShortName:   "rm",
+								Usage:       "Remove a vhost public endpoint from a service",
+								Description: "serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>",
+								Action:      c.cmdPublicEndpointsVHostRemove,
+							},
 							{
 								Name:        "enable",
 								Usage:       "Enable/Disable a vhost public endpoint for a service",

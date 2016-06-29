@@ -57,6 +57,15 @@ func (a *api) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEn
 	return client.AddPublicEndpointVHost(serviceid, endpointName, vhost, isEnabled, restart)
 }
 
+func (a *api) RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.RemovePublicEndpointVHost(serviceid, endpointName, vhost)
+}
+
 func (a *api) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
 	client, err := a.connectMaster()
 	if err != nil {

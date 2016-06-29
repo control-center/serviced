@@ -81,6 +81,16 @@ func (c *Client) AddPublicEndpointVHost(serviceid, endpointName, vhost string, i
 	return &result, err
 }
 
+// Remove a vhost public endpoint from a service.
+func (c *Client) RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error {
+	request := &PublicEndpointRequest{
+		Serviceid:    serviceid,
+		EndpointName: endpointName,
+		Name:         vhost,
+	}
+	return c.call("RemovePublicEndpointVHost", request, nil)
+}
+
 // Enable/disable a vhost public endpoint for a service.
 func (c *Client) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
 	request := &PublicEndpointRequest{
