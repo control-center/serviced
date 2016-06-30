@@ -121,7 +121,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 		// find out if the host can schedule services
 		lockpth := h.GetPath(hostid, "locked")
-		isLocked, lockev, err := h.conn.EventW(lockpth, stop)
+		isLocked, lockev, err := h.conn.ExistsW(lockpth, stop)
 		if err != nil {
 			glog.Errorf("Could not check if host %s in pool %s can receive new services: %s", hostid, h.poolid, err)
 			return
@@ -274,6 +274,13 @@ func (h *HostRegistryListener) waitOnline(cancel <-chan interface{}, hostid stri
 	// wait for the node to exist
 	for {
 
+		// listen on dir path
+		dirOk, dirEv, err := h.conn.ExistsW(path.Dir(pth), stop)
+		if err != nil || !dirOk {
+			glog.Errorf("Could not monitor host %s in pool %s: %s", hostid, h.poolid, err)
+			return "", err
+		}
+
 		// set up the listener
 		ok, ev, err := h.conn.ExistsW(pth, stop)
 		if err != nil {
@@ -288,6 +295,7 @@ func (h *HostRegistryListener) waitOnline(cancel <-chan interface{}, hostid stri
 
 		// the node is not ready, so wait
 		select {
+		case <-dirEv:
 		case <-ev:
 		case <-cancel:
 
