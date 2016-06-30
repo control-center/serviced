@@ -15,7 +15,6 @@ package service
 
 import (
 	"path"
-	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -73,11 +72,14 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 	}
 
 	// set up the connection timeout timer and track outage times.
-	t := time.NewTimer(0)
-	defer t.Stop()
-	outage := time.Now()
 	isOnline := false
-	once := &sync.Once{}
+	outage := time.Now()
+
+	firstTimeout := true
+	offlineTimer := time.NewTimer(h.getTimeout())
+	defer offlineTimer.Stop()
+	onlineTimer := time.NewTimer(0)
+	defer onlineTimer.Stop()
 
 	// set up cancellable on coordinator events
 	stop := make(chan struct{})
@@ -103,35 +105,35 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 			// host is dead, begin the countdown
 			glog.V(2).Infof("Host %s in pool %s is not available", hostid, h.poolid)
-			once = &sync.Once{}
-			outage = time.Now()
 			isOnline = false
+			outage = time.Now()
+
+			firstTimeout = true
+			offlineTimer.Stop()
+			offlineTimer = time.NewTimer(h.getTimeout())
+
 		} else if len(ch) > 0 && !isOnline {
 
 			// host is up, halt the countdown
 			glog.V(0).Infof("Host %s in pool %s is online after %s", hostid, h.poolid, time.Since(outage))
-			t.Stop()
 			isOnline = true
 		}
 
 		// find out if the host can schedule services
-		isLocked := false
-		ch, lockev, err := h.conn.ChildrenW(h.GetPath(hostid, "locked"), stop)
-		if err == client.ErrNoNode {
-
-			// it is unlocked, so we need to event on when the locked path is created
-			isLocked, lockev, err = h.conn.ExistsW(h.GetPath(hostid, "locked"), stop)
-
-			// found the locked path; lets start watching its children again.
-			if isLocked {
-				ch, lockev, err = h.conn.ChildrenW(h.GetPath(hostid, "locked"), stop)
-			}
-		}
+		lockpth := h.GetPath(hostid, "locked")
+		isLocked, lockev, err := h.conn.EventW(lockpth, stop)
 		if err != nil {
-			glog.Errorf("Could not determine if host %s in pool %s can receive new services: %s", hostid, h.poolid, err)
+			glog.Errorf("Could not check if host %s in pool %s can receive new services: %s", hostid, h.poolid, err)
 			return
 		}
-		isLocked = len(ch) > 0
+		if isLocked {
+			ch, lockev, err = h.conn.ChildrenW(lockpth, stop)
+			if err != nil {
+				glog.Errorf("Could not check if host %s in pool %s can receive new services: %s", hostid, h.poolid, err)
+				return
+			}
+			isLocked = len(ch) > 0
+		}
 
 		// is the host running anything?
 		ch, err = h.conn.Children(h.GetPath(hostid, "instances"))
@@ -207,33 +209,41 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 		} else {
 
-			// Is this a host outage or a network outage (assuming all hosts
-			// are on the same network).  Check to see if any other hosts are
-			// online.
+			// If this is a network outage, not all hosts may appear offline at
+			// the same time, so lets allow it to quiesce before trying to
+			// reschedule.
 			select {
-			case <-h.isOnline:
+			case <-offlineTimer.C:
+				offlineTimer.Reset(0)
 
-				// only run this during initial outage
-				once.Do(func() {
-					t.Stop()
-					t = time.NewTimer(h.getTimeout())
-				})
-
-				// It might be that something bad happened to the host.  Lets
-				// wait a little while and see if it comes back.
+				// This may be a genuine host outage.  Alert when a host is
+				// available.
 				select {
-				case <-t.C:
+				case <-h.isOnline:
 
-					// reset the timer so that it will fire again on the next
-					// pass
-					t.Reset(0)
+					// Reset the online timer in case this is an outage and
+					// we need to allow the system quiesce as it is coming back
+					// online.
+					if firstTimeout {
+						onlineTimer.Stop()
+						onlineTimer = time.NewTimer(h.getTimeout())
+						firstTimeout = false
+					}
 
-					// we have exceeded the wait timeout, so reschedule as soon
-					// as possible.
 					select {
-					case <-h.isOnline:
-						count := removeInstancesOnHost(h.conn, h.poolid, hostid)
-						glog.Warningf("Unexpected outage of host %s in pool %s.  Cleaned up %d orphaned nodes", hostid, h.poolid, count)
+					case <-onlineTimer.C:
+						onlineTimer.Reset(0)
+
+						// We have exceeded the wait timeout, so reschedule as
+						// soon as possible.
+						select {
+						case <-h.isOnline:
+							count := removeInstancesOnHost(h.conn, h.poolid, hostid)
+							glog.Warningf("Unexpected outage of host %s in pool %s.  Cleaned up %d orphaned instances", hostid, h.poolid, count)
+						case <-ev:
+						case <-cancel:
+							return
+						}
 					case <-ev:
 					case <-cancel:
 						return
@@ -242,9 +252,6 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 				case <-cancel:
 					return
 				}
-			case <-ev:
-			case <-cancel:
-				return
 			}
 		}
 
