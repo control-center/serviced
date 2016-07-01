@@ -308,7 +308,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 // Same as the previous test, but tests multiple messages for the same file split across
 //     more than one call to ScrollSearch()
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c *C) {
-	fmt.Println("TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
@@ -355,7 +354,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
-	fmt.Println("TestLogs_RetrieveLogs_SearchFindsTwoFiles")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
@@ -417,7 +415,6 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
-	fmt.Println("TestLogs_RetrieveLogs_ScrollFails")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
