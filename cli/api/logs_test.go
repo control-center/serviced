@@ -276,7 +276,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 		Hits: core.Hits{
 			Total:    1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
 			},
 		},
 	}
@@ -302,11 +302,13 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID")
 }
 
 // Same as the previous test, but tests multiple messages for the same file split across
 //     more than one call to ScrollSearch()
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c *C) {
+	fmt.Println("TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
@@ -320,7 +322,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 		Hits: core.Hits{
 			Total:    1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
 			},
 		},
 	}
@@ -348,10 +350,12 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	c.Assert(len(exporter.outputFiles), Equals, 1)
 	c.Assert(exporter.outputFiles[0].ContainerID, Equals, "container1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 2)
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
+	fmt.Println("TestLogs_RetrieveLogs_SearchFindsTwoFiles")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
@@ -365,7 +369,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total:    1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
 			},
 		},
 	}
@@ -381,7 +385,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		Hits: core.Hits{
 			Total: 1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1"}`), },
+				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`), },
 			},
 		},
 	}
@@ -403,14 +407,17 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LogFileName, Equals, "file1")
 	c.Assert(exporter.outputFiles[0].LineCount, Equals, 1)
+	c.Assert(exporter.outputFiles[0].ServiceID, Equals, "ServiceID")
 
 	c.Assert(exporter.outputFiles[1].HostID, Equals, "hostID2")
 	c.Assert(exporter.outputFiles[1].ContainerID, Equals, "container2")
 	c.Assert(exporter.outputFiles[1].LogFileName, Equals, "file2")
 	c.Assert(exporter.outputFiles[1].LineCount, Equals, 1)
+	c.Assert(exporter.outputFiles[1].ServiceID, Equals, "ServiceID1")
 }
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
+	fmt.Println("TestLogs_RetrieveLogs_ScrollFails")
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
 	defer func () {
 		if exporter != nil {
@@ -424,7 +431,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 		Hits: core.Hits{
 			Total:    1,
 			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1"}`),},
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
 			},
 		},
 	}
