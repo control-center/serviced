@@ -105,6 +105,9 @@ type logExporter struct {
 
 	// A list of the output files created by the export process
 	outputFiles           []outputFileInfo
+
+	// A list of services used to populate the index file on completion of the export
+	serviceMap              map[string]service.Service
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -146,16 +149,18 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 			return e
 		}
 
-		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s",
+		indexData = append(indexData, fmt.Sprintf("%03d.log\t%d\t%s\t%s\t%s\t%s\t%s\t%s",
 			i,
 			outputFile.LineCount,
 			strconv.Quote(exporter.getHostName(outputFile.HostID)),
 			strconv.Quote(outputFile.HostID),
 			strconv.Quote(outputFile.ContainerID),
+			strconv.Quote(exporter.getServiceName(outputFile.ServiceID)),
+			strconv.Quote(outputFile.ServiceID),
 			strconv.Quote(outputFile.LogFileName)))
 	}
 	sort.Strings(indexData)
-	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tOriginal Filename"}, indexData...)
+	indexData = append([]string{"INDEX OF LOG FILES", "File\tLine Count\tHost Name\tHost ID\tContainer ID\tService Name\tService ID\tOriginal Filename"}, indexData...)
 	indexData = append(indexData, "")
 	indexFile := filepath.Join(exporter.tempdir, "index.txt")
 	e = ioutil.WriteFile(indexFile, []byte(strings.Join(indexData, "\n")), 0644)
@@ -237,7 +242,7 @@ func validateConfiguration(config *ExportLogsConfig) error {
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error) ) (exporter *logExporter, err error) {
+func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error)) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
@@ -269,7 +274,25 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 		return nil, fmt.Errorf("failed to get list of host: %s", err)
 	}
 
+	// get services and build up servicemap
+	exporter.serviceMap, err = buildServiceMap(getServices)
+	if err != nil {
+		return nil, fmt.Errorf("could not build service map: %s", err)
+	}
+
 	return exporter, nil
+}
+
+func buildServiceMap(getServices func()([]service.Service, error)) (map[string]service.Service, error) {
+	result := make(map[string] service.Service)
+	if serviceArray, err := getServices(); err != nil {
+		return nil, fmt.Errorf("failed to get list of services: %s", err)
+	} else {
+		for _, svc := range(serviceArray) {
+			result[svc.ID] = svc
+		}
+	}
+	return result, nil
 }
 
 // Responsible for cleaning up all of the files/directories created during the export
@@ -412,6 +435,7 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 						HostID:      message.HostID,
 						ContainerID: message.ContainerID,
 						LogFileName: message.LogFileName,
+						ServiceID:   message.ServiceID,
 					}
 					exporter.outputFiles = append(exporter.outputFiles, outputFile)
 					if exporter.Debug {
@@ -488,6 +512,17 @@ func (exporter *logExporter) getHostName(hostID string) string {
 	}
 }
 
+func (exporter *logExporter) getServiceName(serviceID string) string {
+	if serviceID == "" {
+		return ""
+	} else if service, ok := exporter.serviceMap[serviceID]; !ok {
+		return "unknown"
+	} else {
+		return service.Name
+	}
+
+}
+
 // NOTE: the logstash field named 'host' is hard-coded in logstash to be the value from `hostname`, only when
 //       executed inside a docker container, the value is actually the container ID, not the name of docker host.
 //       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
@@ -499,6 +534,7 @@ type logSingleLine struct {
 	Timestamp   time.Time `json:"@timestamp"`
 	Offset      string    `json:"offset"`
 	Message     string    `json:"message"`
+	ServiceID   string    `json:"service"`
 }
 
 type logMultiLine struct {
@@ -508,6 +544,7 @@ type logMultiLine struct {
 	Timestamp   time.Time `json:"@timestamp"`
 	Offset      []string  `json:"offset"`
 	Message     string    `json:"message"`
+	ServiceID   string    `json:"service"`
 }
 
 type compactLogLine struct {
@@ -523,6 +560,7 @@ type parsedMessage struct {
 	LogFileName string              // The name of the application log file
 	Lines       []compactLogLine    // One or more lines of log messages from the file.
 	Warnings    string              // Warnings from the our logstash results parser
+	ServiceID   string              // The service ID of the service
 }
 
 // Represents one file output by this routine
@@ -533,6 +571,7 @@ type outputFileInfo struct {
 	ContainerID string              // The original Container ID of the application log file
 	LogFileName string              // The name of the application log file
 	LineCount   int                 // number of message lines in the application log file
+	ServiceID   string              // The service ID of the service
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
@@ -617,7 +656,9 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 			ContainerID: line.ContainerID,
 			LogFileName: line.File,
 			Lines:       []compactLogLine{compactLine},
+			ServiceID:   line.ServiceID,
 		}
+
 		return message, nil
 	}
 
@@ -681,6 +722,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 		LogFileName: multiLine.File,
 		Lines:       compactLines,
 		Warnings:    warnings,
+		ServiceID:   multiLine.ServiceID,
 	}
 	return message, nil
 }
