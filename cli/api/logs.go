@@ -34,7 +34,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	elastigocore "github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // This interface is primarily provided for unit-testing ExportLogs().
@@ -127,9 +126,6 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	}()
 
 	exporter, e = buildExporter(configParam, a.GetServices, a.GetHostMap)
-	if exporter.Debug {
-		glog.Infof("exporter object: \n%s", spew.Sdump(exporter))
-	}
 	if e != nil {
 		return e
 	}
@@ -149,9 +145,6 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 
 	indexData := []string{}
 	for i, outputFile := range exporter.outputFiles {
-		if exporter.Debug {
-			glog.Infof("Writing outputfile: \n%s\n", spew.Sdump(outputFile))
-		}
 		if e := exporter.organizeAndGroomLogFile(i, numWarnings); e != nil {
 			return e
 		}
