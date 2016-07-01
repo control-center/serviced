@@ -153,7 +153,7 @@ func (d *DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, erro
 	snapshots := make(map[string]string)
 
 	for _, volname := range d.ListTenants() {
-		volume, err := d.getVolume(volname, true)
+		volume, err := d.getVolume(volname, false)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func (d *DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {
 
 	for _, file := range files {
 		for _, volname := range d.ListTenants() {
-			volume, err := d.getVolume(volname, true)
+			volume, err := d.getVolume(volname, false)
 			if err != nil {
 				return nil, err
 			}
