@@ -724,8 +724,6 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 		Warnings:    warnings,
 		ServiceID:   multiLine.ServiceID,
 	}
-	// TODO: Remove debug stmt
-	//glog.Infof("message object: \n%+v", message)
 	return message, nil
 }
 
