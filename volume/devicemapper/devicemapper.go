@@ -115,7 +115,7 @@ func (d *DeviceMapperDriver) cleanUpSnapshots() {
 
 	for snapshotInMetadata, volumeName := range snapshotsInMetadata {
 		glog.V(2).Infof("Removing Snapshot from metadata: %v", snapshotInMetadata)
-		v, err := d.loadVolume(volumeName)
+		v, err := d.getVolume(volumeName, false)
 		if err != nil {
 			continue
 		}
@@ -153,7 +153,7 @@ func (d *DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, erro
 	snapshots := make(map[string]string)
 
 	for _, volname := range d.ListTenants() {
-		volume, err := d.newVolume(volname)
+		volume, err := d.getVolume(volname, true)
 		if err != nil {
 			return nil, err
 		}
@@ -176,7 +176,7 @@ func (d *DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {
 
 	for _, file := range files {
 		for _, volname := range d.ListTenants() {
-			volume, err := d.newVolume(volname)
+			volume, err := d.getVolume(volname, true)
 			if err != nil {
 				return nil, err
 			}
@@ -249,7 +249,7 @@ func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	glog.V(1).Infof("Ensured existence of metadata dir %s", md)
 
 	// Instantiate the volume
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.getVolume(volumeName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -337,10 +337,11 @@ func (d *DeviceMapperDriver) deviceName(deviceHash string) string {
 	return fmt.Sprintf("%s-%s", d.DevicePrefix, deviceHash)
 }
 
-// newVolume builds the volume object from its volume name
-func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, error) {
+// getVolume builds the volume object from its volume name
+//  If create is true, we will create the metadata file if it doesn't already exist
+func (d *DeviceMapperDriver) getVolume(volumeName string, create bool) (*DeviceMapperVolume, error) {
 	tenant := getTenant(volumeName)
-	metadata, err := NewMetadata(d.MetadataPath(tenant))
+	metadata, err := NewMetadata(d.MetadataPath(tenant), create)
 	if err != nil {
 		return nil, err
 	}
@@ -351,23 +352,16 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 		driver:   d,
 		Metadata: metadata,
 	}
+
+	// if create is false, check to make sure the metadata info isn't empty or equal to base
+	if !create {
+		deviceHash := vol.deviceHash()
+		if deviceHash == "" || deviceHash == "base" {
+			return nil, ErrBaseDeviceHash
+		}
+	}
+
 	return vol, nil
-}
-
-// loadVolume builds a volume object from an existing volume.  This is a wrapper around newVolume that returns an error
-//  if the deviceHash returned is empty or equal to the base device
-func (d *DeviceMapperDriver) loadVolume(volumeName string) (*DeviceMapperVolume, error) {
-	vol, err := d.newVolume(volumeName)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceHash := vol.deviceHash()
-	if deviceHash == "" || deviceHash == "base" {
-		return nil, ErrBaseDeviceHash
-	}
-
-	return vol, err
 }
 
 // GetTenant implements volume.Driver.GetTenant
@@ -380,7 +374,7 @@ func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error)
 
 // Resize implements volume.Driver.Resize.
 func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		return err
 	}
@@ -461,7 +455,7 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Get() (%s) START", volumeName)
 	defer glog.V(2).Infof("Get() (%s) END", volumeName)
 	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
 		return nil, err
@@ -516,7 +510,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 	}
 	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
 	for _, volname := range d.List() {
-		_, err := d.loadVolume(volname)
+		_, err := d.getVolume(volname, false)
 		if err != nil {
 			glog.V(1).Infof("Unable to get volume %s; skipping", volname)
 			continue
@@ -532,7 +526,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 func (d *DeviceMapperDriver) Release(volumeName string) error {
 	glog.V(2).Infof("Release() (%s) START", volumeName)
 	defer glog.V(2).Infof("Release() (%s) END", volumeName)
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		return err
 	}
@@ -583,7 +577,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		return nil
 	}
 	// get the volume
-	v, err := d.loadVolume(volumeName)
+	v, err := d.getVolume(volumeName, false)
 	if err != nil {
 		//log the error, but continue trying to remove things
 		glog.Errorf("Error loading volume %s: %s", volumeName, err)
@@ -601,7 +595,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 			}
 		}
 
-		// Release the device (requires another call to loadVolume)
+		// Release the device (requires another call to getVolume)
 		if err := d.Release(volumeName); err != nil {
 			glog.V(1).Infof("Error releasing device: %s", err)
 		}
@@ -1357,7 +1351,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 	}
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
-		vol, err := d.loadVolume(tenant)
+		vol, err := d.getVolume(tenant, false)
 		if err != nil {
 			return nil, err
 		}

@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrInvalidMetadata = errors.New("invalid metadata")
+	ErrNoMetadata      = errors.New("Volume does not exist or is missing metadata")
 )
 
 type snapshotMetadata struct {
@@ -29,8 +30,22 @@ type SnapshotMetadata struct {
 	sync.Mutex
 }
 
-func NewMetadata(path string) (*SnapshotMetadata, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil && !os.IsExist(err) {
+// Creates a new metadata object based on the path provided.  If a metadata file does not
+//  already exist, it will create one if create is true (else return an error)
+func NewMetadata(path string, create bool) (*SnapshotMetadata, error) {
+	// check if the metadata dir exists.  If not, return an error if create is false
+	dir := filepath.Dir(path)
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		if !create {
+			return nil, ErrNoMetadata
+		}
+	} else if err != nil {
+		glog.Errorf("Could not stat dir %s: %s", dir, err)
+		return nil, err
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	metadata := &SnapshotMetadata{
@@ -42,7 +57,11 @@ func NewMetadata(path string) (*SnapshotMetadata, error) {
 	metadata.Lock()
 	defer metadata.Unlock()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		metadata.save()
+		if create {
+			metadata.save()
+		} else {
+			return nil, ErrNoMetadata
+		}
 	} else {
 		if err := metadata.load(); err != nil {
 			return nil, err
