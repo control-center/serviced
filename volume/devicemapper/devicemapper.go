@@ -212,7 +212,10 @@ func (d *DeviceMapperDriver) ListTenants() (result []string) {
 		set[getTenant(vol)] = struct{}{}
 	}
 	for k := range set {
-		result = append(result, k)
+		// Only include the tenant if its volume can be retrieved
+		if _, err := d.getVolume(k, false); err == nil {
+			result = append(result, k)
+		}
 	}
 	return
 }
