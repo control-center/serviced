@@ -33,7 +33,7 @@ var (
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
 	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
-	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device, remove the application and restore from backup or redeploy")
+	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device")
 )
 
 func init() {
