@@ -115,7 +115,7 @@ func (t *ZZKTest) TestReady(c *C) {
 	select {
 	case err := <-errC:
 		c.Assert(err, NotNil)
-	case <-time.After(time.Second):
+	case <-time.After(ZKTestTimeout):
 		c.Errorf("timeout waiting for signal")
 	}
 

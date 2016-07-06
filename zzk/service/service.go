@@ -94,7 +94,10 @@ func (l *ServiceListener) SetConnection(conn client.Connection) { l.conn = conn 
 
 // GetPath implements zzk.Listener
 func (l *ServiceListener) GetPath(nodes ...string) string {
-	parts := append([]string{"/pools", l.poolid, "services"}, nodes...)
+	parts := append([]string{"/services"}, nodes...)
+	if l.poolid != "" {
+		parts = append([]string{"/pools", l.poolid}, parts...)
+	}
 	return path.Join(parts...)
 }
 
@@ -195,7 +198,10 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 		}
 
 		// ensure the existance of the host state
-		hpth := path.Join("/pools", l.poolid, "hosts", state.HostID, "instances", stateID)
+		hpth := path.Join("/hosts", state.HostID, "instances", stateID)
+		if l.poolid != "" {
+			hpth = path.Join("/pools", l.poolid, hpth)
+		}
 		if ok, err := l.conn.Exists(hpth); err != nil {
 			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, state.HostID, err)
 			return nil, err
@@ -206,25 +212,6 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 			}
 			continue
 		}
-
-		// TODO: this might be too aggressive; we may need to tweak this
-		/*
-			// is the host online?
-			isOnline, err := IsHostOnline(l.conn, l.poolid, state.HostID, err)
-			if err != nil {
-				glog.Errorf("Could check if host %s is online: %s", state.HostID, err)
-				return nil, err
-			}
-
-			// if the host is not online, remove the instance
-			if !isOnline {
-				if err := removeInstance(l.conn, l.poolid, state.HostID, state.ServiceID, stateID); err != nil {
-					glog.Errorf("Could not delete instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
-					return nil, err
-				}
-				continue
-			}
-		*/
 
 		rs, err := NewRunningService(svc, state)
 		if err != nil {

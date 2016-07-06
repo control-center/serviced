@@ -60,17 +60,6 @@ func (h *HostRegistryListener) PostProcess(p map[string]struct{}) {
 
 func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
-	// get the path of the node that tracks the connectivity of the host
-	pth, err := h.waitOnline(cancel, hostid)
-	if err != nil {
-		glog.Errorf("Could not wait for host %s in pool %s to be online: %s", hostid, h.poolid, err)
-		return
-	} else if pth == "" {
-
-		// cancel has been triggered, listener is shutting down
-		return
-	}
-
 	// set up the connection timeout timer and track outage times.
 	isOnline := false
 	outage := time.Now()
@@ -86,24 +75,48 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 	defer func() { close(stop) }()
 
 	for {
-
-		// check to see if the host is up.
-		ch, ev, err := h.conn.ChildrenW(pth, stop)
-		if err == client.ErrNoNode {
-			if count := removeInstancesOnHost(h.conn, h.poolid, hostid); count > 0 {
-				glog.Warningf("Reported shutdown of host %s in pool %s and cleaned up %d orphaned nodes", hostid, h.poolid, count)
+		// does the host exist?
+		isAvailable, availEv, err := h.conn.ExistsW(h.GetPath(hostid), stop)
+		if !isAvailable {
+			if err != nil {
+				glog.Errorf("Could not find host %s in pool %s: %s", hostid, h.poolid, err)
+			} else {
+				glog.V(2).Infof("Could not find host %s in pool %s, shutting down", hostid, h.poolid)
+				if count := removeInstancesOnHost(h.conn, h.poolid, hostid); count > 0 {
+					glog.Warningf("Reported shutdown of host %s in pool %s and cleaned up %d orphaned nodes", hostid, h.poolid, count)
+				}
 			}
-			glog.V(2).Infof("Host %s in pool %s has shut down", hostid, h.poolid)
-			return
-		} else if err != nil {
-			glog.Errorf("Could not check the online status of host %s in pool %s: %s", hostid, h.poolid, err)
 			return
 		}
 
-		// change the node's online status
-		if len(ch) == 0 && isOnline {
+		// check to see if the host is up
+		var ch []string
+		onlinepth := h.GetPath(hostid, "online")
+		isAvailable, onlineEv, err := h.conn.ExistsW(onlinepth, stop)
+		if err != nil {
+			glog.Errorf("Could not check online status of host %s in pool %s: %s", hostid, h.poolid, err)
+			return
+		}
+		if isAvailable {
+			ch, onlineEv, err = h.conn.ChildrenW(onlinepth, stop)
+			if err != nil {
+				glog.Errorf("Could not check online status of host %s in pool %s: %s", hostid, h.poolid, err)
+				return
+			}
+			isAvailable = len(ch) > 0
+		} else {
+			// host has performed a proper shutdown, ensure all nodes are
+			// cleaned up
+			if count := removeInstancesOnHost(h.conn, h.poolid, hostid); count > 0 {
+				glog.Warningf("Reported shutdown of host %s in pool %s and cleaned up %d orphaned nodes", hostid, h.poolid, count)
+			}
+			glog.V(2).Infof("Host in pool %s has shut down", hostid, h.poolid)
+		}
 
-			// host is dead, begin the countdown
+		// set the node's online status
+		if !isAvailable && isOnline {
+
+			// host is down, begin the countdown
 			glog.V(2).Infof("Host %s in pool %s is not available", hostid, h.poolid)
 			isOnline = false
 			outage = time.Now()
@@ -112,7 +125,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 			offlineTimer.Stop()
 			offlineTimer = time.NewTimer(h.getTimeout())
 
-		} else if len(ch) > 0 && !isOnline {
+		} else if isAvailable && !isOnline {
 
 			// host is up, halt the countdown
 			glog.V(0).Infof("Host %s in pool %s is online after %s", hostid, h.poolid, time.Since(outage))
@@ -178,7 +191,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 				select {
 				case h.isOnline <- struct{}{}:
 				case <-lockev:
-				case <-ev:
+				case <-availEv:
+				case <-onlineEv:
 				case <-cancel:
 					return
 				}
@@ -190,7 +204,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 				// freed.
 				select {
 				case <-lockev:
-				case <-ev:
+				case <-availEv:
+				case <-onlineEv:
 				case <-cancel:
 					return
 				}
@@ -202,7 +217,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 			// offline and not running instances, nothing will get scheduled to
 			// me anyway.
 			select {
-			case <-ev:
+			case <-availEv:
+			case <-onlineEv:
 			case <-cancel:
 				return
 			}
@@ -240,70 +256,24 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 						case <-h.isOnline:
 							count := removeInstancesOnHost(h.conn, h.poolid, hostid)
 							glog.Warningf("Unexpected outage of host %s in pool %s.  Cleaned up %d orphaned instances", hostid, h.poolid, count)
-						case <-ev:
+						case <-availEv:
+						case <-onlineEv:
 						case <-cancel:
 							return
 						}
-					case <-ev:
+					case <-availEv:
+					case <-onlineEv:
 					case <-cancel:
 						return
 					}
-				case <-ev:
+				case <-availEv:
+				case <-onlineEv:
 				case <-cancel:
 					return
 				}
 			}
 		}
 
-		close(stop)
-		stop = make(chan struct{})
-	}
-}
-
-// waitOnline waits for the host to formally announce when it has gone online.
-// This node will not exist if the host is not running and can exist if the
-// host loses connectivity or fails to remove its online node. Returns the path
-// to watch for connection losses.
-func (h *HostRegistryListener) waitOnline(cancel <-chan interface{}, hostid string) (string, error) {
-	pth := h.GetPath(hostid, "online")
-
-	// set up a cancellable on the event watcher
-	stop := make(chan struct{})
-	defer func() { close(stop) }()
-
-	// wait for the node to exist
-	for {
-
-		// listen on dir path
-		dirOk, dirEv, err := h.conn.ExistsW(path.Dir(pth), stop)
-		if err != nil || !dirOk {
-			glog.Errorf("Could not monitor host %s in pool %s: %s", hostid, h.poolid, err)
-			return "", err
-		}
-
-		// set up the listener
-		ok, ev, err := h.conn.ExistsW(pth, stop)
-		if err != nil {
-			glog.Errorf("Could not monitor host %s in pool %s: %s", hostid, h.poolid, err)
-			return "", err
-		}
-
-		// the node is ready, so let's move on
-		if ok {
-			return pth, nil
-		}
-
-		// the node is not ready, so wait
-		select {
-		case <-dirEv:
-		case <-ev:
-		case <-cancel:
-
-			// listener receieved signal to shutdown
-			return "", nil
-		}
-
-		// cancel the listener and try again.
 		close(stop)
 		stop = make(chan struct{})
 	}
@@ -400,7 +370,7 @@ func IsHostOnline(conn client.Connection, poolid, hostid string) (bool, error) {
 // RegisterHost persists a registered host to the coordinator.  This is managed
 // by the worker node, so it is expected that the connection will be pre-loaded
 // with the path to the resource pool.
-func RegisterHost(cancel <-chan struct{}, conn client.Connection, hostid string) error {
+func RegisterHost(cancel <-chan interface{}, conn client.Connection, hostid string) error {
 
 	pth := path.Join("/hosts", hostid, "online")
 

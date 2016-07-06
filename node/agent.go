@@ -849,7 +849,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	// Clean up when we're done
 	defer a.servicedChain.Remove()
 
-	unregister := make(chan struct{})
+	unregister := make(chan interface{})
 	stop := make(chan interface{})
 
 	for {
@@ -912,7 +912,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		case <-startExit:
 			glog.Infof("Host Agent restarting")
 			close(unregister)
-			unregister = make(chan struct{})
+			unregister = make(chan interface{})
 			rwg.Wait()
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")

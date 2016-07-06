@@ -162,19 +162,20 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 	c.Assert(err, IsNil)
 
 	// Add host
-	err = AddHost(conn, &host.Host{ID: "test-host-1"})
-	c.Assert(err, IsNil)
+	go func() {
+		err := AddHost(conn, &host.Host{ID: "test-host-1"})
+		c.Assert(err, IsNil)
+		err = conn.CreateDir(listener.GetPath())
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, "test-host-1")
+		c.Assert(err, IsNil)
+	}()
 
 	// Verify that the host is registered
 	c.Logf("Waiting for 'test-host-1' to be registered")
 	select {
 	case err := <-errC:
 		c.Assert(err, IsNil)
-		c.Assert(listener.registry, Not(Equals), "")
-
-		exists, err := conn.Exists(listener.registry)
-		c.Assert(err, IsNil)
-		c.Assert(exists, Equals, true)
 	case <-time.After(zzk.ZKTestTimeout):
 		// NOTE: this timeout may be adjusted to satisfy race conditions
 		c.Fatalf("timeout waiting for host to be ready")
@@ -188,7 +189,7 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
 			c.Assert(state.IsRunning(), Equals, false)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -217,21 +218,21 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 
 	// Pause states
 	for _, stateID := range stateIDs {
-		err = pauseInstance(conn, "test-host-1", stateID)
+		err = pauseInstance(conn, "", "test-host-1", stateID)
 		c.Assert(err, IsNil)
 	}
 	wait(svc.ID, service.SVCPause)
 
 	// Resume states
 	for _, stateID := range stateIDs {
-		err = resumeInstance(conn, "test-host-1", stateID)
+		err = resumeInstance(conn, "", "test-host-1", stateID)
 		c.Assert(err, IsNil)
 	}
 	wait(svc.ID, service.SVCRun)
 
 	// Stop states
 	for _, stateID := range stateIDs {
-		err = StopServiceInstance(conn, "test-host-1", stateID)
+		err = StopServiceInstance(conn, "", "test-host-1", stateID)
 		c.Assert(err, IsNil)
 	}
 	wait(svc.ID, service.SVCStop)
@@ -266,15 +267,16 @@ func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
 		ServiceStateID: "fail123",
 		DesiredState:   int(service.SVCRun),
 	}
-	err = conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), &badstate)
+	badstatepath := path.Join("/hosts", badstate.HostID, "instances", badstate.ServiceStateID)
+	err = conn.Create(badstatepath, &badstate)
 	c.Assert(err, IsNil)
-	err = conn.Set(hostpath(badstate.HostID, badstate.ServiceStateID), &badstate)
+	err = conn.Set(badstatepath, &badstate)
 	c.Assert(err, IsNil)
 
 	// Set up a watch
 	watchDone := make(chan struct{})
 	defer close(watchDone)
-	event, err := conn.GetW(hostpath(badstate.HostID, badstate.ServiceStateID), &HostState{}, watchDone)
+	event, err := conn.GetW(badstatepath, &HostState{}, watchDone)
 	c.Assert(err, IsNil)
 
 	// Start the listener
@@ -313,7 +315,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
-		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
 	}
@@ -326,7 +328,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -371,11 +373,11 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 	c.Assert(node2.Started.After(node1.Started), Equals, true)
 
 	c.Logf("Pausing service instance")
-	err = pauseInstance(conn, "test-host-1", stateID)
+	err = pauseInstance(conn, "", "test-host-1", stateID)
 	wait(svc.ID, service.SVCPause)
 
 	c.Logf("Resuming service instance")
-	err = resumeInstance(conn, "test-host-1", stateID)
+	err = resumeInstance(conn, "", "test-host-1", stateID)
 	c.Assert(err, IsNil)
 	wait(svc.ID, service.SVCRun)
 	// Verify the instance wasn't restarted
@@ -384,7 +386,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 	c.Assert(node1.Started.Unix(), Equals, node2.Started.Unix())
 
 	c.Logf("Stopping service instance")
-	err = StopServiceInstance(conn, "test-host-1", stateID)
+	err = StopServiceInstance(conn, "", "test-host-1", stateID)
 	wait(svc.ID, service.SVCStop)
 }
 
@@ -412,7 +414,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
-		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
 	}
@@ -425,7 +427,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -455,7 +457,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 
 	c.Logf("Removing the instance to verify shutdown")
 	time.Sleep(zzk.ZKTestTimeout)
-	err = removeInstance(conn, node.ServiceState.ServiceID, node.ServiceState.HostID, node.ServiceState.ID)
+	err = removeInstance(conn, "", node.ServiceState.HostID, node.ServiceState.ServiceID, node.ServiceState.ID)
 
 	select {
 	case <-done:
@@ -466,7 +468,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 	exists, err := conn.Exists(servicepath(svc.ID, stateID))
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, false)
-	exists, err = conn.Exists(hostpath("test-host-1", stateID))
+	exists, err = conn.Exists(path.Join("/hosts", "test-host-1", "instances", stateID))
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, false)
 }
@@ -494,7 +496,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
-		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
 	}
@@ -507,7 +509,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -536,7 +538,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 	exists, err := conn.Exists(servicepath(svc.ID, stateID))
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, false)
-	exists, err = conn.Exists(hostpath("test-host-1", stateID))
+	exists, err = conn.Exists(path.Join("/hosts", "test-host-1", "instances", stateID))
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, false)
 }
@@ -562,7 +564,7 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
-		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
 	}
@@ -575,7 +577,7 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)

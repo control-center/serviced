@@ -74,7 +74,6 @@ type HostStateListener struct {
 	conn     client.Connection
 	handler  HostStateHandler
 	hostID   string
-	registry string
 	nodelock sync.Mutex
 	done     bool
 }

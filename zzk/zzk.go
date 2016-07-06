@@ -127,6 +127,13 @@ func PathExists(conn client.Connection, p string) (bool, error) {
 
 // Ready waits for a node to be available for watching
 func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error {
+	ok, err := conn.Exists("/")
+	if err != nil {
+		return err
+	} else if !ok {
+		return client.ErrNoNode
+	}
+
 	done := make(chan struct{})
 	defer func() { close(done) }()
 	for {
