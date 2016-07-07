@@ -74,7 +74,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	for _, logConfig := range service.LogConfigs[1:] {
 		logstashForwarderLogConf = logstashForwarderLogConf + `
     -
-      ignore_older: 3y
+      ignore_older: 26280h
       paths:
         - %s
       fields: %s`
