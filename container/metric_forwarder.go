@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"time"
 )
 
 // MetricForwarder contains all configuration parameters required to provide a
@@ -30,6 +31,8 @@ type MetricForwarder struct {
 	metricsRedirectURL string
 	listener           *net.Listener
 }
+
+var client = &http.Client{Timeout:time.Duration(5 * time.Second)}
 
 // NewMetricForwarder creates a new metric forwarder at port, all metrics are forwarded to metricsRedirectURL
 func NewMetricForwarder(port, metricsRedirectURL string) (config *MetricForwarder, err error) {
@@ -79,8 +82,6 @@ func (forwarder *MetricForwarder) Close() error {
 // example, encode the containers tenant and service id.
 func postAPIMetricsStore(redirectURL string) func(*rest.ResponseWriter, *rest.Request) {
 	return func(w *rest.ResponseWriter, request *rest.Request) {
-		client := &http.Client{}
-
 		proxyRequest, _ := http.NewRequest(request.Method, redirectURL, request.Body)
 		for k, v := range request.Header {
 			proxyRequest.Header[k] = v

@@ -273,6 +273,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 		query.Downsample = ""
 		options.Metrics = []V2MetricOptions{query}
 		options.Returnset = "last"
+		options.Start= "10m-ago" //Reduce the time frame to search for last value to reduce memory usage in CentralQuery
 		result, err := c.v2performanceQuery(options)
 		if err != nil {
 			glog.V(2).Infof("Could not get performance data for instances %+v: %s", instances, err)

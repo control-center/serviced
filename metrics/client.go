@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const userAgent = "serviced"
@@ -45,7 +46,7 @@ func NewClient(endpoint string) (*Client, error) {
 	}
 
 	return &Client{
-		HTTPClient:  http.DefaultClient,
+		HTTPClient:  &http.Client{Timeout: time.Duration(5 * time.Second)},
 		endpoint:    endpoint,
 		endpointURL: u,
 	}, nil
