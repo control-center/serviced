@@ -120,30 +120,33 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 
 	c.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
-	done := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := AddHost(conn, handler.Host)
 		c.Assert(err, IsNil)
 		err = RegisterHost(shutdown, conn, handler.Host.ID)
 		c.Assert(err, IsNil)
 	}()
 	listener := NewServiceListener("", handler)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(done)
 	}()
 
 	<-time.After(2 * time.Second)
 	c.Log("shutting down listener with no services")
 	close(shutdown)
-	<-done
+	wg.Wait()
 
 	c.Log("Start and stop listener with multiple services")
 	shutdown = make(chan interface{})
-	done = make(chan interface{})
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(done)
 	}()
 
 	svcs := []service.Service{
@@ -179,8 +182,7 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	// shutdown
 	c.Log("services started, now shutting down")
 	close(shutdown)
-	<-done
-
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_Spawn(c *C) {

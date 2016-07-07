@@ -71,8 +71,8 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	// case 2: remove a host, offline, no instances
 	h1 := &host.Host{
 		ID:        "h1",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}
 	h1pth := path.Join(ppth, "/hosts", h1.ID)
 	err = conn.Create(h1pth, &HostNode{Host: h1})
