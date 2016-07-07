@@ -1,10 +1,11 @@
 input {
-	lumberjack {
+	beats {
 	  # The port to listen on
 	  port => 5043
+      ssl => true
 	  # The paths to your ssl cert and key, these are from the perspective of the container
-	  ssl_certificate => "/usr/local/serviced/resources/logstash/logstash-forwarder.crt"
-	  ssl_key => "/usr/local/serviced/resources/logstash/logstash-forwarder.key"
+	  ssl_certificate => "/usr/local/serviced/resources/logstash/filebeat.crt"
+	  ssl_key => "/usr/local/serviced/resources/logstash/filebeat.key"
 	}
 	tcp {
 		port => 5042
@@ -18,5 +19,6 @@ input {
 output {
 	elasticsearch {
 		hosts => "elasticsearch:9100"
+        idle_flush_time => 5
 	}
 }

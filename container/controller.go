@@ -343,9 +343,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		logforwarder, exited, err := subprocess.New(time.Second,
 			nil,
 			options.Logforwarder.Path,
-			fmt.Sprintf("-idle-flush-time=%s", options.Logforwarder.IdleFlushTime),
-			"-old-files-hours=26280",
-			"-config", options.Logforwarder.ConfigFile)
+			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
 			return nil, err
 		}
