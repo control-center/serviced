@@ -65,6 +65,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
 	logstashForwarderLogConf :=
 `    -
+      ignore_older: 26280h
       paths:
         - %s
       fields: %s`
@@ -73,6 +74,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	for _, logConfig := range service.LogConfigs[1:] {
 		logstashForwarderLogConf = logstashForwarderLogConf + `
     -
+      ignore_older: 3y
       paths:
         - %s
       fields: %s`
