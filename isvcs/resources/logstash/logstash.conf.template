@@ -19,6 +19,5 @@ input {
 output {
 	elasticsearch {
 		hosts => "elasticsearch:9100"
-        idle_flush_time => 5
 	}
 }

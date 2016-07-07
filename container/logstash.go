@@ -82,6 +82,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 
 	logstashForwarderShipperConf :=
 `filebeat:
+  idle_timeout: 5s
   prospectors:
 %s
 output:
