@@ -245,6 +245,18 @@ func (_m *API) AddResourcePool(_a0 api.PoolConfig) (*pool.ResourcePool, error) {
 
 	return r0, r1
 }
+func (_m *API) UpdateResourcePool(_a0 pool.ResourcePool) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *API) RemoveResourcePool(_a0 string) error {
 	ret := _m.Called(_a0)
 
