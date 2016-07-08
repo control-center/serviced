@@ -15,6 +15,7 @@ package zzk
 
 import (
 	"errors"
+	"math/rand"
 	"path"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 
 const (
 	DefaultConnectionTimeout = time.Minute
+	MaxDelay                 = 15 * time.Second
 	local                    = "local"
 	remote                   = "remote"
 )
@@ -37,6 +39,34 @@ var (
 
 // GetConnection describes a generic function for acquiring a connection object
 type GetConnection func(string) (client.Connection, error)
+
+type delay struct {
+	backoff time.Duration
+}
+
+func (d *delay) GetDelay() time.Duration {
+	defer func() {
+		factor := 1.25
+		jitter := 0.1
+
+		d.backoff = time.Duration(float64(d.backoff) * factor)
+		if d.backoff > MaxDelay {
+			d.backoff = MaxDelay
+		}
+		d.backoff += time.Duration(rand.NormFloat64() * jitter * float64(time.Second))
+	}()
+	return d.backoff
+}
+
+func (d *delay) Reset(baseBackoff time.Duration) {
+	d.backoff = baseBackoff
+}
+
+func newDelay(baseBackoff time.Duration) *delay {
+	return &delay{
+		backoff: baseBackoff,
+	}
+}
 
 // zclient is the coordinator client manager
 type zclient struct {
@@ -165,6 +195,7 @@ func (zconn *zconn) monitor(path string) {
 		connC chan<- client.Connection
 		conn  client.Connection
 		err   error
+		d     *delay
 	)
 
 	defer func() {
@@ -173,6 +204,8 @@ func (zconn *zconn) monitor(path string) {
 		}
 	}()
 
+	d = newDelay(time.Second)
+
 	for {
 		// wait for someone to request a connection, or shutdown
 		select {
@@ -180,6 +213,7 @@ func (zconn *zconn) monitor(path string) {
 		case <-zconn.shutdownC:
 			return
 		}
+		d.Reset(time.Second)
 
 	retry:
 		// create a connection if it doesn't exist or ping the existing connection
@@ -201,7 +235,7 @@ func (zconn *zconn) monitor(path string) {
 
 		// if conn is nil, try to create a new connection
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(d.GetDelay()):
 			glog.Infof("Refreshing connection to zookeeper")
 			goto retry
 		case <-zconn.shutdownC:
