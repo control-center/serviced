@@ -25,6 +25,7 @@ import (
 
 const (
 	DefaultConnectionTimeout = time.Minute
+	MaxConnectionTimeout     = 5 * time.Minute
 	local                    = "local"
 	remote                   = "remote"
 )
@@ -38,6 +39,38 @@ var (
 // GetConnection describes a generic function for acquiring a connection object
 type GetConnection func(string) (client.Connection, error)
 
+type GetConnectionTimeout func() chan time.Duration
+
+func getDefaultTimeout() chan time.Duration {
+	c := make(chan int)
+
+	go func() {
+		for {
+			c <- DefaultConnectionTimeout
+		}
+	}()
+	return c
+}
+
+func getExponentialTimeout() chan time.Duration {
+	c := make(chan int)
+
+	go func() {
+		factor := 1.25
+		t := DefaultConnectionTimeout
+		for t < MaxConnectionTimeout {
+			t *= factor
+			c <- t
+		}
+
+		for {
+			c <- MaxConnectionTimeout
+		}
+	}()
+
+	return c
+}
+
 // zclient is the coordinator client manager
 type zclient struct {
 	client          *client.Client
@@ -50,6 +83,7 @@ type zconn struct {
 	client    *client.Client
 	connC     chan chan<- client.Connection
 	shutdownC chan struct{}
+	timeoutC  chan time.Duration
 }
 
 // GeneratePoolPath generates the path for a pool-based connection
@@ -62,9 +96,9 @@ func InitializeLocalClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
 	manager[local] = &zclient{
-		client: client,
+		client:          client,
 		connectionsLock: sync.RWMutex{},
-		connections: make(map[string]*zconn),
+		connections:     make(map[string]*zconn),
 	}
 }
 
@@ -84,9 +118,9 @@ func InitializeRemoteClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
 	manager[remote] = &zclient{
-		client: client,
+		client:          client,
 		connectionsLock: sync.RWMutex{},
-		connections: make(map[string]*zconn),
+		connections:     make(map[string]*zconn),
 	}
 }
 
@@ -135,7 +169,7 @@ func (zclient *zclient) GetConnection(path string) (client.Connection, error) {
 		zclient.connections[path] = newzconn(zclient.client, path)
 	}
 	zconn := zclient.connections[path]
-	return zconn.connect(DefaultConnectionTimeout)
+	return zconn.connect()
 }
 
 // Shutdown shuts down all open connections for a client
@@ -153,6 +187,7 @@ func newzconn(zclient *client.Client, path string) *zconn {
 		client:    zclient,
 		connC:     make(chan chan<- client.Connection),
 		shutdownC: make(chan struct{}),
+		timeoutC:  getExponentialTimeout(),
 	}
 
 	go zconn.monitor(path)
@@ -211,13 +246,13 @@ func (zconn *zconn) monitor(path string) {
 }
 
 // connect returns a connection object or times out trying
-func (zconn *zconn) connect(timeout time.Duration) (client.Connection, error) {
+func (zconn *zconn) connect() (client.Connection, error) {
 	connC := make(chan client.Connection, 1)
 	zconn.connC <- connC
 	select {
 	case conn := <-connC:
 		return conn, nil
-	case <-time.After(timeout):
+	case <-time.After(<-zconn.timeoutC):
 		glog.Warningf("timed out waiting for connection")
 		return nil, ErrTimeout
 	case <-zconn.shutdownC:
