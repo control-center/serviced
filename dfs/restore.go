@@ -40,13 +40,17 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader, version int) error {
 	default:
 		return ErrInvalidBackupVersion
 	}
+	glog.Infof("Finished restoring backup version %d", version)
+	return nil
 }
 
 // restoreV0 restores a pre-1.1.3 backup
 func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 	backuptar := tar.NewReader(r)
 
+	// keep track of the snapshots that have been imported
 	snapshots := make(map[string][]string)
+
 	for {
 		hdr, err := backuptar.Next()
 		if err == io.EOF {
@@ -60,17 +64,26 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 		case hdr.Name == BackupMetadataFile:
 			// Skip it, we've already got it
 		case strings.HasPrefix(hdr.Name, SnapshotsMetadataDir):
+			// This is a snapshot volume
 			parts := strings.Split(hdr.Name, "/")
 			if len(parts) != 3 {
+				// this is a parent directory and not the tar file of the
+				// snapshot
 				continue
 			}
+
+			// restore the snapshot
 			tenant, label := parts[1], parts[2]
 			if err := dfs.restoreSnapshot(tenant, label, backuptar); err != nil {
 				glog.Errorf("Could not restore snapshot %s for tenant %s: %s", label, tenant, err)
 				return err
 			}
+
+			// add the snapshot to the list of restored snapshots.
 			snapshots[tenant] = append(snapshots[tenant], label)
 		case hdr.Name == DockerImagesFile:
+
+			// Load the images from the docker tar
 			if err := dfs.docker.LoadImage(backuptar); err != nil {
 				glog.Errorf("Could not load docker images: %s", err)
 				return err
@@ -80,6 +93,7 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 		}
 	}
 
+	// for each snapshot restored, add all the images to the registry
 	for tenant, labels := range snapshots {
 		for _, label := range labels {
 			if err := dfs.loadSnapshotImages(tenant, label); err != nil {
@@ -108,6 +122,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	}
 	streamMap := make(map[string]*stream)
 	defer func() {
+		// close all the data pipes and make sure that all subroutines exit.
 		for _, s := range streamMap {
 			s.tarwriter.Close()
 			s.writer.CloseWithError(dataError)
@@ -135,7 +150,8 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			// data at the root), and write the tar entry to the subpipe.
 			parts := strings.SplitN(hdr.Name, "/", 4)
 			if len(parts) <= 3 {
-				// This is a parent folder or something, not relevant.
+				// this is a parent directory, and there is nothing to pass
+				// to the snapshot stream.
 				continue
 			}
 			tenant, label := parts[1], parts[2]
@@ -162,6 +178,8 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 				return err
 			}
 		case strings.HasPrefix(hdr.Name, DockerImagesFile):
+			// Find or create the pipe that's got a LoadImages for this path
+			// reading from the other end.
 			parts := strings.SplitN(hdr.Name, "/", 2)
 			if len(parts) <= 1 {
 				continue
@@ -281,6 +299,7 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 		return err
 	}
 
+	// get the list of images for this snapshot
 	images, err := func() ([]string, error) {
 		r, err := vol.ReadMetadata(label, ImagesMetadataFile)
 		if err != nil {
@@ -296,11 +315,13 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 		return images, nil
 	}()
 
+	// if the image data is incomplete, this is a bad snapshot, so remove it
 	if err != nil {
 		vol.RemoveSnapshot(label)
 		return err
 	}
 
+	// try to load the image into the registry
 	for _, image := range images {
 		img, err := dfs.docker.FindImage(image)
 		if err != nil {
