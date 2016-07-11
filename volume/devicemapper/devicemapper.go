@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/units"
 	"github.com/zenoss/glog"
-	"github.com/docker/docker/volume"
 )
 
 var (
