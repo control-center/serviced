@@ -126,11 +126,6 @@ func createThinPool(purpose string, devices []string) (string, error) {
 		return "", err
 	}
 
-	err = lvInfo.DisableMonitoring()
-	if err != nil {
-		return "", err
-	}
-
 	thinPoolName, err := lvInfo.GetThinpoolName()
 	if err != nil {
 		return "", nil
@@ -354,22 +349,4 @@ func (info *LogicalVolumeInfo) GetThinpoolName() (string, error) {
 		return "", fmt.Errorf("Unable to determine thin pool name")
 	}
 	return "/dev/mapper/" + devname, nil
-}
-
-func (info *LogicalVolumeInfo) DisableMonitoring() error {
-	if len(info.Name) == 0 {
-		return fmt.Errorf("Logical volume name is not specified")
-	} else if len(info.VGName) == 0 {
-		return fmt.Errorf("Volume group name is not specified")
-	}
-
-	args := []string{"lvchange",
-		"--monitor",
-		"n",
-		fmt.Sprintf("%s/%s", info.VGName, info.Name),
-	}
-	log.Info(strings.Join(args, " "))
-	cmd := exec.Command(args[0], args[1:]...)
-	_, _, err := checkCommand(cmd)
-	return err
 }
