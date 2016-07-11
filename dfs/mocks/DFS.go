@@ -222,7 +222,7 @@ func (_m *DFS) Backup(info dfs.BackupInfo, w io.Writer) error {
 
 // Restore provides a mock function with given fields: r, backupInfo
 func (_m *DFS) Restore(r io.Reader, version int) error {
-	ret := _m.Called(r, backupInfo)
+	ret := _m.Called(r, version)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(io.Reader, int) error); ok {

@@ -60,7 +60,7 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 		case hdr.Name == BackupMetadataFile:
 			// Skip it, we've already got it
 		case strings.HasPrefix(hdr.Name, SnapshotsMetadataDir):
-			parts := strings.SplitN(hdr.Name, "/", 4)
+			parts := strings.Split(hdr.Name, "/")
 			if len(parts) != 3 {
 				continue
 			}
@@ -91,19 +91,25 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 	return nil
 }
 
-// restoreV1 restores a backup created >= 1.1.3
+// restoreV1 restores application data from a >=1.1.3 backup, where the
+// data is contained in a single tar.  It does this by partitioning the tar
+// stream into multiple other streams: One for Docker images, which used to be
+// and independent tar file within the tar stream (but is now included inline),
+// and one for each DFS snapshot being restored.
 func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	backuptar := tar.NewReader(r)
 
 	// Keep track of all the data pipes
 	var dataError error
 	type stream struct {
-		writer *io.PipeWriter
-		errc   <-chan error
+		tarwriter *tar.Writer
+		writer    *io.PipeWriter
+		errc      <-chan error
 	}
 	streamMap := make(map[string]*stream)
 	defer func() {
 		for _, s := range streamMap {
+			s.tarwriter.Close()
 			s.writer.CloseWithError(dataError)
 			<-s.errc
 		}
@@ -141,13 +147,13 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			if !ok {
 				glog.Infof("Loading snapshot %s for tenant %s from backup", label, tenant)
 				writer, errc := dfs.snapshotLoadPipe(tenant, label)
-				s = &stream{writer: writer, errc: errc}
+				tarwriter := tar.NewWriter(writer)
+				s = &stream{tarwriter: tarwriter, writer: writer, errc: errc}
 				streamMap[id] = s
 			}
 			hdr.Name = parts[3]
-			tarWriter := tar.NewWriter(s.writer)
-			tarWriter.WriteHeader(hdr)
-			if _, err := io.Copy(tarWriter, backuptar); err == io.EOF {
+			s.tarwriter.WriteHeader(hdr)
+			if _, err := io.Copy(s.tarwriter, backuptar); err == io.EOF {
 				// Snapshot already exists, so don't bother
 				continue
 			} else if err != nil {
@@ -166,13 +172,13 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			if !ok {
 				glog.Infof("Loading docker images from backup")
 				writer, errc := dfs.imageLoadPipe()
-				s = &stream{writer: writer, errc: errc}
+				tarwriter := tar.NewWriter(writer)
+				s = &stream{tarwriter: tarwriter, writer: writer, errc: errc}
 				streamMap[DockerImagesFile] = s
 			}
 			hdr.Name = parts[1]
-			tarWriter := tar.NewWriter(s.writer)
-			tarWriter.WriteHeader(hdr)
-			if _, err := io.Copy(tarWriter, backuptar); err != nil {
+			s.tarwriter.WriteHeader(hdr)
+			if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
 				glog.Errorf("Could not write docker data: %s", err)
 				dataError = err
 				return err
@@ -186,6 +192,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	s, ok := streamMap[DockerImagesFile]
 	if ok {
 		delete(streamMap, DockerImagesFile)
+		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
 			glog.Errorf("Could not load docker images from backup: %s", err)
@@ -199,6 +206,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	// load the snapshots and update the images in the registry
 	for id, s := range streamMap {
 		delete(streamMap, id)
+		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
 			glog.Errorf("Error trying to import %s: %s", id, err)
