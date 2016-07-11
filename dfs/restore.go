@@ -58,6 +58,7 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 
 		switch {
 		case hdr.Name == BackupMetadataFile:
+			// Skip it, we've already got it
 		case strings.HasPrefix(hdr.Name, SnapshotsMetadataDir):
 			parts := strings.SplitN(hdr.Name, "/", 4)
 			if len(parts) != 3 {
@@ -120,14 +121,22 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 
 		switch {
 		case hdr.Name == BackupMetadataFile:
+			// Skip it, we've already got it
 		case strings.HasPrefix(hdr.Name, SnapshotsMetadataDir):
+			// This file is part of a volume snapshot.  Find or create the pipe
+			// responsible for restoring that volume, strip off the extra
+			// parent path (so it resembles a tarfile containing the volume
+			// data at the root), and write the tar entry to the subpipe.
 			parts := strings.SplitN(hdr.Name, "/", 4)
 			if len(parts) <= 3 {
+				// This is a parent folder or something, not relevant.
 				continue
 			}
 			tenant, label := parts[1], parts[2]
 
 			id := path.Join(SnapshotsMetadataDir, tenant, label)
+			// Find or create the pipe that's got a restoreSnapshot for this
+			// volume reading from the other end
 			s, ok := streamMap[id]
 			if !ok {
 				glog.Infof("Loading snapshot %s for tenant %s from backup", label, tenant)
@@ -138,7 +147,10 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			hdr.Name = parts[3]
 			tarWriter := tar.NewWriter(s.writer)
 			tarWriter.WriteHeader(hdr)
-			if _, err := io.Copy(tarWriter, backuptar); err != nil {
+			if _, err := io.Copy(tarWriter, backuptar); err == io.EOF {
+				// Snapshot already exists, so don't bother
+				continue
+			} else if err != nil {
 				glog.Errorf("Could not write snapshot %s for tenant %s: %s", label, tenant, err)
 				dataError = err
 				return err
