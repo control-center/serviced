@@ -263,7 +263,7 @@ func (dfs *DistributedFilesystem) restoreSnapshot(tenant, label string, r io.Rea
 
 	err = vol.Import(label, r)
 	if err == volume.ErrSnapshotExists {
-		err = nil
+		err = nil // volume.ErrSnapshotExists is an error we can ignore
 	} else if err != nil {
 		glog.Errorf("Could not import snapshot %s for tenant %s: %s", label, tenant, err)
 		return err
