@@ -251,58 +251,6 @@ func (s *ThinpoolSuite) TestGetThinpoolName(c *C) {
 	//TODO: How can we test that the thinpoolName actually refers to the proper device?
 }
 
-func (s *ThinpoolSuite) TestDisableMonitoring(c *C) {
-	lvInfo := LogicalVolumeInfo{}
-	err := lvInfo.DisableMonitoring()
-	c.Assert(err, ErrorMatches, "Logical volume name is not specified")
-
-	lvInfo.Name = "someLogicalVolume"
-	err = lvInfo.DisableMonitoring()
-	c.Assert(err, ErrorMatches, "Volume group name is not specified")
-
-	// Set up thin pool for test
-	dev1 := s.TempDevice(c)
-	dev2 := s.TempDevice(c)
-	devices := []string{dev1.LoopDevice(), dev2.LoopDevice()}
-	EnsurePhysicalDevices(devices)
-	volumeGroup := "serviced-test-5"
-	CreateVolumeGroup(volumeGroup, devices)
-	defer exec.Command("vgremove", "-f", volumeGroup).Run()
-	metadataVolume, _ := CreateMetadataVolume(volumeGroup)
-	dataVolume, _ := CreateDataVolume(volumeGroup)
-	ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
-	lvInfo, err = GetInfoForLogicalVolume(dataVolume)
-
-	// Should work for valid params
-	err = lvInfo.DisableMonitoring()
-	c.Assert(err, IsNil)
-
-	// Verify that monitoring is really disabled
-	out, err := exec.Command("lvs", "-o", "lv_name,seg_monitor", "--noheading", "--nameprefixes",
-		lvInfo.VGName).CombinedOutput()
-	if segMonitorNotSupported(out, err) {
-		c.Logf("Skipped validation of thinpool monitoring because lvs on this host does not support -o seg_monitor")
-		return
-	}
-
-	regexName := regexp.MustCompile("LVM2_LV_NAME='(.+?)'")
-	regexMonitor := regexp.MustCompile("LVM2_SEG_MONITOR='(.+?)'")
-	for _, line := range strings.Split(string(out), "n") {
-		match := regexName.FindStringSubmatch(line)
-		if len(match) != 2 || match[1] != lvInfo.Name {
-			continue
-		}
-
-		match = regexMonitor.FindStringSubmatch(line)
-		c.Assert(len(match), Equals, 2)
-		monitoringStatus := match[1]
-		c.Assert(monitoringStatus, Equals, "not monitored")
-		return
-	}
-	// Did not find the logical volume name in the output of the lvs command
-	c.Assert(nil, Not(IsNil))
-}
-
 // Ubuntu 14.04 with lvm2-2.02.98 does not support the seg_monitor command line option.
 func segMonitorNotSupported(out []byte, err error) bool {
 	if err == nil {

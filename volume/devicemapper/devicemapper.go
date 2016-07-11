@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/units"
 	"github.com/zenoss/glog"
+	"github.com/docker/docker/volume"
 )
 
 var (
@@ -725,9 +726,31 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 	if err := os.MkdirAll(poolPath, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
+	if err := volume.TouchFlagFile(poolPath); err != nil {
+		return err
+	}
 	if d.DeviceSet == nil {
-		d.options = append(d.options, "dm.fs=ext4")
-		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options, nil, nil)
+		var (
+			thinPoolDev         string
+			enableLVMMonitoring string
+			dmoptions           []string
+		)
+		for _, option := range d.options {
+			if strings.HasPrefix(option, "dm.") {
+				dmoptions = append(dmoptions, option)
+				if strings.HasPrefix(option, "dm.thinpooldev=") {
+					thinPoolDev = strings.TrimPrefix(option, "dm.thinpooldev=")
+					thinPoolDev = fmt.Sprintf("/dev/mapper/%s", strings.TrimPrefix(thinPoolDev, "/dev/mapper/"))
+				}
+			} else if strings.HasPrefix(option, "enablelvmmonitoring=") {
+				enableLVMMonitoring = strings.TrimPrefix(option, "enablelvmmonitoring=")
+			} else {
+				glog.Errorf("Unable to parse option %s", option)
+				return ErrInvalidOption
+			}
+		}
+		dmoptions = append(dmoptions, "dm.fs=ext4")
+		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, dmoptions, nil, nil)
 		if err != nil {
 			if _, thinError := err.(devmapper.ThinpoolInitError); thinError {
 				//Try recreating the base image because sometimes something deletes it
@@ -750,6 +773,35 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 			return err
 		}
 		d.DevicePrefix = prefix
+		switch enableLVMMonitoring {
+		case "y":
+			if thinPoolDev != "" {
+				glog.V(1).Infof("Enabling LVM Monitoring for thin pool device %s", thinPoolDev)
+				cmd := exec.Command("lvchange", "--monitor", "y", thinPoolDev)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					glog.Errorf("Could not run command %v: %s (%s)", cmd, string(output), err)
+					return err
+				}
+			} else {
+				glog.Warningf("Ignoring option 'enablelvmmonitoring'; no thin pool device specified")
+			}
+		case "n", "":
+			if thinPoolDev != "" {
+				glog.V(1).Infof("Disabling LVM Monitoring for thin pool device %s", thinPoolDev)
+				cmd := exec.Command("lvchange", "--monitor", "n", thinPoolDev)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					glog.Errorf("Could not run command %v: %s (%s)", cmd, string(output), err)
+					return err
+				}
+			} else if enableLVMMonitoring != "" {
+				glog.Warningf("Ignoring option 'enablelvmmonitoring'; no thin pool device specified")
+			}
+		default:
+			glog.Errorf("Attribute %s is not defined for enablelvmmonitoring", enableLVMMonitoring)
+			return ErrInvalidArg
+		}
 	}
 	if err := os.MkdirAll(d.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
 		return err
