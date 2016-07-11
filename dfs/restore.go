@@ -40,8 +40,6 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader, version int) error {
 	default:
 		return ErrInvalidBackupVersion
 	}
-	glog.Infof("Finished restoring backup version %d", version)
-	return nil
 }
 
 // restoreV0 restores a pre-1.1.3 backup
