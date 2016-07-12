@@ -16,6 +16,8 @@
 package pool
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
@@ -82,6 +84,27 @@ func (s *S) Test_PoolCRUD(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
+}
+
+func (s *S) Test_ValidateConnectionTimeout(c *C) {
+	defer s.ps.Delete(s.ctx, Key("Test_GetPools1"))
+	pool := New("Test_GetPools1")
+	pool.Realm = "test_realm1"
+	pool.ConnectionTimeout = -100
+	err := s.ps.Put(s.ctx, Key(pool.ID), pool)
+	c.Assert(strings.Contains(err.Error(), "connection timeout cannot be less than 0"), Equals, true)
+
+	pool.ConnectionTimeout = 100
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	c.Assert(err, IsNil)
+
+	pool.ConnectionTimeout = -100
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	c.Assert(strings.Contains(err.Error(), "connection timeout cannot be less than 0"), Equals, true)
+
+	pool.ConnectionTimeout = 0
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	c.Assert(err, IsNil)
 }
 
 func (s *S) Test_GetPools(t *C) {

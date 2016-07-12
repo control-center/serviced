@@ -14,6 +14,8 @@
 package pool
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 
@@ -33,6 +35,10 @@ func (p *ResourcePool) ValidEntity() error {
 	trimmedRealm := strings.TrimSpace(p.Realm)
 	violations.Add(validation.NotEmpty("Pool.Realm", p.Realm))
 	violations.Add(validation.StringsEqual(p.Realm, trimmedRealm, "leading and trailing spaces not allowed for pool realm"))
+
+	if p.ConnectionTimeout < 0 {
+		violations.Add(validation.NewViolation(fmt.Sprintf("connection timeout cannot be less than 0")))
+	}
 
 	if len(violations.Errors) > 0 {
 		return violations
