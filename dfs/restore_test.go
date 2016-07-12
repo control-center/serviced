@@ -179,7 +179,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNotFound(c *C) {
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	s.docker.On("FindImage", "test:5000/image:now").Return(&dockerclient.Image{}, ErrTestImageNotFound)
 	err = s.dfs.Restore(buf, backupInfo.BackupVersion)
-	c.Assert(err, Equals, ErrTestImageNotFound)
+	c.Assert(err, IsNil) // Image not found, so log a warning
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
 }
@@ -285,6 +285,47 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 	c.Assert(err, IsNil)
 	s.disk.AssertExpectations(c)
 	vol.AssertExpectations(c)
+}
+
+func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
+	r, w := io.Pipe()
+	errc := make(chan error)
+	go func() {
+		err := s.dfs.Restore(r, 1)
+		r.CloseWithError(err)
+		errc <- err
+	}()
+
+	vol := &volumemocks.Volume{}
+	s.disk.On("Create", "BASE").Return(vol, nil)
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(ErrTestBadSnapshot).Run(func(a mock.Arguments) {
+		reader := a.Get(1).(io.Reader)
+		go func() {
+			_, err := io.Copy(ioutil.Discard, reader)
+			c.Assert(err, Equals, ErrTestBadSnapshot)
+		}()
+	})
+	s.disk.On("Remove", "BASE").Return(nil)
+
+	tw := tar.NewWriter(w)
+	backupInfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots:     []string{"BASE_LABEL"},
+		Timestamp:     time.Now().UTC(),
+		BackupVersion: 1,
+	}
+	s.writeBackupInfo(c, tw, backupInfo)
+	err := tw.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"), Size: 0})
+	c.Assert(err, IsNil)
+	tw.Close()
+	w.CloseWithError(ErrTestBadSnapshot)
+	c.Assert(<-errc, Equals, ErrTestBadSnapshot)
 }
 
 func (s *DFSTestSuite) TestRestore_ImportSnapshot_FailGettingVolume(c *C) {

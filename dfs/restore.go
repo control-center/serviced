@@ -225,22 +225,28 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
+			// this snapshot is no good, but maybe the other snapshots are
+			// better.
 			glog.Errorf("Error trying to import %s: %s", id, err)
 			dataError = err
-			return err
+			continue
 		}
+
 		parts := strings.Split(id, "/")
 		if len(parts) != 3 {
 			dataError = errors.New("this should never happen")
 			return dataError
 		}
+
 		if err := dfs.loadSnapshotImages(parts[1], parts[2]); err != nil {
+			// could not load images for this snapshot, but maybe other
+			// snapshots are better.
 			dataError = err
-			return err
+			continue
 		}
 	}
 
-	return nil
+	return dataError
 }
 
 // imageLoadPipe returns a pipe writer and error channel for restoring docker
@@ -301,7 +307,7 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 	images, err := func() ([]string, error) {
 		r, err := vol.ReadMetadata(label, ImagesMetadataFile)
 		if err != nil {
-			glog.Errorf("Could not read images metadta from snapshot %s for tenant %s: %s", label, tenant, err)
+			glog.Errorf("Could not read images metadata from snapshot %s for tenant %s: %s", label, tenant, err)
 			return nil, err
 		}
 
@@ -323,8 +329,8 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 	for _, image := range images {
 		img, err := dfs.docker.FindImage(image)
 		if err != nil {
-			glog.Errorf("Could not load image %s into the registry: %s", image, err)
-			return err
+			glog.Warningf("Missing image %s to import to the registry: %s", image, err)
+			continue
 		}
 
 		hash, err := dfs.docker.GetImageHash(img.ID)
