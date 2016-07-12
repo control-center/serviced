@@ -413,7 +413,7 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
 	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning restore from backup")
-	if err := f.dfs.Restore(r, backupInfo); err != nil {
+	if err := f.dfs.Restore(r, backupInfo.BackupVersion); err != nil {
 		glog.Errorf("Could not restore from backup: %s", err)
 		return err
 	}
