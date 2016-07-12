@@ -443,6 +443,8 @@ func RegisterHost(cancel <-chan interface{}, conn client.Connection, hostid stri
 
 		// register the host if it isn't showing up as active
 		if len(ch) == 0 {
+			// Need to give the ephemeral a node name, despite the name
+			// changing when it is written to the coordinator.
 			_, err = conn.CreateEphemeralIfExists(path.Join(pth, hostid), &client.Dir{})
 			if err != nil {
 				glog.Errorf("Could not register host %s as active: %s", hostid, err)

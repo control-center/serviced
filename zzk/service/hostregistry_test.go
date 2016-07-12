@@ -154,6 +154,8 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		c.Fatalf("Received unexpected response of registered hosts")
 	case <-time.After(p.ConnectionTimeout):
 	}
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
 	eh1pth, err := conn.CreateEphemeral(path.Join(h1pth, "online", h1.ID), &client.Dir{})
 	c.Assert(err, IsNil)
 	select {
@@ -191,6 +193,8 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	h2pth := path.Join(ppth, "/hosts", h2.ID)
 	err = conn.Create(h2pth, &HostNode{Host: h2})
 	c.Assert(err, IsNil)
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
 	_, err = conn.CreateEphemeral(path.Join(h2pth, "online", h2.ID), &client.Dir{})
 	c.Assert(err, IsNil)
 	done2 := make(chan struct{})
@@ -199,6 +203,8 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		listener.Spawn(stop, h2.ID)
 	}()
 	time.Sleep(p.ConnectionTimeout - time.Second)
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
 	eh1pth, err = conn.CreateEphemeral(path.Join(h1pth, "online", h1.ID), &client.Dir{})
 	c.Assert(err, IsNil)
 	select {

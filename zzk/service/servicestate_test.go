@@ -46,6 +46,8 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
+		// Need a path to the node, despite ephemeral node names do not
+		// correlate.
 		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)

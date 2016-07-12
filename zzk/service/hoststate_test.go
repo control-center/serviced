@@ -315,6 +315,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
+		// Need a path to the node, despite ephemeral node names being
+		// different
 		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
@@ -414,6 +416,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
+		// Need a path to the node, despite ephemeral node names being
+		// different
 		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
@@ -496,6 +500,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
+		// Need a path to the node, despite ephemeral node names being
+		// different
 		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
@@ -564,6 +570,8 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
+		// Need a path to the node, despite ephemeral node names being
+		// different
 		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
