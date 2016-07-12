@@ -26,6 +26,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -198,7 +199,7 @@ func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.Serv
 
 	if !ctr.IsRunning() {
 		defer exited(state.ID)
-		return nil
+		return errors.New("container found but not running")
 	}
 
 	ctr.OnEvent(docker.Die, func(cid string) {
@@ -240,7 +241,7 @@ func attachAndRun(dockerID, command string) error {
 // StopService terminates a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
 	if state == nil || state.DockerID == "" {
-		return errors.New("missing Docker ID")
+		return nil
 	}
 
 	ctr, err := docker.FindContainer(state.DockerID)
@@ -848,6 +849,9 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	// Clean up when we're done
 	defer a.servicedChain.Remove()
 
+	unregister := make(chan interface{})
+	stop := make(chan interface{})
+
 	for {
 		// handle shutdown if we are waiting for a zk connection
 		var conn coordclient.Connection
@@ -862,6 +866,28 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		glog.Info("Got a connected client")
 
+		rwg := &sync.WaitGroup{}
+		rwg.Add(1)
+		go func() {
+			defer rwg.Done()
+			t := time.NewTimer(time.Second)
+			defer t.Stop()
+			for {
+				err := zkservice.RegisterHost(unregister, conn, a.hostID)
+				if err != nil {
+					t.Stop()
+					t = time.NewTimer(time.Second)
+					select {
+					case <-t.C:
+					case <-unregister:
+						return
+					}
+				} else {
+					return
+				}
+			}
+		}()
+
 		// watch virtual IP zookeeper nodes
 		virtualIPListener := virtualips.NewVirtualIPListener(a, a.hostID)
 
@@ -875,17 +901,41 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 3) receives signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
-		glog.Infof("Host Agent successfully started")
-		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
+		startExit := make(chan struct{})
+		go func() {
+			defer close(startExit)
+			glog.Infof("Host Agent successfully started")
+			zzk.Start(stop, conn, hsListener, virtualIPListener, actionListener)
+		}()
 
 		select {
+		case <-startExit:
+			glog.Infof("Host Agent restarting")
+			close(unregister)
+			unregister = make(chan interface{})
+			rwg.Wait()
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
+
+			lockpth := path.Join("/hosts", a.hostID, "locked")
+			err := conn.CreateIfExists(lockpth, &coordclient.Dir{})
+			if err == nil || err == coordclient.ErrNodeExists {
+				mu, _ := conn.NewLock(lockpth)
+				if mu != nil {
+					mu.Lock()
+					defer mu.Unlock()
+				}
+			}
+
+			close(stop)
+			<-startExit
+			close(unregister)
+			rwg.Wait()
+			conn.Delete(path.Join("/hosts", a.hostID, "online"))
 			return
-		default:
-			glog.Infof("Host Agent restarting")
 		}
 	}
+
 }
 
 // AttachAndRun implements zkdocker.ActionHandler; it attaches to a running

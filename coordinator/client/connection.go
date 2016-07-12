@@ -56,7 +56,10 @@ type Connection interface {
 	Create(path string, node Node) error
 	CreateDir(path string) error
 	CreateEphemeral(path string, node Node) (string, error)
+	CreateIfExists(path string, node Node) error
+	CreateEphemeralIfExists(path string, node Node) (string, error)
 	Exists(path string) (bool, error)
+	ExistsW(path string, done <-chan struct{}) (bool, <-chan Event, error)
 	Delete(path string) error
 	ChildrenW(path string, done <-chan struct{}) (children []string, ev <-chan Event, err error)
 	Children(path string) (children []string, err error)

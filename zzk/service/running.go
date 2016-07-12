@@ -14,6 +14,7 @@
 package service
 
 import (
+	"path"
 	"strconv"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -88,27 +89,24 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService = make([]dao.RunningService, 0)
 	for _, hostID := range hostIDs {
-		if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+		hpth := path.Join("/hosts", hostID, "instances")
+		ch, err := conn.Children(hpth)
+		if err != nil && err != client.ErrNoNode {
 			return nil, err
-		} else if !exists {
-			continue
 		}
 
-		stateIDs, err := conn.Children(hostpath(hostID))
-		if err != nil {
-			return nil, err
-		}
-		for _, ssID := range stateIDs {
-			var hs HostState
-			if err := conn.Get(hostpath(hostID, ssID), &hs); err != nil {
+		for _, stateID := range ch {
+			hspth := path.Join(hpth, stateID)
+			hsdat := HostState{}
+			if err := conn.Get(hspth, &hsdat); err == client.ErrNoNode {
+				continue
+			} else if err != nil {
 				return nil, err
 			}
-
-			rs, err := LoadRunningService(conn, hs.ServiceID, hs.ServiceStateID)
+			rs, err := LoadRunningService(conn, hsdat.ServiceID, hsdat.ServiceStateID)
 			if err != nil {
 				return nil, err
 			}
-
 			rss = append(rss, *rs)
 		}
 	}

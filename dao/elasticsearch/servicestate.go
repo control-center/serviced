@@ -113,7 +113,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 		return err
 	}
 
-	if err := zkservice.StopServiceInstance(poolBasedConn, request.HostID, request.ServiceStateID); err != nil {
+	if err := zkservice.StopServiceInstance(poolBasedConn, "", request.HostID, request.ServiceStateID); err != nil {
 		glog.Errorf("zkservice.StopServiceInstance failed (conn: %+v hostID: %v serviceStateID: %v): %v", poolBasedConn, request.HostID, request.ServiceStateID, err)
 		return err
 	}

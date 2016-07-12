@@ -21,6 +21,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
@@ -31,140 +32,223 @@ import (
 func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestHostRegistry_Spawn")
 	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
+
+	// set up the resource pool
+	p := &pool.ResourcePool{
+		ID:                "test-pool",
+		ConnectionTimeout: 2 * time.Second,
+	}
+	ppth := path.Join("/pools", p.ID)
+	err = conn.Create(ppth, &PoolNode{ResourcePool: p})
 	c.Assert(err, IsNil)
 
-	// Add a host
-	addHost := func(hostID string) *host.Host {
-		host := host.Host{ID: hostID}
-		err := AddHost(conn, &host)
-		c.Assert(err, IsNil)
-		return &host
+	// set up a service
+	s := &service.Service{
+		ID: "test-service",
 	}
+	spth := path.Join(ppth, "/services", s.ID)
+	err = conn.Create(spth, &ServiceNode{Service: s})
+	c.Assert(err, IsNil)
 
-	// Register a host
-	regHost := func(host *host.Host) string {
-		hpath, err := registerHost(conn, host)
-		c.Assert(err, IsNil)
-		return path.Base(hpath)
-	}
-
-	// Add a service
-	addService := func(serviceID string) *service.Service {
-		svc := service.Service{ID: "test-service-1"}
-		err = UpdateService(conn, svc, false, false)
-		c.Assert(err, IsNil)
-		return &svc
-	}
-
-	// Add service states
-	addServiceStates := func(svc *service.Service, host *host.Host, count int) []servicestate.ServiceState {
-		states := make([]servicestate.ServiceState, count)
-		for i := range states {
-			state, err := servicestate.BuildFromService(svc, host.ID)
-			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
-			c.Assert(err, IsNil)
-			states[i] = *state
-		}
-		return states
-	}
-
-	listener := NewHostRegistryListener()
+	// initialize the listener
+	listener := NewHostRegistryListener(p.ID)
 	listener.SetConnection(conn)
 
-	svc1 := addService("test-service-1")
-	svc2 := addService("test-service-2")
-
-	host1 := addHost("test-host-1")
-	eHostID1 := regHost(host1)
-	host1states := make(map[string]servicestate.ServiceState)
-	for _, state := range addServiceStates(svc1, host1, 2) {
-		host1states[state.ID] = state
-	}
-	for _, state := range addServiceStates(svc2, host1, 1) {
-		host1states[state.ID] = state
-	}
-
-	host2 := addHost("test-host-2")
-	eHostID2 := regHost(host2)
-	host2states := make(map[string]servicestate.ServiceState)
-	for _, state := range addServiceStates(svc1, host2, 1) {
-		host2states[state.ID] = state
-	}
-	for _, state := range addServiceStates(svc2, host2, 2) {
-		host2states[state.ID] = state
-	}
-
-	// test shutdown
-	shutdown := make(chan interface{})
+	// case 1: try to listen on a node that doesn't exist
+	stop := make(chan interface{})
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		listener.Spawn(shutdown, eHostID1)
+		listener.Spawn(stop, "h0")
 	}()
-	close(shutdown)
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
-		c.Fatalf("timeout waiting for shutdown")
-	}
-	stateIDs, err := conn.Children(hostpath(host1.ID))
-	c.Assert(err, IsNil)
-	c.Assert(stateIDs, HasLen, len(host1states))
-	for _, stateID := range stateIDs {
-		state, ok := host1states[stateID]
-		c.Assert(ok, Equals, true)
-		exists, err := conn.Exists(servicepath(state.ServiceID, state.ID))
-		c.Assert(err, IsNil)
-		c.Assert(exists, Equals, true)
-	}
-	stateIDs, err = conn.Children(hostpath(host2.ID))
-	c.Assert(err, IsNil)
-	c.Assert(stateIDs, HasLen, len(host2states))
-	for _, stateID := range stateIDs {
-		state, ok := host2states[stateID]
-		c.Assert(ok, Equals, true)
-		exists, err := conn.Exists(servicepath(state.ServiceID, state.ID))
-		c.Assert(err, IsNil)
-		c.Assert(exists, Equals, true)
+	case <-time.After(p.ConnectionTimeout):
+		close(stop)
+		c.Fatalf("Timed out waiting for listener to exit")
 	}
 
-	// test delete
-	shutdown = make(chan interface{})
-	defer close(shutdown)
+	// case 2: remove a host, offline, no instances
+	h1 := &host.Host{
+		ID:        "h1",
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+	h1pth := path.Join(ppth, "/hosts", h1.ID)
+	err = conn.Create(h1pth, &HostNode{Host: h1})
+	c.Assert(err, IsNil)
+	stop = make(chan interface{})
 	done = make(chan struct{})
 	go func() {
 		defer close(done)
-		listener.Spawn(shutdown, eHostID2)
+		listener.Spawn(stop, h1.ID)
 	}()
-	err = conn.Delete(hostregpath(eHostID2))
+	time.Sleep(p.ConnectionTimeout)
+	err = conn.Delete(h1pth)
 	c.Assert(err, IsNil)
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
-		c.Fatalf("timeout waiting for shutdown")
+	case <-time.After(p.ConnectionTimeout):
+		close(stop)
+		c.Fatalf("Timed out waiting for listener to exit")
 	}
-	// make sure host1 states are still there
-	stateIDs, err = conn.Children(hostpath(host1.ID))
+
+	// case 3: offline, instance
+	err = conn.Create(h1pth, &HostNode{Host: h1})
 	c.Assert(err, IsNil)
-	c.Assert(stateIDs, HasLen, len(host1states))
-	for _, stateID := range stateIDs {
-		state, ok := host1states[stateID]
-		c.Assert(ok, Equals, true)
-		exists, err := conn.Exists(servicepath(state.ServiceID, state.ID))
+	c.Logf("Created node at path %s", h1pth)
+
+	st8 := &servicestate.ServiceState{
+		ID:        "test-state",
+		HostID:    h1.ID,
+		ServiceID: s.ID,
+	}
+	err = addInstance(conn, p.ID, *st8)
+	c.Assert(err, IsNil)
+
+	stop = make(chan interface{})
+	done = make(chan struct{})
+	ok, st8ev, err := conn.ExistsW(path.Join(spth, st8.ID), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	ok, hst8ev, err := conn.ExistsW(path.Join(h1pth, "instances", st8.ID), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	go func() {
+		defer close(done)
+		listener.Spawn(stop, "h1")
+	}()
+
+	select {
+	case <-st8ev:
+		ok, err := conn.Exists(path.Join(spth, st8.ID))
 		c.Assert(err, IsNil)
-		c.Assert(exists, Equals, true)
+		c.Assert(ok, Equals, false)
+		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+	case <-hst8ev:
+		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+	case <-done:
+		c.Fatalf("Unexpected shutdown of listener")
+	case <-time.After(p.ConnectionTimeout):
+		close(stop)
+		c.Fatalf("Timed out waiting for instance cleanup")
 	}
-	// host2 states should be deleted
-	stateIDs, err = conn.Children(hostpath(host2.ID))
+
+	// case 4: online
+	hostsCh := make(chan []host.Host)
+	go func() {
+		hosts, err := listener.GetRegisteredHosts(stop)
+		c.Assert(err, IsNil)
+		hostsCh <- hosts
+	}()
+	select {
+	case <-hostsCh:
+		close(stop)
+		c.Fatalf("Received unexpected response of registered hosts")
+	case <-time.After(p.ConnectionTimeout):
+	}
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
+	eh1pth, err := conn.CreateEphemeral(path.Join(h1pth, "online", h1.ID), &client.Dir{})
 	c.Assert(err, IsNil)
-	c.Assert(stateIDs, HasLen, 0)
-	for _, state := range host2states {
-		exists, err := conn.Exists(servicepath(state.ServiceID, state.ID))
-		if err != nil {
-			c.Assert(err, Equals, client.ErrNoNode)
-		}
-		c.Assert(exists, Equals, false)
+	select {
+	case hosts := <-hostsCh:
+		c.Assert(hosts, DeepEquals, []host.Host{*h1})
+	case <-time.After(p.ConnectionTimeout):
+		c.Fatalf("Timed out waiting for host availability")
+	}
+
+	// case 5: offline, instance
+	err = addInstance(conn, p.ID, *st8)
+	c.Assert(err, IsNil)
+	ok, st8ev, err = conn.ExistsW(path.Join(spth, st8.ID), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	ok, hst8ev, err = conn.ExistsW(path.Join(h1pth, "instances", st8.ID), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	err = conn.Delete(path.Join(h1pth, "online", path.Base(eh1pth)))
+	c.Assert(err, IsNil)
+	select {
+	case <-st8ev:
+		c.Fatalf("Unexpected removal of service instance")
+	case <-hst8ev:
+		c.Fatalf("Unexpected removal of state instance")
+	case <-time.After(p.ConnectionTimeout + time.Second):
+	}
+
+	// case 6: another host goes online
+	h2 := &host.Host{
+		ID:        "h2",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	h2pth := path.Join(ppth, "/hosts", h2.ID)
+	err = conn.Create(h2pth, &HostNode{Host: h2})
+	c.Assert(err, IsNil)
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
+	_, err = conn.CreateEphemeral(path.Join(h2pth, "online", h2.ID), &client.Dir{})
+	c.Assert(err, IsNil)
+	done2 := make(chan struct{})
+	go func() {
+		defer close(done2)
+		listener.Spawn(stop, h2.ID)
+	}()
+	time.Sleep(p.ConnectionTimeout - time.Second)
+	// Need a path to the node, even though the node name does not correlate
+	// when creating ephemerals
+	eh1pth, err = conn.CreateEphemeral(path.Join(h1pth, "online", h1.ID), &client.Dir{})
+	c.Assert(err, IsNil)
+	select {
+	case <-st8ev:
+		c.Fatalf("Unexpected removal of service instance")
+	case <-hst8ev:
+		c.Fatalf("Unexpected removal of state instance")
+	case <-time.After(p.ConnectionTimeout + time.Second):
+	}
+
+	// case 7: reschedule
+	err = conn.Delete(path.Join(h1pth, "online", path.Base(eh1pth)))
+	c.Assert(err, IsNil)
+	select {
+	case <-st8ev:
+		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+	case <-hst8ev:
+		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+	case <-time.After(2*p.ConnectionTimeout + time.Second):
+		c.Fatalf("Timed out waiting waiting for instance delete")
+	}
+
+	// case 8: turn off listeners
+	close(stop)
+	timer := time.After(p.ConnectionTimeout)
+	select {
+	case <-done:
+	case <-timer:
+		c.Fatalf("Timed out waiting for listener to shutdown")
+	}
+
+	select {
+	case <-done2:
+	case <-timer:
+		c.Fatalf("Timed out waiting for listener to shutdown")
 	}
 }

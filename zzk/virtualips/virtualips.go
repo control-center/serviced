@@ -308,7 +308,7 @@ func (l *VirtualIPListener) stopInstances(ip string) {
 	}
 	for _, rs := range rss {
 		if rs.IPAddress == ip {
-			if err := zkservice.StopServiceInstance(l.conn, l.hostID, rs.ID); err != nil {
+			if err := zkservice.StopServiceInstance(l.conn, "", l.hostID, rs.ID); err != nil {
 				glog.Warningf("Could not stop service instance %s on host %s: %s", rs.ID, l.hostID, err)
 			}
 		}
@@ -344,8 +344,12 @@ func RemoveVirtualIP(conn client.Connection, ip string) error {
 	return err
 }
 
-func GetHostID(conn client.Connection, ip string) (string, error) {
-	leader, err := conn.NewLeader(vippath(ip))
+func GetHostID(conn client.Connection, poolid, ip string) (string, error) {
+	basepth := "/"
+	if poolid != "" {
+		basepth = path.Join("/pools", poolid)
+	}
+	leader, err := conn.NewLeader(path.Join(basepth, "/virtualIPs", ip))
 	if err != nil {
 		return "", err
 	}
