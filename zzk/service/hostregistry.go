@@ -22,7 +22,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
-// HostRegistryListener is a monitors the availability of hosts within a pool
+// HostRegistryListener monitors the availability of hosts within a pool
 // by watching for children within the path
 // /pools/POOLID/hosts/HOSTID/online
 type HostRegistryListener struct {

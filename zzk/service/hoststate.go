@@ -49,7 +49,7 @@ func NewHostState(state *servicestate.ServiceState) *HostState {
 	}
 }
 
-// Version inplements client.Node
+// Version implements client.Node
 func (node *HostState) Version() interface{} {
 	return node.version
 }
