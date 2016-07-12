@@ -58,6 +58,7 @@ var (
 	ErrTestShareNotAdded           = errors.New("could not create share")
 	ErrTestShareNotSynced          = errors.New("could not sync shares")
 	ErrTestExportFailed            = errors.New("could not export snapshot")
+	ErrTestBadSnapshot             = errors.New("bad snapshot data")
 )
 
 type NopCloser struct {
