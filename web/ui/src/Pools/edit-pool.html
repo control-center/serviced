@@ -1,0 +1,16 @@
+<div class="form-group">
+  <label for="pool_name">
+      <span translate>label_pool_name</span>:
+  </label>
+  <input readonly class="form-control" id="pool_name" type="text" ng-model="editablePool.Name">
+</div>
+
+<div class="form-group">
+  <label for="edit_pool_timeout">
+      <span translate>label_connection_timeout</span> (eg 2s or 1m):
+  </label>
+  <input class="form-control" focusme id="edit_pool_timeout" type="text" ng-model="editablePool.Timeout">
+  <div class="help-block">
+    <p><i translate>field_description_connection_timeout</i></p>
+  </div>
+</div>
