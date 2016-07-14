@@ -306,13 +306,17 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	}
 
 	// bad snapshot
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(ErrTestBadSnapshot).Run(func(a mock.Arguments) {
-		reader := a.Get(1).(io.Reader)
-		go func() {
-			_, err := io.Copy(ioutil.Discard, reader)
-			c.Assert(err, Equals, ErrTestBadSnapshot)
-		}()
-	}).Once()
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, ErrTestBadSnapshot)
+		c.Assert(hdr, IsNil)
+	}).Return(ErrTestBadSnapshot).Once()
+
 	w, errc := s.setupRestorePipe(binfo.BackupVersion)
 	tw := tar.NewWriter(w)
 	s.writeBackupInfo(c, tw, binfo)
@@ -321,7 +325,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
-	tw.Close()
+	tw.Flush()
 	w.CloseWithError(ErrTestBadSnapshot)
 	c.Assert(<-errc, Equals, ErrTestBadSnapshot)
 
@@ -331,13 +335,18 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	err = json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(nil).Run(func(a mock.Arguments) {
-		reader := a.Get(1).(io.Reader)
-		go func() {
-			_, err := io.Copy(ioutil.Discard, reader)
-			c.Assert(err, IsNil)
-		}()
-	}).Once()
+
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
 	w, errc = s.setupRestorePipe(binfo.BackupVersion)
 	tw = tar.NewWriter(w)
 	s.writeBackupInfo(c, tw, binfo)
@@ -346,7 +355,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
-	tw.Close()
+	tw.Flush()
 	w.Close()
 	c.Assert(<-errc, IsNil)
 
