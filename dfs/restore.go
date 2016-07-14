@@ -167,14 +167,16 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 				streamMap[id] = s
 			}
 			hdr.Name = parts[3]
-			if err := s.tarwriter.WriteHeader(hdr); err != nil {
-				glog.Errorf("Could not write snapshot %s for tenant %s with header %s: %s", label, tenant, hdr.Name, err)
-				dataError = err
-				return err
-			} else if _, err := io.Copy(s.tarwriter, backuptar); err == io.EOF {
+			if err := s.tarwriter.WriteHeader(hdr); err == io.ErrClosedPipe {
 				// Snapshot already exists, so don't bother
 				continue
 			} else if err != nil {
+				glog.Errorf("Could not write header %s for snapshot %s on tenant %s: %s", hdr.Name, label, tenant, err)
+				dataError = err
+				return err
+			}
+
+			if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
 				glog.Errorf("Could not write snapshot %s for tenant %s with header %s: %s", label, tenant, hdr.Name, err)
 				dataError = err
 				return err

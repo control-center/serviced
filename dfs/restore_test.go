@@ -269,10 +269,15 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 		BackupVersion: 1,
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
-	err := tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL"), Size: 0})
+	err := tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dumy"), Size: 0})
+	c.Assert(err, IsNil)
+	err = tarfile.WriteHeader(&tar.Header{Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dumy2"), Size: 0})
 	c.Assert(err, IsNil)
 	tarfile.Close()
 	vol := &volumemocks.Volume{}
+	s.disk.On("Create", "BASE").Return(&volumemocks.Volume{}, volume.ErrVolumeExists)
+	s.disk.On("Get", "BASE").Return(vol, nil)
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(volume.ErrSnapshotExists)
 	// s.disk.On("Exists", "BASE_LABEL").Return(true)
 	s.docker.On("LoadImage", mock.AnythingOfType("*io.PipeReader")).Return(nil).Run(func(a mock.Arguments) {
 		reader := a.Get(0).(io.Reader)
@@ -280,6 +285,8 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 	})
 	imgbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgbuffer).Encode([]string{})
+	c.Assert(err, IsNil)
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	c.Assert(err, IsNil)
 	err = s.dfs.Restore(buf, backupInfo.BackupVersion)
 	c.Assert(err, IsNil)
