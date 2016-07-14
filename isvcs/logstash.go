@@ -26,9 +26,9 @@ func initLogstash() {
 		HostIpOverride: "", // logstash should always be open
 		HostPort:       5042,
 	}
-	lumberJackPortBinding := portBinding{
+	filebeatPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
-		HostIpOverride: "", // lumberjack should always be open
+		HostIpOverride: "", // filebeat should always be open
 		HostPort:       5043,
 	}
 	webserverPortBinding := portBinding{
@@ -46,7 +46,7 @@ func initLogstash() {
 			Command: func() string { return command },
 			PortBindings: []portBinding{
 				localFilePortBinding,
-				lumberJackPortBinding,
+				filebeatPortBinding,
 				webserverPortBinding},
 			Volumes:    map[string]string{},
 			Notify:     notifyLogstashConfigChange,
