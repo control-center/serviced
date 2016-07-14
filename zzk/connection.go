@@ -45,6 +45,8 @@ type delay struct {
 }
 
 func (d *delay) GetDelay() time.Duration {
+	// original delay value (set in d.Reset or newDelay function) should be
+	// returned on first call
 	defer func() {
 		factor := 1.25
 		jitter := 0.1
