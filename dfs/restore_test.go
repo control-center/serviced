@@ -317,11 +317,27 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		c.Assert(hdr, IsNil)
 	}).Return(ErrTestBadSnapshot).Once()
 
+	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, ErrTestBadSnapshot)
+		c.Assert(hdr, IsNil)
+	}).Return(ErrTestBadSnapshot).Once()
+
 	w, errc := s.setupRestorePipe(binfo.BackupVersion)
 	tw := tar.NewWriter(w)
 	s.writeBackupInfo(c, tw, binfo)
 	err := tw.WriteHeader(&tar.Header{
 		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	c.Assert(err, IsNil)
+	err = tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
@@ -335,8 +351,23 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	err = json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
+	imgbuffer2 := bytes.NewBufferString("")
+	err = json.NewEncoder(imgbuffer2).Encode([]string{})
+	c.Assert(err, IsNil)
+	vol.On("ReadMetadata", "LABEL2", ImagesMetadataFile).Return(&NopCloser{imgbuffer2}, nil)
 
 	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
+	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -352,6 +383,11 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	s.writeBackupInfo(c, tw, binfo)
 	err = tw.WriteHeader(&tar.Header{
 		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	c.Assert(err, IsNil)
+	err = tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
