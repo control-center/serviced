@@ -85,7 +85,7 @@ type ControllerOptions struct {
 	Logforwarder struct { // Logforwarder configuration
 		Enabled       bool          // True if enabled
 		Path          string        // Path to the logforwarder program
-		ConfigFile    string        // Path to the config file for logstash-forwarder
+		ConfigFile    string        // Path to the config file for filebeat
 		IdleFlushTime time.Duration // period for log stash to flush its buffer
 		SettleTime    time.Duration // time to wait for logstash to flush its buffer before exiting
 	}

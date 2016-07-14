@@ -276,9 +276,9 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]applicationendpoi
 	}
 	a.addEndpoint("tcp:5042", tcp_endpoint, endpoints)
 
-	ljack_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_logstash_lumberjack",
-		Application:   "controlplane_logstash_lumberjack",
+	filebeat_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_logstash_filebeat",
+		Application:   "controlplane_logstash_filebeat",
 		ContainerIP:   "127.0.0.1",
 		ContainerPort: 5043,
 		HostPort:      5043,
@@ -286,7 +286,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]applicationendpoi
 		HostIP:        strings.Split(a.master, ":")[0],
 		Protocol:      "tcp",
 	}
-	a.addEndpoint("tcp:5043", ljack_endpoint, endpoints)
+	a.addEndpoint("tcp:5043", filebeat_endpoint, endpoints)
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element

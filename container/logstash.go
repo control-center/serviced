@@ -62,27 +62,26 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
-	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
-	logstashForwarderLogConf :=
+	filebeatLogConf :=
 `    -
       ignore_older: 26280h
       paths:
         - %s
       fields: %s`
 
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &service.LogConfigs[0])))
+	filebeatLogConf = fmt.Sprintf(filebeatLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &service.LogConfigs[0])))
 	for _, logConfig := range service.LogConfigs[1:] {
-		logstashForwarderLogConf = logstashForwarderLogConf + `
+		filebeatLogConf = filebeatLogConf + `
     -
       ignore_older: 26280h
       paths:
         - %s
       fields: %s`
 
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
+		filebeatLogConf = fmt.Sprintf(filebeatLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
 	}
 
-	logstashForwarderShipperConf :=
+	filebeatShipperConf :=
 `filebeat:
   idle_timeout: 5s
   prospectors:
@@ -102,8 +101,8 @@ output:
 logging:
   to_syslog: false`
 
-	logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf,
-        logstashForwarderLogConf,
+	filebeatShipperConf = fmt.Sprintf(filebeatShipperConf,
+        filebeatLogConf,
 //		"172.17.42.1:5043",
 		"127.0.0.1:5043",
 		resourcePath+"/filebeat.crt",
@@ -113,7 +112,7 @@ logging:
 
 	config := servicedefinition.ConfigFile{
 		Filename: confPath,
-		Content:  logstashForwarderShipperConf,
+		Content:  filebeatShipperConf,
 	}
 	err := writeConfFile(config)
 	if err != nil {
