@@ -62,15 +62,8 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
-	filebeatLogConf :=
-`    -
-      ignore_older: 26280h
-      paths:
-        - %s
-      fields: %s`
-
-	filebeatLogConf = fmt.Sprintf(filebeatLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &service.LogConfigs[0])))
-	for _, logConfig := range service.LogConfigs[1:] {
+	filebeatLogConf := ``
+	for _, logConfig := range service.LogConfigs {
 		filebeatLogConf = filebeatLogConf + `
     -
       ignore_older: 26280h
@@ -84,8 +77,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	filebeatShipperConf :=
 `filebeat:
   idle_timeout: 5s
-  prospectors:
-%s
+  prospectors: %s
 output:
   logstash:
     enabled: true
