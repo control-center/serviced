@@ -355,7 +355,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
-	tw.Flush()
+	tw.Close()
 	w.Close()
 	c.Assert(<-errc, IsNil)
 

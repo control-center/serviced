@@ -215,7 +215,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	s, ok := streamMap[DockerImagesFile]
 	if ok {
 		delete(streamMap, DockerImagesFile)
-		s.tarwriter.Flush()
+		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
 			glog.Errorf("Could not load docker images from backup: %s", err)
@@ -229,7 +229,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	// load the snapshots and update the images in the registry
 	for id, s := range streamMap {
 		delete(streamMap, id)
-		s.tarwriter.Flush()
+		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
 			// this snapshot is no good, but maybe the other snapshots are
