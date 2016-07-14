@@ -50,10 +50,10 @@ func (d *delay) GetDelay() time.Duration {
 		jitter := 0.1
 
 		d.backoff = time.Duration(float64(d.backoff) * factor)
+		d.backoff += time.Duration(rand.NormFloat64() * jitter * float64(time.Second))
 		if d.backoff > MaxDelay {
 			d.backoff = MaxDelay
 		}
-		d.backoff += time.Duration(rand.NormFloat64() * jitter * float64(time.Second))
 	}()
 	return d.backoff
 }
