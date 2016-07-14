@@ -175,7 +175,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 				// Snapshot already exists, so don't bother
 				continue
 			} else if err != nil {
-				glog.Errorf("Could not write snapshot %s for tenant %s with header: %s", label, tenant, hdr.Name, err)
+				glog.Errorf("Could not write snapshot %s for tenant %s with header %s: %s", label, tenant, hdr.Name, err)
 				dataError = err
 				return err
 			}
