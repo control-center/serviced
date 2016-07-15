@@ -354,7 +354,7 @@ func (c *ServicedCli) cmdSetConnTimeout(ctx *cli.Context) {
 		return
 	}
 
-	pool.ConnectionTimeout = connTimeout
+	pool.ConnectionTimeout = int(connTimeout.Seconds() * 1000)
 	if err := c.driver.UpdateResourcePool(*pool); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
