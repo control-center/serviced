@@ -22,6 +22,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"os"
 	"path"
 	"time"
 
@@ -299,6 +300,208 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	s.disk.On("Create", "BASE").Return(vol, nil)
 	s.disk.On("Remove", "BASE").Return(nil)
 
+	// bad backup
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, ErrTestBadSnapshot)
+		c.Assert(hdr, IsNil)
+	}).Return(ErrTestBadSnapshot).Once()
+
+	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, ErrTestBadSnapshot)
+		c.Assert(hdr, IsNil)
+	}).Return(ErrTestBadSnapshot).Once()
+
+	r, w := io.Pipe()
+	errc := make(chan error)
+	go func() {
+		err := s.dfs.Restore(r, 1)
+		r.CloseWithError(err)
+		errc <- err
+	}()
+	tw := tar.NewWriter(w)
+
+	binfo := BackupInfo{
+		Templates: []servicetemplate.ServiceTemplate{
+			{ID: "test-template-1"},
+		},
+		BaseImages: []string{},
+		Pools: []pool.ResourcePool{
+			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		},
+		Snapshots:     []string{"BASE_LABEL"},
+		Timestamp:     time.Now().UTC(),
+		BackupVersion: 1,
+	}
+	s.writeBackupInfo(c, tw, binfo)
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
+		Size: 0,
+	})
+	tw.Write([]byte{'x'})
+	w.CloseWithError(ErrTestBadSnapshot)
+	c.Assert(<-errc, Equals, ErrTestBadSnapshot)
+
+	// good backup, bad snapshot
+	c.Logf("Good backup, bad snapshot")
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(ErrTestBadSnapshot).Once()
+	r, w = io.Pipe()
+	errc = make(chan error)
+	go func() {
+		err := s.dfs.Restore(r, 1)
+		r.CloseWithError(err)
+		errc <- err
+	}()
+	tw = tar.NewWriter(w)
+	s.writeBackupInfo(c, tw, binfo)
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy2"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy2"),
+		Size: 0,
+	})
+	tw.Close()
+	w.Close()
+	c.Assert(<-errc, Equals, ErrTestBadSnapshot)
+
+	// good backup, invalid snapshot
+	c.Logf("Good backup, invalid snapshot")
+	s.disk.On("Get", "BASE").Return(vol, nil)
+	vol.On("RemoveSnapshot", "LABEL").Return(nil).Once()
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{}, os.ErrNotExist).Once()
+	imgbuffer2 := bytes.NewBufferString("[]")
+	vol.On("ReadMetadata", "LABEL2", ImagesMetadataFile).Return(&NopCloser{imgbuffer2}, nil).Once()
+
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
+	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
+	r, w = io.Pipe()
+	errc = make(chan error)
+	go func() {
+		err := s.dfs.Restore(r, 1)
+		r.CloseWithError(err)
+		errc <- err
+	}()
+	tw = tar.NewWriter(w)
+
+	s.writeBackupInfo(c, tw, binfo)
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
+		Size: 0,
+	})
+	tw.Close()
+	w.Close()
+	c.Assert(<-errc, Equals, os.ErrNotExist)
+
+	// good backup, good snapshot
+	c.Logf("Good backup, good snapshot")
+	imgbuffer := bytes.NewBufferString("[]")
+	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil).Once()
+	imgbuffer2 = bytes.NewBufferString("[]")
+	vol.On("ReadMetadata", "LABEL2", ImagesMetadataFile).Return(&NopCloser{imgbuffer2}, nil).Once()
+
+	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
+	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+		r := a.Get(1).(io.Reader)
+		tr := tar.NewReader(r)
+		hdr, err := tr.Next()
+		c.Assert(err, IsNil)
+		c.Assert(hdr.Name, Equals, "dummy")
+		hdr, err = tr.Next()
+		c.Assert(err, Equals, io.EOF)
+		c.Assert(hdr, IsNil)
+	}).Return(nil).Once()
+
+	r, w = io.Pipe()
+	errc = make(chan error)
+	go func() {
+		err := s.dfs.Restore(r, 1)
+		r.CloseWithError(err)
+		errc <- err
+	}()
+	tw = tar.NewWriter(w)
+	s.writeBackupInfo(c, tw, binfo)
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL", "dummy"),
+		Size: 0,
+	})
+	tw.WriteHeader(&tar.Header{
+		Name: path.Join(SnapshotsMetadataDir, "BASE", "LABEL2", "dummy"),
+		Size: 0,
+	})
+	tw.Close()
+	w.Close()
+	c.Assert(<-errc, IsNil)
+}
+
+/*
+func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
+	vol := &volumemocks.Volume{}
+	s.disk.On("Create", "BASE").Return(vol, nil)
+	s.disk.On("Remove", "BASE").Return(nil)
+
 	binfo := BackupInfo{
 		Templates: []servicetemplate.ServiceTemplate{
 			{ID: "test-template-1"},
@@ -348,7 +551,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		Size: 0,
 	})
 	c.Assert(err, IsNil)
-	tw.Flush()
+	tw.Close()
 	w.CloseWithError(ErrTestBadSnapshot)
 	c.Assert(<-errc, Equals, ErrTestBadSnapshot)
 
@@ -403,12 +606,15 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	c.Assert(<-errc, IsNil)
 
 }
+*/
 
 func (s *DFSTestSuite) setupRestorePipe(version int) (*io.PipeWriter, <-chan error) {
 	r, w := io.Pipe()
 	errc := make(chan error)
 	go func() {
-		errc <- s.dfs.Restore(r, version)
+		err := s.dfs.Restore(r, version)
+		r.CloseWithError(err)
+		errc <- err
 	}()
 	return w, errc
 }

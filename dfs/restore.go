@@ -121,8 +121,13 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	streamMap := make(map[string]*stream)
 	defer func() {
 		// close all the data pipes and make sure that all subroutines exit.
+		if dataError == nil || dataError == io.EOF {
+			dataError = errors.New("unexpected error reading backup")
+		}
 		for _, s := range streamMap {
-			s.tarwriter.Flush()
+			// we don't want to close the tarfile here, because that will send
+			// an eof signal to the reader, which overrides the error on the
+			// pipeWriter.
 			s.writer.CloseWithError(dataError)
 			<-s.errc
 		}
@@ -315,6 +320,7 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 	// get the list of images for this snapshot
 	images, err := func() ([]string, error) {
 		r, err := vol.ReadMetadata(label, ImagesMetadataFile)
+		defer r.Close()
 		if err != nil {
 			glog.Errorf("Could not read images metadata from snapshot %s for tenant %s: %s", label, tenant, err)
 			return nil, err
