@@ -36,7 +36,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	// set up the resource pool
 	p := &pool.ResourcePool{
 		ID:                "test-pool",
-		ConnectionTimeout: 2 * time.Second,
+		ConnectionTimeout: 2000,
 	}
 	ppth := path.Join("/pools", p.ID)
 	err = conn.Create(ppth, &PoolNode{ResourcePool: p})
@@ -63,7 +63,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	}()
 	select {
 	case <-done:
-	case <-time.After(p.ConnectionTimeout):
+	case <-time.After(p.GetConnectionTimeout()):
 		close(stop)
 		c.Fatalf("Timed out waiting for listener to exit")
 	}
@@ -83,12 +83,12 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		defer close(done)
 		listener.Spawn(stop, h1.ID)
 	}()
-	time.Sleep(p.ConnectionTimeout)
+	time.Sleep(p.GetConnectionTimeout())
 	err = conn.Delete(h1pth)
 	c.Assert(err, IsNil)
 	select {
 	case <-done:
-	case <-time.After(p.ConnectionTimeout):
+	case <-time.After(p.GetConnectionTimeout()):
 		close(stop)
 		c.Fatalf("Timed out waiting for listener to exit")
 	}
@@ -136,7 +136,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		c.Assert(ok, Equals, false)
 	case <-done:
 		c.Fatalf("Unexpected shutdown of listener")
-	case <-time.After(p.ConnectionTimeout):
+	case <-time.After(p.GetConnectionTimeout()):
 		close(stop)
 		c.Fatalf("Timed out waiting for instance cleanup")
 	}
@@ -152,7 +152,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	case <-hostsCh:
 		close(stop)
 		c.Fatalf("Received unexpected response of registered hosts")
-	case <-time.After(p.ConnectionTimeout):
+	case <-time.After(p.GetConnectionTimeout()):
 	}
 	// Need a path to the node, even though the node name does not correlate
 	// when creating ephemerals
@@ -161,7 +161,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	select {
 	case hosts := <-hostsCh:
 		c.Assert(hosts, DeepEquals, []host.Host{*h1})
-	case <-time.After(p.ConnectionTimeout):
+	case <-time.After(p.GetConnectionTimeout()):
 		c.Fatalf("Timed out waiting for host availability")
 	}
 
@@ -181,7 +181,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		c.Fatalf("Unexpected removal of service instance")
 	case <-hst8ev:
 		c.Fatalf("Unexpected removal of state instance")
-	case <-time.After(p.ConnectionTimeout + time.Second):
+	case <-time.After(p.GetConnectionTimeout() + time.Second):
 	}
 
 	// case 6: another host goes online
@@ -202,7 +202,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		defer close(done2)
 		listener.Spawn(stop, h2.ID)
 	}()
-	time.Sleep(p.ConnectionTimeout - time.Second)
+	time.Sleep(p.GetConnectionTimeout() - time.Second)
 	// Need a path to the node, even though the node name does not correlate
 	// when creating ephemerals
 	eh1pth, err = conn.CreateEphemeral(path.Join(h1pth, "online", h1.ID), &client.Dir{})
@@ -212,7 +212,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		c.Fatalf("Unexpected removal of service instance")
 	case <-hst8ev:
 		c.Fatalf("Unexpected removal of state instance")
-	case <-time.After(p.ConnectionTimeout + time.Second):
+	case <-time.After(p.GetConnectionTimeout() + time.Second):
 	}
 
 	// case 7: reschedule
@@ -233,13 +233,13 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
-	case <-time.After(2*p.ConnectionTimeout + time.Second):
+	case <-time.After(2*p.GetConnectionTimeout() + time.Second):
 		c.Fatalf("Timed out waiting waiting for instance delete")
 	}
 
 	// case 8: turn off listeners
 	close(stop)
-	timer := time.After(p.ConnectionTimeout)
+	timer := time.After(p.GetConnectionTimeout())
 	select {
 	case <-done:
 	case <-timer:
