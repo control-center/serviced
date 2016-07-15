@@ -121,8 +121,13 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 	streamMap := make(map[string]*stream)
 	defer func() {
 		// close all the data pipes and make sure that all subroutines exit.
+		if dataError == nil || dataError == io.EOF {
+			dataError = errors.New("unexpected error reading backup")
+		}
 		for _, s := range streamMap {
-			s.tarwriter.Close()
+			// we don't want to close the tarfile here, because that will send
+			// an eof signal to the reader, which overrides the error on the
+			// pipeWriter.
 			s.writer.CloseWithError(dataError)
 			<-s.errc
 		}
@@ -135,6 +140,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			break
 		} else if err != nil {
 			glog.Errorf("Could not read backup file: %s", err)
+			dataError = err
 			return err
 		}
 
@@ -166,12 +172,17 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 				streamMap[id] = s
 			}
 			hdr.Name = parts[3]
-			s.tarwriter.WriteHeader(hdr)
-			if _, err := io.Copy(s.tarwriter, backuptar); err == io.EOF {
+			if err := s.tarwriter.WriteHeader(hdr); err == io.ErrClosedPipe {
 				// Snapshot already exists, so don't bother
 				continue
 			} else if err != nil {
-				glog.Errorf("Could not write snapshot %s for tenant %s: %s", label, tenant, err)
+				glog.Errorf("Could not write header %s for snapshot %s on tenant %s: %s", hdr.Name, label, tenant, err)
+				dataError = err
+				return err
+			}
+
+			if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
+				glog.Errorf("Could not write snapshot %s for tenant %s with header %s: %s", label, tenant, hdr.Name, err)
 				dataError = err
 				return err
 			}
@@ -193,9 +204,12 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 				streamMap[DockerImagesFile] = s
 			}
 			hdr.Name = parts[1]
-			s.tarwriter.WriteHeader(hdr)
-			if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
-				glog.Errorf("Could not write docker data: %s", err)
+			if err := s.tarwriter.WriteHeader(hdr); err != nil {
+				glog.Errorf("Could not write image header %s: %s", hdr.Name, err)
+				dataError = err
+				return err
+			} else if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
+				glog.Errorf("Could not write image data with header %s: %s", hdr.Name, err)
 				dataError = err
 				return err
 			}
@@ -306,6 +320,7 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 	// get the list of images for this snapshot
 	images, err := func() ([]string, error) {
 		r, err := vol.ReadMetadata(label, ImagesMetadataFile)
+		defer r.Close()
 		if err != nil {
 			glog.Errorf("Could not read images metadata from snapshot %s for tenant %s: %s", label, tenant, err)
 			return nil, err
