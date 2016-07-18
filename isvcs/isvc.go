@@ -64,6 +64,10 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 	if err := Mgr.Register(dockerRegistry); err != nil {
 		glog.Fatalf("%s", err)
 	}
+	kibana.docker = dockerAPI
+	if err := Mgr.Register(kibana); err != nil {
+		glog.Fatalf("%s", err)
+	}
 }
 
 func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
