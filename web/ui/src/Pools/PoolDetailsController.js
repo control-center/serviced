@@ -112,8 +112,8 @@
 
         $scope.editCurrentPool = function(){
             $scope.editablePool = {
-                Name: $scope.currentPool.model.ID,
-                Timeout: $scope.currentPool.model.ConnectionTimeout
+                ID: $scope.currentPool.model.ID,
+                ConnectionTimeout: utils.humanizeDuration($scope.currentPool.model.ConnectionTimeout)
             };
 
             $modalService.create({
@@ -133,11 +133,12 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
-
+                                // convert validated human input into ms for rest call    
+                                poolModel.ConnectionTimeout = utils.parseDuration($scope.editablePool.ConnectionTimeout);
                                 // update pool with recently edited pool
                                 resourcesFactory.updatePool($scope.currentPool.model.ID, poolModel)
                                     .success(function(data, status){
-                                        $notification.create("Updated pool", poolModel.Name).success();
+                                        $notification.create("Updated pool", poolModel.ID).success();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -149,11 +150,11 @@
                     }
                 ],
                 validate: function(){
-                    // var err = utils.validateRAMLimit($scope.editableHost.RAMLimit, $scope.currentHost.model.Memory);
-                    // if(err){
-                    //     this.createNotification("Error", err).error();
-                    //     return false;
-                    // }
+                    var err = utils.validateDuration($scope.editablePool.ConnectionTimeout);
+                    if(err){
+                        this.createNotification("Error", err).error();
+                        return false;
+                    }
                     return true;
                 }
             });
