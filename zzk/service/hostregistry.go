@@ -291,7 +291,7 @@ func (h *HostRegistryListener) getTimeout() time.Duration {
 		glog.Warningf("Could not get pool connection timeout for %s: %s", h.poolid, err)
 		return 0
 	}
-	return p.ConnectionTimeout
+	return p.GetConnectionTimeout()
 }
 
 // GetRegisteredHosts returns a list of hosts that are active.  If there are

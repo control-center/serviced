@@ -1287,7 +1287,8 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
 	}
 
-	var unallocated uint64
+	// Disabled due to CC-2417
+	//var unallocated uint64
 
 	// Add in tenant storage metrics
 	for _, tenant := range tss {
@@ -1300,14 +1301,17 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 				Value: tenant.FilesystemUsed},
 			{MetricName: fmt.Sprintf("storage.device.total.%s", tenant.TenantID),
 				Value: tenant.DeviceTotalBlocks},
+			/* Disabled due to CC-2417
 			{MetricName: fmt.Sprintf("storage.device.allocated.%s", tenant.TenantID),
 				Value: tenant.DeviceAllocatedBlocks},
 			{MetricName: fmt.Sprintf("storage.snapshot.allocated.%s", tenant.TenantID),
 				Value: tenant.SnapshotAllocatedBlocks},
+			*/
 			{MetricName: fmt.Sprintf("storage.snapshot.count.%s", tenant.TenantID),
 				Value: uint64(tenant.NumberSnapshots)},
 		}...)
-		unallocated += tenant.DeviceUnallocatedBlocks
+		// Disabled due to CC-2417
+		//unallocated += tenant.DeviceUnallocatedBlocks
 	}
 
 	// convert dockerStatus to our status and return
@@ -1329,11 +1333,13 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		Tenants:   tss,
 	}
 
+	/* Disabled due to CC-2417
 	if unallocated > volume.BytesToBlocks(dockerStatus.Data.Available) {
 		overage := volume.BlocksToBytes(unallocated - volume.BytesToBlocks(dockerStatus.Data.Available))
 		result.Errors = append(result.Errors, fmt.Sprintf(`!!!	Warning: your thin pool is currently oversubscribed by %s. You should
 	enlarge it by at least %s using LVM tools and/or delete some snapshots.`, overage, overage))
 	}
+	*/
 
 	return result, nil
 }
@@ -1348,10 +1354,14 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		// It's direct-lvm, so build the metadata device from the pool name
 		mdDevice = fmt.Sprintf("/dev/mapper/%s_tmeta", status.PoolName)
 	}
-	blockstats, err := d.getDeviceBlockStats(status.PoolName, mdDevice)
-	if err != nil {
-		return nil, err
-	}
+	// CC-2418: Disabling block stats gathering until a kernel bug in dm-thin
+	// is fixed
+	/*
+		blockstats, err := d.getDeviceBlockStats(status.PoolName, mdDevice)
+		if err != nil {
+			return nil, err
+		}
+	*/
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
 		vol, err := d.getVolume(tenant, false)
@@ -1361,53 +1371,59 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		if err := d.readDeviceInfo(vol.Metadata.CurrentDevice(), &devInfo); err != nil {
 			return nil, err
 		}
-		if stats, ok := blockstats[devInfo.DeviceID]; ok {
-			tss := volume.TenantStorageStats{TenantID: tenant, VolumePath: vol.Path()}
-			tss.DeviceAllocatedBlocks = stats.diet.Total()
-			tss.NumberSnapshots = len(vol.Metadata.snapshotMetadata.Snapshots)
-			dev := vol.Metadata.CurrentDevice()
-			// This will activate the device
-			if _, err := d.DeviceSet.GetDeviceStatus(dev); err != nil {
-				return nil, err
-			}
-			devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
-			total, free, err := getFilesystemStats(devicename)
-			if err != nil {
-				return nil, err
-			}
-			size, err := getDeviceSize(devicename)
-			if err != nil {
-				return nil, err
-			}
-			tss.FilesystemTotal = total
-			tss.FilesystemAvailable = free
-			tss.FilesystemUsed = total - free
-			tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
-			tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
-			last := stats
-			for _, device := range vol.Metadata.snapshotMetadata.Snapshots {
-				if err := d.readDeviceInfo(device, &devInfo); err != nil {
-					return nil, err
+		// CC-2417
+		//if stats, ok := blockstats[devInfo.DeviceID]; ok {
+		tss := volume.TenantStorageStats{TenantID: tenant, VolumePath: vol.Path()}
+		// CC-2417
+		//tss.DeviceAllocatedBlocks = stats.diet.Total()
+		tss.NumberSnapshots = len(vol.Metadata.snapshotMetadata.Snapshots)
+		dev := vol.Metadata.CurrentDevice()
+		// This will activate the device
+		if _, err := d.DeviceSet.GetDeviceStatus(dev); err != nil {
+			return nil, err
+		}
+		devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
+		total, free, err := getFilesystemStats(devicename)
+		if err != nil {
+			return nil, err
+		}
+		size, err := getDeviceSize(devicename)
+		if err != nil {
+			return nil, err
+		}
+		tss.FilesystemTotal = total
+		tss.FilesystemAvailable = free
+		tss.FilesystemUsed = total - free
+		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
+		/* CC-2417
+				last := stats
+				for _, device := range vol.Metadata.snapshotMetadata.Snapshots {
+					if err := d.readDeviceInfo(device, &devInfo); err != nil {
+						return nil, err
+					}
+					if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
+						tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
+						last = snapstats
+					}
 				}
-				if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
-					tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
-					last = snapstats
+				/*
+				if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
+					tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
+		are unused by the filesystem. This is not a problem; however, if you want
+		the thin pool to reclaim the space for use by snapshots or another
+		application, run:
+
+			$ fstrim %s`, volume.BlocksToBytes(tss.DeviceAllocatedBlocks-volume.BytesToBlocks(tss.FilesystemUsed)), vol.Path()))
 				}
-			}
-			if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
-				tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
-	are unused by the filesystem. This is not a problem; however, if you want
-	the thin pool to reclaim the space for use by snapshots or another
-	application, run:
-
-		$ fstrim %s`, volume.BlocksToBytes(tss.DeviceAllocatedBlocks-volume.BytesToBlocks(tss.FilesystemUsed)), vol.Path()))
-			}
-			result = append(result, tss)
-
+		*/
+		result = append(result, tss)
+		/* CC-2417
 		} else {
 			// There is no device matching the tenant
 			return nil, fmt.Errorf("Tenant %s DFS has not yet been initialized", tenant)
 		}
+		*/
 	}
 	return result, nil
 }

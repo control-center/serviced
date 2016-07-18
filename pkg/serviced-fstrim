@@ -47,8 +47,8 @@ done
 # locate the thinpool
 svc_vol_status=$("$SERVICED" volume status)                 || err_exit "serviced not returning volume status"
 echo "$svc_vol_status" | grep -qE "Driver:\s+devicemapper"  || ok_exit  "serviced not running on devicemapper"
-line=($(echo "$svc_vol_status" | grep -E "^PoolName:"))     || err_exit "cannot find pool name"
-pool_name=${line[1]}
+line=($(echo "$svc_vol_status" | grep -E "^Logical Volume:")) || err_exit "cannot find pool name"
+pool_name=${line[2]}
 [ -n $pool_name ]  || err_exit "cannot find pool name"
 
 # fstrim only the mounted serviced volumes

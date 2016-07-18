@@ -160,9 +160,6 @@ Data (total/used/avail):	{{bytes .PoolDataTotal}}	/ {{bytes .PoolDataUsed}}	({{p
 Volume Mount Point:	{{.VolumePath}}
 Filesystem (total/used/avail):	{{bytes .FilesystemTotal}} / {{bytes .FilesystemUsed}}	({{percent .FilesystemUsed .FilesystemTotal}}) / {{bytes .FilesystemAvailable}}	({{percent .FilesystemAvailable .FilesystemTotal}})
 Virtual device size:	{{blocksToBytes .DeviceTotalBlocks}}
-Pool space allocated to virtual device:	{{blocksToBytes .DeviceAllocatedBlocks}} ({{percent .DeviceAllocatedBlocks (bytesToBlocks $parent.PoolDataTotal)}} of pool)
-Pool space allocated to {{.NumberSnapshots}} snapshots:	{{blocksToBytes .SnapshotAllocatedBlocks}}
-Virtual device unallocated space:	{{blocksToBytes .DeviceUnallocatedBlocks}} (vs. {{bytes $parent.PoolDataAvailable}} available in pool)
 {{range .Errors}}
 {{.}}
 {{end -}}
