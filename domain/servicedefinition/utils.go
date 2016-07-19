@@ -17,11 +17,16 @@ import (
 	"github.com/zenoss/glog"
 
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+var (
+	ErrNoServiceJson = errors.New("directory does not contain a service.json file")
 )
 
 func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error) {
@@ -39,7 +44,11 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 	serviceFile := fmt.Sprintf("%s/service.json", path)
 	blob, err := ioutil.ReadFile(serviceFile)
 	if err != nil {
-		return nil, err
+		if os.IsNotExist(err) {
+			return nil, ErrNoServiceJson
+		} else {
+			return nil, err
+		}
 	}
 
 	// load blob
@@ -113,10 +122,13 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			}
 		case subpath.IsDir():
 			subsvc, err := getServiceDefinition(path + "/" + subpath.Name())
-			if err != nil {
+			if err == nil {
+				subServices[subpath.Name()] = subsvc
+			} else if err != ErrNoServiceJson {
 				return nil, err
 			}
-			subServices[subpath.Name()] = subsvc
+			// else just skip this subdirectory
+
 		default:
 			glog.V(4).Infof("Unrecognized file %s at %s", subpath.Name(), path)
 		}
