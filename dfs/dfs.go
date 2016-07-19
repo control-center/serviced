@@ -76,7 +76,7 @@ type BackupInfo struct {
 	Templates     []servicetemplate.ServiceTemplate
 	BaseImages    []string
 	Pools         []pool.ResourcePool
-	Snapshots     []string
+	Snapshots     map[string][]string
 	Timestamp     time.Time
 	BackupVersion int
 }
