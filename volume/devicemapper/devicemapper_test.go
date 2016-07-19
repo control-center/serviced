@@ -124,8 +124,75 @@ func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
 }
 
-func (s *DeviceMapperSuite) TestDeviceMapperExportWithExcludes(c *C) {
+func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
 
+	// Set up import/export volumes
+
+	exportdrv, err := Init(c.MkDir(), []string{})
+	c.Assert(err, IsNil)
+	defer exportdrv.Cleanup()
+
+	importdrv, err := Init(c.MkDir(), []string{})
+	c.Assert(err, IsNil)
+	defer importdrv.Cleanup()
+
+	exportvol, err := exportdrv.Create("basetest")
+	c.Assert(err, IsNil)
+	defer exportdrv.Remove("basetest")
+
+	importvol, err := importdrv.Create("basetest")
+	c.Assert(err, IsNil)
+	defer importdrv.Remove("basetest")
+
+	// Make two directories, one to be excluded, one to be included, with a file in each
+	for _, d := range []string{"include", "exclude"} {
+		dir := filepath.Join(exportvol.Path(), d)
+		os.MkdirAll(dir, os.ModeDir)
+		f1, err := ioutil.TempFile(dir, "dump-")
+		c.Assert(err, IsNil)
+		defer f1.Close()
+		_, err = f1.Write(make([]byte, 1024))
+		c.Assert(err, IsNil)
+		err = f1.Close()
+		c.Assert(err, IsNil)
+	}
+
+	err = exportvol.Snapshot("snap", "testing exclusion of dirs in export", []string{})
+	c.Assert(err, IsNil)
+
+	// Do export/import, excluding the exclude dir
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	r, w := io.Pipe()
+	go func() {
+		defer wg.Done()
+		err := exportvol.Export("snap", "", w, []string{"exclude"})
+		if err != nil {
+			w.Close()
+		}
+		c.Check(err, IsNil)
+	}()
+	go func() {
+		defer wg.Done()
+		err := importvol.Import("snap", r)
+		if err != nil {
+			r.Close()
+		}
+		c.Check(err, IsNil)
+	}()
+	wg.Wait()
+
+	importvol.Rollback("snap")
+
+	included := filepath.Join(exportvol.Path(), "include")
+	_, err = os.Stat(included)
+	c.Assert(err, IsNil)
+
+	excluded := filepath.Join(exportvol.Path(), "exclude")
+
+	_, err = os.Stat(excluded)
+	c.Assert(err, Not(IsNil))
+	c.Assert(os.IsNotExist(err), Equals, true)
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
@@ -172,7 +239,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	r, w := io.Pipe()
 	go func() {
 		defer wg.Done()
-		err := vol1.Export("snap", "", w, []string{})
+		err := vol1.Export("snap", "", w)
 		if err != nil {
 			w.Close()
 		}
