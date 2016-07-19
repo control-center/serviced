@@ -70,7 +70,7 @@ func (s *DFSTestSuite) BenchmarkBackup(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{SnapshotName},
+		Snapshots: map[string][]string{SnapshotName: []string{}},
 		Timestamp: now,
 	}
 	snapshotInfo := volume.SnapshotInfo{

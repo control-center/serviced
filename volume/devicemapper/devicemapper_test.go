@@ -124,6 +124,10 @@ func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
 }
 
+func (s *DeviceMapperSuite) TestDeviceMapperExportWithExcludes(c *C) {
+
+}
+
 func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	// Set up export volume with larger volume base size
 	root1 := c.MkDir()
@@ -168,7 +172,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	r, w := io.Pipe()
 	go func() {
 		defer wg.Done()
-		err := vol1.Export("snap", "", w)
+		err := vol1.Export("snap", "", w, []string{})
 		if err != nil {
 			w.Close()
 		}
