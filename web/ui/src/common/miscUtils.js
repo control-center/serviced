@@ -5,6 +5,8 @@
 (function(){
     "use strict";
 
+    var TIMEMULTIPLIER = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
+
     angular.module("miscUtils", [])
     .factory("miscUtils", [ "$parse", "log",
     function($parse, log){
@@ -214,17 +216,14 @@
                 if (msecs === 0) return "0";
 
                 var humanized = "";
-                var ttoken = ["w","d","h","m","s","ms"];
-                var tmultiplier = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
+                var ttoken = Object.keys(TIMEMULTIPLIER);
                 
                 for (var i=0; i<ttoken.length; i++) {
-
-                    var d = Math.floor(msecs/tmultiplier[ttoken[i]]);
-                    if (d > 0) {
+                    var d = Math.floor(msecs/TIMEMULTIPLIER[ttoken[i]]);
+                    if (d) {
                         humanized += d.toString() + ttoken[i];
-                        msecs -= (d * tmultiplier[ttoken[i]]);
+                        msecs -= (d * TIMEMULTIPLIER[ttoken[i]]);
                     }
-
                 }
                 // unused or duplicate tokens means bad input
                 return humanized;
@@ -236,7 +235,7 @@
                 // 23m45s8ms  1425008
                 
                 var human = humanTime.toString().toLowerCase().replace(/ /g,'');
-                if (human === "0") return 0;
+                if (human === "0" || human === "") return 0;
 
                 var badchars = human.match(/[^\da-z]/g);
                 if (badchars) {
@@ -248,15 +247,14 @@
                 }
                 
                 var humanTokens = human.match(/\d+[a-z]+/g);
-                var timeMultiplier = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
                 var msecs = humanTokens
                     .reduce(function(prev, tok){
                         var tokPart = tok.match(/(\d+)([a-z]+)/);
-                        if (! (tokPart[2] in timeMultiplier)) {
+                        if (! (tokPart[2] in TIMEMULTIPLIER)) {
                             // throw new Error("Unable to convert input " + humanTime + ": invalid time unit " + tokPart[0]);
                             throw new Error(`Unable to convert input ${humanTime}: invalid time unit "${tokPart[2]}"`);
                         }  
-                        return parseFloat(tokPart[1]) * timeMultiplier[tokPart[2]] + prev;
+                        return parseFloat(tokPart[1]) * TIMEMULTIPLIER[tokPart[2]] + prev;
                     }, 0);
                 return msecs;
             },
