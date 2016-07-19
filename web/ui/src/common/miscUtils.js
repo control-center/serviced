@@ -213,7 +213,7 @@
             humanizeDuration: function(msecs) {
                 // converts millisecons to a time duration such as 4h45m20s
 
-                if (msecs === 0) return "0";
+                if (msecs === 0) { return "0"; }
 
                 var humanized = "";
                 var ttoken = Object.keys(TIMEMULTIPLIER);
@@ -235,7 +235,7 @@
                 // 23m45s8ms  1425008
                 
                 var human = humanTime.toString().toLowerCase().replace(/ /g,'');
-                if (human === "0" || human === "") return 0;
+                if (human === "0" || human === "") { return 0; }
 
                 var badchars = human.match(/[^\da-z]/g);
                 if (badchars) {
