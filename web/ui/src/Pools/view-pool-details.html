@@ -5,6 +5,9 @@
         <h2 class="serviceTitle">
             <span> {{currentPool.id}}</span>
         </h2>
+        <div class="serviceActions" ng-hide="services.current.isIsvc()">
+            <button ng-click="editCurrentPool()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> <span translate>title_edit_pool</span></button>
+        </div>
         <div class="serviceBoxGradient"></div>
     </div>
 

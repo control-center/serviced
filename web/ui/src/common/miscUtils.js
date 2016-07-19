@@ -5,6 +5,8 @@
 (function(){
     "use strict";
 
+    var TIMEMULTIPLIER = {w: 6048e5, d: 864e5, h: 36e5, m: 6e4, s: 1e3,  ms: 1};
+
     angular.module("miscUtils", [])
     .factory("miscUtils", [ "$parse", "log",
     function($parse, log){
@@ -206,6 +208,63 @@
                 }, 0);
 
                 return childCount;
+            },
+
+            humanizeDuration: function(msecs) {
+                // converts millisecons to a time duration such as 4h45m20s
+
+                if (msecs === 0) { return "0"; }
+
+                var humanized = "";
+                var ttoken = Object.keys(TIMEMULTIPLIER);
+                
+                for (var i=0; i<ttoken.length; i++) {
+                    var d = Math.floor(msecs/TIMEMULTIPLIER[ttoken[i]]);
+                    if (d) {
+                        humanized += d.toString() + ttoken[i];
+                        msecs -= (d * TIMEMULTIPLIER[ttoken[i]]);
+                    }
+                }
+                // unused or duplicate tokens means bad input
+                return humanized;
+            },
+
+            parseDuration: function(humanTime) {
+                // converts time duration such as 4h45m20s into milliseconds
+                // accepts weeks thru milliseconds as: w d h m s ms.
+                // 23m45s8ms  1425008
+                
+                var human = humanTime.toString().toLowerCase().replace(/ /g,'');
+                if (human === "0" || human === "") { return 0; }
+
+                var badchars = human.match(/[^\da-z]/g);
+                if (badchars) {
+                    throw new Error(`Found ${badchars.length} unallowed characters in time entry: "${badchars.toString()}"`);
+                }
+                var nounit = human.match(/\d+$/g);
+                if (nounit) {
+                    throw new Error(`Numeric value ${nounit[0]} lacks time unit`);
+                }
+                
+                var humanTokens = human.match(/\d+[a-z]+/g);
+                var msecs = humanTokens
+                    .reduce(function(prev, tok){
+                        var tokPart = tok.match(/(\d+)([a-z]+)/);
+                        if (! (tokPart[2] in TIMEMULTIPLIER)) {
+                            // throw new Error("Unable to convert input " + humanTime + ": invalid time unit " + tokPart[0]);
+                            throw new Error(`Unable to convert input ${humanTime}: invalid time unit "${tokPart[2]}"`);
+                        }  
+                        return parseFloat(tokPart[1]) * TIMEMULTIPLIER[tokPart[2]] + prev;
+                    }, 0);
+                return msecs;
+            },
+
+            validateDuration: function(durationStr){
+                try {
+                    utils.parseDuration(durationStr);
+                } catch (e) {
+                    return e.message;
+                }
             },
 
             validateHostName: function(hostStr, $translate){
