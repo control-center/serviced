@@ -81,7 +81,7 @@ func (s *DFSTestSuite) TestBackupInfo_Success(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{"testtenant_testlabel"},
+		Snapshots: map[string][]string{"testtenant_testlabel": []string{}},
 		Timestamp: time.Now().UTC(),
 	}
 	marshal, err := json.Marshal(expected)

@@ -37,7 +37,7 @@ func (s *DFSTestSuite) TestBackup_DelayOnExportError(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{"BASE_LABEL"},
+		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
 		Timestamp: time.Now().UTC(),
 	}
 	vol := s.getVolumeFromSnapshot("BASE_LABEL", "BASE")
@@ -76,7 +76,7 @@ func (s *DFSTestSuite) TestBackup_ImageNotFound(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{"testtenant_testlabel"},
+		Snapshots: map[string][]string{"testtenant_testlabel": []string{}},
 		Timestamp: time.Now().UTC(),
 	}
 	s.docker.On("FindImage", "library/repo:tag").Return(&dockerclient.Image{}, ErrTestImageNotFound).Once()
@@ -99,7 +99,7 @@ func (s *DFSTestSuite) TestBackup_SkipTemplateImage(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{"BASE_LABEL"},
+		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
 		Timestamp: time.Now().UTC(),
 	}
 	s.docker.On("FindImage", "library/repo:tag").Return(&dockerclient.Image{}, dockerclient.ErrNoSuchImage).Once()
@@ -152,7 +152,7 @@ func (s *DFSTestSuite) TestBackup(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: []string{"BASE_LABEL"},
+		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
 		Timestamp: time.Now().UTC(),
 	}
 	s.docker.On("FindImage", "library/repo:tag").Return(&dockerclient.Image{}, dockerclient.ErrNoSuchImage).Once()
