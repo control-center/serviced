@@ -152,6 +152,11 @@
                 method: DELETE,
                 url: id => `/pools/${id}`
             },
+            updatePool: {
+                method: PUT,
+                url: id => `/pools/${id}`,
+                payload: (id, pool) => pool
+            },
             addPoolVirtualIP: {
                 method: PUT,
                 url: poolID => `/pools/${poolID}/virtualip`,
