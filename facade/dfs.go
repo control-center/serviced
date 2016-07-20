@@ -84,9 +84,9 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent
 		glog.Errorf("Could not get tenants: %s", err)
 		return err
 	}
-	// snapshots are a map of snapshot name to excluded dirs
-	snapshots := map[string][]string{}
-	for _, tenant := range tenants {
+	snapshots := make([]string, len(tenants))
+	snapshotExcludes := map[string][]string{}
+	for i, tenant := range tenants {
 		tag := fmt.Sprintf("backup-%s-%s", tenant, stime)
 		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag}, snapshotSpacePercent)
 		if err != nil {
@@ -94,17 +94,19 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent
 			return err
 		}
 		defer f.DeleteSnapshot(ctx, snapshot)
-		snapshots[snapshot] = f.getExcludedVolumes(ctx, tenant)
+		snapshots[i] = snapshot
+		snapshotExcludes[snapshot] = f.getExcludedVolumes(ctx, tenant)
 		glog.Infof("Created a snapshot for tenant %s at %s", tenant, snapshot)
 	}
 	glog.Infof("Loaded tenants")
 	data := dfs.BackupInfo{
-		Templates:     templates,
-		BaseImages:    images,
-		Pools:         pools,
-		Snapshots:     snapshots,
-		Timestamp:     stime,
-		BackupVersion: 1,
+		Templates:        templates,
+		BaseImages:       images,
+		Pools:            pools,
+		Snapshots:        snapshots,
+		SnapshotExcludes: snapshotExcludes,
+		Timestamp:        stime,
+		BackupVersion:    1,
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
 		glog.Errorf("Could not backup: %s", err)
@@ -428,8 +430,7 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 		return err
 	}
 	glog.Infof("Restored resource pools")
-	var snapshot string // Explicit typing to avoid govet complaints
-	for snapshot = range backupInfo.Snapshots {
+	for _, snapshot := range backupInfo.Snapshots {
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
 			glog.Errorf("Could not rollback snapshot %s: %s", snapshot, err)
 			return err

@@ -73,12 +73,13 @@ var _ = DFS(&DistributedFilesystem{})
 
 // BackupInfo provides meta info about a backup
 type BackupInfo struct {
-	Templates     []servicetemplate.ServiceTemplate
-	BaseImages    []string
-	Pools         []pool.ResourcePool
-	Snapshots     map[string][]string
-	Timestamp     time.Time
-	BackupVersion int
+	Templates        []servicetemplate.ServiceTemplate
+	BaseImages       []string
+	Pools            []pool.ResourcePool
+	Snapshots        []string
+	SnapshotExcludes map[string][]string
+	Timestamp        time.Time
+	BackupVersion    int
 }
 
 // SnapshotInfo provides meta info about a snapshot

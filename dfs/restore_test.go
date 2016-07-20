@@ -47,7 +47,7 @@ func (s *DFSTestSuite) TestRestore_LoadImages(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -71,7 +71,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshot(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -103,7 +103,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesCreate(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -134,7 +134,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesGet(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -163,7 +163,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNotFound(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -196,7 +196,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoPush(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -231,7 +231,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
@@ -265,7 +265,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots:     map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots:     []string{"BASE_LABEL"},
 		Timestamp:     time.Now().UTC(),
 		BackupVersion: 1,
 	}
@@ -342,7 +342,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots:     map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots:     []string{"BASE_LABEL"},
 		Timestamp:     time.Now().UTC(),
 		BackupVersion: 1,
 	}
@@ -520,7 +520,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshot_FailGettingVolume(c *C) {
 		Pools: []pool.ResourcePool{
 			{ID: "test-pool-1", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
-		Snapshots: map[string][]string{"BASE_LABEL": []string{}},
+		Snapshots: []string{"BASE_LABEL"},
 		Timestamp: time.Now().UTC(),
 	}
 	s.writeBackupInfo(c, tarfile, backupInfo)
