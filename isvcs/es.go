@@ -96,7 +96,7 @@ func initElasticSearch() {
 			Tag:            IMAGE_TAG,
 			Command:        func() string { return "" },
 			PortBindings:   []portBinding{elasticsearch_servicedPortBinding},
-			Volumes:        map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			Volumes:        map[string]string{"data": "/opt/elasticsearch-serviced/data"},
 			Configuration:  make(map[string]interface{}),
 			HealthChecks:   healthChecks,
 			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS) * time.Second,
@@ -110,7 +110,7 @@ func initElasticSearch() {
 		if clusterName, ok := elasticsearch_serviced.Configuration["cluster"]; ok {
 			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
 		}
-		return fmt.Sprintf(`exec /opt/elasticsearch-0.90.9/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
+		return fmt.Sprintf(`exec /opt/elasticsearch-serviced/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
 	}
 
 	serviceName = "elasticsearch-logstash"
