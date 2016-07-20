@@ -243,7 +243,7 @@ func (v *NFSVolume) Rollback(label string) (err error) {
 }
 
 // Export implements volume.Volume.Export
-func (v *NFSVolume) Export(label, parent string, writer io.Writer) error {
+func (v *NFSVolume) Export(label, parent string, writer io.Writer, excludes []string) error {
 	return ErrNotSupported
 }
 

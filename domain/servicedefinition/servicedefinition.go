@@ -112,12 +112,13 @@ type Task struct {
 
 // Volume import defines a file system directory underneath an export directory
 type Volume struct {
-	Owner             string //Resource Path Owner
-	Permission        string //Resource Path permissions, eg what you pass to chmod
-	ResourcePath      string //Resource Pool Path, shared across all hosts in a resource pool
-	ContainerPath     string //Container bind-mount path
-	Type              string //Path use, i.e. "dfs" or "tmp"
-	InitContainerPath string //Path to initialize the volume from at creation time, optional
+	Owner              string // Resource Path Owner
+	Permission         string // Resource Path permissions, eg what you pass to chmod
+	ResourcePath       string // Resource Pool Path, shared across all hosts in a resource pool
+	ContainerPath      string // Container bind-mount path
+	Type               string // Path use, i.e. "dfs" or "tmp"
+	InitContainerPath  string // Path to initialize the volume from at creation time, optional
+	ExcludeFromBackups bool   // Whether to exclude this volume from backups
 }
 
 // ConfigFile config file for a service

@@ -595,7 +595,10 @@ func (v *BtrfsVolume) Rollback(label string) error {
 }
 
 // Export implements volume.Volume.Export
-func (v *BtrfsVolume) Export(label, parent string, writer io.Writer) error {
+func (v *BtrfsVolume) Export(label, parent string, writer io.Writer, excludes []string) error {
+	if len(excludes) > 0 {
+		glog.Warning("btrfs backups do not support excluding directories")
+	}
 	if label = strings.TrimSpace(label); label == "" {
 		glog.Errorf("%s: label cannot be empty", volume.DriverTypeBtrFS)
 		return ErrBtrfsInvalidLabel
