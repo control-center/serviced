@@ -163,6 +163,7 @@ type HealthStatusRequest struct {
 }
 
 type BackupRequest struct {
-	Dirpath			string
-	SnapshotSpacePercent	int
+	Dirpath              string
+	SnapshotSpacePercent int
+	Excludes             []string
 }

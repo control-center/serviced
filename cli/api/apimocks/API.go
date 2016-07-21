@@ -924,8 +924,8 @@ func (_m *API) DeployServiceTemplate(_a0 api.DeployTemplateConfig) ([]service.Se
 
 	return r0, r1
 }
-func (_m *API) Backup(_a0 string) (string, error) {
-	ret := _m.Called(_a0)
+func (_m *API) Backup(_a0 string, _a1 []string) (string, error) {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 string
 	if rf, ok := ret.Get(0).(func(string) string); ok {
