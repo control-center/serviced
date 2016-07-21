@@ -99,7 +99,7 @@ type API interface {
 	DeployServiceTemplate(DeployTemplateConfig) ([]service.Service, error)
 
 	// Backup & Restore
-	Backup(string) (string, error)
+	Backup(string, []string) (string, error)
 	Restore(string) error
 
 	// Docker

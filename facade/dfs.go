@@ -62,7 +62,7 @@ var registryVersionInfos = map[int]registryVersionInfo{
 }
 
 // Backup takes a backup of all installed applications
-func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent int) error {
+func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, snapshotSpacePercent int) error {
 	// Do not DFSLock here, ControlPlaneDao does that
 
 	stime := time.Now()
@@ -102,7 +102,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, snapshotSpacePercent
 		}
 		defer f.DeleteSnapshot(ctx, snapshot)
 		snapshots[i] = snapshot
-		snapshotExcludes[snapshot] = f.getExcludedVolumes(ctx, tenant)
+		snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
 		glog.Infof("Created a snapshot for tenant %s at %s", tenant, snapshot)
 	}
 	glog.Infof("Loaded tenants")
