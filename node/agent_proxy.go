@@ -62,6 +62,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	a.addControlPlaneEndpoint(myList)
 	a.addControlPlaneConsumerEndpoint(myList)
 	a.addLogstashEndpoint(myList)
+	a.addKibanaEndpoint(myList)
 
 	*response = myList
 	return nil
@@ -287,6 +288,21 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]applicationendpoi
 		Protocol:      "tcp",
 	}
 	a.addEndpoint("tcp:5043", filebeat_endpoint, endpoints)
+}
+
+// addKibanaEndpoint adds an application endpoint mapping for the master control center api
+func (a *HostAgent) addKibanaEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
+	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_kibana_tcp",
+		Application:   "controlplane_kibana_tcp",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5601,
+		HostPort:      5601,
+		ProxyPort:     5601,
+		HostIP:        strings.Split(a.master, ":")[0],
+		Protocol:      "tcp",
+	}
+	a.addEndpoint("tcp:5601", tcp_endpoint, endpoints)
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
