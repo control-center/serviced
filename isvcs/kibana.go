@@ -23,8 +23,8 @@ func initKibana() {
 	var err error
 	command := "exec /opt/kibana/bin/kibana"
 
-    webserverPortBinding := portBinding{
-		HostIp:         "127.0.0.1",
+	webserverPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
 		HostIpOverride: "SERVICED_ISVC_KIBANA_PORT_5601_HOSTIP",
 		HostPort:       5601,
 	}
@@ -38,8 +38,8 @@ func initKibana() {
 			Command:      func() string { return command },
 			PortBindings: []portBinding{webserverPortBinding},
 			Volumes:      map[string]string{},
-			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
-			StartGroup: 1,
+			Links:        []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
+			StartGroup:   1,
 		})
 	if err != nil {
 		glog.Fatalf("Error initializing kibana container: %s", err)
