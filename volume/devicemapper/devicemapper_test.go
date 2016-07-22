@@ -16,6 +16,7 @@
 package devicemapper_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -128,21 +129,23 @@ func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
 
 	// Set up import/export volumes
 
-	exportdrv, err := Init(c.MkDir(), []string{})
+	basesize1, err := units.RAMInBytes("10M")
+
+	exportdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
 	c.Assert(err, IsNil)
 	defer exportdrv.Cleanup()
 
-	importdrv, err := Init(c.MkDir(), []string{})
+	importdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
 	c.Assert(err, IsNil)
 	defer importdrv.Cleanup()
 
-	exportvol, err := exportdrv.Create("basetest")
+	exportvol, err := exportdrv.Create("test")
 	c.Assert(err, IsNil)
-	defer exportdrv.Remove("basetest")
+	defer exportdrv.Remove("test")
 
-	importvol, err := importdrv.Create("basetest")
+	importvol, err := importdrv.Create("test")
 	c.Assert(err, IsNil)
-	defer importdrv.Remove("basetest")
+	defer importdrv.Remove("test")
 
 	// Make two directories, one to be excluded, one to be included, with a file in each
 	for _, d := range []string{"include", "exclude"} {
@@ -161,37 +164,22 @@ func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
 	c.Assert(err, IsNil)
 
 	// Do export/import, excluding the exclude dir
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	r, w := io.Pipe()
-	go func() {
-		defer wg.Done()
-		err := exportvol.Export("snap", "", w, []string{"exclude"})
-		if err != nil {
-			w.Close()
-		}
-		c.Check(err, IsNil)
-	}()
-	go func() {
-		defer wg.Done()
-		err := importvol.Import("snap", r)
-		if err != nil {
-			r.Close()
-		}
-		c.Check(err, IsNil)
-	}()
-	wg.Wait()
+	var b bytes.Buffer
+	err = exportvol.Export("snap", "", &b, []string{"exclude"})
+	c.Assert(err, IsNil)
+	err = importvol.Import("snap", &b)
+	c.Assert(err, IsNil)
 
 	importvol.Rollback("snap")
 
-	included := filepath.Join(exportvol.Path(), "include")
+	included := filepath.Join(importvol.Path(), "include")
 	_, err = os.Stat(included)
 	c.Assert(err, IsNil)
 
-	excluded := filepath.Join(exportvol.Path(), "exclude")
-
+	excluded := filepath.Join(importvol.Path(), "exclude")
 	_, err = os.Stat(excluded)
 	c.Assert(err, Not(IsNil))
+
 	c.Assert(os.IsNotExist(err), Equals, true)
 }
 

@@ -1637,7 +1637,7 @@ func resize2fs(dmDevice string) error {
 func exportDirectoryAsTar(path, prefix string, out *tar.Writer, excludes []string) error {
 	cmdString := []string{"-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix)}
 	for _, excludeDir := range excludes {
-		cmdString = append(cmdString, []string{"--exclude", excludeDir}...)
+		cmdString = append(cmdString, []string{"--exclude", excludeDir, "--exclude", fmt.Sprintf(".%s.serviced.initialized", excludeDir)}...)
 	}
 	cmdString = append(cmdString, ".")
 	cmd := exec.Command("tar", cmdString...)
