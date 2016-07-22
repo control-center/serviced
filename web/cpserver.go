@@ -254,7 +254,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	<-blockerChan
 }
 
-var methods = []string{"GET", "POST", "PUT", "DELETE"}
+var methods = []string{"GET", "POST", "PUT", "DELETE", "HEAD"}
 
 func routeToInternalServiceProxy(path string, target string, requiresAuth bool, routes []rest.Route) []rest.Route {
 	targetURL, err := url.Parse(target)

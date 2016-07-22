@@ -120,6 +120,11 @@ func writeLogStashConfigFile(filters string, outputPath string) error {
 	// syntax is correct
 	filterSection := `
 filter {
+  mutate {
+    rename => {
+      "source" => "file"
+    }
+  }
 # NOTE the filters are generated from the service definitions
 ` + string(filters) + `
 }
