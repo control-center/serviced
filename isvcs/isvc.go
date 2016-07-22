@@ -25,7 +25,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v43"
+	IMAGE_TAG     = "v45"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v4"
 )
@@ -62,6 +62,10 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 	}
 	dockerRegistry.docker = dockerAPI
 	if err := Mgr.Register(dockerRegistry); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	kibana.docker = dockerAPI
+	if err := Mgr.Register(kibana); err != nil {
 		glog.Fatalf("%s", err)
 	}
 }
