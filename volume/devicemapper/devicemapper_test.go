@@ -239,7 +239,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 	r, w := io.Pipe()
 	go func() {
 		defer wg.Done()
-		err := vol1.Export("snap", "", w)
+		err := vol1.Export("snap", "", w, []string{})
 		if err != nil {
 			w.Close()
 		}
