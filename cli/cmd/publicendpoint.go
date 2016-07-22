@@ -224,12 +224,12 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 		return
 	}
 
+	restart := ctx.Bool("restart")
 	serviceid := ctx.Args()[0]
 	endpointName := ctx.Args()[1]
 	portAddr := ctx.Args()[2]
 	protocol := ctx.Args()[3]
 	isEnabled, err := strconv.ParseBool(ctx.Args()[4])
-	restart := ctx.Bool("restart")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "The enabled flag must be true or false")
 		return
@@ -301,7 +301,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 
 // List vhost public endpoints
 // serviced service public-endpoints vhost list [SERVICEID] [ENDPOINTNAME]
-func (c *ServicedCli) cmdPublicEndpointsVhostList(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostList(ctx *cli.Context) {
 	cmdPublicEndpointsList(c, ctx, true, false)
 }
 
@@ -341,13 +341,14 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 
 // Add a vhost public endpoint
 // serviced service public-endpoints vhost add <SERVICEID> <ENDPOINTNAME> <VHOST> <ENABLED>"
-func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 4 {
 		cli.ShowCommandHelp(ctx, "add")
 		return
 	}
 
+	restart := ctx.Bool("restart")
 	serviceid := ctx.Args()[0]
 	endpointName := ctx.Args()[1]
 	vhostName := ctx.Args()[2]
@@ -357,15 +358,25 @@ func (c *ServicedCli) cmdPublicEndpointsVhostAdd(ctx *cli.Context) {
 		return
 	}
 
-	fmt.Printf("service: %s, endpoint: %s, vhost: %s, enabled: %t\n",
-		serviceid, endpointName, vhostName, isEnabled)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
+	vhost, err := c.driver.AddPublicEndpointVHost(svc.ID, endpointName, vhostName, isEnabled, restart)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", vhost.Name)
+	}
 	return
 }
 
 // Remove a vhost public endpoint
 // serviced service public-endpoints vhost remove <SERVICEID> <ENDPOINTNAME> <VHOST>
-func (c *ServicedCli) cmdPublicEndpointsVhostRemove(ctx *cli.Context) {
+func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 3 {
 		cli.ShowCommandHelp(ctx, "remove")
@@ -376,15 +387,26 @@ func (c *ServicedCli) cmdPublicEndpointsVhostRemove(ctx *cli.Context) {
 	endpointName := ctx.Args()[1]
 	vhostName := ctx.Args()[2]
 
-	fmt.Printf("service: %s, endpoint: %s, vhost: %s\n",
-		serviceid, endpointName, vhostName)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	err = c.driver.RemovePublicEndpointVHost(svc.ID, endpointName, vhostName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", vhostName)
+	}
 
 	return
 }
 
 // Enable/Disable a vhost public endpoint
-// serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> <true|false>
-func (c *ServicedCli) cmdPublicEndpointsVhostEnable(ctx *cli.Context) {
+// serviced service public-endpoints vhost enable <SERVICEID> <ENDPOINTNAME> <VHOST> true|false
+func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	// Make sure we have each argument.
 	if len(ctx.Args()) != 4 {
 		cli.ShowCommandHelp(ctx, "enable")
@@ -400,8 +422,18 @@ func (c *ServicedCli) cmdPublicEndpointsVhostEnable(ctx *cli.Context) {
 		return
 	}
 
-	fmt.Printf("service: %s, endpoint: %s, vhost: %s, enabled: %t\n",
-		serviceid, endpointName, vhostName, isEnabled)
+	// We need the serviceid, but they may have provided the service id or name.
+	svc, err := c.searchForService(serviceid)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
+	err = c.driver.EnablePublicEndpointVHost(svc.ID, endpointName, vhostName, isEnabled)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+	} else {
+		fmt.Printf("%s\n", vhostName)
+	}
 	return
 }

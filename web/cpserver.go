@@ -28,6 +28,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
@@ -38,7 +39,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/facade"
 )
 
 // UIConfig contains configuration values
@@ -154,7 +154,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	//start getting vhost endpoints
 	go sc.syncPublicEndpoints(shutdown)
 	//start watching global vhosts as they are added/deleted/updated in services
-	go sc.syncAllVhosts(shutdown)
+	go sc.syncAllVHosts(shutdown)
 
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
@@ -180,7 +180,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 		isVHost := len(parts) > 1 //Don't look for a vhost if httphost didn't contain a '.'
-		if isVHost { 
+		if isVHost {
 			if svcIDs, found, registrykey := getVHostServices(httphost); found {
 				glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
 				sc.publicendpointhandler(w, r, registrykey, svcIDs)
@@ -189,9 +189,9 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 				sc.publicendpointhandler(w, r, registrykey, svcIDs)
 			} else {
 				isVHost = false
-			}	
+			}
 		}
-		 
+
 		if !isVHost {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
@@ -224,7 +224,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	// FIXME: bubble up these errors to the caller
 	certFile, keyFile, err := sc.getCertFiles()
-	
+
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
 			// bindPort has already been validated, so the Split/access below won't break.
@@ -425,27 +425,27 @@ func init() {
 	allvhosts = make(map[registry.PublicEndpointKey]map[string]struct{})
 }
 
-func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
+func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
 	rootConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		glog.Errorf("syncAllVhosts - Error getting root zk connection: %v", err)
+		glog.Errorf("syncAllVHosts - Error getting root zk connection: %v", err)
 		return err
 	}
 
 	cancelChan := make(chan interface{})
-	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+	syncVHosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(1).Infof("syncVHosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		newVhosts := make(map[registry.PublicEndpointKey]map[string]struct{})
+		newVHosts := make(map[registry.PublicEndpointKey]map[string]struct{})
 		for _, sv := range childIDs {
 			//cast to a VHostKey so we don't have to care about the format of the key string
 			pep := service.PublicEndpointKey(sv)
 			if pep.Type() == registry.EPTypeVHost {
 				registryKey := registry.GetPublicEndpointKey(pep.Name(), pep.Type())
-				vhostServices, found := newVhosts[registryKey]
+				vhostServices, found := newVHosts[registryKey]
 				if !found {
 					vhostServices = make(map[string]struct{})
-					newVhosts[registryKey] = vhostServices
+					newVHosts[registryKey] = vhostServices
 				}
 				if pep.IsEnabled() {
 					vhostServices[pep.ServiceID()] = struct{}{}
@@ -456,22 +456,22 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		//lock for as short a time as possible
 		allvhostsLock.Lock()
 		defer allvhostsLock.Unlock()
-		allvhosts = newVhosts
+		allvhosts = newVHosts
 		glog.V(1).Infof("allvhosts: %+v", allvhosts)
 	}
 
 	for {
-		zkServiceVhost := service.ZKServicePublicEndpoints
+		zkServiceVHost := service.ZKServicePublicEndpoints
 		select {
 		case <-shutdown:
 			close(cancelChan)
 			return nil
 		default:
 		}
-		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
-		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, pepWatchError)
+		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVHost)
+		err := registry.WatchChildren(rootConn, zkServiceVHost, cancelChan, syncVHosts, pepWatchError)
 		if err != nil {
-			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
+			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVHost, err)
 			<-time.After(time.Second * 10)
 			continue
 		}

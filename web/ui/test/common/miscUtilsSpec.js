@@ -179,6 +179,68 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("parseDuration", function(){
+        it("Parses zero and empty string", function(){
+            expect(miscUtils.parseDuration("")).toEqual(0);
+            expect(miscUtils.parseDuration(0)).toEqual(0);
+        });
+        it("Parses all time units", function(){
+            expect(miscUtils.parseDuration("567ms")).toEqual(567);
+            expect(miscUtils.parseDuration("45s")).toEqual(45*1000);
+            expect(miscUtils.parseDuration("45m")).toEqual(45*60*1000);
+            expect(miscUtils.parseDuration("18h")).toEqual(18*60*60*1000);
+            expect(miscUtils.parseDuration("4d")).toEqual(4*24*60*60*1000);
+            expect(miscUtils.parseDuration("43w")).toEqual(43*7*24*60*60*1000);
+        });
+        it("Parses muliple time unit entry", function(){
+            expect(miscUtils.parseDuration("18h 45m 567ms")).toEqual(18*60*60*1000 + 45*60*1000 + 567);
+        });
+    });
+    
+    describe("validateDuration", function(){
+        it("Validates zero and empty string as zero", function(){
+            expect(miscUtils.validateDuration("")).toEqual(undefined);
+            expect(miscUtils.validateDuration(0)).toEqual(undefined);
+        });
+        it("Validates seconds", function(){
+            expect(miscUtils.validateDuration("45s")).toEqual(undefined);
+            expect(miscUtils.validateDuration("45S")).toEqual(undefined);
+        });
+        it("Validates mulitple time unit entry", function(){
+            expect(miscUtils.validateDuration("1h 45s 7ms")).toEqual(undefined);
+            expect(miscUtils.validateDuration("2W 5s 2MS")).toEqual(undefined);
+        });
+        it("Invalidates innapropriate time units", function(){
+            expect(miscUtils.validateDuration("45q")).toEqual('Unable to convert input 45q: invalid time unit "q"');
+        });
+        it("Invalidates negative duration", function(){
+            expect(miscUtils.validateDuration("-45m")).toEqual('Found 1 unallowed characters in time entry: "-"');
+        });
+        it("Invalidates bizarre characters", function(){
+            expect(miscUtils.validateDuration("#45m?15s")).toEqual('Found 2 unallowed characters in time entry: "#,?"');
+        });
+        it("Invalidates missing time unit", function(){
+            expect(miscUtils.validateDuration("1h45")).toEqual('Numeric value 45 lacks time unit');
+        });
+    });
+
+    describe("humanizeDuration", function(){
+        it("Humanizes zero as zero", function(){
+            expect(miscUtils.humanizeDuration(0)).toEqual("0");
+        });
+        it("Humanizes singleton unit values", function(){
+            expect(miscUtils.humanizeDuration(345)).toEqual("345ms");
+            expect(miscUtils.humanizeDuration(35*1000)).toEqual("35s");
+            expect(miscUtils.humanizeDuration(16*60*1000)).toEqual("16m");
+        });
+        it("Humanizes value with all time units", function(){
+            expect(miscUtils.humanizeDuration(31449598097)).toEqual("51w6d23h59m58s97ms");
+        });
+        it("Humanizes value with some time units", function(){
+            expect(miscUtils.humanizeDuration(259440005)).toEqual("3d4m5ms");
+        });
+    });
+
     describe("validateRAMLimit", function(){
         it("Validates an empty string", function(){
             expect(miscUtils.validateRAMLimit("")).toBe(null);

@@ -42,7 +42,7 @@ func TestServiceTemplateValidateNoServiceDefinitions(t *testing.T) {
 	}
 }
 
-func TestServiceTemplateValidateErrorVhost(t *testing.T) {
+func TestServiceTemplateValidateErrorVHost(t *testing.T) {
 	template := ServiceTemplate{}
 	template.Services = []servicedefinition.ServiceDefinition{*ValidSvcDef, *ValidSvcDef}
 	err := template.ValidEntity()

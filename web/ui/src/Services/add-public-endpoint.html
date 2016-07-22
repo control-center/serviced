@@ -20,26 +20,33 @@
 </div>
 
 <div ng-show="publicEndpoints.add.type === 'vhost'">
+
     <div class="form-group">
         <label for="add_vhost_vhost"><span translate>public_endpoint_hostname</span>:</label>
         <input type="text" id="add_vhost_vhost" ng-model="publicEndpoints.add.name" class="form-control"></input>
     </div>
+
 </div>
 
 <div ng-show="publicEndpoints.add.type === 'port'">
-    
+
     <div class="form-group">
         <label for="new_host_name"><span translate>label_host</span>:</label>
         <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
              placeholder="{{'placeholder_host'|translate}}" ng-model="publicEndpoints.add.host" />
+    </div>
+
+    <div class="form-group">
         <label for="add_public_endpoint_port"><span translate>label_port</span>:</label>
         <input type="text" id="add_public_endpoint_port" ng-model="publicEndpoints.add.port"
             class="form-control" placeholder="54321" ng-pattern="/^[0-9]+$/" />
     </div>
+
     <div class="form-group">
         <label for="add_port_protocol"><span translate>label_protocol</span>:</label>
         <select focusme id="add_port_protocol" ng-model="publicEndpoints.add.protocol" ng-options="opt as opt.Label for opt in protocols" class="form-control"></select>
     </div>
+
 </div>
 
 <div class="warningMessage">

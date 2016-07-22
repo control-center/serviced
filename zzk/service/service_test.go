@@ -16,6 +16,7 @@
 package service
 
 import (
+	"path"
 	"sync"
 	"time"
 
@@ -41,17 +42,19 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestServiceListener_NoHostState")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
 
 	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
+	go func() {
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 	go func() {
 		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(done)
@@ -67,38 +70,41 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 
 	// get the instance id
 	getInstances := func(svc *service.Service) []string {
-		timeout := time.After(time.Minute)
+		timer := time.NewTimer(time.Minute)
+		defer timer.Stop()
+		done := make(chan struct{})
+		defer func() { close(done) }()
 		for {
-			var instanceIDs []string
-			childWDone := make(chan struct{})
-			defer close(childWDone)
-			stateIDs, ev, err := conn.ChildrenW(servicepath(svc.ID), childWDone)
+			inst := []string{}
+			ch, ev, err := conn.ChildrenW(servicepath(svc.ID), done)
 			c.Assert(err, IsNil)
-			for _, stateID := range stateIDs {
-				var state servicestate.ServiceState
-				err := conn.Get(servicepath(svc.ID, stateID), &ServiceStateNode{ServiceState: &state})
+			for _, id := range ch {
+				ok, err := conn.Exists(servicepath(svc.ID, id))
 				c.Assert(err, IsNil)
-				err = updateInstance(conn, state.HostID, state.ID, func(_ *HostState, _ *servicestate.ServiceState) {})
-				if err != nil {
-					c.Assert(err, Equals, client.ErrNoNode)
-				} else {
-					instanceIDs = append(instanceIDs, stateID)
+				if ok {
+					ok, err = conn.Exists(path.Join("/hosts", "test-host-1", "instances", id))
+					c.Assert(err, IsNil)
+					if ok {
+						inst = append(inst, id)
+					}
 				}
 			}
-			if len(instanceIDs) == svc.Instances {
-				return instanceIDs
+			if len(inst) == svc.Instances {
+				return inst
 			}
 			select {
 			case <-ev:
-			case <-timeout:
+			case <-timer.C:
 				c.Fatalf("wait time exceeded timeout!")
 			}
+			close(done)
+			done = make(chan struct{})
 		}
 	}
 
 	instanceIDs := getInstances(&svc)
 	// delete the host path
-	err = conn.Delete(hostpath("test-host-1", instanceIDs[0]))
+	err = conn.Delete(path.Join("/hosts", "test-host-1", "instances", instanceIDs[0]))
 	c.Assert(err, IsNil)
 	c.Assert(getInstances(&svc), Not(DeepEquals), instanceIDs)
 	close(shutdown)
@@ -111,32 +117,36 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	err = conn.CreateDir(zkService)
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
-
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 
 	c.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
-	done := make(chan interface{})
-	listener := NewServiceListener(handler)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
+	listener := NewServiceListener("", handler)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(done)
 	}()
 
 	<-time.After(2 * time.Second)
 	c.Log("shutting down listener with no services")
 	close(shutdown)
-	<-done
+	wg.Wait()
 
 	c.Log("Start and stop listener with multiple services")
 	shutdown = make(chan interface{})
-	done = make(chan interface{})
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(done)
 	}()
 
 	svcs := []service.Service{
@@ -172,20 +182,15 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	// shutdown
 	c.Log("services started, now shutting down")
 	close(shutdown)
-	<-done
-
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestServiceListener_Spawn")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
 
 	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
 	c.Assert(err, IsNil)
 
 	// Add 1 service
@@ -198,7 +203,13 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 
 	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	listener := NewServiceListener(handler)
+	go func() {
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 	wg.Add(1)
 	go func() {
@@ -220,29 +231,17 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	}()
 
 	getInstances := func() (count int) {
-		var (
-			stateIDs []string
-			event    <-chan client.Event
-			err      error
-		)
-
-		childWDone := make(chan struct{})
-		defer close(childWDone)
-		for {
-			stateIDs, event, err = conn.ChildrenW(servicepath(svc.ID), childWDone)
-			c.Assert(err, IsNil)
-			if count := len(stateIDs); count == svc.Instances {
-				break
+		ch, err := conn.Children(servicepath(svc.ID))
+		c.Assert(err, IsNil)
+		for _, stateid := range ch {
+			hdat := &HostState{}
+			hpth := path.Join("/hosts", handler.Host.ID, "instances", stateid)
+			err := conn.Get(hpth, hdat)
+			if err != nil {
+				c.Assert(err, Equals, client.ErrNoNode)
+				continue
 			}
-			<-event
-		}
-
-		for _, ssID := range stateIDs {
-			var hs HostState
-			hpath := hostpath(handler.Host.ID, ssID)
-			err = conn.Get(hpath, &hs)
-			c.Assert(err, IsNil)
-			if hs.DesiredState == int(service.SVCRun) {
+			if hdat.DesiredState == int(service.SVCRun) {
 				count++
 			}
 		}
@@ -254,6 +253,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	svc.DesiredState = int(service.SVCRun)
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
+	time.Sleep(2 * time.Second)
 	c.Assert(getInstances(), Equals, svc.Instances)
 
 	c.Log("Pause service")
@@ -309,33 +309,39 @@ func (t *ZZKTest) TestServiceListener_getServiceStates(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	eHostID, err := registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 	svc := service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 
 	c.Log("Starting 1 instance")
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 	svc.Instances = 1
 	listener.sync(false, &svc, rss)
-	stateIDs, err := conn.Children(hostpath(handler.Host.ID))
+	stateIDs, err := conn.Children(path.Join("/hosts", handler.Host.ID, "instances"))
 	c.Assert(err, IsNil)
 	c.Assert(stateIDs, HasLen, svc.Instances)
 	// unregister the host
-	err = conn.Delete(eHostID)
-	c.Assert(err, IsNil)
+	close(shutdown)
+	wg.Wait()
 	rss, err = listener.getServiceStates(&svc, stateIDs)
 	c.Assert(err, IsNil)
-	c.Assert(rss, HasLen, 0)
+	c.Assert(rss, HasLen, 1)
 }
 
 func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
@@ -343,11 +349,17 @@ func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 	svc := service.Service{
 		ID:            "test-service-1",
 		Endpoints:     make([]service.ServiceEndpoint, 1),
@@ -355,7 +367,7 @@ func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 	}
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 
@@ -375,6 +387,9 @@ func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
 	c.Assert(err, IsNil)
 	c.Assert(rss, HasLen, 5)
+
+	close(shutdown)
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_sync(c *C) {
@@ -382,18 +397,24 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 	svc := service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
@@ -419,7 +440,7 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 		usedInstanceID[state.InstanceID] = &state
 
 		var hs HostState
-		hpath := hostpath(handler.Host.ID, rs.ID)
+		hpath := path.Join("/hosts", handler.Host.ID, "instances", rs.ID)
 		err = conn.Get(hpath, &hs)
 		c.Assert(err, IsNil)
 		c.Assert(hs.DesiredState, Not(Equals), int(service.SVCStop))
@@ -444,7 +465,7 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 		usedInstanceID[state.InstanceID] = &state
 
 		var hs HostState
-		hpath := hostpath(handler.Host.ID, rs.ID)
+		hpath := path.Join("/hosts", handler.Host.ID, "instances", rs.ID)
 		err = conn.Get(hpath, &hs)
 		c.Assert(err, IsNil)
 		c.Assert(hs.DesiredState, Not(Equals), int(service.SVCStop))
@@ -461,7 +482,7 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 	var stopped []*HostState
 	for _, rs := range rss {
 		var hs HostState
-		hpath := hostpath(handler.Host.ID, rs.ID)
+		hpath := path.Join("/hosts", handler.Host.ID, "instances", rs.ID)
 		err := conn.Get(hpath, &hs)
 		c.Assert(err, IsNil)
 		if hs.DesiredState == int(service.SVCStop) {
@@ -477,7 +498,7 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 		var state servicestate.ServiceState
 		err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state})
 		c.Assert(err, IsNil)
-		err = removeInstance(conn, state.ServiceID, state.HostID, state.ID)
+		err = removeInstance(conn, "", state.ServiceID, state.HostID, state.ID)
 		c.Assert(err, IsNil)
 	}
 
@@ -492,6 +513,9 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
 	c.Assert(err, IsNil)
 	c.Assert(len(rss) < svc.Instances, Equals, false)
+
+	close(shutdown)
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_start(c *C) {
@@ -499,11 +523,17 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 
 	// Add 1 instance for 1 host
 	svc := service.Service{
@@ -513,7 +543,7 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 	listener.start(&svc, []int{1})
 
@@ -529,7 +559,7 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 
 	// Look up host state
 	var hs HostState
-	hpath := hostpath(handler.Host.ID, state.ID)
+	hpath := path.Join("/hosts", handler.Host.ID, "instances", state.ID)
 	err = conn.Get(hpath, &hs)
 	c.Assert(err, IsNil)
 
@@ -543,6 +573,9 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 	c.Check(hs.HostID, Equals, handler.Host.ID)
 	c.Check(hs.ServiceID, Equals, svc.ID)
 	c.Check(hs.DesiredState, Equals, int(service.SVCRun))
+
+	close(shutdown)
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_pause(c *C) {
@@ -550,11 +583,17 @@ func (t *ZZKTest) TestServiceListener_pause(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 
 	svc := service.Service{
 		ID:        "test-service-1",
@@ -563,7 +602,7 @@ func (t *ZZKTest) TestServiceListener_pause(c *C) {
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 	listener.start(&svc, []int{1})
 
@@ -576,10 +615,13 @@ func (t *ZZKTest) TestServiceListener_pause(c *C) {
 
 	// Verify the state of the instance
 	var hs HostState
-	hpath := hostpath(handler.Host.ID, rss[0].ID)
+	hpath := path.Join("/hosts", handler.Host.ID, "instances", rss[0].ID)
 	err = conn.Get(hpath, &hs)
 	c.Assert(err, IsNil)
 	c.Check(hs.DesiredState, Equals, int(service.SVCPause))
+
+	close(shutdown)
+	wg.Wait()
 }
 
 func (t *ZZKTest) TestServiceListener_stop(c *C) {
@@ -587,11 +629,17 @@ func (t *ZZKTest) TestServiceListener_stop(c *C) {
 	c.Assert(err, IsNil)
 	err = conn.CreateDir(servicepath())
 	c.Assert(err, IsNil)
-	err = conn.CreateDir("/hosts/test-host-1")
-	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
-	_, err = registerHost(conn, handler.Host)
-	c.Assert(err, IsNil)
+	shutdown := make(chan interface{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := AddHost(conn, handler.Host)
+		c.Assert(err, IsNil)
+		err = RegisterHost(shutdown, conn, handler.Host.ID)
+		c.Assert(err, IsNil)
+	}()
 
 	svc := service.Service{
 		ID:        "test-service-1",
@@ -600,7 +648,7 @@ func (t *ZZKTest) TestServiceListener_stop(c *C) {
 	err = UpdateService(conn, svc, false, false)
 	c.Assert(err, IsNil)
 
-	listener := NewServiceListener(handler)
+	listener := NewServiceListener("", handler)
 	listener.SetConnection(conn)
 	listener.start(&svc, []int{1, 2})
 
@@ -613,13 +661,16 @@ func (t *ZZKTest) TestServiceListener_stop(c *C) {
 
 	// Verify the state of the instances
 	var hs HostState
-	hpath := hostpath(handler.Host.ID, rss[0].ID)
+	hpath := path.Join("/hosts", handler.Host.ID, "instances", rss[0].ID)
 	err = conn.Get(hpath, &hs)
 	c.Assert(err, IsNil)
 	c.Check(hs.DesiredState, Equals, int(service.SVCStop))
 
-	hpath = hostpath(handler.Host.ID, rss[1].ID)
+	hpath = path.Join("/hosts", handler.Host.ID, "instances", rss[1].ID)
 	err = conn.Get(hpath, &hs)
 	c.Assert(err, IsNil)
 	c.Check(hs.DesiredState, Equals, int(service.SVCRun))
+
+	close(shutdown)
+	wg.Wait()
 }

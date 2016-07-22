@@ -80,7 +80,7 @@ func (s *MySuite) SetUpSuite(c *C) {
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {
 
-	sleepTime := 100 * time.Millisecond
+	sleepTime := 500 * time.Millisecond
 	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	c.Assert(err, IsNil)
 

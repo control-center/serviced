@@ -85,6 +85,21 @@ var (
 	ErrNoServer                = errors.New("coord-client: could not connect to a server")
 )
 
+// Dir is an empty path node
+type Dir struct {
+	version interface{}
+}
+
+// Version implements Node
+func (d *Dir) Version() interface{} {
+	return d.version
+}
+
+// SetVersion implements Node
+func (d *Dir) SetVersion(version interface{}) {
+	d.version = version
+}
+
 type opClientRequestType int
 
 const (

@@ -1,0 +1,16 @@
+{
+    "vhosts": {
+        "vhost0": {
+            "Service": "s2",
+            "Endpoint": "websvc",
+            "Name": "vhost0",
+            "Enabled": true
+        },
+        "vhost1": {
+            "Service": "s2",
+            "Endpoint": "websvc",
+            "Name": "vhost1",
+            "Enabled": true
+        }
+    }
+}

@@ -41,12 +41,16 @@ type ResourcePool struct {
 	CoreCapacity      int         // Number of cores available as a sum of all cores on all hosts in the pool
 	MemoryCapacity    uint64      // Amount (bytes) of RAM available as a sum of all memory on all hosts in the pool
 	MemoryCommitment  uint64      // Amount (bytes) of RAM committed to services
+	ConnectionTimeout int         // Wait delay on service rescheduling when an outage is reported (milliseconds)
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	MonitoringProfile domain.MonitorProfile
 	datastore.VersionedEntity
 }
 
+func (p ResourcePool) GetConnectionTimeout() time.Duration {
+	return time.Duration(p.ConnectionTimeout) * time.Millisecond
+}
 
 // PoolIPs type for IP resources available in a ResourcePool
 type PoolIPs struct {

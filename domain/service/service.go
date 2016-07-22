@@ -341,10 +341,10 @@ func (s *Service) GetServicePorts() []ServiceEndpoint {
 }
 
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
-func (s *Service) AddVirtualHost(application, vhostName string) error {
+func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) (*servicedefinition.VHost, error) {
 	// We currently don't allow vhosts that contain a '.'
 	if strings.Contains(vhostName, ".") {
-		return fmt.Errorf("Virtual host name must not contain a '.'")
+		return nil, fmt.Errorf("Virtual host name must not contain a '.'")
 	}
 
 	if s.Endpoints != nil {
@@ -361,13 +361,35 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName, Enabled: true})
-				return nil
+				vhost := &servicedefinition.VHost{Name: _vhostName, Enabled: isEnabled}
+				ep.VHostList = append(vhosts, *vhost)
+				return vhost, nil
 			}
 		}
 	}
 
-	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// Returns the matching VHost entry or nil if not found.
+func (s *Service) GetVirtualHost(application, vhostName string) *servicedefinition.VHost {
+	if s.Endpoints != nil {
+		//find the matching endpoint
+		for i := range s.Endpoints {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				vhostNameLower := strings.ToLower(vhostName)
+				for _, vhost := range ep.VHostList {
+					if strings.ToLower(vhost.Name) == vhostNameLower {
+						return &vhost
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // AddPort Add a port for given service, this method avoids duplicate ports
@@ -380,8 +402,9 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 
 			if ep.Application == application && ep.Purpose == "export" {
 				var ports = make([]servicedefinition.Port, 0)
+				portAddrLower := strings.ToLower(portAddr)
 				for _, port := range ep.PortList {
-					if port.PortAddr != portAddr {
+					if strings.ToLower(port.PortAddr) != portAddrLower {
 						ports = append(ports, port)
 					}
 				}
@@ -393,6 +416,27 @@ func (s *Service) AddPort(application string, portAddr string, usetls bool, prot
 	}
 
 	return nil, fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// Returns the matching Port entry or nil if not found.
+func (s *Service) GetPort(application, portAddr string) *servicedefinition.Port {
+	if s.Endpoints != nil {
+		//find the matching endpoint
+		for i := range s.Endpoints {
+			ep := &s.Endpoints[i]
+
+			if ep.Application == application && ep.Purpose == "export" {
+				portAddrLower := strings.ToLower(portAddr)
+				for _, port := range ep.PortList {
+					if strings.ToLower(port.PortAddr) == portAddrLower {
+						return &port
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // RemovePort Remove a port for given service
@@ -523,7 +567,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 				}
 				//error removing an unknown vhost
 				if !found {
-					break
+					return fmt.Errorf("endpoint %s does not have a vhost endpoint %s", application, vhostName)
 				}
 
 				ep.VHostList = vhosts

@@ -80,6 +80,16 @@ func (a *api) RemoveResourcePool(id string) error {
 	return client.RemoveResourcePool(id)
 }
 
+// Updates an existing pool
+func (a *api) UpdateResourcePool(pool pool.ResourcePool) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.UpdateResourcePool(pool)
+}
+
 // Returns a list of Host IPs for a given pool
 func (a *api) GetPoolIPs(id string) (*pool.PoolIPs, error) {
 	client, err := a.connectMaster()

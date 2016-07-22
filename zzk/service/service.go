@@ -81,18 +81,25 @@ type ServiceListener struct {
 	sync.Mutex
 	conn    client.Connection
 	handler ServiceHandler
+	poolid  string
 }
 
 // NewServiceListener instantiates a new ServiceListener
-func NewServiceListener(handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{handler: handler}
+func NewServiceListener(poolid string, handler ServiceHandler) *ServiceListener {
+	return &ServiceListener{poolid: poolid, handler: handler}
 }
 
 // SetConnection implements zzk.Listener
 func (l *ServiceListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
-func (l *ServiceListener) GetPath(nodes ...string) string { return servicepath(nodes...) }
+func (l *ServiceListener) GetPath(nodes ...string) string {
+	parts := append([]string{"/services"}, nodes...)
+	if l.poolid != "" {
+		parts = append([]string{"/pools", l.poolid}, parts...)
+	}
+	return path.Join(parts...)
+}
 
 // Ready implements zzk.Listener
 func (l *ServiceListener) Ready() (err error) { return }
@@ -106,7 +113,7 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	done := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&done)
+	defer func() { close(done) }()
 	for {
 		var retry <-chan time.Time
 		var err error
@@ -175,60 +182,43 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	}
 }
 
-// getActiveHosts returns a map of all the available hosts
-func (l *ServiceListener) getActiveHosts() (map[string]struct{}, error) {
-	hosts, err := GetActiveHosts(l.conn)
-	if err != nil {
-		return nil, err
-	}
-	hostmap := make(map[string]struct{})
-	for _, host := range hosts {
-		hostmap[host] = struct{}{}
-	}
-	return hostmap, nil
-}
-
 // getServiceStates returns all the valid service states on a service
 func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
-	// figure out which hosts are still available
-	hosts, err := l.getActiveHosts()
-	if err != nil {
-		return nil, err
-	}
 	var rss []dao.RunningService
 	for _, stateID := range stateIDs {
+
 		// get the service state
-		var state servicestate.ServiceState
-		if err := l.conn.Get(servicepath(svc.ID, stateID), &ServiceStateNode{ServiceState: &state}); err != nil {
-			if err != client.ErrNoNode {
-				glog.Errorf("Could not look up service instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+		spth := l.GetPath(svc.ID, stateID)
+		state := &servicestate.ServiceState{}
+		if err := l.conn.Get(spth, &ServiceStateNode{ServiceState: state}); err == client.ErrNoNode {
+			continue
+		} else if err != nil {
+			glog.Errorf("Could not look up instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			return nil, err
+		}
+
+		// ensure the existance of the host state
+		hpth := path.Join("/hosts", state.HostID, "instances", stateID)
+		if l.poolid != "" {
+			hpth = path.Join("/pools", l.poolid, hpth)
+		}
+		if ok, err := l.conn.Exists(hpth); err != nil {
+			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, state.HostID, err)
+			return nil, err
+		} else if !ok {
+			if err := removeInstance(l.conn, l.poolid, state.HostID, svc.ID, stateID); err != nil {
+				glog.Errorf("Could not remove incongruent instance %s from service %s (%s): %s", stateID, svc.Name, svc.ID, err)
 				return nil, err
 			}
 			continue
 		}
-		// is the host currently active?
-		var isActive bool
-		if _, isActive = hosts[state.HostID]; isActive {
-			if isActive, err = l.conn.Exists(hostpath(state.HostID, state.ID)); err != nil && err != client.ErrNoNode {
-				glog.Errorf("Could not look up host instance %s on host %s for service %s: %s", state.ID, state.HostID, state.ServiceID, err)
-				return nil, err
-			}
+
+		rs, err := NewRunningService(svc, state)
+		if err != nil {
+			glog.Errorf("Could not get instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+			return nil, err
 		}
-		if !isActive {
-			// if the host is not active, remove the node
-			glog.Infof("Service instance %s of service %s (%s) running on host %s (%s) is not active, rescheduling", state.ID, svc.Name, svc.ID, state.HostIP, state.HostID)
-			if err := removeInstance(l.conn, state.ServiceID, state.HostID, state.ID); err != nil {
-				glog.Errorf("Could not delete service instance %s for service %s: %s", state.ID, state.ServiceID, err)
-				return nil, err
-			}
-		} else {
-			rs, err := NewRunningService(svc, &state)
-			if err != nil {
-				glog.Errorf("Could not get service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
-				return nil, err
-			}
-			rss = append(rss, *rs)
-		}
+		rss = append(rss, *rs)
 	}
 	return rss, nil
 }
@@ -243,7 +233,7 @@ func (l *ServiceListener) sync(locked bool, svc *service.Service, rss []dao.Runn
 	// resume any paused running services
 	for _, state := range rss {
 		// resumeInstance updates the service state ONLY if it has a PAUSED DesiredState
-		if err := resumeInstance(l.conn, state.HostID, state.ID); err != nil {
+		if err := resumeInstance(l.conn, l.poolid, state.HostID, state.ID); err != nil {
 			glog.Warningf("Could not resume paused service instance %s (%s) for service %s on host %s: %s", state.ID, state.Name, state.ServiceID, state.HostID, err)
 			return false
 		}
@@ -332,7 +322,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 
 			state.HostIP = host.IPAddr
 			state.InstanceID = instanceID
-			if err := addInstance(l.conn, *state); err != nil {
+			if err := addInstance(l.conn, l.poolid, *state); err != nil {
 				glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 				return false
 			}
@@ -354,9 +344,9 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 // stop unschedules the provided service instances
 func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
-		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
+		if err := StopServiceInstance(l.conn, l.poolid, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
-			removeInstance(l.conn, state.ServiceID, state.HostID, state.ID)
+			removeInstance(l.conn, l.poolid, state.HostID, state.ServiceID, state.ID)
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
@@ -367,7 +357,7 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 func (l *ServiceListener) pause(rss []dao.RunningService) {
 	for _, state := range rss {
 		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
-		if err := pauseInstance(l.conn, state.HostID, state.ID); err != nil {
+		if err := pauseInstance(l.conn, l.poolid, state.HostID, state.ID); err != nil {
 			glog.Warningf("Could not pause service instance %s (%s) for service %s: %s", state.ID, state.Name, state.ServiceID, err)
 			continue
 		}

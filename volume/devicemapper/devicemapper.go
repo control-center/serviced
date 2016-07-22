@@ -33,7 +33,7 @@ var (
 	ErrInvalidArg           = errors.New("invalid argument")
 	ErrIncompatibleSnapshot = errors.New("incompatible snapshot")
 	ErrDeleteBaseDevice     = errors.New("will not attempt to delete base device")
-	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device, remove the application and restore from backup or redeploy")
+	ErrBaseDeviceHash       = errors.New("can't load a volume that uses the base device")
 )
 
 func init() {
@@ -84,39 +84,38 @@ func Init(root string, options []string) (volume.Driver, error) {
 	return driver, nil
 }
 
-
-// If there any snapshots on disk that are not tied to a device in the metadata, the 
+// If there any snapshots on disk that are not tied to a device in the metadata, the
 // snapshot should be removed.
-func (d * DeviceMapperDriver) cleanUpSnapshots() {
-    snapshotsOnDisk, err := d.getSnapshotsOnDisk()
-    if err != nil || snapshotsOnDisk == nil {
-        return
-    }
+func (d *DeviceMapperDriver) cleanUpSnapshots() {
+	snapshotsOnDisk, err := d.getSnapshotsOnDisk()
+	if err != nil || snapshotsOnDisk == nil {
+		return
+	}
 
-    glog.V(2).Infof("Snapshots on disk: %v", snapshotsOnDisk)
+	glog.V(2).Infof("Snapshots on disk: %v", snapshotsOnDisk)
 
-    snapshotsInMetadata, err := d.getSnapshotsFromMetadata()
-    if err != nil || snapshotsInMetadata == nil {
-        return
-    }
- 
-    glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
+	snapshotsInMetadata, err := d.getSnapshotsFromMetadata()
+	if err != nil || snapshotsInMetadata == nil {
+		return
+	}
 
-    for _, snapshotOnDisk := range snapshotsOnDisk {
+	glog.V(2).Infof("Snapshots in metadata: %v", snapshotsInMetadata)
+
+	for _, snapshotOnDisk := range snapshotsOnDisk {
 		if _, ok := snapshotsInMetadata[snapshotOnDisk]; !ok {
 			glog.V(2).Infof("Removing Snapshot: %v", snapshotOnDisk)
-            os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk)); 
+			os.RemoveAll(filepath.Join(d.MetadataDir(), snapshotOnDisk))
 		} else {
 			// Remove the snapshot on disk since it was found in the metadata map.  This
 			// will leave the snapshotsInMetadata map with only snapshots that are in metadata but
 			// not on disk, so they should all be removed from the metadata.
 			delete(snapshotsInMetadata, snapshotOnDisk)
 		}
-    }
+	}
 
 	for snapshotInMetadata, volumeName := range snapshotsInMetadata {
 		glog.V(2).Infof("Removing Snapshot from metadata: %v", snapshotInMetadata)
-		v, err := d.loadVolume(volumeName)
+		v, err := d.getVolume(volumeName, false)
 		if err != nil {
 			continue
 		}
@@ -135,7 +134,7 @@ func (d * DeviceMapperDriver) cleanUpSnapshots() {
 			glog.Errorf("Error removing snapshot: %v", err)
 			continue
 		}
-		
+
 		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 		v.driver.DeviceSet.Lock()
 		if err := v.driver.deactivateDevice(deviceHash); err != nil {
@@ -149,39 +148,39 @@ func (d * DeviceMapperDriver) cleanUpSnapshots() {
 		}
 	}
 }
- 
-func (d * DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, error) { 
-    snapshots := make(map[string]string)
 
-    for _, volname := range d.ListTenants() {
-		volume, err := d.newVolume(volname)
+func (d *DeviceMapperDriver) getSnapshotsFromMetadata() (map[string]string, error) {
+	snapshots := make(map[string]string)
+
+	for _, volname := range d.ListTenants() {
+		volume, err := d.getVolume(volname, false)
 		if err != nil {
- 			return nil, err
- 		}
- 
-        for _, s := range volume.Metadata.ListSnapshots() {
-            snapshots[s] = volname
-        }
+			return nil, err
+		}
+
+		for _, s := range volume.Metadata.ListSnapshots() {
+			snapshots[s] = volname
+		}
 	}
 
-    return snapshots, nil
+	return snapshots, nil
 }
 
-func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {  
-    var snapshots []string
- 
+func (d *DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {
+	var snapshots []string
+
 	files, err := ioutil.ReadDir(d.MetadataDir())
 	if err != nil {
 		return nil, err
-	} 
+	}
 
 	for _, file := range files {
 		for _, volname := range d.ListTenants() {
-			volume, err := d.newVolume(volname)
+			volume, err := d.getVolume(volname, false)
 			if err != nil {
 				return nil, err
 			}
-	
+
 			if !volume.isInvalidSnapshot(file.Name()) {
 				snapshots = append(snapshots, file.Name())
 				break
@@ -189,9 +188,9 @@ func (d * DeviceMapperDriver) getSnapshotsOnDisk() ([]string, error) {
 		}
 	}
 
- 	return snapshots, nil
+	return snapshots, nil
 }
-  
+
 // Root implements volume.Driver.Root
 func (d *DeviceMapperDriver) Root() string {
 	return d.root
@@ -213,7 +212,10 @@ func (d *DeviceMapperDriver) ListTenants() (result []string) {
 		set[getTenant(vol)] = struct{}{}
 	}
 	for k := range set {
-		result = append(result, k)
+		// Only include the tenant if its volume can be retrieved
+		if _, err := d.getVolume(k, false); err == nil {
+			result = append(result, k)
+		}
 	}
 	return
 }
@@ -250,7 +252,7 @@ func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	glog.V(1).Infof("Ensured existence of metadata dir %s", md)
 
 	// Instantiate the volume
-	vol, err := d.newVolume(volumeName)
+	vol, err := d.getVolume(volumeName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -338,10 +340,11 @@ func (d *DeviceMapperDriver) deviceName(deviceHash string) string {
 	return fmt.Sprintf("%s-%s", d.DevicePrefix, deviceHash)
 }
 
-// newVolume builds the volume object from its volume name
-func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, error) {
+// getVolume builds the volume object from its volume name
+//  If create is true, we will create the metadata file if it doesn't already exist
+func (d *DeviceMapperDriver) getVolume(volumeName string, create bool) (*DeviceMapperVolume, error) {
 	tenant := getTenant(volumeName)
-	metadata, err := NewMetadata(d.MetadataPath(tenant))
+	metadata, err := NewMetadata(d.MetadataPath(tenant), create)
 	if err != nil {
 		return nil, err
 	}
@@ -352,23 +355,16 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 		driver:   d,
 		Metadata: metadata,
 	}
+
+	// if create is false, check to make sure the metadata info isn't empty or equal to base
+	if !create {
+		deviceHash := vol.deviceHash()
+		if deviceHash == "" || deviceHash == "base" {
+			return nil, ErrBaseDeviceHash
+		}
+	}
+
 	return vol, nil
-}
-
-// loadVolume builds a volume object from an existing volume.  This is a wrapper around newVolume that returns an error
-//  if the deviceHash returned is empty or equal to the base device
-func (d *DeviceMapperDriver) loadVolume(volumeName string) (*DeviceMapperVolume, error) {
-	vol, err := d.newVolume(volumeName)
-	if err != nil {
-		return nil, err
-	}
-
-	deviceHash := vol.deviceHash()
-	if deviceHash == "" || deviceHash == "base" {
-		return nil, ErrBaseDeviceHash
-	}
-
-	return vol, err
 }
 
 // GetTenant implements volume.Driver.GetTenant
@@ -381,7 +377,7 @@ func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error)
 
 // Resize implements volume.Driver.Resize.
 func (d *DeviceMapperDriver) Resize(volumeName string, size uint64) error {
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		return err
 	}
@@ -462,7 +458,7 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Get() (%s) START", volumeName)
 	defer glog.V(2).Infof("Get() (%s) END", volumeName)
 	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
 		return nil, err
@@ -517,7 +513,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 	}
 	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
 	for _, volname := range d.List() {
-		_, err := d.loadVolume(volname)
+		_, err := d.getVolume(volname, false)
 		if err != nil {
 			glog.V(1).Infof("Unable to get volume %s; skipping", volname)
 			continue
@@ -533,7 +529,7 @@ func (d *DeviceMapperDriver) Cleanup() error {
 func (d *DeviceMapperDriver) Release(volumeName string) error {
 	glog.V(2).Infof("Release() (%s) START", volumeName)
 	defer glog.V(2).Infof("Release() (%s) END", volumeName)
-	vol, err := d.loadVolume(volumeName)
+	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		return err
 	}
@@ -584,7 +580,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		return nil
 	}
 	// get the volume
-	v, err := d.loadVolume(volumeName)
+	v, err := d.getVolume(volumeName, false)
 	if err != nil {
 		//log the error, but continue trying to remove things
 		glog.Errorf("Error loading volume %s: %s", volumeName, err)
@@ -602,7 +598,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 			}
 		}
 
-		// Release the device (requires another call to loadVolume)
+		// Release the device (requires another call to getVolume)
 		if err := d.Release(volumeName); err != nil {
 			glog.V(1).Infof("Error releasing device: %s", err)
 		}
@@ -1181,7 +1177,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 }
 
 // Export implements volume.Volume.Export
-func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) error {
+func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer, excludes []string) error {
 	glog.V(2).Infof("Export() (%s) START", v.name)
 	defer glog.V(2).Infof("Export() (%s) END", v.name)
 	if !v.snapshotExists(label) {
@@ -1253,10 +1249,10 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 
-	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut); err != nil {
+	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut, []string{}); err != nil {
 		return err
 	}
-	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut); err != nil {
+	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut, excludes); err != nil {
 		return err
 	}
 
@@ -1291,7 +1287,8 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
 	}
 
-	var unallocated uint64
+	// Disabled due to CC-2417
+	//var unallocated uint64
 
 	// Add in tenant storage metrics
 	for _, tenant := range tss {
@@ -1304,14 +1301,17 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 				Value: tenant.FilesystemUsed},
 			{MetricName: fmt.Sprintf("storage.device.total.%s", tenant.TenantID),
 				Value: tenant.DeviceTotalBlocks},
+			/* Disabled due to CC-2417
 			{MetricName: fmt.Sprintf("storage.device.allocated.%s", tenant.TenantID),
 				Value: tenant.DeviceAllocatedBlocks},
 			{MetricName: fmt.Sprintf("storage.snapshot.allocated.%s", tenant.TenantID),
 				Value: tenant.SnapshotAllocatedBlocks},
+			*/
 			{MetricName: fmt.Sprintf("storage.snapshot.count.%s", tenant.TenantID),
 				Value: uint64(tenant.NumberSnapshots)},
 		}...)
-		unallocated += tenant.DeviceUnallocatedBlocks
+		// Disabled due to CC-2417
+		//unallocated += tenant.DeviceUnallocatedBlocks
 	}
 
 	// convert dockerStatus to our status and return
@@ -1333,11 +1333,13 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		Tenants:   tss,
 	}
 
+	/* Disabled due to CC-2417
 	if unallocated > volume.BytesToBlocks(dockerStatus.Data.Available) {
 		overage := volume.BlocksToBytes(unallocated - volume.BytesToBlocks(dockerStatus.Data.Available))
 		result.Errors = append(result.Errors, fmt.Sprintf(`!!!	Warning: your thin pool is currently oversubscribed by %s. You should
 	enlarge it by at least %s using LVM tools and/or delete some snapshots.`, overage, overage))
 	}
+	*/
 
 	return result, nil
 }
@@ -1352,66 +1354,76 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		// It's direct-lvm, so build the metadata device from the pool name
 		mdDevice = fmt.Sprintf("/dev/mapper/%s_tmeta", status.PoolName)
 	}
-	blockstats, err := d.getDeviceBlockStats(status.PoolName, mdDevice)
-	if err != nil {
-		return nil, err
-	}
+	// CC-2418: Disabling block stats gathering until a kernel bug in dm-thin
+	// is fixed
+	/*
+		blockstats, err := d.getDeviceBlockStats(status.PoolName, mdDevice)
+		if err != nil {
+			return nil, err
+		}
+	*/
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
-		vol, err := d.loadVolume(tenant)
+		vol, err := d.getVolume(tenant, false)
 		if err != nil {
 			return nil, err
 		}
 		if err := d.readDeviceInfo(vol.Metadata.CurrentDevice(), &devInfo); err != nil {
 			return nil, err
 		}
-		if stats, ok := blockstats[devInfo.DeviceID]; ok {
-			tss := volume.TenantStorageStats{TenantID: tenant, VolumePath: vol.Path()}
-			tss.DeviceAllocatedBlocks = stats.diet.Total()
-			tss.NumberSnapshots = len(vol.Metadata.snapshotMetadata.Snapshots)
-			dev := vol.Metadata.CurrentDevice()
-			// This will activate the device
-			if _, err := d.DeviceSet.GetDeviceStatus(dev); err != nil {
-				return nil, err
-			}
-			devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
-			total, free, err := getFilesystemStats(devicename)
-			if err != nil {
-				return nil, err
-			}
-			size, err := getDeviceSize(devicename)
-			if err != nil {
-				return nil, err
-			}
-			tss.FilesystemTotal = total
-			tss.FilesystemAvailable = free
-			tss.FilesystemUsed = total - free
-			tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
-			tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
-			last := stats
-			for _, device := range vol.Metadata.snapshotMetadata.Snapshots {
-				if err := d.readDeviceInfo(device, &devInfo); err != nil {
-					return nil, err
+		// CC-2417
+		//if stats, ok := blockstats[devInfo.DeviceID]; ok {
+		tss := volume.TenantStorageStats{TenantID: tenant, VolumePath: vol.Path()}
+		// CC-2417
+		//tss.DeviceAllocatedBlocks = stats.diet.Total()
+		tss.NumberSnapshots = len(vol.Metadata.snapshotMetadata.Snapshots)
+		dev := vol.Metadata.CurrentDevice()
+		// This will activate the device
+		if _, err := d.DeviceSet.GetDeviceStatus(dev); err != nil {
+			return nil, err
+		}
+		devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
+		total, free, err := getFilesystemStats(devicename)
+		if err != nil {
+			return nil, err
+		}
+		size, err := getDeviceSize(devicename)
+		if err != nil {
+			return nil, err
+		}
+		tss.FilesystemTotal = total
+		tss.FilesystemAvailable = free
+		tss.FilesystemUsed = total - free
+		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
+		/* CC-2417
+				last := stats
+				for _, device := range vol.Metadata.snapshotMetadata.Snapshots {
+					if err := d.readDeviceInfo(device, &devInfo); err != nil {
+						return nil, err
+					}
+					if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
+						tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
+						last = snapstats
+					}
 				}
-				if snapstats, ok := blockstats[devInfo.DeviceID]; ok {
-					tss.SnapshotAllocatedBlocks += snapstats.UniqueBlocks(last)
-					last = snapstats
+				/*
+				if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
+					tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
+		are unused by the filesystem. This is not a problem; however, if you want
+		the thin pool to reclaim the space for use by snapshots or another
+		application, run:
+
+			$ fstrim %s`, volume.BlocksToBytes(tss.DeviceAllocatedBlocks-volume.BytesToBlocks(tss.FilesystemUsed)), vol.Path()))
 				}
-			}
-			if volume.BytesToBlocks(tss.FilesystemUsed) < tss.DeviceAllocatedBlocks {
-				tss.Errors = append(tss.Errors, fmt.Sprintf(` !	Note: %s of blocks are allocated to an application virtual device but
-	are unused by the filesystem. This is not a problem; however, if you want
-	the thin pool to reclaim the space for use by snapshots or another
-	application, run:
-
-		$ fstrim %s`, volume.BlocksToBytes(tss.DeviceAllocatedBlocks-volume.BytesToBlocks(tss.FilesystemUsed)), vol.Path()))
-			}
-			result = append(result, tss)
-
+		*/
+		result = append(result, tss)
+		/* CC-2417
 		} else {
 			// There is no device matching the tenant
 			return nil, fmt.Errorf("Tenant %s DFS has not yet been initialized", tenant)
 		}
+		*/
 	}
 	return result, nil
 }
@@ -1640,8 +1652,13 @@ func resize2fs(dmDevice string) error {
 	return nil
 }
 
-func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
-	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
+func exportDirectoryAsTar(path, prefix string, out *tar.Writer, excludes []string) error {
+	cmdString := []string{"-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix)}
+	for _, excludeDir := range excludes {
+		cmdString = append(cmdString, []string{"--exclude", excludeDir}...)
+	}
+	cmdString = append(cmdString, ".")
+	cmd := exec.Command("tar", cmdString...)
 	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {

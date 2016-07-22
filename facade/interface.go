@@ -104,4 +104,10 @@ type FacadeInterface interface {
 	RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error
 
 	EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error
+
+	AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
+
+	RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error
+
+	EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error
 }

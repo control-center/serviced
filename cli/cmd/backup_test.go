@@ -44,7 +44,7 @@ func InitBackupAPITest(args ...string) {
 	New(DefaultBackupAPITest, utils.TestConfigReader{}).Run(args)
 }
 
-func (t BackupAPITest) Backup(dirpath string) (string, error) {
+func (t BackupAPITest) Backup(dirpath string, excludes []string) (string, error) {
 	switch dirpath {
 	case PathNotFound:
 		return "", ErrBackupFailed
@@ -92,6 +92,8 @@ func ExampleServicedCLI_CmdBackup_usage() {
 	//    serviced backup DIRPATH
 	//
 	// OPTIONS:
+	//    --exclude '--exclude option --exclude option'	Subdirectory of the tenant volume to exclude from backup
+	//
 }
 
 func ExampleServicedCli_cmdRestore() {

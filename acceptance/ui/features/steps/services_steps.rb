@@ -80,7 +80,7 @@ Then (/^I should see the endpoint entry with both "([^"]*)" and "([^"]*)"$/) do 
 end
 
 Then (/^I delete Endpoint "([^"]*)"$/) do |entry|
-    CC.UI.ServicesPage.remove_publicendpoint(entry)
+    expect(CC.UI.ServicesPage.remove_publicendpoint?(entry)).to be(true)
 end
 
 When (/^I click the Add Public Endpoint button$/) do

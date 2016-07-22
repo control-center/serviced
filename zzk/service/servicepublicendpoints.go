@@ -55,7 +55,7 @@ type ServicePublicEndpointNode struct {
 	Enabled   bool
 	Type      registry.PublicEndpointType
 	UseTLS    bool
-    Protocol  string
+	Protocol  string
 	version   interface{}
 }
 
@@ -174,7 +174,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	currentpublicendpoints := make(map[PublicEndpointKey]struct{})
 	if svcpublicEndpoints, err := conn.Children(ZKServicePublicEndpoints); err == client.ErrNoNode {
 		/*
-			// do not do this, otherwise, nodes aren't deleted when calling RemoveServiceVhost
+			// do not do this, otherwise, nodes aren't deleted when calling RemoveServiceVHost
 
 			if exists, err := zzk.PathExists(conn, ZKServicePublicEndpoints); err != nil {
 				return err
@@ -201,7 +201,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 	// Add the VHost entries.
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
-			vhostPort := servicedefinition.Port{ UseTLS: true, Protocol: "https" }
+			vhostPort := servicedefinition.Port{UseTLS: true, Protocol: "https"}
 			svcpublicendpoints[newPublicEndpointKey(svc.ID, vhost.Name, vhost.Enabled, registry.EPTypeVHost)] = vhostPort
 		}
 	}
@@ -240,7 +240,7 @@ func UpdateServicePublicEndpoints(conn client.Connection, svc *service.Service) 
 
 // updateServicePublicEndpoint updates a service vhost node if it exists, otherwise creates it
 func updateServicePublicEndpoint(conn client.Connection, serviceID, endpointname string, enabled bool,
-								 pepType registry.PublicEndpointType, usetls bool, protocol string) error {
+	pepType registry.PublicEndpointType, usetls bool, protocol string) error {
 	glog.V(2).Infof("updateServicePublicEndpoint serviceID:%s vhostname:%s", serviceID, endpointname)
 	var node ServicePublicEndpointNode
 	spath := servicePublicEndpointPath(serviceID, endpointname, enabled, pepType)

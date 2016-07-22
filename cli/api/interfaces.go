@@ -50,6 +50,7 @@ type API interface {
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error
+	UpdateResourcePool(pool pool.ResourcePool) error
 	GetPoolIPs(string) (*pool.PoolIPs, error)
 	AddVirtualIP(pool.VirtualIP) error
 	RemoveVirtualIP(pool.VirtualIP) error
@@ -99,7 +100,7 @@ type API interface {
 	DeployServiceTemplate(DeployTemplateConfig) ([]service.Service, error)
 
 	// Backup & Restore
-	Backup(string) (string, error)
+	Backup(string, []string) (string, error)
 	Restore(string) error
 
 	// Docker
@@ -122,9 +123,10 @@ type API interface {
 	GetVolumeStatus() (*volume.Statuses, error)
 
 	// Public endpoints
-	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
-
+	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled, restart bool) (*servicedefinition.Port, error)
 	RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error
-
 	EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error
+	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
+	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
+	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 }

@@ -178,16 +178,14 @@
 
 
         $scope.addPublicEndpoint = function(newPublicEndpoint) {
+            var serviceId = newPublicEndpoint.app_ep.ApplicationId;
+            var serviceName = newPublicEndpoint.app_ep.Application;
+            var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
             if(newPublicEndpoint.type === "vhost"){
-                var name = newPublicEndpoint.name;
-                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
-                return resourcesFactory.addVHost(serviceId, serviceEndpoint, name);
+                var vhostName = newPublicEndpoint.name;
+                return resourcesFactory.addVHost(serviceId, serviceName, serviceEndpoint, vhostName);
             } else if(newPublicEndpoint.type === "port"){
                 var port = newPublicEndpoint.host + ":" + newPublicEndpoint.port;
-                var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                var serviceName = newPublicEndpoint.app_ep.Application;
-                var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
                 var usetls = newPublicEndpoint.protocol.UseTLS;
                 var protocol = newPublicEndpoint.protocol.Protocol;
                 return resourcesFactory.addPort(serviceId, serviceName, serviceEndpoint, port, usetls, protocol);
@@ -393,7 +391,7 @@
 
         $scope.clickEndpointEnable= function(publicEndpoint){
             if(publicEndpoint.type === "vhost"){
-                resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                     .error((data, status) => {
                         $notification.create("Enable Public Endpoint failed", data.Detail).error();
                     });
@@ -408,7 +406,7 @@
 
         $scope.clickEndpointDisable = function(publicEndpoint){
             if(publicEndpoint.type === "vhost"){
-                resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                     .error((data, status) => {
                         $notification.create("Disable Public Endpoint failed", data.Detail).error();
                     });

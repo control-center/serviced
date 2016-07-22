@@ -110,6 +110,57 @@
             resourcesFactory.routeToHost(hostId);
         };
 
+        $scope.editCurrentPool = function(){
+            $scope.editablePool = {
+                ID: $scope.currentPool.model.ID,
+                ConnectionTimeout: utils.humanizeDuration($scope.currentPool.model.ConnectionTimeout)
+            };
+
+            $modalService.create({
+                templateUrl: "edit-pool.html",
+                model: $scope,
+                title: "title_edit_pool",
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        label: "btn_save_changes",
+                        action: function(){
+                            var poolModel = angular.copy($scope.currentPool.model);
+                            angular.extend(poolModel, $scope.editablePool);
+
+                            if(this.validate()){
+                                // disable ok button, and store the re-enable function
+                                var enableSubmit = this.disableSubmitButton();
+                                // convert validated human input into ms for rest call    
+                                poolModel.ConnectionTimeout = utils.parseDuration($scope.editablePool.ConnectionTimeout);
+                                // update pool with recently edited pool
+                                resourcesFactory.updatePool($scope.currentPool.model.ID, poolModel)
+                                    .success(function(data, status){
+                                        $notification.create("Updated pool", poolModel.ID).success();
+                                        this.close();
+                                    }.bind(this))
+                                    .error(function(data, status){
+                                        this.createNotification("Update pool failed", data.Detail).error();
+                                        enableSubmit();
+                                    }.bind(this));
+                            }
+                        }
+                    }
+                ],
+                validate: function(){
+                    var err = utils.validateDuration($scope.editablePool.ConnectionTimeout);
+                    if(err){
+                        this.createNotification("Error", err).error();
+                        return false;
+                    }
+                    return true;
+                }
+            });
+        };
+        
+
         function init(){
 
             $scope.name = "pooldetails";

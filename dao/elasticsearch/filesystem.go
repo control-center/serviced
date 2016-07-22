@@ -122,7 +122,7 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	// Smaller blocks will allow other goroutines to get time more frequently.
 	w.SetConcurrency(100000, 2)
 	defer w.Close()
-	err = dao.facade.Backup(ctx, w, backupRequest.SnapshotSpacePercent)
+	err = dao.facade.Backup(ctx, w, backupRequest.Excludes, backupRequest.SnapshotSpacePercent)
 	return
 }
 

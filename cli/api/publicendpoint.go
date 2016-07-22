@@ -47,3 +47,30 @@ func (a *api) EnablePublicEndpointPort(serviceid, endpointName, portAddr string,
 
 	return client.EnablePublicEndpointPort(serviceid, endpointName, portAddr, isEnabled)
 }
+
+func (a *api) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.AddPublicEndpointVHost(serviceid, endpointName, vhost, isEnabled, restart)
+}
+
+func (a *api) RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.RemovePublicEndpointVHost(serviceid, endpointName, vhost)
+}
+
+func (a *api) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+
+	return client.EnablePublicEndpointVHost(serviceid, endpointName, vhost, isEnabled)
+}

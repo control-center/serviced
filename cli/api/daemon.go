@@ -311,7 +311,9 @@ func (d *daemon) run() (err error) {
 	default:
 		d.stopISVCS()
 	}
-	d.hcache.SetPurgeFrequency(0)
+	if d.hcache != nil {
+		d.hcache.SetPurgeFrequency(0)
+	}
 	return nil
 }
 

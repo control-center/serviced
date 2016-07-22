@@ -57,14 +57,12 @@
             },
             addVHost: {
                 method: PUT,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: (serviceID, endpointName, vhostName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
-                        'ServiceID': serviceID,
-                        'Application': endpointName,
-                        'VirtualHostName': vhostName
+                        'ServiceName': serviceName,  /* Used in messages/logs */
                     });
                 }
             },
@@ -76,21 +74,31 @@
             },
             enableVHost: {
                 method: POST,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:true});}
+                payload: (serviceID, serviceName) => {
+                    return JSON.stringify({
+                        'ServiceName': serviceName,  /* Used in messages/logs */
+                        'IsEnabled': true
+                    });
+                }
             },
             disableVHost: {
                 method: POST,
-                url: (serviceID, endpointName, vhostName) => {
+                url: (serviceID, serviceName, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 },
-                payload: () => {return JSON.stringify({Enable:false});}
+                payload: (serviceID, serviceName) => {
+                    return JSON.stringify({
+                        'ServiceName': serviceName,  /* Used in messages/logs */
+                        'IsEnabled': false
+                    });
+                }
             },
             addPort: {
                 method: PUT,
-                url: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
+                url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
                 payload: (serviceID, serviceName, endpointName, portName, usetls, protocol) => {
@@ -112,7 +120,7 @@
                 url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, serviceName, endpointName, portName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
                         'ServiceName': serviceName,  /* Used in messages/logs */
                         'IsEnabled': true
@@ -124,9 +132,9 @@
                 url: (serviceID, serviceName, endpointName, portName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/ports/${portName}`;
                 },
-                payload: (serviceID, serviceName, endpointName, portName) => {
+                payload: (serviceID, serviceName) => {
                     return JSON.stringify({
-                        'Application': endpointName,
+                        'Application': serviceName,
                         'IsEnabled': false
                     });
                 }
@@ -143,6 +151,11 @@
             removePool: {
                 method: DELETE,
                 url: id => `/pools/${id}`
+            },
+            updatePool: {
+                method: PUT,
+                url: id => `/pools/${id}`,
+                payload: (id, pool) => pool
             },
             addPoolVirtualIP: {
                 method: PUT,

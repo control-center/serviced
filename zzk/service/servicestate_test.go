@@ -19,6 +19,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -45,7 +46,9 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 		host := host.Host{ID: hostID}
 		err := AddHost(conn, &host)
 		c.Assert(err, IsNil)
-		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		// Need a path to the node, despite ephemeral node names do not
+		// correlate.
+		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
 		c.Assert(err, IsNil)
 		return path.Base(p)
 	}
@@ -64,7 +67,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, *state)
+			err = addInstance(conn, "", *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -111,7 +114,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 
 	c.Log("Desired state is PAUSE")
 	for _, state := range stateIDs {
-		err := pauseInstance(conn, "test-host-1", state)
+		err := pauseInstance(conn, "", "test-host-1", state)
 		c.Assert(err, IsNil)
 	}
 	statusmap, err = GetServiceStatus(conn, svc.ID)
@@ -124,7 +127,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 
 	c.Log("Desired state is STOP")
 	for _, state := range stateIDs {
-		err := StopServiceInstance(conn, "test-host-1", state)
+		err := StopServiceInstance(conn, "", "test-host-1", state)
 		c.Assert(err, IsNil)
 	}
 	statusmap, err = GetServiceStatus(conn, svc.ID)

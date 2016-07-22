@@ -125,6 +125,17 @@ func (c *Connection) Create(path string, node client.Node) error {
 	return c.create(path, node)
 }
 
+// CreateIfExists adds a node at the specified path if the dirpath already
+// exists.
+func (c *Connection) CreateIfExists(path string, node client.Node) error {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return err
+	}
+	return c.create(path, node)
+}
+
 func (c *Connection) create(p string, node client.Node) error {
 	bytes, err := json.Marshal(node)
 	if err != nil {
@@ -187,6 +198,17 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 		return "", err
 	}
 	if err := c.ensurePath(path); err != nil {
+		return "", err
+	}
+	return c.createEphemeral(path, node)
+}
+
+// CreateEphemeralIfExists creates an ephemeral node at the given path if it
+// exists.
+func (c *Connection) CreateEphemeralIfExists(path string, node client.Node) (string, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
 		return "", err
 	}
 	return c.createEphemeral(path, node)
@@ -275,6 +297,25 @@ func (c *Connection) exists(p string) (bool, error) {
 		return false, nil
 	}
 	return exists, xlateError(err)
+}
+
+// ExistsW sets a watch on a node and alerts whenever it is added or removed.
+func (c *Connection) ExistsW(path string, cancel <-chan struct{}) (bool, <-chan client.Event, error) {
+	c.RLock()
+	defer c.RUnlock()
+	if err := c.isClosed(); err != nil {
+		return false, nil, err
+	}
+	return c.existsW(path, cancel)
+}
+
+func (c *Connection) existsW(p string, cancel <-chan struct{}) (bool, <-chan client.Event, error) {
+	p = path.Join(c.basePath, p)
+	ok, _, ch, err := c.conn.ExistsW(p)
+	if err != nil {
+		return false, nil, xlateError(err)
+	}
+	return ok, c.toClientEvent(ch, cancel), nil
 }
 
 // Get returns the node at the given path.

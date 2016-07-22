@@ -97,7 +97,7 @@ func (vc validationContext) validateVHost(se EndpointDefinition) error {
 	if len(se.VHostList) > 0 {
 		for _, vhost := range se.VHostList {
 			if _, found := vc.vhosts[vhost.Name]; found {
-				return fmt.Errorf("duplicate Vhost found: %v", vhost.Name)
+				return fmt.Errorf("duplicate VHost found: %v", vhost.Name)
 			}
 			vc.vhosts[vhost.Name] = se
 		}

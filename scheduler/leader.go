@@ -39,6 +39,8 @@ type leader struct {
 	cpClient dao.ControlPlane
 	facade   *facade.Facade
 	poolID   string
+
+	hreg *zkservice.HostRegistryListener
 }
 
 // Lead is executed by the "leader" of the control center cluster to handle its management responsibilities of:
@@ -47,14 +49,14 @@ type leader struct {
 //    virtual IPs
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int) {
 
-	glog.V(0).Info("Processing leader duties")
-	leader := leader{shutdown, conn, cpClient, facade, poolID}
-
 	// creates a listener for the host registry
-	hostRegistry := zkservice.NewHostRegistryListener()
+	hreg := zkservice.NewHostRegistryListener(poolID)
+
+	glog.V(0).Info("Processing leader duties")
+	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}
 
 	// creates a listener for services
-	serviceListener := zkservice.NewServiceListener(&leader)
+	serviceListener := zkservice.NewServiceListener(poolID, &leader)
 
 	// kicks off the snapshot cleaning goroutine
 	if snapshotTTL > 0 {
@@ -62,7 +64,7 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	}
 
 	// starts all of the listeners
-	zzk.Start(shutdown, conn, serviceListener, hostRegistry)
+	zzk.Start(shutdown, conn, serviceListener, hreg)
 }
 
 // SelectHost chooses a host from the pool for the specified service. If the service
@@ -70,7 +72,7 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 // of memory committed to running containers will be chosen.
 func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 	glog.Infof("Looking for available hosts in pool %s", l.poolID)
-	hosts, err := zkservice.GetRegisteredHosts(l.conn, l.shutdown)
+	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {
 		glog.Errorf("Could not get available hosts for pool %s: %s", l.poolID, err)
 		return nil, err
@@ -94,7 +96,7 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 
 		// Get the hostID from the address assignment
 		if assignment.AssignmentType == commons.VIRTUAL {
-			if hostID, err = virtualips.GetHostID(l.conn, assignment.IPAddr); err != nil {
+			if hostID, err = virtualips.GetHostID(l.conn, l.poolID, assignment.IPAddr); err != nil {
 				glog.Errorf("Host not available for virtual ip address %s: %s", assignment.IPAddr, err)
 				return nil, err
 			}
@@ -103,9 +105,9 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		}
 
 		// Checking host availability
-		for i, host := range hosts {
+		for _, host := range hosts {
 			if host.ID == hostID {
-				return hosts[i], nil
+				return &host, nil
 			}
 		}
 

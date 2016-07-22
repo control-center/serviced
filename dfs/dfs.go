@@ -53,7 +53,7 @@ type DFS interface {
 	// Backup saves and exports the current state of the system
 	Backup(info BackupInfo, w io.Writer) error
 	// Restore restores the system to the state of the backup
-	Restore(r io.Reader, backupInfo *BackupInfo) error
+	Restore(r io.Reader, version int) error
 	// BackupInfo provides detailed info for a particular backup
 	BackupInfo(r io.Reader) (*BackupInfo, error)
 	// Tag adds a tag to an existing snapshot
@@ -73,12 +73,13 @@ var _ = DFS(&DistributedFilesystem{})
 
 // BackupInfo provides meta info about a backup
 type BackupInfo struct {
-	Templates     []servicetemplate.ServiceTemplate
-	BaseImages    []string
-	Pools         []pool.ResourcePool
-	Snapshots     []string
-	Timestamp     time.Time
-	BackupVersion int
+	Templates        []servicetemplate.ServiceTemplate
+	BaseImages       []string
+	Pools            []pool.ResourcePool
+	Snapshots        []string
+	SnapshotExcludes map[string][]string
+	Timestamp        time.Time
+	BackupVersion    int
 }
 
 // SnapshotInfo provides meta info about a snapshot
