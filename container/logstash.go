@@ -14,7 +14,7 @@
 package container
 
 import (
-	"encoding/json"
+    "bytes"
 	"fmt"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	logstashContainerConfig = "/etc/logstash-forwarder.conf"
+	logstashContainerConfig = "/etc/filebeat.conf"
 )
 
 //createFields makes the map of tags for the logstash config including the type
@@ -48,12 +48,13 @@ func formatTagsForConfFile(tags map[string]string) string {
 	if len(tags) == 0 {
 		return ""
 	}
-	result, err := json.Marshal(tags)
-	if err != nil {
-		glog.Warningf("Unable to unmarhsal %s because of %s", tags, err)
-		return ""
-	}
-	return string(result)
+    var buffer bytes.Buffer
+    buffer.WriteString("{")
+    for k, v := range tags {
+        buffer.WriteString(k + ": " + v + ", ")
+    }
+    buffer.WriteString("}")
+	return buffer.String()
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
@@ -61,46 +62,49 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
-	// TODO: Grab the structs from logstash-forwarder and marshal this instead of generating it
-	logstashForwarderLogConf := `
-		{
-			"paths": [ "%s" ],
-			"fields": %s
-		}`
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &service.LogConfigs[0])))
-	for _, logConfig := range service.LogConfigs[1:] {
-		logstashForwarderLogConf = logstashForwarderLogConf + `,
-				{
-					"paths": [ "%s" ],
-					"fields": %s
-				}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
+	filebeatLogConf := ``
+	for _, logConfig := range service.LogConfigs {
+		filebeatLogConf = filebeatLogConf + `
+    -
+      ignore_older: 26280h
+      paths:
+        - %s
+      fields: %s`
+
+		filebeatLogConf = fmt.Sprintf(filebeatLogConf, logConfig.Path, formatTagsForConfFile(createFields(hostID, service, instanceID, &logConfig)))
 	}
 
-	logstashForwarderShipperConf := `
-			{
-				"network": {
-					"servers": [ "%s" ],
-					"ssl certificate": "%s",
-					"ssl key": "%s",
-					"ssl ca": "%s",
-					"timeout": 15
-				},
-				"files": [
-					%s
-				]
-			}`
-	logstashForwarderShipperConf = fmt.Sprintf(logstashForwarderShipperConf,
-		//		"172.17.42.1:5043",
+	filebeatShipperConf :=
+`filebeat:
+  idle_timeout: 5s
+  prospectors: %s
+output:
+  logstash:
+    enabled: true
+    hosts:
+      - %s
+    tls:
+      insecure: true
+      certificate: %s
+      certificate_key: %s
+      certificate_authorities:
+        - %s
+      timeout: 15
+logging:
+  to_syslog: false`
+
+	filebeatShipperConf = fmt.Sprintf(filebeatShipperConf,
+        filebeatLogConf,
+//		"172.17.42.1:5043",
 		"127.0.0.1:5043",
-		resourcePath+"/logstash-forwarder.crt",
-		resourcePath+"/logstash-forwarder.key",
-		resourcePath+"/logstash-forwarder.crt",
-		logstashForwarderLogConf)
+		resourcePath+"/filebeat.crt",
+		resourcePath+"/filebeat.key",
+		resourcePath+"/filebeat.crt",
+		)
 
 	config := servicedefinition.ConfigFile{
 		Filename: confPath,
-		Content:  logstashForwarderShipperConf,
+		Content:  filebeatShipperConf,
 	}
 	err := writeConfFile(config)
 	if err != nil {
