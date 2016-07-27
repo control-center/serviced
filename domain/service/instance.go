@@ -51,7 +51,7 @@ type FloatUsage struct {
 
 // Instance describes an instance of a service
 type Instance struct {
-	ID           string
+	ID           int
 	HostID       string
 	HostName     string
 	ServiceID    string
