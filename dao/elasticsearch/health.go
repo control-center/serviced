@@ -67,7 +67,7 @@ func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unu
 		glog.Errorf("Could not parse timestamp %s: %s", result.Timestamp, err)
 		return err
 	}
-	status := ""
+	var status health.Status
 	switch result.Passed {
 	case "passed":
 		status = health.OK

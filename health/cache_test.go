@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit 
+// +build unit
 
 package health_test
 
@@ -51,7 +51,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Exists(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok",
+		Status:    OK,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -70,7 +70,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Update(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok",
+		Status:    OK,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -79,7 +79,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Update(c *C) {
 	c.Assert(stat, DeepEquals, value)
 	c.Assert(ok, Equals, true)
 	value = HealthStatus{
-		Status:    "ok1",
+		Status:    -1,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -98,7 +98,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Expired(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok",
+		Status:    OK,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -122,7 +122,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_Delete(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok",
+		Status:    OK,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -145,7 +145,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok1",
+		Status:    -1,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -159,7 +159,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 		HealthCheckName: "test-health-1",
 	}
 	value = HealthStatus{
-		Status:    "ok2",
+		Status:    -2,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -173,7 +173,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteExpired(c *C) {
 		HealthCheckName: "test-health-2",
 	}
 	value = HealthStatus{
-		Status:    "ok3",
+		Status:    -3,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -199,7 +199,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok1",
+		Status:    -1,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -213,7 +213,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 		HealthCheckName: "test-health-1",
 	}
 	value = HealthStatus{
-		Status:    "ok2",
+		Status:    -2,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -227,7 +227,7 @@ func (s *HealthStatusCacheTestSuite) TestCRUD_DeleteInstance(c *C) {
 		HealthCheckName: "test-health-2",
 	}
 	value = HealthStatus{
-		Status:    "ok3",
+		Status:    -3,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}
@@ -252,7 +252,7 @@ func (s *HealthStatusCacheTestSuite) TestSetPurgeFrequency(c *C) {
 		HealthCheckName: "test-health-0",
 	}
 	value := HealthStatus{
-		Status:    "ok1",
+		Status:    -1,
 		StartedAt: time.Now().Add(-5 * time.Minute),
 		Duration:  30 * time.Second,
 	}

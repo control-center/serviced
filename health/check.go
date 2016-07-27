@@ -15,6 +15,7 @@ package health
 
 import (
 	"encoding/json"
+	"errors"
 	"os/exec"
 	"time"
 )
@@ -31,23 +32,66 @@ const DefaultTimeout time.Duration = 30 * time.Second
 // updates.
 const DefaultExpiration time.Duration = time.Minute
 
+// Status is the status of a health check
+type Status int
+
 const (
 	// OK means health check is passing
-	OK = "passed"
+	OK Status = 0
 	// Failed means health check is responsive, but failing
-	Failed = "failed"
+	Failed = 1
 	// Timeout means health check is non-responsive in the given time
-	Timeout = "timeout"
-	// NotRunning means the instance is not running
-	NotRunning = "not_running"
+	Timeout = 2
 	// Unknown means the instance hasn't checked in within the provided time
 	// limit.
-	Unknown = "unknown"
+	Unknown = 3
+	// NotRunning means the instance is not running
+	NotRunning = 4
 )
+
+func (s Status) MarshalJSON() ([]byte, error) {
+	switch s {
+	case OK:
+		return []byte(`"passed"`), nil
+	case Failed:
+		return []byte(`"failed"`), nil
+	case Timeout:
+		return []byte(`"timeout"`), nil
+	case Unknown:
+		return []byte(`"unknown"`), nil
+	case NotRunning:
+		return []byte(`"not_running"`), nil
+	default:
+		return []byte{}, errors.New("invalid status value")
+	}
+}
+
+func (s *Status) UnmarshalJSON(data []byte) error {
+	var stat string
+	if err := json.Unmarshal(data, &stat); err != nil {
+		return err
+	}
+
+	switch stat {
+	case "passed":
+		*s = OK
+	case "failed":
+		*s = Failed
+	case "timeout":
+		*s = Timeout
+	case "unknown":
+		*s = Unknown
+	case "not_running":
+		*s = NotRunning
+	default:
+		return errors.New("invalid status value")
+	}
+	return nil
+}
 
 // HealthStatus is the output from a provided health check.
 type HealthStatus struct {
-	Status    string
+	Status    Status
 	StartedAt time.Time
 	Duration  time.Duration
 }

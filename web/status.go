@@ -231,7 +231,7 @@ func getCached(f func() ([]byte, error)) ([]byte, error) {
 // Sort of deprecated, in that it will be rendered useless once
 // domain.HealthCheckStatus is no longer returned by isvcs.Mgr.
 func convertDomainHealthToNewHealth(sources []domain.HealthCheckStatus) map[string]health.HealthStatus {
-	var status string
+	var status health.Status
 	result := make(map[string]health.HealthStatus)
 	for _, hcs := range sources {
 		switch hcs.Status {

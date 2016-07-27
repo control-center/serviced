@@ -18,20 +18,20 @@ import (
 
 	. "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
-	. "github.com/control-center/serviced/domain/service"
+	s "github.com/control-center/serviced/domain/service"
 )
 
 var zero int = 0
 
-var InternalServicesISVC Service
-var ElasticsearchLogStashISVC Service
-var ElasticsearchServicedISVC Service
-var ZookeeperISVC Service
-var LogstashISVC Service
-var OpentsdbISVC Service
-var CeleryISVC Service
-var DockerRegistryISVC Service
-var ISVCSMap map[string]*Service
+var InternalServicesISVC s.Service
+var ElasticsearchLogStashISVC s.Service
+var ElasticsearchServicedISVC s.Service
+var ZookeeperISVC s.Service
+var LogstashISVC s.Service
+var OpentsdbISVC s.Service
+var CeleryISVC s.Service
+var DockerRegistryISVC s.Service
+var ISVCSMap map[string]*s.Service
 
 var InternalServicesIRS RunningService
 var ElasticsearchLogStashIRS RunningService
@@ -55,7 +55,7 @@ func init() {
 
 	tags := map[string][]string{"isvc": []string{"true"}}
 
-	InternalServicesISVC = Service{
+	InternalServicesISVC = s.Service{
 		Name:         "Internal Services",
 		ID:           "isvc-internalservices",
 		Startup:      "N/A",
@@ -157,7 +157,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	ElasticsearchLogStashISVC = Service{
+	ElasticsearchLogStashISVC = s.Service{
 		Name:            "Elastic Search - LogStash",
 		ID:              "isvc-elasticsearch-logstash",
 		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
@@ -258,7 +258,7 @@ func init() {
 			},
 		},
 	}
-	ElasticsearchServicedISVC = Service{
+	ElasticsearchServicedISVC = s.Service{
 		Name:            "Elastic Search - Serviced",
 		ID:              "isvc-elasticsearch-serviced",
 		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
@@ -367,7 +367,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	ZookeeperISVC = Service{
+	ZookeeperISVC = s.Service{
 		Name:            "Zookeeper",
 		ID:              "isvc-zookeeper",
 		Startup:         "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
@@ -483,7 +483,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	LogstashISVC = Service{
+	LogstashISVC = s.Service{
 		Name:            "Logstash",
 		ID:              "isvc-logstash",
 		Startup:         "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf",
@@ -599,7 +599,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	OpentsdbISVC = Service{
+	OpentsdbISVC = s.Service{
 		Name:            "OpenTSDB",
 		ID:              "isvc-opentsdb",
 		Startup:         "cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf",
@@ -715,7 +715,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	CeleryISVC = Service{
+	CeleryISVC = s.Service{
 		Name:            "Celery",
 		ID:              "isvc-celery",
 		Startup:         "supervisord -n -c /opt/celery/etc/supervisor.conf",
@@ -831,7 +831,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	DockerRegistryISVC = Service{
+	DockerRegistryISVC = s.Service{
 		Name:            "Docker Registry",
 		ID:              "isvc-docker-registry",
 		Startup:         "DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry",
@@ -940,7 +940,7 @@ func init() {
 		},
 	}
 
-	ISVCSMap = map[string]*Service{
+	ISVCSMap = map[string]*s.Service{
 		"isvc-internalservices":       &InternalServicesISVC,
 		"isvc-elasticsearch-logstash": &ElasticsearchLogStashISVC,
 		"isvc-elasticsearch-serviced": &ElasticsearchServicedISVC,

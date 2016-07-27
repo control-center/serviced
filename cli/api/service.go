@@ -28,6 +28,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 
 	"github.com/control-center/serviced/domain/host"
@@ -196,7 +197,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 						newrow["Healthcheck"] = hcName
 						newrow["Healthcheck Status"] = hcResult.Status
 
-						if hcResult.Status == "failed" {
+						if hcResult.Status == health.Failed {
 							explicitFailure = true
 						}
 
