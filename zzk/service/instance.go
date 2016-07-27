@@ -251,7 +251,7 @@ func StopServiceInstance(conn client.Connection, poolID, hostID, stateID string)
 		if poolID != "" {
 			basepth = path.Join("/pools", poolID)
 		}
-		hpth := path.Join(basepth, "/hosts", hostID, "instances")
+		hpth := path.Join(basepth, "/hosts", hostID, "instances", stateID)
 		hdata := HostState{}
 		if err := conn.Get(hpth, &hdata); err != nil {
 			glog.Errorf("Could not look up instance %s on host %s: %s", stateID, hostID, err)
