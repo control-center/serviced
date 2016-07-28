@@ -26,27 +26,31 @@ import (
 
 func (t *ZZKTest) TestParseStateID(c *C) {
 	// invalid id
-	owner, inst, err := ParseStateID("badaadadadafg")
+	hostID, serviceID, inst, err := ParseStateID("badaadadadafg")
 	c.Assert(err, Equals, ErrInvalidStateID)
-	c.Assert(owner, Equals, "")
+	c.Assert(hostID, Equals, "")
+	c.Assert(serviceID, Equals, "")
 	c.Assert(inst, Equals, 0)
 
 	// another invalid id
-	owner, inst, err = ParseStateID("fhfhfhfhgjjs-dfgsgsg-1")
+	hostID, serviceID, inst, err = ParseStateID("dfgsgsg-1")
 	c.Assert(err, Equals, ErrInvalidStateID)
-	c.Assert(owner, Equals, "")
+	c.Assert(hostID, Equals, "")
+	c.Assert(serviceID, Equals, "")
 	c.Assert(inst, Equals, 0)
 
 	// yet another invalid id
-	owner, inst, err = ParseStateID("dfrhedfbsd-de4")
+	hostID, serviceID, inst, err = ParseStateID("rg35g34-dfrhedfbsd-de4")
 	c.Assert(err, Equals, ErrInvalidStateID)
-	c.Assert(owner, Equals, "")
+	c.Assert(hostID, Equals, "")
+	c.Assert(serviceID, Equals, "")
 	c.Assert(inst, Equals, 0)
 
 	// an acceptable id
-	owner, inst, err = ParseStateID("fgrg43g5heefv-5")
+	hostID, serviceID, inst, err = ParseStateID("45grwg34-fgrg43g5heefv-5")
 	c.Assert(err, IsNil)
-	c.Assert(owner, Equals, "fgrg43g5heefv")
+	c.Assert(hostID, Equals, "45grwg34")
+	c.Assert(serviceID, Equals, "fgrg43g5heefv")
 	c.Assert(inst, Equals, 5)
 }
 
@@ -205,10 +209,10 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	startTime := time.Now()
 	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
-	ok, err := conn.Exists("/pools/poolid/services/serviceid/hostid-3")
+	ok, err := conn.Exists("/pools/poolid/services/serviceid/hostid-serviceid-3")
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
-	ok, err = conn.Exists("/pools/poolid/hosts/hostid/instances/serviceid-3")
+	ok, err = conn.Exists("/pools/poolid/hosts/hostid/instances/hostid-serviceid-3")
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
 

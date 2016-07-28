@@ -93,17 +93,22 @@ type StateRequest struct {
 	InstanceID int
 }
 
-// ParseStateID returns the instance id from the given state id
-func ParseStateID(stateID string) (string, int, error) {
-	parts := strings.SplitN(stateID, "-", 2)
-	if len(parts) != 2 {
-		return "", 0, ErrInvalidStateID
+func (req StateRequest) StateID() string {
+	return fmt.Sprintf("%s-%s-%d", req.HostID, req.ServiceID, req.InstanceID)
+}
+
+// ParseStateID returns the host, service, and instance id from the given state
+// id
+func ParseStateID(stateID string) (string, string, int, error) {
+	parts := strings.SplitN(stateID, "-", 3)
+	if len(parts) != 3 {
+		return "", "", 0, ErrInvalidStateID
 	}
-	instanceID, err := strconv.Atoi(parts[1])
+	instanceID, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return "", 0, ErrInvalidStateID
+		return "", "", 0, ErrInvalidStateID
 	}
-	return parts[0], instanceID, nil
+	return parts[0], parts[1], instanceID, nil
 }
 
 // GetState returns the service state and host state for a particular instance.
@@ -121,8 +126,7 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 	}
 
 	// Get the current host state
-	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
-	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
+	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	hsdat := &HostState2{}
 	if err := conn.Get(hspth, hsdat); err != nil {
 
@@ -139,8 +143,7 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 	logger.Debug("Found the host state")
 
 	// Get the current service state
-	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
-	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	ssdat := &ServiceState{}
 	if err := conn.Get(sspth, ssdat); err != nil {
 
@@ -192,12 +195,12 @@ func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]Stat
 
 	states := make([]State, len(ch))
 	for i, stateID := range ch {
-		hostID, instanceID, err := ParseStateID(stateID)
+		hostID, _, instanceID, err := ParseStateID(stateID)
 		if err != nil {
 
 			logger.WithFields(log.Fields{
-				"ServiceStateID": stateID,
-				"Error":          err,
+				"StateID": stateID,
+				"Error":   err,
 			}).Debug("Could not parse state")
 
 			return nil, err
@@ -250,12 +253,12 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 
 	states := make([]State, len(ch))
 	for i, stateID := range ch {
-		serviceID, instanceID, err := ParseStateID(stateID)
+		_, serviceID, instanceID, err := ParseStateID(stateID)
 		if err != nil {
 
 			logger.WithFields(log.Fields{
-				"HostStateID": stateID,
-				"Error":       err,
+				"StateID": stateID,
+				"Error":   err,
 			}).Debug("Could not parse state")
 
 			return nil, err
@@ -313,8 +316,8 @@ func CreateState(conn client.Connection, req StateRequest) error {
 			Message:   "could not initialize host path",
 		}
 	}
-	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
-	hspth := path.Join(hpth, hsval)
+
+	hspth := path.Join(hpth, req.StateID())
 	hsdat := &HostState2{
 		DesiredState: service.SVCRun,
 		Scheduled:    time.Now(),
@@ -322,8 +325,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 	t.Create(hspth, hsdat)
 
 	// Prepare the service instance
-	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
-	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	ssdat := &ServiceState{}
 	t.Create(sspth, ssdat)
 
@@ -360,8 +362,7 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostStat
 	}
 
 	// Get the current host state
-	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
-	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
+	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	hsdat := &HostState2{}
 	if err := conn.Get(hspth, hsdat); err != nil {
 
@@ -377,8 +378,7 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostStat
 	}
 
 	// Get the current service state
-	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
-	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	ssdat := &ServiceState{}
 	if err := conn.Get(sspth, ssdat); err != nil {
 
@@ -431,8 +431,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	t := conn.NewTransaction()
 
 	// Delete the host instance
-	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
-	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
+	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	if ok, err := conn.Exists(hspth); err != nil {
 
 		logger.WithFields(log.Fields{
@@ -451,8 +450,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	}
 
 	// Delete the service instance
-	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
-	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	if ok, err := conn.Exists(sspth); err != nil {
 
 		logger.WithFields(log.Fields{
@@ -481,6 +479,66 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 			Operation: "delete",
 			Message:   fmt.Sprintf("could not commit transaction"),
 		}
+	}
+
+	logger.Debug("Deleted state")
+
+	return nil
+}
+
+// DEPRECATED: removeState is for removing the old stateID
+func removeState(conn client.Connection, poolID string, hostID string, serviceID string, stateID string) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":    hostID,
+		"ServiceID": serviceID,
+		"StateID":   stateID,
+	})
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	t := conn.NewTransaction()
+
+	// Delete the host instance
+	hspth := path.Join(basepth, "/hosts", hostID, "instances", stateID)
+	if ok, err := conn.Exists(hspth); err != nil {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host state")
+
+		return err
+	} else if ok {
+		t.Delete(hspth)
+	} else {
+		logger.Warn("No state to delete on host")
+	}
+
+	// Delete the service instance
+	sspth := path.Join(basepth, "/services", serviceID, stateID)
+	if ok, err := conn.Exists(sspth); err != nil {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service state")
+
+		return err
+	} else if ok {
+		t.Delete(sspth)
+	} else {
+		logger.Warn("No state to delete on service")
+	}
+
+	if err := t.Commit(); err != nil {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not commit transaction")
+
+		return err
 	}
 
 	logger.Debug("Deleted state")
