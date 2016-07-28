@@ -72,10 +72,71 @@ func (t *ZZKTest) TestGetServiceStates2(c *C) {
 	err = conn.CreateDir("/pools/poolid/hosts/hostid2")
 	c.Assert(err, IsNil)
 
+	// create states
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid1",
+		ServiceID:  "serviceid1",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid1",
+		ServiceID:  "serviceid2",
+		InstanceID: 2,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid2",
+		ServiceID:  "serviceid2",
+		InstanceID: 3,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
 	// 0 states
-	states, err := GetServiceStates2(conn, "poolid", "serviceid1")
+	states, err := GetServiceStates2(conn, "poolid", "serviceid0")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 0)
+
+	// =1 state
+	states, err = GetServiceStates2(conn, "poolid", "serviceid1")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 1)
+	c.Assert(states[0].InstanceID, Equals, 1)
+
+	// >1 state
+	states, err = GetServiceStates2(conn, "poolid", "serviceid2")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 2)
+	actual := []int{states[0].InstanceID, states[1].InstanceID}
+	sort.Ints(actual)
+	c.Assert(actual, DeepEquals, []int{2, 3})
+}
+
+func (t *ZZKTest) TestDeleteServiceStates(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add 2 services
+	err = conn.CreateDir("/pools/poolid/services/serviceid1")
+	c.Assert(err, IsNil)
+
+	err = conn.CreateDir("/pools/poolid/services/serviceid2")
+	c.Assert(err, IsNil)
+
+	// add 2 hosts
+	err = conn.CreateDir("/pools/poolid/hosts/hostid1")
+	c.Assert(err, IsNil)
+
+	err = conn.CreateDir("/pools/poolid/hosts/hostid2")
+	c.Assert(err, IsNil)
 
 	// create states
 	req := StateRequest{
@@ -105,19 +166,17 @@ func (t *ZZKTest) TestGetServiceStates2(c *C) {
 	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
 
+	// 0 states
+	count := DeleteServiceStates(conn, "poolid", "serviceid0")
+	c.Check(count, Equals, 0)
+
 	// =1 state
-	states, err = GetServiceStates2(conn, "poolid", "serviceid1")
-	c.Assert(err, IsNil)
-	c.Assert(states, HasLen, 1)
-	c.Assert(states[0].InstanceID, Equals, 1)
+	count = DeleteServiceStates(conn, "poolid", "serviceid1")
+	c.Check(count, Equals, 1)
 
 	// >1 state
-	states, err = GetServiceStates2(conn, "poolid", "serviceid2")
-	c.Assert(err, IsNil)
-	c.Assert(states, HasLen, 2)
-	actual := []int{states[0].InstanceID, states[1].InstanceID}
-	sort.Ints(actual)
-	c.Assert(actual, DeepEquals, []int{2, 3})
+	count = DeleteServiceStates(conn, "poolid", "serviceid2")
+	c.Check(count, Equals, 2)
 }
 
 func (t *ZZKTest) TestGetHostStates(c *C) {
@@ -138,10 +197,71 @@ func (t *ZZKTest) TestGetHostStates(c *C) {
 	err = conn.CreateDir("/pools/poolid/hosts/hostid2")
 	c.Assert(err, IsNil)
 
+	// create states
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid1",
+		ServiceID:  "serviceid1",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid2",
+		ServiceID:  "serviceid1",
+		InstanceID: 2,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid2",
+		ServiceID:  "serviceid2",
+		InstanceID: 3,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
 	// 0 states
-	states, err := GetHostStates(conn, "poolid", "hostid1")
+	states, err := GetHostStates(conn, "poolid", "hostid0")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 0)
+
+	// =1 state
+	states, err = GetHostStates(conn, "poolid", "hostid1")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 1)
+	c.Assert(states[0].InstanceID, Equals, 1)
+
+	// >1 state
+	states, err = GetHostStates(conn, "poolid", "hostid2")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 2)
+	actual := []int{states[0].InstanceID, states[1].InstanceID}
+	sort.Ints(actual)
+	c.Assert(actual, DeepEquals, []int{2, 3})
+}
+
+func (t *ZZKTest) TestDeleteHostStates(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add 2 services
+	err = conn.CreateDir("/pools/poolid/services/serviceid1")
+	c.Assert(err, IsNil)
+
+	err = conn.CreateDir("/pools/poolid/services/serviceid2")
+	c.Assert(err, IsNil)
+
+	// add 2 hosts
+	err = conn.CreateDir("/pools/poolid/hosts/hostid1")
+	c.Assert(err, IsNil)
+
+	err = conn.CreateDir("/pools/poolid/hosts/hostid2")
+	c.Assert(err, IsNil)
 
 	// create states
 	req := StateRequest{
@@ -171,19 +291,17 @@ func (t *ZZKTest) TestGetHostStates(c *C) {
 	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
 
+	// 0 states
+	count := DeleteHostStates(conn, "poolid", "hostid0")
+	c.Check(count, Equals, 0)
+
 	// =1 state
-	states, err = GetHostStates(conn, "poolid", "hostid1")
-	c.Assert(err, IsNil)
-	c.Assert(states, HasLen, 1)
-	c.Assert(states[0].InstanceID, Equals, 1)
+	count = DeleteHostStates(conn, "poolid", "hostid1")
+	c.Check(count, Equals, 1)
 
 	// >1 state
-	states, err = GetHostStates(conn, "poolid", "hostid2")
-	c.Assert(err, IsNil)
-	c.Assert(states, HasLen, 2)
-	actual := []int{states[0].InstanceID, states[1].InstanceID}
-	sort.Ints(actual)
-	c.Assert(actual, DeepEquals, []int{2, 3})
+	count = DeleteHostStates(conn, "poolid", "hostid2")
+	c.Check(count, Equals, 2)
 }
 
 func (t *ZZKTest) TestCRUDState(c *C) {

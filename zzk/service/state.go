@@ -486,13 +486,11 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	return nil
 }
 
-// DEPRECATED: removeState is for removing the old stateID
-func removeState(conn client.Connection, poolID string, hostID string, serviceID string, stateID string) error {
+// DeleteServiceStates returns the number of states deleted from a service
+func DeleteServiceStates(conn client.Connection, poolID, serviceID string) (count int) {
 	// set up logging
 	logger := log.WithFields(log.Fields{
-		"HostID":    hostID,
 		"ServiceID": serviceID,
-		"StateID":   stateID,
 	})
 
 	basepth := "/"
@@ -500,48 +498,116 @@ func removeState(conn client.Connection, poolID string, hostID string, serviceID
 		basepth = path.Join("/pools", poolID)
 	}
 
-	t := conn.NewTransaction()
-
-	// Delete the host instance
-	hspth := path.Join(basepth, "/hosts", hostID, "instances", stateID)
-	if ok, err := conn.Exists(hspth); err != nil {
+	spth := path.Join(basepth, "/services", serviceID)
+	ch, err := conn.Children(spth)
+	if err != nil && err != client.ErrNoNode {
 
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Debug("Could not look up host state")
+		}).Error("Could not look up instances on service")
 
-		return err
-	} else if ok {
-		t.Delete(hspth)
-	} else {
-		logger.Warn("No state to delete on host")
+		return
 	}
 
-	// Delete the service instance
-	sspth := path.Join(basepth, "/services", serviceID, stateID)
-	if ok, err := conn.Exists(sspth); err != nil {
+	for _, stateID := range ch {
+		hostID, _, instanceID, err := ParseStateID(stateID)
+		if err != nil {
+
+			logger.WithFields(log.Fields{
+				"StateID": stateID,
+				"Error":   err,
+			}).Warn("Could not parse state")
+
+			continue
+		}
+
+		req := StateRequest{
+			PoolID:     poolID,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+
+		if err := DeleteState(conn, req); err != nil {
+
+			logger.WithFields(log.Fields{
+				"HostID":     hostID,
+				"InstanceID": instanceID,
+				"Error":      err,
+			}).Warn("Could not delete state")
+
+			continue
+		}
+
+		count++
+	}
+
+	logger.WithFields(log.Fields{
+		"Count": count,
+	}).Debug("Deleted states")
+
+	return
+}
+
+// DeleteHostStates returns the number of states deleted from a host
+func DeleteHostStates(conn client.Connection, poolID, hostID string) (count int) {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID": hostID,
+	})
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	hpth := path.Join(basepth, "/hosts", hostID, "instances")
+	ch, err := conn.Children(hpth)
+	if err != nil && err != client.ErrNoNode {
 
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Debug("Could not look up service state")
+		}).Error("Could not look up instances on service")
 
-		return err
-	} else if ok {
-		t.Delete(sspth)
-	} else {
-		logger.Warn("No state to delete on service")
+		return
 	}
 
-	if err := t.Commit(); err != nil {
+	for _, stateID := range ch {
+		_, serviceID, instanceID, err := ParseStateID(stateID)
+		if err != nil {
 
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not commit transaction")
+			logger.WithFields(log.Fields{
+				"StateID": stateID,
+				"Error":   err,
+			}).Warn("Could not parse state")
 
-		return err
+			continue
+		}
+
+		req := StateRequest{
+			PoolID:     poolID,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+
+		if err := DeleteState(conn, req); err != nil {
+
+			logger.WithFields(log.Fields{
+				"HostID":     hostID,
+				"InstanceID": instanceID,
+				"Error":      err,
+			}).Warn("Could not delete state")
+
+			continue
+		}
+
+		count++
 	}
 
-	logger.Debug("Deleted state")
+	logger.WithFields(log.Fields{
+		"Count": count,
+	}).Debug("Deleted states")
 
-	return nil
+	return
 }
