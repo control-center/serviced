@@ -348,7 +348,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 }
 
 // UpdateState updates the service state and host state
-func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostState2, *ServiceState)) error {
+func UpdateState(conn client.Connection, req StateRequest, mutate func(*State)) error {
 	// set up logging
 	logger := log.WithFields(log.Fields{
 		"HostID":     req.HostID,
@@ -394,7 +394,19 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostStat
 	}
 
 	// mutate the states
-	mutate(hsdat, ssdat)
+	hsver, ssver := hsdat.Version(), ssdat.Version()
+	state := &State{
+		HostState2:   *hsdat,
+		ServiceState: *ssdat,
+		HostID:       req.HostID,
+		ServiceID:    req.ServiceID,
+		InstanceID:   req.InstanceID,
+	}
+	mutate(state)
+	*hsdat = state.HostState2
+	hsdat.SetVersion(hsver)
+	*ssdat = state.ServiceState
+	ssdat.SetVersion(ssver)
 
 	if err := conn.NewTransaction().Set(hspth, hsdat).Set(sspth, ssdat).Commit(); err != nil {
 

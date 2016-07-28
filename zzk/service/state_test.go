@@ -356,12 +356,14 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Check(state.InstanceID, Equals, 3)
 
 	// update state
-	err = UpdateState(conn, req, func(h *HostState2, s *ServiceState) {
-		h.DesiredState = service.SVCPause
-		s.DockerID = "dockerid"
-		s.ImageID = "imageid"
-		s.Paused = true
-		s.Started = time.Now()
+	err = UpdateState(conn, req, func(s *State) {
+		s.DesiredState = service.SVCPause
+		s.ServiceState = ServiceState{
+			DockerID: "dockerid",
+			ImageID:  "imageid",
+			Paused:   true,
+			Started:  time.Now(),
+		}
 	})
 	c.Assert(err, IsNil)
 
