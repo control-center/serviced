@@ -21,10 +21,24 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 )
 
+// StateError describes an error from a state CRUD operation
+type StateError struct {
+	Request   StateRequest
+	Operation string
+	Message   string
+}
+
+func (err StateError) Error() string {
+	return fmt.Sprintf("could not %s instance %s from service %s on host %s: %s", err.Operation, err.Request.InstanceID, err.Request.ServiceID, err.Request.ServiceID, err.Message)
+}
+
+// ErrInvalidStateID is an error that is returned when a state id value is not
+// parseable.
 var ErrInvalidStateID = errors.New("invalid state id")
 
 // ServiceState provides information for a particular instance of a service
@@ -94,6 +108,13 @@ func ParseStateID(stateID string) (string, int, error) {
 
 // GetState returns the service state and host state for a particular instance.
 func GetState(conn client.Connection, req StateRequest) (*State, error) {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -104,18 +125,36 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
 	hsdat := &HostState2{}
 	if err := conn.Get(hspth, hsdat); err != nil {
-		// TODO: error on could not get host instance
-		return nil, err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host state")
+
+		return nil, &StateError{
+			Request:   req,
+			Operation: "get",
+			Message:   "could not look up host state",
+		}
 	}
+	logger.Debug("Found the host state")
 
 	// Get the current service state
 	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
 	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
 	ssdat := &ServiceState{}
 	if err := conn.Get(sspth, ssdat); err != nil {
-		// TODO: error on could not get service instance
-		return nil, err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Error("Could not look up service state")
+
+		return nil, &StateError{
+			Request:   req,
+			Operation: "get",
+			Message:   "could not look up service state",
+		}
 	}
+	logger.Debug("Found the service state")
 
 	return &State{
 		HostState2:   *hsdat,
@@ -129,6 +168,11 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 // GetServiceStates2 returns the states of a running service
 // TODO: update name when calls are swapped
 func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]State, error) {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"ServiceID": serviceID,
+	})
+
 	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
@@ -137,7 +181,12 @@ func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]Stat
 	spth := path.Join(basepth, "/services", serviceID)
 	ch, err := conn.Children(spth)
 	if err != nil && err != client.ErrNoNode {
-		// TODO: error on could not get instances of service
+
+		// TODO: wrap the error?
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Error("Could not look up instances on service")
+
 		return nil, err
 	}
 
@@ -145,7 +194,12 @@ func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]Stat
 	for i, stateID := range ch {
 		hostID, instanceID, err := ParseStateID(stateID)
 		if err != nil {
-			// TODO: error on invalid state
+
+			logger.WithFields(log.Fields{
+				"ServiceStateID": stateID,
+				"Error":          err,
+			}).Debug("Could not parse state")
+
 			return nil, err
 		}
 
@@ -158,18 +212,25 @@ func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]Stat
 
 		state, err := GetState(conn, req)
 		if err != nil {
-			// TODO: error on building state
 			return nil, err
 		}
 
 		states[i] = *state
 	}
 
+	logger.WithFields(log.Fields{
+		"Count": len(states),
+	}).Debug("Loaded states")
+
 	return states, nil
 }
 
 // GetHostStates returns the states running on a host
 func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, error) {
+	logger := log.WithFields(log.Fields{
+		"HostID": hostID,
+	})
+
 	basepth := "/"
 	if poolID != "" {
 		basepth = path.Join("/pools", poolID)
@@ -178,7 +239,12 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 	hpth := path.Join(basepth, "/hosts", hostID, "instances")
 	ch, err := conn.Children(hpth)
 	if err != nil && err != client.ErrNoNode {
-		// TODO: error on could not get instances on host
+
+		// TODO: wrap the error?
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Error("Could not look up instances on host")
+
 		return nil, err
 	}
 
@@ -186,7 +252,12 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 	for i, stateID := range ch {
 		serviceID, instanceID, err := ParseStateID(stateID)
 		if err != nil {
-			// TODO: error on invalid state
+
+			logger.WithFields(log.Fields{
+				"HostStateID": stateID,
+				"Error":       err,
+			}).Debug("Could not parse state")
+
 			return nil, err
 		}
 
@@ -199,18 +270,27 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 
 		state, err := GetState(conn, req)
 		if err != nil {
-			// TODO: error on building state
 			return nil, err
 		}
-
 		states[i] = *state
 	}
+
+	logger.WithFields(log.Fields{
+		"Count": len(states),
+	}).Debug("Loaded states")
 
 	return states, nil
 }
 
 // CreateState creates a new service state and host state
 func CreateState(conn client.Connection, req StateRequest) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -222,8 +302,16 @@ func CreateState(conn client.Connection, req StateRequest) error {
 	hpth := path.Join(basepth, "/hosts", req.HostID, "instances")
 	err := conn.CreateIfExists(hpth, &client.Dir{})
 	if err != nil && err != client.ErrNodeExists {
-		// TODO: error on could not set up host instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not initialize host path")
+
+		return &StateError{
+			Request:   req,
+			Operation: "create",
+			Message:   "could not initialize host path",
+		}
 	}
 	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
 	hspth := path.Join(hpth, hsval)
@@ -240,14 +328,32 @@ func CreateState(conn client.Connection, req StateRequest) error {
 	t.Create(sspth, ssdat)
 
 	if err := t.Commit(); err != nil {
-		// TODO: error on create instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not commit transaction")
+
+		return &StateError{
+			Request:   req,
+			Operation: "create",
+			Message:   fmt.Sprintf("could not commit transaction", err),
+		}
 	}
+
+	logger.Debug("Created state")
+
 	return nil
 }
 
 // UpdateState updates the service state and host state
 func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostState2, *ServiceState)) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -258,8 +364,16 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostStat
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
 	hsdat := &HostState2{}
 	if err := conn.Get(hspth, hsdat); err != nil {
-		// TODO: error on could not get host instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host state")
+
+		return &StateError{
+			Request:   req,
+			Operation: "update",
+			Message:   "could not look up host state",
+		}
 	}
 
 	// Get the current service state
@@ -267,22 +381,48 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostStat
 	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
 	ssdat := &ServiceState{}
 	if err := conn.Get(sspth, ssdat); err != nil {
-		// TODO: error on could not get service instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service state")
+
+		return &StateError{
+			Request:   req,
+			Operation: "update",
+			Message:   "could not look up service state",
+		}
 	}
 
 	// mutate the states
 	mutate(hsdat, ssdat)
 
 	if err := conn.NewTransaction().Set(hspth, hsdat).Set(sspth, ssdat).Commit(); err != nil {
-		// TODO: error on update instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not commit transaction")
+
+		return &StateError{
+			Request:   req,
+			Operation: "update",
+			Message:   fmt.Sprintf("could not commit transaction"),
+		}
 	}
+
+	logger.Debug("Updated state")
+
 	return nil
 }
 
 // DeleteState removes the service state and host state
 func DeleteState(conn client.Connection, req StateRequest) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -294,29 +434,56 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	hsval := fmt.Sprintf("%s-%d", req.ServiceID, req.InstanceID)
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", hsval)
 	if ok, err := conn.Exists(hspth); err != nil {
-		// TODO: error on could not check host instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host state")
+
+		return &StateError{
+			Request:   req,
+			Operation: "delete",
+			Message:   "could not look up host state",
+		}
 	} else if ok {
 		t.Delete(hspth)
 	} else {
-		// TODO: log on nothing to delete
+		logger.Warn("No state to delete on host")
 	}
 
 	// Delete the service instance
 	ssval := fmt.Sprintf("%s-%d", req.HostID, req.InstanceID)
 	sspth := path.Join(basepth, "/services", req.ServiceID, ssval)
 	if ok, err := conn.Exists(sspth); err != nil {
-		// TODO: error on could not check service instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service state")
+
+		return &StateError{
+			Request:   req,
+			Operation: "delete",
+			Message:   "could not look up service state",
+		}
 	} else if ok {
 		t.Delete(sspth)
 	} else {
-		// TODO: log on nothing to delete
+		logger.Warn("No state to delete on service")
 	}
 
 	if err := t.Commit(); err != nil {
-		// TODO: error on delete instance
-		return err
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not commit transaction")
+
+		return &StateError{
+			Request:   req,
+			Operation: "delete",
+			Message:   fmt.Sprintf("could not commit transaction"),
+		}
 	}
+
+	logger.Debug("Deleted state")
+
 	return nil
 }

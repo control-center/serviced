@@ -19,7 +19,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	. "gopkg.in/check.v1"
@@ -214,9 +213,11 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Assert(ok, Equals, true)
 
 	// create duplicate state
-	// TODO: need more standard error here
 	err = CreateState(conn, req)
-	c.Assert(err, NotNil)
+	stateErr, ok := err.(*StateError)
+	c.Check(ok, Equals, true)
+	c.Check(stateErr.Request, DeepEquals, req)
+	c.Check(stateErr.Operation, Equals, "create")
 
 	// state exists
 	state, err := GetState(conn, req)
@@ -260,6 +261,9 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Assert(err, IsNil)
 
 	state, err = GetState(conn, req)
-	c.Assert(err, Equals, client.ErrNoNode)
+	stateErr, ok = err.(*StateError)
+	c.Check(ok, Equals, true)
+	c.Check(stateErr.Request, DeepEquals, req)
+	c.Check(stateErr.Operation, Equals, "get")
 	c.Assert(state, IsNil)
 }
