@@ -34,7 +34,7 @@ type StateError struct {
 }
 
 func (err StateError) Error() string {
-	return fmt.Sprintf("could not %s instance %s from service %s on host %s: %s", err.Operation, err.Request.InstanceID, err.Request.ServiceID, err.Request.ServiceID, err.Message)
+	return fmt.Sprintf("could not %s instance %d from service %s on host %s: %s", err.Operation, err.Request.InstanceID, err.Request.ServiceID, err.Request.ServiceID, err.Message)
 }
 
 // ErrInvalidStateID is an error that is returned when a state id value is not
@@ -338,7 +338,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 		return &StateError{
 			Request:   req,
 			Operation: "create",
-			Message:   fmt.Sprintf("could not commit transaction", err),
+			Message:   fmt.Sprintf("could not commit transaction"),
 		}
 	}
 
