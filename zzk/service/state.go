@@ -25,6 +25,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 )
 
+var ErrInvalidStateID = errors.New("invalid state id")
+
 // ServiceState provides information for a particular instance of a service
 type ServiceState struct {
 	DockerID   string
@@ -81,11 +83,11 @@ type StateRequest struct {
 func ParseStateID(stateID string) (string, int, error) {
 	parts := strings.SplitN(stateID, "-", 2)
 	if len(parts) != 2 {
-		return "", 0, errors.New("invalid state id")
+		return "", 0, ErrInvalidStateID
 	}
 	instanceID, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return "", 0, err
+		return "", 0, ErrInvalidStateID
 	}
 	return parts[0], instanceID, nil
 }
@@ -207,8 +209,8 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 	return states, nil
 }
 
-// CreateInstance creates a new service state and host state
-func CreateInstance(conn client.Connection, req StateRequest) error {
+// CreateState creates a new service state and host state
+func CreateState(conn client.Connection, req StateRequest) error {
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -244,8 +246,8 @@ func CreateInstance(conn client.Connection, req StateRequest) error {
 	return nil
 }
 
-// UpdateInstance updates the service state and host state
-func UpdateInstance(conn client.Connection, req StateRequest, mutate func(*HostState2, *ServiceState)) error {
+// UpdateState updates the service state and host state
+func UpdateState(conn client.Connection, req StateRequest, mutate func(*HostState2, *ServiceState)) error {
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
@@ -279,8 +281,8 @@ func UpdateInstance(conn client.Connection, req StateRequest, mutate func(*HostS
 	return nil
 }
 
-// DeleteInstance removes the service state and host state
-func DeleteInstance(conn client.Connection, req StateRequest) error {
+// DeleteState removes the service state and host state
+func DeleteState(conn client.Connection, req StateRequest) error {
 	basepth := "/"
 	if req.PoolID != "" {
 		basepth = path.Join("/pools", req.PoolID)
