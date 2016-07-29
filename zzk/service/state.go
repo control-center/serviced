@@ -51,10 +51,12 @@ type ServiceState struct {
 	version    interface{}
 }
 
+// Version implements client.Node
 func (s *ServiceState) Version() interface{} {
 	return s.version
 }
 
+// SetVersion implements client.Node
 func (s *ServiceState) SetVersion(version interface{}) {
 	s.version = version
 }
@@ -68,10 +70,12 @@ type HostState2 struct {
 	version      interface{}
 }
 
+// Version implements client.Node
 func (s *HostState2) Version() interface{} {
 	return s.version
 }
 
+// SetVersion implements client.Node
 func (s *HostState2) SetVersion(version interface{}) {
 	s.version = version
 }
@@ -149,7 +153,7 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Error("Could not look up service state")
+		}).Debug("Could not look up service state")
 
 		return nil, &StateError{
 			Request:   req,
@@ -188,7 +192,7 @@ func GetServiceStates2(conn client.Connection, poolID, serviceID string) ([]Stat
 		// TODO: wrap the error?
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Error("Could not look up instances on service")
+		}).Debug("Could not look up instances on service")
 
 		return nil, err
 	}
@@ -246,7 +250,7 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 		// TODO: wrap the error?
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Error("Could not look up instances on host")
+		}).Debug("Could not look up instances on host")
 
 		return nil, err
 	}
@@ -403,6 +407,8 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*State)) 
 		InstanceID:   req.InstanceID,
 	}
 	mutate(state)
+
+	// set the version object on the respective states
 	*hsdat = state.HostState2
 	hsdat.SetVersion(hsver)
 	*ssdat = state.ServiceState
@@ -458,7 +464,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	} else if ok {
 		t.Delete(hspth)
 	} else {
-		logger.Warn("No state to delete on host")
+		logger.Debug("No state to delete on host")
 	}
 
 	// Delete the service instance
@@ -477,7 +483,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	} else if ok {
 		t.Delete(sspth)
 	} else {
-		logger.Warn("No state to delete on service")
+		logger.Debug("No state to delete on service")
 	}
 
 	if err := t.Commit(); err != nil {
