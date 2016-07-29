@@ -389,6 +389,11 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 
 	c.Logf("Stopping service instance")
 	err = StopServiceInstance(conn, "", "test-host-1", stateID)
+	if err != nil {
+		c.Logf("could not stop, trying again")
+		err = StopServiceInstance(conn, "", "test-host-1", stateID)
+		c.Assert(err, IsNil)
+	}
 	wait(svc.ID, service.SVCStop)
 }
 
