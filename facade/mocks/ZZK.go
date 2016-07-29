@@ -9,12 +9,13 @@ import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
 import zkregistry "github.com/control-center/serviced/zzk/registry"
+import zkservice "github.com/control-center/serviced/zzk/service"
 
 type ZZK struct {
 	mock.Mock
 }
 
-func (_m *ZZK) UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+func (_m *ZZK) UpdateService(svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
 	ret := _m.Called(svc, setLockOnCreate, setLockOnUpdate)
 
 	var r0 error
@@ -286,4 +287,46 @@ func (_m *ZZK) GetServiceEndpoints(tenantID string, serviceID string, endpoints 
 	}
 
 	return r0
+}
+func (_m *ZZK) GetServiceStates2(poolID string, serviceID string) ([]zkservice.State, error) {
+	ret := _m.Called(poolID, serviceID)
+
+	var r0 []zkservice.State
+	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
+		r0 = rf(poolID, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]zkservice.State)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(poolID, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice.State, error) {
+	ret := _m.Called(poolID, hostID)
+
+	var r0 []zkservice.State
+	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
+		r0 = rf(poolID, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]zkservice.State)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(poolID, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

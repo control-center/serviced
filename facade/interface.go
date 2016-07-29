@@ -110,4 +110,8 @@ type FacadeInterface interface {
 	RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error
 
 	EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error
+
+	GetHostInstances(ctx datastore.Context, hostid string) ([]service.Instance, error)
+
+	GetServiceInstances(ctx datastore.Context, serviceid string) ([]service.Instance, error)
 }
