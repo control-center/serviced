@@ -245,6 +245,10 @@
                 if (nounit) {
                     throw new Error(`Numeric value ${nounit[0]} lacks time unit`);
                 }
+                var nonum = human.match(/^[a-z]+/g);
+                if (nonum) {
+                    throw new Error(`${nonum[0]} is not a valid time duration`);
+                }
                 
                 var humanTokens = human.match(/\d+[a-z]+/g);
                 var msecs = humanTokens

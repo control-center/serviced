@@ -28,6 +28,7 @@
             { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
             { url: '#/pools', label: 'nav_pools', sublinks: [ '#/pools/' ] },
             { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/', '#/hostsmap' ] },
+            { url: '#/status', label: 'nav_status', sublinks: [ '#/status/' ] },
             { url: '#/logs', label: 'nav_logs', sublinks: [] },
             { url: '#/backuprestore', label: 'nav_backuprestore', sublinks: [] }
         ];

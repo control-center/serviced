@@ -62,6 +62,9 @@ controlplane.
             when('/pools/:poolID', {
                 templateUrl: '/static/partials/view-pool-details.html',
                 controller: "PoolDetailsController"}).
+            when('/status', {
+                templateUrl: '/static/partials/view-status.html',
+                controller: "StatusController"}).
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: "BackupRestoreController"
