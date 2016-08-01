@@ -31,6 +31,8 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 		"ServiceID": serviceID,
 	})
 
+	hostMap := make(map[string]host.Host)
+
 	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
 
@@ -61,7 +63,22 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
-		inst, err := f.getInstance(ctx, state)
+		hst, ok := hostMap[state.HostID]
+		if !ok {
+			if err := f.hostStore.Get(ctx, host.HostKey(state.HostID), &hst); err != nil {
+
+				logger.WithFields(log.Fields{
+					"HostID":     state.HostID,
+					"InstanceID": state.InstanceID,
+					"Error":      err,
+				}).Debug("Could not look up host for instance")
+
+				return nil, err
+			}
+			hostMap[state.HostID] = hst
+		}
+
+		inst, err := f.getInstance(ctx, hst, *svc, state)
 		if err != nil {
 			return nil, err
 		}
@@ -78,6 +95,8 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 	logger := log.WithFields(log.Fields{
 		"HostID": hostID,
 	})
+
+	svcMap := make(map[string]service.Service)
 
 	var hst host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
@@ -110,7 +129,24 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
-		inst, err := f.getInstance(ctx, state)
+
+		svc, ok := svcMap[state.ServiceID]
+		if !ok {
+			s, err := f.serviceStore.Get(ctx, state.ServiceID)
+			if err != nil {
+
+				logger.WithFields(log.Fields{
+					"ServiceID":  state.ServiceID,
+					"InstanceID": state.InstanceID,
+				}).Debug("Could not look up service for instance")
+
+				return nil, err
+			}
+			svc = *s
+			svcMap[state.ServiceID] = svc
+		}
+
+		inst, err := f.getInstance(ctx, hst, svc, state)
 		if err != nil {
 			return nil, err
 		}
@@ -123,25 +159,12 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 }
 
 // getInstance calculates the fields of the service instance object.
-func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*service.Instance, error) {
+func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, state zkservice.State) (*service.Instance, error) {
 	logger := log.WithFields(log.Fields{
-		"ServiceID":  state.ServiceID,
 		"HostID":     state.HostID,
+		"ServiceID":  state.ServiceID,
 		"InstanceID": state.InstanceID,
 	})
-
-	// get the service
-	svc, err := f.serviceStore.Get(ctx, state.ServiceID)
-	if err != nil {
-
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not look up service")
-
-		// TODO: expecting wrapped error here
-		return nil, err
-	}
-	logger.Debug("Loaded service")
 
 	// check the image
 	imageSynced, err := func(imageName, imageUUID string) (bool, error) {
@@ -179,20 +202,6 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 	if err != nil {
 		return nil, err
 	}
-
-	// get the host
-	var hst host.Host
-	err = f.hostStore.Get(ctx, host.HostKey(state.HostID), &hst)
-	if err != nil {
-
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could look up host")
-
-		// TODO: expecting wrapped error here
-		return nil, err
-	}
-	logger.Debug("Loaded host")
 
 	// get the current state
 	var curState service.CurrentState
@@ -252,6 +261,9 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 		DesiredState: state.DesiredState,
 		CurrentState: curState,
 		HealthStatus: hstats,
+		Scheduled:    state.Scheduled,
+		Started:      state.Started,
+		Terminated:   state.Terminated,
 	}
 	logger.Debug("Loaded service instance")
 
