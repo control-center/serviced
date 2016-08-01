@@ -14,6 +14,7 @@
 package facade
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs/docker"
@@ -26,74 +27,156 @@ import (
 // GetServiceInstances returns the state of all instances for a particular
 // service.
 func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([]service.Instance, error) {
+	logger := log.WithFields(log.Fields{
+		"ServiceID": serviceID,
+	})
+
 	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
-		// TODO: error on loading service
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service")
+
+		// TODO: expecting wrapped error here
 		return nil, err
 	}
+
+	logger.Debug("Loaded service")
+
 	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
 	if err != nil {
-		// TODO: error on loading states
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up running instances")
+
 		return nil, err
 	}
+
+	logger = logger.WithFields(log.Fields{
+		"Instances": len(states),
+	})
+	logger.Debug("Found running instances for service")
+
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 		inst, err := f.getInstance(ctx, state)
 		if err != nil {
-			// TODO: error on loading state
 			return nil, err
 		}
 		insts[i] = *inst
 	}
+
+	logger.Debug("Loaded instances for service")
 
 	return insts, nil
 }
 
 // GetHostInstances returns the state of all instances for a particular host.
 func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]service.Instance, error) {
+	logger := log.WithFields(log.Fields{
+		"HostID": hostID,
+	})
+
 	var hst host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
 	if err != nil {
-		// TODO: error on loading host
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host")
+
+		// TODO: expecting wrapped error here
 		return nil, err
 	}
+
+	logger.Debug("Loaded host")
+
 	states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
 	if err != nil {
-		// TODO: error on loading states
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up running instances")
+
 		return nil, err
 	}
+
+	logger = logger.WithFields(log.Fields{
+		"Instances": len(states),
+	})
+	logger.Debug("Found running instances for services")
+
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 		inst, err := f.getInstance(ctx, state)
 		if err != nil {
-			// TODO: error on loading state
 			return nil, err
 		}
 		insts[i] = *inst
 	}
+
+	logger.Debug("Loaded instances for service")
 
 	return insts, nil
 }
 
 // getInstance calculates the fields of the service instance object.
 func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*service.Instance, error) {
+	logger := log.WithFields(log.Fields{
+		"ServiceID":  state.ServiceID,
+		"HostID":     state.HostID,
+		"InstanceID": state.InstanceID,
+	})
+
 	// get the service
 	svc, err := f.serviceStore.Get(ctx, state.ServiceID)
 	if err != nil {
-		// TODO: error on loading service
-		return nil, err
-	}
 
-	// get the image
-	imageID, err := commons.ParseImageID(svc.ImageID)
-	if err != nil {
-		// TODO: error on loading image
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service")
+
+		// TODO: expecting wrapped error here
 		return nil, err
 	}
-	imageID.Tag = docker.Latest
-	img, err := f.registryStore.Get(ctx, imageID.String())
+	logger.Debug("Loaded service")
+
+	// check the image
+	imageSynced, err := func(imageName, imageUUID string) (bool, error) {
+		imgLogger := logger.WithFields(log.Fields{
+			"Image": imageName,
+		})
+
+		imageID, err := commons.ParseImageID(imageName)
+		if err != nil {
+
+			imgLogger.WithFields(log.Fields{
+				"Error": err,
+			}).Debug("Could not parse service image")
+
+			return false, err
+		}
+		imgLogger.Debug("Parsed service image")
+
+		imageID.Tag = docker.Latest
+		imageData, err := f.registryStore.Get(ctx, imageID.String())
+		if err != nil {
+
+			imgLogger.WithFields(log.Fields{
+				"Error": err,
+			}).Debug("Could not look up service image in the registry")
+
+			// TODO: expecting wrapped error here
+			return false, err
+		}
+		imgLogger.Debug("Loaded service image from registry")
+
+		return imageData.UUID == imageUUID, nil
+	}(svc.ImageID, state.ImageID)
+
 	if err != nil {
-		// TODO: error on searching image registry
 		return nil, err
 	}
 
@@ -101,9 +184,15 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 	var hst host.Host
 	err = f.hostStore.Get(ctx, host.HostKey(state.HostID), &hst)
 	if err != nil {
-		// TODO: error on loading host
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could look up host")
+
+		// TODO: expecting wrapped error here
 		return nil, err
 	}
+	logger.Debug("Loaded host")
 
 	// get the current state
 	var curState service.CurrentState
@@ -133,6 +222,7 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 	default:
 		curState = ""
 	}
+	logger.Debug("Calulated service status")
 
 	// get the health status
 	hstats := make(map[string]health.Status)
@@ -149,9 +239,7 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 			hstats[name] = health.Unknown
 		}
 	}
-
-	// TODO: get memory stats
-	// TODO: get cpu stats
+	logger.Debug("Loaded service health")
 
 	inst := &service.Instance{
 		ID:           state.InstanceID,
@@ -160,11 +248,12 @@ func (f *Facade) getInstance(ctx datastore.Context, state zkservice.State) (*ser
 		ServiceID:    svc.ID,
 		ServiceName:  svc.Name,
 		DockerID:     state.DockerID,
-		ImageSynced:  img.UUID == state.ImageID,
+		ImageSynced:  imageSynced,
 		DesiredState: state.DesiredState,
 		CurrentState: curState,
 		HealthStatus: hstats,
 	}
+	logger.Debug("Loaded service instance")
 
 	return inst, nil
 }
