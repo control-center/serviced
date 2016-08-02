@@ -23,9 +23,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/zenoss/glog"
 
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -102,48 +100,9 @@ func TestMakeSureTagsMakeItIntoTheJson(t *testing.T) {
 		return
 	}
 
-	if !strings.Contains(string(contents), "\"pepe\":\"foobar\"") {
+	if !strings.Contains(string(contents), "pepe: foobar") {
 		t.Errorf("Tags did not make it into the config file %s", string(contents))
 		return
-	}
-}
-
-func TestMakeSureConfigIsValidJSON(t *testing.T) {
-	service := getTestService()
-
-	tmp, err := ioutil.TempFile("/tmp", "test-logstash-")
-	if err != nil {
-		t.Errorf("Error creating temporary file error: %s", err)
-		return
-	}
-	confFileLocation := tmp.Name()
-	// go ahead and clean up
-	defer func() {
-		os.Remove(confFileLocation)
-	}()
-
-	if err := writeLogstashAgentConfig(confFileLocation, "host1",  &service, "0", logstashContainerDirectory); err != nil {
-		t.Errorf("Error writing config file %s", err)
-		return
-	}
-
-	contents, err := ioutil.ReadFile(confFileLocation)
-	if err != nil {
-		t.Errorf("Error reading config file %s", err)
-		return
-	}
-
-	var dat map[string]interface{}
-	if err := json.Unmarshal(contents, &dat); err != nil {
-		t.Errorf("Error decoding config file %s with err %s", string(contents), err)
-		return
-	}
-
-	glog.V(1).Infof("encoded file %v", dat)
-
-	// make sure path to logfile is present
-	if !strings.Contains(string(contents), "path/to/log/file") {
-		t.Errorf("The logfile path was not in the configuration: err %s, %s", err, string(contents))
 	}
 }
 
