@@ -152,16 +152,6 @@ func staticData(w *rest.ResponseWriter, r *rest.Request) {
 		fileToServe)
 }
 
-/*
- * Serves content from static/logview/* which DOES require authentication
- */
-func getProtectedLogViewData(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	fileToServe := path.Join(staticRoot(), "logview", r.PathParam("resource"))
-	http.ServeFile(
-		w.ResponseWriter,
-		r.Request,
-		fileToServe)
-}
 
 /*******************************************************************************
  *

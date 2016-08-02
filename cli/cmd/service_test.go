@@ -860,7 +860,7 @@ func ExampleServicedCLI_CmdServiceProxy_usage() {
 	//    --certfile 				path to public certificate file (defaults to compiled in public cert)
 	//    --endpoint '10.87.103.1:4979'	serviced endpoint address
 	//    --autorestart			restart process automatically when it finishes
-	//    --logstash				forward service logs via logstash-forwarder
+	//    --logstash				forward service logs via filebeat
 	//
 }
 

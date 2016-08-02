@@ -113,7 +113,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},
-		rest.Route{"GET", "/static/logview/*resource", gz(sc.checkAuth(getProtectedLogViewData))},
 		rest.Route{"GET", "/static/*resource", gz(staticData)},
 		rest.Route{"GET", "/licenses.html", gz(licenses)},
 
@@ -129,6 +128,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 	// All API calls require authentication
 	routes = routeToInternalServiceProxy("/api/controlplane/elastic", "http://127.0.0.1:9100/", true, routes)
 	routes = routeToInternalServiceProxy("/metrics/api", "http://127.0.0.1:8888/api", true, routes)
+	routes = routeToInternalServiceProxy("/api/controlplane/kibana", "http://127.0.0.1:5601", true, routes)
 
 	// Allow static assets for metrics data to be loaded without authentication since they are
 	// included in index.html by default.

@@ -606,7 +606,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	containerPath := strings.TrimSpace("/serviced")
 	bindsMap[containerPath] = resourcePath
 
-	// bind mount everything we need for logstash-forwarder
+	// bind mount everything we need for filebeat
 	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
