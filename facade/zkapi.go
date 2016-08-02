@@ -301,3 +301,26 @@ func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]applica
 	}
 	return nil
 }
+
+// GetServiceStates2 returns all running instances for a service
+// FIXME: update name when integration is complete
+func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zkservice.State, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get connection to zookeeper: %s", err)
+		return nil, err
+	}
+
+	return zkservice.GetServiceStates2(conn, poolID, serviceID)
+}
+
+// GetHostStates returns all running instances for a host
+func (zk *zkf) GetHostStates(poolID, hostID string) ([]zkservice.State, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get connection to zookeeper: %s", err)
+		return nil, err
+	}
+
+	return zkservice.GetHostStates(conn, poolID, hostID)
+}

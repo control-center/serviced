@@ -232,7 +232,7 @@ func (s *TestWebSuite) TestRestDeployAppTemplateStatusFails(c *C) {
 	request := s.buildRequest("POST", "/templates/deploy/status", requestJSON)
 	s.mockFacade.
 		On("DeployTemplateStatus", deploymentID).
-		Return(nil, expectedError)
+		Return("", expectedError)
 
 	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
 

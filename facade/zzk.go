@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	zkregistry "github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 type ZZK interface {
@@ -46,6 +47,8 @@ type ZZK interface {
 	LockServices(svcs []service.Service) error
 	UnlockServices(svcs []service.Service) error
 	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error
+	GetServiceStates2(poolID, serviceID string) ([]zkservice.State, error) // FIXME: update when integration is complete
+	GetHostStates(poolID, hostID string) ([]zkservice.State, error)
 }
 
 func GetFacadeZZK(f *Facade) ZZK {

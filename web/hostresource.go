@@ -51,6 +51,52 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	w.WriteJson(&response)
 }
 
+func restGetHostInstances(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for GET"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	instances, err := facade.GetHostInstances(dataCtx, hostID)
+	if err != nil {
+		glog.Error("Could not get host instances:", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetHostInstances: id %s, instances %#v", hostID, instances)
+	w.WriteJson(&instances)
+}
+
+func restGetServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if len(serviceID) == 0 {
+		restBadRequest(w, fmt.Errorf("serviceID must be specified for GET"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	instances, err := facade.GetServiceInstances(dataCtx, serviceID)
+	if err != nil {
+		glog.Error("Could not get service instances:", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceInstances: id %s, instances %#v", serviceID, instances)
+	w.WriteJson(&instances)
+}
+
 func restGetActiveHostIDs(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()

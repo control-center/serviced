@@ -31,24 +31,6 @@ const (
 	Stopped               = "stopped"
 )
 
-// UintUsage reports usage information as unsigned integers
-type UintUsage struct {
-	Max      uint64
-	Avg      uint64
-	Last     uint64
-	LastHour []uint64
-	LastDay  []uint64
-}
-
-// FloatUsage reports usage information as floating point values
-type FloatUsage struct {
-	Max      float64
-	Avg      float64
-	Last     float64
-	LastHour []float64
-	LastDay  []float64
-}
-
 // Instance describes an instance of a service
 type Instance struct {
 	ID           int
@@ -61,8 +43,6 @@ type Instance struct {
 	DesiredState DesiredState
 	CurrentState CurrentState
 	HealthStatus map[string]health.Status
-	MemoryUsage  UintUsage
-	CPUUsage     FloatUsage
 	Scheduled    time.Time
 	Started      time.Time
 	Terminated   time.Time
