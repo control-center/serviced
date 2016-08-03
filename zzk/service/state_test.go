@@ -304,6 +304,150 @@ func (t *ZZKTest) TestDeleteHostStates(c *C) {
 	c.Check(count, Equals, 2)
 }
 
+func (t *ZZKTest) TestIsValidState(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add a service
+	err = conn.CreateDir("/pools/poolid/services/serviceid")
+	c.Assert(err, IsNil)
+
+	// add a host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	// neither service nor host
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 0,
+	}
+
+	ok, err := IsValidState(conn, req)
+	c.Check(err, IsNil)
+	c.Check(ok, Equals, false)
+
+	// service but no host
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = conn.CreateDir("/pools/poolid/services/serviceid/" + req.StateID())
+	c.Assert(err, IsNil)
+	ok, err = IsValidState(conn, req)
+	c.Check(err, IsNil)
+	c.Check(ok, Equals, false)
+
+	// host but no service
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 2,
+	}
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/instances/" + req.StateID())
+	c.Assert(err, IsNil)
+	ok, err = IsValidState(conn, req)
+	c.Check(err, IsNil)
+	c.Check(ok, Equals, false)
+
+	// service and host
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 3,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+	ok, err = IsValidState(conn, req)
+	c.Check(err, IsNil)
+	c.Check(ok, Equals, true)
+}
+
+func (t *ZZKTest) TestCleanHostStates(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+
+	// add a service
+	err = conn.CreateDir("/pools/poolid/services/serviceid")
+	c.Assert(err, IsNil)
+
+	// add a host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	// bad state
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/instances/badstateid")
+	c.Assert(err, IsNil)
+
+	// incongruent state
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/instances/hostid-serviceid-0")
+	c.Assert(err, IsNil)
+
+	// good state
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	err = CleanHostStates(conn, "poolid", "hostid")
+	c.Check(err, IsNil)
+
+	states, err := GetHostStates(conn, "poolid", "hostid")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 1)
+	c.Check(states[0].HostID, Equals, "hostid")
+	c.Check(states[0].ServiceID, Equals, "serviceid")
+	c.Check(states[0].InstanceID, Equals, 1)
+}
+
+func (t *ZZKTest) TestCleanServiceStates(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+
+	// add a service
+	err = conn.CreateDir("/pools/poolid/services/serviceid")
+	c.Assert(err, IsNil)
+
+	// add a host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	// bad state
+	err = conn.CreateDir("/pools/poolid/hosts/serviceid/badstateid")
+	c.Assert(err, IsNil)
+
+	// incongruent state
+	err = conn.CreateDir("/pools/poolid/hosts/serviceid/hostid-serviceid-0")
+	c.Assert(err, IsNil)
+
+	// good state
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	err = CleanServiceStates(conn, "poolid", "serviceid")
+	c.Check(err, IsNil)
+
+	states, err := GetServiceStates2(conn, "poolid", "serviceid")
+	c.Assert(err, IsNil)
+	c.Assert(states, HasLen, 1)
+	c.Check(states[0].HostID, Equals, "hostid")
+	c.Check(states[0].ServiceID, Equals, "serviceid")
+	c.Check(states[0].InstanceID, Equals, 1)
+}
+
 func (t *ZZKTest) TestCRUDState(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
