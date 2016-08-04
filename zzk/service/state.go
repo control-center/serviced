@@ -522,7 +522,7 @@ func DeleteServiceStates(conn client.Connection, poolID, serviceID string) (coun
 
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Error("Could not look up instances on service")
+		}).Error("Could not look up states on service")
 
 		return
 	}
@@ -585,7 +585,7 @@ func DeleteHostStates(conn client.Connection, poolID, hostID string) (count int)
 
 		logger.WithFields(log.Fields{
 			"Error": err,
-		}).Error("Could not look up instances on service")
+		}).Error("Could not look up states on host")
 
 		return
 	}
@@ -628,4 +628,213 @@ func DeleteHostStates(conn client.Connection, poolID, hostID string) (count int)
 	}).Debug("Deleted states")
 
 	return
+}
+
+// IsValidState returns true if both the service state and host state exists.
+func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
+	basepth := "/"
+	if req.PoolID != "" {
+		basepth = path.Join("/pools", req.PoolID)
+	}
+
+	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
+	if ok, err := conn.Exists(hspth); err != nil {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up host state")
+
+		return false, &StateError{
+			Request:   req,
+			Operation: "exists",
+			Message:   "could not look up host state",
+		}
+	} else if !ok {
+
+		logger.Debug("Host state not found")
+		return false, nil
+	}
+
+	logger.Debug("Found the host state")
+
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
+	if ok, err := conn.Exists(sspth); err != nil {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up service state")
+
+		return false, &StateError{
+			Request:   req,
+			Operation: "exists",
+			Message:   "could not look up service state",
+		}
+	} else if !ok {
+
+		logger.Debug("Service state not found")
+		return false, nil
+	}
+
+	logger.Debug("Found the service state")
+	return true, nil
+}
+
+// CleanHostStates deletes host states with invalid state ids or incongruent
+// data.
+func CleanHostStates(conn client.Connection, poolID, hostID string) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID": hostID,
+	})
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	hpth := path.Join(basepth, "/hosts", hostID, "instances")
+	ch, err := conn.Children(hpth)
+	if err != nil && err != client.ErrNoNode {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up states on host")
+
+		// TODO: wrap error?
+		return err
+	}
+
+	for _, stateID := range ch {
+
+		_, serviceID, instanceID, err := ParseStateID(stateID)
+		if err != nil {
+
+			// clean up bad state id
+			stateLogger := logger.WithFields(log.Fields{
+				"StateID": stateID,
+			})
+
+			hspth := path.Join(hpth, stateID)
+			if err := conn.Delete(hspth); err != nil && err != client.ErrNoNode {
+
+				stateLogger.WithFields(log.Fields{
+					"Error": err,
+				}).Debug("Could not clean up invalid host state")
+
+				// TODO: wrap error?
+				return err
+			}
+
+			stateLogger.Warn("Cleaned up invalid host state")
+			continue
+		}
+
+		stateLogger := logger.WithFields(log.Fields{
+			"ServiceID":  serviceID,
+			"InstanceID": instanceID,
+		})
+
+		req := StateRequest{
+			PoolID:     poolID,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+
+		if ok, err := IsValidState(conn, req); err != nil {
+			return err
+		} else if !ok {
+			if err := DeleteState(conn, req); err != nil {
+				return err
+			}
+
+			stateLogger.Warn("Cleaned up incongruent host state")
+			continue
+		}
+	}
+
+	return nil
+}
+
+// CleanServiceStates deletes service states with invalid state ids or
+// incongruent data.
+func CleanServiceStates(conn client.Connection, poolID, serviceID string) error {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"ServiceID": serviceID,
+	})
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	spth := path.Join(basepth, "/services", serviceID)
+	ch, err := conn.Children(spth)
+	if err != nil && err != client.ErrNoNode {
+
+		logger.WithFields(log.Fields{
+			"Error": err,
+		}).Debug("Could not look up states on service")
+
+		// TODO: wrap error?
+		return err
+	}
+
+	for _, stateID := range ch {
+		hostID, _, instanceID, err := ParseStateID(stateID)
+		if err != nil {
+
+			// clean up bad state id
+			stateLogger := logger.WithFields(log.Fields{
+				"StateID": stateID,
+			})
+
+			sspth := path.Join(spth, stateID)
+			if err := conn.Delete(sspth); err != nil && err != client.ErrNoNode {
+
+				stateLogger.WithFields(log.Fields{
+					"Error": err,
+				}).Debug("Could not clean up invalid service state")
+
+				// TODO: wrap error?
+				return err
+			}
+
+			stateLogger.Warn("Cleaned up invalid service state")
+			continue
+		}
+
+		stateLogger := logger.WithFields(log.Fields{
+			"HostID":     hostID,
+			"InstanceID": instanceID,
+		})
+
+		req := StateRequest{
+			PoolID:     poolID,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+
+		if ok, err := IsValidState(conn, req); err != nil {
+			return err
+		} else if !ok {
+			if err := DeleteState(conn, req); err != nil {
+				return err
+			}
+
+			stateLogger.Warn("Cleaned up incongruent service state")
+			continue
+		}
+	}
+
+	return nil
 }
