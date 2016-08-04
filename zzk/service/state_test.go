@@ -499,8 +499,8 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Check(state.ServiceID, Equals, "serviceid")
 	c.Check(state.InstanceID, Equals, 3)
 
-	// update state
-	err = UpdateState(conn, req, func(s *State) {
+	// update state (no commit)
+	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCPause
 		s.ServiceState = ServiceState{
 			DockerID: "dockerid",
@@ -508,9 +508,36 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 			Paused:   true,
 			Started:  time.Now(),
 		}
+		return false
 	})
 	c.Assert(err, IsNil)
 
+	state, err = GetState(conn, req)
+	c.Assert(err, IsNil)
+	c.Check(state.DockerID, Equals, "")
+	c.Check(state.ImageID, Equals, "")
+	c.Check(state.Paused, Equals, false)
+	c.Check(startTime.Before(state.Started), Equals, false)
+	c.Check(startTime.Before(state.Terminated), Equals, false)
+	c.Check(state.DesiredState, Equals, service.SVCRun)
+	c.Check(startTime.Before(state.Scheduled), Equals, true)
+	c.Check(state.HostID, Equals, "hostid")
+	c.Check(state.ServiceID, Equals, "serviceid")
+	c.Check(state.InstanceID, Equals, 3)
+
+	// update state (commit)
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		s.ServiceState = ServiceState{
+			DockerID: "dockerid",
+			ImageID:  "imageid",
+			Paused:   true,
+			Started:  time.Now(),
+		}
+		return true
+	})
+
+	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
 	c.Check(state.DockerID, Equals, "dockerid")

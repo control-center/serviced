@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +100,26 @@ type StateRequest struct {
 
 func (req StateRequest) StateID() string {
 	return fmt.Sprintf("%s-%s-%d", req.HostID, req.ServiceID, req.InstanceID)
+}
+
+// StateRequests is a list of StateRequests for purposes of sorting
+type StateRequests []StateRequest
+
+func (reqs StateRequests) Len() int {
+	return len(reqs)
+}
+
+func (reqs StateRequests) Less(i, j int) bool {
+	return reqs[i].InstanceID < reqs[j].InstanceID
+}
+
+func (reqs StateRequests) Swap(i, j int) {
+	reqs[i], reqs[j] = reqs[j], reqs[i]
+}
+
+// SortStateRequest sorts a list of state requests by instance id
+func SortStateRequests(reqs []StateRequest) {
+	sort.Sort(StateRequests(reqs))
 }
 
 // ParseStateID returns the host, service, and instance id from the given state
@@ -352,7 +373,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 }
 
 // UpdateState updates the service state and host state
-func UpdateState(conn client.Connection, req StateRequest, mutate func(*State)) error {
+func UpdateState(conn client.Connection, req StateRequest, mutate func(*State) bool) error {
 	// set up logging
 	logger := log.WithFields(log.Fields{
 		"HostID":     req.HostID,
@@ -406,7 +427,12 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*State)) 
 		ServiceID:    req.ServiceID,
 		InstanceID:   req.InstanceID,
 	}
-	mutate(state)
+
+	// only commit the transaction if mutate returns true
+	if !mutate(state) {
+		logger.Debug("Transaction aborted")
+		return nil
+	}
 
 	// set the version object on the respective states
 	*hsdat = state.HostState2
