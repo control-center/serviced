@@ -657,6 +657,8 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 			Message:   "could not look up host state",
 		}
 	} else if !ok {
+
+		logger.Debug("Host state not found")
 		return false, nil
 	}
 
@@ -675,6 +677,8 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 			Message:   "could not look up service state",
 		}
 	} else if !ok {
+
+		logger.Debug("Service state not found")
 		return false, nil
 	}
 
