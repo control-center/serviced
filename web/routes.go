@@ -40,7 +40,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/hosts/:hostId", gz(sc.checkAuth(restUpdateHost))},
 		rest.Route{"GET", "/hosts/:hostId/running", gz(sc.authorizedClient(restGetRunningForHost))},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", gz(sc.authorizedClient(restKillRunning))},
-		rest.Route{"GET", "/hosts/:hostId/instances", gz(sc.checkAuth(restGetHostInstances))},
+		// rest.Route{"GET", "/hosts/:hostId/instances", gz(sc.checkAuth(restGetHostInstances))},
 
 		// Pools
 		rest.Route{"GET", "/pools/:poolId", gz(sc.checkAuth(restGetPool))},
@@ -76,7 +76,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/startService", gz(sc.authorizedClient(restStartService))},
 		rest.Route{"PUT", "/services/:serviceId/stopService", gz(sc.authorizedClient(restStopService))},
 		rest.Route{"POST", "/services/:serviceId/migrate", sc.authorizedClient(restPostServicesForMigration)},
-		rest.Route{"GET", "/hosts/:serviceId/instances", gz(sc.checkAuth(restGetServiceInstances))},
+		// rest.Route{"GET", "/hosts/:serviceId/instances", gz(sc.checkAuth(restGetServiceInstances))},
 
 		// Services (Virtual Host)
 		rest.Route{"GET", "/services/vhosts", gz(sc.authorizedClient(restGetVirtualHosts))},
