@@ -449,7 +449,7 @@ func (s *S) TestEvaluateEndpointTemplate(t *C) {
 		if len(testcase.service.Endpoints) > 0 {
 			glog.Infof("Service.Endpoint[0].Application: %s", testcase.service.Endpoints[0].Application)
 			oldApp := testcase.service.Endpoints[0].Application
-			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild)
+			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild, 0)
 			glog.Infof("Service.Endpoint[0].Application: %s, error=%s", testcase.service.Endpoints[0].Application, err)
 
 			result := testcase.service.Endpoints[0].Application
@@ -461,7 +461,7 @@ func (s *S) TestEvaluateEndpointTemplate(t *C) {
 			}
 
 			glog.Infof("Evaluate ServiceEndpoints a second time")
-			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild)
+			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild, 0)
 			result = testcase.service.Endpoints[0].Application
 			if result != testcase.expected {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
