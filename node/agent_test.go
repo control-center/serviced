@@ -144,7 +144,7 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
 
 	// Call setupContainer
-	config, hostconfig, err := fakeHostAgent.setupContainer(fakeService, 0)
+	config, hostconfig, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0)
 
 	assert.NotNil(config)
 	assert.NotNil(hostconfig)

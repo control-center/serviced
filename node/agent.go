@@ -357,8 +357,16 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 	}
 	svc.ImageID = name
 
+	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start Control Center client %v", err)
+		return err
+	}
+	defer client.Close()
+
 	// create the docker client Config and HostConfig structures necessary to create and start the service
-	config, hostconfig, err := a.setupContainer(svc, state.InstanceID)
+	config, hostconfig, err := a.setupContainer(client, svc, state.InstanceID)
 
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
@@ -510,16 +518,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
-
-	// Establish a connection to the master
-	// TODO: use the new rpc calls instead
-	client, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not connect to master (%s): %s", a.master, err)
-		return nil, nil, err
-	}
-	defer client.Close()
+func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 
 	// Evaluate service template fields
 	if err := a.evaluateService(client, svc, instanceID); err != nil {
@@ -532,8 +531,7 @@ func (a *HostAgent) setupContainer(svc *service.Service, instanceID int) (*docke
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	err = client.GetTenantId(svc.ID, &tenantID)
-	if err != nil {
+	if err := client.GetTenantId(svc.ID, &tenantID); err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
 		return nil, nil, err
 	}
@@ -541,8 +539,7 @@ func (a *HostAgent) setupContainer(svc *service.Service, instanceID int) (*docke
 	// get the system user
 	unused := 0
 	systemUser := user.User{}
-	err = client.GetSystemUser(unused, &systemUser)
-	if err != nil {
+	if err := client.GetSystemUser(unused, &systemUser); err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
 		return nil, nil, err
 	}
