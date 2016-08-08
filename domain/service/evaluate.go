@@ -14,6 +14,9 @@
 package service
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/zenoss/glog"
 
 	"bytes"
@@ -348,7 +351,7 @@ func round(value float64) int64 {
 
 // EvaluateEndpointTemplates parses and evaluates the "ApplicationTemplate" property
 // of each of the service endpoints for this service.
-func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildService) (err error) {
+func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildService, instanceID int) (err error) {
 	for i, ep := range service.Endpoints {
 		//cache the application template (assumes this is called after service creation from svc definition)
 		if ep.Application != "" && ep.ApplicationTemplate == "" {
@@ -357,12 +360,29 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildSer
 		}
 
 		if ep.ApplicationTemplate != "" {
-			err, result := service.evaluateTemplate(gs, fc, 0, ep.ApplicationTemplate)
+			err, result := service.evaluateTemplate(gs, fc, instanceID, ep.ApplicationTemplate)
 			if err != nil {
 				return err
 			}
 			if result != "" {
 				service.Endpoints[i].Application = result
+			}
+		}
+
+		if ep.PortTemplate != "" {
+			err, result := service.evaluateTemplate(gs, fc, instanceID, ep.PortTemplate)
+			if err != nil {
+				return err
+			}
+			if result != "" {
+				portNumber, err := strconv.Atoi(result)
+				if err != nil {
+					return fmt.Errorf("For port template %q, could not convert %q to integer: %s", ep.PortTemplate, result, err)
+				}
+				if i < 0 {
+					return fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", ep.PortTemplate, portNumber)
+				}
+				service.Endpoints[i].PortNumber = uint16(portNumber)
 			}
 		}
 	}
@@ -408,7 +428,7 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
 func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) (err error) {
-	if err = service.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
+	if err = service.EvaluateEndpointTemplates(getSvc, findChild, instanceID); err != nil {
 		glog.Errorf("%+v", err)
 		return err
 	}

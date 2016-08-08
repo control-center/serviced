@@ -479,7 +479,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		err := client.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
 		return svc, err
 	}
-	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild, 0); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
 		restServerError(w, err)
 		return
@@ -822,8 +822,8 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	dir := ""
 	filePath := ""
 	req := dao.BackupRequest{
-		Dirpath: 		dir,
-		SnapshotSpacePercent: 	snapshotSpacePercent,
+		Dirpath:              dir,
+		SnapshotSpacePercent: snapshotSpacePercent,
 	}
 	err := client.AsyncBackup(req, &filePath)
 	if err != nil {

@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/dao/mocks"
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 )
 
 const example_state = `
@@ -115,7 +114,7 @@ func TestParseContainerState(t *testing.T) {
 	}
 }
 
-func TestConfigureContainer_DockerLog(t *testing.T) {
+func TestSetupContainer_DockerLog(t *testing.T) {
 	assert := assert.New(t)
 
 	// Create a fake pull registry that doesn't pull images
@@ -141,19 +140,11 @@ func TestConfigureContainer_DockerLog(t *testing.T) {
 		ImageID: "busybox:latest",
 	}
 
-	// Create a fake servicestate.ServiceState
-	fakeServiceState := &servicestate.ServiceState{}
-
 	fakeClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
 	fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
 
-	// Call configureContainer
-	config, hostconfig, err := configureContainer(
-		fakeHostAgent,
-		fakeClient,
-		fakeService,
-		fakeServiceState,
-		fakeHostAgent.virtualAddressSubnet)
+	// Call setupContainer
+	config, hostconfig, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0)
 
 	assert.NotNil(config)
 	assert.NotNil(hostconfig)

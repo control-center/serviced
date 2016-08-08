@@ -171,21 +171,24 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	return agent, err
 }
 
-// Use the Context field of the given template to fill in all the templates in
-// the Command fields of the template's ServiceDefinitions
-func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp dao.ControlPlane) error {
-	getSvc := func(svcID string) (service.Service, error) {
+// evaluateService translates the service template fields
+func (a *HostAgent) evaluateService(client dao.ControlPlane, svc *service.Service, instanceID int) error {
+
+	// service lookup
+	getService := func(id string) (service.Service, error) {
 		svc := service.Service{}
-		err := cp.GetService(svcID, &svc)
-		return svc, err
-	}
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := cp.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		err := client.GetService(id, &svc)
 		return svc, err
 	}
 
-	return s.Evaluate(getSvc, findChild, svcState.InstanceID)
+	// service child lookup
+	getServiceChild := func(id, name string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.FindChildService(dao.FindChildRequest{id, name}, &svc)
+		return svc, err
+	}
+
+	return svc.Evaluate(getService, getServiceChild, instanceID)
 }
 
 // AttachService attempts to attach to a running container
@@ -337,14 +340,6 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		}
 	}()
 
-	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
-	client, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer client.Close()
-
 	// start from a known good state
 	if state.DockerID != "" {
 		if ctr, err := docker.FindContainer(state.DockerID); err != nil {
@@ -354,8 +349,25 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		}
 	}
 
+	// set the correct image name
+	name, err := a.pullreg.ImagePath(svc.ImageID)
+	if err != nil {
+		glog.Errorf("Cannot parse service image %s: %s", svc.ImageID, err)
+		return err
+	}
+	svc.ImageID = name
+
+	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		glog.Errorf("Could not start Control Center client %v", err)
+		return err
+	}
+	defer client.Close()
+
 	// create the docker client Config and HostConfig structures necessary to create and start the service
-	config, hostconfig, err := configureContainer(a, client, svc, state, a.virtualAddressSubnet)
+	config, hostconfig, err := a.setupContainer(client, svc, state.InstanceID)
+
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
 		return err
@@ -503,19 +515,23 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 	return nil
 }
 
-// configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
+// setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
-// the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client dao.ControlPlane,
-	svc *service.Service, serviceState *servicestate.ServiceState,
-	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+// the service, serviceState, and conn values that are passed into setupContainer.
+func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+
+	// Evaluate service template fields
+	if err := a.evaluateService(client, svc, instanceID); err != nil {
+		glog.Errorf("Could not evaluate service %s (%s) templates: %s", svc.Name, svc.ID, err)
+		return nil, nil, err
+	}
+
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	err := client.GetTenantId(svc.ID, &tenantID)
-	if err != nil {
+	if err := client.GetTenantId(svc.ID, &tenantID); err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
 		return nil, nil, err
 	}
@@ -523,8 +539,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	// get the system user
 	unused := 0
 	systemUser := user.User{}
-	err = client.GetSystemUser(unused, &systemUser)
-	if err != nil {
+	if err := client.GetSystemUser(unused, &systemUser); err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
 		return nil, nil, err
 	}
@@ -532,10 +547,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
-	if cfg.Image, err = a.pullreg.ImagePath(svc.ImageID); err != nil {
-		glog.Errorf("Could not parse image %s: %s", svc.ImageID, err)
-		return nil, nil, err
-	}
+	cfg.Image = svc.ImageID
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
@@ -545,20 +557,12 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
 		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
-				var port uint16
-				port = endpoint.PortNumber
-				if endpoint.PortTemplate != "" {
-					port, err = serviceState.EvalPortTemplate(endpoint.PortTemplate)
-					if err != nil {
-						glog.Errorf("Unable to interpret ContainerPort: %s", err)
-					}
-				}
 				var p string
 				switch endpoint.Protocol {
 				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", port, "udp")
+					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
 				default:
-					p = fmt.Sprintf("%d/%s", port, "tcp")
+					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
 				}
 				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
 				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
@@ -568,15 +572,10 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 
 	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
-		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %s, service id: %s", serviceState.ID, svc.ID)
+		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %d, service id: %s", instanceID, svc.ID)
 	}
 
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
-
-	if err := injectContext(svc, serviceState, client); err != nil {
-		glog.Errorf("Error injecting context: %s", err)
-		return nil, nil, err
-	}
 
 	// iterate svc.Volumes - create bindings for non-dfs volumes
 	for _, volume := range svc.Volumes {
@@ -705,7 +704,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
 		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
 		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
-		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
+		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", a.virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
@@ -737,7 +736,7 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	cfg.Cmd = append([]string{},
 		filepath.Join("/serviced", binary),
 		svc.ID,
-		strconv.Itoa(serviceState.InstanceID),
+		strconv.Itoa(instanceID),
 		svc.Startup)
 
 	if svc.Privileged {

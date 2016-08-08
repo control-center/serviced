@@ -347,7 +347,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		}
 		return *s, err
 	}
-	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService); err != nil {
+	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService, 0); err != nil {
 		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
