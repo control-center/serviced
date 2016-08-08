@@ -143,7 +143,10 @@ func initElasticSearch() {
 	if err != nil {
 		glog.Fatalf("Error initializing elasticsearch container: %s", err)
 	}
-	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
+
+    // This value will be overwritten by SERVICED_ISVCS_ENV_X in
+    // /etc/default/serviced
+    envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		clusterArg := ""
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {

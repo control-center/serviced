@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"github.com/zenoss/glog"
 )
 
 const buffersize = 1024
@@ -41,6 +42,7 @@ type ConfigValue struct {
 type ConfigReader interface {
 	StringVal(key, dflt string) string
 	StringSlice(key string, dflt []string) []string
+	StringContains(key string, dflt []string) []string
 	IntVal(key string, dflt int) int
 	BoolVal(key string, dflt bool) bool
 	GetConfigValues() map[string]ConfigValue
@@ -109,7 +111,8 @@ func (p *EnvironConfigReader) StringVal(name string, defaultval string) string {
 }
 
 func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []string {
-	strval := p.StringVal(name, "")
+    glog.Errorf("config name %s, %s", name, p.getFullValueName(name))
+    strval := p.StringVal(name, "")
 	if strval != "" {
 		return strings.Split(strval, ",")
 	}
@@ -117,6 +120,34 @@ func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []st
 	entry.Value = strings.Join(defaultval,",")
 	p.configValues[name] = entry
 	return defaultval
+}
+
+func (p *EnvironConfigReader) StringContains(name string, defaultval []string) []string {
+    glog.Errorf("config name %s, %s", name, p.getFullValueName(name))
+    var values string = ""
+    var i int = 0
+    for {
+        strval := p.StringVal(name + "_" + strconv.Itoa(i), "")
+    	if strval == "" {
+            if values == "" {
+            	// If config doesn't have any item contains 'name'...
+                entry, _ := p.configValues[name]
+            	entry.Value = strings.Join(defaultval,",")
+            	p.configValues[name] = entry
+            	return defaultval
+            } else {
+            	// If no more items that contain 'name'...
+    	    	return strings.Split(values, ",")
+            }
+    	} else {
+            if values == "" { // the first item that contains 'name'
+                values = strval
+            } else { // Append all other items
+                values += "," + strval
+            }
+        }
+        i = i + 1
+    }
 }
 
 func (p *EnvironConfigReader) IntVal(name string, defaultval int) int {
