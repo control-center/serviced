@@ -507,9 +507,9 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 	return nil
 }
 
-// configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
+// setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
-// the service, serviceState, and conn values that are passed into configureContainer.
+// the service, serviceState, and conn values that are passed into setupContainer.
 func (a *HostAgent) setupContainer(svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 
 	// Establish a connection to the master
