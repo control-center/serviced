@@ -39,8 +39,9 @@ func (c testConn) Delete(key Key) error {
 	return nil
 }
 
-func (c testConn) Query(interface{}) ([]JSONMessage, error) {
-	return nil, nil
+func (c testConn) Query(interface{}) ([]JSONMessage, ResultsMetadata, error) {
+	var metadata ResultsMetadata
+	return nil, metadata, nil
 }
 
 func TestContext(t *testing.T) {

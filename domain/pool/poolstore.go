@@ -15,6 +15,7 @@ package pool
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -34,6 +35,8 @@ type Store interface {
 	// GetResourcePools Get a list of all the resource pools
 	GetResourcePools(ctx datastore.Context) ([]ResourcePool, error)
 
+	GetResourcePoolsByPage(ctx datastore.Context, query ResourcePoolsQuery) (*ResourcePoolsResponse, error)
+
 	// GetResourcePoolsByRealm gets a list of resource pools for a given realm
 	GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error)
 
@@ -48,7 +51,18 @@ type storeImpl struct {
 //GetResourcePools Get a list of all the resource pools
 func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
-	return query(ctx, "_exists_:ID")
+
+	response, err := ps.GetResourcePoolsByPage(ctx, ResourcePoolsQuery{
+		Pull:  50000,
+		Skip:  0,
+		Order: "asc",
+		Sort:  "ID",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return response.Results, nil
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
@@ -94,17 +108,6 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
-	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
-	results, err := q.Execute(search)
-	if err != nil {
-		return nil, err
-	}
-	return convert(results)
-}
-
 func convert(results datastore.Results) ([]ResourcePool, error) {
 	pools := make([]ResourcePool, results.Len())
 	for idx := range pools {
@@ -120,3 +123,42 @@ func convert(results datastore.Results) ([]ResourcePool, error) {
 }
 
 var kind = "resourcepool"
+
+//GetAPIPools Get a list of all the resource pools
+func (ps *storeImpl) GetResourcePoolsByPage(ctx datastore.Context, query ResourcePoolsQuery) (*ResourcePoolsResponse, error) {
+	size := strconv.Itoa(query.Pull)
+	from := strconv.Itoa(query.Skip)
+
+	searchQuery := search.Search("controlplane").Type(kind).Size(size).From(from).
+		Query(
+			search.Query().Search("_exists_:ID"),
+		)
+
+	var sortValue string
+	if query.Sort != "" {
+		sortValue = query.Sort
+	} else {
+		sortValue = "ID"
+	}
+
+	sort := search.Sort(sortValue)
+	if query.Order == "desc" {
+		sort = sort.Desc()
+	}
+
+	searchQuery = searchQuery.Sort(sort)
+
+	results, err := datastore.NewQuery(ctx).Execute(searchQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	pools, err := convert(results)
+	if err != nil {
+		return nil, err
+	}
+
+	response := ResourcePoolsResponse{Results: pools, Total: results.GetMetadata().Total()}
+
+	return &response, nil
+}

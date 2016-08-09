@@ -728,3 +728,15 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, serviceid 
 
 	return r0, r1
 }
+
+func (m *FacadeInterface) GetResourcePoolsByPage(ctx datastore.Context, query pool.ResourcePoolsQuery) (*pool.ResourcePoolsResponse, error) {
+	ret := m.Called(ctx, query)
+
+	var r0 *pool.ResourcePoolsResponse
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*pool.ResourcePoolsResponse)
+	}
+	r1 := ret.Error(1)
+
+	return r0, r1
+}

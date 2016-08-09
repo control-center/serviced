@@ -483,3 +483,18 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs
 }
 
 var defaultRealm = "default"
+
+// GetResourcePoolsByPage returns a list of all resource pools
+func (f *Facade) GetResourcePoolsByPage(ctx datastore.Context, query pool.ResourcePoolsQuery) (*pool.ResourcePoolsResponse, error) {
+	response, err := f.poolStore.GetResourcePoolsByPage(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("Could not load pools: %v", err)
+	}
+
+	for i := range response.Results {
+		f.calcPoolCapacity(ctx, &response.Results[i])
+		f.calcPoolCommitment(ctx, &response.Results[i])
+	}
+
+	return response, nil
+}
