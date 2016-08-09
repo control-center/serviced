@@ -14,6 +14,9 @@
 package service
 
 import (
+	"bytes"
+	"strconv"
+	"text/template"
 	"time"
 
 	"github.com/control-center/serviced/health"
@@ -46,4 +49,24 @@ type Instance struct {
 	Scheduled    time.Time
 	Started      time.Time
 	Terminated   time.Time
+}
+
+// GetPort returns the port number given the instance id
+func GetPort(portTemplate string, defaultPort uint16, instanceID int) (uint16, error) {
+	if portTemplate != "" {
+		funcMap := template.FuncMap{
+			"plus": func(a, b int) int { return a + b },
+		}
+		t := template.Must(template.New("PortNumber").Funcs(funcMap).Parse(portTemplate))
+		buffer := &bytes.Buffer{}
+		if err := t.Execute(buffer, struct{ InstanceID int }{InstanceID: instanceID}); err != nil {
+			return 0, err
+		}
+		port, err := strconv.Atoi(buffer.String())
+		if err != nil {
+			return 0, err
+		}
+		return uint16(port), nil
+	}
+	return defaultPort, nil
 }
