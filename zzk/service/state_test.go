@@ -370,6 +370,7 @@ func (t *ZZKTest) TestIsValidState(c *C) {
 
 func (t *ZZKTest) TestCleanHostStates(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
 
 	// add a service
 	err = conn.CreateDir("/pools/poolid/services/serviceid")
@@ -410,6 +411,7 @@ func (t *ZZKTest) TestCleanHostStates(c *C) {
 
 func (t *ZZKTest) TestCleanServiceStates(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
 
 	// add a service
 	err = conn.CreateDir("/pools/poolid/services/serviceid")
@@ -446,6 +448,193 @@ func (t *ZZKTest) TestCleanServiceStates(c *C) {
 	c.Check(states[0].HostID, Equals, "hostid")
 	c.Check(states[0].ServiceID, Equals, "serviceid")
 	c.Check(states[0].InstanceID, Equals, 1)
+}
+
+func (t *ZZKTest) TestMonitorState(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add a service
+	err = conn.CreateDir("/pools/poolid/services/serviceid")
+	c.Assert(err, IsNil)
+
+	// add a host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	// state does not exist
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 0,
+	}
+
+	shutdown := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+			return false
+		})
+
+		_, ok := err.(*StateError)
+		c.Check(ok, Equals, true)
+		c.Check(state, IsNil)
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Timed out waiting for monitor")
+	}
+
+	// host state does not exist
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+	err = conn.Delete("/pools/poolid/hosts/hostid/instances/" + req.StateID())
+	c.Assert(err, IsNil)
+
+	shutdown = make(chan struct{})
+	done = make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+			return false
+		})
+
+		_, ok := err.(*StateError)
+		c.Check(ok, Equals, true)
+		c.Check(state, IsNil)
+		close(done)
+	}()
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Timed out waiting for monitor")
+	}
+
+	// service state does not exist
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 2,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+	err = conn.Delete("/pools/poolid/services/serviceid/" + req.StateID())
+	c.Assert(err, IsNil)
+
+	shutdown = make(chan struct{})
+	done = make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+			return false
+		})
+
+		_, ok := err.(*StateError)
+		c.Check(ok, Equals, true)
+		c.Check(state, IsNil)
+		close(done)
+	}()
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Timed out waiting for monitor")
+	}
+
+	// shutdown
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 3,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown = make(chan struct{})
+	done = make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+			return false
+		})
+
+		c.Check(err, IsNil)
+		c.Check(state, IsNil)
+		close(done)
+	}()
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Monitor exited prematurely")
+	case <-timer.C:
+		close(shutdown)
+	}
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("Timed out waiting for monitor")
+	}
+
+	// check passes
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 4,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown = make(chan struct{})
+	done = make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+			return s.DockerID == "dockerid"
+		})
+
+		c.Check(err, IsNil)
+		c.Check(state.DockerID, Equals, "dockerid")
+		close(done)
+	}()
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Monitor exited prematurely")
+	case <-timer.C:
+	}
+
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DockerID = "dockerid"
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("Timed out waiting for monitor")
+	}
 }
 
 func (t *ZZKTest) TestCRUDState(c *C) {
