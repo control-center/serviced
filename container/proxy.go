@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -251,10 +252,12 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	}
 
 	if !isLocalContainer {
-		muxHeader := fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr)
-		glog.V(1).Infof("writing socket protocol %s", muxHeader)
-		// Write the container address as the first line, if we use the mux
-		io.WriteString(remote, muxHeader)
+		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
+		if err != nil {
+			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
+			return
+		}
+		remote.Write(muxHeader)
 	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
