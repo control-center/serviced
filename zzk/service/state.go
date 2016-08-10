@@ -867,3 +867,82 @@ func CleanServiceStates(conn client.Connection, poolID, serviceID string) error 
 
 	return nil
 }
+
+// MonitorState returns the state object once it satisfies certain
+// conditions.
+func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateRequest, check func(s *State) bool) (*State, error) {
+	// set up logging
+	logger := log.WithFields(log.Fields{
+		"HostID":     req.HostID,
+		"ServiceID":  req.ServiceID,
+		"InstanceID": req.InstanceID,
+	})
+
+	basepth := "/"
+	if req.PoolID != "" {
+		basepth = path.Join("/pools", req.PoolID)
+	}
+
+	// Monitor the state of the object
+	done := make(chan struct{})
+	defer func() { close(done) }()
+	for {
+
+		// Get the current host state and set the watch
+		hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
+		hsdat := &HostState2{}
+		hsev, err := conn.GetW(hspth, hsdat, done)
+		if err != nil {
+
+			logger.WithFields(log.Fields{
+				"Error": err,
+			}).Debug("Could not watch host state")
+
+			return nil, &StateError{
+				Request:   req,
+				Operation: "watch",
+				Message:   "could not watch host state",
+			}
+		}
+
+		// Get the current service state and set the watch
+		sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
+		ssdat := &ServiceState{}
+		ssev, err := conn.GetW(sspth, ssdat, done)
+		if err != nil {
+
+			logger.WithFields(log.Fields{
+				"Error": err,
+			}).Debug("Could not watch service state")
+
+			return nil, &StateError{
+				Request:   req,
+				Operation: "watch",
+				Message:   "could not watch service state",
+			}
+		}
+
+		// Does the state statisfy the requirements?
+		state := &State{
+			HostState2:   *hsdat,
+			ServiceState: *ssdat,
+			HostID:       req.HostID,
+			ServiceID:    req.ServiceID,
+			InstanceID:   req.InstanceID,
+		}
+
+		// Only return the state if the value is true
+		if check(state) {
+			return state, nil
+		}
+
+		// Wait for something to happen
+		select {
+		case <-hsev:
+		case <-ssev:
+		case <-cancel:
+			logger.Debug("Aborted state monitor")
+			return nil, nil
+		}
+	}
+}
