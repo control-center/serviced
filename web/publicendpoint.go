@@ -17,7 +17,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -394,10 +393,11 @@ func getRemoteConnection(remoteAddr string, isLocalContainer bool, muxPort int, 
 		if len(privateIP) == 0 {
 			return nil, fmt.Errorf("missing endpoint")
 		}
-		muxAddr := fmt.Sprintf("%s:%d\n", privateIP, privatePort)
-		glog.V(1).Infof("public endpoint muxing to %s", muxAddr)
-		io.WriteString(remote, muxAddr)
-
+		muxHeader, err := utils.PackTCPAddress(privateIP, privatePort)
+		if err != nil {
+			return nil, err
+		}
+		remote.Write(muxHeader)
 	}
 	return remote, nil
 }
