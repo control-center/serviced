@@ -120,7 +120,7 @@
             // start polling
             poolsFactory.activate();
 
-            $scope.pools = {};
+            $scope.pools = undefined;
             poolsFactory.update()
                 .then(() => {
                     $scope.pools = poolsFactory.poolMap;

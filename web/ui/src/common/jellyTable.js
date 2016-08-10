@@ -50,7 +50,7 @@
                         <td colspan="100%" class="statusBar">
                             <ul>
                                 <li class="entry">Last Update: <strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
-                                <li class="entry">Showing <strong>{{${tableID}.resultsLength}}</strong>
+                                <li class="entry"><strong>{{${tableID}.resultsLength}}</strong>
                                     Result{{ ${tableID}.resultsLength !== 1 ? "s" : ""  }}
                                 </li>
                             </ul>
@@ -58,9 +58,9 @@
                     </tr></tfoot>
                 `);
 
-
                 // mark this guy as an ng-table
                 table.attr("ng-table", tableID);
+                table.attr("template-pagination", "/static/partials/jellyPager.html");
 
                 // avoid compile loop
                 table.removeAttr("jelly-table");
@@ -72,6 +72,8 @@
                 return function($scope, element, attrs){
                     // bind scope to html
                     fn($scope);
+
+                    var PAGE_SIZE = 7; // TODO: pull from config file
 
                     var $loader, $noData,
                         toggleLoader, toggleNoData,
@@ -89,6 +91,7 @@
                     // it to compose the `sorting` config option
                     config().counts = config().counts || [];
                     config().watchExpression = config().watchExpression || function(){ return data(); };
+                    config().pgsize = PAGE_SIZE;
 
                     timezone = jstz.determine().name();
 
@@ -137,6 +140,13 @@
                             unorderedData = [];
                         }
 
+                        // HACK FOR DEVELOPMENT 
+                        // This should be the actual total number of results not
+                        // the length of the number of results passed in.
+                        var totalResults = unorderedData ? unorderedData.length : 0;
+
+                        params.total(totalResults); // count of all results on all pages
+                        
                         // call overriden getData
                         if(config().getData){
                             orderedData = config().getData(unorderedData, params);
@@ -170,7 +180,13 @@
                             }
                         }
 
-                        $scope[tableID].resultsLength = orderedData.length;
+                        // HACK FOR DEVELOPMENT 
+                        // Chop results array to simulate just 1 page returning
+                        var lower = (params.page()-1) * config().pgsize;
+                        var upper = Math.min(lower + config().pgsize, totalResults);
+                        orderedData = orderedData.slice(lower,upper);
+
+                        $scope[tableID].resultsLength = totalResults;
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
 
                         $defer.resolve(orderedData);
@@ -178,10 +194,14 @@
 
                     // setup config for ngtable
                     pageConfig = {
+                        // count: hide pagination when total result count less than this number
+                        count: config().pgsize,
                         sorting: config().sorting
                     };
                     dataConfig = {
+                        // counts: dynamic items-per-page widget. empty array will supress.
                         counts: config().counts,
+                        // pager:  dynamic items-per-page widget.
                         getData: getData
                     };
 
