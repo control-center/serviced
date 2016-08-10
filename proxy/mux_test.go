@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/control-center/serviced/utils"
 )
 
 type echoListener struct {
@@ -123,8 +125,11 @@ func TestTCPMux(t *testing.T) {
 	testMsg := "\nhello\n"
 
 	conn := mux.testConnect(t)
-	header := fmt.Sprintf("127.0.0.1:%s\n", listenerToPort(target.listener))
-	conn.Write([]byte(header))
+	header, err := utils.PackTCPAddressString(fmt.Sprintf("127.0.0.1:%s", listenerToPort(target.listener)))
+	if err != nil {
+		t.Fail()
+	}
+	conn.Write(header)
 	conn.Write([]byte(testMsg))
 	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)

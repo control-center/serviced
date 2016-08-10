@@ -14,9 +14,9 @@
 package proxy
 
 import (
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
-	"bufio"
 	"fmt"
 	"io"
 	"net"
@@ -115,70 +115,36 @@ func (mux *TCPMux) loop() {
 // to the service is sucessful, all traffic continues to be proxied between
 // two connections.
 func (mux *TCPMux) muxConnection(conn net.Conn) {
+
 	// make sure that we don't block indefinitely
 	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
-	reader := bufio.NewReader(conn)
-	line, err := reader.ReadString('\n')
-	if err != nil {
+
+	// Read in the mux header (a 6-byte representation of a TCP address)
+	muxHeader := make([]byte, 6)
+	if _, err := conn.Read(muxHeader); err != nil {
 		glog.Errorf("could not read mux line: %s", err)
 		conn.Close()
 		return
 	}
-	// restore deadline
-	conn.SetReadDeadline(time.Time{})
-	line = strings.TrimSpace(line)
-	parts := strings.Split(line, ":")
-	if len(parts) < 2 {
-		glog.Errorf("malformed mux line: %s", line)
-		conn.Close()
-		return
-	}
-	address := fmt.Sprintf("%s:%s", parts[len(parts)-2], parts[len(parts)-1])
+	address := utils.UnpackTCPAddressToString(muxHeader)
 
+	// Restore the read deadline
+	conn.SetReadDeadline(time.Time{})
+
+	// Dial the requested address
 	svc, err := net.Dial("tcp4", address)
 	if err != nil {
-		glog.Errorf("got %s => %s, could not dial to '%s' : %s", conn.LocalAddr(), conn.RemoteAddr(), line, err)
+		glog.Errorf("got %s => %s, could not dial to '%s' : %s", conn.LocalAddr(), conn.RemoteAddr(), address, err)
 		conn.Close()
 		return
 	}
-	// write any pending buffered data that wasn't part of the service spec
-	if reader.Buffered() > 0 {
-		bufferedBytes, err := reader.Peek(reader.Buffered())
-		if err != nil {
-			glog.Errorf("error peaking at buffered bytes: %s", err)
-		}
-		n, err := conn.Write(bufferedBytes)
-		if err != nil {
-			glog.Errorf("error writting buffered bytes: %s", err)
-		}
-		if n != len(bufferedBytes) {
-			glog.Errorf("exepected to write %d bytes but wrote %d", len(bufferedBytes), n)
-		}
-	}
 
+	// Wire up the incoming connection to the one we just dialed
 	quit := make(chan bool)
 	go ProxyLoop(conn, svc, quit)
-
-//	go func() {
-//		io.Copy(conn, svc)
-//		conn.Close()
-//		svc.Close()
-//	}()
-//	go func() {
-//		io.Copy(svc, conn)
-//		conn.Close()
-//		svc.Close()
-//	}()
 }
 
-func ProxyLoop(client net.Conn, backend net.Conn,  quit chan bool) {
-//	backend, err := net.DialTCP("tcp", nil, backendAddr)
-//	if err != nil {
-//		glog.Errorf("Can't forward traffic to backend tcp/%v: %s\n", backendAddr, err)
-//		client.Close()
-//		return
-//	}
-
+func ProxyLoop(client net.Conn, backend net.Conn, quit chan bool) {
 	event := make(chan int64)
 	var broker = func(to, from net.Conn) {
 		written, err := io.Copy(to, from)
@@ -211,7 +177,7 @@ func ProxyLoop(client net.Conn, backend net.Conn,  quit chan bool) {
 			return
 		}
 	}
-//	glog.Infof("transferred %v bytes between %v", transferred, backendAddr)
+	//	glog.Infof("transferred %v bytes between %v", transferred, backendAddr)
 	client.Close()
 	backend.Close()
 }
