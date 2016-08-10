@@ -42,25 +42,6 @@ func (err StateError) Error() string {
 // parseable.
 var ErrInvalidStateID = errors.New("invalid state id")
 
-// ImportBinding describes an import endpoint
-type ImportBinding struct {
-	Application    string
-	Purpose        string // import or import_all
-	PortNumber     uint16
-	PortTemplate   string
-	Protocol       string
-	VirtualAddress string
-}
-
-// ExportBinding describes an export endpoint
-type ExportBinding struct {
-	Application string
-	PortNumber  uint16
-	Protocol    string
-	HostBind    string
-	HostPort    uint16
-}
-
 // ServiceState provides information of a service state
 type ServiceState struct {
 	DockerID   string
