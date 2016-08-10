@@ -42,11 +42,14 @@ func (err StateError) Error() string {
 // parseable.
 var ErrInvalidStateID = errors.New("invalid state id")
 
-// ServiceState provides information for a particular instance of a service
+// ServiceState provides information of a service state
 type ServiceState struct {
 	DockerID   string
 	ImageID    string
 	Paused     bool
+	PrivateIP  string
+	Imports    []ImportBinding
+	Exports    []ExportBinding
 	Started    time.Time
 	Terminated time.Time
 	version    interface{}
