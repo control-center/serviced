@@ -50,12 +50,12 @@ func (a *api) StartServer() error {
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
 
 	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
-	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
+	if err := utils.SetCiphers("http", options.TLSCiphers); err != nil {
 		return fmt.Errorf("unable to set TLS Ciphers %v", err)
 	}
 
 	glog.Infof("Setting minimum tls version: %s", options.TLSMinVersion)
-	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
+	if err := utils.SetMinTLS("http", options.TLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum TLS version %v", err)
 	}
 
