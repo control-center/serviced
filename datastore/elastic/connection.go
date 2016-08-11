@@ -82,20 +82,19 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 	return nil
 }
 
-func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, datastore.ResultsMetadata, error) {
+func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
 	search, ok := query.(*search.SearchDsl)
 	if !ok {
-		return nil, nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
+		return nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
 	}
 	resp, err := search.Result()
 	if err != nil {
 		err = fmt.Errorf("error executing query %v", err)
 		glog.Errorf("%v", err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	metadata := datastore.NewResultsMetadata(resp.Hits.Total)
-	return toJSONMessages(resp), metadata, nil
+	return toJSONMessages(resp), nil
 }
 
 // convert search result of json host to dao.Host array
@@ -146,5 +145,4 @@ type elasticResponse struct {
 	Version int             `json:"_version,omitempty"`
 	Found   bool            `json:"found,omitempty"`
 	Exists  bool            `json:"exists,omitempty"`
-	Total   int             `json:"total,omitempty"`
 }

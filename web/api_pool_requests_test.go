@@ -17,120 +17,116 @@ package web
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestWebSuite) TestReadPoolsWithIncorrectSortParameter(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=1&pull=20&order=asc&sort=incorrect", "")
+type apiPoolsTestData struct {
+	firstPool  pool.ResourcePool
+	secondPool pool.ResourcePool
+	selfLink   Link
+}
+
+func newAPIPoolsTestData() apiPoolsTestData {
+	return apiPoolsTestData{
+		firstPool: pool.ResourcePool{
+			ID:                "firstPool",
+			Description:       "The first pool",
+			MemoryCapacity:    10000,
+			MemoryCommitment:  5000,
+			CoreCapacity:      15,
+			ConnectionTimeout: 10,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		},
+
+		secondPool: pool.ResourcePool{
+			ID:                "secondPool",
+			Description:       "The second pool",
+			MemoryCapacity:    20000,
+			MemoryCommitment:  15000,
+			CoreCapacity:      10,
+			ConnectionTimeout: 2,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		},
+
+		selfLink: Link{
+			HRef:   "/pools",
+			Rel:    "self",
+			Method: "GET",
+		},
+	}
+}
+
+func (s *TestWebSuite) TestRestGetPoolsShouldReturnStatusOK(c *C) {
+	data := newAPIPoolsTestData()
+	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePoolsByPage", s.ctx.getDatastoreContext(), mock.AnythingOfType("pool.ResourcePoolsQuery")).
-		Return(&pool.ResourcePoolsResponse{Results: []pool.ResourcePool{}, Total: 0}, nil)
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return([]pool.ResourcePool{data.firstPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 }
 
-func (s *TestWebSuite) TestReadPoolsWithIncorrectOrderParameter(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=1&pull=20&order=incorrect&sort=ID", "")
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
-}
-
-func (s *TestWebSuite) TestReadPoolsWithNonIntegerSkipParameter(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=ABC&pull=20&order=asc&sort=ID", "")
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
-}
-
-func (s *TestWebSuite) TestReadPoolsWithSkipParameterLessThanZero(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=-1&pull=20&order=asc&sort=ID", "")
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
-}
-
-func (s *TestWebSuite) TestReadPoolsWithNonIntegerPullParameter(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=1&pull=incorrect&order=asc&sort=ID", "")
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
-}
-
-func (s *TestWebSuite) TestReadPoolsWithPullParameterLessThanZero(c *C) {
-	request := s.buildRequest("GET", "/pools?skip=-1&pull=-1&order=asc&sort=ID", "")
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
-}
-
-func (s *TestWebSuite) TestReadPoolsDefaultSkipToZero(c *C) {
-	request := s.buildRequest("GET", "/apipools?&pull=10&order=asc&sort=ID", "")
-
-	var query pool.ResourcePoolsQuery
+func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValuesForReadPool(c *C) {
+	data := newAPIPoolsTestData()
+	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePoolsByPage", s.ctx.getDatastoreContext(), mock.AnythingOfType("pool.ResourcePoolsQuery")).
-		Return(&pool.ResourcePoolsResponse{Results: []pool.ResourcePool{}, Total: 0}, nil).
-		Run(func(args mock.Arguments) { query = args.Get(1).(pool.ResourcePoolsQuery) })
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return([]pool.ResourcePool{data.firstPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
-	c.Assert(query.Skip, Equals, 0)
+	response := poolsResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Results[0].ID, Equals, data.firstPool.ID)
+	c.Assert(response.Results[0].Description, Equals, data.firstPool.Description)
+	c.Assert(response.Results[0].MemoryCapacity, Equals, data.firstPool.MemoryCapacity)
+	c.Assert(response.Results[0].MemoryCommitment, Equals, data.firstPool.MemoryCommitment)
+	c.Assert(response.Results[0].CoreCapacity, Equals, data.firstPool.CoreCapacity)
+	c.Assert(response.Results[0].ConnectionTimeout, Equals, data.firstPool.ConnectionTimeout)
+	c.Assert(response.Results[0].CreatedAt, Equals, data.firstPool.CreatedAt)
+	c.Assert(response.Results[0].UpdatedAt, Equals, data.firstPool.UpdatedAt)
 }
 
-func (s *TestWebSuite) TestReadPoolsDefaultPullTo50000(c *C) {
-	request := s.buildRequest("GET", "/apipools?skip=1&order=asc&sort=ID", "")
-
-	var query pool.ResourcePoolsQuery
+func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
+	data := newAPIPoolsTestData()
+	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePoolsByPage", s.ctx.getDatastoreContext(), mock.AnythingOfType("pool.ResourcePoolsQuery")).
-		Return(&pool.ResourcePoolsResponse{Results: []pool.ResourcePool{}, Total: 0}, nil).
-		Run(func(args mock.Arguments) { query = args.Get(1).(pool.ResourcePoolsQuery) })
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return([]pool.ResourcePool{data.firstPool, data.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
-	c.Assert(query.Pull, Equals, 50000)
+	response := poolsResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Total, Equals, 2)
 }
 
-func (s *TestWebSuite) TestReadPoolsDefaultOrderToAsc(c *C) {
-	request := s.buildRequest("GET", "/apipools?skip=1&pull=20&sort=ID", "")
-
-	var query pool.ResourcePoolsQuery
+func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectLinkValues(c *C) {
+	data := newAPIPoolsTestData()
+	request := s.buildRequest("GET", "http://www.example.com/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePoolsByPage", s.ctx.getDatastoreContext(), mock.AnythingOfType("pool.ResourcePoolsQuery")).
-		Return(&pool.ResourcePoolsResponse{Results: []pool.ResourcePool{}, Total: 0}, nil).
-		Run(func(args mock.Arguments) { query = args.Get(1).(pool.ResourcePoolsQuery) })
+		On("GetResourcePools", s.ctx.getDatastoreContext()).
+		Return([]pool.ResourcePool{data.firstPool, data.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
-	c.Assert(query.Order, Equals, "asc")
-}
+	response := poolsResponse{}
+	s.getResult(c, &response)
 
-func (s *TestWebSuite) TestReadPoolsDefaultSortToID(c *C) {
-	request := s.buildRequest("GET", "/apipools?skip=1&pull=20&order=asc", "")
-
-	var query pool.ResourcePoolsQuery
-
-	s.mockFacade.
-		On("GetResourcePoolsByPage", s.ctx.getDatastoreContext(), mock.AnythingOfType("pool.ResourcePoolsQuery")).
-		Return(&pool.ResourcePoolsResponse{Results: []pool.ResourcePool{}, Total: 0}, nil).
-		Run(func(args mock.Arguments) { query = args.Get(1).(pool.ResourcePoolsQuery) })
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	c.Assert(query.Sort, Equals, "ID")
+	c.Assert(response.Links[0].HRef, Equals, data.selfLink.HRef)
+	c.Assert(response.Links[0].Rel, Equals, data.selfLink.Rel)
+	c.Assert(response.Links[0].Method, Equals, data.selfLink.Method)
 }
