@@ -133,7 +133,6 @@
 
                         if (allItems === undefined) {
 
-                            // console.log(`JellyTable ${$scope.name}: undefined`);
                             // if just intitalized, show loading and default to empty array
                             allItems = [];
                             toggleNoData(true);
@@ -141,7 +140,6 @@
 
                         } else if (angular.isObject(allItems) && !angular.isArray(allItems)) {
 
-                            // console.log(`single-entry`);
                             // single-entry tables that are not arrays pass through once (eg config files)
                             tableEntries = utils.mapToArr(allItems);
                             $scope[tableID].loading = false;
@@ -151,7 +149,6 @@
                         } else if (allItems === null) {
 
                             // if no data, remove loading and show no data message
-                            // console.log(`JellyTable ${$scope.name}: null`);
                             allItems = [];
                             toggleNoData(true);
 
@@ -184,7 +181,9 @@
 
                                 if (totalItemCount > config().pgsize) {
                                     table.addClass("has-pagination");
-                                } 
+                                } else {
+                                    table.removeClass("has-pagination");
+                                }
                             }
 
                         }
