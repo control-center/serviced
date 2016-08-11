@@ -52,6 +52,9 @@
 # Set the mux port to listen on
 # SERVICED_MUX_PORT=22250
 
+# Disable TLS for muxed connections. TLS is enabled by default
+# SERVICED_MUX_DISABLE_TLS=0
+
 # DEPRECATED: Set the var path for serviced. Use options below to specify paths
 # to the isvcs, volumes, and backups directories.
 # SERVICED_VARPATH=/opt/serviced/var

@@ -51,7 +51,7 @@ type Options struct {
 	DockerDNS                  []string
 	Agent                      bool
 	MuxPort                    int
-	TLS                        bool
+	MuxDisableTLS              bool // Whether TLS should be disabled for the mux
 	KeyPEMFile                 string
 	CertPEMFile                string
 	VolumesPath                string
@@ -124,6 +124,7 @@ func LoadOptions(ops Options) {
 // Validate options which are common to all CLI commands
 func ValidateCommonOptions(opts Options) error {
 	var err error
+
 	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
 	if err != nil {
 		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
@@ -214,6 +215,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		Master:                     config.BoolVal("MASTER", false),
 		Agent:                      config.BoolVal("AGENT", false),
 		MuxPort:                    config.IntVal("MUX_PORT", 22250),
+		MuxDisableTLS:              config.BoolVal("MUX_DISABLE_TLS", false),
 		KeyPEMFile:                 config.StringVal("KEY_FILE", ""),
 		CertPEMFile:                config.StringVal("CERT_FILE", ""),
 		Zookeepers:                 config.StringSlice("ZK", []string{}),
@@ -271,6 +273,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 
 	homepath := config.StringVal("HOME", "")
 	varpath := config.StringVal("VARPATH", getDefaultVarPath(homepath))
+
 	options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))

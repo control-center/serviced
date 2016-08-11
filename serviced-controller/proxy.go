@@ -33,7 +33,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	cfg := utils.NewEnvironOnlyConfigReader("SERVICED_")
 	options := ControllerOptions{
 		MuxPort:                 ctx.GlobalInt("muxport"),
-		TLS:                     true,
+		TLS:                     !ctx.GlobalBool("mux-disable-tls"),
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
 		ServicedEndpoint:        ctx.GlobalString("endpoint"),

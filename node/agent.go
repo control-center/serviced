@@ -733,8 +733,14 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 		cfg.Hostname = svc.Hostname
 	}
 
-	cfg.Cmd = append([]string{},
-		filepath.Join("/serviced", binary),
+	cmd := []string{filepath.Join("/serviced", binary)}
+
+	// Flag TLS for the mux if it's disabled
+	if !a.useTLS {
+		cmd = append(cmd, "--mux-disable-tls")
+	}
+
+	cfg.Cmd = append(cmd,
 		svc.ID,
 		strconv.Itoa(instanceID),
 		svc.Startup)
