@@ -469,17 +469,18 @@ func getTLSConfig() (*tls.Config, error) {
 }
 
 func createMuxListener() (net.Listener, error) {
-	if options.TLS {
+	if !options.MuxDisableTLS {
 		glog.V(1).Info("using TLS on mux")
 
 		tlsConfig, err := getTLSConfig()
 		if err != nil {
 			return nil, err
 		}
-		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
+		glog.V(2).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
 		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
 
 	}
+	glog.V(2).Infof("Non-TLS tcp mux listening on %d", options.MuxPort)
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
@@ -616,7 +617,7 @@ func (d *daemon) startAgent() error {
 			FSType:               options.FSType,
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
-			UseTLS:               options.TLS,
+			UseTLS:               !options.MuxDisableTLS,
 			DockerRegistry:       options.DockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
@@ -791,7 +792,7 @@ func (d *daemon) initWeb() {
 		options.Endpoint,
 		options.ReportStats,
 		options.HostAliases,
-		options.TLS,
+		!options.MuxDisableTLS,
 		options.MuxPort,
 		options.AdminGroup,
 		options.CertPEMFile,
