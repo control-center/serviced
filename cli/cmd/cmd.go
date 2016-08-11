@@ -98,7 +98,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"mc-username", defaultOps.MCUsername, "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", defaultOps.MCPasswd, "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", defaultOps.CPUProfile, "write cpu profile to file"},
-		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringSlice("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
+		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringNumberedList("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
