@@ -28,6 +28,9 @@ func TestEnvironConfigReader_parse(t *testing.T) {
 	// Set some environment variables
 	os.Setenv("SERVICEDTEST_STRING", "hello world")
 	os.Setenv("SERVICEDTEST_STRINGSLICE", "apple,orange,banana")
+    os.Setenv("SERVICEDTEST_STRINGNUMBEREDLIST_0", "apple")
+    os.Setenv("SERVICEDTEST_STRINGNUMBEREDLIST_1", "orange")
+    os.Setenv("SERVICEDTEST_STRINGNUMBEREDLIST_2", "banana")
 	os.Setenv("SERVICEDTEST_INT", "5")
 	os.Setenv("SERVICEDTEST_TBOOL", "true")
 	os.Setenv("SERVICEDTEST_FBOOL", "f")
@@ -42,6 +45,12 @@ func TestEnvironConfigReader_parse(t *testing.T) {
 	verify(t, "SERVICEDTEST_STRINGSLICE", config.StringSlice("STRINGSLICE", []string{}), []string{"apple", "orange", "banana"})
 	verify(t, "SERVICEDTEST_DEFAULTSTRINGSLICE", config.StringSlice("DEFAULTSTRINGSLICE", []string{"grapes", "mangos", "papayas"}), []string{"grapes", "mangos", "papayas"})
 
+	t.Logf("SERVICEDTEST_STRINGNUMBEREDLIST_0: %s", os.Getenv("SERVICEDTEST_STRINGNUMBEREDLIST_0"))
+	t.Logf("SERVICEDTEST_STRINGNUMBEREDLIST_1: %s", os.Getenv("SERVICEDTEST_STRINGNUMBEREDLIST_1"))
+	t.Logf("SERVICEDTEST_STRINGNUMBEREDLIST_2: %s", os.Getenv("SERVICEDTEST_STRINGNUMBEREDLIST_2"))
+    verify(t, "SERVICEDTEST_STRINGNUMBEREDLIST", config.StringNumberedList("STRINGNUMBEREDLIST", []string{}), []string{"apple", "orange", "banana"})
+    verify(t, "SERVICEDTEST_DEFAULTSTRINGNUMBEREDLIST", config.StringNumberedList("DEFAULTSTRINGNUMBEREDLIST", []string{"grapes", "mangos", "papayas"}), []string{"grapes", "mangos", "papayas"})
+
 	t.Logf("SERVICEDTEST_INT: %s", os.Getenv("SERVICEDTEST_INT"))
 	verify(t, "SERVICEDTEST_INT", config.IntVal("INT", 0), 5)
 	verify(t, "SERVICEDTEST_DEFAULTINT", config.IntVal("DEFAULTINT", 10), 10)
@@ -54,13 +63,16 @@ func TestEnvironConfigReader_parse(t *testing.T) {
 	verify(t, "SERVICEDTEST_DEFAULTBOOL", config.BoolVal("DEFAULTBOOL", true), true)
 
 	parsedValues := config.GetConfigValues()
-	if len(parsedValues) != 9 {
-		t.Errorf("len(parsedValues) failed: expected %d got %d", 9, len(parsedValues))
+    num_expected := 11
+	if len(parsedValues) != num_expected {
+		t.Errorf("len(parsedValues) failed: expected %d got %d", num_expected, len(parsedValues))
 	}
+
 	verifyConfigValue(t, "STRING", parsedValues, ConfigValue{"SERVICEDTEST_STRING", "hello world"})
 	verifyConfigValue(t, "DEFAULTSTRING", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTSTRING", "goodbye, world"})
 	verifyConfigValue(t, "STRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_STRINGSLICE", "apple,orange,banana"})
 	verifyConfigValue(t, "DEFAULTSTRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTSTRINGSLICE", "grapes,mangos,papayas"})
+    verifyConfigValue(t, "DEFAULTSTRINGNUMBEREDLIST", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTSTRINGNUMBEREDLIST", "grapes,mangos,papayas"})
 	verifyConfigValue(t, "INT", parsedValues, ConfigValue{"SERVICEDTEST_INT", "5"})
 	verifyConfigValue(t, "DEFAULTINT", parsedValues, ConfigValue{"SERVICEDTEST_DEFAULTINT", "10"})
 	verifyConfigValue(t, "TBOOL", parsedValues, ConfigValue{"SERVICEDTEST_TBOOL", "true"})
@@ -71,6 +83,9 @@ func TestEnvironConfigReader_parse(t *testing.T) {
 	examplefile := `
 # SERVICEDTEST_STRING=applesauce
 SERVICEDTEST_STRINGSLICE=big,red,guava
+SERVICEDTEST_STRINGNUMBEREDLIST_0=big
+SERVICEDTEST_STRINGNUMBEREDLIST_1=red
+SERVICEDTEST_STRINGNUMBEREDLIST_2=guava
 SERVICEDTEST_INT=100 # Some additional comments
 SERVICEDTEST_BOOL=no`
 
@@ -82,16 +97,20 @@ SERVICEDTEST_BOOL=no`
 	// Verify data
 	verify(t, "SERVICEDTEST_STRING", config.StringVal("STRING", ""), "hello world")
 	verify(t, "SERVICEDTEST_STRINGSLICE", config.StringSlice("STRINGSLICE", []string{}), []string{"big", "red", "guava"})
+	verify(t, "SERVICEDTEST_STRINGNUMBEREDLIST", config.StringNumberedList("STRINGNUMBEREDLIST", []string{}), []string{"big", "red", "guava"})
 	verify(t, "SERVICEDTEST_INT", config.IntVal("INT", 0), 100)
 	verify(t, "SERVICEDTEST_BOOL", config.BoolVal("BOOL", true), false)
 
 	// There is only one new value in examplefile, so the length of parsed values should only increase by 1
 	parsedValues = config.GetConfigValues()
-	if len(parsedValues) != 10 {
-		t.Errorf("len(parsedValues) failed: expected %d got %d", 10, len(parsedValues))
+    num_expected = 15
+	if len(parsedValues) != num_expected {
+		t.Errorf("len(parsedValues) failed: expected %d got %d", num_expected, len(parsedValues))
 	}
+
 	verifyConfigValue(t, "STRING", parsedValues, ConfigValue{"SERVICEDTEST_STRING", "hello world"})
 	verifyConfigValue(t, "STRINGSLICE", parsedValues, ConfigValue{"SERVICEDTEST_STRINGSLICE", "big,red,guava"})
+	verifyConfigValue(t, "STRINGNUMBEREDLIST", parsedValues, ConfigValue{"SERVICEDTEST_STRINGNUMBEREDLIST", "big,red,guava"})
 	verifyConfigValue(t, "INT", parsedValues, ConfigValue{"SERVICEDTEST_INT", "100"})
 	verifyConfigValue(t, "BOOL", parsedValues, ConfigValue{"SERVICEDTEST_BOOL", "no"})
 }
