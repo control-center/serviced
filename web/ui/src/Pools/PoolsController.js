@@ -123,7 +123,8 @@
             $scope.pools = undefined;
             poolsFactory.update()
                 .then(() => {
-                    $scope.pools = poolsFactory.poolMap;
+                    $scope.pools = poolsFactory.objArr;
+                    $scope.totalPoolCount = poolsFactory.totalCount;
                 });
 
             $scope.poolsTable = {

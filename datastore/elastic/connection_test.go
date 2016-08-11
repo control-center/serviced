@@ -133,7 +133,7 @@ func (s *S) TestQuery(t *C) {
 	query := search.Query().Search("_exists_:state")
 	testSearch := search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	msgs, _, err := conn.Query(testSearch)
+	msgs, err := conn.Query(testSearch)
 	if err != nil {
 		t.Errorf("Unepected error %v", err)
 	}
@@ -145,7 +145,7 @@ func (s *S) TestQuery(t *C) {
 	query = search.Query().Search("_exists_:blam")
 	testSearch = search.Search("twitter").Type("tweet").Size("10000").Query(query)
 
-	msgs, _, err = conn.Query(testSearch)
+	msgs, err = conn.Query(testSearch)
 	if err != nil {
 		t.Errorf("Unepected error %v", err)
 	}

@@ -14,6 +14,7 @@
     'use strict';
 
     var count = 0;
+    var PAGE_SIZE = 15; // TODO: pull from config file
 
     angular.module('jellyTable', [])
     .directive("jellyTable", ["$interval", "ngTableParams", "$filter", "$animate", "$compile", "miscUtils",
@@ -73,8 +74,6 @@
                     // bind scope to html
                     fn($scope);
 
-                    var PAGE_SIZE = 7; // TODO: pull from config file
-
                     var $loader, $noData,
                         toggleLoader, toggleNoData,
                         getData, pageConfig, dataConfig,
@@ -126,70 +125,78 @@
                         }
                     };
 
-                    getData = function($defer, params) {
-                        var unorderedData = data(),
-                            orderedData;
+                    getData = function ($defer, params) {
+                        var allItems = data(),
+                            totalItemCount = 0,
+                            sortedItems,
+                            tableEntries;
 
-                        // if unorderedData is an object, convert to array
-                        // NOTE: angular.isObject does not consider null to be an object
-                        if(!angular.isArray(unorderedData) && angular.isObject(unorderedData)){
-                            unorderedData = utils.mapToArr(unorderedData);
+                        if (allItems === undefined) {
 
-                        // if it's null, create empty array
-                        } else if(unorderedData === null){
-                            unorderedData = [];
-                        }
+                            // console.log(`JellyTable ${$scope.name}: undefined`);
+                            // if just intitalized, show loading and default to empty array
+                            allItems = [];
+                            toggleNoData(true);
+                            return;
 
-                        // HACK FOR DEVELOPMENT 
-                        // This should be the actual total number of results not
-                        // the length of the number of results passed in.
-                        var totalResults = unorderedData ? unorderedData.length : 0;
+                        } else if (angular.isObject(allItems) && !angular.isArray(allItems)) {
 
-                        params.total(totalResults); // count of all results on all pages
-                        
-                        // call overriden getData
-                        if(config().getData){
-                            orderedData = config().getData(unorderedData, params);
-
-                        // use default getData
-                        } else {
-                            orderedData = params.sorting() ?
-                                orderBy(unorderedData, params.orderBy()) :
-                                unorderedData;
-                        }
-
-                        // if no data, show loading and default
-                        // to empty array
-                        if(angular.isUndefined(orderedData)){
-                            $scope[tableID].loading = true;
-                            toggleNoData(false);
-                            orderedData = [];
-
-                        // if data, hide loading, and check if empty
-                        // array
-                        } else {
+                            // console.log(`single-entry`);
+                            // single-entry tables that are not arrays pass through once (eg config files)
+                            tableEntries = utils.mapToArr(allItems);
                             $scope[tableID].loading = false;
-                            // if the request succeded but is
-                            // just empty, show no data message
-                            if(!orderedData.length){
-                                toggleNoData(true);
+                            toggleNoData(false);
+                            return;
 
-                            // otherwise, hide no data message
+                        } else if (allItems === null) {
+
+                            // if no data, remove loading and show no data message
+                            // console.log(`JellyTable ${$scope.name}: null`);
+                            allItems = [];
+                            toggleNoData(true);
+
+                        } else {
+
+                            // call overriden getData if available (eg services)
+                            if(config().getData){
+                                sortedItems = config().getData(allItems, params);
+
                             } else {
-                                toggleNoData(false);
+                                // use default getData (eg pools hosts)
+                                sortedItems = params.sorting()
+                                    ? orderBy(allItems, params.orderBy()) 
+                                    : allItems;
                             }
+
+                            if (config().disablePagination) {
+                                // supress pagination
+                                tableEntries = sortedItems;
+                                toggleNoData(false);
+                            } else {
+                                // slice sorted results array for current page
+                                totalItemCount = allItems.length;
+                                var lower = (params.page()-1) * config().pgsize;
+                                var upper = Math.min(lower + config().pgsize, totalItemCount);
+                                tableEntries = sortedItems.slice(lower,upper);
+
+                                // if no results show no data message
+                                toggleNoData(!totalItemCount);
+
+                                if (totalItemCount > config().pgsize) {
+                                    table.addClass("has-pagination");
+                                } 
+                            }
+
                         }
 
-                        // HACK FOR DEVELOPMENT 
-                        // Chop results array to simulate just 1 page returning
-                        var lower = (params.page()-1) * config().pgsize;
-                        var upper = Math.min(lower + config().pgsize, totalResults);
-                        orderedData = orderedData.slice(lower,upper);
+                        // hide loading message
+                        $scope[tableID].loading = false;
 
-                        $scope[tableID].resultsLength = totalResults;
+                        params.total(totalItemCount); // pagination needs total item count
+                        $scope[tableID].resultsLength = allItems.length;
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
 
-                        $defer.resolve(orderedData);
+                        $defer.resolve(tableEntries);
                     };
 
                     // setup config for ngtable

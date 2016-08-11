@@ -124,24 +124,3 @@ func (_m *Store) HasVirtualIP(ctx datastore.Context, poolID string, virtualIP st
 
 	return r0, r1
 }
-func (_m *Store) GetResourcePoolsByPage(ctx datastore.Context, query pool.ResourcePoolsQuery) (*pool.ResourcePoolsResponse, error) {
-	ret := _m.Called(ctx, query)
-
-	var r0 *pool.ResourcePoolsResponse
-	if rf, ok := ret.Get(0).(func(datastore.Context) *pool.ResourcePoolsResponse); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pool.ResourcePoolsResponse)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}

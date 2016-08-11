@@ -1787,7 +1787,7 @@ input[type=file] {
 .jelly-table .loader{
     opacity: 1;
     width: 100%;
-    height: 100%;
+    height: 80%;
     position: absolute;
     margin: auto;
     top: 30px;
@@ -1821,18 +1821,22 @@ input[type=file] {
 .jelly-table .statusBar {
     color: #CCC;
     font-size: .9em;
-    padding: 8px 0 0 0;
+    padding: 7px 0 0 0;
     text-align: right;
     border: none;
     cursor: default;
 }
+    .jelly-table .has-pagination .statusBar {
+        padding-top: 15px;
+    }
+
 .jelly-table .statusBar ul {
     justify-content: space-between;
     display: flex;
     flex: 1 1 100%;
     margin: 0;
     padding: 0 0 40px 0;
-    height: 60px;
+    height: 50px;
 }
 
 .jelly-table .statusBar ul > li {
@@ -1854,8 +1858,10 @@ input[type=file] {
     justify-content: center;
 }
 
-.pagination {
-    margin: -70px;
+.pagination.jelly-pagination {
+    margin: -68px 0 0 0;
+    padding: 0;
+    height: 30px;;
 }
 
 .pagination.jelly-pagination > li > a {

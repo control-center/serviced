@@ -45,8 +45,6 @@ type Results interface {
 
 	//Len return the length of the results
 	Get(idx int, entity ValidEntity) error
-
-	GetMetadata() ResultsMetadata
 }
 
 type query struct {
@@ -60,18 +58,17 @@ func (q *query) Execute(query interface{}) (Results, error) {
 		return nil, err
 	}
 
-	results, metadata, err := conn.Query(query)
+	results, err := conn.Query(query)
 	if err != nil {
 		return nil, err
 	}
 
-	return newResults(results, metadata), nil
+	return newResults(results), nil
 }
 
 type results struct {
-	data     []JSONMessage
-	idx      int
-	metadata ResultsMetadata
+	data []JSONMessage
+	idx  int
 }
 
 func (r *results) Len() int {
@@ -107,10 +104,6 @@ func (r *results) HasNext() bool {
 	return r.idx < len(r.data)
 }
 
-func (r *results) GetMetadata() ResultsMetadata {
-	return r.metadata
-}
-
-func newResults(data []JSONMessage, metadata ResultsMetadata) Results {
-	return &results{data, 0, metadata}
+func newResults(data []JSONMessage) Results {
+	return &results{data, 0}
 }
