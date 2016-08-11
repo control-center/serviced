@@ -16,15 +16,8 @@ package utils
 import (
 	"crypto/tls"
 	"fmt"
-	"sort"
 	"strings"
 )
-
-type ciphers []uint16
-
-func (c ciphers) Len() int           { return len(c) }
-func (c ciphers) Less(i, j int) bool { return c[i] < c[j] }
-func (c ciphers) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 // DefaultTLSMinVersion minimum TLS version supported
 const DefaultTLSMinVersion = "VersionTLS10"
@@ -51,10 +44,20 @@ func init() {
 		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 	}
 
-	tlsCiphers = make([]uint16, 0)
-	for key := range cipherLookup {
-		defaultCiphers = append(defaultCiphers, key)
+	// CC-2512/CC-2514 - Ciphers suites must be ordered. This order is newest to oldest
+	defaultCiphers = []string {
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_AES_256_CBC_SHA",
+		"TLS_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_3DES_EDE_CBC_SHA",
 	}
+
 	SetCiphers(defaultCiphers)
 }
 
@@ -73,12 +76,11 @@ func SetCiphers(cipherNames []string) error {
 		if cipher, ok = cipherLookup[upperCipher]; !ok {
 			return fmt.Errorf("unknown cipher %s", cipherName)
 		}
+
 		newCiphers = append(newCiphers, cipher)
 
 	}
 	tlsCiphers = newCiphers
-	// reverse sort the ciphers, since the uint value determines the order
-	sort.Sort(sort.Reverse(ciphers(tlsCiphers)))
 	return nil
 }
 
@@ -107,4 +109,14 @@ func MinTLS() uint16 {
 // CipherSuites the ciphers that can be sued
 func CipherSuites() []uint16 {
 	return tlsCiphers
+}
+
+// Get the name of the cipher
+func GetCipherName(cipher uint16) (string, error) {
+	for key, value := range(cipherLookup) {
+		if cipher == value {
+			return key, nil
+		}
+	}
+	return "", fmt.Errorf("unknown cipher %d", cipher)
 }
