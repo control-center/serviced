@@ -240,11 +240,12 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		// https://github.com/golang/go/issues/10094
 		// https://github.com/golang/go/issues/9364
 		config := &tls.Config{
-			MinVersion:               utils.MinTLS(),
+			MinVersion:               utils.MinTLS("http"),
 			PreferServerCipherSuites: true,
-			CipherSuites:             utils.CipherSuites(),
+			CipherSuites:             utils.CipherSuites("http"),
 		}
 		server := &http.Server{Addr: sc.bindPort, TLSConfig: config}
+		glog.Infof("Creating HTTP server on port %s with CipherSuite: %v", sc.bindPort, utils.CipherSuitesByName(config))
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
 			glog.Fatalf("could not setup HTTPS webserver: %s", err)

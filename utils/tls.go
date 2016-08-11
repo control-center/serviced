@@ -17,18 +17,32 @@ import (
 	"crypto/tls"
 	"fmt"
 	"strings"
+
+	"github.com/zenoss/glog"
 )
+
+//---------------------------------------------------------------------------
+// This file maintains a set of default TLS configuration options for each
+// of the 3 different kinds of listening ports (HTTP, RPC and MUX).
+//
+// Default values may be changed by calling one of the Set methods in this
+// file.
+//---------------------------------------------------------------------------
 
 // DefaultTLSMinVersion minimum TLS version supported
 const DefaultTLSMinVersion = "VersionTLS10"
 
 var cipherLookup map[string]uint16
 
-var tlsCiphers []uint16
+// TODO: Add options to separate certs and keys by connection type?
+type configInfo struct {
+	name		string
+	minTLSVersion	uint16
+	cipherSuite     []uint16
+	defaultCiphers	[]string
+}
 
-var tlsVersion uint16
-
-var defaultCiphers []string
+var configMap map[string]*configInfo
 
 func init() {
 	cipherLookup = map[string]uint16{
@@ -44,8 +58,11 @@ func init() {
 		"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 	}
 
-	// CC-2512/CC-2514 - Ciphers suites must be ordered. This order is newest to oldest
-	defaultCiphers = []string {
+	// All supported ciphers in descending order with (roughly) newest first. Note that in GO 1.6 the HTTP2
+	// server will fail to start if some of the ciphers lower in the list appear before several which
+	// are higher in the list or if ECDHE_RSA_WITH_AES_128_GCM_SHA256 is NOT in the list.
+	// See ConfigureServer() in https://github.com/golang/net/blob/master/http2/server.go
+	httpDefaultCiphers := []string{
 		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
 		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
 		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
@@ -58,16 +75,51 @@ func init() {
 		"TLS_RSA_WITH_3DES_EDE_CBC_SHA",
 	}
 
-	SetCiphers(defaultCiphers)
+	// For RPC/MUX communication, we want the fastest ciphers possible.
+	// See CC-2514/CC-2512 for more details
+	rpcDefaultCiphers := []string{
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+	}
+
+	muxDefaultCiphers := rpcDefaultCiphers
+
+	configMap = make(map[string]*configInfo, 0)
+	for _, connectionType := range []string{"http", "rpc", "mux"} {
+		config := &configInfo{
+			name: connectionType,
+			minTLSVersion: tls.VersionTLS10,
+		}
+		switch connectionType {
+		case "http": config.defaultCiphers = httpDefaultCiphers
+		case "rpc": config.defaultCiphers = rpcDefaultCiphers
+		case "mux": config.defaultCiphers = muxDefaultCiphers
+		}
+
+		configMap[config.name] = config
+		SetCiphers(config.name, config.defaultCiphers)
+	}
 }
 
 // GetDefaultCiphers returns the default tls ciphers
-func GetDefaultCiphers() []string {
-	return defaultCiphers
+func GetDefaultCiphers(connectionType string) []string {
+	configInfo, ok := configMap[connectionType]
+	if !ok {
+		glog.Fatalf("connectionType %s is undefined", connectionType)
+	}
+	return configInfo.defaultCiphers
 }
 
 // SetCiphers that can be used
-func SetCiphers(cipherNames []string) error {
+func SetCiphers(connectionType string, cipherNames []string) error {
+	configInfo, ok := configMap[connectionType]
+	if !ok {
+		glog.Fatalf("connectionType %s is undefined", connectionType)
+	}
+
 	newCiphers := make([]uint16, 0, len(cipherNames))
 	for _, cipherName := range cipherNames {
 		upperCipher := strings.ToUpper(strings.TrimSpace(cipherName))
@@ -80,20 +132,25 @@ func SetCiphers(cipherNames []string) error {
 		newCiphers = append(newCiphers, cipher)
 
 	}
-	tlsCiphers = newCiphers
+	configInfo.cipherSuite = newCiphers
 	return nil
 }
 
 // SetMinTLS the min tls that can be used
-func SetMinTLS(version string) error {
+func SetMinTLS(connectionType string, version string) error {
+	configInfo, ok := configMap[connectionType]
+	if !ok {
+		glog.Fatalf("connectionType %s is undefined", connectionType)
+	}
+
 	upperTLS := strings.ToUpper(strings.TrimSpace(version))
 	switch upperTLS {
 	case "VERSIONTLS10":
-		tlsVersion = tls.VersionTLS10
+		configInfo.minTLSVersion = tls.VersionTLS10
 	case "VERSIONTLS11":
-		tlsVersion = tls.VersionTLS11
+		configInfo.minTLSVersion = tls.VersionTLS11
 	case "VERSIONTLS12":
-		tlsVersion = tls.VersionTLS12
+		configInfo.minTLSVersion = tls.VersionTLS12
 	default:
 		return fmt.Errorf("Invalid TLS version %s", version)
 
@@ -101,22 +158,38 @@ func SetMinTLS(version string) error {
 	return nil
 }
 
-// MinTLS the min tls that can be used
-func MinTLS() uint16 {
-	return tlsVersion
+// MinTLS the min tls version that can be used for a given connection type
+func MinTLS(connectionType string) uint16 {
+	configInfo, ok := configMap[connectionType]
+	if !ok {
+		glog.Fatalf("connectionType %s is undefined", connectionType)
+	}
+	return configInfo.minTLSVersion
 }
 
 // CipherSuites the ciphers that can be sued
-func CipherSuites() []uint16 {
-	return tlsCiphers
+func CipherSuites(connectionType string) []uint16 {
+	configInfo, ok := configMap[connectionType]
+	if !ok {
+		glog.Fatalf("connectionType %s is undefined", connectionType)
+	}
+	return configInfo.cipherSuite
+}
+
+func CipherSuitesByName(c *tls.Config) []string {
+	suiteList := make([]string, 0)
+	for _, cipher := range(c.CipherSuites) {
+		suiteList = append(suiteList, fmt.Sprintf("%s (%d)", GetCipherName(cipher), cipher))
+	}
+	return suiteList
 }
 
 // Get the name of the cipher
-func GetCipherName(cipher uint16) (string, error) {
+func GetCipherName(cipher uint16) string {
 	for key, value := range(cipherLookup) {
 		if cipher == value {
-			return key, nil
+			return key
 		}
 	}
-	return "", fmt.Errorf("unknown cipher %d", cipher)
+	return "unsupported"
 }
