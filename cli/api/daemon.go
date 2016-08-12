@@ -16,6 +16,7 @@ package api
 import (
 	"bytes"
 
+	"github.com/Sirupsen/logrus"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -52,6 +53,8 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
+
+	"github.com/iancmcc/logri"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -152,109 +155,154 @@ func (d *daemon) getEsClusterName(name string) string {
 func (d *daemon) startISVCS() {
 	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
-	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
-		glog.Fatalf("Could not set es-serviced option: %s", err)
+	servicedClusterName := d.getEsClusterName("elasticsearch-serviced")
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", servicedClusterName); err != nil {
+		log.WithFields(logrus.Fields{
+			"clustername": servicedClusterName,
+		}).WithError(err).Fatal("Could not set Elastic configuration")
 	}
-	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", d.getEsClusterName("elasticsearch-logstash")); err != nil {
-		glog.Fatalf("Could not set es-logstash option: %s", err)
+	logstashClusterName := d.getEsClusterName("elasticsearch-logstash")
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", logstashClusterName); err != nil {
+		log.WithFields(logrus.Fields{
+			"clustername": logstashClusterName,
+		}).WithError(err).Fatal("Could not set Elastic configuration")
 	}
 	if err := isvcs.Mgr.Start(); err != nil {
-		glog.Fatalf("Could not start isvcs: %s", err)
+		log.WithError(err).Fatal("Unable to start internal services")
 	}
+	log.Info("Started internal services")
 	go d.startLogstashPurger(10*time.Minute, time.Duration(options.LogstashCycleTime)*time.Hour)
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
+	log := log.WithFields(logrus.Fields{"services": serviceNames})
 	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.Start(); err != nil {
-		glog.Fatalf("Could not start isvcs: %s", err)
+		log.WithError(err).Fatal("Unable to start internal services")
 	}
+	log.Info("Started internal services")
 }
 
 func (d *daemon) stopISVCS() {
-	glog.Infof("Shutting down isvcs")
+	log.Debug("Beginning shutdown of internal services")
 	if err := isvcs.Mgr.Stop(); err != nil {
-		glog.Errorf("Error while stopping isvcs: %s", err)
+		log.WithError(err).Error("Error while stopping internal services")
 	}
-	glog.Infof("isvcs shut down")
+	log.Info("Shut down internal services")
 }
 
 func (d *daemon) startRPC() {
 	if options.DebugPort > 0 {
+		address := fmt.Sprintf("127.0.0.1:%d", options.DebugPort)
+		logger := log.WithFields(logrus.Fields{
+			"server":  "debug",
+			"address": address,
+		})
 		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
-				glog.Errorf("Unable to bind to debug port %s. Is another instance running?", err)
+			if err := http.ListenAndServe(address, nil); err != nil {
+				logger.Warning("Unable to bind to debug port. Is another instance running?")
 				return
 			}
+			logger.Info("Listening for incoming debug connections")
 		}()
 	}
 
-	var listener net.Listener
-	var err error
+	logger := log.WithFields(logrus.Fields{
+		"server":  "rpc",
+		"address": options.Listen,
+	})
+
+	var (
+		listener net.Listener
+		err      error
+	)
 	if rpcutils.RPCDisableTLS {
 		listener, err = net.Listen("tcp", options.Listen)
 	} else {
 		var tlsConfig *tls.Config
 		tlsConfig, err = getTLSConfig()
 		if err != nil {
-			glog.Fatalf("Unable to get TLS config: %v", err)
+			logger.WithError(err).Fatal("Unable to retrieve TLS configuration")
 		}
-
 		listener, err = tls.Listen("tcp", options.Listen, tlsConfig)
 	}
 	if err != nil {
-		glog.Fatalf("Unable to bind to port %s. Is another instance running?", options.Listen)
+		logger.Fatal("Unable to bind to RPC server address. Is another instance running?")
 	}
 
 	rpcutils.SetDialTimeout(options.RPCDialTimeout)
 	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 
-	glog.V(0).Infof("Listening on %s", listener.Addr().String())
+	logger.Info("Listening for incoming RPC requests")
+
 	go func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				glog.Fatalf("Error accepting connections: %s", err)
+				logger.WithError(err).Fatal("Error accepting RPC connection")
 			}
 			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
 }
 
+var log = logri.GetLogger("serviced.server")
+
 func (d *daemon) run() (err error) {
+
+	// Get the ID of this host
 	if d.hostID, err = utils.HostID(); err != nil {
-		glog.Fatalf("Could not get host ID: %s", err)
+		log.WithError(err).Fatal("Unable to get host ID")
 	} else if err := validation.ValidHostID(d.hostID); err != nil {
-		glog.Errorf("invalid hostid: %s", d.hostID)
+		log.WithError(err).WithFields(logrus.Fields{
+			"hostid": d.hostID,
+		}).Fatal("Invalid host ID")
 	}
 
+	// Validate that we have an acceptable version of Docker
 	if currentDockerVersion, err := node.GetDockerVersion(); err != nil {
-		glog.Fatalf("Could not get docker version: %s", err)
+		log.WithError(err).Fatal("Unable to get Docker version")
 	} else if minDockerVersion.Compare(currentDockerVersion) < 0 {
-		glog.Fatalf("serviced requires docker >= %s", minDockerVersion)
+		log.WithError(err).WithFields(logrus.Fields{
+			"minversion": minDockerVersion,
+			"version":    currentDockerVersion,
+		}).Fatal("Incompatible Docker version")
 	}
 
-	if !volume.Registered(options.FSType) {
-		glog.Fatalf("no driver registered for %s", options.FSType)
+	// Establish a connection to Docker
+	dockerlogger := log.WithFields(logrus.Fields{
+		"version": currentDockerVersion,
+		"address": docker.DefaultSocket,
+	})
+	if d.docker, err = docker.NewDockerClient(); err != nil {
+		dockerlogger.WithError(err).Fatal("Unable to connect to Docker")
 	}
+	dockerlogger.Info("Established connection to Docker")
 
-	// set up docker
-	d.docker, err = docker.NewDockerClient()
-	if err != nil {
-		glog.Fatalf("Could not connect to docker client: %s", err)
-	}
-
-	// set up the registry
+	// Set up the Docker registry
 	d.reg = registry.NewRegistryListener(d.docker, options.DockerRegistry, d.hostID)
 
-	// Initialize the storage driver
+	// Initialize the application storage
+	storagelogger := log.WithFields(logrus.Fields{
+		"driver":  options.FSType,
+		"path":    options.VolumesPath,
+		"args":    options.StorageArgs,
+		"options": options.StorageOptions,
+	})
+	storagelogger.Debug("Initializing application storage")
+	if !volume.Registered(options.FSType) {
+		storagelogger.Fatal("Invalid storage driver")
+	}
 	if !filepath.IsAbs(options.VolumesPath) {
-		glog.Fatalf("volumes path %s must be absolute", options.VolumesPath)
+		storagelogger.Fatal("Volume path is not absolute")
 	}
 	if err := volume.InitDriver(options.FSType, options.VolumesPath, options.StorageArgs); err != nil {
-		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VolumesPath, options.StorageArgs, options.StorageOptions, err)
+		storagelogger.WithError(err).Fatal("Unable to initialize application storage")
 	}
+	storagelogger.Info("Initialized application storage")
+
+	// Start the RPC server
 	d.startRPC()
 
 	//Start the zookeeper client
@@ -283,30 +331,36 @@ func (d *daemon) run() (err error) {
 	signalC := make(chan os.Signal, 10)
 	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	sig := <-signalC
-	glog.Info("Shutting down due to interrupt")
+
+	log.WithFields(logrus.Fields{
+		"signal": sig,
+	}).Info("Received interrupt")
+	log.Debug("Beginning shutdown")
 	close(d.shutdown)
 
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		glog.Info("Stopping sub-processes")
 		d.waitGroup.Wait()
-		glog.Info("Sub-processes have stopped")
+		log.Info("Shut down subprocesses")
 	}()
 
 	select {
 	case <-done:
-		defer glog.Info("Shutdown")
+		defer log.Info("Shut down serviced")
 	case <-time.After(60 * time.Second):
-		defer glog.Infof("Timeout waiting for shutdown")
+		defer log.WithFields(logrus.Fields{"timeout": "60s"}).Warning("Timed out waiting for subprocess to shut down")
 	}
 
 	zzk.ShutdownConnections()
+	log.Info("Disconnected from ZooKeeper")
+
 	switch sig {
 	case syscall.SIGHUP:
-		glog.Infof("Not shutting down isvcs")
 		command := os.Args
-		glog.Infof("Reloading by calling syscall.exec for command: %+v\n", command)
+		log.WithFields(logrus.Fields{
+			"command": command,
+		}).Info("Restarting serviced process without shutting down internal services")
 		syscall.Exec(command[0], command[0:], os.Environ())
 	default:
 		d.stopISVCS()
@@ -329,7 +383,11 @@ func (d *daemon) initContext() (datastore.Context, error) {
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	coordzk.RegisterZKLogger()
 	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
-	glog.Infof("zookeeper dsn: %s", dsn)
+	log.WithFields(logrus.Fields{
+		"dsn":            dsn,
+		"sessiontimeout": options.ZKSessionTimeout,
+		"ensemble":       zks,
+	}).Debug("Establishing connection to ZooKeeper")
 	return coordclient.New("zookeeper", dsn, "/", nil)
 }
 
@@ -454,7 +512,6 @@ func getTLSConfig() (*tls.Config, error) {
 
 	cert, err := tls.X509KeyPair([]byte(proxyCertPEM), []byte(proxyKeyPEM))
 	if err != nil {
-		glog.Error("Could not parse public/private key pair (tls.X509KeyPair): ", err)
 		return nil, err
 	}
 
