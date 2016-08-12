@@ -68,7 +68,7 @@
                     this.lastUpdate = new Date().getTime();
                 });
             return deferred.promise;
-        }
+        };
 
         return newFactory;
     }]);

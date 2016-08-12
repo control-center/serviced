@@ -160,8 +160,8 @@
 
                             } else {
                                 // use default getData (eg pools hosts)
-                                sortedItems = params.sorting()
-                                    ? orderBy(allItems, params.orderBy()) 
+                                sortedItems = params.sorting() ? 
+                                    orderBy(allItems, params.orderBy()) 
                                     : allItems;
                             }
 
