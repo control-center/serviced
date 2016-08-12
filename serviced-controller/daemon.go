@@ -45,6 +45,7 @@ func main() {
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringFlag{"endpoint", utils.GetGateway(defaultRPCPort), "serviced endpoint address"},
 		cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
+		cli.BoolFlag{"mux-disable-tls", "disable contacting the mux via TLS"},
 		cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 		cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 		cli.BoolTFlag{"logstash", "forward service logs via filebeat"},

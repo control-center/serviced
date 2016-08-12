@@ -41,6 +41,7 @@ type ConfigValue struct {
 type ConfigReader interface {
 	StringVal(key, dflt string) string
 	StringSlice(key string, dflt []string) []string
+	StringNumberedList(key string, dflt []string) []string
 	IntVal(key string, dflt int) int
 	BoolVal(key string, dflt bool) bool
 	GetConfigValues() map[string]ConfigValue
@@ -109,7 +110,7 @@ func (p *EnvironConfigReader) StringVal(name string, defaultval string) string {
 }
 
 func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []string {
-	strval := p.StringVal(name, "")
+    strval := p.StringVal(name, "")
 	if strval != "" {
 		return strings.Split(strval, ",")
 	}
@@ -117,6 +118,38 @@ func (p *EnvironConfigReader) StringSlice(name string, defaultval []string) []st
 	entry.Value = strings.Join(defaultval,",")
 	p.configValues[name] = entry
 	return defaultval
+}
+
+func (p *EnvironConfigReader) StringNumberedList(name string, defaultval []string) []string {
+    values := ""
+    i := 0
+    for {
+        if strval := os.Getenv(p.getFullValueName(name + "_" + strconv.Itoa(i))); strval != "" {
+            if values == "" { // The first item that contains 'name'
+                values = strval
+            } else {
+                values += "," + strval
+            }
+        } else {
+            configValue := ConfigValue{}
+            configValue.Name = p.getFullValueName(name)
+
+            if values == "" {
+            	// If config doesn't have any item that contains 'name', use
+                // default value.
+            	configValue.Value = strings.Join(defaultval, ",")
+            	p.configValues[name] = configValue
+            	return defaultval
+            } else {
+            	// If no more items contain 'name'...
+                configValue.Value = values
+                p.configValues[name] = configValue
+        		return strings.Split(values, ",")
+            }
+        }
+
+        i += 1
+    }
 }
 
 func (p *EnvironConfigReader) IntVal(name string, defaultval int) int {

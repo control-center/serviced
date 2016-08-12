@@ -369,7 +369,8 @@ func (service *Service) EvaluateEndpointTemplates(gs GetService, fc FindChildSer
 			}
 		}
 
-		if ep.PortTemplate != "" {
+		// we only want to evaluate exports
+		if ep.PortTemplate != "" && ep.Purpose == "export" {
 			err, result := service.evaluateTemplate(gs, fc, instanceID, ep.PortTemplate)
 			if err != nil {
 				return err

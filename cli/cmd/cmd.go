@@ -69,6 +69,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
+		cli.BoolFlag{"mux-disable-tls", "disable TLS for mux connections"},
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
 		cli.StringFlag{"isvcs-path", defaultOps.IsvcsPath, "path where internal application data is stored"},
 		cli.StringFlag{"backups-path", defaultOps.BackupsPath, "default path where backups are stored"},
@@ -97,7 +98,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"mc-username", defaultOps.MCUsername, "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", defaultOps.MCPasswd, "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", defaultOps.CPUProfile, "write cpu profile to file"},
-		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringSlice("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
+		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringNumberedList("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
@@ -206,7 +207,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		Master:                     ctx.GlobalBool("master"),
 		Agent:                      ctx.GlobalBool("agent"),
 		MuxPort:                    ctx.GlobalInt("mux"),
-		TLS:                        true,
+		MuxDisableTLS:              ctx.GlobalBool("mux-disable-tls"),
 		VolumesPath:                ctx.GlobalString("volumes-path"),
 		IsvcsPath:                  ctx.GlobalString("isvcs-path"),
 		BackupsPath:                ctx.GlobalString("backups-path"),
@@ -265,7 +266,6 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
 	}
-
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
@@ -277,6 +277,10 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 	}
 
 	options.Endpoint = getEndpoint(options)
+
+	if os.Getenv("SERVICED_MUX_DISABLE_TLS") == "1" {
+		options.MuxDisableTLS = true
+	}
 
 	return options
 }
