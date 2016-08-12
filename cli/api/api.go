@@ -49,14 +49,34 @@ func (a *api) StartServer() error {
 	configureLoggingForLogstash(options.LogstashURL)
 	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
 
-	glog.Infof("Setting supported tls ciphers: %s", options.TLSCiphers)
-	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
-		return fmt.Errorf("unable to set TLS Ciphers %v", err)
+	glog.Infof("Setting supported TLS ciphers for HTTP: %s", options.TLSCiphers)
+	if err := utils.SetCiphers("http", options.TLSCiphers); err != nil {
+		return fmt.Errorf("unable to set HTTP TLS Ciphers %v", err)
 	}
 
-	glog.Infof("Setting minimum tls version: %s", options.TLSMinVersion)
-	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
-		return fmt.Errorf("unable to set minimum TLS version %v", err)
+	glog.Infof("Setting minimum TLS version for HTTP: %s", options.TLSMinVersion)
+	if err := utils.SetMinTLS("http", options.TLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum HTTP TLS version %v", err)
+	}
+
+	glog.Infof("Setting supported TLS ciphers for MUX: %s", options.MUXTLSCiphers)
+	if err := utils.SetCiphers("mux", options.MUXTLSCiphers); err != nil {
+		return fmt.Errorf("unable to set MUX TLS Ciphers %v", err)
+	}
+
+	glog.Infof("Setting minimum TLS version for MUX: %s", options.MUXTLSMinVersion)
+	if err := utils.SetMinTLS("mux", options.MUXTLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum MUX TLS version %v", err)
+	}
+
+	glog.Infof("Setting supported TLS ciphers for RPC: %s", options.RPCTLSCiphers)
+	if err := utils.SetCiphers("rpc", options.RPCTLSCiphers); err != nil {
+		return fmt.Errorf("unable to set RPC TLS Ciphers %v", err)
+	}
+
+	glog.Infof("Setting minimum TLS version for RPC: %s", options.RPCTLSMinVersion)
+	if err := utils.SetMinTLS("rpc", options.RPCTLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum RPC TLS version %v", err)
 	}
 
 	if len(options.CPUProfile) > 0 {
