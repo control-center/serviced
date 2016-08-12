@@ -45,6 +45,16 @@ type configInfo struct {
 var configMap map[string]*configInfo
 
 func init() {
+	//
+	// FYI - In our lab testing for CC-2512/CC-2514, these ciphers did not work at all
+	// (e.g. tls handshake failures and/or Chrome connection failures), but they are left in the
+	// list just in case; e.g. either a browser adds support for them, or a newer version of
+	// GO TLS supports them (not sure which side caused the connection failure).
+	//
+	//       tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+	//       tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+	//       tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+	//       tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
 	cipherLookup = map[string]uint16{
 		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
@@ -61,7 +71,7 @@ func init() {
 	// All supported ciphers in descending order with (roughly) newest first. Note that in GO 1.6 the HTTP2
 	// server will fail to start if some of the ciphers lower in the list appear before several which
 	// are higher in the list or if ECDHE_RSA_WITH_AES_128_GCM_SHA256 is NOT in the list.
-	// See ConfigureServer() in https://github.com/golang/net/blob/master/http2/server.go
+	// See ConfigureServer() and isBadCipher() in https://github.com/golang/net/blob/master/http2/server.go
 	httpDefaultCiphers := []string{
 		"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
 		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
@@ -76,7 +86,11 @@ func init() {
 	}
 
 	// For RPC/MUX communication, we want the fastest ciphers possible.
-	// See CC-2514/CC-2512 for more details
+	//
+	// CC-2512/CC-2514 - based on testing in our lab, some ciphers have terrible performance and some
+	//                   do not work with HTTP, RPC or MUX communications. This list is ordered by most-performant
+	//                   to least performant based on our tests.
+	//
 	rpcDefaultCiphers := []string{
 		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
 		"TLS_RSA_WITH_AES_128_CBC_SHA",
@@ -86,12 +100,13 @@ func init() {
 	}
 
 	muxDefaultCiphers := rpcDefaultCiphers
+	tlsVersion, _ := tlsVersionStringToUint(DefaultTLSMinVersion)
 
 	configMap = make(map[string]*configInfo, 0)
 	for _, connectionType := range []string{"http", "rpc", "mux"} {
 		config := &configInfo{
 			name: connectionType,
-			minTLSVersion: tls.VersionTLS10,
+			minTLSVersion: tlsVersion,
 		}
 		switch connectionType {
 		case "http": config.defaultCiphers = httpDefaultCiphers
@@ -143,19 +158,23 @@ func SetMinTLS(connectionType string, version string) error {
 		glog.Fatalf("connectionType %s is undefined", connectionType)
 	}
 
+	tlsVersion, err := tlsVersionStringToUint(version)
+	if err != nil {
+		return fmt.Errorf("Invalid TLS version %s", version)
+	}
+
+	configInfo.minTLSVersion = tlsVersion
+	return nil
+}
+
+func tlsVersionStringToUint(version string) (uint16, error) {
 	upperTLS := strings.ToUpper(strings.TrimSpace(version))
 	switch upperTLS {
-	case "VERSIONTLS10":
-		configInfo.minTLSVersion = tls.VersionTLS10
-	case "VERSIONTLS11":
-		configInfo.minTLSVersion = tls.VersionTLS11
-	case "VERSIONTLS12":
-		configInfo.minTLSVersion = tls.VersionTLS12
-	default:
-		return fmt.Errorf("Invalid TLS version %s", version)
-
+	case "VERSIONTLS10": return tls.VersionTLS10, nil
+	case "VERSIONTLS11": return tls.VersionTLS11, nil
+	case "VERSIONTLS12": return tls.VersionTLS12, nil
+	default: return 0, fmt.Errorf("Invalid TLS version %s", version)
 	}
-	return nil
 }
 
 // MinTLS the min tls version that can be used for a given connection type

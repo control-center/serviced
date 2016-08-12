@@ -86,9 +86,13 @@ type Options struct {
 	DebugPort                  int    // Port to listen for profile clients
 	AdminGroup                 string // user group that can log in to control center
 	MaxRPCClients              int    // the max number of rpc clients to an endpoint
+	MUXTLSCiphers              []string          // List of tls ciphers supported for mux
+	MUXTLSMinVersion           string            // Minimum TLS version supported for mux
 	RPCDialTimeout             int
 	RPCCertVerify              string            //  server certificate verify for rpc connections, string val of bool
 	RPCDisableTLS              string            //  Disable TLS for RPC connections, string val of bool
+	RPCTLSCiphers              []string          // List of tls ciphers supported for rpc
+	RPCTLSMinVersion           string            // Minimum TLS version supported for rpc
 	SnapshotTTL                int               // hours to keep snapshots around, zero for infinity
 	StorageArgs                []string          // command-line arguments for storage options
 	StorageOptions             map[string]string // environment arguments for storage options
@@ -96,8 +100,8 @@ type Options struct {
 	StartISVCS                 []string          // ISVCS to start when running as an agent
 	IsvcsZKID                  int               // Zookeeper server id when running as a quorum
 	IsvcsZKQuorum              []string          // Members of the zookeeper quorum
-	TLSCiphers                 []string          // List of tls ciphers supported
-	TLSMinVersion              string            // Minimum TLS version supported
+	TLSCiphers                 []string          // List of tls ciphers supported for http
+	TLSMinVersion              string            // Minimum TLS version supported for http
 	DockerLogDriver            string            // Which log driver to use with containers
 	DockerLogConfigList        []string          // List of comma-separated key=value options for docker logging
 	AllowLoopBack              string            // Allow loop back devices for DM storage, string val of bool
@@ -240,9 +244,13 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		DebugPort:                  config.IntVal("DEBUG_PORT", 6006),
 		AdminGroup:                 config.StringVal("ADMIN_GROUP", getDefaultAdminGroup()),
 		MaxRPCClients:              config.IntVal("MAX_RPC_CLIENTS", 3),
+		MUXTLSCiphers:              config.StringSlice("MUX_TLS_CIPHERS", utils.GetDefaultCiphers("mux")),
+		MUXTLSMinVersion:           config.StringVal("MUX_TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		RPCDialTimeout:             config.IntVal("RPC_DIAL_TIMEOUT", 30),
 		RPCCertVerify:              strconv.FormatBool(config.BoolVal("RPC_CERT_VERIFY", false)),
 		RPCDisableTLS:              strconv.FormatBool(config.BoolVal("RPC_DISABLE_TLS", false)),
+		RPCTLSCiphers:              config.StringSlice("RPC_TLS_CIPHERS", utils.GetDefaultCiphers("rpc")),
+		RPCTLSMinVersion:           config.StringVal("RPC_TLS_MIN_VERSION", utils.DefaultTLSMinVersion),
 		SnapshotTTL:                config.IntVal("SNAPSHOT_TTL", 12),
 		StartISVCS:                 config.StringSlice("ISVCS_START", []string{}),
 		IsvcsZKID:                  config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
