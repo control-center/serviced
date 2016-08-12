@@ -71,7 +71,9 @@ func (d *daemon) startRPC() {
 
 	tlsConfig := tls.Config{
 		Certificates:             []tls.Certificate{cert},
-		PreferServerCipherSuites: true, CipherSuites: utils.CipherSuites(),
+		CipherSuites:             utils.CipherSuites("rpc"),
+		MinVersion:               utils.MinTLS("rpc"),
+		PreferServerCipherSuites: true,
 	}
 
 	listener, err := tls.Listen("tcp", d.hostConfig.Listen, &tlsConfig)
