@@ -93,8 +93,12 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValuesForReadPool(c *C
 	c.Assert(response.Results[0].MemoryCommitment, Equals, data.firstPool.MemoryCommitment)
 	c.Assert(response.Results[0].CoreCapacity, Equals, data.firstPool.CoreCapacity)
 	c.Assert(response.Results[0].ConnectionTimeout, Equals, data.firstPool.ConnectionTimeout)
-	c.Assert(response.Results[0].CreatedAt, Equals, data.firstPool.CreatedAt)
-	c.Assert(response.Results[0].UpdatedAt, Equals, data.firstPool.UpdatedAt)
+
+	createdEquals := response.Results[0].CreatedAt.Equal(data.firstPool.CreatedAt)
+	c.Assert(createdEquals, Equals, true)
+
+	updateEquals := response.Results[0].UpdatedAt.Equal(data.firstPool.UpdatedAt)
+	c.Assert(updateEquals, Equals, true)
 }
 
 func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
