@@ -101,8 +101,8 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 }
 
 // TrackExports keeps track of changes to the list of exports for given import
-func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, application string) <-chan map[int]ExportDetails {
-	exportsChan := make(chan map[int]ExportDetails)
+func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, application string) <-chan []ExportDetails {
+	exportsChan := make(chan []ExportDetails)
 	go func() {
 		defer close(exportsChan)
 
@@ -147,7 +147,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 			}
 
 			// get the data and make sure it is in sync
-			exports := make(map[int]ExportDetails)
+			exports := []ExportDetails{}
 			chMap := make(map[string]ExportDetails)
 			for _, name := range ch {
 				export, ok := exportMap[name]
@@ -168,7 +168,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 					}).Debug("New record added")
 				}
 
-				exports[export.InstanceID] = export
+				exports = append(exports, export)
 				chMap[name] = export
 			}
 			exportMap = chMap

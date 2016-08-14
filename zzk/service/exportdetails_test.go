@@ -161,7 +161,7 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 	select {
 	case exports := <-ev:
 		c.Check(exports, HasLen, 1)
-		c.Check(exports[1].InstanceID, Equals, export.InstanceID)
+		c.Check(exports[0].InstanceID, Equals, export.InstanceID)
 	case <-timer.C:
 		close(shutdown)
 		c.Fatalf("Timed out waiting for exports")
