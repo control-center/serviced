@@ -156,6 +156,7 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 	time.Sleep(time.Second)
 	err = conn.Delete("/net/tenantid/app/0")
 	c.Assert(err, IsNil)
+	time.Sleep(time.Second)
 
 	timer.Reset(time.Second)
 	select {
