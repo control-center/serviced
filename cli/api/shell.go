@@ -70,7 +70,7 @@ func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]str
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
-		"mounts": strings.Join(bindmounts, ","),
+		"mounts": bindmounts,
 	}).Debug("Got service bind mounts")
 	return bindmounts, nil
 }
@@ -252,7 +252,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	if err != nil {
 		log.WithError(err).Fatal("Unable to acquire information about container")
 	}
-	log := log.WithFields(logrus.Fields{
+	log = log.WithFields(logrus.Fields{
 		"containerid": container.ID,
 	})
 	log.Debug("Acquired container information")

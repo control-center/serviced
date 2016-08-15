@@ -73,7 +73,7 @@ func (a version) Compare(b version) int {
 
 func convertStringSliceToMap(list []string) map[string]string {
 	mapValues := make(map[string]string)
-	for i, keyValuePair := range list {
+	for _, keyValuePair := range list {
 		if keyValuePair == "" {
 			continue
 		}
