@@ -29,11 +29,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	elastigocore "github.com/zenoss/elastigo/core"
-	"github.com/zenoss/glog"
 )
 
 // This interface is primarily provided for unit-testing ExportLogs().
@@ -60,26 +60,26 @@ type ExportLogDriver interface {
 // ExportLogsConfig is the deserialized object from the command-line
 type ExportLogsConfig struct {
 	// A list of one or more serviced IDs to export logs for (including children)
-	ServiceIDs  []string
+	ServiceIDs []string
 
 	// In the format yyyy.mm.dd (inclusive), "" means unbounded
-	FromDate    string
+	FromDate string
 
 	// In the format yyyy.mm.dd (inclusive), "" means unbounded
-	ToDate      string
+	ToDate string
 
-        // Name of the compressed tar file containing all of the exported logs. If not specified, defaults to
+	// Name of the compressed tar file containing all of the exported logs. If not specified, defaults to
 	// "./serviced-log-export-<TIMESTAMP>.tgz" where <TIMESTAMP> is an RFC3339-like string (e.g. 2016-06-02T143843Z)
 	OutFileName string
 
 	// Set to true to default more verbose logging
-	Debug       bool
+	Debug bool
 
 	// Driver to work with logstash ES instance; if nil a default driver will be used. Primarily used for testing.
-	Driver      ExportLogDriver
+	Driver ExportLogDriver
 
 	// the file opened for OutFileName
-	outFile     *os.File
+	outFile *os.File
 }
 
 // logExporter is used internally to manage various operations required to export the application logs. It serves
@@ -88,26 +88,26 @@ type logExporter struct {
 	ExportLogsConfig
 
 	// The ES-logstash query string
-	query                 string
+	query string
 
 	// A list of dates for which ES-logstash has logs from any service
-	days                  []string
+	days []string
 
 	// The fully-qualified path to the temporary directory used to accummulate the application logs
-	tempdir               string
+	tempdir string
 
 	// The name of the file used to store the collected set of parser warnings
 	parseWarningsFilename string
 	parseWarningsFile     *os.File
 
 	// A map of hostid to host info used to populate the index file on completion of the export
-	hostMap               map[string]host.Host
+	hostMap map[string]host.Host
 
 	// A list of the output files created by the export process
-	outputFiles           []outputFileInfo
+	outputFiles []outputFileInfo
 
 	// A list of services used to populate the index file on completion of the export
-	serviceMap              map[string]service.Service
+	serviceMap map[string]service.Service
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -119,7 +119,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	}
 
 	var exporter *logExporter
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -133,7 +133,10 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	numWarnings := 0
 	foundIndexedDay := false
 
-	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", exporter.tempdir)
+	log := log.WithFields(logrus.Fields{
+		"tmpdir": exporter.tempdir,
+	})
+	log.Info("Starting part 1 of 3: Processing Logstash Elastic results")
 	foundIndexedDay, numWarnings, e = exporter.retrieveLogs()
 	if e != nil {
 		return e
@@ -141,7 +144,9 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", exporter.FromDate, exporter.ToDate)
 	}
 
-	glog.Infof("Starting part 2 of 3: sort %d output files", len(exporter.outputFiles))
+	log.WithFields(logrus.Fields{
+		"numfiles": len(exporter.outputFiles),
+	}).Info("Starting part 2 of 3: Sort output files")
 
 	indexData := []string{}
 	for i, outputFile := range exporter.outputFiles {
@@ -168,7 +173,9 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
-	glog.Infof("Starting part 3 of 3: generate tar file: %s", exporter.OutFileName)
+	log.WithFields(logrus.Fields{
+		"outfile": exporter.OutFileName,
+	}).Info("Starting part 3 of 3: Generate tar file")
 	gz := gzip.NewWriter(exporter.outFile)
 	defer gz.Close()
 	tarfile := tar.NewWriter(gz)
@@ -178,8 +185,9 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	}
 
 	if numWarnings != 0 {
-		glog.Warningf("warnings for log parse are included in the tar file as: %s",
-			filepath.Join(filepath.Base(exporter.tempdir), filepath.Base(exporter.parseWarningsFilename)))
+		log.WithFields(logrus.Fields{
+			"warnfile": filepath.Join(filepath.Base(exporter.tempdir), filepath.Base(exporter.parseWarningsFilename)),
+		}).Info("Warnings for log parse are included in the tar file")
 	}
 
 	return nil
@@ -236,13 +244,16 @@ func validateConfiguration(config *ExportLogsConfig) error {
 	}
 
 	if config.Debug {
-		glog.Infof("Normalized date range: %s - %s", config.FromDate, config.ToDate)
+		log.WithFields(logrus.Fields{
+			"from": config.FromDate,
+			"to":   config.ToDate,
+		}).Info("Normalized date range")
 	}
 	return nil
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Service, error), getHostMap func()(map[string]host.Host, error)) (exporter *logExporter, err error) {
+func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.Service, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
@@ -253,7 +264,9 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 	if err != nil {
 		return nil, fmt.Errorf("could not determine range of days in the logstash repo: %s", err)
 	} else if exporter.Debug {
-		glog.Infof("Found %d days of logs in logstash", len(exporter.days))
+		log.WithFields(logrus.Fields{
+			"days": len(exporter.days),
+		}).Info("Found logs")
 	}
 
 	// Get a temporary directory
@@ -283,12 +296,12 @@ func buildExporter(configParam ExportLogsConfig, getServices func()([]service.Se
 	return exporter, nil
 }
 
-func buildServiceMap(getServices func()([]service.Service, error)) (map[string]service.Service, error) {
-	result := make(map[string] service.Service)
+func buildServiceMap(getServices func() ([]service.Service, error)) (map[string]service.Service, error) {
+	result := make(map[string]service.Service)
 	if serviceArray, err := getServices(); err != nil {
 		return nil, fmt.Errorf("failed to get list of services: %s", err)
 	} else {
-		for _, svc := range(serviceArray) {
+		for _, svc := range serviceArray {
 			result[svc.ID] = svc
 		}
 	}
@@ -300,13 +313,17 @@ func (exporter *logExporter) cleanup() {
 	// Close all of the temporary files
 	for _, outputFile := range exporter.outputFiles {
 		if e := outputFile.File.Close(); e != nil {
-			glog.Errorf("failed to close file '%s' cleanly: %s", outputFile.Name, e)
+			log.WithFields(logrus.Fields{
+				"outputfile": outputFile.Name,
+			}).WithError(e).Error("Failed to close file cleanly")
 		}
 	}
 
 	if exporter.parseWarningsFile != nil {
 		if e := exporter.parseWarningsFile.Close(); e != nil {
-			glog.Errorf("failed to close file '%s' cleanly: %s", exporter.parseWarningsFilename, e)
+			log.WithFields(logrus.Fields{
+				"warningsfile": exporter.parseWarningsFilename,
+			}).WithError(e).Error("Failed to close file cleanly")
 		}
 	}
 
@@ -321,7 +338,7 @@ func (exporter *logExporter) cleanup() {
 }
 
 // Builds an ES-logstash query string based on the list of service IDs requested.
-func (exporter *logExporter) buildQuery(getServices func()([]service.Service, error)) (string, error) {
+func (exporter *logExporter) buildQuery(getServices func() ([]service.Service, error)) (string, error) {
 	query := "*"
 	if len(exporter.ServiceIDs) > 0 {
 		services, e := getServices()
@@ -367,7 +384,9 @@ func (exporter *logExporter) buildQuery(getServices func()([]service.Service, er
 		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
 	}
 	if exporter.Debug {
-		glog.Infof("Looking for services based on this query: %s", query)
+		log.WithFields(logrus.Fields{
+			"query": query,
+		}).Info("Looking for services")
 	}
 	return query, nil
 }
@@ -390,7 +409,9 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 		}
 
 		if exporter.Debug {
-			glog.Infof("Querying logstash for day %s", yyyymmdd)
+			log.WithFields(logrus.Fields{
+				"date": yyyymmdd,
+			}).Info("Querying logstash for given date")
 		}
 
 		result, e := exporter.Driver.StartSearch(yyyymmdd, exporter.query)
@@ -399,7 +420,10 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 		}
 
 		if exporter.Debug {
-			glog.Infof("Found %d log messages for %s", result.Hits.Total, yyyymmdd)
+			log.WithFields(logrus.Fields{
+				"date":      yyyymmdd,
+				"totalmsgs": result.Hits.Total,
+			}).Info("Found log messages")
 		}
 
 		//TODO: Submit a patch to elastigo to support the "clear scroll" api. Add a "defer" here.
@@ -439,7 +463,10 @@ func (exporter *logExporter) retrieveLogs() (foundIndexedDay bool, numWarnings i
 					}
 					exporter.outputFiles = append(exporter.outputFiles, outputFile)
 					if exporter.Debug {
-						glog.Infof("Writing messages for ContainerID=%s Application Log=%s", outputFile.ContainerID, outputFile.LogFileName)
+						log.WithFields(logrus.Fields{
+							"containerid": outputFile.ContainerID,
+							"logfile":     outputFile.LogFileName,
+						}).Info("Writing messages")
 					}
 				}
 				index := fileIndex[message.ContainerID][message.LogFileName]
@@ -555,23 +582,23 @@ type compactLogLine struct {
 
 // Represents a set of log messages from a since instance of a single application log
 type parsedMessage struct {
-	HostID      string              // The ID of the CC worker node that hosted ContainerID
-	ContainerID string              // The original Container ID of the application log file
-	LogFileName string              // The name of the application log file
-	Lines       []compactLogLine    // One or more lines of log messages from the file.
-	Warnings    string              // Warnings from the our logstash results parser
-	ServiceID   string              // The service ID of the service
+	HostID      string           // The ID of the CC worker node that hosted ContainerID
+	ContainerID string           // The original Container ID of the application log file
+	LogFileName string           // The name of the application log file
+	Lines       []compactLogLine // One or more lines of log messages from the file.
+	Warnings    string           // Warnings from the our logstash results parser
+	ServiceID   string           // The service ID of the service
 }
 
 // Represents one file output by this routine
 type outputFileInfo struct {
-	File        *os.File            // The temporary file on disk holding the log messages
-	Name        string              // The name of the temporary file on disk holding the log mesasges
-	HostID      string              // The ID of the CC worker node that hosted ContainerID
-	ContainerID string              // The original Container ID of the application log file
-	LogFileName string              // The name of the application log file
-	LineCount   int                 // number of message lines in the application log file
-	ServiceID   string              // The service ID of the service
+	File        *os.File // The temporary file on disk holding the log messages
+	Name        string   // The name of the temporary file on disk holding the log mesasges
+	HostID      string   // The ID of the CC worker node that hosted ContainerID
+	ContainerID string   // The original Container ID of the application log file
+	LogFileName string   // The name of the application log file
+	LineCount   int      // number of message lines in the application log file
+	ServiceID   string   // The service ID of the service
 }
 
 var newline = regexp.MustCompile("\\r?\\n")
@@ -739,7 +766,6 @@ func NormalizeYYYYMMDD(s string) (string, error) {
 }
 
 var yyyymmddMatcher = regexp.MustCompile("\\A[^0-9]*([0-9]{4})[^0-9]*([0-9]{2})[^0-9]*([0-9]{2})[^0-9]*\\z")
-
 
 func truncateToMinute(nanos int64) int64 {
 	return nanos / int64(time.Minute) * int64(time.Minute)

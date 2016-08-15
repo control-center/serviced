@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
@@ -116,7 +117,9 @@ func LoadOptions(ops Options) {
 
 	// Check option boundaries
 	if options.ESStartupTimeout < minTimeout {
-		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", minTimeout)
+		log.WithFields(logrus.Fields{
+			"mintimeout": minTimeout,
+		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
 	}
 }
@@ -159,7 +162,7 @@ func ValidateServerOptions() error {
 		if options.Master {
 			outboundIP, err := getOutboundIP()
 			if err != nil {
-				glog.Fatal(err)
+				log.WithError(err).Fatal("Unable to determine outbound IP")
 			}
 			options.Endpoint = fmt.Sprintf("%s:%s", outboundIP, options.RPCPort)
 		} else {
@@ -168,7 +171,9 @@ func ValidateServerOptions() error {
 	}
 
 	if options.Master {
-		glog.Infof("This master has been configured to be in pool: " + options.MasterPoolID)
+		log.WithFields(logrus.Fields{
+			"poolid": options.MasterPoolID,
+		}).Debug("Using configured default pool ID")
 	}
 	return nil
 }
@@ -265,7 +270,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	// Set the path to the controller binary
 	dir, _, err := node.ExecPath()
 	if err != nil {
-		glog.Warningf("Unable to find path to current serviced binary; assuming /opt/serviced/bin")
+		log.Warn("Unable to find path to serviced binary; assuming /opt/serviced/bin")
 		dir = "/opt/serviced/bin"
 	}
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
@@ -305,9 +310,8 @@ func getDefaultESStartupTimeout(timeout int) int {
 func getDefaultAdminGroup() string {
 	if utils.Platform == utils.Rhel {
 		return "wheel"
-	} else {
-		return "sudo"
 	}
+	return "sudo"
 }
 
 // getOutboundIP queries the network configuration for an IP address suitable for reaching the outside world.
@@ -320,16 +324,15 @@ func getOutboundIP() (string, error) {
 		if outboundIP, err = utils.GetIPAddress(); err == nil {
 			// Success
 			return outboundIP, nil
-		} else {
-			select {
-			case <-timeout:
-				// Give up
-				return "", fmt.Errorf("Gave up waiting for network (to determine our outbound IP address): %s", err)
-			default:
-				// Retry
-				glog.Info("Waiting for network initialization...")
-				time.Sleep(outboundIPRetryDelay * time.Second)
-			}
+		}
+		select {
+		case <-timeout:
+			// Give up
+			return "", fmt.Errorf("Gave up waiting for network (to determine our outbound IP address)")
+		default:
+			// Retry
+			log.Debug("Waiting for network initialization")
+			time.Sleep(outboundIPRetryDelay * time.Second)
 		}
 	}
 }

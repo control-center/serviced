@@ -19,13 +19,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/utils"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/glog"
 )
 
 // ShellConfig is the deserialized object from the command-line
@@ -48,9 +48,13 @@ type ShellConfig struct {
 
 // getServiceBindMounts retrieves a service's bindmounts
 func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]string, error) {
+	log := log.WithFields(logrus.Fields{
+		"address":   lbClientPort,
+		"serviceid": serviceID,
+	})
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		log.WithError(err).Error("Unable to connect to RPC server")
 		return nil, err
 	}
 	defer client.Close()
@@ -59,14 +63,15 @@ func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]str
 	err = client.GetServiceBindMounts(serviceID, &bindmounts)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "rpc: can't find service") {
-			glog.Errorf("`serviced service shell` is available only when running serviced in agent mode")
+			log.Error("`serviced service shell` is only available when running serviced in delegate mode")
 			return nil, err
 		}
-		glog.Errorf("Error getting service %s's bindmounts, error: %s", serviceID, err)
+		log.Error("Unable to retrieve service bind mounts")
 		return nil, err
 	}
-
-	glog.V(1).Infof("getServiceBindMounts: service id=%s: %s", serviceID, bindmounts)
+	log.WithFields(logrus.Fields{
+		"mounts": strings.Join(bindmounts, ","),
+	}).Debug("Got service bind mounts")
 	return bindmounts, nil
 }
 
@@ -200,65 +205,75 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 
 	dockercli, err := a.connectDocker()
 	if err != nil {
-		glog.Fatalf("unable to connect to the docker service: %s", err)
+		log.WithError(err).Fatal("Unable to connect to Docker")
 	}
+
+	log := log.WithFields(logrus.Fields{
+		"containername": cfg.SaveAs,
+	})
 
 	err = cmd.Start()
 	if err != nil {
-		glog.Fatalf("unable to start container: %s", err)
+		log.WithError(err).Fatal("Unable to start container")
 	}
 	cmdChan := make(chan error)
 	go func() {
 		cmdChan <- cmd.Wait()
 	}()
-	glog.Infof("started command in container %s", cmd)
+	log.WithFields(logrus.Fields{
+		"command": cmd,
+	}).Debug("Started command in container")
+
 	select {
 	case <-stopChan:
-		glog.Infof("received signal to stop, stopping container")
+		log.Debug("Received signal to stop. Stopping container")
 		killContainerOpts := dockerclient.KillContainerOptions{ID: cfg.SaveAs}
 		err = dockercli.KillContainer(killContainerOpts)
 		if err != nil {
-			glog.Errorf("unable to kill conatiner: %s", err)
+			log.WithError(err).Error("Unable to kill container")
 		}
-		glog.Infof("killed container")
+		log.Info("Killed container")
 		return 1, err
 	case err = <-cmdChan:
 		if _, ok := utils.GetExitStatus(err); !ok {
-			glog.Fatalf("abnormal termination from shell command: %s", err)
+			log.WithError(err).Fatal("Abnormal termination from shell command")
 		}
 	}
 
 	if _, ok := utils.GetExitStatus(err); !ok {
-		glog.Fatalf("abnormal termination from shell command: %s", err)
+		log.WithError(err).Fatal("Abnormal termination from shell command")
 	}
 
 	exitcode, err := dockercli.WaitContainer(config.SaveAs)
 	if err != nil {
-		glog.Fatalf("failure waiting for container: %s", err)
+		log.WithError(err).Fatal("Failure waiting for container")
 	}
 	container, err := dockercli.InspectContainer(config.SaveAs)
 	if err != nil {
-		glog.Fatalf("cannot acquire information about container: %s (%s)", config.SaveAs, err)
+		log.WithError(err).Fatal("Unable to acquire information about container")
 	}
-	glog.V(2).Infof("Container ID: %s", container.ID)
+	log := log.WithFields(logrus.Fields{
+		"containerid": container.ID,
+	})
+	log.Debug("Acquired container information")
 
 	if exitcode == 0 {
 		if run.CommitOnSuccess {
 			// Commit the container
 			label := ""
-			glog.V(0).Infof("Committing container")
+			log.Info("Committing container")
 			if err := client.Snapshot(dao.SnapshotRequest{ContainerID: container.ID, SnapshotSpacePercent: options.SnapshotSpacePercent}, &label); err != nil {
-				glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
+				log.WithError(err).Fatal("Unable to commit container")
 			}
 		}
 	} else {
 		// Delete the container
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			if _, ok := err.(*dockerclient.ContainerNotRunning); !ok {
-				glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
+				log.WithError(err).Warn("Unable to stop container")
 			}
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
-			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
+			log.WithError(err).Warn("Unable to remove container")
 		}
 		commitMsg := ""
 		if run.CommitOnSuccess {
