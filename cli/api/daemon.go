@@ -39,6 +39,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
@@ -53,8 +54,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
 	"github.com/zenoss/glog"
-
-	"github.com/iancmcc/logri"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -84,7 +83,10 @@ import (
 	_ "net/http/pprof"
 )
 
-var minDockerVersion = version{1, 9, 0}
+var (
+	minDockerVersion = version{1, 9, 0}
+	log              = logging.PackageLogger()
+)
 
 const (
 	localhost = "127.0.0.1"
@@ -140,13 +142,16 @@ func (d *daemon) getEsClusterName(name string) string {
 	if clusterName == "" {
 		clusterName, err = utils.NewUUID36()
 		if err != nil {
-			glog.Fatalf("Could not generate uuid: %s", err)
+			log.WithError(err).Fatal("Unable to generate UUID")
 		}
 		if err = os.MkdirAll(filepath.Dir(filename), 0770); err != nil && !os.IsExist(err) {
-			glog.Fatalf("Could not create path to file %s: %s", filename, err)
+			log.WithError(err).WithFields(logrus.Fields{"file": filename}).Fatal("Unable to create path to file")
 		}
 		if err = ioutil.WriteFile(filename, []byte(clusterName), 0600); err != nil {
-			glog.Fatalf("Could not write clustername to file %s: %s", filename, err)
+			log.WithError(err).WithFields(logrus.Fields{
+				"file":        filename,
+				"clustername": clusterName,
+			}).Fatal("Unable to write cluster name to file")
 		}
 	}
 	return clusterName
@@ -247,8 +252,6 @@ func (d *daemon) startRPC() {
 	}()
 }
 
-var log = logri.GetLogger("serviced.server")
-
 func (d *daemon) run() (err error) {
 
 	// Get the ID of this host
@@ -261,7 +264,8 @@ func (d *daemon) run() (err error) {
 	}
 
 	// Validate that we have an acceptable version of Docker
-	if currentDockerVersion, err := node.GetDockerVersion(); err != nil {
+	currentDockerVersion, err := node.GetDockerVersion()
+	if err != nil {
 		log.WithError(err).Fatal("Unable to get Docker version")
 	} else if minDockerVersion.Compare(currentDockerVersion) < 0 {
 		log.WithError(err).WithFields(logrus.Fields{
@@ -308,15 +312,17 @@ func (d *daemon) run() (err error) {
 	//Start the zookeeper client
 	localClient, err := d.initZK(options.Zookeepers)
 	if err != nil {
-		glog.Errorf("failed to create a local coordclient: %v", err)
-		return err
+		log.WithError(err).WithFields(logrus.Fields{
+			"ensemble": options.Zookeepers,
+		}).Fatal("Unable to create a local ZooKeeper client")
 	}
 	zzk.InitializeLocalClient(localClient)
+	log.Info("Established ZooKeeper connection")
 
 	if options.Master {
 		d.startISVCS()
 		if err := d.startMaster(); err != nil {
-			glog.Fatal(err)
+			log.WithError(err).Fatal("Unable to start as a serviced master")
 		}
 	} else {
 		d.startAgentISVCS(options.StartISVCS)
@@ -324,7 +330,7 @@ func (d *daemon) run() (err error) {
 
 	if options.Agent {
 		if err := d.startAgent(); err != nil {
-			glog.Fatal(err)
+			log.WithError(err).Fatal("Unable to start as a serviced delegate")
 		}
 	}
 
@@ -396,47 +402,49 @@ func (d *daemon) startMaster() (err error) {
 	if agentIP == "" {
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
-			glog.Fatalf("Failed to acquire ip address: %s", err)
+			log.WithError(err).Fatal("Unable to determine outbound IP address")
 		}
 	}
+	log.WithFields(logrus.Fields{"ip": agentIP}).Info("Determined outbound IP address")
 
 	// This is storage related
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
 	if err != nil {
-		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
-		return err
+		log.WithFields(logrus.Fields{"ip": agentIP}).WithError(err).Fatal("Unable to register master as host")
 	}
 
+	storagelogger := log.WithFields(logrus.Fields{
+		"path":   options.VolumesPath,
+		"driver": options.FSType,
+	})
 	if options.FSType == "btrfs" {
 		if !volume.IsBtrfsFilesystem(options.VolumesPath) {
-			return fmt.Errorf("path %s is not btrfs", options.VolumesPath)
+			storagelogger.Fatal("Volume path does not contain a btrfs filesystem")
 		}
 	} else if options.FSType == "devicemapper" {
 		devicemapper.SetStorageStatsUpdateInterval(options.StorageStatsUpdateInterval)
 	}
 	if d.disk, err = volume.GetDriver(options.VolumesPath); err != nil {
-		glog.Errorf("Could not get volume driver at %s: %s", options.VolumesPath, err)
-		return err
+		storagelogger.WithError(err).Fatal("Unable to access application storage")
 	}
 	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_volumes_v2", "0.0.0.0/0"); err != nil {
-		glog.Errorf("Could not initialize network driver: %s", err)
-		return err
+		storagelogger.WithError(err).Fatal("Unable to initialize NFS server")
 	}
 
 	//set tenant volumes on nfs storagedriver
-	glog.Infoln("Finding volumes")
 	tenantVolumes := make(map[string]struct{})
 	for _, vol := range d.disk.List() {
+		tenantlogger := storagelogger.WithFields(logrus.Fields{"tenant": vol})
 		glog.V(2).Infof("Getting tenant volume for %s", vol)
 		if tVol, err := d.disk.GetTenant(vol); err == nil {
 			if _, found := tenantVolumes[tVol.Path()]; !found {
 				tenantVolumes[tVol.Path()] = struct{}{}
-				glog.Infof("tenant volume %s found for export", tVol.Path())
 				d.net.AddVolume(tVol.Path())
+				tenantlogger.Info("Exported tenant volume via NFS")
 			}
 		} else {
-			glog.Warningf("Could not get Tenant for volume %s: %v", vol, err)
+			tenantlogger.WithError(err).Error("Unable to export tenant volume via NFS. Application data will not be available on remote hosts")
 		}
 	}
 
