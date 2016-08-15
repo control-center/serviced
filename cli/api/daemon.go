@@ -60,7 +60,6 @@ import (
 
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -378,10 +377,11 @@ func (d *daemon) run() (err error) {
 }
 
 func (d *daemon) initContext() (datastore.Context, error) {
+	log.Debug("Acquiring application context from Elastic")
 	datastore.Register(d.dsDriver)
 	ctx := datastore.Get()
 	if ctx == nil {
-		return nil, errors.New("context not available")
+		log.Fatal("Unable to acquire application context from Elastic")
 	}
 	return ctx, nil
 }
@@ -398,6 +398,7 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 }
 
 func (d *daemon) startMaster() (err error) {
+	log.Debug("Starting serviced master")
 	agentIP := options.OutboundIP
 	if agentIP == "" {
 		agentIP, err = utils.GetIPAddress()
@@ -433,10 +434,11 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	//set tenant volumes on nfs storagedriver
+	log.Debug("Exporting tenant volumes via NFS")
 	tenantVolumes := make(map[string]struct{})
 	for _, vol := range d.disk.List() {
 		tenantlogger := storagelogger.WithFields(logrus.Fields{"tenant": vol})
-		glog.V(2).Infof("Getting tenant volume for %s", vol)
+		tenantlogger.Debug("Exporting tenant volume")
 		if tVol, err := d.disk.GetTenant(vol); err == nil {
 			if _, found := tenantVolumes[tVol.Path()]; !found {
 				tenantVolumes[tVol.Path()] = struct{}{}
@@ -449,45 +451,40 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	if d.storageHandler, err = storage.NewServer(d.net, thisHost, options.VolumesPath); err != nil {
-		glog.Errorf("Could not start network server: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to create internal NFS server manager")
 	}
 
 	if d.dsDriver, err = d.initDriver(); err != nil {
-		glog.Errorf("Could not initialize driver: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to establish connection to Elastic database")
 	}
 
 	if d.dsContext, err = d.initContext(); err != nil {
-		glog.Errorf("Could not initialize context: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to acquire application context from Elastic")
 	}
 
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
-		glog.Errorf("Could not initialize DAO: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to initialize DAO layer")
 	}
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
-		glog.Errorf("Could not create default pool: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to create default pool")
 	}
 
 	if err = d.facade.UpgradeRegistry(d.dsContext, "", false); err != nil {
-		glog.Errorf("Could not upgrade registry: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to upgrade internal Docker image registry")
 	}
 
 	if err = d.registerMasterRPC(); err != nil {
-		glog.Errorf("Could not register master RPCs: %s", err)
-		return err
+		log.WithError(err).Fatal("Unable to register RPC services")
 	}
 
 	d.initWeb()
 	d.addTemplates()
 	d.startScheduler()
+
+	log.Info("Started serviced master")
 
 	return nil
 }
@@ -533,28 +530,35 @@ func getTLSConfig() (*tls.Config, error) {
 
 }
 
-func createMuxListener() (net.Listener, error) {
-	if !options.MuxDisableTLS {
-		glog.V(1).Info("using TLS on mux")
+func createMuxListener() net.Listener {
+	var (
+		listener net.Listener
+		err      error
+	)
 
+	log := log.WithFields(logrus.Fields{
+		"tls":  !options.MuxDisableTLS,
+		"port": options.MuxPort,
+	})
+	log.Debug("Starting traffic multiplexer")
+
+	if !options.MuxDisableTLS {
 		tlsConfig, err := getTLSConfig()
 		if err != nil {
-			return nil, err
+			log.WithError(err).Fatal("Invalid TLS configuration")
 		}
-		glog.V(2).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
-		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
-
+		listener, err = tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
+	} else {
+		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 	}
-	glog.V(2).Infof("Non-TLS tcp mux listening on %d", options.MuxPort)
-	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
+	if err != nil {
+		log.WithError(err).Fatal("Unable to start traffic multiplexer")
+	}
+	return listener
 }
 
 func (d *daemon) startAgent() error {
-	muxListener, err := createMuxListener()
-	if err != nil {
-		glog.Errorf("Could not create mux listener: %s", err)
-		return err
-	}
+	muxListener := createMuxListener()
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
 		glog.Errorf("Could not create TCP mux listener: %s", err)
@@ -777,7 +781,11 @@ func (d *daemon) registerMasterRPC() error {
 }
 
 func (d *daemon) initDriver() (datastore.Driver, error) {
-
+	log := log.WithFields(logrus.Fields{
+		"address": "localhost:9200",
+		"index":   "controlplane",
+	})
+	log.Debug("Establishing connection with Elastic")
 	eDriver := elastic.New("localhost", 9200, "controlplane")
 	eDriver.AddMapping(host.MAPPING)
 	eDriver.AddMapping(pool.MAPPING)
@@ -788,7 +796,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	eDriver.AddMapping(user.MAPPING)
 	err := eDriver.Initialize(10 * time.Second)
 	if err != nil {
-		return nil, err
+		log.WithError(err).Fatal("Unable to establish connection to Elastic database")
 	}
 	return eDriver, nil
 }
@@ -804,6 +812,7 @@ func initMetricsClient() *metrics.Client {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
+	log.Debug("Initializing facade")
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
@@ -851,7 +860,11 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
-	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
+	log := log.WithFields(logrus.Fields{
+		"uiport":   options.UIPort,
+		"endpoint": options.Endpoint,
+	})
+	log.Debug("Starting Control Center UI server")
 	cpserver := web.NewServiceConfig(
 		options.UIPort,
 		options.Endpoint,
@@ -865,9 +878,16 @@ func (d *daemon) initWeb() {
 		options.UIPollFrequency,
 		options.SnapshotSpacePercent,
 		d.facade)
+
 	web.SetServiceStatsCacheTimeout(options.SvcStatsCacheTimeout)
+	log.WithFields(logrus.Fields{
+		"cachetimeout": options.SvcStatsCacheTimeout,
+	}).Debug("Set service stats cache timeout to configured value")
+
 	go cpserver.Serve(d.shutdown)
 	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)
+
+	log.Info("Started Control Center UI server")
 }
 
 func (d *daemon) startScheduler() {
@@ -911,19 +931,21 @@ func (d *daemon) addTemplates() {
 }
 
 func (d *daemon) runScheduler() {
+	log.Debug("Starting service scheduler")
 	for {
 		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL)
 		if err != nil {
-			glog.Errorf("Could not start scheduler: %s", err)
+			log.WithError(err).Fatal("Unable to start service scheduler")
 			return
 		}
 
 		sched.Start()
+		log.Info("Started service scheduler")
 		select {
 		case <-d.shutdown:
-			glog.Info("Shutting down scheduler")
+			log.Debug("Shutting down service scheduler")
 			sched.Stop()
-			glog.Info("Scheduler stopped")
+			log.Info("Stopped service scheduler")
 			return
 		}
 	}
