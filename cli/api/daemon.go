@@ -53,7 +53,6 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
-	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -406,15 +405,20 @@ func (d *daemon) startMaster() (err error) {
 			log.WithError(err).Fatal("Unable to determine outbound IP address")
 		}
 	}
-	log.WithFields(logrus.Fields{"ip": agentIP}).Info("Determined outbound IP address")
+	log.WithFields(logrus.Fields{
+		"address": agentIP,
+	}).Info("Determined outbound IP address")
 
-	// This is storage related
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
 	if err != nil {
-		log.WithFields(logrus.Fields{"ip": agentIP}).WithError(err).Fatal("Unable to register master as host")
+		log.WithFields(logrus.Fields{
+			"address": agentIP,
+			"rpcport": rpcPort,
+		}).WithError(err).Fatal("Unable to register master as host")
 	}
 
+	// This is storage related
 	storagelogger := log.WithFields(logrus.Fields{
 		"path":   options.VolumesPath,
 		"driver": options.FSType,
@@ -561,64 +565,84 @@ func (d *daemon) startAgent() error {
 	muxListener := createMuxListener()
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
-		glog.Errorf("Could not create TCP mux listener: %s", err)
-		return err
+		log.WithError(err).Fatal("Could not start TCP multiplexer")
 	}
 
+	// Determine the delegate's IP address
 	agentIP := options.OutboundIP
 	if agentIP == "" {
 		var err error
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
-			glog.Fatalf("Failed to acquire ip address: %s", err)
+			log.WithError(err).Fatal("Unable to acquire outbound IP address")
 		}
 	}
+	log.WithFields(logrus.Fields{
+		"address": agentIP,
+	}).Info("Determined delegate's outbound IP address")
 
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "", options.StaticIPs...)
 	if err != nil {
-		glog.Fatalf("Failed to acquire all host info: %s", err)
+		log.WithFields(logrus.Fields{
+			"address": agentIP,
+			"rpcport": rpcPort,
+		}).WithError(err).Fatal("Unable to register master as host")
 	}
 
 	myHostID, err := utils.HostID()
 	if err != nil {
-		glog.Errorf("HostID failed: %v", err)
-		return err
+		log.WithError(err).Fatal("Unable to get host ID")
 	} else if err := validation.ValidHostID(myHostID); err != nil {
-		glog.Errorf("invalid hostid: %s", myHostID)
+		log.WithError(err).WithFields(logrus.Fields{
+			"hostid": d.hostID,
+		}).Fatal("Invalid host ID")
 	}
+
+	log := log.WithFields(logrus.Fields{
+		"master": d.servicedEndpoint,
+		"hostid": myHostID,
+	})
+
+	// Flag so we only log that a host hasn't been added yet once
+	var loggedNoHost bool
 
 	go func() {
 		var poolID string
 		for {
 			poolID = func() string {
-				glog.Infof("Trying to discover my pool...")
+				log.Debug("Attempting to determine pool assignment for this delegate")
 				var myHost *host.Host
 				masterClient, err := master.NewClient(d.servicedEndpoint)
 				if err != nil {
-					glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
-					return ""
+					log.WithError(err).Fatal("Unable to make RPC connection")
 				}
 				defer masterClient.Close()
 				myHost, err = masterClient.GetHost(myHostID)
 				if err != nil {
-					glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
+					if !loggedNoHost {
+						log.Warn("Unable to find pool assignment for this delegate. Has it been added via `serviced host add`? Will continue to retry silently")
+						loggedNoHost = true
+					}
 					return ""
 				}
 				poolID = myHost.PoolID
-				glog.Infof(" My PoolID: %v", poolID)
+				log := log.WithFields(logrus.Fields{
+					"poolid": poolID,
+				})
+				log.Info("Determined pool assignment for this delegate")
 				//send updated host info
 				updatedHost, err := host.UpdateHostInfo(*myHost)
 				if err != nil {
-					glog.Infof("Could not send updated host information: %v", err)
+					log.WithError(err).Warn("Unable to acquire delegate host information")
 					return poolID
 				}
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
-					glog.Warningf("Could not update host information: %v", err)
+					log.WithError(err).Warn("Unable to update master with delegate host information")
 					return poolID
 				}
-				glog.V(2).Infof("Sent updated host info %#v", updatedHost)
+				log.Info("Updated master with delegate host information")
 				return poolID
 			}()
 			if poolID != "" {
@@ -634,45 +658,64 @@ func (d *daemon) startAgent() error {
 
 		thisHost.PoolID = poolID
 
-		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+		log = log.WithFields(logrus.Fields{
+			"poolid": poolID,
+		})
+
+		poolPath := zzk.GeneratePoolPath(poolID)
+		poolBasedConn, err := zzk.GetLocalConnection(poolPath)
 		if err != nil {
-			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
+			log.WithError(err).WithFields(logrus.Fields{
+				"zkpath": poolPath,
+			}).Fatal("Unable to establish pool-based connection to ZooKeeper")
 		}
+		log.WithFields(logrus.Fields{
+			"zkpath": poolPath,
+		}).Info("Established pool-based connection to ZooKeeper")
 
 		if options.NFSClient != "0" {
+			log := log.WithFields(logrus.Fields{
+				"path": options.VolumesPath,
+			})
 			nfsClient, err := storage.NewClient(thisHost, options.VolumesPath)
 			if err != nil {
-				glog.Fatalf("could not create an NFS client: %s", err)
+				log.WithError(err).Fatal("Unable to connect to NFS server on the master")
 			}
 
 			go func() {
 				<-d.shutdown
-				glog.Infof("shutting down storage client")
+				log.Debug("Disconnecting from NFS server on the master")
 				nfsClient.Close()
+				log.Info("Disconnected from NFS server on the master")
 			}()
 
-			//loop and log waiting for Storage Leader
+			// loop and log waiting for Storage Leader
 			nfsDone := make(chan struct{})
 			go func() {
 				defer close(nfsDone)
 				nfsClient.Wait()
 			}()
-			//wait indefinitely(?) for storage to work before starting
-			glog.Info("Waiting for Storage Leader")
+
+			// wait indefinitely(?) for storage to work before starting
+			log.Debug("Waiting for a master to report in as storage leader")
+			loggedTimeout := false
 			nfsUp := false
 			for !nfsUp {
 				select {
 				case <-nfsDone:
 					nfsUp = true
-					glog.Info("Found Storage Leader")
+					log.Info("Distributed filesystem is ready")
 					break
 				case <-time.After(time.Second * 30):
-					glog.Info("Waiting for Storage Leader, will not be available for running services. ")
+					if !loggedTimeout {
+						log.Warn("No master has reported in as storage leader yet, so unable to run services. Will retry silently")
+						loggedTimeout = true
+					}
 					continue
 				}
 			}
 		} else {
-			glog.Info("NFS Client disabled")
+			log.Info("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
 		}
 
 		agentOptions := node.AgentOptions{
@@ -703,30 +746,37 @@ func (d *daemon) startAgent() error {
 		d.waitGroup.Add(1)
 		go func() {
 			hostAgent.Start(d.shutdown)
-			glog.Info("Host Agent has shutdown")
+			log.Info("Shut down delegate")
 			d.waitGroup.Done()
 		}()
 
 		// register the API
-		glog.V(0).Infoln("registering ControlCenterAgent service")
+		log.Debug("Registering ControlCenterAgent RPC service")
 		if err = d.rpcServer.RegisterName("ControlCenterAgent", hostAgent); err != nil {
-			glog.Fatalf("could not register RPC server named ControlCenterAgent: %v", err)
+			log.WithError(err).Fatal("Unable to register ControlCenterAgent RPC service")
 		}
 
 		if options.Master {
 			rpcutils.RegisterLocal("ControlCenterAgent", hostAgent)
+			log.Debug("Registered local ControlCenterAgent RPC service")
 		}
+
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
-			glog.V(1).Infoln("Staring container statistics reporter")
+			log := log.WithFields(logrus.Fields{
+				"statsurl": statsdest,
+				"interval": options.StatsPeriod,
+			})
+			log.Debug("Starting container statistics reporting")
 			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
 			if err != nil {
-				glog.Errorf("Error kicking off stats reporter %v", err)
+				log.WithError(err).Error("Unable to start reporting stats")
 			} else {
 				go func() {
 					defer statsReporter.Close()
 					<-d.shutdown
+					log.Info("Stopping stats reporting")
 				}()
 			}
 		}
@@ -734,11 +784,12 @@ func (d *daemon) startAgent() error {
 
 	agentServer := agent.NewServer(d.staticIPs)
 	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
-		glog.Fatalf("could not register RPC server named Agent: %v", err)
+		log.WithError(err).Fatal("Unable to register Agent RPC service")
 	}
 
 	if options.Master {
 		rpcutils.RegisterLocal("Agent", agentServer)
+		log.Debug("Registered local Agent RPC service")
 	}
 
 	// TODO: Integrate this server into the rpc server, or something.
@@ -753,7 +804,7 @@ func (d *daemon) startAgent() error {
 }
 
 func (d *daemon) registerMasterRPC() error {
-	glog.V(0).Infoln("registering Master RPC services")
+	log.Debug("Registering master RPC services")
 
 	server := master.NewServer(d.facade)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
@@ -761,7 +812,7 @@ func (d *daemon) registerMasterRPC() error {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
 			fmt.Sprintf("127.0.0.1:%s", options.RPCPort))
 	} else {
-		glog.V(0).Infoln("Enabling RPC for local calls; disabling reflection lookup")
+		log.Debug("Enabled RPC for local calls")
 	}
 	rpcutils.RegisterLocal("Master", server)
 	if err := d.rpcServer.RegisterName("Master", server); err != nil {
@@ -803,11 +854,15 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 
 func initMetricsClient() *metrics.Client {
 	addr := fmt.Sprintf("http://%s:8888", localhost)
+	log := log.WithFields(logrus.Fields{
+		"metricsaddr": addr,
+	})
 	client, err := metrics.NewClient(addr)
 	if err != nil {
-		glog.Errorf("Unable to initiate metrics client to %s", addr)
+		log.WithError(err).Warn("Unable to connect to metrics server")
 		return nil
 	}
+	log.Info("Established connection to metrics server")
 	return client
 }
 
@@ -853,7 +908,9 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 		return nil, err
 	}
 	if err := os.MkdirAll(options.BackupsPath, 0777); err != nil && !os.IsExist(err) {
-		glog.Fatalf("Could not create default backup path at %s: %s", options.BackupsPath, err)
+		log.WithFields(logrus.Fields{
+			"backupspath": options.BackupsPath,
+		}).WithError(err).Fatal("Unable to create backup path")
 	}
 	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
 }
@@ -861,8 +918,8 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	log := log.WithFields(logrus.Fields{
-		"uiport":   options.UIPort,
-		"endpoint": options.Endpoint,
+		"uiport": options.UIPort,
+		"master": options.Endpoint,
 	})
 	log.Debug("Starting Control Center UI server")
 	cpserver := web.NewServiceConfig(
@@ -896,7 +953,10 @@ func (d *daemon) startScheduler() {
 
 func (d *daemon) addTemplates() {
 	root := utils.LocalDir("templates")
-	glog.V(1).Infof("Adding templates from %s", root)
+	log := log.WithFields(logrus.Fields{
+		"path": root,
+	})
+	log.Debug("Loading service templates")
 	// Don't block startup for this. It's merely a convenience.
 	go func() {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -909,23 +969,28 @@ func (d *daemon) addTemplates() {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
+			log := log.WithFields(logrus.Fields{
+				"template": info.Name(),
+			})
 			var reader io.ReadCloser
 			if reader, err = os.Open(path); err != nil {
-				glog.Warningf("Unable to open template %s", path)
+				log.Warn("Unable to open template file")
 				return nil
 			}
 			defer reader.Close()
 			st := servicetemplate.ServiceTemplate{}
 			if err := json.NewDecoder(reader).Decode(&st); err != nil {
-				glog.Warningf("Unable to parse template file %s", path)
+				log.Warn("Unable to parse template file")
 				return nil
 			}
-			glog.V(1).Infof("Adding service template %s", path)
 			d.facade.AddServiceTemplate(d.dsContext, st)
+			log.Debug("Added service template")
 			return nil
 		})
 		if err != nil {
-			glog.Warningf("Not loading templates from %s: %s", root, err)
+			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
+		} else {
+			log.Info("Loaded service templates")
 		}
 	}()
 }

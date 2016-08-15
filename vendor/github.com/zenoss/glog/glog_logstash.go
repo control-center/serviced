@@ -26,12 +26,12 @@ func (l *loggingT) handleLogstashMessages() {
 		case _ = <-ticker:
 			var err error
 			if conn == nil {
-				fmt.Fprintln(os.Stderr, "Trying to connect to logstash server...", l.logstashURL)
+				//fmt.Fprintln(os.Stderr, "Trying to connect to logstash server...", l.logstashURL)
 				conn, err = net.Dial("tcp", l.logstashURL)
 				if err != nil {
 					conn = nil
 				} else {
-					fmt.Fprintln(os.Stderr, "Connected to logstash server.")
+					//fmt.Fprintln(os.Stderr, "Connected to logstash server.")
 				}
 			}
 		case data := <-l.logstashChan:
@@ -46,7 +46,7 @@ func (l *loggingT) handleLogstashMessages() {
 			if conn != nil {
 				_, err := fmt.Fprintln(conn, string(packet))
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Not connected to logstash server, attempting reconnect.")
+					//fmt.Fprintln(os.Stderr, "Not connected to logstash server, attempting reconnect.")
 					conn = nil
 					continue
 				}
