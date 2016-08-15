@@ -241,7 +241,13 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	case p.useTLS:
 		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
-		remote, err = tls.Dial("tcp4", muxAddr, &config)
+		var tlsConn *tls.Conn
+		tlsConn, err = tls.Dial("tcp4", muxAddr, &config)
+		remote = tlsConn
+
+		cipher := tlsConn.ConnectionState().CipherSuite
+		glog.V(2).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
+
 	default:
 		glog.V(2).Infof("dialing remote => %s", muxAddr)
 		remote, err = net.Dial("tcp4", muxAddr)

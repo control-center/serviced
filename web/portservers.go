@@ -244,9 +244,9 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 		// https://github.com/golang/go/issues/10094
 		// https://github.com/golang/go/issues/9364
 		tlsConfig = &tls.Config{
-			MinVersion:               utils.MinTLS(),
+			MinVersion:               utils.MinTLS("http"),
 			PreferServerCipherSuites: true,
-			CipherSuites:             utils.CipherSuites(),
+			CipherSuites:             utils.CipherSuites("http"),
 			Certificates:             certs,
 		}
 	}

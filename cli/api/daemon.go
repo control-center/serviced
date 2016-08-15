@@ -203,13 +203,16 @@ func (d *daemon) startRPC() {
 	var err error
 	if rpcutils.RPCDisableTLS {
 		listener, err = net.Listen("tcp", options.Listen)
+		glog.Infof("Created non-TLS-enabled RPC server on %s", options.Listen)
 	} else {
 		var tlsConfig *tls.Config
-		tlsConfig, err = getTLSConfig()
+		tlsConfig, err = getTLSConfig("rpc")
 		if err != nil {
 			glog.Fatalf("Unable to get TLS config: %v", err)
 		}
 
+		glog.Infof("Creating TLS-enabled RPC server on %s with CipherSuite: %v",
+			options.Listen, utils.CipherSuitesByName(tlsConfig))
 		listener, err = tls.Listen("tcp", options.Listen, tlsConfig)
 	}
 	if err != nil {
@@ -522,7 +525,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 	return
 }
 
-func getTLSConfig() (*tls.Config, error) {
+func getTLSConfig(connectionType string) (*tls.Config, error) {
 	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
@@ -536,9 +539,9 @@ func getTLSConfig() (*tls.Config, error) {
 
 	tlsConfig := tls.Config{
 		Certificates:             []tls.Certificate{cert},
-		MinVersion:               utils.MinTLS(),
+		MinVersion:               utils.MinTLS(connectionType),
 		PreferServerCipherSuites: true,
-		CipherSuites:             utils.CipherSuites(),
+		CipherSuites:             utils.CipherSuites(connectionType),
 	}
 	return &tlsConfig, nil
 
@@ -548,13 +551,17 @@ func createMuxListener() (net.Listener, error) {
 	if options.TLS {
 		glog.V(1).Info("using TLS on mux")
 
-		tlsConfig, err := getTLSConfig()
+		tlsConfig, err := getTLSConfig("mux")
 		if err != nil {
 			return nil, err
 		}
-		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
-		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
-
+		glog.Infof("Creating TLS-enabled TCP MUX listening on port %d with CipherSuite: %v",
+			options.MuxPort, utils.CipherSuitesByName(tlsConfig))
+		listener, err := tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		return listener, nil
 	}
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
