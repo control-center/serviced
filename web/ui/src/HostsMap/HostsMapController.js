@@ -20,6 +20,8 @@
         var width = 857;
         var height = 567;
 
+        var color = d3.scale.category20c();
+
         var cpuCores = function(h) {
             return h.model.Cores;
         };
@@ -33,7 +35,6 @@
             return h.isHost? h.name : null;
         };
 
-        var color = d3.scale.category20c();
         var treemap = d3.layout.treemap()
             .size([width, height])
             .value(memoryCapacity);
@@ -53,15 +54,6 @@
             return cls;
         };
 
-        $scope.selectByMemory = function() {
-            $scope.treemapSelection = 'memory';
-            selectNewValue(memoryCapacity);
-        };
-        $scope.selectByCores = function() {
-            $scope.treemapSelection = 'cpu';
-            selectNewValue(cpuCores);
-        };
-
         var selectNewValue = function(valFunc) {
             var node = d3.select("#hostmap").
                 selectAll(".node").
@@ -74,6 +66,15 @@
                 style("background", poolBgColor).
                 text(hostText);
             node.exit().remove();
+        };
+        
+        $scope.selectByMemory = function() {
+            $scope.treemapSelection = 'memory';
+            selectNewValue(memoryCapacity);
+        };
+        $scope.selectByCores = function() {
+            $scope.treemapSelection = 'cpu';
+            selectNewValue(cpuCores);
         };
 
         var selectNewRoot = function(newroot) {

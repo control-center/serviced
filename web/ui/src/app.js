@@ -182,6 +182,12 @@ controlplane.
             isCleared = false;
 
         $rootScope.$on("ready", function(){
+            var clearLoader = function(){
+                loaderEl.remove();
+                $("body").removeClass("loading");
+                isCleared = true;
+            };
+
             setTimeout(function(){
                 if(!isCleared){
                     if(disableAnimation){
@@ -191,11 +197,5 @@ controlplane.
                     }
                 }
             }, 1000);
-
-            var clearLoader = function(){
-                loaderEl.remove();
-                $("body").removeClass("loading");
-                isCleared = true;
-            };
         });
     });
