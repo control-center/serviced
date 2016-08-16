@@ -48,7 +48,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 		"InstanceID":  export.InstanceID,
 	})
 
-	basepth := path.Join("/net", tenantID, export.Application, fmt.Sprintf("%d", export.InstanceID))
+	basepth := path.Join("/net/export", tenantID, export.Application, fmt.Sprintf("%s-%s-%d", tenantID, export.Application, export.InstanceID))
 	pth := basepth
 	defer func() {
 		if err := conn.Delete(pth); err != nil {
@@ -110,7 +110,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 		exportMap := make(map[string]ExportDetails)
 
 		// get the path to the export
-		pth := path.Join("/net", tenantID, application)
+		pth := path.Join("/net/export", tenantID, application)
 
 		// set up the logger
 		logger := log.WithFields(log.Fields{

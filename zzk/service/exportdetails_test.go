@@ -30,7 +30,7 @@ func (t *ZZKTest) TestRegisterExport(c *C) {
 
 	// watch the application path
 	done := make(chan struct{})
-	ok, ev, err := conn.ExistsW("/net/tenantid/app", done)
+	ok, ev, err := conn.ExistsW("/net/export/tenantid/app", done)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, false)
 
@@ -49,13 +49,13 @@ func (t *ZZKTest) TestRegisterExport(c *C) {
 	timer := time.NewTimer(time.Second)
 	select {
 	case <-ev:
-		ch, ev, err = conn.ChildrenW("/net/tenantid/app", done)
+		ch, ev, err = conn.ChildrenW("/net/export/tenantid/app", done)
 		c.Assert(err, IsNil)
 		if len(ch) == 0 {
 			timer.Reset(time.Second)
 			select {
 			case <-ev:
-				ch, ev, err = conn.ChildrenW("/net/tenantid/app", done)
+				ch, ev, err = conn.ChildrenW("/net/export/tenantid/app", done)
 				c.Assert(err, IsNil)
 			case <-done:
 				c.Fatalf("Listener exited unexpectedly")
@@ -74,16 +74,16 @@ func (t *ZZKTest) TestRegisterExport(c *C) {
 	node := ch[0]
 
 	// delete
-	err = conn.Delete("/net/tenantid/app/" + node)
+	err = conn.Delete("/net/export/tenantid/app/" + node)
 	c.Assert(err, IsNil)
 
-	ch, ev, err = conn.ChildrenW("/net/tenantid/app", done)
+	ch, ev, err = conn.ChildrenW("/net/export/tenantid/app", done)
 	c.Assert(err, IsNil)
 	if len(ch) == 0 {
 		timer.Reset(time.Second)
 		select {
 		case <-ev:
-			ch, err = conn.Children("/net/tenantid/app")
+			ch, err = conn.Children("/net/export/tenantid/app")
 			c.Assert(err, IsNil)
 		case <-done:
 			c.Fatalf("Listener exited unexpectedly")
@@ -103,7 +103,7 @@ func (t *ZZKTest) TestRegisterExport(c *C) {
 	case <-timer.C:
 		c.Fatalf("Listener timed out")
 	}
-	ch, err = conn.Children("/net/tenantid/app")
+	ch, err = conn.Children("/net/export/tenantid/app")
 	c.Assert(err, IsNil)
 	c.Assert(ch, HasLen, 0)
 }
@@ -132,7 +132,7 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 		ExportBinding: ExportBinding{Application: "app"},
 		InstanceID:    0,
 	}
-	err = conn.Create("/net/tenantid/app/0", export)
+	err = conn.Create("/net/export/tenantid/app/0", export)
 	c.Assert(err, IsNil)
 
 	timer.Reset(time.Second)
@@ -150,11 +150,11 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 		ExportBinding: ExportBinding{Application: "app"},
 		InstanceID:    1,
 	}
-	err = conn.Create("/net/tenantid/app/1", export)
+	err = conn.Create("/net/export/tenantid/app/1", export)
 	c.Assert(err, IsNil)
 	timer.Stop() // timer won't reset once it has triggered
 	time.Sleep(time.Second)
-	err = conn.Delete("/net/tenantid/app/0")
+	err = conn.Delete("/net/export/tenantid/app/0")
 	c.Assert(err, IsNil)
 	time.Sleep(time.Second)
 
