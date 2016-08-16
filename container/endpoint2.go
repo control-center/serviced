@@ -131,9 +131,13 @@ func (ce *ContainerEndpoint) loadState(svc *service.Service) (bool, error) {
 		// connect to the coordinator
 		conn, err := zzk.GetLocalConnection("/")
 		if err != nil {
-			// Log error and exit
+			logger.WithFields(log.Fields{
+				"Error": err,
+			}).Debug("Cannot connect to the coordinator")
 			return false, err
 		}
+
+		logger.Debug("Connected to the coordinator")
 
 		// get the state
 		req := zkservice.StateRequest{
