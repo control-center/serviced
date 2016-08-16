@@ -22,12 +22,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
 
 // Initializer for serviced script
@@ -115,14 +115,17 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 				"-c", strings.Join(os.Args, " "), logfile}
 
 			fmt.Fprintf(os.Stderr, "Logging to logfile: %s\n", logfile)
-			glog.V(1).Infof("syscall.exec unix script with command: %+v", cmd)
+			log.WithFields(logrus.Fields{
+				"command": cmd,
+			}).Debug("Syscall.exec shell script")
 			if err := syscall.Exec(cmd[0], cmd[0:], os.Environ()); err != nil {
 				fmt.Fprintf(os.Stderr, "Unable to log output with command:%+v err:%s\n", cmd, err)
 			}
 		}
 	}
-
-	glog.V(1).Infof("runScript filename:%s %+v\n", fileName, config)
+	log.WithFields(logrus.Fields{
+		"filename": fileName,
+	}).Debug("Running script")
 	runScript(c, ctx, fileName, config)
 }
 
@@ -146,10 +149,14 @@ func runScript(c *ServicedCli, ctx *cli.Context, fileName string, config *script
 	stopChan := make(chan struct{})
 	signalHandlerChan := make(chan os.Signal)
 	signal.Notify(signalHandlerChan, syscall.SIGINT, syscall.SIGTERM)
+	log := log.WithFields(logrus.Fields{
+		"filename": fileName,
+	})
 	go func() {
 		<-signalHandlerChan
-		glog.Infof("Received stop signal, stopping")
+		log.Debug("Received stop signal")
 		close(stopChan)
+		log.Info("Stopped script")
 	}()
 
 	config.NoOp = ctx.Bool("no-op")

@@ -20,15 +20,21 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
 	"github.com/zenoss/glog"
+)
+
+var (
+	log = logging.PackageLogger()
 )
 
 // ServicedCli is the client ui for serviced
@@ -42,7 +48,7 @@ type ServicedCli struct {
 // New instantiates a new command-line client
 func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	if config == nil {
-		glog.Fatal("Missing configuration data!")
+		log.Fatal("Missing configuration data")
 	}
 	defaultOps := api.GetDefaultOptions(config)
 
@@ -348,16 +354,17 @@ func setLogging(ctx *cli.Context) error {
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {
 			<-signalChan
-			glog.Infof("Received signal SIGUSR1")
+			log.Debug("Received signal to toggle logging")
 			if glog.GetVerbosity() == 0 {
 				glog.SetVerbosity(2)
 			} else {
 				glog.SetVerbosity(0)
 			}
-			glog.Infof("Log level changed to %v", glog.GetVerbosity())
+			log.WithFields(logrus.Fields{
+				"level": glog.GetVerbosity(),
+			}).Info("Changed glog logging level")
 		}
 	}()
-
 	return nil
 }
 
