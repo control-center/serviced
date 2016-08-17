@@ -266,7 +266,7 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 
 				ch := zkservice.TrackExports(cancel, conn, ce.opts.TenantID, bind.Application)
 				for exports := range ch {
-					ce.SetExports(bind, exports)
+					ce.UpdateRemoteExports(bind, exports)
 				}
 
 				select {
@@ -281,8 +281,8 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 	}
 }
 
-// SetExports updates the proxy connections for an import port binding
-func (ce *ContainerEndpoints) SetExports(bind zkservice.ImportBinding, exports []zkservice.ExportDetails) {
+// UpdateRemoteExports updates the proxy connections for an import port binding
+func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, exports []zkservice.ExportDetails) {
 	logger := log.WithFields(log.Fields{
 		"Application": bind.Application,
 		"Purpose":     bind.Purpose,
