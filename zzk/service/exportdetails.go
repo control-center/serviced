@@ -52,9 +52,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 	pth := basepth
 	defer func() {
 		if err := conn.Delete(pth); err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not remove endpoint")
+			logger.WithError(err).Error("Could not remove endpoint")
 		}
 	}()
 
@@ -68,9 +66,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 		// check the export endpoint path
 		ok, ev, err := conn.ExistsW(pth, done)
 		if err != nil {
-			epLogger.WithFields(log.Fields{
-				"Error": err,
-			}).Error("Could not look up endpoint")
+			epLogger.WithError(err).Error("Could not look up endpoint")
 			return
 		}
 
@@ -79,9 +75,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 			epLogger.Debug("Registering endpoint")
 			pth, err = conn.CreateEphemeral(basepth, &export)
 			if err != nil {
-				epLogger.WithFields(log.Fields{
-					"Error": err,
-				}).Error("Could not create endpoint")
+				epLogger.WithError(err).Error("Could not create endpoint")
 				return
 			}
 			continue
@@ -126,9 +120,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 			// check if the path exists
 			ok, ev, err := conn.ExistsW(pth, done)
 			if err != nil {
-				logger.WithFields(log.Fields{
-					"Error": err,
-				}).Error("Could not monitor application")
+				logger.WithError(err).Error("Could not monitor application")
 				return
 			}
 
@@ -139,9 +131,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 				if err == client.ErrNoNode {
 					continue
 				} else if err != nil {
-					logger.WithFields(log.Fields{
-						"Error": err,
-					}).Error("Could not monitor application ports")
+					logger.WithError(err).Error("Could not monitor application ports")
 					return
 				}
 			}
@@ -157,10 +147,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 					if err == client.ErrNoNode {
 						continue
 					} else if err != nil {
-						logger.WithFields(log.Fields{
-							"Name":  name,
-							"Error": err,
-						}).Error("Could not look up export binding")
+						logger.WithError(err).Error("Could not look up export binding")
 						return
 					}
 					logger.WithFields(log.Fields{
