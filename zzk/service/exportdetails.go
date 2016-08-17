@@ -110,6 +110,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 		logger := log.WithFields(log.Fields{
 			"TenantID":    tenantID,
 			"Application": application,
+			"ExportPath":  pth,
 		})
 		logger.Debug("Starting listener for export")
 
@@ -147,7 +148,9 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 					if err == client.ErrNoNode {
 						continue
 					} else if err != nil {
-						logger.WithError(err).Error("Could not look up export binding")
+						logger.WithFields(log.Fields{
+							"zkpth": path.Join(pth, name),
+						}).WithError(err).Error("Could not look up export binding")
 						return
 					}
 					logger.WithFields(log.Fields{
