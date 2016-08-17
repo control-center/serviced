@@ -53,7 +53,7 @@ var (
 	ErrRunning          = errors.New("isvc: running")
 	ErrBadContainerSpec = errors.New("isvc: bad service specification")
 
-	loggedHostIpOverride bool
+	loggedHostIPOverride bool
 )
 
 type ExitError int
@@ -1134,7 +1134,7 @@ func dockerLogsToFile(containerid string, numlines int) {
 		return
 	}
 	defer f.Close()
-	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%s", numlines), ctr.ID)
+	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%s", numlines), containerid)
 	cmd.Stdout = f
 	cmd.Stderr = f
 	if err := cmd.Run(); err != nil {

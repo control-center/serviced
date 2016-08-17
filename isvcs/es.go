@@ -239,7 +239,7 @@ func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 			select {
 			case r = <-getESHealth(url):
 				if r.err != nil {
-					log.WithError(err).Debug("Unable to check Elastic health")
+					log.WithError(r.err).Debug("Unable to check Elastic health")
 					break
 				}
 				if status := GetHealth(r.response.Status); status < minHealth {
