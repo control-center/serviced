@@ -411,6 +411,7 @@ func (d *daemon) startMaster() (err error) {
 
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
+
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"address": agentIP,

@@ -79,9 +79,11 @@ func initElasticSearch() {
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
+
 	healthChecks := map[string]healthCheckDefinition{
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
+
 	elasticsearch_servicedPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
@@ -144,9 +146,9 @@ func initElasticSearch() {
 		glog.Fatalf("Error initializing elasticsearch container: %s", err)
 	}
 
-    // This value will be overwritten by SERVICED_ISVCS_ENV_X in
-    // /etc/default/serviced
-    envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
+	// This value will be overwritten by SERVICED_ISVCS_ENV_X in
+	// /etc/default/serviced
+	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		clusterArg := ""
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {

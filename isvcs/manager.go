@@ -14,13 +14,11 @@
 package isvcs
 
 import (
-	"time"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
 	"errors"
@@ -42,7 +40,6 @@ const (
 	managerOpExit                               // exit the loop of the manager
 	managerOpRegisterContainer                  // register a given container
 	managerOpInit                               // make sure manager is ready to run containers
-	managerOpWipe                               // wipe all data associated with volumes
 )
 
 var (
@@ -119,7 +116,12 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 	if !found {
 		return errors.New("could not find isvc")
 	}
-	glog.Infof("setting %s, %s: %s", name, key, value)
+	log.WithFields(logrus.Fields{
+		"isvc":  name,
+		"key":   key,
+		"value": value,
+	})
+	log.Debug("Setting configuration option")
 	svc.Configuration[key] = value
 	return nil
 }
@@ -144,7 +146,9 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 
 	svc, found := m.services[name]
 	if !found {
-		glog.Errorf("Internal service %q not found", name)
+		log.WithFields(logrus.Fields{
+			"isvc": name,
+		}).Warn("Internal service not found")
 		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
 	}
 
@@ -174,46 +178,6 @@ func (m *Manager) allImagesExist() error {
 		}
 	}
 	return nil
-}
-
-// wipe() removes the data directory associate with the manager
-func (m *Manager) wipe() error {
-
-	if err := os.RemoveAll(m.volumesDir); err != nil {
-		glog.V(2).Infof("could not remove %s: %v", m.volumesDir, err)
-	}
-	//nothing to wipe if the volumesDir doesn't exist
-	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
-		glog.V(2).Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
-		return nil
-	}
-	glog.Infof("Using docker to remove directories in %s", m.volumesDir)
-
-	// remove volumeDir by running a container as root
-	// FIXME: detect if already root and avoid running docker
-	var config dockerclient.Config
-	cd := &dockerclient.CreateContainerOptions{
-		Config:     &config,
-		HostConfig: &dockerclient.HostConfig{},
-	}
-
-	config.Image = "ubuntu"
-	config.Cmd = []string{"/bin/sh", "-c", "rm -Rf /mnt/volumes/*"}
-	config.Volumes = map[string]struct{}{
-		"/mnt/volumes": struct{}{},
-	}
-
-	cd.HostConfig.Binds = []string{m.volumesDir + ":/mnt/volumes"}
-	ctr, err := docker.NewContainer(cd, false, 5*time.Second, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	ctr.OnEvent(docker.Die, func(cid string) {
-		ctr.Delete(true)
-	})
-
-	return ctr.Start()
 }
 
 // loadImages() loads all the images defined in the registered services
@@ -266,22 +230,6 @@ func (m *Manager) loop() {
 		select {
 		case request := <-m.requests:
 			switch request.op {
-			case managerOpWipe:
-				// stop all iservices
-				var wg sync.WaitGroup
-				for name, svc := range m.services {
-					if svc.IsRunning() {
-						wg.Add(1)
-						go func(svc *IService) {
-							defer wg.Done()
-							if err := svc.Stop(); err != nil {
-								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
-							}
-						}(m.services[name])
-					}
-				}
-				wg.Wait()
-				request.response <- m.wipe()
 			case managerOpNotify:
 				var failed bool
 				for _, svc := range m.services {
@@ -452,13 +400,6 @@ func (m *Manager) Register(svc *IService) error {
 	}
 	m.requests <- request
 	return <-request.response
-}
-
-// Wipe() removes the data directory associated with the Manager
-func (m *Manager) Wipe() error {
-	glog.V(2).Infof("manager sending wipe request")
-	defer glog.V(2).Infof("received wipe response")
-	return m.makeRequest(managerOpWipe)
 }
 
 // Stop() stops all the containers currently registered to the *Manager
