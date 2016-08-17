@@ -292,6 +292,9 @@ func (ce *ContainerEndpoints) SetExports(bind zkservice.ImportBinding, exports [
 
 	if bind.Purpose == "import_all" {
 
+		// keep track of the number of port collisions
+		collisionCount := 0
+
 		// set up a proxy for each endpoint
 
 		for _, export := range exports {
@@ -313,7 +316,12 @@ func (ce *ContainerEndpoints) SetExports(bind zkservice.ImportBinding, exports [
 
 			// check if the port is in use by an export
 			if _, ok := ce.ports[port]; ok {
-				exLogger.Debug("Port is in use")
+				if collisionCount > 1 {
+					exLogger.Error("Port is in use")
+				} else {
+					exLogger.Debug("Port is in use")
+				}
+				collisionCount++
 				continue
 			}
 
@@ -371,9 +379,7 @@ func (ce *ContainerEndpoints) SetExports(bind zkservice.ImportBinding, exports [
 		// update the proxy
 		isNew, err := ce.cache.Set(bind.Application, port, exports...)
 		if err != nil {
-			exLogger.WithFields(log.Fields{
-				"Error": err,
-			}).Error("Could not update proxy")
+			exLogger.WithError(err).Error("Could not update proxy")
 			return
 		}
 
