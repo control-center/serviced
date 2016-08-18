@@ -54,19 +54,47 @@ func (a *api) StartServer() error {
 	})
 	log.Debug("Starting server")
 
-	if err := utils.SetCiphers(options.TLSCiphers); err != nil {
-		return fmt.Errorf("unable to set TLS Ciphers %v", err)
+	if err := utils.SetCiphers("http", options.TLSCiphers); err != nil {
+		return fmt.Errorf("unable to set HTTP TLS Ciphers %v", err)
 	}
 	log.WithFields(logrus.Fields{
 		"ciphers": strings.Join(options.TLSCiphers, ","),
-	}).Debug("Set TLS ciphers")
+	}).Debug("Set supported TLS ciphers for HTTP")
 
-	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
-		return fmt.Errorf("unable to set minimum TLS version %v", err)
+	if err := utils.SetMinTLS("http", options.TLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum HTTP TLS version %v", err)
 	}
 	log.WithFields(logrus.Fields{
 		"minversion": options.TLSMinVersion,
-	}).Debug("Set minimum TLS version")
+	}).Debug("Set minimum TLS version for HTTP")
+
+	if err := utils.SetCiphers("mux", options.MUXTLSCiphers); err != nil {
+		return fmt.Errorf("unable to set MUX TLS Ciphers %v", err)
+	}
+	log.WithFields(logrus.Fields{
+		"ciphers": strings.Join(options.MUXTLSCiphers, ","),
+	}).Debug("Set supported TLS ciphers for the mux")
+
+	if err := utils.SetMinTLS("mux", options.MUXTLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum MUX TLS version %v", err)
+	}
+	log.WithFields(logrus.Fields{
+		"minversion": options.MUXTLSMinVersion,
+	}).Debug("Set minimum TLS version for the mux")
+
+	if err := utils.SetCiphers("rpc", options.RPCTLSCiphers); err != nil {
+		return fmt.Errorf("unable to set RPC TLS Ciphers %v", err)
+	}
+	log.WithFields(logrus.Fields{
+		"ciphers": strings.Join(options.RPCTLSCiphers, ","),
+	}).Debug("Set supported TLS ciphers for RPC")
+
+	if err := utils.SetMinTLS("rpc", options.RPCTLSMinVersion); err != nil {
+		return fmt.Errorf("unable to set minimum RPC TLS version %v", err)
+	}
+	log.WithFields(logrus.Fields{
+		"minversion": options.RPCTLSMinVersion,
+	}).Debug("Set minimum TLS version for RPC")
 
 	if len(options.CPUProfile) > 0 {
 		f, err := os.Create(options.CPUProfile)

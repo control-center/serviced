@@ -212,6 +212,7 @@ func (d *daemon) startRPC() {
 	}
 
 	logger := log.WithFields(logrus.Fields{
+		"tls":     !rpcutils.RPCDisableTLS,
 		"server":  "rpc",
 		"address": options.Listen,
 	})
@@ -224,10 +225,13 @@ func (d *daemon) startRPC() {
 		listener, err = net.Listen("tcp", options.Listen)
 	} else {
 		var tlsConfig *tls.Config
-		tlsConfig, err = getTLSConfig()
+		tlsConfig, err = getTLSConfig("rpc")
 		if err != nil {
 			logger.WithError(err).Fatal("Unable to retrieve TLS configuration")
 		}
+		logger = logger.WithFields(logrus.Fields{
+			"ciphersuite": strings.Join(utils.CipherSuitesByName(tlsConfig), ","),
+		})
 		listener, err = tls.Listen("tcp", options.Listen, tlsConfig)
 	}
 	if err != nil {
@@ -514,7 +518,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 	return
 }
 
-func getTLSConfig() (*tls.Config, error) {
+func getTLSConfig(connectionType string) (*tls.Config, error) {
 	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
@@ -527,9 +531,9 @@ func getTLSConfig() (*tls.Config, error) {
 
 	tlsConfig := tls.Config{
 		Certificates:             []tls.Certificate{cert},
-		MinVersion:               utils.MinTLS(),
+		MinVersion:               utils.MinTLS(connectionType),
 		PreferServerCipherSuites: true,
-		CipherSuites:             utils.CipherSuites(),
+		CipherSuites:             utils.CipherSuites(connectionType),
 	}
 	return &tlsConfig, nil
 
@@ -548,17 +552,21 @@ func createMuxListener() net.Listener {
 	log.Debug("Starting traffic multiplexer")
 
 	if !options.MuxDisableTLS {
-		tlsConfig, err := getTLSConfig()
+		tlsConfig, err := getTLSConfig("mux")
 		if err != nil {
 			log.WithError(err).Fatal("Invalid TLS configuration")
 		}
 		listener, err = tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), tlsConfig)
+		log = log.WithFields(logrus.Fields{
+			"ciphersuite": strings.Join(utils.CipherSuitesByName(tlsConfig), ","),
+		})
 	} else {
 		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 	}
 	if err != nil {
 		log.WithError(err).Fatal("Unable to start traffic multiplexer")
 	}
+	log.Debug("Created TCP multiplexer")
 	return listener
 }
 

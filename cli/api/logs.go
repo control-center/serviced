@@ -559,7 +559,7 @@ type logSingleLine struct {
 	ContainerID string    `json:"host"`
 	File        string    `json:"file"`
 	Timestamp   time.Time `json:"@timestamp"`
-	Offset      string    `json:"offset"`
+	Offset      json.Number `json:"offset"`
 	Message     string    `json:"message"`
 	ServiceID   string    `json:"service"`
 }
@@ -668,7 +668,7 @@ func parseLogSource(source []byte) (*parsedMessage, error) {
 		offset := uint64(0)
 		if len(line.Offset) != 0 {
 			var e error
-			offset, e = strconv.ParseUint(line.Offset, 10, 64)
+			offset, e = strconv.ParseUint(string(line.Offset), 10, 64)
 			if e != nil {
 				return nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
 			}
