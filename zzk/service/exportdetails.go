@@ -48,13 +48,11 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 		"InstanceID":  export.InstanceID,
 	})
 
-	basepth := path.Join("/net", tenantID, export.Application, fmt.Sprintf("%d", export.InstanceID))
+	basepth := path.Join("/net/export", tenantID, export.Application, fmt.Sprintf("%s-%s-%d", tenantID, export.Application, export.InstanceID))
 	pth := basepth
 	defer func() {
 		if err := conn.Delete(pth); err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not remove endpoint")
+			logger.WithError(err).Error("Could not remove endpoint")
 		}
 	}()
 
@@ -68,9 +66,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 		// check the export endpoint path
 		ok, ev, err := conn.ExistsW(pth, done)
 		if err != nil {
-			epLogger.WithFields(log.Fields{
-				"Error": err,
-			}).Error("Could not look up endpoint")
+			epLogger.WithError(err).Error("Could not look up endpoint")
 			return
 		}
 
@@ -79,9 +75,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 			epLogger.Debug("Registering endpoint")
 			pth, err = conn.CreateEphemeral(basepth, &export)
 			if err != nil {
-				epLogger.WithFields(log.Fields{
-					"Error": err,
-				}).Error("Could not create endpoint")
+				epLogger.WithError(err).Error("Could not create endpoint")
 				return
 			}
 			continue
@@ -101,8 +95,8 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 }
 
 // TrackExports keeps track of changes to the list of exports for given import
-func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, application string) <-chan map[int]ExportDetails {
-	exportsChan := make(chan map[int]ExportDetails)
+func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, application string) <-chan []ExportDetails {
+	exportsChan := make(chan []ExportDetails)
 	go func() {
 		defer close(exportsChan)
 
@@ -110,12 +104,13 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 		exportMap := make(map[string]ExportDetails)
 
 		// get the path to the export
-		pth := path.Join("/net", tenantID, application)
+		pth := path.Join("/net/export", tenantID, application)
 
 		// set up the logger
 		logger := log.WithFields(log.Fields{
 			"TenantID":    tenantID,
 			"Application": application,
+			"ExportPath":  pth,
 		})
 		logger.Debug("Starting listener for export")
 
@@ -126,9 +121,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 			// check if the path exists
 			ok, ev, err := conn.ExistsW(pth, done)
 			if err != nil {
-				logger.WithFields(log.Fields{
-					"Error": err,
-				}).Error("Could not monitor application")
+				logger.WithError(err).Error("Could not monitor application")
 				return
 			}
 
@@ -139,15 +132,13 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 				if err == client.ErrNoNode {
 					continue
 				} else if err != nil {
-					logger.WithFields(log.Fields{
-						"Error": err,
-					}).Error("Could not monitor application ports")
+					logger.WithError(err).Error("Could not monitor application ports")
 					return
 				}
 			}
 
 			// get the data and make sure it is in sync
-			exports := make(map[int]ExportDetails)
+			exports := []ExportDetails{}
 			chMap := make(map[string]ExportDetails)
 			for _, name := range ch {
 				export, ok := exportMap[name]
@@ -158,9 +149,8 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 						continue
 					} else if err != nil {
 						logger.WithFields(log.Fields{
-							"Name":  name,
-							"Error": err,
-						}).Error("Could not look up export binding")
+							"zkpth": path.Join(pth, name),
+						}).WithError(err).Error("Could not look up export binding")
 						return
 					}
 					logger.WithFields(log.Fields{
@@ -168,7 +158,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 					}).Debug("New record added")
 				}
 
-				exports[export.InstanceID] = export
+				exports = append(exports, export)
 				chMap[name] = export
 			}
 			exportMap = chMap
