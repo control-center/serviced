@@ -80,10 +80,9 @@ func initZK() {
 // a health check for zookeeper
 func zkHealthCheck(halt <-chan struct{}) error {
 	healthy := true
-	logged := false
+	times := -1
 	for {
-		if !healthy && !logged {
-			logged = true
+		if !healthy && times == 3 {
 			log.Warn("Unable to validate health of ZooKeeper. Retrying silently")
 		}
 		select {
@@ -92,6 +91,7 @@ func zkHealthCheck(halt <-chan struct{}) error {
 			return nil
 		default:
 			// Try ruok.
+			times++
 			ruok, err := zkFourLetterWord("127.0.0.1:2181", "ruok", time.Second*10)
 			if err != nil {
 				log.WithError(err).Debug("No response to ruok from ZooKeeper")
