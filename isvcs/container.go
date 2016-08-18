@@ -783,9 +783,9 @@ func (svc *IService) startupHealthcheck() <-chan error {
 			startCheck := time.Now()
 			for {
 				currentTime := time.Now()
+				elapsed := time.Since(startCheck)
 				result = svc.runCheckOrTimeout(checkDefinition)
 				svc.setHealthStatus(result, currentTime.Unix())
-				elapsed := time.Since(startCheck)
 				log := log.WithFields(logrus.Fields{
 					"isvc":    svc.Name,
 					"elapsed": elapsed,
@@ -824,10 +824,6 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	case err := <-finished:
 		result = err
 	case <-time.After(checkDefinition.Timeout):
-		log.WithFields(logrus.Fields{
-			"isvc":    svc.Name,
-			"timeout": checkDefinition.Timeout,
-		}).Warn("Internal service health check timed out")
 		result = fmt.Errorf("healthcheck timed out")
 		halt <- struct{}{}
 	}

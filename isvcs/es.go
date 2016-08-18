@@ -244,7 +244,7 @@ func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 				}
 				if status := GetHealth(r.response.Status); status < minHealth {
 					log.WithFields(logrus.Fields{
-						"response": r.response,
+						"reported": r.response.Status,
 					}).Warn("Elastic health reported below minimum")
 					break
 				}

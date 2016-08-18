@@ -59,14 +59,14 @@ func (a *api) StartServer() error {
 	}
 	log.WithFields(logrus.Fields{
 		"ciphers": strings.Join(options.TLSCiphers, ","),
-	}).Info("Set minimum TLS version")
+	}).Debug("Set TLS ciphers")
 
 	if err := utils.SetMinTLS(options.TLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum TLS version %v", err)
 	}
 	log.WithFields(logrus.Fields{
 		"minversion": options.TLSMinVersion,
-	}).Info("Set minimum TLS version")
+	}).Debug("Set minimum TLS version")
 
 	if len(options.CPUProfile) > 0 {
 		f, err := os.Create(options.CPUProfile)
