@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/iancmcc/logri"
+	"github.com/zenoss/logri"
 )
 
 func init() {

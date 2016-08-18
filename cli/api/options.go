@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/logri"
 )
 
 const (
@@ -114,6 +115,8 @@ func LoadOptions(ops Options) {
 
 	// Set verbosity
 	glog.SetVerbosity(options.Verbosity)
+	level := logrus.InfoLevel + logrus.Level(options.Verbosity)
+	logri.SetLevel(level)
 
 	// Check option boundaries
 	if options.ESStartupTimeout < minTimeout {
