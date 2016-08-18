@@ -16,8 +16,6 @@
 package api
 
 import (
-	"reflect"
-
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	. "gopkg.in/check.v1"
@@ -125,9 +123,7 @@ func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForAll(c *C) {
 func (s *TestAPISuite) TestThinPoolEnabledWithNoOptions(c *C) {
 	options := []string{}
 
-	if thinPoolEnabled(options) {
-		c.Errorf("expectd false but got true")
-	}
+	c.Assert(thinPoolEnabled(options), Equals, false)
 }
 
 func (s *TestAPISuite) TestThinPoolEnabledWithoutThinPool(c *C) {
@@ -137,9 +133,7 @@ func (s *TestAPISuite) TestThinPoolEnabledWithoutThinPool(c *C) {
 		"dm.loopmetadatasize=1G",
 	}
 
-	if thinPoolEnabled(options) {
-		c.Errorf("expectd false but got true")
-	}
+	c.Assert(thinPoolEnabled(options), Equals, false)
 }
 
 func (s *TestAPISuite) TestThinPoolEnabledWithThinPool(c *C) {
@@ -147,9 +141,7 @@ func (s *TestAPISuite) TestThinPoolEnabledWithThinPool(c *C) {
 		"dm.thinpooldev=foo",
 	}
 
-	if !thinPoolEnabled(options) {
-		c.Errorf("expectd true but got false")
-	}
+	c.Assert(thinPoolEnabled(options), Equals, true)
 }
 
 func (s *TestAPISuite) TestThinPoolEnabledWithBothKindsOfOptions(c *C) {
@@ -160,17 +152,13 @@ func (s *TestAPISuite) TestThinPoolEnabledWithBothKindsOfOptions(c *C) {
 		"dm.loopmetadatasize=1G",
 	}
 
-	if !thinPoolEnabled(options) {
-		c.Errorf("expectd true but got false")
-	}
+	c.Assert(thinPoolEnabled(options), Equals, true)
 }
 
 func (s *TestAPISuite) TestLoopBackOptionsFoundWithNoOptions(c *C) {
 	options := []string{}
 
-	if loopBackOptionsFound(options) {
-		c.Errorf("expectd false but got true")
-	}
+	c.Assert(loopBackOptionsFound(options), Equals, false)
 }
 
 func (s *TestAPISuite) TestLoopBackOptionsFoundWithoutLoopBackOptions(c *C) {
@@ -178,9 +166,7 @@ func (s *TestAPISuite) TestLoopBackOptionsFoundWithoutLoopBackOptions(c *C) {
 		"dm.thinpooldev=foo",
 	}
 
-	if loopBackOptionsFound(options) {
-		c.Errorf("expectd false but got true")
-	}
+	c.Assert(loopBackOptionsFound(options), Equals, false)
 }
 
 func (s *TestAPISuite) TestLoopBackOptionsFoundWithLoopBackOptions(c *C) {
@@ -190,19 +176,14 @@ func (s *TestAPISuite) TestLoopBackOptionsFoundWithLoopBackOptions(c *C) {
 		"dm.loopmetadatasize=1G",
 	}
 
-	if !loopBackOptionsFound(options) {
-		c.Errorf("expectd true but got false")
-	}
+	c.Assert(loopBackOptionsFound(options), Equals, true)
 }
 
-func (s *TestAPISuite)  TestLoopBackOptionsFoundWithJustBaseSize(c *C) {
+func (s *TestAPISuite) TestLoopBackOptionsFoundWithJustBaseSize(c *C) {
 	options := []string{
 		"dm.basesize=200G",
 	}
-
-	if !loopBackOptionsFound(options) {
-		c.Errorf("expectd true but got false")
-	}
+	c.Assert(loopBackOptionsFound(options), Equals, false)
 }
 
 func (s *TestAPISuite) TestLoopBackOptionsFoundWithBothKindsOfOptions(c *C) {
@@ -213,9 +194,7 @@ func (s *TestAPISuite) TestLoopBackOptionsFoundWithBothKindsOfOptions(c *C) {
 		"dm.loopmetadatasize=1G",
 	}
 
-	if !loopBackOptionsFound(options) {
-		c.Errorf("expectd true but got false")
-	}
+	c.Assert(loopBackOptionsFound(options), Equals, true)
 }
 
 func (s *TestAPISuite) TestValidateStorageArgsPassBtrfs(c *C) {
@@ -241,9 +220,8 @@ func (s *TestAPISuite) TestValidateStorageArgsPassRsync(c *C) {
 	}
 	LoadOptions(testOptions)
 
-	if err := validateStorageArgs(); err != nil {
-		c.Errorf("expected pass, but got error: %s", err)
-	}
+	err := validateStorageArgs()
+	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestValidateStorageArgsPassDMWithThinpool(c *C) {
@@ -296,10 +274,7 @@ func (s *TestAPISuite) TestValidateStorageArgsDoesNotFailIfAgentOnly(c *C) {
 
 func verifyOptions(c *C, actual []string, expected []string) {
 	c.Assert(len(actual), Equals, len(expected))
-	if len(expected) > 0 && !reflect.DeepEqual(expected, actual) {
-		c.Errorf("options incorrect: expected %v got %v", expected, actual)
-	}
-
+	c.Assert(actual, DeepEquals, expected)
 }
 
 func setupOptionsForDMWithLoopBack() Options {
