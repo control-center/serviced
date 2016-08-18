@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"path"
 	"runtime"
 	"strings"
@@ -9,7 +10,8 @@ import (
 )
 
 const (
-	prefix = "github.com/control-center/serviced/"
+	prefix       = "github.com/control-center/serviced/"
+	vendorprefix = prefix + "vendor/"
 )
 
 type ContextHook struct{}
@@ -24,10 +26,9 @@ func (hook ContextHook) Fire(entry *logrus.Entry) error {
 	for i := 0; i < count; i++ {
 		fu := runtime.FuncForPC(pc[i] - 1)
 		name := fu.Name()
-		if strings.Contains(name, prefix) {
+		if strings.HasPrefix(name, prefix) && !strings.HasPrefix(name, vendorprefix) {
 			file, line := fu.FileLine(pc[i] - 1)
-			entry.Data["file"] = path.Base(file)
-			entry.Data["line"] = line
+			entry.Data["location"] = fmt.Sprintf("%s:%d", path.Base(file), line)
 			break
 		}
 	}
