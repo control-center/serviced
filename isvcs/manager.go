@@ -119,8 +119,7 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 		"isvc":  name,
 		"key":   key,
 		"value": value,
-	})
-	log.Debug("Setting configuration option")
+	}).Debug("Setting configuration option")
 	svc.Configuration[key] = value
 	return nil
 }
