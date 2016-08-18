@@ -14,7 +14,7 @@
     'use strict';
 
     var count = 0;
-    var PAGE_SIZE = 15; // TODO: pull from config file
+    var PAGE_SIZE = 3; // TODO: pull from config file
 
     angular.module('jellyTable', [])
     .directive("jellyTable", ["$interval", "ngTableParams", "$filter", "$animate", "$compile", "miscUtils",

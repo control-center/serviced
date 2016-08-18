@@ -20,13 +20,14 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/read"
 	. "gopkg.in/check.v1"
 )
 
 type apiPoolsTestData struct {
 	firstPool  pool.ResourcePool
 	secondPool pool.ResourcePool
-	selfLink   Link
+	selfLink   read.Link
 }
 
 func newAPIPoolsTestData() apiPoolsTestData {
@@ -53,7 +54,7 @@ func newAPIPoolsTestData() apiPoolsTestData {
 			UpdatedAt:         time.Now(),
 		},
 
-		selfLink: Link{
+		selfLink: read.Link{
 			HRef:   "/pools",
 			Rel:    "self",
 			Method: "GET",

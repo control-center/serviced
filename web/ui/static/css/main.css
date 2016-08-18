@@ -1807,9 +1807,6 @@ input[type=file] {
 .jelly-table .loader td {
     border: none;
 }
-.jelly-table .never-loader .loader {
-    opacity: 0 !important;
-}
 .jelly-table .loader:hover td {
     background-color: transparent;
 }

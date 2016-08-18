@@ -49,6 +49,10 @@
             },
             getPools: {
                 method: GET,
+                url: "/pools",
+            },
+			getV2Pools: {
+                method: GET,
                 url: "/api/v2/pools",
             },
             getPoolIPs: {
