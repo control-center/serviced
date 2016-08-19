@@ -44,7 +44,7 @@ type Entry struct {
 	Buffer *bytes.Buffer
 
 	// PATCH: Adding a lock to avoid a race until the real fix makes it in
-	datalock sync.Mutex
+	sync.Mutex
 }
 
 func NewEntry(logger *Logger) *Entry {
@@ -78,8 +78,8 @@ func (entry *Entry) WithField(key string, value interface{}) *Entry {
 
 // Add a map of fields to the Entry.
 func (entry *Entry) WithFields(fields Fields) *Entry {
-	entry.datalock.Lock()
-	defer entry.datalock.Unlock()
+	entry.Lock()
+	defer entry.Unlock()
 	data := make(Fields, len(entry.Data)+len(fields))
 	for k, v := range entry.Data {
 		data[k] = v
