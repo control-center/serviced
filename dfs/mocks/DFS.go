@@ -105,7 +105,7 @@ func (_m *DFS) Commit(ctrID string) (string, error) {
 }
 
 // Snapshot provides a mock function with given fields: info
-func (_m *DFS) Snapshot(info dfs.SnapshotInfo) (string, error) {
+func (_m *DFS) Snapshot(info dfs.SnapshotInfo, spaceFactor int) (string, error) {
 	ret := _m.Called(info)
 
 	var r0 string

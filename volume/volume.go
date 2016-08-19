@@ -143,7 +143,7 @@ type Volume interface {
 	// GetSnapshotWithTag returns info about the snapshot with the given tag, or nil if there isn't one
 	GetSnapshotWithTag(tagName string) (*SnapshotInfo, error)
 	// Export exports the snapshot stored as <label> to <filename>
-	Export(label, parent string, writer io.Writer) error
+	Export(label, parent string, writer io.Writer, excludes []string) error
 	// Import imports the exported snapshot at <filename> as <label>
 	Import(label string, reader io.Reader) error
 	// Tenant returns the base tenant of this volume

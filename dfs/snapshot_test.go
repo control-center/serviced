@@ -39,7 +39,7 @@ func (s *DFSTestSuite) TestSnapshot_VolumeNotFound(c *C) {
 		},
 	}
 	s.disk.On("Get", "BASE").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestVolumeNotFound)
 }
@@ -55,7 +55,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(&registry.Image{}, ErrTestImageNotInRegistry).Once()
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotInRegistry)
 	rImage := &registry.Image{
@@ -71,7 +71,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
 	})
-	id, err = s.dfs.Snapshot(data)
+	id, err = s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestNoPush)
 }
@@ -96,7 +96,7 @@ func (s *DFSTestSuite) TestSnapshot_MissingImage(c *C) {
 	s.disk.On("Get", "BASE").Return(vol, nil)
 	s.index.On("FindImage", "BASE/repo:latest").Return(rImage, nil).Once()
 	s.registry.On("FindImage", rImage).Return(nil, ErrTestImageNotFound).Once()
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotFound)
 }
@@ -130,12 +130,12 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 	})
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestNoImagesMetadata)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{}, ErrTestNoServicesMetadata)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
-	id, err = s.dfs.Snapshot(data)
+	id, err = s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestNoImagesMetadata)
 }
@@ -170,12 +170,12 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
 	vol.On("Snapshot", mock.AnythingOfType("string"), data.Message, data.Tags).Return(ErrTestSnapshotNotCreated).Once()
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestSnapshotNotCreated)
 	vol.On("Snapshot", mock.AnythingOfType("string"), data.Message, data.Tags).Return(nil).Once()
 	vol.On("SnapshotInfo", mock.AnythingOfType("string")).Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
-	id, err = s.dfs.Snapshot(data)
+	id, err = s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestInfoNotFound)
 }
@@ -234,7 +234,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 		}
 		vol.On("SnapshotInfo", label).Return(&sInfo, nil)
 	})
-	id, err := s.dfs.Snapshot(data)
+	id, err := s.dfs.Snapshot(data, 100)
 	c.Assert(id, Equals, name)
 	c.Assert(err, IsNil)
 }

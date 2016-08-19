@@ -42,7 +42,7 @@ type DFS interface {
 	// Commit uploads a new image into the registry
 	Commit(ctrID string) (tenantID string, err error)
 	// Snapshot captures application data at a specific point in time
-	Snapshot(info SnapshotInfo) (string, error)
+	Snapshot(info SnapshotInfo, SnapshotSpacePercent int) (string, error)
 	// Rollback reverts application to a specific snapshot
 	Rollback(snapshotID string) error
 	// Delete deletes an application's snapshot
@@ -74,13 +74,13 @@ var _ = DFS(&DistributedFilesystem{})
 
 // BackupInfo provides meta info about a backup
 type BackupInfo struct {
-	Templates     []servicetemplate.ServiceTemplate
-	BaseImages    []string
-	Pools         []pool.ResourcePool
-	Hosts         []host.Host
-	Snapshots     []string
-	Timestamp     time.Time
-	BackupVersion int
+	Templates        []servicetemplate.ServiceTemplate
+	BaseImages       []string
+	Pools            []pool.ResourcePool
+	Snapshots        []string
+	SnapshotExcludes map[string][]string
+	Timestamp        time.Time
+	BackupVersion    int
 }
 
 // SnapshotInfo provides meta info about a snapshot
