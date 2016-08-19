@@ -21,6 +21,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+var emptystrarray []string
+
 func (s *TestAPISuite) TestAddStorageOptionWithEmptyDefault(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	var options []string
@@ -29,7 +31,7 @@ func (s *TestAPISuite) TestAddStorageOptionWithEmptyDefault(c *C) {
 		options = append(options, value)
 	})
 
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestAddStorageOptionWithNonEmptyDefault(c *C) {
@@ -57,19 +59,19 @@ func (s *TestAPISuite) TestAddStorageOptionWithEnvValue(c *C) {
 func (s *TestAPISuite) TestGetDefaultNFSOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeNFS, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultRSyncOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeRsync, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultBtrfsOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	options := getDefaultStorageOptions(volume.DriverTypeBtrFS, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultDevicemapperOptions(c *C) {
@@ -81,19 +83,19 @@ func (s *TestAPISuite) TestGetDefaultDevicemapperOptions(c *C) {
 func (s *TestAPISuite) TestGetDefaultNFSOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeNFS, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultRSyncOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeRsync, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultBrtrfsOptionsWithDMOptionsSet(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	options := getDefaultStorageOptions(volume.DriverTypeBtrFS, configReader)
-	verifyOptions(c, options, []string{})
+	verifyOptions(c, options, emptystrarray)
 }
 
 func (s *TestAPISuite) TestGetDefaultDevicemapperOptionsForThinpoolDevice(c *C) {
@@ -273,6 +275,7 @@ func (s *TestAPISuite) TestValidateStorageArgsDoesNotFailIfAgentOnly(c *C) {
 }
 
 func verifyOptions(c *C, actual []string, expected []string) {
+
 	c.Assert(len(actual), Equals, len(expected))
 	c.Assert(actual, DeepEquals, expected)
 }
