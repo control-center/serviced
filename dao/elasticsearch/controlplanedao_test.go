@@ -106,7 +106,7 @@ type DaoTest struct {
 func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.Port = 9202
 	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, "json-file", map[string]string{"max-file": "5", "max-size": "10m"}, nil)
-	isvcs.Mgr.SetVolumesDir(c.Mkdir())
+	isvcs.Mgr.SetVolumesDir(c.MkDir())
 	esServicedClusterName, _ := utils.NewUUID36()
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", esServicedClusterName); err != nil {
 		c.Fatalf("Could not set elasticsearch-serviced clustername: %s", err)
