@@ -157,12 +157,14 @@ docker_SRC = github.com/docker/docker
 # '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
+serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	#make govet
+	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
 serviced-controller: $(GO)
+serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
 
@@ -170,6 +172,7 @@ serviced-controller: $(GO)
 tools: serviced-storage
 
 serviced-storage: $(GO)
+serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
 
