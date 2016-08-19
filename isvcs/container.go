@@ -1130,7 +1130,7 @@ func dockerLogsToFile(containerid string, numlines int) {
 		return
 	}
 	defer f.Close()
-	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%s", numlines), containerid)
+	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", numlines), containerid)
 	cmd.Stdout = f
 	cmd.Stderr = f
 	if err := cmd.Run(); err != nil {
