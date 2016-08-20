@@ -32,14 +32,14 @@ func (err RegistryError) Error() string {
 	return fmt.Sprintf("could not %s path %s: %s", err.Action, err.Path, err.Message)
 }
 
-// GetPublicPort returns port data for a specific port
-func GetPublicPort(conn client.Connection, hostIP, portNumber string) (*PublicPort, error) {
-	pth := path.Join("/net/pub", hostIP, portNumber)
+// GetPublicPort returns port data for a specific port address on a host
+func GetPublicPort(conn client.Connection, hostID, portAddr string) (*PublicPort, error) {
+	pth := path.Join("/net/pub", hostID, portAddr)
 
 	logger := log.WithFields(log.Fields{
-		"hostip": hostIP,
-		"port":   portNumber,
-		"zkpath": pth,
+		"hostid":      hostID,
+		"portaddress": portAddr,
+		"zkpath":      pth,
 	})
 
 	pub := &PublicPort{}
