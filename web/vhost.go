@@ -24,7 +24,7 @@ import (
 // VHostManager manages all vhosts on a host
 type VHostManager struct {
 	useTLS bool
-	mu     *sync.Mutex
+	mu     *sync.RWMutex
 	vhosts map[string]*VHostHandler
 }
 
@@ -32,7 +32,7 @@ type VHostManager struct {
 func NewVHostManager(useTLS bool) *VHostManager {
 	return &VHostManager{
 		useTLS: useTLS,
-		mu:     &sync.Mutex{},
+		mu:     &sync.RWMutex{},
 		vhosts: make(map[string]*VHostHandler),
 	}
 }
@@ -52,8 +52,8 @@ func (m *VHostManager) Enable(name string) {
 
 // Disable disables the vhost
 func (m *VHostManager) Disable(name string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	h, ok := m.vhosts[name]
 	if ok {
@@ -77,8 +77,8 @@ func (m *VHostManager) Set(name string, data []registry.ExportDetails) {
 
 // Handle manages a vhost request and returns true if the vhost is enabled
 func (m *VHostManager) Handle(name string, w http.ResponseWriter, r *http.Request) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	h, ok := m.vhosts[name]
 	if ok {
@@ -140,10 +140,10 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 	}
 
 	logger := log.WithFields(log.Fields{
-		"Application": export.Application,
-		"HostIP":      export.HostIP,
-		"PrivateIP":   export.PrivateIP,
-		"Request":     r,
+		"application": export.Application,
+		"hostip":      export.HostIP,
+		"privateip":   export.PrivateIP,
+		"request":     r,
 	})
 
 	logger.Debug("Proxying endpoint")

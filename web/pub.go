@@ -16,7 +16,6 @@ package web
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"sync"
 
@@ -27,101 +26,99 @@ import (
 
 var ErrPortServerRunning = errors.New("port server is already running")
 
-// PublicPortManager manages all the port servers for a particular ip address
+// PublicPortManager manages all the port servers for a particular host id
 type PublicPortManager struct {
-	hostIP    string
+	hostID    string
 	certFile  string
 	keyFile   string
 	onFailure func(portNumber string, err error)
-	mu        *sync.Mutex
+	mu        *sync.RWMutex
 	ports     map[string]*PublicPortHandler
 }
 
-// NewPublicPortManager creates a new public port manager at a given ip address
-func NewPublicPortManager(hostIP, certFile, keyFile string, onFailure func(portNumber string, err error)) *PublicPortManager {
+// NewPublicPortManager creates a new public port manager for a host id
+func NewPublicPortManager(hostID, certFile, keyFile string, onFailure func(portAddr string, err error)) *PublicPortManager {
 	return &PublicPortManager{
-		hostIP:    hostIP,
+		hostID:    hostID,
 		certFile:  certFile,
 		keyFile:   keyFile,
 		onFailure: onFailure,
-		mu:        &sync.Mutex{},
+		mu:        &sync.RWMutex{},
 		ports:     make(map[string]*PublicPortHandler),
 	}
 }
 
-// Enable implements starts the public port server at the address
-func (m *PublicPortManager) Enable(portNumber, protocol string, useTLS bool) {
+// Enable implements starts the public port server at the port address
+func (m *PublicPortManager) Enable(portAddr, protocol string, useTLS bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// get the port handler or create if it doesn't exist
-	h, ok := m.ports[portNumber]
+	h, ok := m.ports[portAddr]
 	if !ok {
-		address := fmt.Sprintf("%s:%s", m.hostIP, portNumber)
-		h = NewPublicPortHandler(address)
-		m.ports[portNumber] = h
+		h = NewPublicPortHandler(portAddr)
+		m.ports[portAddr] = h
 	}
 
 	// start the port server
 	if err := h.Serve(protocol, useTLS, m.certFile, m.keyFile); err != nil {
-		m.onFailure(portNumber, err)
+		m.onFailure(portAddr, err)
 	}
 }
 
-// Disable stops the public port server at the address
-func (m *PublicPortManager) Disable(portNumber string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// Disable stops the public port server at the port address
+func (m *PublicPortManager) Disable(portAddr string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	// get the port handler and stop it if it exists
-	h, ok := m.ports[portNumber]
+	h, ok := m.ports[portAddr]
 	if ok {
 		h.Stop()
 	}
 }
 
 // Set updates the exports for a particular port handler
-func (m *PublicPortManager) Set(portNumber string, data []registry.ExportDetails) {
+func (m *PublicPortManager) Set(portAddr string, data []registry.ExportDetails) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	h, ok := m.ports[portNumber]
+	h, ok := m.ports[portAddr]
 	if ok {
 		h.SetExports(data)
 	} else {
-		address := fmt.Sprintf("%s:%s", m.hostIP, portNumber)
-		h = NewPublicPortHandler(address, data...)
-		m.ports[portNumber] = h
+		h = NewPublicPortHandler(portAddr, data...)
+		m.ports[portAddr] = h
 	}
 }
 
-// PublicPortHandler manages the port server at a specific address
+// PublicPortHandler manages the port server at a specific port address
 type PublicPortHandler struct {
-	address string
-	exports Exports
-	cancel  chan struct{}
-	wg      *sync.WaitGroup
+	portAddr string
+	exports  Exports
+	cancel   chan struct{}
+	wg       *sync.WaitGroup
 }
 
-// NewPublicPortHandler sets up a new public port at the given address
-func NewPublicPortHandler(address string, data ...registry.ExportDetails) *PublicPortHandler {
+// NewPublicPortHandler sets up a new public port at the given port address
+func NewPublicPortHandler(portAddr string, data ...registry.ExportDetails) *PublicPortHandler {
 	cancel := make(chan struct{})
 	close(cancel)
 
 	return &PublicPortHandler{
-		address: address,
-		exports: NewRoundRobinExports(data), // round-robin is the default
-		cancel:  cancel,
-		wg:      &sync.WaitGroup{},
+		portAddr: portAddr,
+		exports:  NewRoundRobinExports(data), // round-robin is the default
+		cancel:   cancel,
+		wg:       &sync.WaitGroup{},
 	}
 }
 
 // Serve starts the port server at address
 func (h *PublicPortHandler) Serve(protocol string, useTLS bool, certFile, keyFile string) error {
 	logger := log.WithFields(log.Fields{
-		"Address":  h.address,
-		"Protocol": protocol,
-		"UseTLS":   useTLS,
+		"portaddress": h.portAddr,
+		"protocol":    protocol,
+		"usetls":      useTLS,
 	})
 
 	// don't start the server if it is already running
@@ -159,7 +156,7 @@ func (h *PublicPortHandler) Serve(protocol string, useTLS bool, certFile, keyFil
 	}
 
 	// start listening on the port with a non-tls connection
-	listener, err := net.Listen("tcp", h.address)
+	listener, err := net.Listen("tcp", h.portAddr)
 	if err != nil {
 		logger.WithError(err).Debug("Could not start TCP listener")
 		return err
@@ -167,15 +164,17 @@ func (h *PublicPortHandler) Serve(protocol string, useTLS bool, certFile, keyFil
 
 	h.wg.Add(1)
 	go func() {
+		logger.Info("Starting port server")
+		defer logger.Debug("Port server exited")
+
 		if protocol == "http" || protocol == "https" {
-			ServeHTTP(h.cancel, h.address, protocol, listener, tlsConfig, h.exports)
+			ServeHTTP(h.cancel, h.portAddr, protocol, listener, tlsConfig, h.exports)
 		} else {
 			ServeTCP(h.cancel, listener, tlsConfig, h.exports)
 		}
 		h.wg.Done()
 	}()
 
-	logger.Info("Started port server")
 	return nil
 }
 

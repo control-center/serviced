@@ -55,9 +55,9 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 			}
 
 			logger := log.WithFields(log.Fields{
-				"Application": export.Application,
-				"HostIP":      export.HostIP,
-				"PrivateIP":   export.PrivateIP,
+				"application": export.Application,
+				"hostip":      export.HostIP,
+				"privateip":   export.PrivateIP,
 			})
 
 			// setup remote connection
@@ -67,9 +67,7 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 				continue
 			}
 
-			logger.WithFields(log.Fields{
-				"RemoteAddress": remote.RemoteAddr(),
-			}).Debug("Established remote connection")
+			logger.WithField("remoteaddress", remote.RemoteAddr()).Debug("Established remote connection")
 
 			wg.Add(1)
 			go func() {
@@ -88,8 +86,9 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 // ServeHTTP sets up an http server for handling a collection of endpoints
 func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Listener, tlsConfig *tls.Config, exports Exports) {
 	logger := log.WithFields(log.Fields{
-		"Address":  address,
-		"Protocol": protocol,
+		"portaddress": address,
+		"protocol":    protocol,
+		"usetls":      tlsConfig != nil,
 	})
 
 	portClosed := make(chan struct{})
@@ -119,9 +118,7 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 		default:
 		}
 
-		logger.WithFields(log.Fields{
-			"Request": r,
-		}).Debug("httphandler (port) handling request")
+		logger.WithField("handlerrequest", r).Debug("Handler handling (port) request")
 
 		export := exports.Next()
 		if export == nil {
@@ -132,10 +129,10 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 		rp := GetReverseProxy(tlsConfig != nil, export)
 
 		logger.WithFields(log.Fields{
-			"Application": export.Application,
-			"HostIP":      export.HostIP,
-			"PrivateIP":   export.PrivateIP,
-			"URL":         r.URL,
+			"application": export.Application,
+			"hostip":      export.HostIP,
+			"privateip":   export.PrivateIP,
+			"url":         r.URL,
 		}).Debug("Set up public endpoint proxy")
 
 		// Set up the X-Forwarded-Proto header so that downstream servers know
