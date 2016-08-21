@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package read
+package web
 
-type Link struct {
+type APILink struct {
 	Rel    string `json:"rel"`
 	HRef   string `json:"href"`
 	Method string `json:"method"`

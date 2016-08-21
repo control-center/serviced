@@ -20,19 +20,18 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/domain/read"
 	. "gopkg.in/check.v1"
 )
 
 type apiPoolsTestData struct {
-	firstPool  pool.ResourcePool
-	secondPool pool.ResourcePool
-	selfLink   read.Link
+	firstPool  pool.ReadPool
+	secondPool pool.ReadPool
+	selfLink   APILink
 }
 
 func newAPIPoolsTestData() apiPoolsTestData {
 	return apiPoolsTestData{
-		firstPool: pool.ResourcePool{
+		firstPool: pool.ReadPool{
 			ID:                "firstPool",
 			Description:       "The first pool",
 			MemoryCapacity:    10000,
@@ -43,7 +42,7 @@ func newAPIPoolsTestData() apiPoolsTestData {
 			UpdatedAt:         time.Now(),
 		},
 
-		secondPool: pool.ResourcePool{
+		secondPool: pool.ReadPool{
 			ID:                "secondPool",
 			Description:       "The second pool",
 			MemoryCapacity:    20000,
@@ -54,7 +53,7 @@ func newAPIPoolsTestData() apiPoolsTestData {
 			UpdatedAt:         time.Now(),
 		},
 
-		selfLink: read.Link{
+		selfLink: APILink{
 			HRef:   "/pools",
 			Rel:    "self",
 			Method: "GET",
@@ -67,8 +66,8 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnStatusOK(c *C) {
 	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePools", s.ctx.getDatastoreContext()).
-		Return([]pool.ResourcePool{data.firstPool}, nil)
+		On("GetReadPools", s.ctx.getDatastoreContext()).
+		Return([]pool.ReadPool{data.firstPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
@@ -80,8 +79,8 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValuesForReadPool(c *C
 	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePools", s.ctx.getDatastoreContext()).
-		Return([]pool.ResourcePool{data.firstPool}, nil)
+		On("GetReadPools", s.ctx.getDatastoreContext()).
+		Return([]pool.ReadPool{data.firstPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
@@ -107,8 +106,8 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
 	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePools", s.ctx.getDatastoreContext()).
-		Return([]pool.ResourcePool{data.firstPool, data.secondPool}, nil)
+		On("GetReadPools", s.ctx.getDatastoreContext()).
+		Return([]pool.ReadPool{data.firstPool, data.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
@@ -123,8 +122,8 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectLinkValues(c *C) {
 	request := s.buildRequest("GET", "http://www.example.com/pools", "")
 
 	s.mockFacade.
-		On("GetResourcePools", s.ctx.getDatastoreContext()).
-		Return([]pool.ResourcePool{data.firstPool, data.secondPool}, nil)
+		On("GetReadPools", s.ctx.getDatastoreContext()).
+		Return([]pool.ReadPool{data.firstPool, data.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 

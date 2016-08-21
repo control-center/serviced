@@ -16,9 +16,13 @@
 package facade_test
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -96,4 +100,70 @@ func (ft *FacadeUnitTest) Test_GetResourcePoolFailsForOtherDBError(c *C) {
 
 	c.Assert(result, IsNil)
 	c.Assert(err, Equals, expectedError)
+}
+
+func (ft *FacadeUnitTest) Test_GetReadPoolsShouldReturnCorrectValues(c *C) {
+	ft.setupMockDFSLocking()
+
+	resourcePool := pool.ResourcePool{
+		ID:                "firstPool",
+		Description:       "The first pool",
+		MemoryCapacity:    0,
+		MemoryCommitment:  0,
+		CoreCapacity:      0,
+		ConnectionTimeout: 10,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	firstHost := host.Host{
+		ID:     "firstHost",
+		Cores:  6,
+		Memory: 12000,
+	}
+
+	secondHost := host.Host{
+		ID:     "secondHost",
+		Cores:  8,
+		Memory: 10000,
+	}
+
+	firstService := service.Service{
+		ID: "firstService",
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(1000),
+		},
+	}
+
+	secondService := service.Service{
+		ID: "secondService",
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(2000),
+		},
+	}
+
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, resourcePool.ID).
+		Return([]host.Host{firstHost, secondHost}, nil)
+
+	ft.poolStore.On("GetResourcePools", ft.ctx).
+		Return([]pool.ResourcePool{resourcePool}, nil)
+
+	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
+		Return([]service.Service{firstService, secondService}, nil)
+
+	result, err := ft.Facade.GetReadPools(ft.ctx)
+
+	c.Assert(err, IsNil)
+	c.Assert(result, Not(IsNil))
+	c.Assert(result[0].ID, Equals, resourcePool.ID)
+	c.Assert(result[0].CoreCapacity, Equals, 14)
+	c.Assert(result[0].MemoryCapacity, Equals, uint64(22000))
+	c.Assert(result[0].MemoryCommitment, Equals, uint64(3000))
+	c.Assert(result[0].ConnectionTimeout, Equals, 10)
+
+	createdEquals := result[0].CreatedAt.Equal(resourcePool.CreatedAt)
+	c.Assert(createdEquals, Equals, true)
+
+	updateEquals := result[0].UpdatedAt.Equal(resourcePool.UpdatedAt)
+	c.Assert(updateEquals, Equals, true)
 }

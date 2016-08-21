@@ -22,20 +22,7 @@
         // Ensure logged in
         authService.checkLogin($scope);
 
-        var lastUpdate;
 
-        var updateFrequency = 3000;
-
-        servicedConfig.getConfig()
-            .then(config => {
-                updateFrequency = config.PollFrequency * 1000;
-            }).catch(err => {
-                let errMessage = err.statusText;
-                if(err.data && err.data.Detail){
-                    errMessage = err.data.Detail;
-                }
-                log.error("could not load serviced config:", errMessage);
-            });
 
 
         $scope.click_pool = function(id) {
@@ -126,10 +113,24 @@
           return poolID === "default";
         };
 
+		// Setup polling to update the pools list if it has changed.
+
+        var lastUpdate;
+        var updateFrequency = 3000;
+        var updatePromise;
+        
+		servicedConfig.getConfig()
+            .then(config => {
+                updateFrequency = config.PollFrequency * 1000;
+            }).catch(err => {
+				let errMessage = err.data ? err.data.Detail : err.statusText;
+                log.error("could not load serviced config:", errMessage);
+            });
+
         function updatePools(){
             resourcesFactory.getV2Pools()
                 .success(data => {
-                    $scope.pools = data.results.map(result => { return new Pool(result); });
+                    $scope.pools = data.results.map(result => new Pool(result));
                     $scope.totalPoolCount = data.total;
                 })
                 .error(data => {
@@ -144,8 +145,6 @@
                     lastUpdate = new Date().getTime();
                 });
         }
-
-        var updatePromise;
 
         function startPolling(){
             if(!updatePromise){

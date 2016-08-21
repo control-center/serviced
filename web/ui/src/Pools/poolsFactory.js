@@ -14,7 +14,10 @@
         $q = q;
 
         var newFactory = new BaseFactory(Pool, resourcesFactory.getPools);
+        newFactory.poolList = newFactory.objArr;
+        newFactory.poolMap = newFactory.objMap;
         return newFactory;
+
     }]);
 
     // Pool object constructor
@@ -22,7 +25,6 @@
     // and wraps it with extra functionality and info
     function Pool(pool){
         this.update(pool);
-        this.updateFn = resourcesFactory.getPools;
     }
 
     Pool.prototype = {

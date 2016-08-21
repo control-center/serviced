@@ -135,7 +135,7 @@
 
                             // if just intitalized, show loading and default to empty array
                             allItems = [];
-                            toggleNoData(true);
+                            toggleNoData(false);
                             return;
 
                         } else if (angular.isObject(allItems) && !angular.isArray(allItems)) {
