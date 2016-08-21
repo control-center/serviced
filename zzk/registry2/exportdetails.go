@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package registry
 
 import (
 	"fmt"
@@ -19,13 +19,15 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk/service"
 )
 
 // ExportDetails describes a port binding for an endpoint as it is
 // presented on the coordinator.
 type ExportDetails struct {
-	ExportBinding
+	service.ExportBinding
 	PrivateIP  string
+	MuxPort    uint16
 	InstanceID int
 	version    interface{}
 }

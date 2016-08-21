@@ -13,12 +13,14 @@
 
 // +build integration,!quick
 
-package service
+package registry_test
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/zzk"
+	. "github.com/control-center/serviced/zzk/registry2"
+	"github.com/control-center/serviced/zzk/service"
 	. "gopkg.in/check.v1"
 )
 
@@ -38,7 +40,7 @@ func (t *ZZKTest) TestRegisterExport(c *C) {
 	shutdown := make(chan struct{})
 	go func() {
 		RegisterExport(shutdown, conn, "tenantid", ExportDetails{
-			ExportBinding: ExportBinding{Application: "app"},
+			ExportBinding: service.ExportBinding{Application: "app"},
 			InstanceID:    1,
 		})
 		close(done)
@@ -129,7 +131,7 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 
 	// add an export
 	export := &ExportDetails{
-		ExportBinding: ExportBinding{Application: "app"},
+		ExportBinding: service.ExportBinding{Application: "app"},
 		InstanceID:    0,
 	}
 	err = conn.Create("/net/export/tenantid/app/0", export)
@@ -147,7 +149,7 @@ func (t *ZZKTest) TestTrackExports(c *C) {
 
 	// add an export and delete the other export
 	export = &ExportDetails{
-		ExportBinding: ExportBinding{Application: "app"},
+		ExportBinding: service.ExportBinding{Application: "app"},
 		InstanceID:    1,
 	}
 	err = conn.Create("/net/export/tenantid/app/1", export)
