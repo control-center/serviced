@@ -14,14 +14,11 @@
 package isvcs
 
 import (
-	"time"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
-	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
@@ -42,7 +39,6 @@ const (
 	managerOpExit                               // exit the loop of the manager
 	managerOpRegisterContainer                  // register a given container
 	managerOpInit                               // make sure manager is ready to run containers
-	managerOpWipe                               // wipe all data associated with volumes
 )
 
 var (
@@ -119,7 +115,11 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 	if !found {
 		return errors.New("could not find isvc")
 	}
-	glog.Infof("setting %s, %s: %s", name, key, value)
+	log.WithFields(logrus.Fields{
+		"isvc":  name,
+		"key":   key,
+		"value": value,
+	}).Debug("Setting configuration option")
 	svc.Configuration[key] = value
 	return nil
 }
@@ -144,7 +144,9 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 
 	svc, found := m.services[name]
 	if !found {
-		glog.Errorf("Internal service %q not found", name)
+		log.WithFields(logrus.Fields{
+			"isvc": name,
+		}).Warn("Internal service not found")
 		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
 	}
 
@@ -176,77 +178,45 @@ func (m *Manager) allImagesExist() error {
 	return nil
 }
 
-// wipe() removes the data directory associate with the manager
-func (m *Manager) wipe() error {
-
-	if err := os.RemoveAll(m.volumesDir); err != nil {
-		glog.V(2).Infof("could not remove %s: %v", m.volumesDir, err)
-	}
-	//nothing to wipe if the volumesDir doesn't exist
-	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
-		glog.V(2).Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
-		return nil
-	}
-	glog.Infof("Using docker to remove directories in %s", m.volumesDir)
-
-	// remove volumeDir by running a container as root
-	// FIXME: detect if already root and avoid running docker
-	var config dockerclient.Config
-	cd := &dockerclient.CreateContainerOptions{
-		Config:     &config,
-		HostConfig: &dockerclient.HostConfig{},
-	}
-
-	config.Image = "ubuntu"
-	config.Cmd = []string{"/bin/sh", "-c", "rm -Rf /mnt/volumes/*"}
-	config.Volumes = map[string]struct{}{
-		"/mnt/volumes": struct{}{},
-	}
-
-	cd.HostConfig.Binds = []string{m.volumesDir + ":/mnt/volumes"}
-	ctr, err := docker.NewContainer(cd, false, 5*time.Second, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	ctr.OnEvent(docker.Die, func(cid string) {
-		ctr.Delete(true)
-	})
-
-	return ctr.Start()
-}
-
 // loadImages() loads all the images defined in the registered services
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.services {
-		glog.V(2).Infof("Checking isvcs container %+v", c)
-		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
+		exists, err := m.imageExists(c.Repo, c.Tag)
+		if err != nil {
 			return err
+		}
+		if exists {
+			log.WithFields(logrus.Fields{
+				"isvc": c.Name,
+				"repo": c.Repo,
+				"tag":  c.Tag,
+			}).Debug("Found image for internal service")
+			continue
+		}
+		localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar.gz")
+		imageRepoTag := c.Repo + ":" + c.Tag
+		log := log.WithFields(logrus.Fields{
+			"image": imageRepoTag,
+		})
+		if _, exists := loadedImages[imageRepoTag]; exists {
+			continue
+		}
+		if _, err := os.Stat(localTar); err == nil {
+			if err := docker.ImportImage(imageRepoTag, localTar); err != nil {
+				return err
+			}
+			loadedImages[imageRepoTag] = true
+			log.WithFields(logrus.Fields{
+				"tarball": localTar,
+			}).Debug("Loaded image from local tarball")
 		} else {
-			if exists {
-				continue
+			log.Debug("Pulling image")
+			if err := docker.PullImage(imageRepoTag); err != nil {
+				return fmt.Errorf("Failed to pull image %s: %s", imageRepoTag, err)
 			}
-			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar.gz")
-			imageRepoTag := c.Repo + ":" + c.Tag
-			glog.Infof("Looking for image %s in tar %s", imageRepoTag, localTar)
-			if _, exists := loadedImages[imageRepoTag]; exists {
-				continue
-			}
-			if _, err := os.Stat(localTar); err == nil {
-				if err := docker.ImportImage(imageRepoTag, localTar); err != nil {
-					return err
-				}
-				glog.Infof("Loaded %s from %s", imageRepoTag, localTar)
-				loadedImages[imageRepoTag] = true
-			} else {
-				glog.Infof("Pulling image %s", imageRepoTag)
-				if err := docker.PullImage(imageRepoTag); err != nil {
-					return fmt.Errorf("Failed to pull image %s: %s", imageRepoTag, err)
-				}
-				glog.Infof("Pulled %s", imageRepoTag)
-				loadedImages[imageRepoTag] = true
-			}
+			loadedImages[imageRepoTag] = true
+			log.Info("Pulled image")
 		}
 	}
 	return nil
@@ -266,28 +236,14 @@ func (m *Manager) loop() {
 		select {
 		case request := <-m.requests:
 			switch request.op {
-			case managerOpWipe:
-				// stop all iservices
-				var wg sync.WaitGroup
-				for name, svc := range m.services {
-					if svc.IsRunning() {
-						wg.Add(1)
-						go func(svc *IService) {
-							defer wg.Done()
-							if err := svc.Stop(); err != nil {
-								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
-							}
-						}(m.services[name])
-					}
-				}
-				wg.Wait()
-				request.response <- m.wipe()
 			case managerOpNotify:
 				var failed bool
 				for _, svc := range m.services {
 					if svc.Notify != nil && svc.IsRunning() {
 						if err := svc.Notify(svc, request.val); err != nil {
-							glog.Errorf("Could not notify isvc %s: %s", svc.Name, err)
+							log.WithFields(logrus.Fields{
+								"isvc": svc.Name,
+							}).WithError(err).Error("Unable to notify internal service")
 							failed = true
 						}
 					}
@@ -339,7 +295,9 @@ func (m *Manager) loop() {
 						go func(svc *IService, i int) {
 							defer wg.Done()
 							if err := svc.Stop(); err != nil {
-								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
+								log.WithFields(logrus.Fields{
+									"isvc": svc.Name,
+								}).WithError(err).Error("Unable to stop internal service")
 								noStop[i] = 1
 								return
 							}
@@ -398,7 +356,11 @@ func (m *Manager) orderedStartGroups() []int {
 // Start all of the services in the specified start group and wait for all of
 // them to finish. Returns the number of services which failed to start.
 func (m *Manager) startServiceGroup(group int) int {
-	glog.V(1).Infof("Starting isvcs in group %d: %v", group, m.startGroups[group])
+	log.WithFields(logrus.Fields{
+		"group":    group,
+		"services": m.startGroups[group],
+	})
+	log.Debug("Starting internal services in group")
 
 	// track the number of services that haven't started
 	var noStart = make([]int, len(m.startGroups[group]))
@@ -413,7 +375,9 @@ func (m *Manager) startServiceGroup(group int) int {
 			go func(svc *IService, i int) {
 				defer wg.Done()
 				if err := svc.Start(); err != nil {
-					glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
+					log.WithFields(logrus.Fields{
+						"isvc": svc.Name,
+					}).WithError(err).Error("Unable to start internal service")
 					noStart[i] = 1
 					return
 				}
@@ -454,31 +418,24 @@ func (m *Manager) Register(svc *IService) error {
 	return <-request.response
 }
 
-// Wipe() removes the data directory associated with the Manager
-func (m *Manager) Wipe() error {
-	glog.V(2).Infof("manager sending wipe request")
-	defer glog.V(2).Infof("received wipe response")
-	return m.makeRequest(managerOpWipe)
-}
-
 // Stop() stops all the containers currently registered to the *Manager
 func (m *Manager) Stop() error {
-	glog.V(2).Infof("manager sending stop request")
-	defer glog.V(2).Infof("received stop response")
+	log.Debug("Internal services manager sending stop request")
+	defer log.Debug("Internal services manager received stop response")
 	return m.makeRequest(managerOpStop)
 }
 
 // Start() starts all the containers managed by the *Manager
 func (m *Manager) Start() error {
-	glog.V(2).Infof("manager sending start request")
-	defer glog.V(2).Infof("received start response")
+	log.Debug("Internal services manager sending start request")
+	defer log.Debug("Internal services manager received start response")
 	return m.makeRequest(managerOpStart)
 }
 
 // Notify() sends a notify() message to all the containers with the given data val
 func (m *Manager) Notify(val interface{}) error {
-	glog.V(2).Infof("manager sending notify request")
-	defer glog.V(2).Infof("received notify response")
+	log.Debug("Internal services manager sending notify request")
+	defer log.Debug("Internal services manager received notify response")
 	request := managerRequest{
 		op:       managerOpNotify,
 		val:      val,
@@ -490,7 +447,7 @@ func (m *Manager) Notify(val interface{}) error {
 
 // TearDown() causes the *Manager's loop() to exit
 func (m *Manager) TearDown() error {
-	glog.V(2).Infof("manager sending exit request")
-	defer glog.V(2).Infof("received exit response")
+	log.Debug("Internal services manager sending exit request")
+	defer log.Debug("Internal services manager received exit response")
 	return m.makeRequest(managerOpExit)
 }

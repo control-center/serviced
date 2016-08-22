@@ -13,8 +13,6 @@
 
 package isvcs
 
-import "github.com/zenoss/glog"
-
 var logstash *IService
 
 func initLogstash() {
@@ -54,7 +52,7 @@ func initLogstash() {
 			StartGroup: 1,
 		})
 	if err != nil {
-		glog.Fatalf("Error initializing logstash_master container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize Logstash internal service container")
 	}
 }
 

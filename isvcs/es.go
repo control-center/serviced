@@ -19,9 +19,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/elastigo/cluster"
-	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -79,9 +79,11 @@ func initElasticSearch() {
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
+
 	healthChecks := map[string]healthCheckDefinition{
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
+
 	elasticsearch_servicedPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
@@ -103,7 +105,9 @@ func initElasticSearch() {
 		},
 	)
 	if err != nil {
-		glog.Fatalf("Error initializing elasticsearch container: %s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": elasticsearch_serviced.ID,
+		}).WithError(err).Fatal("Unable to initialize internal service")
 	}
 	elasticsearch_serviced.Command = func() string {
 		clusterArg := ""
@@ -141,12 +145,14 @@ func initElasticSearch() {
 		},
 	)
 	if err != nil {
-		glog.Fatalf("Error initializing elasticsearch container: %s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": elasticsearch_logstash.ID,
+		}).WithError(err).Fatal("Unable to initialize internal service")
 	}
 
-    // This value will be overwritten by SERVICED_ISVCS_ENV_X in
-    // /etc/default/serviced
-    envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
+	// This value will be overwritten by SERVICED_ISVCS_ENV_X in
+	// /etc/default/serviced
+	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		clusterArg := ""
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
@@ -157,10 +163,13 @@ func initElasticSearch() {
 }
 
 func recoverES(path string) error {
+	log := log.WithFields(logrus.Fields{
+		"path": path,
+	})
 	if err := func() error {
 		file, err := os.Create(path + "-backup.tgz")
 		if err != nil {
-			glog.Errorf("Could not create backup for %s: %s", path, err)
+			log.WithError(err).Debug("Unable to create backup")
 			return err
 		}
 		defer file.Close()
@@ -169,7 +178,7 @@ func recoverES(path string) error {
 		tarfile := tar.NewWriter(gz)
 		defer tarfile.Close()
 		if err := volume.ExportDirectory(tarfile, path, filepath.Base(path)); err != nil {
-			glog.Errorf("Could not backup %s: %s", path, err)
+			log.WithError(err).Debug("Unable to back up")
 			return err
 		}
 		if err := volume.ExportFile(tarfile, path+".clustername", filepath.Base(path)+".clustername"); err != nil {
@@ -180,7 +189,7 @@ func recoverES(path string) error {
 		return err
 	}
 	if err := os.RemoveAll(path); err != nil {
-		glog.Errorf("Could not remove %s: %s", path, err)
+		log.WithError(err).Debug("Unable to remove backup")
 		return err
 	}
 	return nil
@@ -221,21 +230,27 @@ func getESHealth(url string) <-chan esres {
 func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 	return func(cancel <-chan struct{}) error {
 		url := fmt.Sprintf("http://localhost:%d/_cluster/health", port)
+		log := log.WithFields(logrus.Fields{
+			"url":       url,
+			"minhealth": minHealth,
+		})
 		var r esres
 		for {
 			select {
 			case r = <-getESHealth(url):
 				if r.err != nil {
-					glog.Warningf("Problem looking up %s: %s", r.url, r.err)
+					log.WithError(r.err).Debug("Unable to check Elastic health")
 					break
 				}
 				if status := GetHealth(r.response.Status); status < minHealth {
-					glog.Warningf("Received health status {%+v} at %s", r.response, r.url)
+					log.WithFields(logrus.Fields{
+						"reported": r.response.Status,
+					}).Warn("Elastic health reported below minimum")
 					break
 				}
 				return nil
 			case <-cancel:
-				glog.Infof("Cancel healthcheck for elasticsearch at %s", url)
+				log.Debug("Canceled health check for Elastic")
 				return nil
 			}
 			time.Sleep(time.Second)
@@ -248,21 +263,28 @@ func PurgeLogstashIndices(days int, gb int) {
 	port := iservice.PortBindings[0].HostPort
 	prefix := []string{"/usr/bin/curator", "--port", fmt.Sprintf("%d", port)}
 
-	glog.Infof("Purging logstash entries older than %d days", days)
+	log := log.WithFields(logrus.Fields{
+		"maxagedays": days,
+		"maxsizegb":  gb,
+	})
+
+	log.Debug("Purging Logstash entries older than max age")
 	indices := []string{"indices", "--older-than", fmt.Sprintf("%d", days), "--time-unit", "days", "--timestring", "%Y.%m.%d"}
 	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
 		if !(strings.Contains(string(output), "No indices found in Elasticsearch") ||
 			strings.Contains(string(output), "No indices matched provided args")) {
-			glog.Errorf("Unable to purge logstash entries older than %d days: %s", days, err)
+			log.WithError(err).Warn("Unable to purge logstash entries older than max age")
 		}
 	}
+	log.Info("Purged Logstash entries older than max age")
 
-	glog.Infof("Purging oldest logstash entries to limit disk usage to %d GB.", gb)
+	log.Debug("Purging Logstash entries to be below max size")
 	indices = []string{"--disk-space", fmt.Sprintf("%d", gb), "indices", "--all-indices"}
 	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
 		if !(strings.Contains(string(output), "No indices found in Elasticsearch") ||
 			strings.Contains(string(output), "No indices matched provided args")) {
-			glog.Errorf("Unable to purge logstash entries to limit disk usage to %d GB: %s", gb, err)
+			log.WithError(err).Warn("Unable to purge logstash entries to be below max size")
 		}
 	}
+	log.Info("Purged Logstash entries to be below max size")
 }

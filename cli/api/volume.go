@@ -13,10 +13,7 @@
 
 package api
 
-import (
-	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
-)
+import "github.com/control-center/serviced/volume"
 
 func (a *api) GetVolumeStatus() (*volume.Statuses, error) {
 	client, err := a.connectMaster()
@@ -25,9 +22,8 @@ func (a *api) GetVolumeStatus() (*volume.Statuses, error) {
 	}
 	response, err := client.GetVolumeStatus()
 	if err != nil {
-		glog.Errorf("Error from client.GetVolumeStatus(): %v", err)
+		log.WithError(err).Error("Unable to get volume status")
 		return nil, err
 	}
-	glog.V(2).Infof("api.GetVolumeStatus(): response from client.GetVolumeStatus(): %+v", response)
 	return response, nil
 }

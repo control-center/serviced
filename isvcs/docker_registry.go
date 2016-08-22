@@ -17,7 +17,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/zenoss/glog"
+	"github.com/Sirupsen/logrus"
 
 	"fmt"
 	"net/http"
@@ -64,7 +64,7 @@ func initDockerRegistry() {
 		},
 	)
 	if err != nil {
-		glog.Fatalf("Error initializing docker-registry container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize Docker registry internal service container")
 	}
 }
 
@@ -78,7 +78,9 @@ func checkDockerRegistryPath(svc *IService) error {
 			// no v1 path, so nothing to migrate
 			return nil
 		} else if err != nil {
-			glog.Errorf("Error trying to look up v1 docker registry path at %s: %s", v1Path, err)
+			log.WithFields(logrus.Fields{
+				"v1path": v1Path,
+			}).WithError(err).Error("Unable to look up v1 Docker registry path")
 			return err
 		}
 		// is this a v1 path, or just a misnamed v2 path? (1.1 => 1.1.x
@@ -88,18 +90,22 @@ func checkDockerRegistryPath(svc *IService) error {
 			// startup
 			return nil
 		} else if err != nil {
-			glog.Errorf("Error trying to verify v1 docker registry path at %s: %s", v1Path, err)
+			log.WithFields(logrus.Fields{
+				"v1path": v1Path,
+			}).WithError(err).Error("Unable to verify v1 Docker registry path")
 			return err
 		}
 		// this is a v2 registry, now we just need to move it into its new
 		// location. (1.1 => 1.1.x upgrade)
 		if err := os.Rename(v1Path, v2Path); err != nil {
-			glog.Errorf("Could not migrate v2 registry: %s", err)
+			log.WithError(err).Error("Unable to migrate v2 registry")
 			return err
 		}
-		glog.Infof("Successfully migrated v2 registry")
+		log.Info("Migrated v2 Docker registry")
 	} else if err != nil {
-		glog.Errorf("Error trying to look up v2 docker registry path at %s: %s", v2Path, err)
+		log.WithFields(logrus.Fields{
+			"v2path": v2Path,
+		}).WithError(err).Error("Unable to look up v2 Docker registry path")
 		return err
 	}
 	return nil
@@ -107,6 +113,9 @@ func checkDockerRegistryPath(svc *IService) error {
 
 func registryHealthCheck(halt <-chan struct{}) error {
 	url := fmt.Sprintf("http://localhost:%d/", registryPort)
+	log := log.WithFields(logrus.Fields{
+		"registryurl": url,
+	})
 	for {
 		resp, err := http.Get(url)
 		if resp != nil {
@@ -115,17 +124,17 @@ func registryHealthCheck(halt <-chan struct{}) error {
 		if err == nil {
 			break
 		} else {
-			glog.V(1).Infof("Still trying to connect to docker registry at %s: %v", url, err)
+			log.Debug("Unable to connect to Docker registry")
 		}
 
 		select {
 		case <-halt:
-			glog.V(1).Infof("Quit healthcheck for docker registry at %s", url)
+			log.Debug("Stopped health checks for Docker registry")
 			return nil
 		default:
 			time.Sleep(time.Second)
 		}
 	}
-	glog.V(1).Infof("docker registry running, browser at %s", url)
+	log.Debug("Docker registry checked in healthy")
 	return nil
 }

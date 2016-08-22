@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
 
 const (
@@ -38,7 +37,7 @@ func GetAgentIP(defaultRPCPort int) string {
 	}
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {
-		glog.Fatalf("Failed to get IP address: %s", err)
+		log.WithError(err).Fatal("Unable to get delegate IP address")
 	}
 	return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
 }
@@ -74,14 +73,12 @@ func (a version) Compare(b version) int {
 
 func convertStringSliceToMap(list []string) map[string]string {
 	mapValues := make(map[string]string)
-	for i, keyValuePair := range list {
+	for _, keyValuePair := range list {
 		if keyValuePair == "" {
-			glog.Warningf("Skipping empty key=value pair at index %d from list %v", i, list)
 			continue
 		}
 		keyValue := strings.SplitN(keyValuePair, "=", 2)
 		if len(keyValue) != 2 || keyValue[0] == "" {
-			glog.Warningf("Skipping invalid key=value pair %q at index %d from list %v", keyValuePair, i, list)
 			continue
 		}
 		mapValues[keyValue[0]] = keyValue[1]

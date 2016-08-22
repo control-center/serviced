@@ -14,8 +14,9 @@
 package proxy
 
 import (
+	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 
 	"fmt"
 	"io"
@@ -25,17 +26,23 @@ import (
 	"time"
 )
 
+var (
+	log = logging.PackageLogger()
+)
+
 // TCPMux is an implementation of tcp muxing RFC 1078.
 type TCPMux struct {
 	listener    net.Listener    // the connection this mux listens on
 	connections chan net.Conn   // stream of accepted connections
 	closing     chan chan error // shutdown noticiation
+	log         *logrus.Entry
 }
 
 // NewTCPMux creates a new tcp mux with the given listener. If it succees, it
 // is expected that this object is the owner of the listener and will close it
 // when Close() is called on the TCPMux.
 func NewTCPMux(listener net.Listener) (mux *TCPMux, err error) {
+	log.Debug("Starting TCP multiplexer")
 	if listener == nil {
 		return nil, fmt.Errorf("listener can not be nil")
 	}
@@ -43,13 +50,17 @@ func NewTCPMux(listener net.Listener) (mux *TCPMux, err error) {
 		listener:    listener,
 		connections: make(chan net.Conn),
 		closing:     make(chan chan error),
+		log: log.WithFields(logrus.Fields{
+			"address": listener.Addr(),
+		}),
 	}
 	go mux.loop()
+	mux.log.Info("Started TCP multiplexer")
 	return mux, nil
 }
 
 func (mux *TCPMux) Close() {
-	glog.V(5).Info("Close Called")
+	mux.log.Debug("Closing TCP multiplexer")
 	close(mux.closing)
 }
 
@@ -61,22 +72,28 @@ func (mux *TCPMux) acceptor(listener net.Listener, closing chan chan struct{}) {
 		conn, err := mux.listener.Accept()
 		if err != nil {
 			if strings.Contains(err.Error(), "too many open files") {
-				glog.Warningf("error accepting connections, retrying in 50 ms: %s", err)
+				mux.log.WithError(err).WithFields(logrus.Fields{
+					"retry": "50ms",
+				}).Warn("TCP multiplexer cannot accept connections")
 				select {
 				case <-closing:
-					glog.V(5).Info("shutting down acceptor")
+					mux.log.Debug("Shutting down TCP multiplexer")
 					return
 				case <-time.After(time.Millisecond * 50):
 					continue
 				}
 			}
-			glog.Errorf("shutting down acceptor: %s", err)
+			mux.log.WithError(err).Error("Shutting down TCP multiplexer")
 			return
 		}
-		glog.V(5).Infof("accepted connection: %s", conn)
+		mux.log.WithFields(logrus.Fields{
+			"remoteaddr": conn.RemoteAddr(),
+		}).Debug("Accepted connection")
 		select {
 		case <-closing:
-			glog.V(5).Info("shutting down acceptor")
+			mux.log.WithFields(logrus.Fields{
+				"remoteaddr": conn.RemoteAddr(),
+			}).Debug("Shutting down connection to mux")
 			conn.Close()
 			return
 		case mux.connections <- conn:
@@ -85,13 +102,13 @@ func (mux *TCPMux) acceptor(listener net.Listener, closing chan chan struct{}) {
 }
 
 func (mux *TCPMux) loop() {
-	glog.V(5).Infof("entering TPCMux loop")
+	mux.log.Debug("Entering TCP mux loop")
 	closeAcceptor := make(chan chan struct{})
 	go mux.acceptor(mux.listener, closeAcceptor)
 	for {
 		select {
 		case errc := <-mux.closing:
-			glog.V(5).Info("Closing mux")
+			mux.log.Debug("Shutting down TCP multiplexer")
 			closeAcceptorAck := make(chan struct{})
 			mux.listener.Close()
 			closeAcceptor <- closeAcceptorAck
@@ -100,10 +117,12 @@ func (mux *TCPMux) loop() {
 		case conn, ok := <-mux.connections:
 			if !ok {
 				mux.connections = nil
-				glog.V(6).Info("got nil conn, channel is closed")
+				mux.log.Debug("Got nil connection; channel is closed")
 				continue
 			}
-			glog.V(5).Info("handing mux connection")
+			mux.log.WithFields(logrus.Fields{
+				"remoteaddr": conn.RemoteAddr(),
+			}).Debug("Handling mux connection")
 			go mux.muxConnection(conn)
 		}
 	}
@@ -116,13 +135,16 @@ func (mux *TCPMux) loop() {
 // two connections.
 func (mux *TCPMux) muxConnection(conn net.Conn) {
 
+	log := mux.log.WithFields(logrus.Fields{
+		"remoteaddr": conn.RemoteAddr(),
+	})
 	// make sure that we don't block indefinitely
 	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
 	// Read in the mux header (a 6-byte representation of a TCP address)
 	muxHeader := make([]byte, 6)
 	if _, err := conn.Read(muxHeader); err != nil {
-		glog.Errorf("could not read mux line: %s", err)
+		log.WithError(err).Warn("Unable to read valid mux header. Closing connection")
 		conn.Close()
 		return
 	}
@@ -132,9 +154,13 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 	conn.SetReadDeadline(time.Time{})
 
 	// Dial the requested address
+	log = log.WithFields(logrus.Fields{
+		"remoteaddr":    conn.RemoteAddr(),
+		"containeraddr": address,
+	})
 	svc, err := net.Dial("tcp4", address)
 	if err != nil {
-		glog.Errorf("got %s => %s, could not dial to '%s' : %s", conn.LocalAddr(), conn.RemoteAddr(), address, err)
+		log.Debug("Unable to dial container address. Perhaps the container is still starting?")
 		conn.Close()
 		return
 	}
@@ -177,7 +203,6 @@ func ProxyLoop(client net.Conn, backend net.Conn, quit chan bool) {
 			return
 		}
 	}
-	//	glog.Infof("transferred %v bytes between %v", transferred, backendAddr)
 	client.Close()
 	backend.Close()
 }

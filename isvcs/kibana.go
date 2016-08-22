@@ -13,10 +13,6 @@
 
 package isvcs
 
-import (
-	"github.com/zenoss/glog"
-)
-
 var kibana *IService
 
 func initKibana() {
@@ -42,6 +38,6 @@ func initKibana() {
 			StartGroup:   1,
 		})
 	if err != nil {
-		glog.Fatalf("Error initializing kibana container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize Kibana internal service container")
 	}
 }

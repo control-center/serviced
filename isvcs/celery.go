@@ -13,10 +13,6 @@
 
 package isvcs
 
-import (
-	"github.com/zenoss/glog"
-)
-
 var celery *IService
 
 func initCelery() {
@@ -33,6 +29,6 @@ func initCelery() {
 			Volumes:      map[string]string{"celery": "/opt/celery/var"},
 		})
 	if err != nil {
-		glog.Fatalf("Error initializing celery container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize Celery internal service container")
 	}
 }

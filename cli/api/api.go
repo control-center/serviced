@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
@@ -47,42 +49,59 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
 	configureLoggingForLogstash(options.LogstashURL)
-	glog.Infof("StartServer: %v (%d)", options.StaticIPs, len(options.StaticIPs))
+	log := log.WithFields(logrus.Fields{
+		"staticips": options.StaticIPs,
+	})
+	log.Debug("Starting server")
 
-	glog.Infof("Setting supported TLS ciphers for HTTP: %s", options.TLSCiphers)
 	if err := utils.SetCiphers("http", options.TLSCiphers); err != nil {
 		return fmt.Errorf("unable to set HTTP TLS Ciphers %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"ciphers": strings.Join(options.TLSCiphers, ","),
+	}).Debug("Set supported TLS ciphers for HTTP")
 
-	glog.Infof("Setting minimum TLS version for HTTP: %s", options.TLSMinVersion)
 	if err := utils.SetMinTLS("http", options.TLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum HTTP TLS version %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"minversion": options.TLSMinVersion,
+	}).Debug("Set minimum TLS version for HTTP")
 
-	glog.Infof("Setting supported TLS ciphers for MUX: %s", options.MUXTLSCiphers)
 	if err := utils.SetCiphers("mux", options.MUXTLSCiphers); err != nil {
 		return fmt.Errorf("unable to set MUX TLS Ciphers %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"ciphers": strings.Join(options.MUXTLSCiphers, ","),
+	}).Debug("Set supported TLS ciphers for the mux")
 
-	glog.Infof("Setting minimum TLS version for MUX: %s", options.MUXTLSMinVersion)
 	if err := utils.SetMinTLS("mux", options.MUXTLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum MUX TLS version %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"minversion": options.MUXTLSMinVersion,
+	}).Debug("Set minimum TLS version for the mux")
 
-	glog.Infof("Setting supported TLS ciphers for RPC: %s", options.RPCTLSCiphers)
 	if err := utils.SetCiphers("rpc", options.RPCTLSCiphers); err != nil {
 		return fmt.Errorf("unable to set RPC TLS Ciphers %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"ciphers": strings.Join(options.RPCTLSCiphers, ","),
+	}).Debug("Set supported TLS ciphers for RPC")
 
-	glog.Infof("Setting minimum TLS version for RPC: %s", options.RPCTLSMinVersion)
 	if err := utils.SetMinTLS("rpc", options.RPCTLSMinVersion); err != nil {
 		return fmt.Errorf("unable to set minimum RPC TLS version %v", err)
 	}
+	log.WithFields(logrus.Fields{
+		"minversion": options.RPCTLSMinVersion,
+	}).Debug("Set minimum TLS version for RPC")
 
 	if len(options.CPUProfile) > 0 {
 		f, err := os.Create(options.CPUProfile)
 		if err != nil {
-			glog.Fatal(err)
+			log.WithFields(logrus.Fields{
+				"file": options.CPUProfile,
+			}).WithError(err).Fatal("Unable to create CPU profile file")
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
