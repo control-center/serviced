@@ -50,15 +50,15 @@ type PublicPortHandler interface {
 // PublicPortListener listens to ports for a provided ip
 type PublicPortListener struct {
 	conn    client.Connection
-	hostIP  string
+	hostID  string
 	handler PublicPortHandler
 }
 
 // NewPublicPortListener instantiates a new public port listener
-// for a provided hostIP (or master)
-func NewPublicPortListener(hostIP string, handler PublicPortHandler) *PublicPortListener {
+// for a provided hostID (or master)
+func NewPublicPortListener(hostID string, handler PublicPortHandler) *PublicPortListener {
 	return &PublicPortListener{
-		hostIP:  hostIP,
+		hostID:  hostID,
 		handler: handler,
 	}
 }
@@ -70,7 +70,7 @@ func (l *PublicPortListener) SetConnection(conn client.Connection) {
 
 // GetPath implements zzk.Listener
 func (l *PublicPortListener) GetPath(nodes ...string) string {
-	parts := append([]string{"/net/pub", l.hostIP}, nodes...)
+	parts := append([]string{"/net/pub", l.hostID}, nodes...)
 	return path.Join(parts...)
 }
 
@@ -88,11 +88,13 @@ func (l *PublicPortListener) PostProcess(p map[string]struct{}) {
 }
 
 // Spawn monitors the public port and its exports
-func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
+func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string) {
 	logger := log.WithFields(log.Fields{
-		"HostIP":     l.hostIP,
-		"PortNumber": port,
+		"hostid":      l.hostID,
+		"portaddress": portAddr,
 	})
+
+	pth := l.GetPath(portAddr)
 
 	// keep a cache of exports that have already been
 	// looked up.
@@ -102,25 +104,23 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 	isEnabled := false
 	defer func() {
 		if isEnabled {
-			l.handler.Disable(port)
+			l.handler.Disable(portAddr)
+			logger.Debug("Disabled port")
 		}
 	}()
-	pth := l.GetPath(port)
 
 	done := make(chan struct{})
 	defer func() { close(done) }()
 	for {
 
-		// set up a watch on the port
+		// set up a watch on the port address (e.g. 127.0.0.1:1234, :1234, :::1:1234)
 		dat := &PublicPort{}
 		evt, err := l.conn.GetW(pth, dat, done)
 		if err == client.ErrNoNode {
 			logger.Debug("Public port was deleted, exiting")
 			return
 		} else if err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Error("Could not watch public port")
+			logger.WithError(err).Error("Could not watch public port")
 			return
 		}
 
@@ -128,8 +128,8 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 		var exevt <-chan client.Event
 		if dat.Enabled {
 			exLogger := logger.WithFields(log.Fields{
-				"TenantID":    dat.TenantID,
-				"Application": dat.Application,
+				"tenantid":    dat.TenantID,
+				"application": dat.Application,
 			})
 
 			var ch []string
@@ -143,9 +143,7 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 
 				ok, exevt, err = l.conn.ExistsW(expth, done)
 				if err != nil {
-					exLogger.WithFields(log.Fields{
-						"Error": err,
-					}).Error("Could not check exports for endpoint")
+					exLogger.WithError(err).Error("Could not check exports for endpoint")
 					return
 				}
 
@@ -155,9 +153,7 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 						// we need an event, so try again
 						continue
 					} else if err != nil {
-						exLogger.WithFields(log.Fields{
-							"Error": err,
-						}).Error("Could not track exports for endpoint")
+						exLogger.WithError(err).Error("Could not track exports for endpoint")
 						return
 					}
 					break
@@ -176,10 +172,7 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 					if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
 						continue
 					} else if err != nil {
-						exLogger.WithFields(log.Fields{
-							"ExportKey": name,
-							"Error":     err,
-						}).Error("Could not look up export")
+						exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
 						return
 					}
 				}
@@ -191,17 +184,18 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, port string) {
 
 			// only set new values if the exports have changed
 			if sendUpdate {
-				l.handler.Set(port, exports)
+				l.handler.Set(portAddr, exports)
+				exLogger.Debug("Set new endpoints for export")
 			}
 		}
 
 		// do something if the state of the port has changed
 		if isEnabled != dat.Enabled {
 			if dat.Enabled {
-				l.handler.Enable(port, dat.Protocol, dat.UseTLS)
+				l.handler.Enable(portAddr, dat.Protocol, dat.UseTLS)
 				logger.Debug("Enabled port")
 			} else {
-				l.handler.Disable(port)
+				l.handler.Disable(portAddr)
 				logger.Info("Disabled port")
 			}
 			isEnabled = dat.Enabled
