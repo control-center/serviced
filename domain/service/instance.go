@@ -38,7 +38,7 @@ type Instance struct {
 	HostName     string
 	ServiceID    string
 	ServiceName  string // FIXME: service path would be better
-	DockerID     string
+	ContainerID  string
 	ImageSynced  bool
 	DesiredState DesiredState
 	CurrentState CurrentState

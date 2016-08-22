@@ -107,5 +107,4 @@ type ExportBinding struct {
 	Application string
 	Protocol    string
 	PortNumber  uint16
-	HostIP      string
 }

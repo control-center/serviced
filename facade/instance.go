@@ -256,7 +256,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		HostName:     hst.Name,
 		ServiceID:    svc.ID,
 		ServiceName:  svc.Name,
-		DockerID:     state.DockerID,
+		ContainerID:  state.ContainerID,
 		ImageSynced:  imageSynced,
 		DesiredState: state.DesiredState,
 		CurrentState: curState,
