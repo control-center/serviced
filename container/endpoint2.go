@@ -25,6 +25,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry2"
 	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
@@ -216,9 +217,10 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 		"Protocol":    bind.Protocol,
 	})
 
-	exp := zkservice.ExportDetails{
+	exp := registry.ExportDetails{
 		ExportBinding: bind,
 		PrivateIP:     ce.state.PrivateIP,
+		MuxPort:       ce.opts.TCPMuxPort,
 		InstanceID:    ce.state.InstanceID,
 	}
 
@@ -233,7 +235,7 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 
 				logger.Debug("Received coordinator connection")
 
-				zkservice.RegisterExport(cancel, conn, ce.opts.TenantID, exp)
+				registry.RegisterExport(cancel, conn, ce.opts.TenantID, exp)
 				select {
 				case <-cancel:
 					return
@@ -264,7 +266,7 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 
 				logger.Debug("Received coordinator connection")
 
-				ch := zkservice.TrackExports(cancel, conn, ce.opts.TenantID, bind.Application)
+				ch := registry.TrackExports(cancel, conn, ce.opts.TenantID, bind.Application)
 				for exports := range ch {
 					ce.UpdateRemoteExports(bind, exports)
 				}
@@ -282,7 +284,7 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 }
 
 // UpdateRemoteExports updates the proxy connections for an import port binding
-func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, exports []zkservice.ExportDetails) {
+func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, exports []registry.ExportDetails) {
 	logger := log.WithFields(log.Fields{
 		"Application": bind.Application,
 		"Purpose":     bind.Purpose,
@@ -435,7 +437,7 @@ func newProxyCache(tenantID string, tcpMuxPort uint16, useTLS, allowDirect bool)
 }
 
 // Set returns true if the key was created and an error
-func (c *proxyCache) Set(application string, portNumber uint16, exports ...zkservice.ExportDetails) (bool, error) {
+func (c *proxyCache) Set(application string, portNumber uint16, exports ...registry.ExportDetails) (bool, error) {
 	logger := log.WithFields(log.Fields{
 		"Application": application,
 		"PortNumber":  portNumber,
