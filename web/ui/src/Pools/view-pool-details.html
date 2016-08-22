@@ -50,7 +50,7 @@
 </div>
 
 <!-- VIRTUAL IPS -->
-<table jelly-table data-data="currentPool.model.VirtualIPs" data-config="virtualIPsTable" class="table side-flush never-loader">
+<table jelly-table data-data="currentPool.model.VirtualIPs" data-config="virtualIPsTable" class="table side-flush">
   <tbody>
     <tr ng-repeat="address in $data">
       <td data-title="'pool_tbl_virtual_ip_address_ip'|translate" sortable="'IP'">{{address.IP}}</td>

@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package read
+package pool
 
 import "time"
 
-// Pool is the read model for resource pools.  It is used for viewing information about resource
-// pools.
-type Pool struct {
+// ReadPool is the read model for resource pools which contains properties for viewing
+// information about resource pools.
+type ReadPool struct {
 	ID                string    // Unique identifier for resource pool, eg "default"
 	Description       string    // Description of the resource pool
 	CoreCapacity      int       // Sum of all cores on all hosts in the pool

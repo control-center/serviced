@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/pool"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -36,7 +37,7 @@ func SetDialTimeout(timeout int) {
 type connectRPCFn func(add string) (*rpc.Client, error)
 
 func connectRPC(addr string) (*rpc.Client, error) {
-	glog.V(4).Infof("Connecting to %s", addr)
+	glog.V(2).Infof("Connecting to %s", addr)
 	conn, err := net.DialTimeout("tcp", addr, time.Duration(dialTimeoutSecs)*time.Second)
 	if err != nil {
 		return nil, err
@@ -45,7 +46,7 @@ func connectRPC(addr string) (*rpc.Client, error) {
 }
 
 func connectRPCTLS(addr string) (*rpc.Client, error) {
-	glog.V(4).Infof("Connecting to %s", addr)
+	glog.V(2).Infof("Connecting to %s", addr)
 
 	config := tls.Config{InsecureSkipVerify: !RPCCertVerify}
 	timeoutDialer := net.Dialer{Timeout: time.Duration(dialTimeoutSecs) * time.Second}
@@ -53,6 +54,9 @@ func connectRPCTLS(addr string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	cipher := conn.ConnectionState().CipherSuite
+	glog.V(2).Infof("RPC client connected with TLS cipher=%s (%d)\n", utils.GetCipherName(cipher), cipher)
+
 	return jsonrpc.NewClient(conn), nil
 }
 
@@ -111,7 +115,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	wg.Add(1)
 	go func() {
 		wg.Done()
-		glog.V(4).Infof("rpcClient: Call %s", serviceMethod)
+		glog.V(2).Infof("rpcClient: Call %s", serviceMethod)
 		rpcErr := rpcClient.Call(serviceMethod, args, reply)
 		errChan <- rpcErr
 	}()
@@ -146,7 +150,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 			//log long calls and remove from pool to prevent blocks
 			glog.V(2).Infof("Long Running Call %s %s", serviceMethod, time.Now().Sub(start))
 			if !clientRemoved {
-				glog.V(1).Infof("Long Running Call removing client from pool %s after %s\n", serviceMethod, time.Now().Sub(start))
+				glog.V(2).Infof("Long Running Call removing client from pool %s after %s\n", serviceMethod, time.Now().Sub(start))
 				rc.pool.Remove(item)
 				clientRemoved = true
 			}
