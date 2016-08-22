@@ -28,7 +28,7 @@ func (hook ContextHook) Fire(entry *logrus.Entry) error {
 		name := fu.Name()
 		if strings.HasPrefix(name, prefix) && !strings.HasPrefix(name, vendorprefix) {
 			file, line := fu.FileLine(pc[i] - 1)
-			entry.Data["location"] = fmt.Sprintf("%s:%d", path.Base(file), line)
+			entry.SetField("location", fmt.Sprintf("%s:%d", path.Base(file), line))
 			break
 		}
 	}
