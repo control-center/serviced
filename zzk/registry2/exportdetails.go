@@ -27,6 +27,7 @@ import (
 type ExportDetails struct {
 	service.ExportBinding
 	PrivateIP  string
+	HostIP     string
 	MuxPort    uint16
 	InstanceID int
 	version    interface{}
