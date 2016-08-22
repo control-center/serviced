@@ -538,7 +538,7 @@ func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, import
 
 	// Export the snapshot
 	c.Assert(vol.Snapshot("Backup", "", []string{}), IsNil)
-	err = vol.Export("Base_Backup", "", buffer)
+	err = vol.Export("Base_Backup", "", buffer, []string{})
 	c.Assert(err, IsNil)
 
 	// Import the snapshot
