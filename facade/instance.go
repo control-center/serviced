@@ -46,7 +46,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 
 	logger.Debug("Loaded service")
 
-	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
 	if err != nil {
 
 		logger.WithFields(log.Fields{
