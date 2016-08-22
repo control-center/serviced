@@ -13,10 +13,6 @@
 
 package isvcs
 
-import (
-	"github.com/zenoss/glog"
-)
-
 var opentsdb *IService
 
 func initOTSDB() {
@@ -70,29 +66,7 @@ func initOTSDB() {
 			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
 		})
 	if err != nil {
-		glog.Fatalf("Error initializing opentsdb container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize opentsdb internal service container")
 	}
 
 }
-
-/*
-func (c *OpenTsdbISvc) Run() error {
-	c.ISvc.Run()
-
-	start := time.Now()
-	timeout := time.Second * 30
-	for {
-		if resp, err := http.Get("http://localhost:4242/version"); err == nil {
-			resp.Body.Close()
-			break
-		} else {
-			if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
-				return fmt.Errorf("Could not startup elastic search container.")
-			}
-			glog.V(2).Infof("Still trying to connect to opentsdb: %v", err)
-			time.Sleep(time.Millisecond * 100)
-		}
-	}
-	return nil
-}
-*/

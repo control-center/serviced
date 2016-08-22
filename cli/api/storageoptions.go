@@ -18,9 +18,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
 )
 
 // Override to allow loop back devices with devicemapper storage
@@ -71,7 +71,7 @@ func thinPoolEnabled(storageOptions []string) bool {
 func loopBackOptionsFound(storageOptions []string) bool {
 	found := false
 	for _, storageArg := range storageOptions {
-		if strings.HasPrefix(storageArg, "dm.loop") || strings.HasPrefix(storageArg, "dm.basesize") {
+		if strings.HasPrefix(storageArg, "dm.loop") {
 			found = true
 			break
 		}
@@ -81,11 +81,15 @@ func loopBackOptionsFound(storageOptions []string) bool {
 
 func validateStorageArgs() error {
 	if options.Master {
+		log := log.WithFields(logrus.Fields{
+			"driver": options.FSType,
+			"args":   strings.Join(options.StorageArgs, ","),
+		})
 		if options.FSType != volume.DriverTypeDeviceMapper {
-			glog.Warningf("WARNING: filesystem type %q is NOT recommended for production use. The recommended configuration is %s with a thin pool.", options.FSType, volume.DriverTypeDeviceMapper)
+			log.Warnf("Using a non-recommended storage driver. Recommended configuration is %s with an LVM thin pool", volume.DriverTypeDeviceMapper)
 		} else if thinPoolEnabled(options.StorageArgs) {
 			if loopBackOptionsFound(options.StorageArgs) {
-				glog.Warningf("Ignoring arguments related to loopback devices in %v because a devicemapper thin pool is configured.", options.StorageArgs)
+				log.Warn("Ignoring loop device storage arguments because a thin pool is configured")
 			}
 		} else {
 			allowLoopBack, err := strconv.ParseBool(options.AllowLoopBack)
@@ -95,7 +99,7 @@ func validateStorageArgs() error {
 
 			// if we're using devicemapper without a thin pool, and
 			if allowLoopBack {
-				glog.Warningf("Using a loop back device in production is NOT recommended, but continuing because --allow-loop-back is true")
+				log.Warn("Use of a loop-device-based thin pool is NOT recommended, but continuing because --allow-loop-back is true")
 			} else {
 				return fmt.Errorf("Use of devicemapper loop back device is not allowed unless --allow-loop-back=true")
 			}

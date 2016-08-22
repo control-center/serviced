@@ -57,18 +57,26 @@ type TextFormatter struct {
 }
 
 func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
+	var b *bytes.Buffer
+	entry.mu.RLock()
 	var keys []string = make([]string, 0, len(entry.Data))
 	for k := range entry.Data {
 		keys = append(keys, k)
 	}
+	entry.mu.RUnlock()
 
 	if !f.DisableSorting {
 		sort.Strings(keys)
 	}
+	if entry.Buffer != nil {
+		b = entry.Buffer
+	} else {
+		b = &bytes.Buffer{}
+	}
 
-	b := &bytes.Buffer{}
-
+	entry.mu.Lock()
 	prefixFieldClashes(entry.Data)
+	entry.mu.Unlock()
 
 	isColorTerminal := isTerminal && (runtime.GOOS != "windows")
 	isColored := (f.ForceColors || isColorTerminal) && !f.DisableColors
@@ -87,9 +95,11 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
 		if entry.Message != "" {
 			f.appendKeyValue(b, "msg", entry.Message)
 		}
+		entry.mu.RLock()
 		for _, key := range keys {
 			f.appendKeyValue(b, key, entry.Data[key])
 		}
+		entry.mu.RUnlock()
 	}
 
 	b.WriteByte('\n')
@@ -116,6 +126,8 @@ func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []strin
 	} else {
 		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %-44s ", levelColor, levelText, entry.Time.Format(timestampFormat), entry.Message)
 	}
+	entry.mu.RLock()
+	defer entry.mu.RUnlock()
 	for _, k := range keys {
 		v := entry.Data[k]
 		fmt.Fprintf(b, " \x1b[%dm%s\x1b[0m=%+v", levelColor, k, v)
@@ -128,10 +140,10 @@ func needsQuoting(text string) bool {
 			(ch >= 'A' && ch <= 'Z') ||
 			(ch >= '0' && ch <= '9') ||
 			ch == '-' || ch == '.') {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (f *TextFormatter) appendKeyValue(b *bytes.Buffer, key string, value interface{}) {
@@ -141,14 +153,14 @@ func (f *TextFormatter) appendKeyValue(b *bytes.Buffer, key string, value interf
 
 	switch value := value.(type) {
 	case string:
-		if needsQuoting(value) {
+		if !needsQuoting(value) {
 			b.WriteString(value)
 		} else {
 			fmt.Fprintf(b, "%q", value)
 		}
 	case error:
 		errmsg := value.Error()
-		if needsQuoting(errmsg) {
+		if !needsQuoting(errmsg) {
 			b.WriteString(errmsg)
 		} else {
 			fmt.Fprintf(b, "%q", value)

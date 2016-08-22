@@ -14,14 +14,18 @@
 package isvcs
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 
 	"time"
 )
 
-var Mgr *Manager
+var (
+	Mgr *Manager
+	log = logging.PackageLogger()
+)
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
@@ -38,35 +42,51 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 
 	elasticsearch_serviced.docker = dockerAPI
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "elasticsearch-serviced",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	elasticsearch_logstash.docker = dockerAPI
 	if err := Mgr.Register(elasticsearch_logstash); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "elasticsearch-logstash",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	zookeeper.docker = dockerAPI
 	if err := Mgr.Register(zookeeper); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "zookeeper",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	logstash.docker = dockerAPI
 	if err := Mgr.Register(logstash); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "logstash",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	opentsdb.docker = dockerAPI
 	if err := Mgr.Register(opentsdb); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "opentsdb",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	celery.docker = dockerAPI
 	if err := Mgr.Register(celery); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "celery",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	dockerRegistry.docker = dockerAPI
 	if err := Mgr.Register(dockerRegistry); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "docker-registry",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	kibana.docker = dockerAPI
 	if err := Mgr.Register(kibana); err != nil {
-		glog.Fatalf("%s", err)
+		log.WithFields(logrus.Fields{
+			"isvc": "kibana",
+		}).WithError(err).Fatal("Unable to register internal service")
 	}
 }
 
@@ -77,7 +97,9 @@ func InitServices(isvcNames []string, dockerLogDriver string, dockerLogConfig ma
 		case "zookeeper":
 			zookeeper.docker = dockerAPI
 			if err := Mgr.Register(zookeeper); err != nil {
-				glog.Fatalf("%s", err)
+				log.WithFields(logrus.Fields{
+					"isvc": "zookeeper",
+				}).WithError(err).Fatal("Unable to register internal service")
 			}
 		}
 	}
