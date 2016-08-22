@@ -100,7 +100,7 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 
 		ce.state = &zkservice.State{
 			ServiceState: zkservice.ServiceState{
-				DockerID: hostname,
+				ContainerID: hostname,
 			},
 			HostID:     ce.opts.HostID,
 			ServiceID:  svc.ID,
@@ -152,7 +152,7 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		go func() {
 			var err error
 			ce.state, err = zkservice.MonitorState(cancel, conn, req, func(s *zkservice.State) bool {
-				return strings.HasPrefix(s.DockerID, hostname)
+				return strings.HasPrefix(s.ContainerID, hostname)
 			})
 			errc <- err
 		}()
@@ -220,6 +220,7 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 	exp := registry.ExportDetails{
 		ExportBinding: bind,
 		PrivateIP:     ce.state.PrivateIP,
+		HostIP:        ce.state.HostIP,
 		MuxPort:       ce.opts.TCPMuxPort,
 		InstanceID:    ce.state.InstanceID,
 	}

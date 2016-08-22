@@ -44,15 +44,16 @@ var ErrInvalidStateID = errors.New("invalid state id")
 
 // ServiceState provides information of a service state
 type ServiceState struct {
-	DockerID   string
-	ImageID    string
-	Paused     bool
-	PrivateIP  string
-	Imports    []ImportBinding
-	Exports    []ExportBinding
-	Started    time.Time
-	Terminated time.Time
-	version    interface{}
+	ContainerID string
+	ImageID     string
+	Paused      bool
+	PrivateIP   string
+	HostIP      string
+	Imports     []ImportBinding
+	Exports     []ExportBinding
+	Started     time.Time
+	Terminated  time.Time
+	version     interface{}
 }
 
 // Version implements client.Node
