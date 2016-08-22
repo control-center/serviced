@@ -14,14 +14,14 @@
 package isvcs
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	dfsdocker "github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
+	metrics "github.com/rcrowley/go-metrics"
 
 	"bytes"
 	"encoding/json"
@@ -52,6 +52,8 @@ var (
 	ErrNotRunning       = errors.New("isvc: not running")
 	ErrRunning          = errors.New("isvc: running")
 	ErrBadContainerSpec = errors.New("isvc: bad service specification")
+
+	loggedHostIPOverride bool
 )
 
 type ExitError int
@@ -198,7 +200,9 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 
 	if sd.PreStart != nil {
 		if err := sd.PreStart(&svc); err != nil {
-			glog.Errorf("Could not prestart service %s: %s", sd.Name, err)
+			log.WithFields(logrus.Fields{
+				"isvc": sd.Name,
+			}).WithError(err).Error("Unable to prestart service")
 			return nil, err
 		}
 	}
@@ -292,8 +296,10 @@ func (svc *IService) create() (*docker.Container, error) {
 		},
 	}
 
-	glog.Infof("hostConfig.LogConfig.Type=%s", hostConfig.LogConfig.Type)
-	glog.Infof("hostConfig.LogConfig.Config=%v", hostConfig.LogConfig.Config)
+	log := log.WithFields(logrus.Fields{
+		"isvc":    svc.name(),
+		"logtype": hostConfig.LogConfig.Type,
+	})
 
 	var config dockerclient.Config
 	cd := &dockerclient.CreateContainerOptions{
@@ -311,7 +317,7 @@ func (svc *IService) create() (*docker.Container, error) {
 	// compromising security.
 	if svc.HostNetwork {
 		cd.HostConfig.NetworkMode = "host"
-		glog.Warningf("Host networking enabled for isvc %s", svc.Name)
+		log.Info("Using host network stack for internal service")
 	}
 
 	// attach all exported ports
@@ -327,9 +333,11 @@ func (svc *IService) create() (*docker.Container, error) {
 			}
 
 			cd.HostConfig.PortBindings[port] = append(cd.HostConfig.PortBindings[port], portBinding)
+			log.WithFields(logrus.Fields{
+				"bindaddress": fmt.Sprintf("%s:%d", portBinding.HostIP, portBinding.HostPort),
+			}).Debug("Bound internal service port to host")
 		}
 	}
-	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.HostConfig.PortBindings)
 
 	// copy any links to other isvcs
 	if svc.Links != nil && len(svc.Links) > 0 {
@@ -339,11 +347,12 @@ func (svc *IService) create() (*docker.Container, error) {
 		// FIXME: Other sanity checks we could add - make sure that the source
 		//        container is not in the same group or a later group
 		if svc.StartGroup == 0 {
-			glog.Fatalf("isvc %s can not use docker Links with StartGroup=0", svc.Name)
+			log.WithFields(logrus.Fields{
+				"startgroup": 0,
+			}).Fatal("Internal service in the first start group cannot use Docker links")
 		}
 		cd.HostConfig.Links = make([]string, len(svc.Links))
 		copy(cd.HostConfig.Links, svc.Links)
-		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.HostConfig.Links)
 	}
 
 	// attach all exported volumes
@@ -354,9 +363,13 @@ func (svc *IService) create() (*docker.Container, error) {
 	if svc.Volumes != nil && len(svc.Volumes) > 0 {
 		for src, dest := range svc.Volumes {
 			hostpath := svc.getResourcePath(src)
+			log := log.WithFields(logrus.Fields{
+				"hostpath":      hostpath,
+				"containerpath": dest,
+			})
 			if exists, _ := isDir(hostpath); !exists {
 				if err := os.MkdirAll(hostpath, 0777); err != nil {
-					glog.Errorf("could not create %s on host: %s", hostpath, err)
+					log.WithError(err).Debug("Unable to create volume path on host")
 					return nil, err
 				}
 			}
@@ -368,8 +381,12 @@ func (svc *IService) create() (*docker.Container, error) {
 	// global volumes
 	if isvcsVolumes != nil && len(isvcsVolumes) > 0 {
 		for src, dest := range isvcsVolumes {
+			log := log.WithFields(logrus.Fields{
+				"hostpath":      src,
+				"containerpath": dest,
+			})
 			if exists, _ := isDir(src); !exists {
-				glog.Warningf("Could not mount source %s: path does not exist", src)
+				log.Warn("Unable to mount host path that does not exist")
 				continue
 			}
 			cd.HostConfig.Binds = append(cd.HostConfig.Binds, fmt.Sprintf("%s:%s", src, dest))
@@ -386,28 +403,34 @@ func (svc *IService) create() (*docker.Container, error) {
 }
 
 func (svc *IService) attach() (*docker.Container, error) {
+	log := log.WithFields(logrus.Fields{
+		"isvc": svc.name(),
+	})
 	ctr, _ := docker.FindContainer(svc.name())
 	if ctr != nil {
+		log := log.WithFields(logrus.Fields{
+			"containerid": ctr.ID,
+		})
 		notify := make(chan int, 1)
 		if !ctr.IsRunning() {
-			glog.Infof("isvc %s found but not running; removing container %s", svc.name(), ctr.ID)
+			log.Warn("Internal service container found but not running. Removing.")
 			go svc.remove(notify)
 		} else if !svc.checkVolumes(ctr) {
 			// CC-1550: A reload causes CC to re-read its configuration, which means that the host volumes
 			//          mounted into the isvcs containers might change. If that happens, we cannot simply
 			//          attach to the existing containers. Instead, we need to stop them and create new ones
 			//          using the revised configuration.
-			glog.Infof("isvc %s found but volumes are missing or incomplete; removing container %s", svc.name(), ctr.ID)
 			ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
 			svc.stop()
+			log.Info("Internal service restarted to use revised configuration")
 		} else {
-			glog.Infof("Attaching to isvc %s at %s", svc.name(), ctr.ID)
+			log.Info("Attaching to internal service container")
 			return ctr, nil
 		}
 		<-notify
 	}
 
-	glog.Infof("Creating a new container for isvc %s", svc.name())
+	log.Debug("Creating a new container for internal service")
 	return svc.create()
 }
 
@@ -428,31 +451,31 @@ func (svc *IService) start() (<-chan int, error) {
 		return nil, err
 	}
 
+	log := log.WithFields(logrus.Fields{
+		"isvc":        svc.name(),
+		"containerid": ctr.ID,
+	})
+
 	// perform an initial healthcheck to verify that the service started successfully
 	select {
 	case err := <-svc.startupHealthcheck():
 		if err != nil {
-			err = fmt.Errorf("Startup healthcheck for %s failed after %3.0f seconds: %s", svc.Name, svc.StartupTimeout.Seconds(), err)
-			glog.Error(err)
-			// Dump last 10000 lines of container if possible.
-			if output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput(); err != nil {
-				glog.Errorf("Could not get logs for container %s", ctr.ID)
-			} else {
-				prefix := fmt.Sprintf("ctr-%s: ", svc.Name)
-				split := strings.Split(string(output), "\n")
-				for i, s := range split {
-					split[i] = prefix + s
-				}
-				final := strings.Join(split, "\n")
-				glog.Warningf("Last 10000 lines of container %s:\n %s", ctr.ID, string(final))
+			log.WithFields(logrus.Fields{
+				"timeout": svc.StartupTimeout,
+			})
+			log.WithError(err).Debug("Internal service failed to check in healthy within the timeout")
 
-			}
+			// Dump last 10000 lines of container if possible.
+			dockerLogsToFile(ctr.ID, 10000)
+
 			svc.stop()
 			return nil, err
 		}
 		svc.startTime = time.Now()
 	case rc := <-notify:
-		glog.Errorf("isvc %s exited on startup, rc=%d", svc.Name, rc)
+		log.WithFields(logrus.Fields{
+			"exitcode": rc,
+		}).Error("Internal service exited on startup")
 		svc.setStoppedHealthStatus(ExitError(rc))
 		return nil, ExitError(rc)
 	}
@@ -461,43 +484,48 @@ func (svc *IService) start() (<-chan int, error) {
 }
 
 func (svc *IService) stop() error {
+	log := log.WithFields(logrus.Fields{
+		"isvc":        svc.Name,
+		"containerid": svc.Name,
+	})
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
 		svc.setStoppedHealthStatus(nil)
 		return nil
 	} else if err != nil {
-		glog.Errorf("Could not get isvc container %s", svc.Name)
+		log.WithError(err).Debug("Unable to get internal service container")
 		svc.setStoppedHealthStatus(err)
 		return err
 	}
-
-	glog.Warningf("Stopping isvc container %s", svc.name())
+	log.Debug("Stopping internal service container")
 	err = ctr.Stop(45 * time.Second)
+	log.Info("Stopped internal service container")
 	svc.setStoppedHealthStatus(err)
 	return err
 }
 
 func (svc *IService) remove(notify chan<- int) {
+	log := log.WithFields(logrus.Fields{
+		"isvc":        svc.Name,
+		"containerid": svc.Name,
+	})
 	defer close(notify)
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
 		return
 	} else if err != nil {
-		glog.Errorf("Could not get isvc container %s", svc.Name)
+		log.WithError(err).Debug("Unable to find internal service container")
 		return
 	}
 
 	// report the log output
-	if output, err := exec.Command("docker", "logs", "--tail", "1000", ctr.ID).CombinedOutput(); err != nil {
-		glog.Warningf("Could not get logs for container %s", ctr.Name)
-	} else {
-		glog.V(1).Infof("Exited isvc %s:\n %s", svc.Name, string(output))
-	}
+	dockerLogsToFile(ctr.ID, 1000)
 
 	// kill the container if it is running
 	if ctr.IsRunning() {
-		glog.Warningf("isvc %s is still running; killing", svc.Name)
+		log.Debug("Internal service container still running; killing")
 		ctr.Kill()
+		log.Warn("Killed internal service container that wouldn't die")
 	}
 
 	// get the exit code
@@ -506,7 +534,7 @@ func (svc *IService) remove(notify chan<- int) {
 
 	// delete the container
 	if err := ctr.Delete(true); err != nil && err != docker.ErrNoSuchContainer {
-		glog.Errorf("Could not remove isvc %s: %s", ctr.Name, err)
+		log.WithError(err).Warn("Unable to remove internal service container")
 	}
 }
 
@@ -517,12 +545,16 @@ func (svc *IService) run() {
 	haltStats := make(chan struct{})
 	haltHealthChecks := make(chan struct{})
 
+	log := log.WithFields(logrus.Fields{
+		"isvc": svc.Name,
+	})
+
 	for {
 		select {
 		case req := <-svc.actions:
 			switch req.action {
 			case stop:
-				glog.Infof("Stopping isvc %s", svc.Name)
+				log.Debug("Stopping internal service container")
 				if !svc.IsRunning() {
 					req.response <- ErrNotRunning
 					continue
@@ -543,12 +575,14 @@ func (svc *IService) run() {
 
 				if rc := <-svc.exited; rc != 0 {
 					svc.setStoppedHealthStatus(ExitError(rc))
-					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
+					log.WithFields(logrus.Fields{
+						"exitcode": rc,
+					}).Error("An internal service exited with a non-zero exit code")
 				}
 				svc.setExitedChannel(nil)
 				req.response <- nil
 			case start:
-				glog.Infof("Starting isvc %s", svc.Name)
+				log.Debug("Starting internal service")
 				if svc.IsRunning() {
 					req.response <- ErrRunning
 					continue
@@ -556,9 +590,9 @@ func (svc *IService) run() {
 
 				newExited, err = svc.start()
 				if err != nil && svc.Recover != nil {
-					glog.Warningf("ISVC %s failed to start; attempting recovery", svc.name())
+					log.WithError(err).Warn("Internal service failed to start. Attempting to recover.")
 					if e := svc.Recover(svc.getResourcePath("")); e != nil {
-						glog.Errorf("Could not recover service %s: %s", svc.name(), e)
+						log.WithError(e).Error("Unable to recover internal service")
 					} else {
 						newExited, err = svc.start()
 					}
@@ -577,7 +611,7 @@ func (svc *IService) run() {
 
 				req.response <- nil
 			case restart:
-				glog.Infof("Restarting isvc %s", svc.Name)
+				log.Debug("Restarting internal service")
 				if svc.IsRunning() {
 
 					if collecting {
@@ -607,20 +641,24 @@ func (svc *IService) run() {
 					collecting = true
 				}
 				req.response <- nil
+				log.Info("Restarted internal service")
 			}
 		case rc := <-svc.exited:
 			svc.setStoppedHealthStatus(ExitError(rc))
-			glog.Errorf("isvc %s exited unexpectedly; rc=%d", svc.Name, rc)
+			log.WithFields(logrus.Fields{
+				"exitcode": rc,
+			}).Warn("Internal service exited unexpectedly")
 
 			stopService := svc.isFlapping()
 			if !stopService {
-				glog.Infof("Restarting isvc %s ", svc.Name)
+				log.Debug("Restarting internal service")
 				newExited, err = svc.start()
 				svc.setExitedChannel(newExited)
 				if err != nil {
-					glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
+					log.WithError(err).Error("Unable to restart internal service")
 					stopService = true
 				}
+				log.Info("Restarted internal service")
 			}
 
 			if stopService {
@@ -631,7 +669,7 @@ func (svc *IService) run() {
 					}
 					collecting = false
 				}
-				glog.Errorf("isvc %s not restarted; failed too many times", svc.Name)
+				log.Error("Not restarting internal service; failed too many times")
 				svc.stop()
 				svc.setExitedChannel(nil)
 			}
@@ -660,24 +698,33 @@ func (svc *IService) isFlapping() bool {
 func (svc *IService) checkVolumes(ctr *docker.Container) bool {
 	dctr, err := ctr.Inspect()
 	if err != nil {
-		glog.Errorf("Unable to inspect container %s: %s", ctr.ID, err)
+		log.WithFields(logrus.Fields{
+			"containerid": ctr.ID,
+		}).WithError(err).Error("Unable to inspect container")
 		return false
 	}
-
-	glog.V(2).Infof("checkVolumes for isvcs %s containerID=%s:\ndctr=%#v", svc.Name, ctr.ID, dctr)
 
 	if svc.Volumes != nil {
 		for src, dest := range svc.Volumes {
 			var mount *dockerclient.Mount
 			if mount = findContainerMount(dctr, dest); mount == nil {
-				glog.V(2).Infof("checkVolumes for isvcs %s, volume %s not found in containerID=%s", svc.Name, dest, ctr.ID)
+				log.WithFields(logrus.Fields{
+					"isvc":        svc.Name,
+					"volume":      dest,
+					"containerid": ctr.ID,
+				}).Debug("Volume not found in container")
 				return false
 			}
 
 			expectedSrc, _ := filepath.EvalSymlinks(svc.getResourcePath(src))
 			if rel, _ := filepath.Rel(filepath.Clean(expectedSrc), mount.Source); rel != "." {
-				glog.V(2).Infof("checkVolumes for isvcs %s, the mount for volume %s has changed in containerID=%s; expected %s, found %s",
-					svc.Name, dest, ctr.ID, expectedSrc, mount.Source)
+				log.WithFields(logrus.Fields{
+					"isvc":        svc.Name,
+					"volume":      dest,
+					"containerid": ctr.ID,
+					"expected":    expectedSrc,
+					"found":       mount.Source,
+				}).Debug("Volume mount in container has changed")
 				return false
 			}
 		}
@@ -687,13 +734,22 @@ func (svc *IService) checkVolumes(ctr *docker.Container) bool {
 		for src, dest := range isvcsVolumes {
 			var mount *dockerclient.Mount
 			if mount = findContainerMount(dctr, dest); mount == nil {
-				glog.V(2).Infof("checkVolumes for isvcs %s, global volume %s not found in containerID=%s", svc.Name, dest, ctr.ID)
+				log.WithFields(logrus.Fields{
+					"isvc":        svc.Name,
+					"volume":      dest,
+					"containerid": ctr.ID,
+				}).Debug("Global volume not found in container")
 				return false
 			}
 
 			if rel, _ := filepath.Rel(src, mount.Source); rel != "." {
-				glog.V(2).Infof("checkVolumes for isvcs %s, the mount for global volume %s has changed in containerID=%s; expected %s, found %s",
-					svc.Name, dest, ctr.ID, src, mount.Source)
+				log.WithFields(logrus.Fields{
+					"isvc":        svc.Name,
+					"volume":      dest,
+					"containerid": ctr.ID,
+					"expected":    src,
+					"found":       mount.Source,
+				}).Debug("Global volume mount in container has changed")
 				return false
 			}
 		}
@@ -716,7 +772,10 @@ func (svc *IService) startupHealthcheck() <-chan error {
 		if len(svc.HealthChecks) > 0 {
 			checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]
 			if !found {
-				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+				log.WithFields(logrus.Fields{
+					"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+					"isvc":        svc.Name,
+				}).Debug("Default health check not found")
 				err <- nil
 				return
 			}
@@ -724,19 +783,23 @@ func (svc *IService) startupHealthcheck() <-chan error {
 			startCheck := time.Now()
 			for {
 				currentTime := time.Now()
+				elapsed := time.Since(startCheck)
 				result = svc.runCheckOrTimeout(checkDefinition)
 				svc.setHealthStatus(result, currentTime.Unix())
-				elapsed := time.Since(startCheck)
+				log := log.WithFields(logrus.Fields{
+					"isvc":    svc.Name,
+					"elapsed": elapsed,
+				})
 				if result == nil {
-					glog.Infof("Verified health status of %s after %s", svc.Name, elapsed)
+					log.Info("Internal service checked in healthy")
 					break
 				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
-					glog.Errorf("Could not verify health status of %s after %s. Last health check returned %#v",
-						svc.Name, svc.StartupTimeout, result)
+					log.WithFields(logrus.Fields{
+						"lastresult": result,
+					}).Warn("Unable to verify health of internal service")
 					break
 				}
-
-				glog.Infof("waiting for %s to start, checking health status again in 1 second", svc.Name)
+				log.Debug("Waiting for internal service to check in healthy")
 				time.Sleep(time.Second)
 			}
 			err <- result
@@ -761,7 +824,6 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	case err := <-finished:
 		result = err
 	case <-time.After(checkDefinition.Timeout):
-		glog.Errorf("healthcheck timed out for %s", svc.Name)
 		result = fmt.Errorf("healthcheck timed out")
 		halt <- struct{}{}
 	}
@@ -769,15 +831,23 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 }
 
 func (svc *IService) doHealthChecks(halt <-chan struct{}) {
-
 	if len(svc.HealthChecks) == 0 {
 		return
 	}
 
-	var found bool
-	var checkDefinition healthCheckDefinition
+	var (
+		found           bool
+		checkDefinition healthCheckDefinition
+	)
+
+	log := log.WithFields(logrus.Fields{
+		"isvc": svc.Name,
+	})
+
 	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
-		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+		log.WithFields(logrus.Fields{
+			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+		}).Warn("Default health check not found")
 		return
 	}
 
@@ -785,14 +855,14 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
-			glog.Infof("Stopped healthchecks for %s", svc.Name)
+			log.Debug("Stopped health checks")
 			return
 
 		case currentTime := <-timer:
 			err := svc.runCheckOrTimeout(checkDefinition)
 			svc.setHealthStatus(err, currentTime.Unix())
 			if err != nil {
-				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.Name, err)
+				log.WithError(err).Warn("Health check failed")
 			}
 		}
 	}
@@ -806,10 +876,14 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 	svc.lock.Lock()
 	defer svc.lock.Unlock()
 
+	log := log.WithFields(logrus.Fields{
+		"isvc": svc.Name,
+	})
+
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if result == nil {
 			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
-				glog.Infof("Health status for %s returned to 'passed'", svc.Name)
+				log.Info("Internal service checked in healthy")
 			}
 			healthStatus.Status = "passed"
 			healthStatus.Failure = ""
@@ -822,7 +896,9 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 			healthStatus.StartedAt = currentTime
 		}
 	} else {
-		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+		log.WithFields(logrus.Fields{
+			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+		}).Warn("Default health check not found")
 	}
 }
 
@@ -844,7 +920,10 @@ func (svc *IService) setStoppedHealthStatus(stopResult error) {
 		healthStatus.Timestamp = time.Now().Unix()
 		healthStatus.StartedAt = 0
 	} else {
-		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+		log.WithFields(logrus.Fields{
+			"isvc":        svc.Name,
+			"healthcheck": DEFAULT_HEALTHCHECK_NAME,
+		}).Warn("Default health check not found")
 	}
 }
 
@@ -864,26 +943,30 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	//The docker container ID the last time we gathered stats, used to detect when the container has changed to avoid invalid CPU stats
 	previousDockerID := ""
 
+	log := log.WithFields(logrus.Fields{
+		"isvc": svc.Name,
+	})
+
 	for {
 		select {
 		case <-halt:
-			glog.Infof("stop collecting stats for %s", svc.Name)
+			log.Debug("Stopped collecting stats")
 			return
 		case t := <-tc:
 			ctr, err := docker.FindContainer(svc.name())
 			if err != nil {
-				glog.Warningf("Could not find container for isvc %s: %s", svc.Name, err)
+				log.Warn("Unable to find container")
 				break
 			}
 
 			if svc.docker == nil {
-				glog.Warningf("Docker API object has not been set yet for Isvcs %s", svc.Name)
+				log.Warn("Docker API object has not yet been set")
 				break
 			}
 
 			dockerstats, err := svc.docker.GetContainerStats(ctr.ID, 30*time.Second)
 			if err != nil || dockerstats == nil { //dockerstats may be nil if service is shutting down
-				glog.Warningf("Couldn't get stats for IService %s: %v", svc.Name, err)
+				log.Warn("Unable to get stats for internal service")
 				break
 			}
 
@@ -910,7 +993,10 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			previousTotalCPU, found := previousStats["totalCPU"]
 			if found {
 				if totalCPU <= previousTotalCPU {
-					glog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
+					log.WithFields(logrus.Fields{
+						"cputotal":         totalCPU,
+						"previouscputotal": previousTotalCPU,
+					}).Debug("Change in CPU usage was negative. Skipping update")
 					usePreviousStats = false
 				} else {
 					totalCPUChange = totalCPU - previousTotalCPU
@@ -943,7 +1029,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", registry).Update(kernelCPUPercent)
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", registry).Update(userCPUPercent)
 			} else {
-				glog.V(4).Infof("Skipping CPU stats for IService %s, no previous values to compare to", svc.Name)
+				log.Debug("No previous values to compare to, so skipping CPU stats update")
 			}
 
 			// Memory Stats
@@ -951,7 +1037,11 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			totalRSS := int64(dockerstats.MemoryStats.Stats.TotalRss)
 			cache := int64(dockerstats.MemoryStats.Stats.Cache)
 			if pgFault < 0 || totalRSS < 0 || cache < 0 {
-				glog.Warningf("Memory metric value for IService %s too big for int64", svc.Name)
+				log.WithFields(logrus.Fields{
+					"pgfault":  dockerstats.MemoryStats.Stats.Pgfault,
+					"totalrss": dockerstats.MemoryStats.Stats.TotalRss,
+					"cache":    dockerstats.MemoryStats.Stats.Cache,
+				}).Warn("Memory metric value overflowed int64")
 			}
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(pgFault)
 			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(totalRSS)
@@ -973,25 +1063,32 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			// Post the stats.
 			data, err := json.Marshal(stats)
 			if err != nil {
-				glog.Warningf("Error marshalling isvc stats json.")
+				log.WithError(err).Warn("Unable to serialize stats to JSON")
 				break
 			}
-
-			req, err := http.NewRequest("POST", "http://127.0.0.1:4242/api/put", bytes.NewBuffer(data))
+			url := "http://127.0.0.1:4242/api/put"
+			req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 			if err != nil {
-				glog.Warningf("Error creating isvc stats request.")
+				log.WithFields(logrus.Fields{
+					"url": url,
+				}).WithError(err).Warn("Unable to create stats request")
 				break
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				// FIXME: This should be a warning, but it happens alot at startup, so let's keep it
 				// on the DL until we have some better startup coordination and/or logging mechanisms.
-				glog.V(1).Infof("Couldn't post isvc container stats: %s", err)
+				log.WithFields(logrus.Fields{
+					"url": url,
+				}).WithError(err).Debug("Unable to POST container stats")
 				break
 			}
 			defer resp.Body.Close()
 			if strings.Contains(resp.Status, "204 No Content") == false {
-				glog.Warningf("Post for isvcs container stats failed: %s", resp.Status)
+				log.WithFields(logrus.Fields{
+					"url":    url,
+					"status": resp.Status,
+				}).WithError(err).Debug("POST of container stats failed")
 				break
 			}
 		}
@@ -1003,7 +1100,12 @@ func getHostIp(binding portBinding) string {
 	if binding.HostIpOverride != "" {
 		if override := strings.TrimSpace(os.Getenv(binding.HostIpOverride)); override != "" {
 			hostIp = override
-			glog.Infof("Using HostIp override %s = %v", binding.HostIpOverride, hostIp)
+			if !loggedHostIPOverride {
+				log.WithFields(logrus.Fields{
+					"hostip": hostIp,
+				}).Info("Using host IP override")
+				loggedHostIPOverride = true
+			}
 		}
 	}
 	return hostIp
@@ -1016,4 +1118,27 @@ func findContainerMount(dctr *dockerclient.Container, dest string) *dockerclient
 		}
 	}
 	return nil
+}
+
+func dockerLogsToFile(containerid string, numlines int) {
+	fname := filepath.Join(os.TempDir(), fmt.Sprintf("%s.container.log", containerid))
+	f, e := os.Create(fname)
+	if e != nil {
+		log.WithError(e).WithFields(logrus.Fields{
+			"file": fname,
+		}).Debug("Unable to create container log file")
+		return
+	}
+	defer f.Close()
+	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", numlines), containerid)
+	cmd.Stdout = f
+	cmd.Stderr = f
+	if err := cmd.Run(); err != nil {
+		log.WithError(err).Debug("Unable to get logs for container")
+		return
+	}
+	log.WithFields(logrus.Fields{
+		"file":  fname,
+		"lines": numlines,
+	}).Infof("Container log dumped to file")
 }

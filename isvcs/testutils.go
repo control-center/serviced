@@ -21,9 +21,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-
 var (
-	defaultTestDockerLogDriver = "json-file"
+	defaultTestDockerLogDriver  = "json-file"
 	defaultTestDockerLogOptions = map[string]string{"max-file": "5", "max-size": "10m"}
 )
 
@@ -48,7 +47,6 @@ func (t *ManagerTestSuite) SetUpSuite(c *C) {
 			c.Fatalf("Could not register %s: %s", svc.Name, err)
 		}
 	}
-	t.manager.Wipe()
 	if err := t.manager.Start(); err != nil {
 		c.Fatalf("Could not start isvcs: %s", err)
 	}

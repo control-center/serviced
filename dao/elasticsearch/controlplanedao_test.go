@@ -106,7 +106,7 @@ type DaoTest struct {
 func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.Port = 9202
 	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, "json-file", map[string]string{"max-file": "5", "max-size": "10m"}, nil)
-	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
+	isvcs.Mgr.SetVolumesDir(c.MkDir())
 	esServicedClusterName, _ := utils.NewUUID36()
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", esServicedClusterName); err != nil {
 		c.Fatalf("Could not set elasticsearch-serviced clustername: %s", err)
@@ -115,7 +115,6 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", esLogstashClusterName); err != nil {
 		c.Fatalf("Could not set elasticsearch-logstash clustername: %s", err)
 	}
-	isvcs.Mgr.Wipe()
 	if err := isvcs.Mgr.Start(); err != nil {
 		c.Fatalf("Could not start es container: %s", err)
 	}

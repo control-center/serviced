@@ -27,14 +27,13 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
@@ -599,8 +598,6 @@ func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]stri
 			if _, ok := svcMap[parentID]; ok {
 				break // break from inner for loop
 			}
-			glog.Warningf("should not have to retrieve parent service %s", parentID)
-
 			svc, err := c.driver.GetService(parentID)
 			if err != nil || svc == nil {
 				return nil, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
@@ -623,7 +620,6 @@ func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]stri
 		}
 
 		pathmap[svc.ID] = strings.ToLower(fullpath)
-		glog.V(2).Infof("service: %-16s  %s  path: %s", svc.Name, svc.ID, pathmap[svc.ID])
 	}
 
 	return pathmap, nil
@@ -794,10 +790,14 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 					fmt.Println(string(jsonService))
 				}
 			} else {
-				if tmpl, err := template.New("template").Parse(ctx.String("format")); err != nil {
-					glog.Errorf("Template parsing error: %s", err)
+				tpl := ctx.String("format")
+				log := log.WithFields(logrus.Fields{
+					"format": tpl,
+				})
+				if tmpl, err := template.New("template").Parse(tpl); err != nil {
+					log.WithError(err).Error("Unable to parse format template")
 				} else if err := tmpl.Execute(os.Stdout, service); err != nil {
-					glog.Errorf("Template execution error: %s", err)
+					log.WithError(err).Error("Unable to execute template")
 				}
 			}
 		}
@@ -861,13 +861,17 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		t.Padding = 6
 		t.Print()
 	} else {
-		tmpl, err := template.New("template").Parse(ctx.String("format"))
+		tpl := ctx.String("format")
+		log := log.WithFields(logrus.Fields{
+			"format": tpl,
+		})
+		tmpl, err := template.New("template").Parse(tpl)
 		if err != nil {
-			glog.Errorf("Template parsing error: %s", err)
+			log.WithError(err).Error("Unable to parse template")
 		}
 		for _, service := range services {
 			if err := tmpl.Execute(os.Stdout, service); err != nil {
-				glog.Errorf("Template execution error: %s", err)
+				log.WithError(err).Error("Unable to execute template")
 			}
 		}
 	}
@@ -1109,17 +1113,6 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 	}
 }
 
-// sendLogMessage sends a log message to the host agent
-func sendLogMessage(lbClientPort string, serviceLogInfo node.ServiceLogInfo) error {
-	client, err := node.NewLBClient(lbClientPort)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return err
-	}
-	defer client.Close()
-	return client.SendLogMessage(serviceLogInfo, nil)
-}
-
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID [COMMAND]
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
@@ -1188,8 +1181,9 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		glog.Infof("Received stop signal, stopping")
+		log.Debug("Received stop signal")
 		close(stopChan)
+		log.Info("Stopped service run")
 	}()
 
 	args := ctx.Args()
@@ -1299,7 +1293,6 @@ func (c *ServicedCli) buildRunningServicePaths(rss []dao.RunningService) (map[st
 		}
 
 		pathmap[rs.ID] = strings.ToLower(fullpath)
-		glog.V(2).Infof("========= rs:%s %s  path[%s]:%s", rs.ServiceID, rs.Name, rs.ID, pathmap[rs.ID])
 	}
 
 	return pathmap, nil
@@ -1407,7 +1400,9 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 			cmd = append(cmd, args[1:]...)
 		}
 
-		glog.V(1).Infof("remote attaching with: %s\n", cmd)
+		log.WithFields(logrus.Fields{
+			"command": cmd,
+		}).Debug("Attaching to remote container")
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	}
 
@@ -1513,7 +1508,9 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 			cmd = append(cmd, args[1:]...)
 		}
 
-		glog.V(1).Infof("outputting remote logs with: %s\n", cmd)
+		log.WithFields(logrus.Fields{
+			"command": cmd,
+		}).Debug("Retrieving remote logs")
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	}
 

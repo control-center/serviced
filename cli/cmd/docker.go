@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/glog"
 )
 
 // initDocker is the initializer for serviced docker
@@ -68,14 +68,14 @@ func (c *ServicedCli) initDocker() {
 func (c *ServicedCli) cmdRegistrySync(ctx *cli.Context) {
 	err := c.driver.RegistrySync()
 	if err != nil {
-		glog.Fatalf("error syncing docker images to local registry: %s", err)
+		log.WithError(err).Fatal("Unable to sync Docker images to local registry")
 	}
 }
 
 // serviced reset-registry
 func (c *ServicedCli) cmdResetRegistry(ctx *cli.Context) {
 	if err := c.driver.ResetRegistry(); err != nil {
-		glog.Fatalf("error while resetting the registry: %s", err)
+		log.WithError(err).Fatal("Unable to reset local Docker registry")
 	}
 }
 
@@ -84,7 +84,10 @@ func (c *ServicedCli) cmdMigrateRegistry(ctx *cli.Context) {
 	endpoint := ctx.String("registry")
 	override := ctx.Bool("override")
 	if err := c.driver.UpgradeRegistry(endpoint, override); err != nil {
-		glog.Fatalf("error while upgrading the registry: %s", err)
+		log.WithFields(logrus.Fields{
+			"registry": endpoint,
+			"override": override,
+		}).WithError(err).Fatal("Unable to upgrade local Docker registry")
 	}
 }
 

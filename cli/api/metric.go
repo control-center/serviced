@@ -16,9 +16,10 @@ package api
 import (
 	"fmt"
 	"time"
-	"github.com/control-center/serviced/utils"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/stats"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
 //
@@ -27,7 +28,7 @@ func (a *api) PostMetric(metricName string, metricValue string) (string, error) 
 	timeStamp := time.Now().Unix()
 	hostId, err := utils.HostID()
 	if err != nil {
-		glog.Errorf("Error getting host id, error: %s", err)
+		log.WithError(err).Warn("Unable to get host ID while posting a metric")
 		return "", err
 	}
 
@@ -40,7 +41,10 @@ func (a *api) PostMetric(metricName string, metricValue string) (string, error) 
 	}
 
 	if err := stats.Post(url, samples); err != nil {
-		glog.Errorf("could not post stats: %s", err)
+		log.WithFields(logrus.Fields{
+			"metricserver": url,
+			"hostid":       hostId,
+		}).WithError(err).Warn("Unable to post metrics")
 		return "", err
 	}
 	return "Posted metric", nil

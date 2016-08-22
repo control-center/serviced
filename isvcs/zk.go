@@ -14,7 +14,7 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/Sirupsen/logrus"
 
 	"io/ioutil"
 	"net"
@@ -73,31 +73,40 @@ func initZK() {
 
 	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
-		glog.Fatalf("Error initializing zookeeper container: %s", err)
+		log.WithError(err).Fatal("Unable to initialize ZooKeeper internal service container")
 	}
 }
 
 // a health check for zookeeper
 func zkHealthCheck(halt <-chan struct{}) error {
+	healthy := true
+	times := -1
 	for {
+		if !healthy && times == 3 {
+			log.Warn("Unable to validate health of ZooKeeper. Retrying silently")
+		}
 		select {
 		case <-halt:
-			glog.V(1).Infof("Quit healthcheck for zookeeper")
+			log.Debug("Stopped health checks for ZooKeeper")
 			return nil
 		default:
 			// Try ruok.
+			times++
 			ruok, err := zkFourLetterWord("127.0.0.1:2181", "ruok", time.Second*10)
 			if err != nil {
-				glog.Warningf("No response to ruok from ZooKeeper: %s", err)
+				log.WithError(err).Debug("No response to ruok from ZooKeeper")
+				healthy = false
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
 			// ruok should respond either with "imok" or not at all.
 			// If for some reason that isn't the case, there's a problem.
-			glog.V(2).Infof("ruok: \"%s\"", ruok)
 			if string(ruok) != "imok" {
-				glog.Warningf("Improper response to ruok from ZooKeeper: %s", ruok)
+				log.WithFields(logrus.Fields{
+					"response": ruok,
+				}).Debug("Improper response to ruok from ZooKeeper")
+				healthy = false
 				time.Sleep(1 * time.Second)
 				continue
 			}
@@ -105,20 +114,25 @@ func zkHealthCheck(halt <-chan struct{}) error {
 			// Since ruok works, try stat next.
 			stat, err := zkFourLetterWord("127.0.0.1:2181", "stat", time.Second*10)
 			if err != nil {
-				glog.Warningf("No response to stat from ZooKeeper: %s", err)
+				log.WithError(err).Debug("No response to stat from ZooKeeper")
+				healthy = false
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
 			// If we get "This ZooKeeper instance is not currently serving requests", we know it's waiting for quorum and can at least note that in the logs.
-			glog.V(2).Infof("stat: \"%s\"", stat)
 			if string(stat) == "This ZooKeeper instance is not currently serving requests\n" {
-				glog.Warningf("ZooKeeper is running, but still establishing quorum.")
+				log.Debug("ZooKeeper is running, but still establishing a quorum")
+				healthy = false
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			// We can optionally parse stat for information including this node's role or the number of connections.
 
+			if !healthy {
+				log.Info("ZooKeeper checked in healthy")
+			} else {
+				log.Debug("ZooKeeper checked in healthy")
+			}
 			return nil
 		}
 	}
