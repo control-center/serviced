@@ -43,13 +43,13 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 		Protocol:    "proto",
 		UseTLS:      true,
 	}
-	err = conn.Create("/net/pub/master/2181", publicPort)
+	err = conn.Create("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
 	go func() {
-		listener.Spawn(shutdown, "2181")
+		listener.Spawn(shutdown, "10.187.22.151:2181")
 		close(done)
 	}()
 
@@ -61,11 +61,11 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 	}
 
 	// port is enabled
-	handler.On("Enable", "2181", "proto", true).Return().Once()
-	err = conn.Get("/net/pub/master/2181", publicPort)
+	handler.On("Enable", "10.187.22.151:2181", "proto", true).Return().Once()
+	err = conn.Get("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
 	publicPort.Enabled = true
-	err = conn.Set("/net/pub/master/2181", publicPort)
+	err = conn.Set("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
 
 	timer.Reset(time.Second)
@@ -87,7 +87,7 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 		MuxPort:    22250,
 		InstanceID: 0,
 	}
-	handler.On("Set", "2181", mock.AnythingOfType("[]registry.ExportDetails")).Return().Run(func(a mock.Arguments) {
+	handler.On("Set", "10.187.22.151:2181", mock.AnythingOfType("[]registry.ExportDetails")).Return().Run(func(a mock.Arguments) {
 		actual := a.Get(1).([]ExportDetails)
 		c.Check(actual, HasLen, 1)
 		c.Check(actual[0].ExportBinding, DeepEquals, export.ExportBinding)
@@ -104,7 +104,7 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 	}
 
 	// shutdown
-	handler.On("Disable", "2181").Return().Once()
+	handler.On("Disable", "10.187.22.151:2181").Return().Once()
 
 	close(shutdown)
 

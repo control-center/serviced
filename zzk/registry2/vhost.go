@@ -84,11 +84,11 @@ func (l *VHostListener) Done() {
 func (l *VHostListener) PostProcess(p map[string]struct{}) {
 }
 
-// Spawn manages a specific vhost for a host
-func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
+// Spawn manages a specific vhost for a subdomain
+func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
 	logger := log.WithFields(log.Fields{
-		"HostID":    l.hostID,
-		"VHostName": name,
+		"hostid":    l.hostID,
+		"subdomain": subdomain,
 	})
 
 	// keep a cache of exports that have already been
@@ -99,7 +99,8 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 	isEnabled := false
 	defer func() {
 		if isEnabled {
-			l.handler.Disable(name)
+			l.handler.Disable(subdomain)
+			logger.Debug("Disabled virtual host")
 		}
 	}()
 
@@ -108,16 +109,14 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 	for {
 
 		// set up a watch on the vhost
-		pth := l.GetPath(name)
+		pth := l.GetPath(subdomain)
 		dat := &VHost{}
 		evt, err := l.conn.GetW(pth, dat, done)
 		if err == client.ErrNoNode {
-			logger.Debug("Public port was deleted, exiting")
+			logger.Debug("Virtual host was deleted, exiting")
 			return
 		} else if err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Error("Could not watch public port")
+			logger.WithError(err).Error("Could not watch subdomain")
 			return
 		}
 
@@ -125,8 +124,8 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 		var exevt <-chan client.Event
 		if dat.Enabled {
 			exLogger := logger.WithFields(log.Fields{
-				"TenantID":    dat.TenantID,
-				"Application": dat.Application,
+				"tenantid":    dat.TenantID,
+				"application": dat.Application,
 			})
 
 			var ch []string
@@ -140,9 +139,7 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 
 				ok, exevt, err = l.conn.ExistsW(expth, done)
 				if err != nil {
-					exLogger.WithFields(log.Fields{
-						"Error": err,
-					}).Error("Could not check exports for endpoint")
+					exLogger.WithError(err).Error("Could not check exports for endpoint")
 					return
 				}
 
@@ -173,10 +170,7 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 					if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
 						continue
 					} else if err != nil {
-						exLogger.WithFields(log.Fields{
-							"ExportKey": name,
-							"Error":     err,
-						}).Error("Could not look up export")
+						exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
 						return
 					}
 				}
@@ -188,17 +182,17 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, name string) {
 
 			// only send an update if the exports have changed
 			if sendUpdate {
-				l.handler.Set(name, exports)
+				l.handler.Set(subdomain, exports)
 			}
 		}
 
-		// do something if the state of the port has changed
+		// do something if the state of the vhost has changed
 		if isEnabled != dat.Enabled {
 			if dat.Enabled {
-				l.handler.Enable(name)
+				l.handler.Enable(subdomain)
 				logger.Debug("Enabled vhost")
 			} else {
-				l.handler.Disable(name)
+				l.handler.Disable(subdomain)
 				logger.Info("Disabled vhost")
 			}
 			isEnabled = dat.Enabled
