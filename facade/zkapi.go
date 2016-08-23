@@ -28,6 +28,7 @@ import (
 	zkregistry "github.com/control-center/serviced/zzk/registry"
 	zkhost "github.com/control-center/serviced/zzk/service"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice2 "github.com/control-center/serviced/zzk/service2"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
@@ -304,23 +305,23 @@ func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]applica
 
 // GetServiceStates2 returns all running instances for a service
 // FIXME: update name when integration is complete
-func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zkservice.State, error) {
+func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zkservice2.State, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
 		return nil, err
 	}
 
-	return zkservice.GetServiceStates2(conn, poolID, serviceID)
+	return zkservice2.GetServiceStates(conn, poolID, serviceID)
 }
 
 // GetHostStates returns all running instances for a host
-func (zk *zkf) GetHostStates(poolID, hostID string) ([]zkservice.State, error) {
+func (zk *zkf) GetHostStates(poolID, hostID string) ([]zkservice2.State, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
 		return nil, err
 	}
 
-	return zkservice.GetHostStates(conn, poolID, hostID)
+	return zkservice2.GetHostStates(conn, poolID, hostID)
 }

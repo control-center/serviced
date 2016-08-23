@@ -20,7 +20,7 @@ import (
 
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/registry2"
-	"github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service2"
 	. "gopkg.in/check.v1"
 )
 

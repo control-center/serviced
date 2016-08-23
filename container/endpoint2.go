@@ -26,7 +26,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry2"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 )
 
 // ContainerEndpointsOptions are options for the container endpoint
@@ -151,8 +151,8 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 
 		go func() {
 			var err error
-			ce.state, err = zkservice.MonitorState(cancel, conn, req, func(s *zkservice.State) bool {
-				return strings.HasPrefix(s.ContainerID, hostname)
+			ce.state, err = zkservice.MonitorState(cancel, conn, req, func(s *zkservice.State, exists bool) bool {
+				return exists && strings.HasPrefix(s.ContainerID, hostname)
 			})
 			errc <- err
 		}()

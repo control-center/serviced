@@ -13,7 +13,7 @@
 
 // +build integration,!quick
 
-package service
+package service_test
 
 import (
 	"sort"
@@ -21,6 +21,7 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
+	. "github.com/control-center/serviced/zzk/service2"
 	. "gopkg.in/check.v1"
 )
 
@@ -54,7 +55,7 @@ func (t *ZZKTest) TestParseStateID(c *C) {
 	c.Assert(inst, Equals, 5)
 }
 
-func (t *ZZKTest) TestGetServiceStates2(c *C) {
+func (t *ZZKTest) TestGetServiceStates(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 
@@ -101,18 +102,18 @@ func (t *ZZKTest) TestGetServiceStates2(c *C) {
 	c.Assert(err, IsNil)
 
 	// 0 states
-	states, err := GetServiceStates2(conn, "poolid", "serviceid0")
+	states, err := GetServiceStates(conn, "poolid", "serviceid0")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 0)
 
 	// =1 state
-	states, err = GetServiceStates2(conn, "poolid", "serviceid1")
+	states, err = GetServiceStates(conn, "poolid", "serviceid1")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 1)
 	c.Assert(states[0].InstanceID, Equals, 1)
 
 	// >1 state
-	states, err = GetServiceStates2(conn, "poolid", "serviceid2")
+	states, err = GetServiceStates(conn, "poolid", "serviceid2")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 2)
 	actual := []int{states[0].InstanceID, states[1].InstanceID}
@@ -442,7 +443,7 @@ func (t *ZZKTest) TestCleanServiceStates(c *C) {
 	err = CleanServiceStates(conn, "poolid", "serviceid")
 	c.Check(err, IsNil)
 
-	states, err := GetServiceStates2(conn, "poolid", "serviceid")
+	states, err := GetServiceStates(conn, "poolid", "serviceid")
 	c.Assert(err, IsNil)
 	c.Assert(states, HasLen, 1)
 	c.Check(states[0].HostID, Equals, "hostid")
@@ -473,7 +474,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	shutdown := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
-		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
 			return false
 		})
 
@@ -484,6 +485,39 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	}()
 
 	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Timed out waiting for monitor")
+	}
+
+	// state does not exist, but that is okay
+	req = StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 0,
+	}
+
+	shutdown = make(chan struct{})
+	done = make(chan struct{})
+	go func() {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
+			return true
+		})
+
+		c.Check(err, IsNil)
+		expected := &State{
+			HostID:     "hostid",
+			ServiceID:  "serviceid",
+			InstanceID: 0,
+		}
+		c.Check(state, DeepEquals, expected)
+		close(done)
+	}()
+
+	timer.Reset(time.Second)
 	select {
 	case <-done:
 	case <-timer.C:
@@ -506,7 +540,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	shutdown = make(chan struct{})
 	done = make(chan struct{})
 	go func() {
-		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
 			return false
 		})
 
@@ -539,7 +573,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	shutdown = make(chan struct{})
 	done = make(chan struct{})
 	go func() {
-		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
 			return false
 		})
 
@@ -570,7 +604,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	shutdown = make(chan struct{})
 	done = make(chan struct{})
 	go func() {
-		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
 			return false
 		})
 
@@ -607,7 +641,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	shutdown = make(chan struct{})
 	done = make(chan struct{})
 	go func() {
-		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
+		state, err := MonitorState(shutdown, conn, req, func(s *State, exists bool) bool {
 			return s.ContainerID == "dockerid"
 		})
 
