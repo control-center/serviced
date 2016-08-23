@@ -34,7 +34,7 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		Application: "app1",
 		ServiceID:   "serviceid1",
 		Enabled:     true,
-		Protocol:    "tcp",
+		Protocol:    "http",
 		UseTLS:      true,
 	}
 	pubs1 := map[PublicPortKey]PublicPort{pub1Key: pub1}
@@ -67,7 +67,7 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		Application: "app2",
 		ServiceID:   "serviceid2",
 		Enabled:     true,
-		Protocol:    "tcp",
+		Protocol:    "https",
 		UseTLS:      true,
 	}
 	pubs2 := map[PublicPortKey]PublicPort{pub2Key: pub2}
@@ -111,7 +111,7 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		Application: "app1",
 		ServiceID:   "serviceid1",
 		Enabled:     false,
-		Protocol:    "tcp",
+		Protocol:    "",
 		UseTLS:      true,
 	}
 	pubs1 = map[PublicPortKey]PublicPort{pub1Key: pub1}
