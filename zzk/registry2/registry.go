@@ -168,7 +168,7 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 	logger := log.WithField("serviceid", serviceID)
 
 	// pull all the hosts of all the public ports
-	pth := path.Join("/net/pub")
+	pth := "/net/pub"
 	logger = logger.WithField("zkpath", pth)
 
 	hostIDs, err := conn.Children(pth)
@@ -260,7 +260,7 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 	logger := log.WithField("serviceid", serviceID)
 
 	// pull all the hosts of all the virtual hosts
-	pth := path.Join("/net/vhost")
+	pth := "/net/vhost"
 	logger = logger.WithField("zkpath", pth)
 
 	hostIDs, err := conn.Children(pth)
