@@ -5,8 +5,11 @@
 (function(){
     "use strict";
 
-    controlplane.controller("NavbarController", ["$scope", "$rootScope", "$cookies", "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory", "$modalService", "miscUtils",
-    function($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService, utils){
+    controlplane.controller("NavbarController", ["$scope", "$rootScope", "$cookies",
+    "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory",
+    "$modalService", "miscUtils", "LogSearch",
+    function($scope, $rootScope, $cookies, $location, $route, $translate,
+    $notification, authService, resourcesFactory, $modalService, utils, LogSearch){
         $scope.name = 'navbar';
         $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
@@ -24,12 +27,14 @@
             $notification.clearAll();
         };
 
+        let logSearchLink = LogSearch.getDefaultURL();
+
         $scope.navlinks = [
             { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
             { url: '#/pools', label: 'nav_pools', sublinks: [ '#/pools/' ] },
             { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/', '#/hostsmap' ] },
             { url: '#/status', label: 'nav_status', sublinks: [ '#/status/' ] },
-            { url: '#/logs', label: 'nav_logs', sublinks: [] },
+            { url: logSearchLink, label: 'nav_logs', sublinks: [] },
             { url: '#/backuprestore', label: 'nav_backuprestore', sublinks: [] }
         ];
 

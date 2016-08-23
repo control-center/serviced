@@ -1,0 +1,101 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "rison-node",
+        "scope": null,
+        "escapedName": "rison-node",
+        "name": "rison-node",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/home/jm/src/metis/src/golang/src/github.com/control-center/serviced/web/ui"
+    ]
+  ],
+  "_from": "rison-node@latest",
+  "_id": "rison-node@1.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/rison-node",
+  "_nodeVersion": "4.3.2",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/rison-node-1.0.0.tgz_1460764790326_0.16329350182786584"
+  },
+  "_npmUser": {
+    "name": "w33ble",
+    "email": "joe.fleming@gmail.com"
+  },
+  "_npmVersion": "2.14.21",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "rison-node",
+    "scope": null,
+    "escapedName": "rison-node",
+    "name": "rison-node",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#DEV:/",
+    "#USER"
+  ],
+  "_resolved": "https://registry.npmjs.org/rison-node/-/rison-node-1.0.0.tgz",
+  "_shasum": "935698d1172ef53f1964bd54732cd8349d56a064",
+  "_shrinkwrap": null,
+  "_spec": "rison-node",
+  "_where": "/home/jm/src/metis/src/golang/src/github.com/control-center/serviced/web/ui",
+  "authors": [
+    "Nanonid (https://github.com/Nanonid)",
+    "Spencer Alger (https://github.com/spalger)",
+    "Joe Fleming (https://github.com/w33ble)",
+    "Court Ewing (https://github.com/epixa)"
+  ],
+  "bugs": {
+    "url": "https://github.com/w33ble/rison/issues"
+  },
+  "dependencies": {},
+  "description": "data serialization format optimized for compactness in URIs",
+  "devDependencies": {
+    "tape": "^4.2.2",
+    "umd": "^3.0.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "935698d1172ef53f1964bd54732cd8349d56a064",
+    "tarball": "https://registry.npmjs.org/rison-node/-/rison-node-1.0.0.tgz"
+  },
+  "files": [
+    "build",
+    "LICENSE.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "gitHead": "4c885a1db1b3416186700c0556d06c0df7d3baef",
+  "homepage": "https://github.com/w33ble/rison#readme",
+  "license": "Apache-2.0",
+  "main": "build/rison.js",
+  "maintainers": [
+    {
+      "name": "w33ble",
+      "email": "joe.fleming@gmail.com"
+    }
+  ],
+  "name": "rison-node",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/w33ble/rison.git"
+  },
+  "scripts": {
+    "build": "npm run clean; mkdir build; (echo 'var rison = {};'; cat js/rison.js; echo 'return rison;') | umd rison > build/rison.js",
+    "clean": "if [ -d build ]; then rm -r build; fi",
+    "prepublish": "npm run test && npm run build",
+    "pretest": "npm run build",
+    "test": "tape tests/*.js"
+  },
+  "version": "1.0.0"
+}
