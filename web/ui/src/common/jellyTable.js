@@ -131,68 +131,59 @@
                             sortedItems,
                             tableEntries;
 
-                        if (allItems === undefined) {
-
-                            // if just intitalized, show loading and default to empty array
-                            allItems = [];
-                            toggleNoData(false);
-                            return;
-
-                        } else if (angular.isObject(allItems) && !angular.isArray(allItems)) {
-
-                            // single-entry tables that are not arrays pass through once (eg config files)
+                        if (angular.isObject(allItems) && !angular.isArray(allItems)) {
+                            // single-entry tables that are not arrays and not null
                             tableEntries = utils.mapToArr(allItems);
                             $scope[tableID].loading = false;
                             toggleNoData(false);
-                            return;
-
                         } else if (allItems === null) {
-
-                            // if no data, remove loading and show no data message
                             allItems = [];
                             toggleNoData(true);
-
-                        } else {
-
-                            // call overriden getData if available (eg services)
-                            if(config().getData){
-                                sortedItems = config().getData(allItems, params);
-
-                            } else {
-                                // use default getData (eg pools hosts)
-                                sortedItems = params.sorting() ? 
-                                    orderBy(allItems, params.orderBy()) 
-                                    : allItems;
-                            }
-
-                            if (config().disablePagination) {
-                                // supress pagination
-                                tableEntries = sortedItems;
-                                toggleNoData(false);
-                            } else {
-                                // slice sorted results array for current page
-                                totalItemCount = allItems.length;
-                                var lower = (params.page()-1) * config().pgsize;
-                                var upper = Math.min(lower + config().pgsize, totalItemCount);
-                                tableEntries = sortedItems.slice(lower,upper);
-
-                                // if no results show no data message
-                                toggleNoData(!totalItemCount);
-
-                                if (totalItemCount > config().pgsize) {
-                                    table.addClass("has-pagination");
-                                } else {
-                                    table.removeClass("has-pagination");
-                                }
-                            }
-
                         }
 
-                        // hide loading message
-                        $scope[tableID].loading = false;
+                        if (config().getData) {
+                            // call overriden getData if available (eg services)
+                            sortedItems = config().getData(allItems, params);
+                        } else {
+                            // use default getData (eg pools hosts)
+                            sortedItems = params.sorting() ?
+                                orderBy(allItems, params.orderBy())
+                                : allItems;
+                        }
+                        totalItemCount = allItems.length;
 
-                        params.total(totalItemCount); // pagination needs total item count
-                        $scope[tableID].resultsLength = allItems.length;
+                        if (angular.isUndefined(sortedItems)) {
+                            $scope[tableID].loading = true;
+                            toggleNoData(false);
+                            sortedItems = [];
+                        }
+                        else {
+                            // hide loading message
+                            $scope[tableID].loading = false;
+                            // if no results show no data message
+                            toggleNoData(!totalItemCount);
+                        }
+
+                        // pagination
+                        if (config().disablePagination) {
+                            // supress pagination
+                            tableEntries = sortedItems;
+                            toggleNoData(false);
+                        } else {
+                            // slice sorted results array for current page
+                            var lower = (params.page() - 1) * config().pgsize;
+                            var upper = Math.min(lower + config().pgsize, totalItemCount);
+                            tableEntries = sortedItems.slice(lower, upper);
+
+                            if (totalItemCount > config().pgsize) {
+                                table.addClass("has-pagination");
+                            } else {
+                                table.removeClass("has-pagination");
+                            }
+                            params.total(totalItemCount); // pagination needs total item count
+                        }
+
+                        $scope[tableID].resultsLength = totalItemCount;
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
 
                         $defer.resolve(tableEntries);
