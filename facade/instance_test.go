@@ -73,7 +73,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 			HostID:     "testhost",
 			ServiceID:  "testservice",
 			InstanceID: 1,
-			HostState2: zkservice.HostState2{
+			HostState: zkservice.HostState{
 				DesiredState: service.SVCRun,
 				Scheduled:    time.Now(),
 			},
@@ -108,7 +108,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 			HostID:     "testhost",
 			ServiceID:  "testservice",
 			InstanceID: 1,
-			HostState2: zkservice.HostState2{
+			HostState: zkservice.HostState{
 				DesiredState: service.SVCRun,
 				Scheduled:    time.Now(),
 			},
@@ -153,7 +153,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 			HostID:     "testhost",
 			ServiceID:  "testservice",
 			InstanceID: 1,
-			HostState2: zkservice.HostState2{
+			HostState: zkservice.HostState{
 				DesiredState: service.SVCRun,
 				Scheduled:    time.Now(),
 			},
@@ -247,7 +247,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_ServiceNotFound(c *C) {
 			HostID:     "testhost",
 			ServiceID:  "testservice",
 			InstanceID: 1,
-			HostState2: zkservice.HostState2{
+			HostState: zkservice.HostState{
 				DesiredState: service.SVCRun,
 				Scheduled:    time.Now(),
 			},
@@ -283,7 +283,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 			HostID:     "testhost",
 			ServiceID:  "testservice",
 			InstanceID: 1,
-			HostState2: zkservice.HostState2{
+			HostState: zkservice.HostState{
 				DesiredState: service.SVCRun,
 				Scheduled:    time.Now(),
 			},
