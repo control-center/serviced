@@ -6,14 +6,24 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter",
-        "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
-        "miscUtils", "poolsFactory", "areUIReady",
-    function($scope, $routeParams, $location, $filter, $timeout,
-    resourcesFactory, authService, $modalService, $translate, $notification,
-    utils, poolsFactory, areUIReady){
+    // Pool object constructor takes a pool object (backend pool object)
+    // and wraps it with extra functionality and info
+    function Pool(pool){
+        this.id = pool.ID;
+        this.model = Object.freeze(pool);
+    }
+
+    controlplane.controller("PoolsController", ["$scope", "$routeParams",
+        "resourcesFactory", "authService", "$modalService", "$translate",
+        "$notification", "areUIReady", "$interval", "servicedConfig", "log",
+    function($scope, $routeParams, resourcesFactory, authService, $modalService,
+             $translate, $notification, areUIReady, $interval, servicedConfig, log){
+
         // Ensure logged in
         authService.checkLogin($scope);
+
+
+
 
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
@@ -39,7 +49,7 @@
                             resourcesFactory.removePool(poolID)
                                 .success(function(data) {
                                     $notification.create("Removed Pool", poolID).success();
-                                    poolsFactory.update();
+                                    updatePools();
                                 })
                                 .error(data => {
                                     $notification.create("Remove Pool failed", data.Detail).error();
@@ -75,9 +85,14 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                $scope.add_pool()
+                                resourcesFactory.addPool($scope.newPool)
                                     .success(function(data, status){
                                         $notification.create("Added new Pool", data.Detail).success();
+                                        updatePools();
+
+                                        // Reset for another add
+                                        $scope.newPool = {};
+
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -94,19 +109,55 @@
             });
         };
 
-        // Function for adding new pools - through modal
-        $scope.add_pool = function() {
-            return resourcesFactory.addPool($scope.newPool)
-                .success(function(data){
-                    poolsFactory.update();
-                    // Reset for another add
-                    $scope.newPool = {};
-                });
-        };
-
         $scope.isDefaultPool = function(poolID) {
           return poolID === "default";
         };
+
+		// Setup polling to update the pools list if it has changed.
+
+        var lastUpdate;
+        var updateFrequency = 3000;
+        var updatePromise;
+        
+		servicedConfig.getConfig()
+            .then(config => {
+                updateFrequency = config.PollFrequency * 1000;
+            }).catch(err => {
+				let errMessage = err.data ? err.data.Detail : err.statusText;
+                log.error("could not load serviced config:", errMessage);
+            });
+
+        function updatePools(){
+            resourcesFactory.getV2Pools()
+                .success(data => {
+                    $scope.pools = data.results.map(result => new Pool(result));
+                    $scope.totalPoolCount = data.total;
+                })
+                .error(data => {
+                    $notification.create("Unable to load pools.", data.Detail).error();
+                })
+                .finally(() => {
+                    // notify the first request is complete
+                    if (!lastUpdate) {
+                        $scope.$emit("ready");
+                    }
+
+                    lastUpdate = new Date().getTime();
+                });
+        }
+
+        function startPolling(){
+            if(!updatePromise){
+                updatePromise = $interval(() => updatePools(), updateFrequency);
+            }
+        }
+
+        function stopPolling(){
+            if(updatePromise){
+                $interval.cancel(updatePromise);
+                updatePromise = null;
+            }
+        }
 
         function init(){
             $scope.name = "pools";
@@ -117,32 +168,27 @@
                 { label: 'breadcrumb_pools', itemClass: 'active' }
             ];
 
-            // start polling
-            poolsFactory.activate();
+            startPolling();
 
-            $scope.pools = {};
-            poolsFactory.update()
-                .then(() => {
-                    $scope.pools = poolsFactory.poolMap;
-                });
+            updatePools();
 
             $scope.poolsTable = {
                 sorting: {
                     id: "asc"
                 },
                 watchExpression: function(){
-                    // if poolsFactory updates, update view
-                    return poolsFactory.lastUpdate;
+                    return lastUpdate;
                 }
             };
         }
 
-        // kick off controller
         init();
 
         $scope.$on("$destroy", function(){
-            poolsFactory.deactivate();
+            stopPolling();
         });
 
     }]);
+
+
 })();

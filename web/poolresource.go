@@ -12,8 +12,9 @@ import (
 
 	"net/url"
 
-	"github.com/control-center/serviced/facade"
 	"fmt"
+
+	"github.com/control-center/serviced/facade"
 )
 
 //restGetPools retrieves all Resource Pools. Response is map[pool-id]ResourcePool

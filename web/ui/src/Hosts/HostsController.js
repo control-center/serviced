@@ -20,7 +20,7 @@
             $scope.newHost = {
                 port: $translate.instant('placeholder_port')
             };
-            if ($scope.pools.length > 0){
+            if ($scope.pools && $scope.pools.length > 0){
                 $scope.newHost.PoolID = $scope.pools[0].id;
             }
         };

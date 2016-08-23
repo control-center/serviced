@@ -7,19 +7,17 @@
 
     angular.module('poolsFactory', []).
     factory("poolsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "baseFactory",
-    function($rootScope, q, _resourcesFactory, $interval, BaseFactory){
+    function ($rootScope, q, _resourcesFactory, $interval, BaseFactory) {
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
 
         var newFactory = new BaseFactory(Pool, resourcesFactory.getPools);
-
-        // alias some stuff for ease of use
         newFactory.poolList = newFactory.objArr;
         newFactory.poolMap = newFactory.objMap;
-
         return newFactory;
+
     }]);
 
     // Pool object constructor

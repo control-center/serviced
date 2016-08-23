@@ -483,3 +483,32 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs
 }
 
 var defaultRealm = "default"
+
+// GetReadPools returns a list of simplified resource pools
+func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
+	pools, err := f.poolStore.GetResourcePools(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("Could not load pools: %v", err)
+	}
+
+	readPools := []pool.ReadPool{}
+
+	for i := range pools {
+		f.calcPoolCapacity(ctx, &pools[i])
+		f.calcPoolCommitment(ctx, &pools[i])
+
+		readPools = append(readPools, pool.ReadPool{
+			ID:                pools[i].ID,
+			Description:       pools[i].Description,
+			CreatedAt:         pools[i].CreatedAt,
+			UpdatedAt:         pools[i].UpdatedAt,
+			CoreCapacity:      pools[i].CoreCapacity,
+			MemoryCapacity:    pools[i].MemoryCapacity,
+			MemoryCommitment:  pools[i].MemoryCommitment,
+			ConnectionTimeout: pools[i].ConnectionTimeout,
+		})
+	}
+
+	return readPools, err
+}

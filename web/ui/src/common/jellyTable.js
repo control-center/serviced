@@ -14,6 +14,7 @@
     'use strict';
 
     var count = 0;
+    var PAGE_SIZE = 15; // TODO: pull from config file
 
     angular.module('jellyTable', [])
     .directive("jellyTable", ["$interval", "ngTableParams", "$filter", "$animate", "$compile", "miscUtils",
@@ -50,7 +51,7 @@
                         <td colspan="100%" class="statusBar">
                             <ul>
                                 <li class="entry">Last Update: <strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
-                                <li class="entry">Showing <strong>{{${tableID}.resultsLength}}</strong>
+                                <li class="entry"><strong>{{${tableID}.resultsLength}}</strong>
                                     Result{{ ${tableID}.resultsLength !== 1 ? "s" : ""  }}
                                 </li>
                             </ul>
@@ -58,9 +59,9 @@
                     </tr></tfoot>
                 `);
 
-
                 // mark this guy as an ng-table
                 table.attr("ng-table", tableID);
+                table.attr("template-pagination", "/static/partials/jellyPager.html");
 
                 // avoid compile loop
                 table.removeAttr("jelly-table");
@@ -89,6 +90,7 @@
                     // it to compose the `sorting` config option
                     config().counts = config().counts || [];
                     config().watchExpression = config().watchExpression || function(){ return data(); };
+                    config().pgsize = PAGE_SIZE;
 
                     timezone = jstz.determine().name();
 
@@ -123,65 +125,83 @@
                         }
                     };
 
-                    getData = function($defer, params) {
-                        var unorderedData = data(),
-                            orderedData;
+                    getData = function ($defer, params) {
+                        var allItems = data(),
+                            totalItemCount = 0,
+                            sortedItems,
+                            tableEntries;
 
-                        // if unorderedData is an object, convert to array
-                        // NOTE: angular.isObject does not consider null to be an object
-                        if(!angular.isArray(unorderedData) && angular.isObject(unorderedData)){
-                            unorderedData = utils.mapToArr(unorderedData);
-
-                        // if it's null, create empty array
-                        } else if(unorderedData === null){
-                            unorderedData = [];
+                        if (angular.isObject(allItems) && !angular.isArray(allItems)) {
+                            // make allItems an array if necessary
+                            allItems = utils.mapToArr(allItems);
+                            $scope[tableID].loading = false;
+                            toggleNoData(false);
+                        } else if (allItems === null) {
+                            // if no data, show no data message
+                            allItems = [];
+                            toggleNoData(true);
                         }
+                        totalItemCount = allItems.length;
 
-                        // call overriden getData
-                        if(config().getData){
-                            orderedData = config().getData(unorderedData, params);
-
-                        // use default getData
+                        if (config().getData) {
+                            // call overriden getData if available (eg services)
+                            sortedItems = config().getData(allItems, params);
                         } else {
-                            orderedData = params.sorting() ?
-                                orderBy(unorderedData, params.orderBy()) :
-                                unorderedData;
+                            // use default getData (eg pools hosts)
+                            sortedItems = params.sorting() ?
+                                orderBy(allItems, params.orderBy())
+                                : allItems;
                         }
 
-                        // if no data, show loading and default
-                        // to empty array
-                        if(angular.isUndefined(orderedData)){
+                        if (angular.isUndefined(sortedItems)) {
+                            // show loading animation and hide no-data message
                             $scope[tableID].loading = true;
                             toggleNoData(false);
-                            orderedData = [];
-
-                        // if data, hide loading, and check if empty
-                        // array
-                        } else {
+                            sortedItems = [];
+                        }
+                        else {
+                            // hide loading animation
                             $scope[tableID].loading = false;
-                            // if the request succeded but is
-                            // just empty, show no data message
-                            if(!orderedData.length){
-                                toggleNoData(true);
+                            // if no results show no data message
+                            toggleNoData(!totalItemCount);
+                        }
 
-                            // otherwise, hide no data message
+                        // pagination
+                        if (config().disablePagination) {
+                            // supress pagination
+                            tableEntries = sortedItems;
+                            toggleNoData(false);
+                        } else {
+                            // slice sorted results array for current page
+                            var lower = (params.page() - 1) * config().pgsize;
+                            var upper = Math.min(lower + config().pgsize, totalItemCount);
+                            tableEntries = sortedItems.slice(lower, upper);
+
+                            if (totalItemCount > config().pgsize) {
+                                table.addClass("has-pagination");
+                                // ngtable pagination requires total item count
+                                params.total(totalItemCount);
                             } else {
-                                toggleNoData(false);
+                                table.removeClass("has-pagination");
                             }
                         }
 
-                        $scope[tableID].resultsLength = orderedData.length;
+                        $scope[tableID].resultsLength = totalItemCount;
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
 
-                        $defer.resolve(orderedData);
+                        $defer.resolve(tableEntries);
                     };
 
                     // setup config for ngtable
                     pageConfig = {
+                        // count: hide pagination when total result count less than this number
+                        count: config().pgsize,
                         sorting: config().sorting
                     };
                     dataConfig = {
+                        // counts: dynamic items-per-page widget. empty array will supress.
                         counts: config().counts,
+                        // pager:  dynamic items-per-page widget.
                         getData: getData
                     };
 

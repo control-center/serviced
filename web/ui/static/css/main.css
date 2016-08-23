@@ -8,6 +8,7 @@
     action/link active: #8EA9D1;
 
     header bar: #516685;
+    header bar active: #607d9a;
     header bar secondary: #8090A8;
     header bar tertiary: #C1CEE0;
 
@@ -400,8 +401,6 @@ table .btn,
 }
 .page-nav {
     padding-top: 40px;
-}
-table .glyphicon {
 }
 .sort.active {
     color: white !important;
@@ -854,9 +853,7 @@ input.startup {
 }
 
 .rotate-down {
-    -webkit-transform: rotate(90deg);
-    -moz-transform: rotate(90deg);
-    -o-transform: rotate(90deg);
+    transform: rotate(90deg);
     writing-mode: lr-tb;
 }
 
@@ -1438,7 +1435,7 @@ h3 .healthTooltipDetailRow .healthIcon {
 .graphsControls .graphControl label {
     font-weight: normal;
     font-size: .9em;
-    font-color: #AAA;
+    color: #AAA;
     padding-right: 5px;
 }
 .graphsControls .form-control {
@@ -1647,7 +1644,7 @@ input[type=file] {
     opacity: 0;
 
     transition: opacity .2s;
-    -webkit-animation: spin .7s infinite linear;
+    animation: spin .7s infinite linear;
     transform-origin: 50% 55%;
 }
 .stealthInput .working::after {
@@ -1788,18 +1785,18 @@ input[type=file] {
 }
 
 .jelly-table .loader{
-    opacity: 1;
-    width: 100%;
-    height: calc(100% - 59px);
-    position: absolute;
-    margin: auto;
-    top: 30px;
-    left: 0;
     background: rgba(255,255,255,.9) center center url("/static/img/loading.gif") no-repeat;
-    text-align: center;
+    height: calc(100% - 59px);
+    left: 0;
+    min-height: 65px;
+    margin: auto;
+    opacity: 1;
     overflow: hidden;
-
+    position: absolute;
+    text-align: center;
+    top: 30px;
     transition: opacity .25s;
+    width: 100%;
 }
 .jelly-table .loader:hover {
     background-color: rgba(255,255,255,.9);
@@ -1824,18 +1821,28 @@ input[type=file] {
 .jelly-table .statusBar {
     color: #CCC;
     font-size: .9em;
-    padding: 8px 0 0 0;
+    padding: 7px 0 0 0;
     text-align: right;
     border: none;
     cursor: default;
 }
+    .jelly-table .has-pagination .statusBar {
+        padding-top: 15px;
+    }
+
 .jelly-table .statusBar ul {
-    margin-bottom: 0;
+    justify-content: space-between;
+    display: flex;
+    flex: 1 1 100%;
+    margin: 0;
+    padding: 0 0 40px 0;
+    height: 50px;
 }
-.jelly-table .statusBar .entry {
-    display: inline-block;
-    margin: 2px 0 0 16px;
+
+.jelly-table .statusBar ul > li {
+    list-style: none;
 }
+
 .jelly-table .statusBar .entry strong {
     color: #999;
 }
@@ -1844,9 +1851,70 @@ input[type=file] {
     display: inline-block;
 }
 
-/* hide pagination */
-.jelly-table [ng-table-pagination="params"] {
-    display: none;
+/* pagination */
+
+.jelly-pager {
+    display: flex;
+    justify-content: center;
+}
+
+.pagination.jelly-pagination {
+    margin: -68px 0 0 0;
+    padding: 0;
+    height: 30px;;
+}
+
+.pagination.jelly-pagination > li > a {
+    border-radius: 4px;
+    color: #325385;
+    display: inline-block;
+    font-size: 13px;
+    height: 30px;
+    line-height: 28px;
+    margin: 1px;
+    min-width: 30px;
+    padding: 0;
+    text-align: center;
+}
+
+.pagination.jelly-pagination > .active > a,
+.pagination.jelly-pagination > .active > a:hover {
+    background-color: #607d9a;
+    border-color: transparent;
+    color: #fff;
+    font-weight: bold;
+}
+
+.pagination.jelly-pagination a {
+    background-color: transparent;
+    border: 1px solid transparent;
+}
+
+.pagination.jelly-pagination .disabled a,
+.pagination.jelly-pagination .disabled a:hover {
+    background-color: transparent;
+    border-color: transparent;
+    color: #bbb;
+    cursor: default;
+}
+
+.pagination.jelly-pagination a:hover {
+    background-color: #f0f3f7;
+    color: #4F83D1;
+}
+
+.jelly-pager ul.jelly-pagination a.jelly-chevron {
+    font-size: 19px;
+    line-height: 17px;
+    padding: 2px 7px 5px 5px;
+}
+
+.jelly-pager .pagination.jelly-pagination a.jelly-pager-more {
+    color: #aaa;
+    font-size: 30px;
+    line-height: 12px;
+    padding: 0;
+    vertical-align: top;
 }
 
 .overcomIndicator {
@@ -1866,9 +1934,6 @@ input[type=file] {
 .overcomIndicator.bad {
     opacity: 0.6;
     visibility: visible;
-}
-
-.overcomText {
 }
 
 .overcomText.bad {

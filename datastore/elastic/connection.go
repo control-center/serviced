@@ -83,7 +83,6 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 }
 
 func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
-
 	search, ok := query.(*search.SearchDsl)
 	if !ok {
 		return nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
@@ -94,6 +93,7 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 		glog.Errorf("%v", err)
 		return nil, err
 	}
+
 	return toJSONMessages(resp), nil
 }
 
