@@ -23,6 +23,7 @@ import (
 // VHost describes a vhost endpoint
 type VHost struct {
 	TenantID    string
+	ServiceID   string
 	Application string
 	Enabled     bool
 	version     interface{}

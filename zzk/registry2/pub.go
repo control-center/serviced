@@ -24,6 +24,7 @@ import (
 type PublicPort struct {
 	TenantID    string
 	Application string
+	ServiceID   string // TODO: search by tenant and application
 	Enabled     bool
 	Protocol    string
 	UseTLS      bool
