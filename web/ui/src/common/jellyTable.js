@@ -132,14 +132,16 @@
                             tableEntries;
 
                         if (angular.isObject(allItems) && !angular.isArray(allItems)) {
-                            // single-entry tables that are not arrays and not null
-                            tableEntries = utils.mapToArr(allItems);
+                            // make allItems an array if necessary
+                            allItems = utils.mapToArr(allItems);
                             $scope[tableID].loading = false;
                             toggleNoData(false);
                         } else if (allItems === null) {
+                            // if no data, show no data message
                             allItems = [];
                             toggleNoData(true);
                         }
+                        totalItemCount = allItems.length;
 
                         if (config().getData) {
                             // call overriden getData if available (eg services)
@@ -150,15 +152,15 @@
                                 orderBy(allItems, params.orderBy())
                                 : allItems;
                         }
-                        totalItemCount = allItems.length;
 
                         if (angular.isUndefined(sortedItems)) {
+                            // show loading animation and hide no-data message
                             $scope[tableID].loading = true;
                             toggleNoData(false);
                             sortedItems = [];
                         }
                         else {
-                            // hide loading message
+                            // hide loading animation
                             $scope[tableID].loading = false;
                             // if no results show no data message
                             toggleNoData(!totalItemCount);
@@ -177,10 +179,11 @@
 
                             if (totalItemCount > config().pgsize) {
                                 table.addClass("has-pagination");
+                                // ngtable pagination requires total item count
+                                params.total(totalItemCount);
                             } else {
                                 table.removeClass("has-pagination");
                             }
-                            params.total(totalItemCount); // pagination needs total item count
                         }
 
                         $scope[tableID].resultsLength = totalItemCount;
