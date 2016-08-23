@@ -608,11 +608,11 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	done = make(chan struct{})
 	go func() {
 		state, err := MonitorState(shutdown, conn, req, func(s *State) bool {
-			return s.DockerID == "dockerid"
+			return s.ContainerID == "dockerid"
 		})
 
 		c.Check(err, IsNil)
-		c.Check(state.DockerID, Equals, "dockerid")
+		c.Check(state.ContainerID, Equals, "dockerid")
 		close(done)
 	}()
 
@@ -624,7 +624,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 	}
 
 	err = UpdateState(conn, req, func(s *State) bool {
-		s.DockerID = "dockerid"
+		s.ContainerID = "dockerid"
 		return true
 	})
 	c.Assert(err, IsNil)
@@ -677,7 +677,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	// state exists
 	state, err := GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Check(state.DockerID, Equals, "")
+	c.Check(state.ContainerID, Equals, "")
 	c.Check(state.ImageID, Equals, "")
 	c.Check(state.Paused, Equals, false)
 	c.Check(startTime.Before(state.Started), Equals, false)
@@ -692,10 +692,10 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCPause
 		s.ServiceState = ServiceState{
-			DockerID: "dockerid",
-			ImageID:  "imageid",
-			Paused:   true,
-			Started:  time.Now(),
+			ContainerID: "dockerid",
+			ImageID:     "imageid",
+			Paused:      true,
+			Started:     time.Now(),
 		}
 		return false
 	})
@@ -703,7 +703,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Check(state.DockerID, Equals, "")
+	c.Check(state.ContainerID, Equals, "")
 	c.Check(state.ImageID, Equals, "")
 	c.Check(state.Paused, Equals, false)
 	c.Check(startTime.Before(state.Started), Equals, false)
@@ -718,10 +718,10 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCPause
 		s.ServiceState = ServiceState{
-			DockerID: "dockerid",
-			ImageID:  "imageid",
-			Paused:   true,
-			Started:  time.Now(),
+			ContainerID: "dockerid",
+			ImageID:     "imageid",
+			Paused:      true,
+			Started:     time.Now(),
 		}
 		return true
 	})
@@ -729,7 +729,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Check(state.DockerID, Equals, "dockerid")
+	c.Check(state.ContainerID, Equals, "dockerid")
 	c.Check(state.ImageID, Equals, "imageid")
 	c.Check(state.Paused, Equals, true)
 	c.Check(startTime.Before(state.Started), Equals, true)
