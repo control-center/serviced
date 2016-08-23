@@ -35,7 +35,7 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		ServiceID:   "serviceid1",
 		Enabled:     true,
 		Protocol:    "http",
-		UseTLS:      true,
+		UseTLS:      false,
 	}
 	pubs1 := map[PublicPortKey]PublicPort{pub1Key: pub1}
 
