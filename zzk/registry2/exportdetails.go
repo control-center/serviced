@@ -19,7 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service2"
 )
 
 // ExportDetails describes a port binding for an endpoint as it is

@@ -24,7 +24,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/health"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )

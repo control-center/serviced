@@ -21,7 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 )
 
 // GetServiceInstances returns the state of all instances for a particular
