@@ -114,8 +114,12 @@ func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectValuesForReadPool(c *C
 	c.Assert(host.ServiceD.Date, Equals, data.firstHost.ServiceD.Date)
 	c.Assert(host.ServiceD.Release, Equals, data.firstHost.ServiceD.Release)
 	c.Assert(host.ServiceD.Version, Equals, data.firstHost.ServiceD.Version)
-	c.Assert(host.CreatedAt, Equals, data.firstHost.CreatedAt)
-	c.Assert(host.UpdatedAt, Equals, data.firstHost.UpdatedAt)
+
+	createdEquals := host.CreatedAt.Equal(data.firstPool.CreatedAt)
+	c.Assert(createdEquals, Equals, true)
+
+	updateEquals := host.UpdatedAt.Equal(data.firstPool.UpdatedAt)
+	c.Assert(updateEquals, Equals, true)
 }
 
 func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectValueForTotal(c *C) {
