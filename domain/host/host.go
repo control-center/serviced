@@ -82,12 +82,12 @@ type ReadHost struct {
 	RAMLimit      string
 	KernelVersion string
 	KernelRelease string
-	ServiceD      ReadServiceD
+	ServiceD      ReadServiced
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
 
-type ReadServiceD struct {
+type ReadServiced struct {
 	Version string
 	Date    string
 	Release string

@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -40,7 +40,7 @@ func newAPIHostsTestData() apiHostsTestData {
 			RAMLimit:      "50%",
 			KernelVersion: "1.1.1",
 			KernelRelease: "1.2.3",
-			ServiceD: host.ReadServiceD{
+			ServiceD: host.ReadServiced{
 				Version: "1.2.3.4.5",
 				Date:    "1/1/1999",
 				Release: "Release",
@@ -58,7 +58,7 @@ func newAPIHostsTestData() apiHostsTestData {
 			RAMLimit:      "70%",
 			KernelVersion: "1.1.1",
 			KernelRelease: "1.2.3",
-			ServiceD: host.ReadServiceD{
+			ServiceD: host.ReadServiced{
 				Version: "1.2.3.4.5",
 				Date:    "1/1/1999",
 				Release: "Release",

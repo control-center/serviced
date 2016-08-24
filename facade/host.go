@@ -259,7 +259,7 @@ func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
 			RAMLimit:      h.RAMLimit,
 			KernelVersion: h.KernelVersion,
 			KernelRelease: h.KernelRelease,
-			ServiceD: host.ReadServiceD{
+			ServiceD: host.ReadServiced{
 				Version: h.ServiceD.Version,
 				Date:    h.ServiceD.Date,
 				Release: h.ServiceD.Release,
