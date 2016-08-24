@@ -160,6 +160,11 @@ func RemoveService(conn client.Connection, poolID, serviceID string) error {
 		"zkpath":    pth,
 	})
 
+	// clean any bad service states before checking children
+	if err := CleanServiceStates(conn, poolID, serviceID); err != nil {
+		return err
+	}
+
 	// if the service has any children, do not delete
 	if ch, err := conn.Children(serviceID); err != nil {
 
