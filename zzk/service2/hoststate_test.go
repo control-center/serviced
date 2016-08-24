@@ -255,7 +255,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 		close(done)
 	}()
 
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTimer(5 * time.Second)
 	select {
 	case <-ev:
 		c.Logf("Listener cleaned up orphaned node")
