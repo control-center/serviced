@@ -240,3 +240,34 @@ func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.H
 func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, error) {
 	return f.hostStore.GetHostByIP(ctx, hostIP)
 }
+
+func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
+	readHosts := []host.ReadHost{}
+
+	hosts, err := f.hostStore.GetN(ctx, 20000)
+	if err != nil {
+		return readHosts, err
+	}
+
+	for _, h := range hosts {
+		readHosts = append(readHosts, host.ReadHost{
+			ID:            h.ID,
+			Name:          h.Name,
+			PoolID:        h.PoolID,
+			Cores:         h.Cores,
+			Memory:        h.Memory,
+			RAMLimit:      h.RAMLimit,
+			KernelVersion: h.KernelVersion,
+			KernelRelease: h.KernelRelease,
+			ServiceD: host.ReadServiced{
+				Version: h.ServiceD.Version,
+				Date:    h.ServiceD.Date,
+				Release: h.ServiceD.Release,
+			},
+			CreatedAt: h.CreatedAt,
+			UpdatedAt: h.UpdatedAt,
+		})
+	}
+
+	return readHosts, nil
+}
