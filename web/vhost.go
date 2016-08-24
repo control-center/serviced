@@ -139,7 +139,7 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 		return true
 	}
 
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"application": export.Application,
 		"hostip":      export.HostIP,
 		"privateip":   export.PrivateIP,

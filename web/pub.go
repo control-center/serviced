@@ -115,7 +115,7 @@ func NewPublicPortHandler(portAddr string, data ...registry.ExportDetails) *Publ
 
 // Serve starts the port server at address
 func (h *PublicPortHandler) Serve(protocol string, useTLS bool, certFile, keyFile string) error {
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"portaddress": h.portAddr,
 		"protocol":    protocol,
 		"usetls":      useTLS,
