@@ -72,6 +72,27 @@ type Host struct {
 	datastore.VersionedEntity
 }
 
+//ReadHost is a minimal representation of hosts.
+type ReadHost struct {
+	ID            string
+	Name          string
+	PoolID        string
+	Cores         int
+	Memory        uint64
+	RAMLimit      string
+	KernelVersion string
+	KernelRelease string
+	ServiceD      ReadServiceD
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type ReadServiceD struct {
+	Version string
+	Date    string
+	Release string
+}
+
 func (a *Host) TotalRAM() (mem uint64) {
 	if a.RAMLimit != "" {
 		mem, _ = GetRAMLimit(a.RAMLimit, a.Memory)
