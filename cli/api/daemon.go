@@ -728,6 +728,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		agentOptions := node.AgentOptions{
+			IPAddress:            agentIP,
 			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
 			UIPort:               options.UIPort,
