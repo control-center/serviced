@@ -573,6 +573,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 		ssdat2.SetVersion(nil)
 		c.Check(ssdat2.Terminated.IsZero(), Equals, true)
 		ssdat2.Terminated = ssdat.Terminated
+		c.Check(ssdat2.Started.Equal(ssdat.Started), Equals, true)
+		ssdat2.Started = ssdat.Started
 		c.Check(ssdat2, DeepEquals, ssdat)
 	case <-done:
 		c.Fatalf("Listener shutdown")
