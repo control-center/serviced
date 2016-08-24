@@ -16,6 +16,7 @@ package service
 import (
 	"time"
 
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 )
 
@@ -46,4 +47,14 @@ type Instance struct {
 	Scheduled    time.Time
 	Started      time.Time
 	Terminated   time.Time
+}
+
+// StrategyInstance collects service strategy information about a service
+// instance.
+type StrategyInstance struct {
+	HostID        string
+	ServiceID     string
+	CPUCommitment int
+	RAMCommitment uint64
+	HostPolicy    servicedefinition.HostPolicy
 }
