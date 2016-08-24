@@ -13,7 +13,7 @@
             <div class="serviceActions" ng-hide="services.current.isIsvc()">
                 <a target="_blank" ng-href="{{getServiceLogURL(services.current)}}" class="btn btn-link action">
                     <i class="glyphicon glyphicon-list-alt"></i>
-                    <span translate>Service Logs</span>
+                    <span translate>action_view_service_logs</span>
                 </a>
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
@@ -210,11 +210,11 @@
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="viewLog(app)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>
-                        <span translate>Container Log</span>
+                        <span translate>action_view_container_log</span>
                     </button>
                     <a target="_blank" ng-href="{{getInstanceLogURL(app)}}" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>
-                        <span translate>Service Log</span>
+                        <span translate>action_view_instance_log</span>
                     </a>
                     <button ng-click="app.stop()" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
