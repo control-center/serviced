@@ -17,6 +17,7 @@ package scheduler
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -124,11 +125,15 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 	}
 
 	// Spin off local sync
+	done := make(chan struct{})
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		time.Sleep(250 * time.Millisecond)
+		wg.Wait()
 		c.Logf("Calling doSync")
 		defer c.Logf("doSync returned")
 		lst.scheduler.doSync(lst.zkConn)
+		close(done)
 	}()
 
 	// Delete all pools
@@ -136,6 +141,7 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 	if err != nil {
 		c.Fatalf("Could not retrieve list of pools: %s", err)
 	}
+	wg.Done()
 	for _, pool := range allPools {
 		c.Logf("Deleting pool: %s", pool.ID)
 		if err := lst.facade.RemoveResourcePool(lst.CTX, pool.ID); err != nil {
@@ -144,7 +150,7 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 	}
 
 	// Check /pools in ZK
-	time.Sleep(time.Second)
+	<-done
 	pools, err := lst.zkConn.Children("/pools")
 	if len(pools) > 0 {
 		c.Errorf("Found these pools in zookeeper, expected none: %v", pools)

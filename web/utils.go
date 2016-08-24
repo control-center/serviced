@@ -20,11 +20,14 @@ import (
 	"net"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk/registry2"
 )
+
+// initialize the logger
+var plog = logging.PackageLogger()
 
 // ipmap keeps track of all ipv4 addresses on this host
 var ipmap = make(map[string]struct{})
@@ -33,7 +36,7 @@ func init() {
 	// set up the ipmap
 	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
-		log.WithError(err).Fatal("Could not get interface ip addresses")
+		plog.WithError(err).Fatal("Could not get interface ip addresses")
 	}
 	for _, ip := range ips {
 		ipmap[ip] = struct{}{}
@@ -54,7 +57,7 @@ func GetCertFiles(certFile, keyFile string) (string, string) {
 		var err error
 		certFile, err = proxy.TempCertFile()
 		if err != nil {
-			log.WithError(err).Fatal("Could not create temp cert file")
+			plog.WithError(err).Fatal("Could not create temp cert file")
 		}
 	}
 
@@ -63,7 +66,7 @@ func GetCertFiles(certFile, keyFile string) (string, string) {
 		var err error
 		keyFile, err = proxy.TempKeyFile()
 		if err != nil {
-			log.WithError(err).Fatal("Could not create temp key file")
+			plog.WithError(err).Fatal("Could not create temp key file")
 		}
 	}
 

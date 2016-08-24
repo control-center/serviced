@@ -87,7 +87,7 @@ func (l *VHostListener) PostProcess(p map[string]struct{}) {
 
 // Spawn manages a specific vhost for a subdomain
 func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"hostid":    l.hostID,
 		"subdomain": subdomain,
 	})

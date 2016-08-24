@@ -19,7 +19,11 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/logging"
 )
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 // RegistryError describes an error with a registry lookup
 type RegistryError struct {
@@ -47,7 +51,7 @@ type VHostKey struct {
 // DeleteExports deletes all export data for a tenant id
 func DeleteExports(conn client.Connection, tenantID string) error {
 	pth := path.Join("/net/export", tenantID)
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"tenantid": tenantID,
 		"zkpath":   pth,
 	})
@@ -68,7 +72,7 @@ func DeleteExports(conn client.Connection, tenantID string) error {
 func GetPublicPort(conn client.Connection, key PublicPortKey) (*PublicPort, error) {
 	pth := path.Join("/net/pub", key.HostID, key.PortAddress)
 
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"hostid":      key.HostID,
 		"portaddress": key.PortAddress,
 		"zkpath":      pth,
@@ -104,7 +108,7 @@ func GetPublicPort(conn client.Connection, key PublicPortKey) (*PublicPort, erro
 func GetVHost(conn client.Connection, key VHostKey) (*VHost, error) {
 	pth := path.Join("/net/vhost", key.HostID, key.Subdomain)
 
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"hostid":    key.HostID,
 		"subdomain": key.Subdomain,
 		"zkpath":    pth,
@@ -140,7 +144,7 @@ func GetVHost(conn client.Connection, key VHostKey) (*VHost, error) {
 // service.
 // FIXME: need to optimize
 func SyncServiceRegistry(conn client.Connection, serviceID string, pubs map[PublicPortKey]PublicPort, vhosts map[VHostKey]VHost) error {
-	logger := log.WithField("serviceid", serviceID)
+	logger := plog.WithField("serviceid", serviceID)
 
 	tx := conn.NewTransaction()
 
@@ -165,7 +169,7 @@ func SyncServiceRegistry(conn client.Connection, serviceID string, pubs map[Publ
 
 // syncServicePublicPorts updates the transaction to include public port updates
 func syncServicePublicPorts(conn client.Connection, tx client.Transaction, serviceID string, pubs map[PublicPortKey]PublicPort) error {
-	logger := log.WithField("serviceid", serviceID)
+	logger := plog.WithField("serviceid", serviceID)
 
 	// pull all the hosts of all the public ports
 	pth := "/net/pub"
@@ -257,7 +261,7 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 
 // syncServiceVHosts updates the transaction to include virtual host updates
 func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID string, vhosts map[VHostKey]VHost) error {
-	logger := log.WithField("serviceid", serviceID)
+	logger := plog.WithField("serviceid", serviceID)
 
 	// pull all the hosts of all the virtual hosts
 	pth := "/net/vhost"
