@@ -36,7 +36,7 @@
         }
     };
 
-    function generateKibanaURL(baseURL, globalConfig, appConfig, index){
+    function generateKibanaURL(baseURL, appConfig, globalConfig, index){
             return `
 ${baseURL}/app/kibana?#/discover?
 _g=${rison.encode(globalConfig)}&
@@ -58,7 +58,16 @@ indexPattern=${index}&type=histogram`;
 
         // generate the default search url
         getDefaultURL(){
-            return generateKibanaURL(this.baseURL, DEFAULT_GLOBALCONFIG, DEFAULT_APPCONFIG, DEFAULT_INDEX);
+            return generateKibanaURL(this.baseURL, DEFAULT_APPCONFIG, DEFAULT_GLOBALCONFIG, DEFAULT_INDEX);
+        }
+
+        // give other users some defaults
+        // to make new requests from
+        getDefaultAppConfig(){
+            return angular.copy(DEFAULT_APPCONFIG);
+        }
+        getDefaultGlobalConfig(){
+            return angular.copy(DEFAULT_GLOBALCONFIG);
         }
     }
 

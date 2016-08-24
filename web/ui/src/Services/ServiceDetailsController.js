@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies", "areUIReady",
+    "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies, areUIReady){
+    poolsFactory, CCUIState, $cookies, areUIReady, LogSearch){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -682,6 +682,40 @@
                 // TODO - just call subnavs usual function
                 $location.path(crumb.url);
             }
+        };
+
+        $scope.getServiceLogURL = function(service){
+            if(!service){
+                return "";
+            }
+            let a = LogSearch.getDefaultAppConfig(),
+                g = LogSearch.getDefaultGlobalConfig();
+
+            a.query = {
+                query_string: {
+                    analyze_wildcard: true,
+                    query: `fields.service:${service.id} AND fields.instance:* AND message:*`
+                }
+            };
+            a.columns = ["fields.instance","message"];
+
+            return LogSearch.getURL(a, g);
+        };
+
+        $scope.getInstanceLogURL = function(instance){
+            let a = LogSearch.getDefaultAppConfig(),
+                g = LogSearch.getDefaultGlobalConfig();
+
+            a.query = {
+                query_string: {
+                    analyze_wildcard: true,
+                    query: `fields.service:${instance.model.ServiceID} AND fields.instance:${instance.model.InstanceID} AND message:*`
+                }
+            };
+            a.columns = ["message"];
+
+            return LogSearch.getURL(a, g);
+
         };
 
         $scope.routeToService = function(id, e){
