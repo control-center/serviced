@@ -255,7 +255,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 		close(done)
 	}()
 
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(time.Second)
 	select {
 	case <-ev:
 		c.Logf("Listener cleaned up orphaned node")
@@ -267,7 +267,11 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 		case <-timer.C:
 			c.Fatalf("Listener did not shut down")
 		}
-
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/hosts/hostid/instances/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
 	case <-timer.C:
 		close(shutdown)
 		c.Fatalf("Listener did not shut down")
