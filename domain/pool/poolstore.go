@@ -94,17 +94,6 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
-	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
-	results, err := q.Execute(search)
-	if err != nil {
-		return nil, err
-	}
-	return convert(results)
-}
-
 func convert(results datastore.Results) ([]ResourcePool, error) {
 	pools := make([]ResourcePool, results.Len())
 	for idx := range pools {
@@ -117,6 +106,17 @@ func convert(results datastore.Results) ([]ResourcePool, error) {
 		pools[idx] = pool
 	}
 	return pools, nil
+}
+
+func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
+	q := datastore.NewQuery(ctx)
+	elasticQuery := search.Query().Search(query)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 var kind = "resourcepool"

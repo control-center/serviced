@@ -13,8 +13,10 @@
 
 package mocks
 
-import "github.com/control-center/serviced/domain/pool"
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/stretchr/testify/mock"
+)
 
 import "github.com/control-center/serviced/datastore"
 

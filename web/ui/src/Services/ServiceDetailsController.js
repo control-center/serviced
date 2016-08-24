@@ -966,7 +966,9 @@
 
             // servicesTable should not be sortable since it
             // is a hierarchy.
-            $scope.servicesTable = {};
+            $scope.servicesTable = {
+                disablePagination: true
+            };
 
             // setup initial state
             $scope.services = {
