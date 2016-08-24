@@ -3,7 +3,11 @@ package container
 import (
 	"os"
 	"strings"
+
+	"github.com/control-center/serviced/logging"
 )
+
+var plog = logging.PackageLogger()
 
 var hostIPs map[string]struct{}
 

@@ -90,7 +90,7 @@ func (l *PublicPortListener) PostProcess(p map[string]struct{}) {
 
 // Spawn monitors the public port and its exports
 func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string) {
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"hostid":      l.hostID,
 		"portaddress": portAddr,
 	})

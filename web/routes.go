@@ -42,9 +42,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", gz(sc.authorizedClient(restKillRunning))},
 		rest.Route{"GET", "/hosts/:hostId/instances", gz(sc.checkAuth(restGetHostInstances))},
 
-		// API Pools
-		rest.Route{"GET", "/api/v2/pools", gz(sc.checkAuth(getPools))},
-
 		// Pools
 		rest.Route{"GET", "/pools/:poolId", gz(sc.checkAuth(restGetPool))},
 		rest.Route{"DELETE", "/pools/:poolId", gz(sc.checkAuth(restRemovePool))},
@@ -124,6 +121,10 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
 		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
 		rest.Route{"GET", "/storage", gz(sc.authorizedClient(restGetStorage))},
+
+		// V2 API
+		rest.Route{"GET", "/api/v2/pools", gz(sc.checkAuth(getPools))},
+		rest.Route{"GET", "/api/v2/hosts", gz(sc.checkAuth(getHosts))},
 	}
 
 	// Hardcoding these target URLs for now.

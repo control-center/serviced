@@ -749,3 +749,24 @@ func (_m *FacadeInterface) GetReadPools(ctx datastore.Context) ([]pool.ReadPool,
 
 	return r0, r1
 }
+func (_m *FacadeInterface) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []host.ReadHost
+	if rf, ok := ret.Get(0).(func(datastore.Context) []host.ReadHost); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]host.ReadHost)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

@@ -32,7 +32,7 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 		for {
 			local, err := listener.Accept()
 			if err != nil {
-				log.WithError(err).Debug("Stopping accept on host:port")
+				plog.WithError(err).Debug("Stopping accept on host:port")
 				return
 			}
 
@@ -44,17 +44,17 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 			if export == nil {
 				// This happens if the endpoint is accessed and the containers
 				// have died or not come up yet.
-				log.Warn("Could not retrieve endpoint")
+				plog.Warn("Could not retrieve endpoint")
 
 				// close the accepted connection and continue waiting for
 				// connections.
 				if err := local.Close(); err != nil {
-					log.WithError(err).Error("Could not close client connection")
+					plog.WithError(err).Error("Could not close client connection")
 				}
 				continue
 			}
 
-			logger := log.WithFields(log.Fields{
+			logger := plog.WithFields(log.Fields{
 				"application": export.Application,
 				"hostip":      export.HostIP,
 				"privateip":   export.PrivateIP,
@@ -85,7 +85,7 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 
 // ServeHTTP sets up an http server for handling a collection of endpoints
 func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Listener, tlsConfig *tls.Config, exports Exports) {
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"portaddress": address,
 		"protocol":    protocol,
 		"usetls":      tlsConfig != nil,
