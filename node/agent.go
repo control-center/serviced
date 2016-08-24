@@ -74,6 +74,7 @@ const (
 
 // HostAgent is an instance of the control center Agent.
 type HostAgent struct {
+	ipaddress            string
 	poolID               string
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
@@ -111,6 +112,7 @@ func getZkDSN(zookeepers []string, timeout int) string {
 }
 
 type AgentOptions struct {
+	IPAddress            string
 	PoolID               string
 	Master               string
 	UIPort               string
@@ -136,6 +138,7 @@ type AgentOptions struct {
 func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
+	agent.ipaddress = options.IPAddress
 	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
