@@ -357,6 +357,11 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 	select {
 	case e := <-ev:
 		c.Assert(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
 	case <-time.After(5 * time.Second):
 		c.Fatalf("state not deleted")
 	}
