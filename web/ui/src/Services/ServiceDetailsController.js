@@ -10,11 +10,11 @@
     ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
     "authService", "$modalService", "$translate", "$notification",
     "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    "poolsFactory", "CCUIState", "$cookies", "areUIReady",
+    "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
     function($scope, $q, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification,
     $timeout, servicesFactory, utils, hostsFactory,
-    poolsFactory, CCUIState, $cookies, areUIReady){
+    poolsFactory, CCUIState, $cookies, areUIReady, LogSearch){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -682,6 +682,44 @@
                 // TODO - just call subnavs usual function
                 $location.path(crumb.url);
             }
+        };
+
+        // grab default kibana search configs and adjust
+        // the query to look for this specific service
+        $scope.getServiceLogURL = function(service){
+            if(!service){
+                return "";
+            }
+            let appConfig = LogSearch.getDefaultAppConfig(),
+                globalConfig = LogSearch.getDefaultGlobalConfig();
+
+            appConfig.query = {
+                query_string: {
+                    analyze_wildcard: true,
+                    query: `fields.service:${service.id} AND fields.instance:* AND message:*`
+                }
+            };
+            appConfig.columns = ["fields.instance","message"];
+
+            return LogSearch.getURL(appConfig, globalConfig);
+        };
+
+        // grab default kibana search configs and adjust
+        // the query to look for this specific service instance
+        $scope.getInstanceLogURL = function(instance){
+            let appConfig = LogSearch.getDefaultAppConfig(),
+                globalConfig = LogSearch.getDefaultGlobalConfig();
+
+            appConfig.query = {
+                query_string: {
+                    analyze_wildcard: true,
+                    query: `fields.service:${instance.model.ServiceID} AND fields.instance:${instance.model.InstanceID} AND message:*`
+                }
+            };
+            appConfig.columns = ["message"];
+
+            return LogSearch.getURL(appConfig, globalConfig);
+
         };
 
         $scope.routeToService = function(id, e){
