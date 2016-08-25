@@ -214,6 +214,7 @@ func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
 
+// GetActiveHostIDs returns a list of active host ids
 func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	hostids := []string{}
 	pools, err := f.GetResourcePools(ctx)
@@ -237,37 +238,56 @@ func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.H
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }
 
+// GetHostByIP returns the host by IP address
 func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, error) {
 	return f.hostStore.GetHostByIP(ctx, hostIP)
 }
 
+// GetReadHosts returns list of all hosts using a minimal representation of a host
 func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
-	readHosts := []host.ReadHost{}
-
 	hosts, err := f.hostStore.GetN(ctx, 20000)
 	if err != nil {
-		return readHosts, err
+		return nil, err
 	}
 
+	return toReadHosts(hosts), nil
+}
+
+// FindReadHostsInPool returns list of all hosts for a pool using a minimal representation of a host
+func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error) {
+	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, poolID)
+	if err != nil {
+		return nil, err
+	}
+
+	return toReadHosts(hosts), nil
+}
+
+func toReadHosts(hosts []host.Host) []host.ReadHost {
+	readHosts := []host.ReadHost{}
 	for _, h := range hosts {
-		readHosts = append(readHosts, host.ReadHost{
-			ID:            h.ID,
-			Name:          h.Name,
-			PoolID:        h.PoolID,
-			Cores:         h.Cores,
-			Memory:        h.Memory,
-			RAMLimit:      h.RAMLimit,
-			KernelVersion: h.KernelVersion,
-			KernelRelease: h.KernelRelease,
-			ServiceD: host.ReadServiced{
-				Version: h.ServiceD.Version,
-				Date:    h.ServiceD.Date,
-				Release: h.ServiceD.Release,
-			},
-			CreatedAt: h.CreatedAt,
-			UpdatedAt: h.UpdatedAt,
-		})
+		readHosts = append(readHosts, toReadHost(h))
 	}
 
-	return readHosts, nil
+	return readHosts
+}
+
+func toReadHost(h host.Host) host.ReadHost {
+	return host.ReadHost{
+		ID:            h.ID,
+		Name:          h.Name,
+		PoolID:        h.PoolID,
+		Cores:         h.Cores,
+		Memory:        h.Memory,
+		RAMLimit:      h.RAMLimit,
+		KernelVersion: h.KernelVersion,
+		KernelRelease: h.KernelRelease,
+		ServiceD: host.ReadServiced{
+			Version: h.ServiceD.Version,
+			Date:    h.ServiceD.Date,
+			Release: h.ServiceD.Release,
+		},
+		CreatedAt: h.CreatedAt,
+		UpdatedAt: h.UpdatedAt,
+	}
 }

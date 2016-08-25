@@ -151,19 +151,17 @@ func (ft *FacadeUnitTest) Test_GetReadPoolsShouldReturnCorrectValues(c *C) {
 	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
 		Return([]service.Service{firstService, secondService}, nil)
 
-	result, err := ft.Facade.GetReadPools(ft.ctx)
-
+	pools, err := ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)
-	c.Assert(result, Not(IsNil))
-	c.Assert(result[0].ID, Equals, resourcePool.ID)
-	c.Assert(result[0].CoreCapacity, Equals, 14)
-	c.Assert(result[0].MemoryCapacity, Equals, uint64(22000))
-	c.Assert(result[0].MemoryCommitment, Equals, uint64(3000))
-	c.Assert(result[0].ConnectionTimeout, Equals, 10)
+	c.Assert(pools, Not(IsNil))
+	c.Assert(len(pools), Equals, 1)
 
-	createdEquals := result[0].CreatedAt.Equal(resourcePool.CreatedAt)
-	c.Assert(createdEquals, Equals, true)
-
-	updateEquals := result[0].UpdatedAt.Equal(resourcePool.UpdatedAt)
-	c.Assert(updateEquals, Equals, true)
+	p := pools[0]
+	c.Assert(p.ID, Equals, resourcePool.ID)
+	c.Assert(p.CoreCapacity, Equals, 14)
+	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
+	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
+	c.Assert(p.ConnectionTimeout, Equals, 10)
+	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
 }
