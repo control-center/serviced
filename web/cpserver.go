@@ -427,13 +427,9 @@ func init() {
 }
 
 func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
-	rootConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncAllVHosts - Error getting root zk connection: %v", err)
-		return err
-	}
-
 	cancelChan := make(chan interface{})
+	defer close(cancelChan)
+
 	syncVHosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVHosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
@@ -462,19 +458,32 @@ func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
 	}
 
 	for {
-		zkServiceVHost := service.ZKServicePublicEndpoints
+		// Keep trying to get a connection to zk unless we shut down.
+		var rootConn client.Connection
+
+		select {
+		case rootConn = <-zzk.Connect("/", zzk.GetLocalConnection):
+		case <-shutdown:
+			return nil
+		}
+		if rootConn == nil {
+			continue
+		}
+		
+		// Check shutdown to make sure it didn't get closed after
+		// we received our connection.
 		select {
 		case <-shutdown:
-			close(cancelChan)
 			return nil
 		default:
 		}
+		
+		zkServiceVHost := service.ZKServicePublicEndpoints
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVHost)
 		err := registry.WatchChildren(rootConn, zkServiceVHost, cancelChan, syncVHosts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVHost, err)
 			<-time.After(time.Second * 10)
-			continue
 		}
 	}
 }

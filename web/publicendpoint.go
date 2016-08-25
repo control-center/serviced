@@ -138,20 +138,8 @@ func areEqual(s1, s2 []string) bool {
 func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error {
 	glog.Info("syncPublicEndpoints starting")
 
-	glog.V(2).Infof("getting pool based connection")
-	// public endpoints are at the root level (not pool aware)
-	poolBasedConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncPublicEndpoints - Error getting pool based zk connection: %v", err)
-		return err
-	}
-
-	glog.V(2).Infof("creating zkPepRegistry")
-	zkPepRegistry, err := registry.PublicEndpointRegistry(poolBasedConn)
-	if err != nil {
-		glog.Errorf("syncPublicEndpoints - Error getting public endpoint registry: %v", err)
-		return err
-	}
+	var zkPepRegistry *registry.PublicEndpointRegistryType
+	var err error
 
 	processPublicEndpoints := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("processPublicEndpoints STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
@@ -231,8 +219,41 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 			}
 		}
 	}
+	
 	cancelChan := make(chan interface{})
+	defer close(cancelChan)
+	
 	for {
+		glog.V(2).Infof("getting pool based connection")
+		
+		// public endpoints are at the root level (not pool aware)
+		// Keep trying to get a connection to zk unless we shut down.
+		var poolBasedConn client.Connection
+
+		select {
+		case poolBasedConn = <-zzk.Connect("/", zzk.GetLocalConnection):
+		case <-shutdown:
+			return nil
+		}
+		if poolBasedConn == nil {
+			continue
+		}
+		
+		// Check shutdown to make sure it didn't get closed after
+		// we received our connection.
+		select {
+		case <-shutdown:
+			return nil
+		default:
+		}	
+	
+		glog.V(2).Infof("creating zkPepRegistry")
+		zkPepRegistry, err = registry.PublicEndpointRegistry(poolBasedConn)
+		if err != nil {
+			glog.Errorf("syncPublicEndpoints - Error getting public endpoint registry: %v", err)
+			return err
+		}
+		
 		glog.Info("Running zkPepRegistry.WatchRegistry")
 
 		watchStopped := make(chan error)
@@ -240,9 +261,9 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 		go func() {
 			watchStopped <- zkPepRegistry.WatchRegistry(poolBasedConn, cancelChan, processPublicEndpoints, pepWatchError)
 		}()
+		
 		select {
 		case <-shutdown:
-			close(cancelChan)
 			for pep, ch := range localpepregistry.pepWatch {
 				glog.V(1).Infof("Shutdown closing watch for %v", pep)
 				close(ch)
@@ -253,7 +274,6 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 				glog.Infof("Public Endpoint Registry Watch Restarting due to %v", err)
 				time.Sleep(500 * time.Millisecond)
 			}
-
 		}
 	}
 }
