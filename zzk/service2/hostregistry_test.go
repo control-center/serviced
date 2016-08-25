@@ -104,7 +104,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		ServiceID:  s.ID,
 		InstanceID: 0,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	stop = make(chan interface{})
@@ -173,7 +173,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		ServiceID:  s.ID,
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	ok, st8ev, err = conn.ExistsW(path.Join(spth, req.StateID()), done)

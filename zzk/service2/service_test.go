@@ -73,7 +73,7 @@ func (t *ZZKTest) TestWaitService(c *C) {
 		InstanceID: 0,
 	}
 
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	timer.Reset(time.Second)

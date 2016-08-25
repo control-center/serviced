@@ -53,7 +53,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", mock.AnythingOfType("*service.Service")).Return("hostid", nil)
+	handler.On("SelectHost", mock.AnythingOfType("*service.Service")).Return("hostid", "", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
@@ -219,7 +219,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", svc).Return("hostid", "", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
@@ -364,7 +364,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Locked(c *C) {
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", svc).Return("hostid", "", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
@@ -424,7 +424,7 @@ func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceChanged(c *C) {
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", svc).Return("hostid", "", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
@@ -482,10 +482,10 @@ func (t *ZZKTest) TestServiceListener_Start(c *C) {
 	listener.SetConnection(conn)
 
 	// no host
-	handler.On("SelectHost", svc).Return("", ErrTestHostNotFound).Once()
+	handler.On("SelectHost", svc).Return("", "", ErrTestHostNotFound).Once()
 	c.Assert(listener.Start(svc, 0), Equals, false)
 
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", svc).Return("hostid", "", nil)
 
 	// host state exists
 	req := StateRequest{
@@ -567,7 +567,7 @@ func (t *ZZKTest) TestServiceListener_Stop_Offline(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 6,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	delta, ok = listener.Stop([]StateRequest{req})
 	c.Check(ok, Equals, true)
@@ -639,7 +639,7 @@ func (t *ZZKTest) TestServiceListener_Stop_Online(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 6,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	delta, ok = listener.Stop([]StateRequest{req})
 	c.Assert(ok, Equals, true)
@@ -718,7 +718,7 @@ func (t *ZZKTest) TestServiceListener_Pause(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	delta, ok = listener.Pause([]StateRequest{req})
@@ -798,7 +798,7 @@ func (t *ZZKTest) TestServiceListener_Resume(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCPause
