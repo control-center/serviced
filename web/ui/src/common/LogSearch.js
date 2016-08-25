@@ -5,6 +5,8 @@
 (function(){
     "use strict";
 
+    let $location;
+
     const KIBANA_PATH = "/api/controlplane/kibana";
     const DEFAULT_INDEX = "logstash-*";
 
@@ -46,8 +48,13 @@ indexPattern=${index}&type=histogram`;
 
     class LogSearch {
         constructor(){
-            // TODO - use $location
-            this.baseURL = `${window.location.origin}${KIBANA_PATH}`;
+            let port = $location.port() ? `:${$location.port()}` : ``,
+                host = $location.host(),
+                protocol = $location.protocol(),
+                origin = `${protocol}://${host}${port}`;
+
+            this.baseURL = `${origin}${KIBANA_PATH}`;
+            console.log(this.baseURL);
         }
 
         // given an app config and global config, generate
@@ -72,7 +79,9 @@ indexPattern=${index}&type=histogram`;
     }
 
     angular.module("LogSearch", [])
-    .factory("LogSearch", [function(){
+    .factory("LogSearch", ["$location", 
+    function(_$location){
+        $location = _$location;
         return new LogSearch();
     }]);
 })();

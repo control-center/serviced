@@ -684,37 +684,41 @@
             }
         };
 
+        // grab default kibana search configs and adjust
+        // the query to look for this specific service
         $scope.getServiceLogURL = function(service){
             if(!service){
                 return "";
             }
-            let a = LogSearch.getDefaultAppConfig(),
-                g = LogSearch.getDefaultGlobalConfig();
+            let appConfig = LogSearch.getDefaultAppConfig(),
+                globalConfig = LogSearch.getDefaultGlobalConfig();
 
-            a.query = {
+            appConfig.query = {
                 query_string: {
                     analyze_wildcard: true,
                     query: `fields.service:${service.id} AND fields.instance:* AND message:*`
                 }
             };
-            a.columns = ["fields.instance","message"];
+            appConfig.columns = ["fields.instance","message"];
 
-            return LogSearch.getURL(a, g);
+            return LogSearch.getURL(appConfig, globalConfig);
         };
 
+        // grab default kibana search configs and adjust
+        // the query to look for this specific service instance
         $scope.getInstanceLogURL = function(instance){
-            let a = LogSearch.getDefaultAppConfig(),
-                g = LogSearch.getDefaultGlobalConfig();
+            let appConfig = LogSearch.getDefaultAppConfig(),
+                globalConfig = LogSearch.getDefaultGlobalConfig();
 
-            a.query = {
+            appConfig.query = {
                 query_string: {
                     analyze_wildcard: true,
                     query: `fields.service:${instance.model.ServiceID} AND fields.instance:${instance.model.InstanceID} AND message:*`
                 }
             };
-            a.columns = ["message"];
+            appConfig.columns = ["message"];
 
-            return LogSearch.getURL(a, g);
+            return LogSearch.getURL(appConfig, globalConfig);
 
         };
 
