@@ -27,18 +27,14 @@ import (
 // GetServiceInstances returns the state of all instances for a particular
 // service.
 func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([]service.Instance, error) {
-	logger := log.WithFields(log.Fields{
-		"ServiceID": serviceID,
-	})
+	logger := plog.WithField("serviceid", serviceID)
 
 	hostMap := make(map[string]host.Host)
 
 	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
 
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not look up service")
+		logger.WithError(err).Debug("Could not look up service")
 
 		// TODO: expecting wrapped error here
 		return nil, err
@@ -49,16 +45,11 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
 	if err != nil {
 
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not look up running instances")
-
+		logger.WithError(err).Debug("Could not look up running instances")
 		return nil, err
 	}
 
-	logger = logger.WithFields(log.Fields{
-		"Instances": len(states),
-	})
+	logger = logger.WithField("instances", len(states))
 	logger.Debug("Found running instances for service")
 
 	insts := make([]service.Instance, len(states))
@@ -68,10 +59,9 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 			if err := f.hostStore.Get(ctx, host.HostKey(state.HostID), &hst); err != nil {
 
 				logger.WithFields(log.Fields{
-					"HostID":     state.HostID,
-					"InstanceID": state.InstanceID,
-					"Error":      err,
-				}).Debug("Could not look up host for instance")
+					"hostid":     state.HostID,
+					"instanceid": state.InstanceID,
+				}).WithError(err).Debug("Could not look up host for instance")
 
 				return nil, err
 			}
@@ -92,9 +82,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 
 // GetHostInstances returns the state of all instances for a particular host.
 func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]service.Instance, error) {
-	logger := log.WithFields(log.Fields{
-		"HostID": hostID,
-	})
+	logger := plog.WithField("hostid", hostID)
 
 	svcMap := make(map[string]service.Service)
 
@@ -102,9 +90,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
 	if err != nil {
 
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not look up host")
+		logger.WithError(err).Debug("Could not look up host")
 
 		// TODO: expecting wrapped error here
 		return nil, err
@@ -115,16 +101,12 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 	states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
 	if err != nil {
 
-		logger.WithFields(log.Fields{
-			"Error": err,
-		}).Debug("Could not look up running instances")
+		logger.WithError(err).Debug("Could not look up running instances")
 
 		return nil, err
 	}
 
-	logger = logger.WithFields(log.Fields{
-		"Instances": len(states),
-	})
+	logger = logger.WithField("instances", len(states))
 	logger.Debug("Found running instances for services")
 
 	insts := make([]service.Instance, len(states))
@@ -136,9 +118,9 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 			if err != nil {
 
 				logger.WithFields(log.Fields{
-					"ServiceID":  state.ServiceID,
-					"InstanceID": state.InstanceID,
-				}).Debug("Could not look up service for instance")
+					"serviceid":  state.ServiceID,
+					"instanceid": state.InstanceID,
+				}).WithError(err).Debug("Could not look up service for instance")
 
 				return nil, err
 			}
@@ -153,32 +135,27 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 		insts[i] = *inst
 	}
 
-	logger.Debug("Loaded instances for service")
+	logger.Debug("Loaded instances for host")
 
 	return insts, nil
 }
 
 // getInstance calculates the fields of the service instance object.
 func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, state zkservice.State) (*service.Instance, error) {
-	logger := log.WithFields(log.Fields{
-		"HostID":     state.HostID,
-		"ServiceID":  state.ServiceID,
-		"InstanceID": state.InstanceID,
+	logger := plog.WithFields(log.Fields{
+		"hostid":     state.HostID,
+		"serviceid":  state.ServiceID,
+		"instanceid": state.InstanceID,
 	})
 
 	// check the image
 	imageSynced, err := func(imageName, imageUUID string) (bool, error) {
-		imgLogger := logger.WithFields(log.Fields{
-			"Image": imageName,
-		})
+		imgLogger := logger.WithField("imagename", imageName)
 
 		imageID, err := commons.ParseImageID(imageName)
 		if err != nil {
 
-			imgLogger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not parse service image")
-
+			imgLogger.WithError(err).Debug("Could not parse service image")
 			return false, err
 		}
 		imgLogger.Debug("Parsed service image")
@@ -187,9 +164,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		imageData, err := f.registryStore.Get(ctx, imageID.String())
 		if err != nil {
 
-			imgLogger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not look up service image in the registry")
+			imgLogger.WithError(err).Debug("Could not look up service image in registry")
 
 			// TODO: expecting wrapped error here
 			return false, err
@@ -268,4 +243,69 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	logger.Debug("Loaded service instance")
 
 	return inst, nil
+}
+
+// GetHostStrategyInstances returns the strategy objects of all the instances
+// running on a host.
+func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...string) ([]service.StrategyInstance, error) {
+
+	svcMap := make(map[string]service.StrategyInstance)
+	insts := make([]service.StrategyInstance, 0)
+
+	for _, hostID := range hostIDs {
+		logger := plog.WithField("hostid", hostID)
+
+		var hst host.Host
+		err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
+		if err != nil {
+
+			logger.WithError(err).Debug("Could not look up host")
+
+			// TODO: expecting wrapped error here
+			return nil, err
+		}
+
+		logger.Debug("Loaded host")
+
+		states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
+		if err != nil {
+
+			logger.WithError(err).Debug("Could not look up running instances")
+			return nil, err
+		}
+
+		logger.WithField("instances", len(states))
+		logger.Debug("Found running instances for services")
+
+		for _, state := range states {
+
+			inst, ok := svcMap[state.ServiceID]
+			if !ok {
+				s, err := f.serviceStore.Get(ctx, state.ServiceID)
+				if err != nil {
+
+					logger.WithFields(log.Fields{
+						"serviceid":  state.ServiceID,
+						"instanceid": state.InstanceID,
+					}).WithError(err).Debug("Could not look up service for instance")
+
+					return nil, err
+				}
+				inst = service.StrategyInstance{
+					ServiceID:     s.ID,
+					CPUCommitment: int(s.CPUCommitment),
+					RAMCommitment: s.RAMCommitment.Value,
+					HostPolicy:    s.HostPolicy,
+				}
+				svcMap[state.ServiceID] = inst
+			}
+
+			inst.HostID = state.HostID
+			insts = append(insts, inst)
+		}
+
+		logger.Debug("Loaded instances for host")
+	}
+
+	return insts, nil
 }
