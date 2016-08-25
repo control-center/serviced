@@ -21,8 +21,12 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 )
+
+// instantiate the package logger
+var plog = logging.PackageLogger()
 
 // assert interface
 var _ FacadeInterface = &Facade{}

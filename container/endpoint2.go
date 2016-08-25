@@ -78,10 +78,11 @@ func NewContainerEndpoints(svc *service.Service, opts ContainerEndpointsOptions)
 
 // loadState loads state information for the container
 func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
-	logger := log.WithFields(log.Fields{
-		"HostID":     ce.opts.HostID,
-		"ServiceID":  svc.ID,
-		"InstanceID": ce.opts.InstanceID,
+	logger := plog.WithFields(log.Fields{
+		"hostid":      ce.opts.HostID,
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"instanceid":  ce.opts.InstanceID,
 	})
 
 	// get the hostname
@@ -211,10 +212,10 @@ func (ce *ContainerEndpoints) Run(cancel <-chan struct{}) {
 
 // AddExport ensures that an export is registered for other services to bind
 func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.ExportBinding) {
-	logger := log.WithFields(log.Fields{
-		"Application": bind.Application,
-		"PortNumber":  bind.PortNumber,
-		"Protocol":    bind.Protocol,
+	logger := plog.WithFields(log.Fields{
+		"application": bind.Application,
+		"portnumber":  bind.PortNumber,
+		"protocol":    bind.Protocol,
 	})
 
 	exp := registry.ExportDetails{
@@ -251,13 +252,11 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 
 // AddImport tracks exports for a given import binding
 func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.ImportBinding) {
-	logger := log.WithFields(log.Fields{
-		"Application": bind.Application,
-		"Purpose":     bind.Purpose,
+	logger := plog.WithFields(log.Fields{
+		"application": bind.Application,
+		"purpose":     bind.Purpose,
 	})
-
 	logger.Debug("Tracking exports for endpoint")
-
 	defer logger.Debug("Exited export tracking for endpoint")
 
 	for {
@@ -286,11 +285,10 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 
 // UpdateRemoteExports updates the proxy connections for an import port binding
 func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, exports []registry.ExportDetails) {
-	logger := log.WithFields(log.Fields{
-		"Application": bind.Application,
-		"Purpose":     bind.Purpose,
+	logger := plog.WithFields(log.Fields{
+		"application": bind.Application,
+		"purpose":     bind.Purpose,
 	})
-
 	logger.Debug("Updating exports for endpoint")
 
 	if bind.Purpose == "import_all" {
@@ -302,9 +300,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 
 		for _, export := range exports {
 
-			exLogger := logger.WithFields(log.Fields{
-				"InstanceID": export.InstanceID,
-			})
+			exLogger := logger.WithField("instanceid", export.InstanceID)
 
 			// calculate the inbound port number
 			port, err := bind.GetPortNumber(export.InstanceID)
@@ -313,9 +309,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 				return
 			}
 
-			exLogger = exLogger.WithFields(log.Fields{
-				"PortNumber": port,
-			})
+			exLogger = exLogger.WithField("portnumber", port)
 
 			// check if the port is in use by an export
 			if _, ok := ce.ports[port]; ok {
@@ -346,10 +340,8 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 				}
 
 				if virtualAddress != "" {
-					exLogger = exLogger.WithFields(log.Fields{
-						"VirtualAddress": virtualAddress,
-					})
 
+					exLogger = exLogger.WithField("virtualaddress", virtualAddress)
 					if err := ce.vifs.RegisterVirtualAddress(virtualAddress, fmt.Sprintf(":%d", port), export.Protocol); err != nil {
 						exLogger.WithError(err).Warn("Could not register virtual address")
 						continue
@@ -369,9 +361,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			return
 		}
 
-		exLogger = exLogger.WithFields(log.Fields{
-			"PortNumber": port,
-		})
+		exLogger = exLogger.WithField("portnumber", port)
 
 		// check if the port is used by an export
 		if _, ok := ce.ports[port]; ok {
@@ -397,10 +387,8 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			}
 
 			if virtualAddress != "" {
-				exLogger = exLogger.WithFields(log.Fields{
-					"VirtualAddress": virtualAddress,
-				})
 
+				exLogger = exLogger.WithField("virtualaddress", virtualAddress)
 				if err := ce.vifs.RegisterVirtualAddress(virtualAddress, fmt.Sprintf(":%d", port), "tcp"); err != nil {
 					exLogger.WithError(err).Warn("Could not register virtual address")
 					return
@@ -439,9 +427,9 @@ func newProxyCache(tenantID string, tcpMuxPort uint16, useTLS, allowDirect bool)
 
 // Set returns true if the key was created and an error
 func (c *proxyCache) Set(application string, portNumber uint16, exports ...registry.ExportDetails) (bool, error) {
-	logger := log.WithFields(log.Fields{
-		"Application": application,
-		"PortNumber":  portNumber,
+	logger := plog.WithFields(log.Fields{
+		"application": application,
+		"portnumber":  portNumber,
 	})
 
 	c.mu.Lock()
@@ -461,9 +449,7 @@ func (c *proxyCache) Set(application string, portNumber uint16, exports ...regis
 		// start the listener on the provided port
 		listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", portNumber))
 		if err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not open port")
+			logger.WithError(err).Debug("Could not open port")
 			return false, err
 		}
 
@@ -479,9 +465,7 @@ func (c *proxyCache) Set(application string, portNumber uint16, exports ...regis
 			c.allowDirect,
 		)
 		if err != nil {
-			logger.WithFields(log.Fields{
-				"Error": err,
-			}).Debug("Could not start proxy")
+			logger.WithError(err).Debug("Could not start proxy")
 			return false, err
 		}
 

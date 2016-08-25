@@ -17,6 +17,7 @@ package scheduler
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -112,6 +113,7 @@ func (lst *LocalSyncTest) TearDownSuite(c *C) {
 // test that here now.
 func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 	// Add 10 pools
+	poolIDs := []string{}
 	for i := 1; i <= 10; i++ {
 		newPool := &pool.ResourcePool{
 			ID:    fmt.Sprintf("deadpool%d", i),
@@ -121,32 +123,50 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 		if err := lst.facade.AddResourcePool(lst.CTX, newPool); err != nil {
 			c.Fatalf("AddResourcePool(%s) failed: $s", newPool.ID, err)
 		}
+		poolIDs = append(poolIDs, newPool.ID)
 	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 
 	// Spin off local sync
+	done := make(chan struct{})
 	go func() {
-		time.Sleep(250 * time.Millisecond)
+		wg.Wait()
 		c.Logf("Calling doSync")
-		defer c.Logf("doSync returned")
 		lst.scheduler.doSync(lst.zkConn)
+		c.Logf("doSync done")
+		close(done)
 	}()
 
-	// Delete all pools
-	allPools, err := lst.facade.GetResourcePools(lst.CTX)
-	if err != nil {
-		c.Fatalf("Could not retrieve list of pools: %s", err)
-	}
-	for _, pool := range allPools {
-		c.Logf("Deleting pool: %s", pool.ID)
-		if err := lst.facade.RemoveResourcePool(lst.CTX, pool.ID); err != nil {
-			c.Fatalf("Could not remove pool %s: %s", pool.ID, err)
+	wg.Done()
+
+	// Delete all the pools until we can't delete them anymore
+	var i int
+	var poolID string
+	for i, poolID = range poolIDs {
+		c.Logf("Deleting pool: %s", poolID)
+		if err := lst.facade.RemoveResourcePool(lst.CTX, poolID); err != nil {
+			// assume the lock has been acquired by doSync, wait til the
+			// method is done
+			i--
+			break
 		}
 	}
 
-	// Check /pools in ZK
-	time.Sleep(time.Second)
-	pools, err := lst.zkConn.Children("/pools")
-	if len(pools) > 0 {
-		c.Errorf("Found these pools in zookeeper, expected none: %v", pools)
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("Timed out waiting for sync to finish")
+	}
+
+	// make sure the deleted pools were deleted
+	for j, poolID := range poolIDs {
+		c.Logf("Checking Pool: %s", poolID)
+		actual, err := lst.zkConn.Exists("/pools/" + poolID)
+		c.Assert(err, IsNil)
+		c.Check(actual, Equals, j > i)
 	}
 }

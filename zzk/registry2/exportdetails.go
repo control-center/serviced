@@ -45,7 +45,7 @@ func (node *ExportDetails) SetVersion(version interface{}) {
 
 // RegisterExport exposes an exported endpoint
 func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID string, export ExportDetails) {
-	logger := log.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"TenantID":    tenantID,
 		"Application": export.Application,
 		"InstanceID":  export.InstanceID,
@@ -110,7 +110,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 		pth := path.Join("/net/export", tenantID, application)
 
 		// set up the logger
-		logger := log.WithFields(log.Fields{
+		logger := plog.WithFields(log.Fields{
 			"TenantID":    tenantID,
 			"Application": application,
 			"ExportPath":  pth,

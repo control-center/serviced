@@ -257,7 +257,8 @@ table .btn,
 
 .navbar-zen .main-nav a.navbar-brand:hover,
 .navbar-zen .main-nav li > button:hover,
-.navbar-zen .main-nav li > a:hover {
+.navbar-zen .main-nav li > a:hover,
+.navbar-zen .main-nav li > a:focus {
     background-color: #969696;
     color: #f6f6f6;
 }

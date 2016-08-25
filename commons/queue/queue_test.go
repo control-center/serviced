@@ -94,11 +94,10 @@ func (s *QueueSuite) TestConcurrent(c *C) {
 	wg := sync.WaitGroup{}
 	for i := 0; i < cap*2; i++ {
 		wg.Add(1)
-		val := i
-		go func() {
+		go func(val int) {
 			q.Offer(val)
 			wg.Done()
-		}()
+		}(i)
 	}
 	wg.Wait()
 	c.Assert(q.Size(), Equals, int32(cap))

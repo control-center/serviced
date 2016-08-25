@@ -84,6 +84,8 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "codemirror/mode/shell/shell.js",
     paths.thirdpartySrc + "codemirror/mode/javascript/javascript.js",
     paths.thirdpartySrc + "angular-ui-codemirror/ui-codemirror.js",
+
+    paths.thirdpartySrc + "rison-node/rison.js",
 ];
 
 // Enumerate the static assets (including thirdparty.js) so that the RPM/DEB
