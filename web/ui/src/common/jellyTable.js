@@ -128,67 +128,62 @@
                     getData = function ($defer, params) {
                         var allItems = data(),
                             totalItemCount = 0,
-                            sortedItems,
-                            tableEntries;
+                            sortedItems = [],
+                            tableEntries = [];
 
-                        if (angular.isObject(allItems) && !angular.isArray(allItems)) {
-                            // make allItems an array if necessary
-                            allItems = utils.mapToArr(allItems);
-                            $scope[tableID].loading = false;
-                            toggleNoData(false);
-                        } else if (allItems === null) {
-                            // if no data, show no data message
-                            allItems = [];
-                            toggleNoData(true);
-                        }
-                        totalItemCount = allItems.length;
+                        if (angular.isUndefined(allItems)) {
 
-                        if (config().getData) {
-                            // call overriden getData if available (eg services)
-                            sortedItems = config().getData(allItems, params);
-                        } else {
-                            // use default getData (eg pools hosts)
-                            sortedItems = params.sorting() ?
-                                orderBy(allItems, params.orderBy())
-                                : allItems;
-                        }
-
-                        if (angular.isUndefined(sortedItems)) {
                             // show loading animation and hide no-data message
                             $scope[tableID].loading = true;
                             toggleNoData(false);
-                            sortedItems = [];
-                        }
-                        else {
-                            // hide loading animation
+
+                        } else {
+
                             $scope[tableID].loading = false;
+
+                            if (angular.isObject(allItems) && !angular.isArray(allItems)) {
+                                // make allItems an array if necessary
+                                allItems = utils.mapToArr(allItems);
+                            } else if (allItems === null) {
+                                allItems = [];
+                            }
+
+                            totalItemCount = allItems.length;
                             // if no results show no data message
                             toggleNoData(!totalItemCount);
-                        }
 
-                        // pagination
-                        if (config().disablePagination) {
-                            // supress pagination
-                            tableEntries = sortedItems;
-                            toggleNoData(false);
-                        } else {
-                            // slice sorted results array for current page
-                            var lower = (params.page() - 1) * config().pgsize;
-                            var upper = Math.min(lower + config().pgsize, totalItemCount);
-                            tableEntries = sortedItems.slice(lower, upper);
-
-                            if (totalItemCount > config().pgsize) {
-                                table.addClass("has-pagination");
-                                // ngtable pagination requires total item count
-                                params.total(totalItemCount);
+                            if (config().getData) {
+                                // call overriden getData if available (eg services)
+                                sortedItems = config().getData(allItems, params);
                             } else {
-                                table.removeClass("has-pagination");
+                                // use default getData (eg pools hosts)
+                                sortedItems = params.sorting() ?
+                                    orderBy(allItems, params.orderBy())
+                                    : allItems;
+                            }
+
+                            // pagination
+                            if (config().disablePagination) {
+                                // supress pagination
+                                tableEntries = sortedItems;
+                            } else {
+                                // slice sorted results array for current page
+                                var lower = (params.page() - 1) * config().pgsize;
+                                var upper = Math.min(lower + config().pgsize, totalItemCount);
+                                tableEntries = sortedItems.slice(lower, upper);
+
+                                if (totalItemCount > config().pgsize) {
+                                    table.addClass("has-pagination");
+                                    // ngtable pagination requires total item count
+                                    params.total(totalItemCount);
+                                } else {
+                                    table.removeClass("has-pagination");
+                                }
                             }
                         }
 
                         $scope[tableID].resultsLength = totalItemCount;
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
-
                         $defer.resolve(tableEntries);
                     };
 
