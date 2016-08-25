@@ -268,6 +268,7 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 				glog.V(1).Infof("Shutdown closing watch for %v", pep)
 				close(ch)
 			}
+			<-watchStopped
 			return nil
 		case err := <-watchStopped:
 			if err != nil {
