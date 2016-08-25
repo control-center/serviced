@@ -98,7 +98,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// delete the host state
@@ -170,7 +170,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// delete the service state
@@ -243,7 +243,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -313,7 +313,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// attached, run, no change
@@ -393,7 +393,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -513,7 +513,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -642,7 +642,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -760,7 +760,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -844,7 +844,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -915,7 +915,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})

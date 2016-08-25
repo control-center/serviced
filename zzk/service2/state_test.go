@@ -80,7 +80,7 @@ func (t *ZZKTest) TestGetServiceStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -89,7 +89,7 @@ func (t *ZZKTest) TestGetServiceStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 2,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -98,7 +98,7 @@ func (t *ZZKTest) TestGetServiceStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// 0 states
@@ -146,7 +146,7 @@ func (t *ZZKTest) TestDeleteServiceStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -155,7 +155,7 @@ func (t *ZZKTest) TestDeleteServiceStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 2,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -164,7 +164,7 @@ func (t *ZZKTest) TestDeleteServiceStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// 0 states
@@ -205,7 +205,7 @@ func (t *ZZKTest) TestGetHostStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -214,7 +214,7 @@ func (t *ZZKTest) TestGetHostStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 2,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -223,7 +223,7 @@ func (t *ZZKTest) TestGetHostStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// 0 states
@@ -271,7 +271,7 @@ func (t *ZZKTest) TestDeleteHostStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -280,7 +280,7 @@ func (t *ZZKTest) TestDeleteHostStates(c *C) {
 		ServiceID:  "serviceid1",
 		InstanceID: 2,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	req = StateRequest{
@@ -289,7 +289,7 @@ func (t *ZZKTest) TestDeleteHostStates(c *C) {
 		ServiceID:  "serviceid2",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	// 0 states
@@ -362,7 +362,7 @@ func (t *ZZKTest) TestIsValidState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	ok, err = IsValidState(conn, req)
 	c.Check(err, IsNil)
@@ -396,7 +396,7 @@ func (t *ZZKTest) TestCleanHostStates(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	err = CleanHostStates(conn, "poolid", "hostid")
@@ -437,7 +437,7 @@ func (t *ZZKTest) TestCleanServiceStates(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	err = CleanServiceStates(conn, "poolid", "serviceid")
@@ -532,7 +532,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	err = conn.Delete("/pools/poolid/hosts/hostid/instances/" + req.StateID())
 	c.Assert(err, IsNil)
@@ -565,7 +565,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 2,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	err = conn.Delete("/pools/poolid/services/serviceid/" + req.StateID())
 	c.Assert(err, IsNil)
@@ -598,7 +598,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 3,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown = make(chan struct{})
@@ -635,7 +635,7 @@ func (t *ZZKTest) TestMonitorState(c *C) {
 		ServiceID:  "serviceid",
 		InstanceID: 4,
 	}
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 
 	shutdown = make(chan struct{})
@@ -692,7 +692,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 
 	// create state
 	startTime := time.Now()
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	c.Assert(err, IsNil)
 	ok, err := conn.Exists("/pools/poolid/services/serviceid/hostid-serviceid-3")
 	c.Assert(err, IsNil)
@@ -702,7 +702,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	c.Assert(ok, Equals, true)
 
 	// create duplicate state
-	err = CreateState(conn, req)
+	err = CreateState(conn, req, "")
 	stateErr, ok := err.(*StateError)
 	c.Check(ok, Equals, true)
 	c.Check(stateErr.Request, DeepEquals, req)

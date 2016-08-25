@@ -25,7 +25,9 @@ import (
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
-	SelectHost(*service.Service) (string, error)
+
+	// SelectHost returns the hostid and applicable ip assignment for a service
+	SelectHost(*service.Service) (string, string, error)
 }
 
 // ServiceListener is the listener for /services
@@ -264,7 +266,7 @@ func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
 	})
 
 	// pick a host
-	hostID, err := l.handler.SelectHost(svc)
+	hostID, assignedIP, err := l.handler.SelectHost(svc)
 	if err != nil {
 
 		logger.WithError(err).Warn("Could not select host")
@@ -282,7 +284,7 @@ func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
 	// make sure the state exists on neither the service nor the host
 	DeleteState(l.conn, req)
 
-	if err := CreateState(l.conn, req); err != nil {
+	if err := CreateState(l.conn, req, assignedIP); err != nil {
 
 		logger.WithError(err).Warn("Could not schedule service instance")
 		return false

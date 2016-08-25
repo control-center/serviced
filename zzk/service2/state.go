@@ -71,6 +71,7 @@ func (s *ServiceState) SetVersion(version interface{}) {
 type HostState struct {
 	DesiredState service.DesiredState
 	Scheduled    time.Time
+	AssignedIP   string
 	version      interface{}
 }
 
@@ -285,7 +286,7 @@ func GetHostStates(conn client.Connection, poolID, hostID string) ([]State, erro
 }
 
 // CreateState creates a new service state and host state
-func CreateState(conn client.Connection, req StateRequest) error {
+func CreateState(conn client.Connection, req StateRequest, assignedIP string) error {
 	logger := plog.WithFields(log.Fields{
 		"hostid":     req.HostID,
 		"serviceid":  req.ServiceID,
@@ -316,6 +317,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 	hsdat := &HostState{
 		DesiredState: service.SVCRun,
 		Scheduled:    time.Now(),
+		AssignedIP:   assignedIP,
 	}
 	t.Create(hspth, hsdat)
 
