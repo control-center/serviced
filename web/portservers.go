@@ -83,8 +83,8 @@ func (sc *ServiceConfig) ServePublicPorts(shutdown <-chan (interface{}), dao dao
 // Adapted from golang net/http/server.go
 type tcpKeepAliveListener struct {
 	*net.TCPListener
-	StopChan    chan bool
-	port        string
+	StopChan chan bool
+	port     string
 }
 
 func newKeepAliveListener(listener net.Listener, stopChan chan bool, port string) *tcpKeepAliveListener {
@@ -139,12 +139,12 @@ func (sc *ServiceConfig) createPortHttpServer(node service.ServicePublicEndpoint
 			// https://github.com/golang/go/blob/b6b4004d5a5bf7099ac9ab76777797236da7fe63/src/net/tcpsock.go#L229-230
 			// Sending a response code doesn't close the connection; see the next comment.
 			//http.Error(w, fmt.Sprintf("public endpoint %s not available", port), http.StatusServiceUnavailable)
-			
+
 			// We have to close this connection.  The browser will reuse the active connection, so if a
 			// user connects, then the endpoint is stopped - that connection will get a port closed notice. Even
 			// if the endpoint is restarted, the browser will reuse the connection to the closed listener.  This
 			// ensures that they reconnect on the new connection each time they refresh the browser.
-			w.Header().Set("Connection", "close") 
+			w.Header().Set("Connection", "close")
 			return
 		}
 		glog.V(2).Infof("httphandler (port) handling request: %+v", r)
@@ -334,13 +334,9 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 }
 
 func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
-	rootConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncAllPublicPorts - Error getting root zk connection: %v", err)
-		return err
-	}
-
 	cancelChan := make(chan interface{})
+	defer close(cancelChan)
+
 	zkServicePEPService := service.ZKServicePublicEndpoints
 
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
@@ -357,7 +353,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 			glog.V(1).Infof("zkServicePEPService: %s, pepID: %s", zkServicePEPService, pepID)
 			nodePath := fmt.Sprintf("%s/%s", zkServicePEPService, pepID)
 			var node service.ServicePublicEndpointNode
-			err := rootConn.Get(nodePath, &node)
+			err := conn.Get(nodePath, &node)
 			if err != nil {
 				glog.Errorf("Unable to get the ZK Node from PepID")
 				continue
@@ -394,18 +390,29 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	for {
+		// Keep trying to get a connection to zk unless we shut down.
+		var rootConn client.Connection
+		select {
+		case rootConn = <-zzk.Connect("/", zzk.GetLocalConnection):
+		case <-shutdown:
+			return nil
+		}
+
+		select {
+		case <-shutdown:
+			return nil
+		default:
+		}
+
+		if rootConn == nil {
+			continue
+		}
+
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServicePEPService)
 		err := registry.WatchChildren(rootConn, zkServicePEPService, cancelChan, syncPorts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServicePEPService, err)
 			<-time.After(time.Second * 10)
-			continue
-		}
-		select {
-		case <-shutdown:
-			close(cancelChan)
-			return nil
-		default:
 		}
 	}
 }
