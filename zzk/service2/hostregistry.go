@@ -351,55 +351,6 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 	}
 }
 
-// GetCurrentHosts returns the list of hosts that are currently active in a
-// resource pool.
-func GetCurrentHosts(conn client.Connection, poolid string) ([]string, error) {
-	logger := plog.WithField("poolid", poolid)
-
-	onlineHosts := make([]string, 0)
-	pth := path.Join("/pools", poolid, "hosts")
-	ch, err := conn.Children(pth)
-	if err != nil {
-
-		logger.WithError(err).Debug("Could not look up hosts in resource pool")
-
-		// TODO: wrap error?
-		return nil, err
-	}
-	for _, hostid := range ch {
-		isOnline, err := IsHostOnline(conn, poolid, hostid)
-		if err != nil {
-			return nil, err
-		}
-
-		if isOnline {
-			onlineHosts = append(onlineHosts, hostid)
-		}
-	}
-
-	logger.WithField("hostcount", len(onlineHosts)).Debug("Loaded online hosts")
-	return onlineHosts, nil
-}
-
-// IsHostOnline returns true if a provided host is currently active.
-func IsHostOnline(conn client.Connection, poolid, hostid string) (bool, error) {
-	logger := plog.WithField("hostid", hostid)
-
-	basepth := "/"
-	if poolid != "" {
-		basepth = path.Join("/pools", poolid)
-	}
-
-	pth := path.Join(basepth, "/hosts", hostid, "online")
-	ch, err := conn.Children(pth)
-	if err != nil && err != client.ErrNoNode {
-
-		logger.WithError(err).Debug("Could not check online status of host")
-		return false, err
-	}
-	return len(ch) > 0, nil
-}
-
 // RegisterHost persists a registered host to the coordinator.  This is managed
 // by the worker node, so it is expected that the connection will be pre-loaded
 // with the path to the resource pool.
