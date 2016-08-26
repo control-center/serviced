@@ -201,11 +201,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		case <-stopped:
 			glog.Warningf("Leader died, re-electing...")
 			return
-		case pool := <-monitor:
-			if pool == nil || pool.Realm != s.realm {
-				glog.Warningf("Realm changed, re-electing...")
-				return
-			}
 		case <-s.shutdown:
 			return
 		}

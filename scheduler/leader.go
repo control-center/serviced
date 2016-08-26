@@ -122,7 +122,7 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 		// is the host available?
 		for _, h := range hosts {
 			if h.ID == hostID {
-				return hostID, assignment.IPAddr, nil
+				return hostID, nil
 			}
 		}
 
