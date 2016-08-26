@@ -253,20 +253,6 @@ func (_m *ControlPlane) WaitService(request dao.WaitServiceRequest, unused *int)
 	return r0
 }
 
-// UpdateServiceState provides a mock function with given fields: state, unused
-func (_m *ControlPlane) UpdateServiceState(state servicestate.ServiceState, unused *int) error {
-	ret := _m.Called(state, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(servicestate.ServiceState, *int) error); ok {
-		r0 = rf(state, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // GetServiceStatus provides a mock function with given fields: serviceID, statusmap
 func (_m *ControlPlane) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) error {
 	ret := _m.Called(serviceID, statusmap)

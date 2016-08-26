@@ -1421,17 +1421,6 @@ func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registr
 			if err = f.UpdateService(ctx, *svc); err != nil {
 				return fmt.Errorf("error updating service %s: %s", svc.Name, err)
 			}
-			states, err := f.GetServiceStates(ctx, svc.ID)
-			if err != nil {
-				return err
-			}
-			for _, state := range states {
-				state.InSync = false
-				glog.V(1).Infof("Updating InSync for service %s", state.ID)
-				if err = f.zzk.UpdateServiceState(svc.PoolID, &state); err != nil {
-					return err
-				}
-			}
 		}
 	}
 	return nil

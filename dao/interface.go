@@ -180,9 +180,6 @@ type ControlPlane interface {
 	// Wait for a particular service state
 	WaitService(request WaitServiceRequest, unused *int) error
 
-	// Update the service state
-	UpdateServiceState(state servicestate.ServiceState, unused *int) error
-
 	// Computes the status of the service based on its service instances
 	GetServiceStatus(serviceID string, statusmap *map[string]ServiceStatus) error
 

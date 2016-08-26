@@ -64,18 +64,6 @@ func (_m *ZZK) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 
 	return r0
 }
-func (_m *ZZK) UpdateServiceState(poolID string, state *servicestate.ServiceState) error {
-	ret := _m.Called(poolID, state)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *servicestate.ServiceState) error); ok {
-		r0 = rf(poolID, state)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *ZZK) StopServiceInstance(poolID string, hostID string, stateID string) error {
 	ret := _m.Called(poolID, hostID, stateID)
 

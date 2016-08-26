@@ -86,18 +86,6 @@ func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, ser
 	return err
 }
 
-// Update the current state of a service instance.
-func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState, unused *int) error {
-	glog.V(2).Infoln("ControlPlaneDao.UpdateServiceState state=%+v", state)
-
-	poolBasedConn, err := this.getPoolBasedConnection(state.ServiceID)
-	if err != nil {
-		return err
-	}
-
-	return zkservice.UpdateServiceState(poolBasedConn, &state)
-}
-
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
 	myHost, err := this.facade.GetHost(datastore.Get(), request.HostID)
 	if err != nil {
