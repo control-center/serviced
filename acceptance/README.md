@@ -233,7 +233,7 @@ The following example illustrates how to mark a test case as PENDING:
     Then I should see "Applications"
       And I should see "Hosts Map"
       And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And I should see "0 Results"
 ```
 
 ### Page Object Model
