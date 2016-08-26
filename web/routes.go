@@ -124,6 +124,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// V2 API
 		rest.Route{"GET", "/api/v2/pools", gz(sc.checkAuth(getPools))},
+		rest.Route{"GET", "/api/v2/pools/:poolId/hosts", gz(sc.checkAuth(getHostsForPool))},
 		rest.Route{"GET", "/api/v2/hosts", gz(sc.checkAuth(getHosts))},
 	}
 
