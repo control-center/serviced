@@ -22,13 +22,15 @@ import (
 	"github.com/control-center/serviced/datastore"
 	imgreg "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"path"
 )
+
+var plog = logging.PackageLogger()
 
 type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
 
@@ -151,9 +153,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	defer close(_shutdown)
 
 	stopped := make(chan struct{}, 2)
-
-	// monitor the resource pool
-	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
 
 	// ensure all the services are unlocked
 	glog.Infof("Resetting service locks")
