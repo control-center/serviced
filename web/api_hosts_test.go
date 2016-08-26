@@ -23,112 +23,65 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-type apiHostsTestData struct {
+var apiHostsTestData = struct {
 	firstHost  host.ReadHost
 	secondHost host.ReadHost
-	selfLink   APILink
+}{
+	firstHost: host.ReadHost{
+		ID:            "firstHost",
+		Name:          "FirstHost",
+		PoolID:        "Pool",
+		Cores:         12,
+		Memory:        15000,
+		RAMLimit:      "50%",
+		KernelVersion: "1.1.1",
+		KernelRelease: "1.2.3",
+		ServiceD: host.ReadServiced{
+			Version: "1.2.3.4.5",
+			Date:    "1/1/1999",
+			Release: "Release",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	},
+
+	secondHost: host.ReadHost{
+		ID:            "secondHost",
+		Name:          "SecondHost",
+		PoolID:        "Pool",
+		Cores:         7,
+		Memory:        10000,
+		RAMLimit:      "70%",
+		KernelVersion: "1.1.1",
+		KernelRelease: "1.2.3",
+		ServiceD: host.ReadServiced{
+			Version: "1.2.3.4.5",
+			Date:    "1/1/1999",
+			Release: "Release",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	},
 }
 
-func newAPIHostsTestData() apiHostsTestData {
-	return apiHostsTestData{
-		firstHost: host.ReadHost{
-			ID:            "firstHost",
-			Name:          "FirstHost",
-			PoolID:        "Pool",
-			Cores:         12,
-			Memory:        15000,
-			RAMLimit:      "50%",
-			KernelVersion: "1.1.1",
-			KernelRelease: "1.2.3",
-			ServiceD: host.ReadServiced{
-				Version: "1.2.3.4.5",
-				Date:    "1/1/1999",
-				Release: "Release",
-			},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-
-		secondHost: host.ReadHost{
-			ID:            "secondHost",
-			Name:          "SecondHost",
-			PoolID:        "Pool",
-			Cores:         7,
-			Memory:        10000,
-			RAMLimit:      "70%",
-			KernelVersion: "1.1.1",
-			KernelRelease: "1.2.3",
-			ServiceD: host.ReadServiced{
-				Version: "1.2.3.4.5",
-				Date:    "1/1/1999",
-				Release: "Release",
-			},
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-
-		selfLink: APILink{
-			HRef:   "/hosts",
-			Rel:    "self",
-			Method: "GET",
-		},
-	}
-}
-
-func (s *TestWebSuite) TestRestGetHostsShouldReturnStatusOK(c *C) {
-	data := newAPIHostsTestData()
+func (s *TestWebSuite) TestGetHostsShouldReturnStatusOK(c *C) {
 	request := s.buildRequest("GET", "http://www.example.com/hosts", "")
 
 	s.mockFacade.
 		On("GetReadHosts", s.ctx.getDatastoreContext()).
-		Return([]host.ReadHost{data.firstHost}, nil)
+		Return([]host.ReadHost{apiHostsTestData.firstHost}, nil)
 
 	getHosts(&(s.writer), &request, s.ctx)
 
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 }
 
-func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectValuesForReadPool(c *C) {
-	data := newAPIHostsTestData()
+func (s *TestWebSuite) TestGetHostsShouldReturnCorrectValueForTotal(c *C) {
 	request := s.buildRequest("GET", "http://www.example.com/hosts", "")
 
 	s.mockFacade.
 		On("GetReadHosts", s.ctx.getDatastoreContext()).
-		Return([]host.ReadHost{data.firstHost}, nil)
-
-	getHosts(&(s.writer), &request, s.ctx)
-
-	response := hostsResponse{}
-	s.getResult(c, &response)
-
-	host := response.Results[0]
-
-	c.Assert(host.ID, Equals, data.firstHost.ID)
-	c.Assert(host.Name, Equals, data.firstHost.Name)
-	c.Assert(host.PoolID, Equals, data.firstHost.PoolID)
-	c.Assert(host.Cores, Equals, data.firstHost.Cores)
-	c.Assert(host.Memory, Equals, data.firstHost.Memory)
-	c.Assert(host.RAMLimit, Equals, data.firstHost.RAMLimit)
-	c.Assert(host.KernelVersion, Equals, data.firstHost.KernelVersion)
-	c.Assert(host.KernelRelease, Equals, data.firstHost.KernelRelease)
-	c.Assert(host.ServiceD.Date, Equals, data.firstHost.ServiceD.Date)
-	c.Assert(host.ServiceD.Release, Equals, data.firstHost.ServiceD.Release)
-	c.Assert(host.ServiceD.Version, Equals, data.firstHost.ServiceD.Version)
-
-	createdEquals := host.CreatedAt.Equal(data.firstHost.CreatedAt)
-	c.Assert(createdEquals, Equals, true)
-
-	updateEquals := host.UpdatedAt.Equal(data.firstHost.UpdatedAt)
-	c.Assert(updateEquals, Equals, true)
-}
-
-func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectValueForTotal(c *C) {
-	data := newAPIHostsTestData()
-	request := s.buildRequest("GET", "http://www.example.com/hosts", "")
-
-	s.mockFacade.
-		On("GetReadHosts", s.ctx.getDatastoreContext()).
-		Return([]host.ReadHost{data.firstHost, data.secondHost}, nil)
+		Return([]host.ReadHost{apiHostsTestData.firstHost, apiHostsTestData.secondHost}, nil)
 
 	getHosts(&(s.writer), &request, s.ctx)
 
@@ -138,20 +91,67 @@ func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectValueForTotal(c *C) {
 	c.Assert(response.Total, Equals, 2)
 }
 
-func (s *TestWebSuite) TestRestGetHostsShouldReturnCorrectLinkValues(c *C) {
-	data := newAPIHostsTestData()
+func (s *TestWebSuite) TestGetHostsShouldReturnCorrectLinkValues(c *C) {
 	request := s.buildRequest("GET", "http://www.example.com/hosts", "")
 
 	s.mockFacade.
 		On("GetReadHosts", s.ctx.getDatastoreContext()).
-		Return([]host.ReadHost{data.firstHost, data.secondHost}, nil)
+		Return([]host.ReadHost{apiHostsTestData.firstHost, apiHostsTestData.secondHost}, nil)
 
 	getHosts(&(s.writer), &request, s.ctx)
 
 	response := hostsResponse{}
 	s.getResult(c, &response)
 
-	c.Assert(response.Links[0].HRef, Equals, data.selfLink.HRef)
-	c.Assert(response.Links[0].Rel, Equals, data.selfLink.Rel)
-	c.Assert(response.Links[0].Method, Equals, data.selfLink.Method)
+	c.Assert(response.Links[0].HRef, Equals, "/hosts")
+	c.Assert(response.Links[0].Rel, Equals, "self")
+	c.Assert(response.Links[0].Method, Equals, "GET")
+}
+
+func (s *TestWebSuite) TestGetHostsForPoolShouldReturnCorrectValueForTotal(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/pools/name/hosts", "")
+	request.PathParams["poolId"] = "name"
+
+	s.mockFacade.
+		On("FindReadHostsInPool", s.ctx.getDatastoreContext(), "name").
+		Return([]host.ReadHost{apiHostsTestData.firstHost, apiHostsTestData.secondHost}, nil)
+
+	getHostsForPool(&(s.writer), &request, s.ctx)
+
+	response := hostsResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Total, Equals, 2)
+}
+
+func (s *TestWebSuite) TestGetHostsForPoolShouldReturnCorrectLinkValues(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/pools/name/hosts", "")
+	request.PathParams["poolId"] = "name"
+
+	s.mockFacade.
+		On("FindReadHostsInPool", s.ctx.getDatastoreContext(), "name").
+		Return([]host.ReadHost{apiHostsTestData.firstHost, apiHostsTestData.secondHost}, nil)
+
+	getHostsForPool(&(s.writer), &request, s.ctx)
+
+	response := hostsResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Links[0].HRef, Equals, "/pools/name/hosts")
+	c.Assert(response.Links[0].Rel, Equals, "self")
+	c.Assert(response.Links[0].Method, Equals, "GET")
+}
+
+func (s *TestWebSuite) TestGetHostsForPoolShouldReturnBadRequestForInvalidPoolId(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/pools/inv%ZZlid/hosts", "")
+	request.PathParams["poolId"] = "inv%ZZlid"
+	getHostsForPool(&(s.writer), &request, s.ctx)
+	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
+}
+
+func (s *TestWebSuite) TestGetHostsForPoolShouldReturnBadRequestForMissingPoolId(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/pools/hosts", "")
+	request.PathParams["poolId"] = ""
+	getHostsForPool(&(s.writer), &request, s.ctx)
+	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
 }

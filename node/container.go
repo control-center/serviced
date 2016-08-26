@@ -15,12 +15,14 @@ package node
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
-	"strings"
+	"path/filepath"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
@@ -61,11 +63,11 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 
 // AttachContainer returns a channel that monitors the run state of a given
 // container.
-func (a *HostAgent) AttachContainer(containerID, serviceID string, instanceID int) (<-chan time.Time, error) {
+func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID string, instanceID int) (<-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":   serviceID,
 		"instanceid":  instanceID,
-		"containerid": containerID,
+		"containerid": state.ContainerID,
 	})
 
 	// find the container by name
@@ -80,7 +82,7 @@ func (a *HostAgent) AttachContainer(containerID, serviceID string, instanceID in
 
 	// verify that the container ids match, otherwise delete
 	// the container.
-	if ctr.ID != containerID {
+	if ctr.ID != state.ContainerID {
 		ctr.Kill()
 		if err := ctr.Delete(true); err != nil {
 			logger.WithError(err).Debug("Could not delete orphaned container")
@@ -99,6 +101,7 @@ func (a *HostAgent) AttachContainer(containerID, serviceID string, instanceID in
 		ctr.CancelOnEvent(docker.Die)
 		return nil, nil
 	}
+	go a.exposeAssignedIPs(state, ctr)
 	return ev, nil
 }
 
@@ -180,10 +183,20 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 
 	for _, ep := range svc.Endpoints {
 		if ep.Purpose == "export" {
+			var assignment *zkservice.Assignment
+			if a := ep.GetAssignment(); a != nil {
+				assignment = &zkservice.Assignment{
+					IPAddress:  ep.AddressAssignment.IPAddr,
+					PortNumber: a.Port,
+				}
+			}
+
+			// set the export data
 			state.Exports = append(state.Exports, zkservice.ExportBinding{
 				Application: ep.Application,
 				Protocol:    ep.Protocol,
 				PortNumber:  ep.PortNumber,
+				Assignment:  assignment,
 			})
 		} else {
 			state.Imports = append(state.Imports, zkservice.ImportBinding{
@@ -196,6 +209,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 		}
 	}
 
+	go a.exposeAssignedIPs(state, ctr)
 	return state, ev, nil
 }
 
@@ -336,19 +350,7 @@ func (a *HostAgent) monitorContainer(logger *log.Entry, ctr *docker.Container) <
 		}).Debug("Container exited")
 
 		if dctr.State.ExitCode != 0 || log.GetLevel() == log.DebugLevel {
-			// TODO: need to get logs from api
-			output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput()
-			if err != nil {
-				logger.WithField("output", string(output)).WithError(err).Warn("Could not get container logs")
-			} else {
-				prefix := fmt.Sprintf("ctr-%s: ", ctr.ID[0:5])
-				split := strings.Split(string(output), "\n")
-				for i, s := range split {
-					split[i] = prefix + s
-				}
-				final := strings.Join(split, "\n")
-				logger.WithField("output", string(final)).Info("Last 10000 lines of container")
-			}
+			dockerLogsToFile(ctr.ID, 1000)
 		}
 
 		if err := ctr.Delete(true); err != nil {
@@ -364,4 +366,62 @@ func (a *HostAgent) monitorContainer(logger *log.Entry, ctr *docker.Container) <
 		return
 	})
 	return ev
+}
+
+// exposeAssignedIPs sets up iptables forwarding rules for endpoints with
+// assigned ips.
+func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker.Container) {
+	logger := plog.WithFields(log.Fields{
+		"containerid":   state.ContainerID,
+		"containername": ctr.Name,
+	})
+
+	hasAssignment := false
+
+	for _, exp := range state.Exports {
+		if as := exp.Assignment; as != nil {
+			explog := logger.WithFields(log.Fields{
+				"application": exp.Application,
+				"ipaddress":   as.IPAddress,
+				"portnumber":  as.PortNumber,
+			})
+			explog.Debug("Starting proxy for endpoint")
+			public := iptables.NewAddress(as.IPAddress, int(as.PortNumber))
+			private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
+
+			a.servicedChain.Forward(iptables.Add, exp.Protocol, public, private)
+			defer a.servicedChain.Forward(iptables.Delete, exp.Protocol, public, private)
+			hasAssignment = true
+		}
+	}
+
+	if hasAssignment {
+		ctr.Wait(time.Hour * 24 * 365)
+	}
+}
+
+// dockerLogsToFile dumps container logs to file
+func dockerLogsToFile(containerid string, numlines int) {
+	// TODO: need to get logs from api
+
+	fname := filepath.Join(os.TempDir(), fmt.Sprintf("%s.container.log", containerid))
+	f, e := os.Create(fname)
+	if e != nil {
+		plog.WithError(e).WithFields(log.Fields{
+			"file": fname,
+		}).Debug("Unable to create container log file")
+		return
+	}
+	defer f.Close()
+	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", numlines), containerid)
+	cmd.Stdout = f
+	cmd.Stderr = f
+	if err := cmd.Run(); err != nil {
+		plog.WithError(err).Debug("Unable to get logs for container")
+		return
+	}
+	plog.WithFields(log.Fields{
+		"file":  fname,
+		"lines": numlines,
+	}).Infof("Container log dumped to file")
 }

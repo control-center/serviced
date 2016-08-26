@@ -249,7 +249,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 	shutdown := make(chan interface{})
 
 	handler.On("StopContainer", "serviceid", 1).Return(nil)
-	handler.On("AttachContainer", "", "serviceid", 1).Return(nil, ErrTestNoAttach)
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, ErrTestNoAttach)
 
 	listener := NewHostStateListener(handler, "hostid")
 	listener.SetConnection(conn)
@@ -330,7 +330,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 	c.Assert(err, IsNil)
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
 		containerExit <- time.Now()
 	})
@@ -416,7 +416,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
@@ -535,7 +535,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 
@@ -562,7 +562,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 		Started:     time.Now(),
 	}
 	var retShutdown <-chan interface{} = shutdown
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(nil, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
 	handler.On("StartContainer", retShutdown, mock.AnythingOfType("*service.Service"), 1).Return(ssdat, retExit, nil)
 
 	containerExit <- time.Now()
@@ -664,7 +664,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
@@ -783,7 +783,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
@@ -856,7 +856,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 		return true
 	})
 	c.Assert(err, IsNil)
-	handler.On("AttachContainer", "", "serviceid", 1).Return(nil, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), &ServiceState{}, done)
@@ -938,7 +938,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", "containerid", "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 
