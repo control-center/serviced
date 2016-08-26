@@ -85,7 +85,7 @@ end
 
 Then (/^I should see an empty Hosts page$/) do
     expect(CC.UI.HostsPage).to have_no_host_entry
-    expect(CC.UI.HostsPage).to have_content("Showing 0 Results")
+    expect(CC.UI.HostsPage).to have_content("0 Results")
     expect(CC.UI.HostsPage).to have_content("No Data Found")
 end
 
