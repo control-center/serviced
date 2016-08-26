@@ -102,9 +102,16 @@ func (i ImportBinding) GetVirtualAddress(instanceID int) (string, error) {
 	return buffer.String(), nil
 }
 
+// Assignment describes the ip assignment for the export
+type Assignment struct {
+	IPAddress  string
+	PortNumber uint16
+}
+
 // ExportBinding describes an export endpoint
 type ExportBinding struct {
 	Application string
 	Protocol    string
 	PortNumber  uint16
+	Assignment  *Assignment
 }

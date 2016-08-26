@@ -34,7 +34,7 @@ type HostStateHandler interface {
 	// instance. Returns nil channel if the container id doesn't match or if
 	// the container has stopped. Channel reports the time that the container
 	// has stopped.
-	AttachContainer(dockerID, serviceID string, instanceID int) (<-chan time.Time, error)
+	AttachContainer(state *ServiceState, serviceID string, instanceID int) (<-chan time.Time, error)
 
 	// StartContainer creates and starts a new container for the given service
 	// instance.  It returns relevant information about the container and a
@@ -179,7 +179,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 		// attach to the container if not already attached
 		if containerExit == nil {
-			containerExit, err = l.handler.AttachContainer(ssdat.ContainerID, serviceID, instanceID)
+			containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
 			if err != nil {
 
 				logger.WithError(err).Error("Could not attach to container")
