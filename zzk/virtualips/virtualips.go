@@ -21,9 +21,10 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/zenoss/glog"
 )
 
@@ -301,16 +302,48 @@ func (l *VirtualIPListener) unbind(ip string) error {
 
 func (l *VirtualIPListener) stopInstances(ip string) {
 	glog.Infof("Stopping service instances using ip %s on host %s", ip, l.hostID)
-	rss, err := zkservice.LoadRunningServicesByHost(l.conn, l.hostID)
-	if err != nil {
-		glog.Errorf("Could not load running instances on host %s: %s", l.hostID, err)
+
+	// Clean any bad host states
+	if err := zkservice.CleanHostStates(l.conn, "", l.hostID); err != nil {
+		glog.Errorf("Could not clean up host states for host %s: %s", l.hostID, err)
 		return
 	}
-	for _, rs := range rss {
-		if rs.IPAddress == ip {
-			if err := zkservice.StopServiceInstance(l.conn, "", l.hostID, rs.ID); err != nil {
-				glog.Warningf("Could not stop service instance %s on host %s: %s", rs.ID, l.hostID, err)
+
+	// Get all of the instances running on that host
+	ch, err := l.conn.Children(path.Join("/hosts", l.hostID, "instances"))
+	if err != nil && err != client.ErrNoNode {
+		glog.Errorf("Could not look up host states for host %s: %s", l.hostID, err)
+		return
+	}
+
+	// Stop all instances with the assigned ip
+	for _, stateID := range ch {
+		_, serviceID, instanceID, err := zkservice.ParseStateID(stateID)
+		if err != nil {
+			// This shouldn't happen, but handle it anyway
+			glog.Warningf("Could not look up host state %s: %s", stateID, err)
+			continue
+		}
+
+		req := zkservice.StateRequest{
+			PoolID:     "",
+			HostID:     l.hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+		if err := zkservice.UpdateState(l.conn, req, func(s *zkservice.State) bool {
+			if s.DesiredState != service.SVCStop {
+				for _, export := range s.Exports {
+					if a := export.Assignment; a != nil && a.IPAddress == ip {
+						s.DesiredState = service.SVCStop
+						return true
+					}
+				}
 			}
+			return false
+		}); err != nil {
+			glog.Warningf("Could not stop service state %s on host %s: %s", stateID, l.hostID, err)
+			continue
 		}
 	}
 }
