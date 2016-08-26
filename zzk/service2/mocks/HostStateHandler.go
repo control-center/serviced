@@ -1,6 +1,6 @@
 package mocks
 
-import zks "github.com/control-center/serviced/zzk/service2"
+import zk "github.com/control-center/serviced/zzk/service2"
 import "github.com/stretchr/testify/mock"
 
 import "time"
@@ -23,11 +23,11 @@ func (_m *HostStateHandler) StopContainer(serviceID string, instanceID int) erro
 
 	return r0
 }
-func (_m *HostStateHandler) AttachContainer(state *zks.ServiceState, serviceID string, instanceID int) (<-chan time.Time, error) {
+func (_m *HostStateHandler) AttachContainer(state *zk.ServiceState, serviceID string, instanceID int) (<-chan time.Time, error) {
 	ret := _m.Called(state, serviceID, instanceID)
 
 	var r0 <-chan time.Time
-	if rf, ok := ret.Get(0).(func(*zks.ServiceState, string, int) <-chan time.Time); ok {
+	if rf, ok := ret.Get(0).(func(*zk.ServiceState, string, int) <-chan time.Time); ok {
 		r0 = rf(state, serviceID, instanceID)
 	} else {
 		if ret.Get(0) != nil {
@@ -36,7 +36,7 @@ func (_m *HostStateHandler) AttachContainer(state *zks.ServiceState, serviceID s
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*zks.ServiceState, string, int) error); ok {
+	if rf, ok := ret.Get(1).(func(*zk.ServiceState, string, int) error); ok {
 		r1 = rf(state, serviceID, instanceID)
 	} else {
 		r1 = ret.Error(1)
@@ -44,15 +44,15 @@ func (_m *HostStateHandler) AttachContainer(state *zks.ServiceState, serviceID s
 
 	return r0, r1
 }
-func (_m *HostStateHandler) StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*zks.ServiceState, <-chan time.Time, error) {
+func (_m *HostStateHandler) StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*zk.ServiceState, <-chan time.Time, error) {
 	ret := _m.Called(cancel, svc, instanceID)
 
-	var r0 *zks.ServiceState
-	if rf, ok := ret.Get(0).(func(<-chan interface{}, *service.Service, int) *zks.ServiceState); ok {
+	var r0 *zk.ServiceState
+	if rf, ok := ret.Get(0).(func(<-chan interface{}, *service.Service, int) *zk.ServiceState); ok {
 		r0 = rf(cancel, svc, instanceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*zks.ServiceState)
+			r0 = ret.Get(0).(*zk.ServiceState)
 		}
 	}
 
