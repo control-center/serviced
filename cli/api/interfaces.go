@@ -22,7 +22,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/script"
@@ -57,7 +56,6 @@ type API interface {
 
 	// Services
 	GetServices() ([]service.Service, error)
-	GetServiceStates(string) ([]servicestate.ServiceState, error)
 	GetServiceStatus(string) (map[string]map[string]interface{}, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]service.Service, error)

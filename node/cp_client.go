@@ -147,10 +147,6 @@ func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, runni
 	return s.rpcClient.Call("ControlCenter.GetRunningService", request, running, 0)
 }
 
-func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetServiceStates", serviceId, states, 0)
-}
-
 func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.StartService", request, affected, 0)
 }
@@ -165,10 +161,6 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 
 func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.WaitService", request, nil, 0)
-}
-
-func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.UpdateServiceState", state, unused, 0)
 }
 
 func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {

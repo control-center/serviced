@@ -38,9 +38,9 @@ import (
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice2 "github.com/control-center/serviced/zzk/service2"
 
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 
 	"github.com/control-center/serviced/utils"
 )
@@ -831,30 +831,23 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, re
 		return nil, err
 	}
 
-	var states []servicestate.ServiceState
-	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	if err != nil {
 		err = fmt.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}
 
-	someInstancesActive := false
 	appEndpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
 		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc, reportImports, reportExports)...)
 	} else {
 		for _, state := range states {
-			instanceEndpoints := getEndpointsFromServiceState(svc, state, reportImports, reportExports)
+			instanceEndpoints := getEndpointsFromState(state, reportImports, reportExports)
 			appEndpoints = append(appEndpoints, instanceEndpoints...)
-			if state.IsRunning() || state.IsPaused() {
-				someInstancesActive = true
-			}
 		}
 	}
 
 	sort.Sort(applicationendpoint.ApplicationEndpointSlice(appEndpoints))
-	if validate && len(appEndpoints) > 0 && someInstancesActive {
-		f.validateEndpoints(ctx, serviceID, appEndpoints)
-	}
 	return applicationendpoint.BuildEndpointReports(appEndpoints), nil
 }
 
@@ -881,70 +874,44 @@ func getEndpointsFromServiceDefinition(service *service.Service, reportImports, 
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromState(state zkservice2.State, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
-	for _, serviceEndpoint := range state.Endpoints {
-		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
-			continue
-		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
-			continue
+	if reportImports {
+		for _, ep := range state.Imports {
+			endpoint := applicationendpoint.ApplicationEndpoint{
+				ServiceID:      state.ServiceID,
+				Application:    ep.Application,
+				Purpose:        ep.Purpose,
+				ContainerID:    state.ContainerID,
+				ContainerIP:    state.PrivateIP,
+				ContainerPort:  ep.PortNumber,
+				HostID:         state.HostID,
+				VirtualAddress: ep.VirtualAddress,
+				InstanceID:     state.InstanceID,
+			}
+			endpoints = append(endpoints, endpoint)
 		}
-
-		applicationEndpoint, err := applicationendpoint.BuildApplicationEndpoint(&state, &serviceEndpoint)
-		if err != nil {
-			glog.Errorf("Unable to build endpoint: %s", err)
-			continue
-		}
-
-		endpoints = append(endpoints, applicationEndpoint)
 	}
+
+	if reportExports {
+		for _, ep := range state.Exports {
+			endpoint := applicationendpoint.ApplicationEndpoint{
+				ServiceID:     state.ServiceID,
+				Application:   ep.Application,
+				Protocol:      ep.Protocol,
+				Purpose:       "export",
+				ContainerID:   state.ContainerID,
+				ContainerIP:   state.PrivateIP,
+				ContainerPort: ep.PortNumber,
+				HostID:        state.HostID,
+				HostIP:        state.HostIP,
+				InstanceID:    state.InstanceID,
+			}
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+
 	return endpoints
-}
-
-// Get a list of exported endpoints for the specified service from the Zookeeper namespace
-func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
-	tenantID, err := f.GetTenantID(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("GetTenantID failed - %s", err)
-		return nil, err
-	}
-
-	var endpoints []applicationendpoint.ApplicationEndpoint
-	err = f.zzk.GetServiceEndpoints(tenantID, serviceID, &endpoints)
-	if err != nil {
-		glog.Errorf("GetServiceEndpoints failed - %s", err)
-		return nil, err
-	}
-
-	return endpoints, nil
-}
-
-func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endpoints []applicationendpoint.ApplicationEndpoint) {
-	zkEndpoints, err := f.getEndpointsFromZK(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Unable to retrieve endpoints directly from ZK: %s", err)
-		return
-	}
-
-	// For each item in the list, if it exists in ZK, make sure the two values match
-	for _, endpoint := range endpoints {
-		zkEndpoint := endpoint.Find(zkEndpoints)
-		if zkEndpoint == nil {
-			// Note that during service startup, some endpoints may not been created in ZK /endpoints yet
-			glog.Infof("Endpoint %v has not been created in ZK endpoints %v", endpoint, zkEndpoints)
-		} else if !endpoint.Equals(zkEndpoint) {
-			glog.Errorf("Endpoint mismatch: %v vs %v", endpoint, zkEndpoint)
-		}
-	}
-
-	// FIXME: This needs to go somewhere else because it's a different kind of validation
-	// If an endpoint exists in ZK, make sure it matches an item in the list
-	// for _, zkEndpoint := range zkEndpoints {
-	// 	endpoint := zkEndpoint.Find(endpoints)
-	// 	if endpoint == nil {
-	// 		glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
-	// 	}
-	// }
 }
 
 // FindChildService walks services below the service specified by serviceId, checking to see
@@ -999,13 +966,13 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 		switch desiredState {
 		case service.SVCRestart:
 			// shutdown all service instances
-			var states []servicestate.ServiceState
-			if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+			if err != nil {
 				return err
 			}
 
 			for _, state := range states {
-				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, ""); err != nil {
 					return err
 				}
 			}
@@ -1048,7 +1015,7 @@ func (f *Facade) validateServiceSchedule(ctx datastore.Context, serviceID string
 }
 
 // GetServiceStates returns all the service states given a service ID
-func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
+func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]zkservice2.State, error) {
 	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
 
 	svc, err := f.GetService(ctx, serviceID)
@@ -1057,8 +1024,8 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 		return nil, err
 	}
 
-	var states []servicestate.ServiceState
-	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	if err != nil {
 		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}

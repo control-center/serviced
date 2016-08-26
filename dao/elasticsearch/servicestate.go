@@ -21,7 +21,6 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -40,50 +39,6 @@ func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Co
 		return nil, err
 	}
 	return poolBasedConn, nil
-}
-
-func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
-	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
-	*state = servicestate.ServiceState{}
-
-	poolBasedConn, err := this.getPoolBasedConnection(request.ServiceID)
-	if err != nil {
-		return err
-	}
-	err = zkservice.GetServiceState(poolBasedConn, state, request.ServiceID, request.ServiceStateID)
-	if state == nil {
-		*state = servicestate.ServiceState{}
-	}
-	return err
-}
-
-func (this *ControlPlaneDao) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error {
-	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
-	*states = make([]servicestate.ServiceState, 0)
-
-	poolBasedConn, err := this.getPoolBasedConnection(serviceId)
-	if err != nil {
-		return err
-	}
-
-	serviceStates, err := zkservice.GetServiceStates(poolBasedConn, serviceId)
-	if serviceStates != nil {
-		*states = serviceStates
-	}
-	return err
-}
-
-/* This method assumes that if a service instance exists, it has not yet been terminated */
-func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, serviceStates *[]servicestate.ServiceState) error {
-	glog.V(2).Infof("ControlPlaneDao.getNonTerminatedServiceStates: serviceId=%s", serviceId)
-
-	poolBasedConn, err := this.getPoolBasedConnection(serviceId)
-	if err != nil {
-		return err
-	}
-
-	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceId)
-	return err
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {

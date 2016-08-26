@@ -6,7 +6,7 @@ import "github.com/stretchr/testify/mock"
 import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/domain/servicestate"
+
 import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
@@ -260,20 +260,6 @@ func (_m *ControlPlane) GetServiceStatus(serviceID string, statusmap *map[string
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *map[string]dao.ServiceStatus) error); ok {
 		r0 = rf(serviceID, statusmap)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// GetServiceStates provides a mock function with given fields: serviceId, states
-func (_m *ControlPlane) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error {
-	ret := _m.Called(serviceId, states)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]servicestate.ServiceState) error); ok {
-		r0 = rf(serviceId, states)
 	} else {
 		r0 = ret.Error(0)
 	}

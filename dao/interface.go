@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -182,9 +181,6 @@ type ControlPlane interface {
 
 	// Computes the status of the service based on its service instances
 	GetServiceStatus(serviceID string, statusmap *map[string]ServiceStatus) error
-
-	// Get the services instances for a given service
-	GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error

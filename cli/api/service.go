@@ -248,21 +248,6 @@ func (a *api) GetEndpoints(serviceID string, reportImports, reportExports, valid
 	}
 }
 
-// Gets all of the available services
-func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	var states []servicestate.ServiceState
-	if err := client.GetServiceStates(serviceID, &states); err != nil {
-		return nil, err
-	}
-
-	return states, nil
-}
-
 // Gets the service definition identified by its service ID
 func (a *api) GetService(id string) (*service.Service, error) {
 	client, err := a.connectDAO()
