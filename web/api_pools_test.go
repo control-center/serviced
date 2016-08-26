@@ -23,91 +23,52 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-type apiPoolsTestData struct {
+var apiPoolsTestData = struct {
 	firstPool  pool.ReadPool
 	secondPool pool.ReadPool
-	selfLink   APILink
-}
+}{
 
-func newAPIPoolsTestData() apiPoolsTestData {
-	return apiPoolsTestData{
-		firstPool: pool.ReadPool{
-			ID:                "firstPool",
-			Description:       "The first pool",
-			MemoryCapacity:    10000,
-			MemoryCommitment:  5000,
-			CoreCapacity:      15,
-			ConnectionTimeout: 10,
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
-		},
+	firstPool: pool.ReadPool{
+		ID:                "firstPool",
+		Description:       "The first pool",
+		MemoryCapacity:    10000,
+		MemoryCommitment:  5000,
+		CoreCapacity:      15,
+		ConnectionTimeout: 10,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	},
 
-		secondPool: pool.ReadPool{
-			ID:                "secondPool",
-			Description:       "The second pool",
-			MemoryCapacity:    20000,
-			MemoryCommitment:  15000,
-			CoreCapacity:      10,
-			ConnectionTimeout: 2,
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
-		},
-
-		selfLink: APILink{
-			HRef:   "/pools",
-			Rel:    "self",
-			Method: "GET",
-		},
-	}
+	secondPool: pool.ReadPool{
+		ID:                "secondPool",
+		Description:       "The second pool",
+		MemoryCapacity:    20000,
+		MemoryCommitment:  15000,
+		CoreCapacity:      10,
+		ConnectionTimeout: 2,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	},
 }
 
 func (s *TestWebSuite) TestRestGetPoolsShouldReturnStatusOK(c *C) {
-	data := newAPIPoolsTestData()
 	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
 		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{data.firstPool}, nil)
+		Return([]pool.ReadPool{apiPoolsTestData.firstPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 }
 
-func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValuesForReadPool(c *C) {
-	data := newAPIPoolsTestData()
-	request := s.buildRequest("GET", "/pools", "")
-
-	s.mockFacade.
-		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{data.firstPool}, nil)
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	response := poolsResponse{}
-	s.getResult(c, &response)
-
-	c.Assert(response.Results[0].ID, Equals, data.firstPool.ID)
-	c.Assert(response.Results[0].Description, Equals, data.firstPool.Description)
-	c.Assert(response.Results[0].MemoryCapacity, Equals, data.firstPool.MemoryCapacity)
-	c.Assert(response.Results[0].MemoryCommitment, Equals, data.firstPool.MemoryCommitment)
-	c.Assert(response.Results[0].CoreCapacity, Equals, data.firstPool.CoreCapacity)
-	c.Assert(response.Results[0].ConnectionTimeout, Equals, data.firstPool.ConnectionTimeout)
-
-	createdEquals := response.Results[0].CreatedAt.Equal(data.firstPool.CreatedAt)
-	c.Assert(createdEquals, Equals, true)
-
-	updateEquals := response.Results[0].UpdatedAt.Equal(data.firstPool.UpdatedAt)
-	c.Assert(updateEquals, Equals, true)
-}
-
 func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
-	data := newAPIPoolsTestData()
 	request := s.buildRequest("GET", "/pools", "")
 
 	s.mockFacade.
 		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{data.firstPool, data.secondPool}, nil)
+		Return([]pool.ReadPool{apiPoolsTestData.firstPool, apiPoolsTestData.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
@@ -118,19 +79,18 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
 }
 
 func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectLinkValues(c *C) {
-	data := newAPIPoolsTestData()
 	request := s.buildRequest("GET", "http://www.example.com/pools", "")
 
 	s.mockFacade.
 		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{data.firstPool, data.secondPool}, nil)
+		Return([]pool.ReadPool{apiPoolsTestData.firstPool, apiPoolsTestData.secondPool}, nil)
 
 	getPools(&(s.writer), &request, s.ctx)
 
 	response := poolsResponse{}
 	s.getResult(c, &response)
 
-	c.Assert(response.Links[0].HRef, Equals, data.selfLink.HRef)
-	c.Assert(response.Links[0].Rel, Equals, data.selfLink.Rel)
-	c.Assert(response.Links[0].Method, Equals, data.selfLink.Method)
+	c.Assert(response.Links[0].HRef, Equals, "/pools")
+	c.Assert(response.Links[0].Rel, Equals, "self")
+	c.Assert(response.Links[0].Method, Equals, "GET")
 }

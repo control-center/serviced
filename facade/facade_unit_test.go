@@ -16,6 +16,8 @@
 package facade_test
 
 import (
+	"time"
+
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
@@ -23,8 +25,8 @@ import (
 	registrymocks "github.com/control-center/serviced/domain/registry/mocks"
 	servicemocks "github.com/control-center/serviced/domain/service/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
-	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/control-center/serviced/facade"
+	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -78,3 +80,24 @@ func (ft *FacadeUnitTest) setupMockDFSLocking() {
 	ft.dfs.On("LockWithTimeout", mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil)
 	ft.dfs.On("Unlock").Return()
 }
+
+type timeChecker struct {
+	*CheckerInfo
+}
+
+func (c *timeChecker) Check(params []interface{}, names []string) (result bool, error string) {
+	var ok bool
+	var first, second time.Time
+
+	first, ok = params[0].(time.Time)
+	if !ok {
+		return false, "First parameter is not a Time"
+	}
+	second, ok = params[1].(time.Time)
+	if !ok {
+		return false, "Second parameter is not an Time"
+	}
+	return first.Equal(second), ""
+}
+
+var TimeEqual Checker = &timeChecker{&CheckerInfo{Name: "TimeEqual", Params: []string{"Obtained", "Expected"}}}
