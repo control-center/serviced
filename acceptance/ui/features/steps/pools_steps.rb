@@ -18,7 +18,7 @@ end
 
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
-    if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
+    if (page.has_no_content?("1 Result") || isNotInRows("default"))
         CC.CLI.pool.remove_all_resource_pools_except_default()
     end
 end
