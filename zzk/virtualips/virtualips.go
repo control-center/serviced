@@ -303,46 +303,25 @@ func (l *VirtualIPListener) unbind(ip string) error {
 func (l *VirtualIPListener) stopInstances(ip string) {
 	glog.Infof("Stopping service instances using ip %s on host %s", ip, l.hostID)
 
-	// Clean any bad host states
-	if err := zkservice.CleanHostStates(l.conn, "", l.hostID); err != nil {
-		glog.Errorf("Could not clean up host states for host %s: %s", l.hostID, err)
-		return
-	}
-
-	// Get all of the instances running on that host
-	ch, err := l.conn.Children(path.Join("/hosts", l.hostID, "instances"))
-	if err != nil && err != client.ErrNoNode {
+	// Get all the states on the host
+	states, err := zkservice.GetHostStateIDs(l.conn, "", l.hostID)
+	if err != nil {
 		glog.Errorf("Could not look up host states for host %s: %s", l.hostID, err)
 		return
 	}
 
 	// Stop all instances with the assigned ip
-	for _, stateID := range ch {
-		_, serviceID, instanceID, err := zkservice.ParseStateID(stateID)
-		if err != nil {
-			// This shouldn't happen, but handle it anyway
-			glog.Warningf("Could not look up host state %s: %s", stateID, err)
-			continue
-		}
-
-		req := zkservice.StateRequest{
-			PoolID:     "",
-			HostID:     l.hostID,
-			ServiceID:  serviceID,
-			InstanceID: instanceID,
-		}
+	for _, req := range states {
 		if err := zkservice.UpdateState(l.conn, req, func(s *zkservice.State) bool {
-			if s.DesiredState != service.SVCStop {
-				for _, export := range s.Exports {
-					if a := export.Assignment; a != nil && a.IPAddress == ip {
-						s.DesiredState = service.SVCStop
-						return true
-					}
+			for _, export := range s.Exports {
+				if a := export.Assignment; a != nil && a.IPAddress == ip {
+					s.DesiredState = service.SVCStop
+					return true
 				}
 			}
 			return false
 		}); err != nil {
-			glog.Warningf("Could not stop service state %s on host %s: %s", stateID, l.hostID, err)
+			glog.Warningf("Could not stop service state %s on host %s: %s", req.StateID(), l.hostID, err)
 			continue
 		}
 	}
