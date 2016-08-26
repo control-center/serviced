@@ -98,7 +98,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		timer.Stop()
 		// dump the snapshot into the backup
 		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
-		snapReader, errchan := dfs.snapshotSavePipe(vol, info.Label)
+		snapReader, errchan := dfs.snapshotSavePipe(vol, info.Label, data.SnapshotExcludes[snapshot])
 		if err := rewriteTar(prefix, tarOut, snapReader); err != nil {
 			// be a good citizen and clean up any running threads
 			<-errchan
@@ -146,9 +146,9 @@ func (dfs *DistributedFilesystem) dockerSavePipe(images ...string) (*io.PipeRead
 }
 
 // snapshotSavePipe returns a pipe that exports a given volume to the pipe's stdout
-func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label string) (*io.PipeReader, <-chan error) {
+func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label string, excludes []string) (*io.PipeReader, <-chan error) {
 	return savePipe(func(w io.Writer) error {
-		return vol.Export(label, "", w)
+		return vol.Export(label, "", w, excludes)
 	})
 }
 

@@ -29,6 +29,13 @@ func (c *ServicedCli) initBackup() {
 			Usage:       "Dump all templates and services to a tgz file",
 			Description: "serviced backup DIRPATH",
 			Action:      c.cmdBackup,
+                        Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:  "exclude",
+					Value: &cli.StringSlice{},
+					Usage: "Subdirectory of the tenant volume to exclude from backup",
+				},
+			},
 		},
 		cli.Command{
 			Name:        "restore",
@@ -48,7 +55,7 @@ func (c *ServicedCli) cmdBackup(ctx *cli.Context) {
 		return
 	}
 
-	if path, err := c.driver.Backup(args[0]); err != nil {
+	if path, err := c.driver.Backup(args[0], ctx.StringSlice("exclude")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if path == "" {
 		fmt.Fprintln(os.Stderr, "received nil path to backup file")

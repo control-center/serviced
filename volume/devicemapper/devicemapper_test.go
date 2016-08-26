@@ -16,6 +16,7 @@
 package devicemapper_test
 
 import (
+        "bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -122,6 +123,64 @@ func (s *DeviceMapperSuite) TestDeviceMapperSnapshotTags(c *C) {
 
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
+}
+
+func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
+
+	// Set up import/export volumes
+
+        basesize1, err := units.RAMInBytes("10M")
+
+        exportdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
+	c.Assert(err, IsNil)
+	defer exportdrv.Cleanup()
+
+        importdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
+	c.Assert(err, IsNil)
+	defer importdrv.Cleanup()
+
+	exportvol, err := exportdrv.Create("test")
+	c.Assert(err, IsNil)
+	defer exportdrv.Remove("test")
+
+	importvol, err := importdrv.Create("test")
+	c.Assert(err, IsNil)
+	defer importdrv.Remove("test")
+
+	// Make two directories, one to be excluded, one to be included, with a file in each
+	for _, d := range []string{"include", "exclude"} {
+		dir := filepath.Join(exportvol.Path(), d)
+		os.MkdirAll(dir, os.ModeDir)
+		f1, err := ioutil.TempFile(dir, "dump-")
+		c.Assert(err, IsNil)
+		defer f1.Close()
+		_, err = f1.Write(make([]byte, 1024))
+		c.Assert(err, IsNil)
+		err = f1.Close()
+		c.Assert(err, IsNil)
+	}
+
+	err = exportvol.Snapshot("snap", "testing exclusion of dirs in export", []string{})
+	c.Assert(err, IsNil)
+
+	// Do export/import, excluding the exclude dir
+	var b bytes.Buffer
+	err = exportvol.Export("snap", "", &b, []string{"exclude"})
+	c.Assert(err, IsNil)
+	err = importvol.Import("snap", &b)
+	c.Assert(err, IsNil)
+
+	importvol.Rollback("snap")
+
+	included := filepath.Join(importvol.Path(), "include")
+	_, err = os.Stat(included)
+	c.Assert(err, IsNil)
+
+	excluded := filepath.Join(importvol.Path(), "exclude")
+
+	_, err = os.Stat(excluded)
+	c.Assert(err, Not(IsNil))
+	c.Assert(os.IsNotExist(err), Equals, true)
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {

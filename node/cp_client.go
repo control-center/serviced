@@ -268,12 +268,12 @@ func (s *ControlClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unuse
 	return s.rpcClient.Call("ControlPlane.ReportInstanceDead", req, unused, 0)
 }
 
-func (s *ControlClient) Backup(dirpath string, filename *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.Backup", dirpath, filename, 0)
+func (s *ControlClient) Backup(backupRequest dao.BackupRequest, filename *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.Backup", backupRequest, filename, 0)
 }
 
-func (s *ControlClient) AsyncBackup(dirpath string, filename *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.AsyncBackup", dirpath, filename, 0)
+func (s *ControlClient) AsyncBackup(backupRequest dao.BackupRequest, filename *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AsyncBackup", backupRequest, filename, 0)
 }
 
 func (s *ControlClient) Restore(filename string, unused *int) (err error) {

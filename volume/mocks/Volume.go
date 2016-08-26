@@ -213,7 +213,7 @@ func (_m *Volume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, erro
 
 	return r0, r1
 }
-func (_m *Volume) Export(label string, parent string, writer io.Writer) error {
+func (_m *Volume) Export(label string, parent string, writer io.Writer, excludes []string) error {
 	ret := _m.Called(label, parent, writer)
 
 	var r0 error
