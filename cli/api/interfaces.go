@@ -127,4 +127,10 @@ type API interface {
 	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
 	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
+
+	// Service Instances
+	StopServiceInstance(serviceID string, instanceID int) error
+	AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error
+	LogsForServiceInstance(serviceID string, instanceID int, command string, args []string) error
+	SendDockerAction(serviceID string, instanceID int, action string, args []string) error
 }

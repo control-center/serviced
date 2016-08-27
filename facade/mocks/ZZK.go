@@ -9,7 +9,6 @@ import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
 import zkregistry "github.com/control-center/serviced/zzk/registry"
-
 import zkservice2 "github.com/control-center/serviced/zzk/service2"
 
 type ZZK struct {
@@ -318,4 +317,61 @@ func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice2.State, 
 	}
 
 	return r0, r1
+}
+func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) (*zkservice2.State, error) {
+	ret := _m.Called(poolID, serviceID, instanceID)
+
+	var r0 *zkservice2.State
+	if rf, ok := ret.Get(0).(func(string, string, int) *zkservice2.State); ok {
+		r0 = rf(poolID, serviceID, instanceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*zkservice2.State)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string, int) error); ok {
+		r1 = rf(poolID, serviceID, instanceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ZZK) StopServiceInstance2(poolID string, serviceID string, instanceID int) error {
+	ret := _m.Called(poolID, serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, int) error); ok {
+		r0 = rf(poolID, serviceID, instanceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) StopServiceInstances(poolID string, serviceID string) error {
+	ret := _m.Called(poolID, serviceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(poolID, serviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) SendDockerAction(poolID string, serviceID string, instanceID int, command string, args []string) error {
+	ret := _m.Called(poolID, serviceID, instanceID, command, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, int, string, []string) error); ok {
+		r0 = rf(poolID, serviceID, instanceID, command, args)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }

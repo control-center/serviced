@@ -58,3 +58,10 @@ type StrategyInstance struct {
 	RAMCommitment uint64
 	HostPolicy    servicedefinition.HostPolicy
 }
+
+// LocationInstance collection location information about a service instance
+type LocationInstance struct {
+	HostID      string
+	HostIP      string
+	ContainerID string
+}

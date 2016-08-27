@@ -245,11 +245,11 @@ func (_m *API) AddResourcePool(_a0 api.PoolConfig) (*pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *API) UpdateResourcePool(_a0 pool.ResourcePool) error {
+func (_m *API) RemoveResourcePool(_a0 string) error {
 	ret := _m.Called(_a0)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
+	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -257,12 +257,12 @@ func (_m *API) UpdateResourcePool(_a0 pool.ResourcePool) error {
 
 	return r0
 }
-func (_m *API) RemoveResourcePool(_a0 string) error {
-	ret := _m.Called(_a0)
+func (_m *API) UpdateResourcePool(p pool.ResourcePool) error {
+	ret := _m.Called(p)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
+		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -907,15 +907,15 @@ func (_m *API) Backup(_a0 string, _a1 []string) (string, error) {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(string, []string) string); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1013,24 +1013,24 @@ func (_m *API) PostMetric(metricName string, metricValue string) (string, error)
 
 	return r0, r1
 }
-func (_m *API) ScriptRun(a0 string, a1 *script.Config, stopChan chan struct{}) error {
-	ret := _m.Called(a0, a1, stopChan)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *script.Config, chan struct{}) error); ok {
-		r0 = rf(a0, a1, stopChan)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *API) ScriptParse(fileName string, config *script.Config) error {
 	ret := _m.Called(fileName, config)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *script.Config) error); ok {
 		r0 = rf(fileName, config)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) ScriptRun(a0 string, a1 *script.Config, stopChan chan struct{}) error {
+	ret := _m.Called(a0, a1, stopChan)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *script.Config, chan struct{}) error); ok {
+		r0 = rf(a0, a1, stopChan)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1142,6 +1142,54 @@ func (_m *API) EnablePublicEndpointVHost(serviceid string, endpointName string, 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, string, bool) error); ok {
 		r0 = rf(serviceid, endpointName, vhost, isEnabled)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) StopServiceInstance(serviceID string, instanceID int) error {
+	ret := _m.Called(serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int) error); ok {
+		r0 = rf(serviceID, instanceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error {
+	ret := _m.Called(serviceID, instanceID, command, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int, string, []string) error); ok {
+		r0 = rf(serviceID, instanceID, command, args)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) LogsForServiceInstance(serviceID string, instanceID int, command string, args []string) error {
+	ret := _m.Called(serviceID, instanceID, command, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int, string, []string) error); ok {
+		r0 = rf(serviceID, instanceID, command, args)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) SendDockerAction(serviceID string, instanceID int, action string, args []string) error {
+	ret := _m.Called(serviceID, instanceID, action, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int, string, []string) error); ok {
+		r0 = rf(serviceID, instanceID, action, args)
 	} else {
 		r0 = ret.Error(0)
 	}
