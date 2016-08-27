@@ -90,24 +90,24 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(host host.Host) error {
-	ret := _m.Called(host)
+func (_m *ClientInterface) AddHost(h host.Host) error {
+	ret := _m.Called(h)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(host)
+		r0 = rf(h)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateHost(host host.Host) error {
-	ret := _m.Called(host)
+func (_m *ClientInterface) UpdateHost(h host.Host) error {
+	ret := _m.Called(h)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(host)
+		r0 = rf(h)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -189,24 +189,24 @@ func (_m *ClientInterface) GetResourcePools() ([]pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddResourcePool(pool pool.ResourcePool) error {
-	ret := _m.Called(pool)
+func (_m *ClientInterface) AddResourcePool(p pool.ResourcePool) error {
+	ret := _m.Called(p)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(pool)
+		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateResourcePool(pool pool.ResourcePool) error {
-	ret := _m.Called(pool)
+func (_m *ClientInterface) UpdateResourcePool(p pool.ResourcePool) error {
+	ret := _m.Called(p)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(pool)
+		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
 	}
