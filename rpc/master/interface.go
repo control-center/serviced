@@ -14,6 +14,8 @@
 package master
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -21,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
-	"time"
 )
 
 // The RPC interface is the API for a serviced master.
@@ -90,6 +91,19 @@ type ClientInterface interface {
 
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
+
+	//--------------------------------------------------------------------------
+	// Service Instance Management Functions
+
+	// StopServiceInstance stops a single service instance
+	StopServiceInstance(serviceID string, instanceID int) error
+
+	// LocateServiceInstance returns location information about a service
+	// instance
+	LocateServiceInstance(serviceID string, instanceID int) (*service.LocationInstance, error)
+
+	// SendDockerAction submits a docker action to a running container
+	SendDockerAction(serviceID string, instanceID int, action string, args []string) error
 
 	//--------------------------------------------------------------------------
 	// Service Tempatate Management Functions
