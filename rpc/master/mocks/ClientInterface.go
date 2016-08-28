@@ -90,24 +90,24 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(h host.Host) error {
-	ret := _m.Called(h)
+func (_m *ClientInterface) AddHost(host host.Host) error {
+	ret := _m.Called(host)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(h)
+		r0 = rf(host)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateHost(h host.Host) error {
-	ret := _m.Called(h)
+func (_m *ClientInterface) UpdateHost(host host.Host) error {
+	ret := _m.Called(host)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(h)
+		r0 = rf(host)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -189,24 +189,24 @@ func (_m *ClientInterface) GetResourcePools() ([]pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddResourcePool(p pool.ResourcePool) error {
-	ret := _m.Called(p)
+func (_m *ClientInterface) AddResourcePool(pool pool.ResourcePool) error {
+	ret := _m.Called(pool)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(p)
+		r0 = rf(pool)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateResourcePool(p pool.ResourcePool) error {
-	ret := _m.Called(p)
+func (_m *ClientInterface) UpdateResourcePool(pool pool.ResourcePool) error {
+	ret := _m.Called(pool)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(p)
+		r0 = rf(pool)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -300,6 +300,27 @@ func (_m *ClientInterface) WaitService(serviceIDs []string, state service.Desire
 	}
 
 	return r0
+}
+func (_m *ClientInterface) GetServiceInstances(serviceID string) ([]service.Instance, error) {
+	ret := _m.Called(serviceID)
+
+	var r0 []service.Instance
+	if rf, ok := ret.Get(0).(func(string) []service.Instance); ok {
+		r0 = rf(serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.Instance)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *ClientInterface) StopServiceInstance(serviceID string, instanceID int) error {
 	ret := _m.Called(serviceID, instanceID)
