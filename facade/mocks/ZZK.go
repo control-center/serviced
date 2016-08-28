@@ -27,12 +27,12 @@ func (_m *ZZK) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 
 	return r0
 }
-func (_m *ZZK) RemoveService(svc *service.Service) error {
-	ret := _m.Called(svc)
+func (_m *ZZK) RemoveService(poolID, serviceID string) error {
+	ret := _m.Called(poolID, serviceID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*service.Service) error); ok {
-		r0 = rf(svc)
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(poolID, serviceID)
 	} else {
 		r0 = ret.Error(0)
 	}

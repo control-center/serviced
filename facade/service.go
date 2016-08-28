@@ -211,7 +211,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 	glog.Infof("Set configuration information for service %s (%s)", svc.Name, svc.ID)
 	// remove the service from coordinator if the pool has changed
 	if cursvc.PoolID != svc.PoolID {
-		if err := f.zzk.RemoveService(cursvc); err != nil {
+		if err := f.zzk.RemoveService(cursvc.PoolID, cursvc.ID); err != nil {
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
@@ -580,7 +580,7 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			}
 			endpoint.RemoveAssignment()
 		}
-		if err := f.zzk.RemoveService(svc); err != nil {
+		if err := f.zzk.RemoveService(svc.PoolID, svc.ID); err != nil {
 			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
 			return err
 		}

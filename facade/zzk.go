@@ -26,7 +26,7 @@ import (
 
 type ZZK interface {
 	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
-	RemoveService(svc *service.Service) error
+	RemoveService(poolID, serviceID string) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
 	StopServiceInstance(poolID, hostID, stateID string) error

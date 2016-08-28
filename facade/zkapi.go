@@ -122,20 +122,26 @@ func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 	return nil
 }
 
-func (zk *zkf) RemoveService(svc *service.Service) error {
-	// acquire the service lock to prevent that service from being scheduled
-	// as it is being deleted
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
+// RemoveService removes a service object from zookeeper
+func (zk *zkf) RemoveService(poolID, serviceID string) error {
+	logger := plog.WithFields(log.Fields{
+		"poolid":    poolID,
+		"serviceid": serviceID,
+	})
+
+	// get the root-based connection to delete the service
+	rootconn, err := zzk.GetLocalConnection("/")
 	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to delete the service in zookeeper")
 		return err
 	}
-	// remove the global list of all vhosts deployed
-	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
-		return err
-	} else if err := zkservice.RemoveServicePublicEndpoints(rootconn, svc); err != nil {
+
+	if err := zks.RemoveService(rootconn, poolID, serviceID); err != nil {
+		logger.WithError(err).Debug("Could not delete the service in zookeeper")
 		return err
 	}
-	return zkservice.RemoveService(conn, svc.ID)
+	logger.Debug("Deleted the service in zookeeper")
+	return nil
 }
 
 func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
