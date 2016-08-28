@@ -15,6 +15,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -30,8 +31,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
-	dockerclient "github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
@@ -684,6 +683,112 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	}
 }
 
+// parseServiceInstance gets the service id and instance id from a provided
+// service string, being either a deploymentPath/servicepath/instanceid or
+// serviceid/instanceid
+func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) {
+	servicepath, name := path.Split(keyword)
+	instanceID := -1
+
+	// if the servicepath is empty, then there is no instance id set for this
+	// service.
+	if servicepath == "" {
+		servicepath = name
+	} else {
+		// check if the name is an instance id
+		if num, err := strconv.Atoi(name); err != nil {
+			servicepath = keyword
+		} else {
+			instanceID = num
+		}
+	}
+
+	// is the servicepath a serviceid?
+	if svc, err := c.driver.GetService(servicepath); err != nil {
+		return "", 0, err
+	} else if svc != nil {
+		return svc.ID, instanceID, nil
+	}
+
+	// try to figure out what service this is
+	// FIXME: this is really expensive
+	svcs, err := c.driver.GetServices()
+	if err != nil {
+		return "", 0, err
+	}
+
+	// set up a service map
+	svcmap := make(map[string]service.Service)
+	for _, svc := range svcs {
+		svcmap[svc.ID] = svc
+	}
+
+	// do a service lookup for the service path
+	var match func(string, string) bool
+	match = func(serviceID string, servicePath string) bool {
+		// if the servicePath is an empty string, then it is a match
+		if servicePath == "" {
+			return true
+		}
+
+		// get the service and split the path
+		svc := svcmap[serviceID]
+		pth, name := path.Split(servicePath)
+
+		// does the name match?
+		if name == svc.Name {
+			if svc.ParentServiceID == "" {
+				// this is a top level service, so compare the deployment id
+				return strings.HasSuffix(svc.DeploymentID, pth)
+			} else {
+				// keep checking the tree
+				return match(svc.ParentServiceID, pth)
+			}
+		}
+
+		// do a fuzzy check on the suffix
+		return strings.HasSuffix(svc.Name, servicePath)
+	}
+
+	// filter all of the matches
+	matches := []service.Service{}
+	for _, svc := range svcs {
+		if match(svc.ID, servicepath) {
+			matches = append(matches, svc)
+		}
+	}
+
+	// check the number of matches
+	if count := len(matches); count == 0 {
+		return "", 0, errors.New("no matching services found")
+	} else if count == 1 {
+		return matches[0].ID, instanceID, nil
+	}
+
+	// more than one match, display a dialog
+	var svcpath func(string) string
+	svcpath = func(serviceID string) string {
+		svc := svcmap[serviceID]
+		if svc.ParentServiceID == "" {
+			return path.Join(svc.DeploymentID, svc.Name)
+		} else {
+			return path.Join(svcpath(svc.ParentServiceID), svc.Name)
+		}
+	}
+
+	t := NewTable("Name,ServiceID,DepID/Path")
+	t.Padding = 6
+	for _, row := range matches {
+		t.AddRow(map[string]interface{}{
+			"Name":       row.Name,
+			"ServiceID":  row.ID,
+			"DepID/Path": svcpath(row.ID),
+		})
+	}
+	t.Print()
+	return "", 0, fmt.Errorf("multiple results found; select one from list")
+}
+
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	var states map[string]map[string]interface{}
@@ -714,16 +819,12 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	showIndividualHealthChecks = strings.Contains(fieldsToShow, "Healthcheck") || strings.Contains(fieldsToShow, "Healthcheck Status")
 
 	if len(ctx.Args()) > 0 {
-		svc, err := c.searchForService(ctx.Args()[0])
+		serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
-		} else if svc == nil {
-			fmt.Fprintln(os.Stderr, "service not found")
-			return
 		}
-
-		if states, err = c.driver.GetServiceStatus(svc.ID); err != nil {
+		if states, err = c.driver.GetServiceStatus(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
@@ -925,14 +1026,14 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
 		return
 	}
 
-	if copiedSvc, err := c.driver.CloneService(svc.ID, ctx.String("suffix")); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
+	if copiedSvc, err := c.driver.CloneService(serviceID, ctx.String("suffix")); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
 	} else if copiedSvc == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
@@ -949,16 +1050,16 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if err := c.driver.RemoveService(svc.ID); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
+	if err := c.driver.RemoveService(serviceID); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
 	} else {
-		fmt.Println(svc.ID)
+		fmt.Println(serviceID)
 	}
 }
 
@@ -1008,7 +1109,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1020,7 +1121,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	}
 
 	cfg := api.IPConfig{
-		ServiceID: svc.ID,
+		ServiceID: serviceID,
 		IPAddress: ipAddress,
 	}
 
@@ -1038,13 +1139,13 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already started")
@@ -1062,26 +1163,20 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	if !isInstanceID(args[0]) {
-		svc, err := c.searchForService(args[0])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
+	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+	if instanceID < 0 {
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting %d service(s)\n", affected)
 		}
 	} else {
-		runningSvc, err := c.searchForRunningService(args[0])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-
-		if err := c.driver.StopRunningService(runningSvc.HostID, runningSvc.ID); err != nil {
+		if err := c.driver.StopServiceInstance(serviceID, instanceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting 1 service(s)\n")
@@ -1098,13 +1193,13 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already stopped")
@@ -1130,7 +1225,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		isTTY   bool
 	)
 
-	svc, err := c.searchForService(args[0])
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1149,7 +1244,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	}
 
 	config := api.ShellConfig{
-		ServiceID:        svc.ID,
+		ServiceID:        serviceID,
 		Command:          command,
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
@@ -1249,122 +1344,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return c.exit(exitcode)
 }
 
-// buildRunningServicePaths returns a map where map[rs.ID] = fullpath
-func (c *ServicedCli) buildRunningServicePaths(rss []dao.RunningService) (map[string]string, error) {
-	pathmap := make(map[string]string)
-
-	// generate parentmap and namemap for all running services with key of serviceid/inst
-	parentmap := make(map[string]string)
-	namemap := make(map[string]string)
-	for _, rs := range rss {
-		rskey := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
-		namemap[rskey] = rs.Name
-		parentmap[rskey] = rs.ParentServiceID
-
-		// populate namemap and parentmap for parent services
-		parentID := rs.ParentServiceID
-		for parentID != "" {
-			pakey := path.Join(parentID, fmt.Sprintf("%d", 0))
-			_, ok := namemap[parentID]
-			if ok {
-				break // break from inner for loop
-			}
-
-			svc, err := c.driver.GetService(parentID)
-			if err != nil || svc == nil {
-				return pathmap, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
-			}
-			namemap[pakey] = svc.Name
-			parentmap[pakey] = svc.ParentServiceID
-
-			parentID = svc.ParentServiceID
-		}
-	}
-
-	// recursively build full path for all running services
-	for _, rs := range rss {
-		fullpath := path.Join(rs.Name, fmt.Sprintf("%d", rs.InstanceID))
-		parentServiceID := rs.ParentServiceID
-
-		for parentServiceID != "" {
-			pakey := path.Join(parentServiceID, fmt.Sprintf("%d", 0))
-			fullpath = path.Join(namemap[pakey], fullpath)
-			parentServiceID = parentmap[pakey]
-		}
-
-		pathmap[rs.ID] = strings.ToLower(fullpath)
-	}
-
-	return pathmap, nil
-}
-
-// searches for a running service from running services given keyword
-func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningService, error) {
-	rss, err := c.driver.GetRunningServices()
-	if err != nil {
-		return nil, err
-	}
-
-	hostmap, err := c.driver.GetHostMap()
-	if err != nil {
-		return nil, err
-	}
-
-	pathmap, err := c.buildRunningServicePaths(rss)
-	if err != nil {
-		return nil, err
-	}
-
-	var states []dao.RunningService
-	for _, rs := range rss {
-		if rs.DockerID == "" {
-			continue
-		}
-
-		poolPathInstance := path.Join(strings.ToLower(rs.PoolID), pathmap[rs.ID])
-		serviceIDInstance := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
-		switch strings.ToLower(keyword) {
-		case rs.ServiceID, serviceIDInstance, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], pathmap[rs.ID], poolPathInstance:
-			states = append(states, rs)
-		default:
-			if keyword == "" {
-				states = append(states, rs)
-			} else if strings.HasSuffix(pathmap[rs.ID], strings.ToLower(keyword)) {
-				states = append(states, rs)
-			}
-		}
-	}
-
-	switch len(states) {
-	case 0:
-		return nil, fmt.Errorf("no matches found")
-	case 1:
-		return &states[0], nil
-	}
-
-	t := NewTable("Name,ID,Host,HostIP,DockerID,Pool/Path")
-	t.Padding = 6
-	for _, row := range states {
-		svcid := row.ServiceID
-		name := row.Name
-		if row.Instances > 1 {
-			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
-			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
-		}
-
-		t.AddRow(map[string]interface{}{
-			"Name":      name,
-			"ID":        svcid,
-			"Host":      hostmap[row.HostID].Name,
-			"HostIP":    hostmap[row.HostID].IPAddr,
-			"DockerID":  row.DockerID[0:12],
-			"Pool/Path": path.Join(row.PoolID, pathmap[row.ID]),
-		})
-	}
-	t.Print()
-	return nil, fmt.Errorf("multiple results found; specify unique item from list")
-}
-
 // serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
@@ -1377,57 +1356,27 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return nil
 	}
 
-	rs, err := c.searchForRunningService(args[0])
+	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 
-	// attach on remote host if service is running on remote
-	myHostID, err := utils.HostID()
-	if err != nil {
-		return err
+	if instanceID < 0 {
+		instanceID = 0
 	}
-
-	if rs.HostID != myHostID {
-		hostmap, err := c.driver.GetHostMap()
-		if err != nil {
-			return err
-		}
-
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
-		if len(args) > 1 {
-			cmd = append(cmd, args[1:]...)
-		}
-
-		log.WithFields(logrus.Fields{
-			"command": cmd,
-		}).Debug("Attaching to remote container")
-		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
-	}
-
-	// attach on local host if service is running locally
-	var command string
+	command := ""
+	argv := []string{}
 	if len(args) > 1 {
 		command = args[1]
-	}
-
-	var argv []string
-	if len(args) > 2 {
 		argv = args[2:]
 	}
 
-	cfg := api.AttachConfig{
-		Running: rs,
-		Command: command,
-		Args:    argv,
-	}
-
-	if err := c.driver.Attach(cfg); err != nil {
+	if err := c.driver.AttachServiceInstance(serviceID, instanceID, command, argv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return err
 	}
-
-	return fmt.Errorf("serviced service attach")
+	return nil
 }
 
 // serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
@@ -1442,7 +1391,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		return nil
 	}
 
-	rs, err := c.searchForRunningService(args[0])
+	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1450,22 +1399,24 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 
 	switch len(args) {
 	case 1:
-		actions := c.serviceActions(rs.ServiceID)
+		actions := c.serviceActions(serviceID)
 		if len(actions) > 0 {
 			fmt.Println(strings.Join(actions, "\n"))
 		} else {
 			fmt.Fprintln(os.Stderr, "no actions found")
 		}
 	default:
-		cfg := api.AttachConfig{
-			Running: rs,
-			Command: args[1],
+		if instanceID < 0 {
+			instanceID = 0
 		}
-		if len(args) > 2 {
-			cfg.Args = args[2:]
+		action := ""
+		argv := []string{}
+		if len(args) > 1 {
+			action = args[1]
+			argv = args[2:]
 		}
 
-		if err := c.driver.Action(cfg); err != nil {
+		if err := c.driver.SendDockerAction(serviceID, instanceID, action, argv); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -1485,42 +1436,23 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		return nil
 	}
 
-	rs, err := c.searchForRunningService(args[0])
+	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 
-	// docker logs on remote host if service is running on remote
-	myHostID, err := utils.HostID()
-	if err != nil {
-		return err
+	if instanceID < 0 {
+		instanceID = 0
 	}
-
-	if rs.HostID != myHostID {
-		hostmap, err := c.driver.GetHostMap()
-		if err != nil {
-			return err
-		}
-
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
-		if len(args) > 1 {
-			cmd = append(cmd, args[1:]...)
-		}
-
-		log.WithFields(logrus.Fields{
-			"command": cmd,
-		}).Debug("Retrieving remote logs")
-		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
-	}
-
-	// docker logs on local host if service is running locally
-	var argv []string
-	if len(args) > 2 {
+	command := ""
+	argv := []string{}
+	if len(args) > 1 {
+		command = args[1]
 		argv = args[2:]
 	}
 
-	if err := dockerclient.Logs(rs.DockerID, argv); err != nil {
+	if err := c.driver.LogsForServiceInstance(serviceID, instanceID, command, argv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -1536,13 +1468,13 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(ctx.Args().First())
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if snapshots, err := c.driver.GetSnapshotsByServiceID(svc.ID); err != nil {
+	if snapshots, err := c.driver.GetSnapshotsByServiceID(serviceID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
@@ -1589,7 +1521,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		description = ctx.String("description")
 	}
 
-	svc, err := c.searchForService(ctx.Args().First())
+	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
@@ -1600,7 +1532,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	tag := ctx.String("tag")
 
 	cfg := api.SnapshotConfig{
-		ServiceID: svc.ID,
+		ServiceID: serviceID,
 		Message:   description,
 		Tag:       tag,
 	}

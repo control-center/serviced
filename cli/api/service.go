@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 
@@ -58,12 +57,6 @@ type SchedulerConfig struct {
 type IPConfig struct {
 	ServiceID string
 	IPAddress string
-}
-
-// RunningService contains the service for a state
-type RunningService struct {
-	Service *service.Service
-	State   *servicestate.ServiceState
 }
 
 // Type of method that controls the state of a service

@@ -39,13 +39,12 @@ const (
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
-	errs:            make(map[string]error, 10),
-	services:        DefaultTestServices,
-	runningServices: DefaultTestRunningServices,
-	pools:           DefaultTestPools,
-	hosts:           DefaultTestHosts,
-	snapshots:       DefaultTestSnapshots,
-	endpoints:       DefaultEndpoints,
+	errs:      make(map[string]error, 10),
+	services:  DefaultTestServices,
+	pools:     DefaultTestPools,
+	hosts:     DefaultTestHosts,
+	snapshots: DefaultTestSnapshots,
+	endpoints: DefaultEndpoints,
 }
 
 var DefaultTestServices = []service.Service{
@@ -118,51 +117,6 @@ var DefaultTestServices = []service.Service{
 	},
 }
 
-var DefaultTestRunningServices = []dao.RunningService{
-	{
-		ID:              "abcdefg",
-		ServiceID:       "test-service-2",
-		HostID:          "test-host-id-1",
-		DockerID:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Name:            "Zope",
-		Startup:         "startup command 2",
-		Instances:       1,
-		ImageID:         "quay.io/zenossinc/tenantid2-core5x",
-		PoolID:          "default",
-		DesiredState:    int(service.SVCRun),
-		InstanceID:      0,
-		ParentServiceID: "test-service-1",
-	},
-	{
-		ID:              "hijklmn",
-		ServiceID:       "test-service-3",
-		HostID:          "test-host-id-2",
-		DockerID:        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		Name:            "zencommand",
-		Startup:         "startup command 3",
-		Instances:       2,
-		ImageID:         "quay.io/zenossinc/tenantid1-opentsdb",
-		PoolID:          "remote",
-		DesiredState:    int(service.SVCRun),
-		InstanceID:      0,
-		ParentServiceID: "test-service-2",
-	},
-	{
-		ID:              "opqrstu",
-		ServiceID:       "test-service-3",
-		HostID:          "test-host-id-2",
-		DockerID:        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		Name:            "zencommand",
-		Startup:         "startup command 3",
-		Instances:       2,
-		ImageID:         "quay.io/zenossinc/tenantid1-opentsdb",
-		PoolID:          "remote",
-		DesiredState:    int(service.SVCRun),
-		InstanceID:      1,
-		ParentServiceID: "test-service-2",
-	},
-}
-
 var DefaultEndpoints = []applicationendpoint.EndpointReport{
 	{
 		Endpoint: applicationendpoint.ApplicationEndpoint{
@@ -196,22 +150,20 @@ var DefaultEndpoints = []applicationendpoint.EndpointReport{
 }
 
 var (
-	ErrNoServiceFound        = errors.New("no service found")
-	ErrNoRunningServiceFound = errors.New("no matches found")
-	ErrInvalidService        = errors.New("invalid service")
-	ErrCmdNotFound           = errors.New("command not found")
-	ErrStub                  = errors.New("stub for facade failed")
+	ErrNoServiceFound = errors.New("no service found")
+	ErrInvalidService = errors.New("invalid service")
+	ErrCmdNotFound    = errors.New("command not found")
+	ErrStub           = errors.New("stub for facade failed")
 )
 
 type ServiceAPITest struct {
 	api.API
-	errs            map[string]error
-	services        []service.Service
-	runningServices []dao.RunningService
-	pools           []pool.ResourcePool
-	hosts           []host.Host
-	snapshots       []dao.SnapshotInfo
-	endpoints       []applicationendpoint.EndpointReport
+	errs      map[string]error
+	services  []service.Service
+	pools     []pool.ResourcePool
+	hosts     []host.Host
+	snapshots []dao.SnapshotInfo
+	endpoints []applicationendpoint.EndpointReport
 }
 
 func InitServiceAPITest(args ...string) {
@@ -225,13 +177,6 @@ func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 		return nil, t.errs["GetServices"]
 	}
 	return t.services, nil
-}
-
-func (t ServiceAPITest) GetRunningServices() ([]dao.RunningService, error) {
-	if t.errs["GetRunningServices"] != nil {
-		return nil, t.errs["GetRunningServices"]
-	}
-	return t.runningServices, nil
 }
 
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
@@ -354,16 +299,6 @@ func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
 	}
 
 	return 1, nil
-}
-
-func (t ServiceAPITest) StopRunningService(hostID string, serviceStateID string) error {
-	for _, rs := range t.runningServices {
-		if rs.HostID == hostID && rs.ID == serviceStateID {
-			return nil
-		}
-	}
-
-	return ErrNoRunningServiceFound
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {

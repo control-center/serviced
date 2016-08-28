@@ -69,12 +69,6 @@ type API interface {
 	AssignIP(IPConfig) error
 	GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error)
 
-	// RunningServices (ServiceStates)
-	GetRunningServices() ([]dao.RunningService, error)
-	StopRunningService(string, string) error
-	Attach(AttachConfig) error
-	Action(AttachConfig) error
-
 	// Shell
 	StartShell(ShellConfig) error
 	RunShell(ShellConfig, chan struct{}) (int, error)
