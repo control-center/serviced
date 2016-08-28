@@ -21,7 +21,7 @@ func (s *Server) GetServiceInstances(serviceID string, res *[]service.Instance) 
 	if err != nil {
 		return
 	}
-	*res = *insts
+	*res = insts
 	return
 }
 

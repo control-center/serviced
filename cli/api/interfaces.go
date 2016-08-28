@@ -131,6 +131,7 @@ type API interface {
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 
 	// Service Instances
+	GetServiceInstances(serviceID string) ([]service.Instance, error)
 	StopServiceInstance(serviceID string, instanceID int) error
 	AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error
 	LogsForServiceInstance(serviceID string, instanceID int, command string, args []string) error
