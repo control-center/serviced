@@ -71,10 +71,10 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err err
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.addService(ctx, svc, false)
+	return f.addService(ctx, tenantID, svc, false)
 }
 
-func (f *Facade) addService(ctx datastore.Context, svc service.Service, setLockOnCreate bool) error {
+func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.Service, setLockOnCreate bool) error {
 	store := f.serviceStore
 	// service add validation
 	if err := f.validateServiceAdd(ctx, &svc); err != nil {
@@ -106,7 +106,7 @@ func (f *Facade) addService(ctx datastore.Context, svc service.Service, setLockO
 	}
 	glog.Infof("Set configuration information for service %s (%s)", svc.Name, svc.ID)
 	// sync the service with the coordinator
-	if err := f.syncService(ctx, svc.ID, setLockOnCreate, setLockOnCreate); err != nil {
+	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnCreate, setLockOnCreate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -155,7 +155,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, svc, false, false)
+	return f.updateService(ctx, tenantID, svc, false, false)
 }
 
 // MigrateService migrates an existing service; return error if the service does
@@ -168,10 +168,10 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) erro
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, svc, true, false)
+	return f.updateService(ctx, tenantID, svc, true, false)
 }
 
-func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migrate, setLockOnUpdate bool) error {
+func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc service.Service, migrate, setLockOnUpdate bool) error {
 	store := f.serviceStore
 	cursvc, err := f.validateServiceUpdate(ctx, &svc)
 	if err != nil {
@@ -215,11 +215,11 @@ func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migra
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(cursvc, false, false)
+			f.zzk.UpdateService(tenantID, cursvc, false, false)
 		}
 	}
 	// sync the service with the coordinator
-	if err := f.syncService(ctx, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
+	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -342,13 +342,13 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 }
 
 // syncService syncs service data from the database into the coordinator.
-func (f *Facade) syncService(ctx datastore.Context, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
+func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not get service %s to sync: %s", serviceID, err)
 		return err
 	}
-	if err := f.zzk.UpdateService(svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := f.zzk.UpdateService(tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s to the coordinator: %s", serviceID, err)
 		return err
 	}
@@ -388,7 +388,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)
 				svc.PoolID = "default"
 			}
-			if err := f.addService(ctx, svc, true); err != nil {
+			if err := f.addService(ctx, tenantID, svc, true); err != nil {
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
 				return err
 			}
@@ -938,10 +938,10 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.scheduleService(ctx, serviceID, autoLaunch, desiredState, false)
+	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, desiredState, false)
 }
 
-func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
+func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
 	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
 	if desiredState != service.SVCStop {
 		if desiredState.String() == "unknown" {
@@ -981,7 +981,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 		if err := f.fillServiceConfigs(ctx, svc); err != nil {
 			return err
 		}
-		if err := f.updateService(ctx, *svc, false, false); err != nil {
+		if err := f.updateService(ctx, tenantID, *svc, false, false); err != nil {
 			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}

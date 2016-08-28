@@ -29,9 +29,9 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkd "github.com/control-center/serviced/zzk/docker"
 	zkregistry "github.com/control-center/serviced/zzk/registry"
-	zkhost "github.com/control-center/serviced/zzk/service"
+	zkr "github.com/control-center/serviced/zzk/registry2"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	zkservice2 "github.com/control-center/serviced/zzk/service2"
+	zks "github.com/control-center/serviced/zzk/service2"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
@@ -44,19 +44,82 @@ type zkf struct {
 	f *Facade
 }
 
-func (zk *zkf) UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
-	if err != nil {
-		return err
-	}
-	if err := zkservice.UpdateService(conn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
-		return err
-	}
+// UpdateService updates the service object and exposed public endpoints that
+// are synced in zookeeper.
+// TODO: we may want to combine these calls into a single transaction
+func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	logger := plog.WithFields(log.Fields{
+		"tenantid":    tenantID,
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+	})
+
+	// get the root-based connection to update the service's endpoints
 	rootconn, err := zzk.GetLocalConnection("/")
 	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
 		return err
 	}
-	return zkservice.UpdateServicePublicEndpoints(rootconn, svc)
+
+	// map all the public endpoints on the service
+	pubmap := make(map[zkr.PublicPortKey]zkr.PublicPort)
+	vhmap := make(map[zkr.VHostKey]zkr.VHost)
+
+	for _, ep := range svc.Endpoints {
+		// map the public ports
+		for _, p := range ep.PortList {
+			key := zkr.PublicPortKey{
+				HostID:      "master",
+				PortAddress: p.PortAddr,
+			}
+			pub := zkr.PublicPort{
+				TenantID:    tenantID,
+				Application: ep.Application,
+				ServiceID:   svc.ID,
+				Enabled:     p.Enabled,
+				Protocol:    p.Protocol,
+				UseTLS:      p.UseTLS,
+			}
+			pubmap[key] = pub
+		}
+
+		// map the vhosts
+		for _, v := range ep.VHostList {
+			key := zkr.VHostKey{
+				HostID:    "master",
+				Subdomain: v.Name,
+			}
+			vh := zkr.VHost{
+				TenantID:    tenantID,
+				Application: ep.Application,
+				ServiceID:   svc.ID,
+				Enabled:     v.Enabled,
+			}
+			vhmap[key] = vh
+		}
+	}
+
+	// sync the registry
+	if err := zkr.SyncServiceRegistry(rootconn, svc.ID, pubmap, vhmap); err != nil {
+		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
+		return err
+	}
+	logger.Debug("Updated the service's public endpoints in zookeeper")
+
+	// get the pool-based connection to update the service
+	poolconn, err := zzk.GetLocalConnection(path.Join("/pools", svc.PoolID))
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
+		return err
+	}
+
+	if err := zks.UpdateService(poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
+		logger.WithError(err).Debug("Could not update the service in zookeeper")
+		return err
+	}
+	logger.Debug("Updated the service in zookeeper")
+	return nil
 }
 
 func (zk *zkf) RemoveService(svc *service.Service) error {
@@ -129,7 +192,7 @@ func (z *zkf) AddHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	return zkhost.AddHost(conn, host)
+	return zks.AddHost(conn, *host)
 }
 
 func (z *zkf) UpdateHost(host *host.Host) error {
@@ -137,7 +200,7 @@ func (z *zkf) UpdateHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	return zkhost.UpdateHost(conn, host)
+	return zks.UpdateHost(conn, *host)
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
@@ -157,12 +220,12 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 		return err
 	}
 	defer locker.Unlock()
-	cancel := make(chan interface{})
+	cancel := make(chan struct{})
 	go func() {
 		defer close(cancel)
 		<-time.After(2 * time.Minute)
 	}()
-	return zkhost.RemoveHost(cancel, conn, host.ID)
+	return zks.RemoveHost(cancel, conn, "", host.ID)
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
@@ -170,7 +233,7 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	if err != nil {
 		return err
 	}
-	*hosts, err = zkhost.GetCurrentHosts(conn, poolID)
+	*hosts, err = zks.GetCurrentHosts(conn, poolID)
 	return err
 }
 
@@ -179,7 +242,7 @@ func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
 	if err != nil {
 		return err
 	}
-	return zkservice.UpdateResourcePool(conn, pool)
+	return zks.UpdateResourcePool(conn, *pool)
 }
 
 func (z *zkf) RemoveResourcePool(poolID string) error {
@@ -187,7 +250,7 @@ func (z *zkf) RemoveResourcePool(poolID string) error {
 	if err != nil {
 		return err
 	}
-	return zkservice.RemoveResourcePool(conn, poolID)
+	return zks.RemoveResourcePool(conn, poolID)
 }
 
 func (z *zkf) AddVirtualIP(virtualIP *pool.VirtualIP) error {
@@ -244,14 +307,14 @@ func (z *zkf) LockServices(svcs []service.Service) error {
 	if err != nil {
 		return err
 	}
-	nodes := make([]zkservice.ServiceLockNode, len(svcs))
+	nodes := make([]zks.ServiceLockNode, len(svcs))
 	for i, svc := range svcs {
-		nodes[i] = zkservice.ServiceLockNode{
+		nodes[i] = zks.ServiceLockNode{
 			PoolID:    svc.PoolID,
 			ServiceID: svc.ID,
 		}
 	}
-	return zkservice.LockServices(conn, nodes)
+	return zks.LockServices(conn, nodes)
 }
 
 func (z *zkf) UnlockServices(svcs []service.Service) error {
@@ -259,14 +322,14 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 	if err != nil {
 		return err
 	}
-	nodes := make([]zkservice.ServiceLockNode, len(svcs))
+	nodes := make([]zks.ServiceLockNode, len(svcs))
 	for i, svc := range svcs {
-		nodes[i] = zkservice.ServiceLockNode{
+		nodes[i] = zks.ServiceLockNode{
 			PoolID:    svc.PoolID,
 			ServiceID: svc.ID,
 		}
 	}
-	return zkservice.UnlockServices(conn, nodes)
+	return zks.UnlockServices(conn, nodes)
 }
 
 // Get a list of exported endpoints for the specified service from the Zookeeper namespace
@@ -297,30 +360,30 @@ func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]applica
 
 // GetServiceStates2 returns all running instances for a service
 // FIXME: update name when integration is complete
-func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zkservice2.State, error) {
+func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zks.State, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
 		return nil, err
 	}
 
-	return zkservice2.GetServiceStates(conn, poolID, serviceID)
+	return zks.GetServiceStates(conn, poolID, serviceID)
 }
 
 // GetHostStates returns all running instances for a host
-func (zk *zkf) GetHostStates(poolID, hostID string) ([]zkservice2.State, error) {
+func (zk *zkf) GetHostStates(poolID, hostID string) ([]zks.State, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
 		return nil, err
 	}
 
-	return zkservice2.GetHostStates(conn, poolID, hostID)
+	return zks.GetHostStates(conn, poolID, hostID)
 }
 
 // GetServiceState returns the state of a service from its service and instance
 // id.
-func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zkservice2.State, error) {
+func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zks.State, error) {
 	logger := plog.WithFields(log.Fields{
 		"poolid":     poolID,
 		"serviceid":  serviceID,
@@ -335,7 +398,7 @@ func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zkser
 	}
 
 	// get the state host id
-	hostID, err := zkservice2.GetServiceStateHostID(conn, poolID, serviceID, instanceID)
+	hostID, err := zks.GetServiceStateHostID(conn, poolID, serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not get host id for state")
 		return nil, err
@@ -345,14 +408,14 @@ func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zkser
 	logger.Debug("Found service state on host")
 
 	// set up the request
-	req := zkservice2.StateRequest{
+	req := zks.StateRequest{
 		PoolID:     poolID,
 		HostID:     hostID,
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
 
-	state, err := zkservice2.GetState(conn, req)
+	state, err := zks.GetState(conn, req)
 	if err != nil {
 		logger.WithError(err).Debug("Could not get state information")
 		return nil, err
@@ -379,7 +442,7 @@ func (zk *zkf) StopServiceInstance2(poolID, serviceID string, instanceID int) er
 	}
 
 	// get the state host id
-	hostID, err := zkservice2.GetServiceStateHostID(conn, poolID, serviceID, instanceID)
+	hostID, err := zks.GetServiceStateHostID(conn, poolID, serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not get host id for state")
 		return err
@@ -388,14 +451,14 @@ func (zk *zkf) StopServiceInstance2(poolID, serviceID string, instanceID int) er
 	logger = logger.WithField("hostid", hostID)
 
 	// check if the host is online
-	isOnline, err := zkservice2.IsHostOnline(conn, poolID, hostID)
+	isOnline, err := zks.IsHostOnline(conn, poolID, hostID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not check the online status of the host")
 		return err
 	}
 
 	// set up the request
-	req := zkservice2.StateRequest{
+	req := zks.StateRequest{
 		PoolID:     poolID,
 		HostID:     hostID,
 		ServiceID:  serviceID,
@@ -405,7 +468,7 @@ func (zk *zkf) StopServiceInstance2(poolID, serviceID string, instanceID int) er
 	// if the host is online, schedule the service to stop, otherwise delete the
 	// service state.
 	if isOnline {
-		if err := zkservice2.UpdateState(conn, req, func(s *zkservice2.State) bool {
+		if err := zks.UpdateState(conn, req, func(s *zks.State) bool {
 			if s.DesiredState != service.SVCStop {
 				s.DesiredState = service.SVCStop
 				return true
@@ -417,7 +480,7 @@ func (zk *zkf) StopServiceInstance2(poolID, serviceID string, instanceID int) er
 		}
 		logger.Debug("Service instance scheduled to stop")
 	} else {
-		if err := zkservice2.DeleteState(conn, req); err != nil {
+		if err := zks.DeleteState(conn, req); err != nil {
 			logger.WithError(err).Debug("Could not delete service instance from offline host")
 			return err
 		}
@@ -444,7 +507,7 @@ func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
 	onlineHosts := make(map[string]bool)
 
 	// get all the state ids of the service
-	reqs, err := zkservice2.GetServiceStateIDs(conn, poolID, serviceID)
+	reqs, err := zks.GetServiceStateIDs(conn, poolID, serviceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not get service state ids")
 		return err
@@ -458,7 +521,7 @@ func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
 		// check the host
 		isOnline, ok := onlineHosts[req.HostID]
 		if !ok {
-			isOnline, err = zkservice2.IsHostOnline(conn, poolID, req.HostID)
+			isOnline, err = zks.IsHostOnline(conn, poolID, req.HostID)
 			if err != nil {
 				logger.WithField("hostid", req.HostID).WithError(err).Warn("Could not check if host is online")
 				continue
@@ -468,7 +531,7 @@ func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
 
 		// manage the service
 		if isOnline {
-			if err := zkservice2.UpdateState(conn, req, func(s *zkservice2.State) bool {
+			if err := zks.UpdateState(conn, req, func(s *zks.State) bool {
 				if s.DesiredState != service.SVCStop {
 					s.DesiredState = service.SVCStop
 					return true
@@ -480,7 +543,7 @@ func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
 			}
 			st8log.Debug("Set service instance to stopped")
 		} else {
-			if err := zkservice2.DeleteState(conn, req); err != nil {
+			if err := zks.DeleteState(conn, req); err != nil {
 				st8log.WithError(err).Warn("Could not delete service instance")
 				continue
 			}
@@ -507,7 +570,7 @@ func (zk *zkf) SendDockerAction(poolID, serviceID string, instanceID int, comman
 	}
 
 	// get the state host id
-	hostID, err := zkservice2.GetServiceStateHostID(conn, "", serviceID, instanceID)
+	hostID, err := zks.GetServiceStateHostID(conn, "", serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not get host id for state")
 		return err

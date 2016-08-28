@@ -15,12 +15,12 @@ type ZZK struct {
 	mock.Mock
 }
 
-func (_m *ZZK) UpdateService(svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
-	ret := _m.Called(svc, setLockOnCreate, setLockOnUpdate)
+func (_m *ZZK) UpdateService(tenantID string, svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
+	ret := _m.Called(tenantID, svc, setLockOnCreate, setLockOnUpdate)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*service.Service, bool, bool) error); ok {
-		r0 = rf(svc, setLockOnCreate, setLockOnUpdate)
+	if rf, ok := ret.Get(0).(func(string, *service.Service, bool, bool) error); ok {
+		r0 = rf(tenantID, svc, setLockOnCreate, setLockOnUpdate)
 	} else {
 		r0 = ret.Error(0)
 	}
