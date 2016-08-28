@@ -30,7 +30,6 @@ import (
 	zkd "github.com/control-center/serviced/zzk/docker"
 	zkregistry "github.com/control-center/serviced/zzk/registry"
 	zkr "github.com/control-center/serviced/zzk/registry2"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	zks "github.com/control-center/serviced/zzk/service2"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
@@ -339,7 +338,7 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	locker, err := zkservice.ServiceLock(conn)
+	locker, err := zks.ServiceLock(conn)
 	if err != nil {
 		glog.Errorf("Could not initialize service lock: %s", err)
 		return err
