@@ -144,6 +144,51 @@ func (zk *zkf) RemoveService(poolID, serviceID string) error {
 	return nil
 }
 
+// RemoveServiceEndpoints removes all public endpoints of a service from
+// zookeeper.
+func (zk *zkf) RemoveServiceEndpoints(serviceID string) error {
+	logger := plog.WithField("serviceid", serviceID)
+
+	// get the root-based connection to delete the service endpoints
+	rootconn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to delete the service's public endpoints in zookeeper")
+		return err
+	}
+
+	// delete the public endpoints for this service
+	pubs := make(map[zkr.PublicPortKey]zkr.PublicPort)
+	vhosts := make(map[zkr.VHostKey]zkr.VHost)
+
+	if err := zkr.SyncServiceRegistry(rootconn, serviceID, pubs, vhosts); err != nil {
+		logger.WithError(err).Debug("Could not delete the service's public endpoints in zookeeper")
+		return err
+	}
+	logger.Debug("Deleted the service's public endpoints in zookeeper")
+	return nil
+}
+
+// RemoveTenantExports removes all the exported endpoints for a given tenant
+// from zookeeper.
+func (zk *zkf) RemoveTenantExports(tenantID string) error {
+	logger := plog.WithField("tenantid", tenantID)
+
+	// get the root-based connection to delete the service endpoints
+	rootconn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to delete the tenant's exported endpoints in zookeeper")
+		return err
+	}
+
+	// delete the exports
+	if err := zkr.DeleteExports(rootconn, tenantID); err != nil {
+		logger.WithError(err).Debug("Could not delete the tenant's exported endpoints in zookeeper")
+		return err
+	}
+	logger.Debug("Deleted the tenant's exported endpoints in zookeeper")
+	return nil
+}
+
 func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {

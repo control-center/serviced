@@ -27,12 +27,36 @@ func (_m *ZZK) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 
 	return r0
 }
-func (_m *ZZK) RemoveService(poolID, serviceID string) error {
+func (_m *ZZK) RemoveService(poolID string, serviceID string) error {
 	ret := _m.Called(poolID, serviceID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string) error); ok {
 		r0 = rf(poolID, serviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) RemoveServiceEndpoints(serviceID string) error {
+	ret := _m.Called(serviceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(serviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) RemoveTenantExports(tenantID string) error {
+	ret := _m.Called(tenantID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(tenantID)
 	} else {
 		r0 = ret.Error(0)
 	}

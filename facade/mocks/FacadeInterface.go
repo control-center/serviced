@@ -11,7 +11,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
-
 import "github.com/control-center/serviced/domain/servicetemplate"
 
 type FacadeInterface struct {

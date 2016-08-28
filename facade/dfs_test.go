@@ -144,6 +144,8 @@ func (fdrt *FacadeDfsRegistryTest) setupMockZZK() {
 	fdrt.zzk.On("RemoveHost", mock.AnythingOfType("*host.Host")).Return(nil)
 	fdrt.zzk.On("UpdateService", mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	fdrt.zzk.On("RemoveService", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	fdrt.zzk.On("RemoveServiceEndpoints", mock.AnythingOfType("string")).Return(nil)
+	fdrt.zzk.On("RemoveTenantExports", mock.AnythingOfType("string")).Return(nil)
 	fdrt.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
 	fdrt.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
 	fdrt.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)

@@ -558,6 +558,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 			glog.Errorf("Could not destroy volume for tenant %s: %s", tenantID, err)
 			return err
 		}
+		f.zzk.RemoveTenantExports(tenantID)
 		f.zzk.DeleteRegistryLibrary(tenantID)
 	}
 	return nil
@@ -579,6 +580,10 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 				}
 			}
 			endpoint.RemoveAssignment()
+		}
+		if err := f.zzk.RemoveServiceEndpoints(svc.ID); err != nil {
+			glog.Errorf("Could not remove public endpoints for service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			return err
 		}
 		if err := f.zzk.RemoveService(svc.PoolID, svc.ID); err != nil {
 			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)

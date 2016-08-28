@@ -91,6 +91,8 @@ func (ft *FacadeIntegrationTest) setupMockZZK() {
 	ft.zzk.On("RemoveHost", mock.AnythingOfType("*host.Host")).Return(nil)
 	ft.zzk.On("UpdateService", mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	ft.zzk.On("RemoveService", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("RemoveServiceEndpoints", mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("RemoveTenantExports", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
 	ft.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
