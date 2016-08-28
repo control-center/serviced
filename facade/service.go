@@ -969,15 +969,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		switch desiredState {
 		case service.SVCRestart:
 			// shutdown all service instances
-			states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
-			if err != nil {
+			if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
 				return err
-			}
-
-			for _, state := range states {
-				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, ""); err != nil {
-					return err
-				}
 			}
 			svc.DesiredState = int(service.SVCRun)
 		default:

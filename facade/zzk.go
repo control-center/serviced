@@ -29,7 +29,6 @@ type ZZK interface {
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
-	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error

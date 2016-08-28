@@ -74,18 +74,6 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 
 	return r0
 }
-func (_m *ZZK) StopServiceInstance(poolID string, hostID string, stateID string) error {
-	ret := _m.Called(poolID, hostID, stateID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
-		r0 = rf(poolID, hostID, stateID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *ZZK) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
 	ret := _m.Called(publicendpoint, serviceID)
 

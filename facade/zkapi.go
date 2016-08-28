@@ -264,14 +264,6 @@ func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, can
 	}
 }
 
-func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		return err
-	}
-	return zkservice.StopServiceInstance(conn, poolID, hostID, stateID)
-}
-
 func (z *zkf) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
 	rootBasedConnection, err := zzk.GetLocalConnection("/")
 	if err != nil {
