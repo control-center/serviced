@@ -1172,7 +1172,7 @@ func (_m *API) EnablePublicEndpointVHost(serviceid string, endpointName string, 
 func (_m *API) GetServiceInstances(_a0 string) ([]service.Instance, error) {
 	ret := _m.Called(_a0)
 
-	var r0 []service.Service
+	var r0 []service.Instance
 	if rf, ok := ret.Get(0).(func(string) []service.Instance); ok {
 		r0 = rf(_a0)
 	} else {
