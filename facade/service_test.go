@@ -20,13 +20,13 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk/registry"
+	zks "github.com/control-center/serviced/zzk/service2"
 
 	"errors"
 	"fmt"
@@ -38,7 +38,6 @@ import (
 var (
 	ErrTestEPValidationFail = errors.New("Endpoint failed validation")
 )
-
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceName(c *C) {
 	svcA := service.Service{
@@ -441,9 +440,8 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_UndefinedService
 func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
-	serviceIDs := []string{svc.ID}
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
-	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(errorStub)
+	ft.zzk.On("GetServiceStates2", svc.PoolID, svc.ID).Return([]zks.State{}, errorStub)
 
 	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -455,8 +453,23 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t 
 func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
-	serviceIDs := []string{svc.ID}
-	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(nil)
+
+	state := zks.State{
+		ServiceID:  svc.ID,
+		InstanceID: 0,
+	}
+	for _, ep := range svc.Endpoints {
+		if ep.Purpose == "export" {
+			state.Exports = append(state.Exports, zks.ExportBinding{
+				Application: ep.Application,
+			})
+		} else {
+			state.Imports = append(state.Imports, zks.ImportBinding{
+				Application: ep.Application,
+			})
+		}
+	}
+	ft.zzk.On("GetServiceStates2", svc.PoolID, svc.ID).Return([]zks.State{state}, nil)
 
 	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -474,17 +487,30 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunnin
 func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
-	serviceIDs := []string{svc.ID}
-	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).
-		Return(nil).Run(func(args mock.Arguments) {
-		// Mock results for 2 running instances
-		statesArg := args.Get(1).(*[]servicestate.ServiceState)
-		*statesArg = []servicestate.ServiceState{
-			{ServiceID: svc.ID, InstanceID: 0, Endpoints: svc.Endpoints},
-			{ServiceID: svc.ID, InstanceID: 1, Endpoints: svc.Endpoints},
+
+	state := zks.State{
+		ServiceID:  svc.ID,
+		InstanceID: 0,
+	}
+	for _, ep := range svc.Endpoints {
+		if ep.Purpose == "export" {
+			state.Exports = append(state.Exports, zks.ExportBinding{
+				Application: ep.Application,
+			})
+		} else {
+			state.Imports = append(state.Imports, zks.ImportBinding{
+				Application: ep.Application,
+			})
 		}
-		t.Assert(true, Equals, true)
-	})
+	}
+
+	states := make([]zks.State, 2)
+	for i := range states {
+		states[i] = state
+		states[i].InstanceID = i
+	}
+
+	ft.zzk.On("GetServiceStates2", svc.PoolID, svc.ID).Return(states, nil)
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
@@ -778,7 +804,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C)
 	deployRequest := ft.createServiceDeploymentRequest(t)
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
-		Deploy: []*dao.ServiceDeploymentRequest{deployRequest},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
 	}
 
 	ft.dfs.On("Download",
@@ -792,9 +818,9 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_Success(t *C)
 
 	svcs, err := ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{TenantID: request.ServiceID})
 	t.Assert(err, IsNil)
-	t.Assert(len(svcs), Equals, 4)				// there should be 1 additional service
+	t.Assert(len(svcs), Equals, 4) // there should be 1 additional service
 	foundAddedService := false
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if svc.Name == deployRequest.Service.Name {
 			foundAddedService = true
 			break
@@ -812,7 +838,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDup(t *C)
 	deployRequest.Service.Name = "original_service_name_child_0"
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
-		Deploy: []*dao.ServiceDeploymentRequest{deployRequest},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
 	}
 
 	ft.dfs.On("Download",
@@ -840,7 +866,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupNew(t 
 	deployRequest2.Service.Name = deployRequest1.Service.Name
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
-		Deploy: []*dao.ServiceDeploymentRequest{deployRequest1, deployRequest2},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest1, deployRequest2},
 	}
 
 	ft.dfs.On("Download",
@@ -864,7 +890,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidPa
 	deployRequest.ParentID = "bogus-parent"
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
-		Deploy: []*dao.ServiceDeploymentRequest{deployRequest},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
 	}
 
 	err = ft.Facade.MigrateServices(ft.CTX, request)
@@ -880,7 +906,7 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailInvalidSe
 	deployRequest.Service.Launch = "bogus-launch"
 	request := dao.ServiceMigrationRequest{
 		ServiceID: "original_service_id_tenant",
-		Deploy: []*dao.ServiceDeploymentRequest{deployRequest},
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest},
 	}
 
 	ft.dfs.On("Download",
@@ -1078,7 +1104,7 @@ func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error 
 	return ft.setupMigrationTest(t, false)
 }
 
-func (ft *FacadeIntegrationTest) setupMigrationTestWithEndpoints(t *C) error{
+func (ft *FacadeIntegrationTest) setupMigrationTestWithEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, true)
 }
 
@@ -1209,12 +1235,12 @@ func (ft *FacadeIntegrationTest) createNewChildService(t *C) *service.Service {
 func (ft *FacadeIntegrationTest) assertServiceAdded(t *C, newSvc *service.Service) {
 	svcs, err := ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{TenantID: newSvc.ParentServiceID})
 	t.Assert(err, IsNil)
-	t.Assert(len(svcs), Equals, 4)				// there should be 1 additional service
+	t.Assert(len(svcs), Equals, 4) // there should be 1 additional service
 	foundAddedService := false
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if svc.Name == newSvc.Name {
 			foundAddedService = true
-			t.Assert(svc.ID, Not(Equals), "new-clone-id")	// the service ID should be changed
+			t.Assert(svc.ID, Not(Equals), "new-clone-id") // the service ID should be changed
 			break
 		}
 	}
@@ -1227,12 +1253,11 @@ func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.Servi
 
 		// A minimally valid ServiceDefinition
 		Service: servicedefinition.ServiceDefinition{
-			Name: "added-service-name",
+			Name:    "added-service-name",
 			ImageID: "ubuntu:latest",
-			Launch: "auto",
+			Launch:  "auto",
 		},
 	}
 
 	return &deployRequest
 }
-
