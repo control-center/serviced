@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -137,10 +136,6 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetRunningServices", request, runningServices, 10*time.Second)
-}
-
-func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
-	return s.rpcClient.Call("ControlCenter.GetServiceState", request, state, 0)
 }
 
 func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
