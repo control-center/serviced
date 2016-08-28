@@ -63,7 +63,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/services/:serviceId", gz(sc.authorizedClient(restGetService))},
 		rest.Route{"GET", "/services/:serviceId/running", gz(sc.authorizedClient(restGetRunningForService))},
 		rest.Route{"GET", "/services/:serviceId/status", gz(sc.authorizedClient(restGetStatusForService))},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", gz(sc.authorizedClient(restGetRunningService))},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", gz(sc.authorizedClient(restGetServiceStateLogs))},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs/download", gz(sc.authorizedClient(downloadServiceStateLogs))},
 		rest.Route{"POST", "/services/add", gz(sc.authorizedClient(restAddService))},
@@ -107,7 +106,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
-		rest.Route{"GET", "/running", gz(sc.authorizedClient(restGetAllRunning))},
 		rest.Route{"GET", "/config", gz(sc.authorizedClient(restGetUIConfig))},
 		rest.Route{"GET", "/servicestatus", gz(sc.authorizedClient(restGetConciseServiceStatus))},
 

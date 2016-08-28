@@ -35,9 +35,7 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
-	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	zkservice2 "github.com/control-center/serviced/zzk/service2"
 
 	"github.com/control-center/serviced/domain/service"
@@ -1031,53 +1029,6 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]zk
 	}
 
 	return states, nil
-}
-
-func (f *Facade) GetRunningServices(ctx datastore.Context) ([]dao.RunningService, error) {
-	var services []dao.RunningService
-	pools, err := f.GetResourcePools(ctx)
-	if err != nil {
-		return services, err
-	}
-	for _, pool := range pools {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool.ID))
-		if err != nil {
-			return services, err
-		}
-		svcs, err := zkservice.LoadRunningServices(conn)
-		if err != nil {
-			return services, err
-		}
-		services = append(services, svcs...)
-	}
-	return services, nil
-}
-
-func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...string) ([]dao.RunningService, error) {
-	var services []dao.RunningService
-	hostMap := make(map[string][]string)
-	for _, hostID := range hostIDs {
-		host, err := f.GetHost(ctx, hostID)
-		if err != nil {
-			glog.Errorf("Unable to get host %v: %v", hostID, err)
-			return nil, err
-		}
-		hostMap[host.PoolID] = append(hostMap[host.PoolID], hostID)
-	}
-	for pool, hosts := range hostMap {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool))
-		if err != nil {
-			glog.Errorf("Error in getting a connection based on pool %v: %v", pool, err)
-			return nil, err
-		}
-		svcs, err := zkservice.LoadRunningServicesByHost(conn, hosts...)
-		if err != nil {
-			glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v hosts: %v) failed: %v", conn, hosts, err)
-			return nil, err
-		}
-		services = append(services, svcs...)
-	}
-	return services, nil
 }
 
 // WaitService waits for service/s to reach a particular desired state within the designated timeout

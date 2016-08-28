@@ -143,10 +143,6 @@ func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *
 	return s.rpcClient.Call("ControlCenter.GetServiceState", request, state, 0)
 }
 
-func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
-	return s.rpcClient.Call("ControlCenter.GetRunningService", request, running, 0)
-}
-
 func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.StartService", request, affected, 0)
 }
