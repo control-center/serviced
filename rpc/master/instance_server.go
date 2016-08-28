@@ -15,6 +15,16 @@ package master
 
 import "github.com/control-center/serviced/domain/service"
 
+// GetServiceInstances returns all instances of a service
+func (s *Server) GetServiceInstances(serviceID string, res *[]service.Instance) (err error) {
+	insts, err := s.f.GetServiceInstances(s.context(), serviceID)
+	if err != nil {
+		return
+	}
+	*res = *insts
+	return
+}
+
 type ServiceInstanceRequest struct {
 	ServiceID  string
 	InstanceID int
@@ -29,6 +39,9 @@ func (s *Server) StopServiceInstance(req ServiceInstanceRequest, unused *string)
 // LocateServiceInstance locates a single service instance
 func (s *Server) LocateServiceInstance(req ServiceInstanceRequest, res *service.LocationInstance) (err error) {
 	location, err := s.f.LocateServiceInstance(s.context(), req.ServiceID, req.InstanceID)
+	if err != nil {
+		return
+	}
 	*res = *location
 	return
 }

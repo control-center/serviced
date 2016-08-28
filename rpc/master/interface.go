@@ -95,6 +95,9 @@ type ClientInterface interface {
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
 
+	// GetServiceInstances returns all running instances of a service
+	GetServiceInstances(serviceID string) ([]service.Instance, error)
+
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error
 
