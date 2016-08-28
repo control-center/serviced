@@ -290,7 +290,7 @@ func (z *zkf) GetPublicPort(portAddress string) (string, string, error) {
 	return serviceID, application, err
 }
 
-// GetVHostService returns the service id using the vhost
+// GetVHost returns the service id using the vhost
 func (z *zkf) GetVHost(subdomain string) (string, string, error) {
 	logger := plog.WithField("subdomain", subdomain)
 
