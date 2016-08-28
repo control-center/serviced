@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
 	zkd "github.com/control-center/serviced/zzk/docker"
 	zkregistry "github.com/control-center/serviced/zzk/registry"
@@ -263,15 +262,6 @@ func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, can
 		close(stop)
 		return <-errC
 	}
-}
-
-func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		return err
-	}
-	*states, err = zkservice.GetServiceStates(conn, serviceIDs...)
-	return err
 }
 
 func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {

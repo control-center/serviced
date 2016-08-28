@@ -7,7 +7,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/domain/servicestate"
 import zkregistry "github.com/control-center/serviced/zzk/registry"
 import zkservice2 "github.com/control-center/serviced/zzk/service2"
 
@@ -69,18 +68,6 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*service.Service, service.DesiredState, <-chan interface{}) error); ok {
 		r0 = rf(svc, state, cancel)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ZZK) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
-	ret := _m.Called(poolID, states, serviceIDs)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]servicestate.ServiceState, ...string) error); ok {
-		r0 = rf(poolID, states, serviceIDs...)
 	} else {
 		r0 = ret.Error(0)
 	}

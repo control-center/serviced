@@ -1017,25 +1017,6 @@ func (f *Facade) validateServiceSchedule(ctx datastore.Context, serviceID string
 	return nil
 }
 
-// GetServiceStates returns all the service states given a service ID
-func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]zkservice2.State, error) {
-	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
-
-	svc, err := f.GetService(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Could not find service %s: %s", serviceID, err)
-		return nil, err
-	}
-
-	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
-	if err != nil {
-		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
-		return nil, err
-	}
-
-	return states, nil
-}
-
 // WaitService waits for service/s to reach a particular desired state within the designated timeout
 func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, recursive bool, serviceIDs ...string) error {
 	glog.V(4).Infof("Facade.WaitService (%s)", dstate)

@@ -14,30 +14,23 @@
 package elasticsearch
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/rpc/agent"
-	"github.com/control-center/serviced/zzk/service2"
+	zks "github.com/control-center/serviced/zzk/service2"
 	"github.com/zenoss/glog"
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {
-	glog.V(3).Info("ControlPlaneDao.GetServiceLogs serviceID=", serviceID)
-	states, err := this.facade.GetServiceStates(datastore.Get(), serviceID)
+	location, err := this.facade.LocateServiceInstance(datastore.Get(), serviceID, 0)
 	if err != nil {
-		glog.Errorf("ControlPlaneDao.GetServiceLogs failed: %v", err)
+		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", serviceID, err)
 		return err
 	}
 
-	if len(states) == 0 {
-		glog.V(1).Info("Unable to find any running services for service:", serviceID)
-		return nil
-	}
-
-	endpoint := fmt.Sprintf("%s:%d", states[0].HostIP, this.rpcPort)
+	endpoint := fmt.Sprintf("%s:%d", location.HostIP, this.rpcPort)
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
 		glog.Errorf("could not create client to %s", endpoint)
@@ -45,7 +38,7 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 	}
 
 	defer agentClient.Close()
-	if mylogs, err := agentClient.GetDockerLogs(states[0].ContainerID); err != nil {
+	if mylogs, err := agentClient.GetDockerLogs(location.ContainerID); err != nil {
 		glog.Errorf("could not get docker logs from agent client: %s", err)
 		return err
 	} else {
@@ -56,37 +49,30 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 
 func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest, logs *string) error {
 	// FIXME: need good implementation
-
-	states, err := this.facade.GetServiceStates(datastore.Get(), request.ServiceID)
-	if err != nil {
-		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", states, err)
-		return err
-	}
-
-	hostID, serviceID, instanceID, err := service.ParseStateID(request.ServiceStateID)
+	_, serviceID, instanceID, err := zks.ParseStateID(request.ServiceStateID)
 	if err != nil {
 		return err
 	}
 
-	for _, state := range states {
-		if hostID == state.HostID && serviceID == state.ServiceID && instanceID == state.InstanceID {
-			endpoint := fmt.Sprintf("%s:%d", state.HostIP, this.rpcPort)
-			agentClient, err := agent.NewClient(endpoint)
-			if err != nil {
-				glog.Errorf("could not create client to %s", endpoint)
-				return err
-			}
-
-			defer agentClient.Close()
-			if mylogs, err := agentClient.GetDockerLogs(state.ContainerID); err != nil {
-				glog.Errorf("could not get docker logs from agent client: %s", err)
-				return err
-			} else {
-				*logs = mylogs
-			}
-			return nil
-		}
+	location, err := this.facade.LocateServiceInstance(datastore.Get(), serviceID, instanceID)
+	if err != nil {
+		glog.Errorf("ControlPlaneDao.GetServiceStateLogs servicestate=%+v err=%s", request, err)
+		return err
 	}
 
-	return errors.New("instance not found")
+	endpoint := fmt.Sprintf("%s:%d", location.HostIP, this.rpcPort)
+	agentClient, err := agent.NewClient(endpoint)
+	if err != nil {
+		glog.Errorf("could not create client to %s", endpoint)
+		return err
+	}
+
+	defer agentClient.Close()
+	if mylogs, err := agentClient.GetDockerLogs(location.ContainerID); err != nil {
+		glog.Errorf("could not get docker logs from agent client: %s", err)
+		return err
+	} else {
+		*logs = mylogs
+	}
+	return nil
 }
