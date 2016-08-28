@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"time"
@@ -189,12 +190,79 @@ func (zk *zkf) RemoveTenantExports(tenantID string) error {
 	return nil
 }
 
+// WaitService waits for all instances of a service to achieve a uniform state
+// by monitoring zookeeper.
 func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
+	logger := plog.WithFields(log.Fields{
+		"serviceid":    svc.ID,
+		"servicename":  svc.Name,
+		"desiredstate": state,
+		"poolid":       svc.PoolID,
+	})
+
+	// get the root-based connection to delete the service endpoints
+	rootconn, err := zzk.GetLocalConnection("/")
 	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to monitor the service's instances")
 		return err
 	}
-	return zkservice.WaitService(cancel, conn, svc.ID, state)
+
+	var checkCount func(int) bool
+	var checkState func(*zks.State, bool) bool
+
+	// set up the check calls
+	switch state {
+	case service.SVCStop:
+		checkCount = func(count int) bool {
+			return count <= svc.Instances
+		}
+		checkState = func(s *zks.State, exists bool) bool {
+			return !exists || (s.DesiredState == service.SVCStop && s.Terminated.After(s.Started))
+		}
+	case service.SVCRun:
+		checkCount = func(count int) bool {
+			return count == svc.Instances
+		}
+		checkState = func(s *zks.State, exists bool) bool {
+			return exists && s.DesiredState != service.SVCStop && s.Started.After(s.Terminated)
+		}
+	case service.SVCPause:
+		checkCount = func(count int) bool {
+			return count <= svc.Instances
+		}
+		checkState = func(s *zks.State, exists bool) bool {
+			if exists {
+				if s.DesiredState != service.SVCRun {
+					return s.Paused || s.Terminated.After(s.Started)
+				} else {
+					return false
+				}
+			} else {
+				return true
+			}
+		}
+	default:
+		return errors.New("invalid state")
+	}
+
+	// do wait
+	errC := make(chan error)
+	stop := make(chan struct{})
+	go func() {
+		errC <- zks.WaitService(stop, rootconn, svc.PoolID, svc.ID, checkCount, checkState)
+	}()
+
+	select {
+	case err := <-errC:
+		if err != nil {
+			logger.WithError(err).Debug("Could not monitor the service's states in zookeeper")
+			return err
+		}
+		return err
+	case <-cancel:
+		close(stop)
+		return <-errC
+	}
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
