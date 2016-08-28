@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
-	"github.com/control-center/serviced/zzk/registry"
 	zkservice2 "github.com/control-center/serviced/zzk/service2"
 
 	"github.com/control-center/serviced/domain/service"
@@ -322,19 +321,27 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 			}
 		}
 		for _, vhost := range ep.VHostList {
-			//check that vhosts aren't already started elsewhere
-			key := registry.GetPublicEndpointKey(vhost.Name, registry.EPTypeVHost)
-			if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+			// check that vhosts aren't already started elsewhere
+			serviceID, application, err := f.zzk.GetVHost(vhost.Name)
+			if err != nil {
 				glog.Errorf("Could not check public endpoint for vhost %s: %s", vhost.Name, err)
 				return err
 			}
+			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+				glog.Errorf("Vhost %s is already in use by another application %s (%s)", vhost.Name, serviceID, application)
+				return errors.New("vhost already in use")
+			}
 		}
 		for _, port := range ep.PortList {
-			//check that ports aren't already started elsewhere
-			key := registry.GetPublicEndpointKey(port.PortAddr, registry.EPTypePort)
-			if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+			// check that ports aren't already started elsewhere
+			serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
+			if err != nil {
 				glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
 				return err
+			}
+			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+				glog.Errorf("Port %s is already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+				return errors.New("port already in use")
 			}
 		}
 	}

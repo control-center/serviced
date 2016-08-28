@@ -264,28 +264,56 @@ func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, can
 	}
 }
 
-func (z *zkf) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
-	rootBasedConnection, err := zzk.GetLocalConnection("/")
+// GetPublicPort returns the service id and application using the public endpoint
+func (z *zkf) GetPublicPort(portAddress string) (string, string, error) {
+	logger := plog.WithField("portaddress", portAddress)
+
+	// get the root-based connection to check the public port
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		return err
+		logger.WithError(err).Debug("Could not acquire a root-based connection to look up a public endpoint port")
+		return "", "", err
 	}
-	per, err := zkregistry.PublicEndpointRegistry(rootBasedConnection)
+
+	// look for the public port
+	key := zkr.PublicPortKey{
+		HostID:      "master",
+		PortAddress: portAddress,
+	}
+	serviceID, application, err := zkr.GetPublicPort(conn, key)
 	if err != nil {
-		glog.Errorf("Error getting public endpoint registry: %v", err)
-		return err
+		logger.WithError(err).Debug("Could not look up public endpoint port")
+		return "", "", err
 	}
-	publicEndpointEphemeralNodes, err := per.GetPublicEndpointKeyChildren(rootBasedConnection, publicendpoint)
+
+	logger.Debug("Searched for public endpoint port")
+	return serviceID, application, err
+}
+
+// GetVHostService returns the service id using the vhost
+func (z *zkf) GetVHost(subdomain string) (string, string, error) {
+	logger := plog.WithField("subdomain", subdomain)
+
+	// get the root-based connection to check the public port
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		glog.Errorf("GetPublicEndpointKeyChildren failed %v: %v", publicendpoint, err)
-		return err
+		logger.WithError(err).Debug("Could not acquire root-based connection to look up a public endpoint vhost")
+		return "", "", err
 	}
-	if len(publicEndpointEphemeralNodes) > 0 {
-		if publicEndpoint := publicEndpointEphemeralNodes[0]; publicEndpoint.ServiceID != serviceID {
-			err := fmt.Errorf("public end point %s is already running under service %s", publicendpoint, publicEndpoint.Application)
-			return err
-		}
+
+	// look for the vhost
+	key := zkr.VHostKey{
+		HostID:    "master",
+		Subdomain: subdomain,
 	}
-	return nil
+	serviceID, application, err := zkr.GetVHost(conn, key)
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up public endpoint vhost")
+		return "", "", err
+	}
+
+	logger.Debug("Searched for public endpoint vhost")
+	return serviceID, application, err
 }
 
 func (z *zkf) AddHost(host *host.Host) error {

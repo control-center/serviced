@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	zkregistry "github.com/control-center/serviced/zzk/registry"
 	zkservice2 "github.com/control-center/serviced/zzk/service2"
 )
 
@@ -29,7 +28,8 @@ type ZZK interface {
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
-	CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error
+	GetPublicPort(portAddress string) (string, string, error)
+	GetVHost(subdomain string) (string, string, error)
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error

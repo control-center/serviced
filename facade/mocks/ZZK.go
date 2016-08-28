@@ -7,7 +7,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import zkregistry "github.com/control-center/serviced/zzk/registry"
 import zkservice2 "github.com/control-center/serviced/zzk/service2"
 
 type ZZK struct {
@@ -74,17 +73,57 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 
 	return r0
 }
-func (_m *ZZK) CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error {
-	ret := _m.Called(publicendpoint, serviceID)
+func (_m *ZZK) GetPublicPort(portAddress string) (string, string, error) {
+	ret := _m.Called(portAddress)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(zkregistry.PublicEndpointKey, string) error); ok {
-		r0 = rf(publicendpoint, serviceID)
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(portAddress)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	var r1 string
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(portAddress)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(portAddress)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+func (_m *ZZK) GetVHost(subdomain string) (string, string, error) {
+	ret := _m.Called(subdomain)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(subdomain)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 string
+	if rf, ok := ret.Get(1).(func(string) string); ok {
+		r1 = rf(subdomain)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string) error); ok {
+		r2 = rf(subdomain)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 func (_m *ZZK) AddHost(_host *host.Host) error {
 	ret := _m.Called(_host)

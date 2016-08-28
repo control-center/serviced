@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/zzk/registry"
 	zks "github.com/control-center/serviced/zzk/service2"
 
 	"errors"
@@ -189,7 +188,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkVHostFail(
 		},
 	})
 	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("vh1-0"), svc.ID).Return(ErrTestEPValidationFail)
+	ft.zzk.On("GetVHost", "vh1").Return("", "", ErrTestEPValidationFail)
 	err := ft.Facade.validateServiceStart(ft.CTX, svc)
 	c.Assert(err, Equals, ErrTestEPValidationFail)
 }
@@ -208,7 +207,7 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkPortFail(c
 		},
 	})
 	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(ErrTestEPValidationFail)
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", ErrTestEPValidationFail)
 	err := ft.Facade.validateServiceStart(ft.CTX, svc)
 	c.Assert(err, Equals, ErrTestEPValidationFail)
 }
@@ -261,8 +260,8 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
 		IPAddress:      "192.168.22.12",
 	})
 	c.Assert(err, IsNil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("vh1-0"), svc.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":1234-1"), svc.ID).Return(nil)
+	ft.zzk.On("GetVHost", "vh1").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil)
 	err = ft.Facade.validateServiceStart(ft.CTX, svc)
 	c.Assert(err, IsNil)
 }
