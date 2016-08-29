@@ -235,9 +235,6 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 		case <-shutdown:
 			return nil
 		}
-		if poolBasedConn == nil {
-			continue
-		}
 		
 		// Check shutdown to make sure it didn't get closed after
 		// we received our connection.
@@ -245,7 +242,11 @@ func (sc *ServiceConfig) syncPublicEndpoints(shutdown <-chan interface{}) error 
 		case <-shutdown:
 			return nil
 		default:
-		}	
+		}
+
+		if poolBasedConn == nil {
+			continue
+		}
 	
 		glog.V(2).Infof("creating zkPepRegistry")
 		zkPepRegistry, err = registry.PublicEndpointRegistry(poolBasedConn)

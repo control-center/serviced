@@ -397,14 +397,15 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 		case <-shutdown:
 			return nil
 		}
-		if rootConn == nil {
-			continue
-		}
 		
 		select {
 		case <-shutdown:
 			return nil
 		default:
+		}
+
+		if rootConn == nil {
+			continue
 		}
 		
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServicePEPService)

@@ -466,9 +466,6 @@ func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
 		case <-shutdown:
 			return nil
 		}
-		if rootConn == nil {
-			continue
-		}
 		
 		// Check shutdown to make sure it didn't get closed after
 		// we received our connection.
@@ -476,6 +473,10 @@ func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
 		case <-shutdown:
 			return nil
 		default:
+		}
+
+		if rootConn == nil {
+			continue
 		}
 		
 		zkServiceVHost := service.ZKServicePublicEndpoints
