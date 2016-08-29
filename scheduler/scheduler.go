@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 
 	"path"
@@ -46,7 +45,6 @@ type scheduler struct {
 	snapshotTTL   int
 	facade        *facade.Facade
 	stopped       chan interface{}
-	registry      *registry.EndpointRegistry
 	storageServer *storage.Server
 	pushreg       *imgreg.RegistryListener
 
@@ -132,12 +130,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		return
 	}
 	defer leader.ReleaseLead()
-
-	s.registry, err = registry.CreateEndpointRegistry(conn)
-	if err != nil {
-		glog.Errorf("Error initializing endpoint registry: %s", err)
-		return
-	}
 
 	// did I shut down before I became the leader?
 	select {

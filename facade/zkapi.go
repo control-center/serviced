@@ -21,14 +21,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkd "github.com/control-center/serviced/zzk/docker"
-	zkregistry "github.com/control-center/serviced/zzk/registry"
 	zkr "github.com/control-center/serviced/zzk/registry2"
 	zks "github.com/control-center/serviced/zzk/service2"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
@@ -458,32 +456,6 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 		}
 	}
 	return zks.UnlockServices(conn, nodes)
-}
-
-// Get a list of exported endpoints for the specified service from the Zookeeper namespace
-func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]applicationendpoint.ApplicationEndpoint) error {
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("Could not get connection to zookeeper: %s", err)
-		return err
-	}
-
-	endpointRegisty, err := zkregistry.CreateEndpointRegistry(conn)
-	if err != nil {
-		glog.Errorf("Error getting endpoint registry: %s", err)
-		return err
-	}
-
-	serviceEndpoints, err := endpointRegisty.GetServiceEndpoints(conn, tenantID, serviceID)
-	if err != nil {
-		glog.Errorf("Error getting endpoints: %s", err)
-		return err
-	}
-
-	for _, endpoint := range serviceEndpoints {
-		*result = append(*result, endpoint.ApplicationEndpoint)
-	}
-	return nil
 }
 
 // GetServiceStates2 returns all running instances for a service

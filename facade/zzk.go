@@ -14,7 +14,6 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -44,7 +43,6 @@ type ZZK interface {
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error
 	UnlockServices(svcs []service.Service) error
-	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error
 	GetServiceStates2(poolID, serviceID string) ([]zkservice2.State, error) // FIXME: update when integration is complete
 	GetHostStates(poolID, hostID string) ([]zkservice2.State, error)
 	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice2.State, error)
