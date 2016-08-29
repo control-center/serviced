@@ -458,9 +458,8 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 	return zks.UnlockServices(conn, nodes)
 }
 
-// GetServiceStates2 returns all running instances for a service
-// FIXME: update name when integration is complete
-func (zk *zkf) GetServiceStates2(poolID, serviceID string) ([]zks.State, error) {
+// GetServiceStates returns all running instances for a service
+func (zk *zkf) GetServiceStates(poolID, serviceID string) ([]zks.State, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
@@ -526,8 +525,7 @@ func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zks.S
 }
 
 // StopServiceInstance2 stops an instance of a service
-// FIXME: get rid of the 2
-func (zk *zkf) StopServiceInstance2(poolID, serviceID string, instanceID int) error {
+func (zk *zkf) StopServiceInstance(poolID, serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
 		"poolid":     poolID,
 		"serviceid":  serviceID,

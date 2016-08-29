@@ -63,7 +63,7 @@ func (f *Facade) GetServiceHealth(ctx datastore.Context, serviceID string) (map[
 }
 
 func (f *Facade) getServiceHealth(svc service.Service) (map[int]map[string]health.HealthStatus, error) {
-	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err

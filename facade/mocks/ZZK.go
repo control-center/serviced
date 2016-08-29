@@ -6,7 +6,7 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import zkservice2 "github.com/control-center/serviced/zzk/service2"
+import zkservice "github.com/control-center/serviced/zzk/service2"
 
 type ZZK struct {
 	mock.Mock
@@ -301,15 +301,15 @@ func (_m *ZZK) UnlockServices(svcs []service.Service) error {
 
 	return r0
 }
-func (_m *ZZK) GetServiceStates2(poolID string, serviceID string) ([]zkservice2.State, error) {
+func (_m *ZZK) GetServiceStates(poolID string, serviceID string) ([]zkservice.State, error) {
 	ret := _m.Called(poolID, serviceID)
 
-	var r0 []zkservice2.State
-	if rf, ok := ret.Get(0).(func(string, string) []zkservice2.State); ok {
+	var r0 []zkservice.State
+	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
 		r0 = rf(poolID, serviceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]zkservice2.State)
+			r0 = ret.Get(0).([]zkservice.State)
 		}
 	}
 
@@ -322,15 +322,15 @@ func (_m *ZZK) GetServiceStates2(poolID string, serviceID string) ([]zkservice2.
 
 	return r0, r1
 }
-func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice2.State, error) {
+func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice.State, error) {
 	ret := _m.Called(poolID, hostID)
 
-	var r0 []zkservice2.State
-	if rf, ok := ret.Get(0).(func(string, string) []zkservice2.State); ok {
+	var r0 []zkservice.State
+	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
 		r0 = rf(poolID, hostID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]zkservice2.State)
+			r0 = ret.Get(0).([]zkservice.State)
 		}
 	}
 
@@ -343,15 +343,15 @@ func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice2.State, 
 
 	return r0, r1
 }
-func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) (*zkservice2.State, error) {
+func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) (*zkservice.State, error) {
 	ret := _m.Called(poolID, serviceID, instanceID)
 
-	var r0 *zkservice2.State
-	if rf, ok := ret.Get(0).(func(string, string, int) *zkservice2.State); ok {
+	var r0 *zkservice.State
+	if rf, ok := ret.Get(0).(func(string, string, int) *zkservice.State); ok {
 		r0 = rf(poolID, serviceID, instanceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*zkservice2.State)
+			r0 = ret.Get(0).(*zkservice.State)
 		}
 	}
 
@@ -364,7 +364,7 @@ func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) 
 
 	return r0, r1
 }
-func (_m *ZZK) StopServiceInstance2(poolID string, serviceID string, instanceID int) error {
+func (_m *ZZK) StopServiceInstance(poolID string, serviceID string, instanceID int) error {
 	ret := _m.Called(poolID, serviceID, instanceID)
 
 	var r0 error

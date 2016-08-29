@@ -35,7 +35,7 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
-	zkservice2 "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 
 	"github.com/control-center/serviced/domain/service"
 
@@ -841,7 +841,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, re
 		return nil, err
 	}
 
-	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
 	if err != nil {
 		err = fmt.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
@@ -884,7 +884,7 @@ func getEndpointsFromServiceDefinition(service *service.Service, reportImports, 
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromState(state zkservice2.State, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromState(state zkservice.State, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
 	if reportImports {
 		for _, ep := range state.Imports {
