@@ -774,8 +774,8 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 	ret := _m.Called(ctx, poolID)
 
 	var r0 []host.ReadHost
-	if rf, ok := ret.Get(0).(func(datastore.Context) []host.ReadHost); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []host.ReadHost); ok {
+		r0 = rf(ctx, poolID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]host.ReadHost)
@@ -783,8 +783,8 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, poolID)
 	} else {
 		r1 = ret.Error(1)
 	}

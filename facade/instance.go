@@ -14,6 +14,8 @@
 package facade
 
 import (
+	"errors"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
@@ -308,4 +310,109 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 	}
 
 	return insts, nil
+}
+
+// StopServiceInstance stops a particular service instance
+func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, instanceID int) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up service")
+		return err
+	}
+
+	if err := f.zzk.StopServiceInstance2(svc.PoolID, svc.ID, instanceID); err != nil {
+		logger.WithError(err).Debug("Could not stop service instance")
+		return err
+	}
+
+	logger.Debug("Stopped service instance")
+	return nil
+}
+
+// LocateServiceInstance returns host and container information about a service
+// instance
+func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, instanceID int) (*service.LocationInstance, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up service")
+		return nil, err
+	}
+
+	state, err := f.zzk.GetServiceState(svc.PoolID, svc.ID, instanceID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not locate service instance")
+		return nil, err
+	}
+
+	logger.Debug("Found service instance")
+	return &service.LocationInstance{
+		HostID:      state.HostID,
+		HostIP:      state.HostIP,
+		ContainerID: state.ContainerID,
+	}, nil
+}
+
+// SendDockerAction locates a service instance and sends an action to it
+func (f *Facade) SendDockerAction(ctx datastore.Context, serviceID string, instanceID int, action string, args []string) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceID": instanceID,
+		"action":     action,
+		"args":       args,
+	})
+
+	// get the service
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up service")
+		return err
+	}
+
+	// evaluate the service actions template
+	get := func(serviceID string) (service.Service, error) {
+		s, err := f.serviceStore.Get(ctx, serviceID)
+		if err != nil {
+			return service.Service{}, nil
+		}
+		return *s, nil
+	}
+
+	getchild := func(parentID, childName string) (service.Service, error) {
+		s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, parentID, childName)
+		if err != nil {
+			return service.Service{}, nil
+		}
+		return *s, nil
+	}
+
+	if err := svc.EvaluateActionsTemplate(get, getchild, instanceID); err != nil {
+		logger.WithError(err).Debug("Could not evaluate service actions template")
+		return err
+	}
+
+	// find the service action
+	command, ok := svc.Actions[action]
+	if !ok {
+		logger.Debug("Command not found for action")
+		return errors.New("command not found for action")
+	}
+
+	// send the command
+	if err := f.zzk.SendDockerAction(svc.PoolID, serviceID, instanceID, command, args); err != nil {
+		logger.WithError(err).Debug("Unable to send docker action")
+		return err
+	}
+
+	logger.Debug("Submitted docker action")
+	return nil
 }
