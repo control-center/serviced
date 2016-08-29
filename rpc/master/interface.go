@@ -45,10 +45,10 @@ type ClientInterface interface {
 	GetActiveHostIDs() ([]string, error)
 
 	// AddHost adds a Host
-	AddHost(host host.Host) error
+	AddHost(h host.Host) error
 
 	// UpdateHost updates a host
-	UpdateHost(host host.Host) error
+	UpdateHost(h host.Host) error
 
 	// RemoveHost removes a host
 	RemoveHost(hostID string) error
@@ -66,10 +66,10 @@ type ClientInterface interface {
 	GetResourcePools() ([]pool.ResourcePool, error)
 
 	// AddResourcePool adds the ResourcePool
-	AddResourcePool(pool pool.ResourcePool) error
+	AddResourcePool(p pool.ResourcePool) error
 
 	// UpdateResourcePool adds the ResourcePool
-	UpdateResourcePool(pool pool.ResourcePool) error
+	UpdateResourcePool(p pool.ResourcePool) error
 
 	// RemoveResourcePool removes a ResourcePool
 	RemoveResourcePool(poolID string) error
@@ -94,6 +94,9 @@ type ClientInterface interface {
 
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
+
+	// GetServiceInstances returns all running instances of a service
+	GetServiceInstances(serviceID string) ([]service.Instance, error)
 
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error

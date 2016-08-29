@@ -15,6 +15,17 @@ package master
 
 import "github.com/control-center/serviced/domain/service"
 
+// GetServiceInstances returns all instances of a service
+func (c *Client) GetServiceInstances(serviceID string) ([]service.Instance, error) {
+	insts := []service.Instance{}
+
+	err := c.call("GetServiceInstances", serviceID, &insts)
+	if err != nil {
+		return nil, err
+	}
+	return insts, nil
+}
+
 // StopServiceInstance stops a service instance.
 func (c *Client) StopServiceInstance(serviceID string, instanceID int) error {
 	req := ServiceInstanceRequest{
@@ -35,7 +46,10 @@ func (c *Client) LocateServiceInstance(serviceID string, instanceID int) (*servi
 	resp := &service.LocationInstance{}
 
 	err := c.call("LocateServiceInstance", req, resp)
-	return resp, err
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // SendDockerAction submits an action to a docker container

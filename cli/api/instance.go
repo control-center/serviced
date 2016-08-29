@@ -19,10 +19,20 @@ import (
 	"syscall"
 
 	dockerclient "github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
 
 // TODO: what to do about logging?
+
+// GetServiceInstances returns all instances running on a service
+func (a *api) GetServiceInstances(serviceID string) ([]service.Instance, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetServiceInstances(serviceID)
+}
 
 // StopServiceInstance stops a running instance of a service.
 func (a *api) StopServiceInstance(serviceID string, instanceID int) error {
