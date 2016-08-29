@@ -150,9 +150,9 @@ func (s *MySuite) TestLongCall(c *C) {
 	//after 250ms the previous call should have caused the the client to go stale
 	time.Sleep(500 * time.Millisecond)
 	var reply time.Duration
-	sleepTime := 10 * time.Millisecond
+	sleepTime := time.Second
 	// should not time out wating for client
-	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, 20*time.Millisecond)
+	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*time.Second)
 	c.Assert(err, IsNil)
 	c.Assert(reply, Equals, sleepTime)
 	wg.Wait() //wait for go routine to run asserts

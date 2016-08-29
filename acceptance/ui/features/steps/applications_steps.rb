@@ -4,12 +4,12 @@
 Given (/^(?:|that )multiple applications and application templates have been added$/) do
     visitApplicationsPage()
     within(CC.UI.ApplicationsPage.services_table) do
-        if has_text?("Showing 1 Result")
+        if has_text?("1 Result")
             # add application
         end
     end
     within(CC.UI.ApplicationsPage.templates_table) do
-        if has_text?("Showing 0 Results") || has_text?("Showing 1 Result")
+        if has_text?("0 Results") || has_text?("1 Result")
             # add application templates
         end
     end

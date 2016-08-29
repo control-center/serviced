@@ -23,12 +23,12 @@ func (_m *HostStateHandler) StopContainer(serviceID string, instanceID int) erro
 
 	return r0
 }
-func (_m *HostStateHandler) AttachContainer(dockerID string, serviceID string, instanceID int) (<-chan time.Time, error) {
-	ret := _m.Called(dockerID, serviceID, instanceID)
+func (_m *HostStateHandler) AttachContainer(state *zk.ServiceState, serviceID string, instanceID int) (<-chan time.Time, error) {
+	ret := _m.Called(state, serviceID, instanceID)
 
 	var r0 <-chan time.Time
-	if rf, ok := ret.Get(0).(func(string, string, int) <-chan time.Time); ok {
-		r0 = rf(dockerID, serviceID, instanceID)
+	if rf, ok := ret.Get(0).(func(*zk.ServiceState, string, int) <-chan time.Time); ok {
+		r0 = rf(state, serviceID, instanceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(<-chan time.Time)
@@ -36,8 +36,8 @@ func (_m *HostStateHandler) AttachContainer(dockerID string, serviceID string, i
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, int) error); ok {
-		r1 = rf(dockerID, serviceID, instanceID)
+	if rf, ok := ret.Get(1).(func(*zk.ServiceState, string, int) error); ok {
+		r1 = rf(state, serviceID, instanceID)
 	} else {
 		r1 = ret.Error(1)
 	}
