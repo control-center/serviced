@@ -952,8 +952,6 @@ func (d *daemon) initWeb() {
 	}).Debug("Set service stats cache timeout to configured value")
 
 	go cpserver.Serve(d.shutdown)
-	go cpserver.ServePublicPorts(d.shutdown, d.cpDao)
-
 	log.Info("Started Control Center UI server")
 }
 

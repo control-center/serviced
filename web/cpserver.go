@@ -23,19 +23,14 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
-	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
-	"github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/registry2"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -60,6 +55,7 @@ type ServiceConfig struct {
 	localAddrs  map[string]struct{}
 	uiConfig    UIConfig
 	facade      facade.FacadeInterface
+	vhostmgr    *VHostManager
 }
 
 var defaultHostAlias string
@@ -102,59 +98,18 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
-// getPublicEndpointServices returns the list of services for a given
-// public endpoint/type.
-func getPublicEndpointServices(name string, Type registry.PublicEndpointType) (map[string]struct{}, bool, registry.PublicEndpointKey) {
-	allvhostsLock.RLock()
-	defer allvhostsLock.RUnlock()
-	key := registry.GetPublicEndpointKey(name, Type)
-	svcs, found := allvhosts[key]
-	return svcs, found, key
-}
-
-// getVHostServices returns the list of services for a given vhost (public endpoint)
-func getVHostServices(vhostname string) (map[string]struct{}, bool, registry.PublicEndpointKey) {
-	return getPublicEndpointServices(vhostname, registry.EPTypeVHost)
-}
-
-// getPortServices returns the list of services for a given port (public endpoint)
-func getPortServices(port uint8) (map[string]struct{}, bool, registry.PublicEndpointKey) {
-	return getPublicEndpointServices(fmt.Sprintf("%d", port), registry.EPTypePort)
-}
-
-// Returns the cert files
-func (sc *ServiceConfig) getCertFiles() (string, string, error) {
-	certFile := sc.certPEMFile
-	if len(certFile) == 0 {
-		tempCertFile, err := proxy.TempCertFile()
-		if err != nil {
-			glog.Fatalf("Could not prepare cert.pem file: %s", err)
-			return "", "", err
-		}
-		certFile = tempCertFile
-	}
-	keyFile := sc.keyPEMFile
-	if len(keyFile) == 0 {
-		tempKeyFile, err := proxy.TempKeyFile()
-		if err != nil {
-			glog.Fatalf("Could not prepare key.pem file: %s", err)
-			return "", "", err
-		}
-		keyFile = tempKeyFile
-	}
-	return certFile, keyFile, nil
-}
-
 // Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	glog.V(1).Infof("starting vhost synching")
-	//start getting vhost endpoints
-	go sc.syncPublicEndpoints(shutdown)
-	//start watching global vhosts as they are added/deleted/updated in services
-	go sc.syncAllVHosts(shutdown)
+
+	// start public port listener
+	sc.startPublicPortListener(shutdown)
+
+	// start vhost listener
+	sc.startVHostListener(shutdown)
 
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
@@ -179,28 +134,19 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
-		isVHost := len(parts) > 1 //Don't look for a vhost if httphost didn't contain a '.'
-		if isVHost {
-			if svcIDs, found, registrykey := getVHostServices(httphost); found {
-				glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
-				sc.publicendpointhandler(w, r, registrykey, svcIDs)
-			} else if svcIDs, found, registrykey := getVHostServices(subdomain); found {
-				glog.V(2).Infof("httphost: calling sc.publicendpointhandler")
-				sc.publicendpointhandler(w, r, registrykey, svcIDs)
-			} else {
-				isVHost = false
+		if len(parts) > 1 {
+			if sc.vhostmgr.Handle(subdomain, w, r) {
+				return
 			}
 		}
 
-		if !isVHost {
-			glog.V(2).Infof("httphost: calling uiHandler")
-			if r.TLS == nil {
-				// bindPort has already been validated, so the Split/access below won't break.
-				http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
-				return
-			}
-			uiHandler.ServeHTTP(w, r)
+		glog.V(2).Infof("httphost: calling uiHandler")
+		if r.TLS == nil {
+			// bindPort has already been validated, so the Split/access below won't break.
+			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
+			return
 		}
+		uiHandler.ServeHTTP(w, r)
 	}
 
 	r := mux.NewRouter()
@@ -223,7 +169,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
-	certFile, keyFile, err := sc.getCertFiles()
+	certFile, keyFile := GetCertFiles(sc.certPEMFile, sc.keyPEMFile)
 
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
@@ -417,64 +363,87 @@ type checkFunc func(w *rest.ResponseWriter, r *rest.Request) bool
 
 type getRoutes func(sc *ServiceConfig) []rest.Route
 
-var (
-	allvhostsLock sync.RWMutex
-	allvhosts     map[registry.PublicEndpointKey]map[string]struct{} // map of PublicEndpointKey to service IDs that have the vhost enabled
-)
+// startPublicPortListener starts sets up the port servers and watches for
+// changes in state
+func (sc *ServiceConfig) startPublicPortListener(shutdown <-chan interface{}) {
+	// set up the public port manager
+	pubmgr := NewPublicPortManager("", sc.certPEMFile, sc.keyPEMFile, func(portAddress string, err error) {
+		logger := plog.WithField("portAddress", portAddress).WithError(err)
 
-func init() {
-	allvhosts = make(map[registry.PublicEndpointKey]map[string]struct{})
-}
+		// connect to zookeeper
+		conn, err := zzk.GetLocalConnection("/")
+		if err != nil {
+			logger.WithError(err).Error("Could not connect to zookeeper")
+			return
+		}
 
-func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
-	rootConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncAllVHosts - Error getting root zk connection: %v", err)
-		return err
-	}
+		// get the public port
+		key := registry.PublicPortKey{
+			HostID:      "master",
+			PortAddress: portAddress,
+		}
+		serviceID, application, err := registry.GetPublicPort(conn, key)
+		if err != nil {
+			logger.WithError(err).Error("Could not look up public port")
+			return
+		}
 
-	cancelChan := make(chan interface{})
-	syncVHosts := func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.V(1).Infof("syncVHosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+		// disable the public port
+		if err := sc.facade.EnablePublicEndpointPort(datastore.Get(), serviceID, application, portAddress, false); err != nil {
+			logger.WithError(err).Error("Could not disable public port")
+			return
+		}
 
-		newVHosts := make(map[registry.PublicEndpointKey]map[string]struct{})
-		for _, sv := range childIDs {
-			//cast to a VHostKey so we don't have to care about the format of the key string
-			pep := service.PublicEndpointKey(sv)
-			if pep.Type() == registry.EPTypeVHost {
-				registryKey := registry.GetPublicEndpointKey(pep.Name(), pep.Type())
-				vhostServices, found := newVHosts[registryKey]
-				if !found {
-					vhostServices = make(map[string]struct{})
-					newVHosts[registryKey] = vhostServices
+		logger.Warn("Disabled public port due to error")
+	})
+
+	// set up the public port listener
+	listener := registry.NewPublicPortListener("master", pubmgr)
+
+	// start the listener
+	go func() {
+		for {
+			select {
+			case conn := <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+					select {
+					case <-shutdown:
+						return
+					default:
+					}
 				}
-				if pep.IsEnabled() {
-					vhostServices[pep.ServiceID()] = struct{}{}
-				}
+			case <-shutdown:
+				return
 			}
 		}
+	}()
+}
 
-		//lock for as short a time as possible
-		allvhostsLock.Lock()
-		defer allvhostsLock.Unlock()
-		allvhosts = newVHosts
-		glog.V(1).Infof("allvhosts: %+v", allvhosts)
-	}
+// startVHostListener manages proxies for all vhosts
+func (sc *ServiceConfig) startVHostListener(shutdown <-chan interface{}) {
+	// set up the vhost manager
+	sc.vhostmgr = NewVHostManager(sc.muxTLS)
 
-	for {
-		zkServiceVHost := service.ZKServicePublicEndpoints
-		select {
-		case <-shutdown:
-			close(cancelChan)
-			return nil
-		default:
+	// set up the vhost listener
+	listener := registry.NewVHostListener("master", sc.vhostmgr)
+
+	// start the listener
+	go func() {
+		for {
+			select {
+			case conn := <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+					select {
+					case <-shutdown:
+						return
+					default:
+					}
+				}
+			case <-shutdown:
+				return
+			}
 		}
-		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVHost)
-		err := registry.WatchChildren(rootConn, zkServiceVHost, cancelChan, syncVHosts, pepWatchError)
-		if err != nil {
-			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVHost, err)
-			<-time.After(time.Second * 10)
-			continue
-		}
-	}
+	}()
 }
