@@ -180,7 +180,7 @@ type ControlPlane interface {
 	WaitService(request WaitServiceRequest, unused *int) error
 
 	// Computes the status of the service based on its service instances
-	GetServiceStatus(serviceID string, statusmap *map[string]ServiceStatus) error
+	GetServiceStatus(serviceID string, status *[]service.Instance) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error

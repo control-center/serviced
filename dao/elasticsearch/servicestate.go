@@ -16,13 +16,12 @@ package elasticsearch
 import (
 	//	"errors"
 
-	"fmt"
-
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zks "github.com/control-center/serviced/zzk/service2"
 	"github.com/zenoss/glog"
 )
 
@@ -42,57 +41,18 @@ func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Co
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
-	myHost, err := this.facade.GetHost(datastore.Get(), request.HostID)
+	_, serviceID, instanceID, err := zks.ParseStateID(request.ServiceStateID)
 	if err != nil {
-		glog.Errorf("Unable to get host %v: %v", request.HostID, err)
 		return err
 	}
-	if myHost == nil {
-		return fmt.Errorf("Host %s does not exist", request.HostID)
-	}
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myHost.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
-		return err
-	}
-
-	if err := zkservice.StopServiceInstance(poolBasedConn, "", request.HostID, request.ServiceStateID); err != nil {
-		glog.Errorf("zkservice.StopServiceInstance failed (conn: %+v hostID: %v serviceStateID: %v): %v", poolBasedConn, request.HostID, request.ServiceStateID, err)
-		return err
-	}
-
-	return nil
+	return this.facade.StopServiceInstance(datastore.Get(), serviceID, instanceID)
 }
 
-func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
-	*status = make(map[string]dao.ServiceStatus, 0)
-
-	poolBasedConn, err := this.getPoolBasedConnection(serviceID)
+func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *[]service.Instance) error {
+	inst, err := this.facade.GetServiceInstances(datastore.Get(), serviceID)
 	if err != nil {
 		return err
 	}
-
-	st, err := zkservice.GetServiceStatus(poolBasedConn, serviceID)
-	if err != nil {
-		glog.Errorf("zkservice.GetServiceStatus failed (conn: %+v serviceID: %s): %s", poolBasedConn, serviceID, err)
-		return err
-	}
-
-	if st != nil {
-		//get all healthcheck statuses for this service
-		healthStatuses, err := this.facade.GetServiceHealth(datastore.Get(), serviceID) // map[int]map[string]*domain.HealthCheckStatus
-		if err != nil {
-			glog.Errorf("Error getting service health checks (%s)", err)
-			return nil
-		}
-
-		//merge st with healthcheck info into *status
-		*status = make(map[string]dao.ServiceStatus, len(st))
-		for stateID, instanceStatus := range st {
-			instanceStatus.HealthCheckStatuses = healthStatuses[instanceStatus.State.InstanceID]
-			(*status)[stateID] = instanceStatus
-		}
-	}
-
+	*status = inst
 	return nil
 }

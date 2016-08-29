@@ -154,7 +154,7 @@ func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err
 	return s.rpcClient.Call("ControlCenter.WaitService", request, nil, 0)
 }
 
-func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *[]service.Instance) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetServiceStatus", serviceID, statusmap, 0)
 }
 
