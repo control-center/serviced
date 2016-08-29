@@ -89,7 +89,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 
 	// Add mock calls.
 	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil)
-	ft.zzk.On("GetVHost", ":zproxy").Return("", "", nil)
+	ft.zzk.On("GetVHost", "zproxy").Return("", "", nil)
 	ft.zzk.On("GetPublicPort", ":33333").Return("", "", nil)
 
 	// Add a valid port.

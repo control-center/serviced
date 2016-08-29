@@ -74,7 +74,15 @@ func UpdateHost(conn client.Connection, h host.Host) error {
 		"zkpath": pth,
 	})
 
-	if err := conn.Set(pth, &HostNode{Host: &h}); err != nil {
+	node := &HostNode{Host: &host.Host{}}
+	if err := conn.Get(pth, node); err != nil {
+		logger.WithError(err).Debug("Could not find host entry in zookeeper")
+		return err
+	}
+
+	node.Host = &h
+
+	if err := conn.Set(pth, node); err != nil {
 		logger.WithError(err).Debug("Could not update host entry in zookeeper")
 		return err
 	}

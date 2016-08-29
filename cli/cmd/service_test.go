@@ -291,6 +291,17 @@ func (t ServiceAPITest) RestartService(cfg api.SchedulerConfig) (int, error) {
 	return 1, nil
 }
 
+func (t ServiceAPITest) StopServiceInstance(serviceID string, instanceID int) error {
+	if s, err := t.GetService(serviceID); err != nil {
+		return err
+	} else if s == nil {
+		return errors.New("service not found")
+	} else if s.Instances < instanceID {
+		return errors.New("service not found")
+	}
+	return nil
+}
+
 func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
 	if s, err := t.GetService(cfg.ServiceID); err != nil {
 		return 0, err
@@ -726,7 +737,7 @@ func ExampleServicedCLI_CmdServiceRestart_err() {
 
 	// Output:
 	// service not found
-	// no matches found
+	// service not found
 	// service not found
 	// service not found
 }

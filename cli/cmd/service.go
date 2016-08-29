@@ -699,6 +699,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		if num, err := strconv.Atoi(name); err != nil {
 			servicepath = keyword
 		} else {
+			servicepath = strings.TrimRight(servicepath, "/")
 			instanceID = num
 		}
 	}
@@ -727,7 +728,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 	var match func(string, string) bool
 	match = func(serviceID string, servicePath string) bool {
 		// if the servicePath is an empty string, then it is a match
-		if servicePath == "" {
+		if servicePath = strings.TrimRight(servicePath, "/"); servicePath == "" {
 			return true
 		}
 
@@ -760,7 +761,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 
 	// check the number of matches
 	if count := len(matches); count == 0 {
-		return "", 0, errors.New("no matching services found")
+		return "", 0, errors.New("service not found")
 	} else if count == 1 {
 		return matches[0].ID, instanceID, nil
 	}
