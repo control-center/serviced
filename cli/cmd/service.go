@@ -687,7 +687,7 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 // service string, being either a deploymentPath/servicepath/instanceid or
 // serviceid/instanceid
 func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) {
-	servicepath, name := path.Split(keyword)
+	servicepath, name := path.Split(strings.ToLower(keyword))
 	instanceID := -1
 
 	// if the servicepath is empty, then there is no instance id set for this
@@ -705,9 +705,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 	}
 
 	// is the servicepath a serviceid?
-	if svc, err := c.driver.GetService(servicepath); err != nil {
-		return "", 0, err
-	} else if svc != nil {
+	if svc, _ := c.driver.GetService(servicepath); svc != nil {
 		return svc.ID, instanceID, nil
 	}
 
@@ -728,19 +726,29 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 	var match func(string, string) bool
 	match = func(serviceID string, servicePath string) bool {
 		// if the servicePath is an empty string, then it is a match
-		if servicePath = strings.TrimRight(servicePath, "/"); servicePath == "" {
+		if servicePath == "" {
 			return true
 		}
 
-		// get the service and split the path
+		// get the service
 		svc := svcmap[serviceID]
+		serviceName := strings.ToLower(svc.Name)
+		deploymentID := strings.ToLower(svc.DeploymentID)
+
+		// check against the deployment id
+		if strings.HasSuffix(deploymentID, servicePath) {
+			return true
+		}
+
+		// split the service path and the name
 		pth, name := path.Split(servicePath)
+		pth = strings.TrimRight(pth, "/")
 
 		// does the name match?
-		if name == svc.Name {
+		if name == serviceName {
 			if svc.ParentServiceID == "" {
 				// this is a top level service, so compare the deployment id
-				return strings.HasSuffix(svc.DeploymentID, pth)
+				return strings.HasSuffix(deploymentID, pth)
 			} else {
 				// keep checking the tree
 				return match(svc.ParentServiceID, pth)
@@ -748,10 +756,11 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		}
 
 		// do a fuzzy check on the suffix
-		return strings.HasSuffix(svc.Name, servicePath)
+		return strings.HasSuffix(serviceName, servicePath)
 	}
 
 	// filter all of the matches
+	servicepath = strings.ToLower(servicepath)
 	matches := []service.Service{}
 	for _, svc := range svcs {
 		if match(svc.ID, servicepath) {
