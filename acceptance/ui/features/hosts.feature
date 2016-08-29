@@ -126,7 +126,7 @@ Feature: Host Management
       And I should see "table://hosts/defaultHost/memoryGB" in the "Memory" column
       And I should see "table://hosts/defaultHost/ramGB" in the "RAM Limit" column
       And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
-      And I should see "Showing 1 Result"
+      And I should see "1 Result"
 
   @clean_hosts
   Scenario: Add another valid host
@@ -149,7 +149,7 @@ Feature: Host Management
       And I should see "table://hosts/host2/cores" in the "CPU Cores" column
       And I should see "table://hosts/host2/kernelVersion" in the "Kernel Version" column
       And I should see "table://hosts/host2/ccRelease" in the "CC Release" column
-      And I should see "Showing 2 Results"
+      And I should see "2 Results"
 
   @clean_hosts @clean_pools
   Scenario: Add a valid host in a non-default Resource Pool
@@ -184,7 +184,7 @@ Feature: Host Management
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
     When I close the dialog
-    Then I should see "Showing 1 Result"
+    Then I should see "1 Result"
 
   Scenario: Remove a host
     Given only the default host is added

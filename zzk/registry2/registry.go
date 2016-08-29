@@ -68,8 +68,8 @@ func DeleteExports(conn client.Connection, tenantID string) error {
 	return nil
 }
 
-// GetPublicPort returns port data for a specific port address on a host
-func GetPublicPort(conn client.Connection, key PublicPortKey) (*PublicPort, error) {
+// GetPublicPort returns the service id and application of the public port
+func GetPublicPort(conn client.Connection, key PublicPortKey) (string, string, error) {
 	pth := path.Join("/net/pub", key.HostID, key.PortAddress)
 
 	logger := plog.WithFields(log.Fields{
@@ -81,15 +81,11 @@ func GetPublicPort(conn client.Connection, key PublicPortKey) (*PublicPort, erro
 	pub := &PublicPort{}
 	err := conn.Get(pth, pub)
 	if err == client.ErrNoNode {
-		logger.WithError(err).Debug("Port not found on host")
-		return nil, &RegistryError{
-			Action:  "get",
-			Path:    pth,
-			Message: "port address not found on host",
-		}
+		logger.WithError(err).Debug("Port address not found")
+		return "", "", nil
 	} else if err != nil {
 		logger.WithError(err).Debug("Could not look up port")
-		return nil, &RegistryError{
+		return "", "", &RegistryError{
 			Action:  "get",
 			Path:    pth,
 			Message: "could not look up port address",
@@ -101,11 +97,11 @@ func GetPublicPort(conn client.Connection, key PublicPortKey) (*PublicPort, erro
 		"application": pub.Application,
 	}).Debug("Found port")
 
-	return pub, nil
+	return pub.ServiceID, pub.Application, nil
 }
 
-// GetVHost returns port data for a specific port address on a host
-func GetVHost(conn client.Connection, key VHostKey) (*VHost, error) {
+// GetVHost returns the service id and application of the vhost
+func GetVHost(conn client.Connection, key VHostKey) (string, string, error) {
 	pth := path.Join("/net/vhost", key.HostID, key.Subdomain)
 
 	logger := plog.WithFields(log.Fields{
@@ -118,14 +114,10 @@ func GetVHost(conn client.Connection, key VHostKey) (*VHost, error) {
 	err := conn.Get(pth, vhost)
 	if err == client.ErrNoNode {
 		logger.WithError(err).Debug("Virtual host subdomain not found")
-		return nil, &RegistryError{
-			Action:  "get",
-			Path:    pth,
-			Message: "virtual host subdomain not found",
-		}
+		return "", "", nil
 	} else if err != nil {
 		logger.WithError(err).Debug("Could not look up virtual host subdomain")
-		return nil, &RegistryError{
+		return "", "", &RegistryError{
 			Action:  "get",
 			Path:    pth,
 			Message: "could not look up virtual host subdomain",
@@ -137,7 +129,7 @@ func GetVHost(conn client.Connection, key VHostKey) (*VHost, error) {
 		"application": vhost.Application,
 	}).Debug("Found vhost subdomain")
 
-	return vhost, nil
+	return vhost.ServiceID, vhost.Application, nil
 }
 
 // SyncServiceRegistry syncs all vhosts and public ports to those of a matching

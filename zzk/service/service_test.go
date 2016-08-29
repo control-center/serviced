@@ -39,6 +39,7 @@ func (handler *TestServiceHandler) SelectHost(svc *service.Service) (*host.Host,
 }
 
 func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
+	c.Skip("Removing test soon")
 	conn, err := zzk.GetLocalConnection("/TestServiceListener_NoHostState")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}

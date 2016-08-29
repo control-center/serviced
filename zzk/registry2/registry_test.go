@@ -51,12 +51,14 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	err = SyncServiceRegistry(conn, "serviceid1", pubs1, vhosts1)
 	c.Assert(err, IsNil)
 
-	actualpub, err := GetPublicPort(conn, pub1Key)
+	actualpub := &PublicPort{}
+	err = conn.Get("/net/pub/master/:2181", actualpub)
 	c.Assert(err, IsNil)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub1)
 
-	actualvhost, err := GetVHost(conn, vhost1Key)
+	actualvhost := &VHost{}
+	err = conn.Get("/net/vhost/master/test1", actualvhost)
 	c.Assert(err, IsNil)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost1)
@@ -84,22 +86,26 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	err = SyncServiceRegistry(conn, "serviceid2", pubs2, vhosts2)
 	c.Assert(err, IsNil)
 
-	actualpub, err = GetPublicPort(conn, pub1Key)
+	actualpub = &PublicPort{}
+	err = conn.Get("/net/pub/master/:2181", actualpub)
 	c.Assert(err, IsNil)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub1)
 
-	actualvhost, err = GetVHost(conn, vhost1Key)
+	actualvhost = &VHost{}
+	err = conn.Get("/net/vhost/master/test1", actualvhost)
 	c.Assert(err, IsNil)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost1)
 
-	actualpub, err = GetPublicPort(conn, pub2Key)
+	actualpub = &PublicPort{}
+	err = conn.Get("/net/pub/master/:22181", actualpub)
 	c.Assert(err, IsNil)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub2)
 
-	actualvhost, err = GetVHost(conn, vhost2Key)
+	actualvhost = &VHost{}
+	err = conn.Get("/net/vhost/master/test2", actualvhost)
 	c.Assert(err, IsNil)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost2)
@@ -128,22 +134,26 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	err = SyncServiceRegistry(conn, "serviceid1", pubs1, vhosts1)
 	c.Assert(err, IsNil)
 
-	actualpub, err = GetPublicPort(conn, pub1Key)
+	actualpub = &PublicPort{}
+	err = conn.Get("/net/pub/master/:2181", actualpub)
 	c.Assert(err, IsNil)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub1)
 
-	actualvhost, err = GetVHost(conn, vhost1Key)
+	actualvhost = &VHost{}
+	err = conn.Get("/net/vhost/master/test1", actualvhost)
 	c.Assert(err, IsNil)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost1)
 
-	actualpub, err = GetPublicPort(conn, pub2Key)
+	actualpub = &PublicPort{}
+	err = conn.Get("/net/pub/master/:22181", actualpub)
 	c.Assert(err, IsNil)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub2)
 
-	actualvhost, err = GetVHost(conn, vhost2Key)
+	actualvhost = &VHost{}
+	err = conn.Get("/net/vhost/master/test2", actualvhost)
 	c.Assert(err, IsNil)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost2)
@@ -152,13 +162,13 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	err = SyncServiceRegistry(conn, "serviceid2", make(map[PublicPortKey]PublicPort), make(map[VHostKey]VHost))
 	c.Assert(err, IsNil)
 
-	actualpub, err = GetPublicPort(conn, pub1Key)
-	c.Assert(err, IsNil)
+	actualpub = &PublicPort{}
+	err = conn.Get("/net/pub/master/:2181", actualpub)
 	actualpub.SetVersion(nil)
 	c.Check(*actualpub, DeepEquals, pub1)
 
-	actualvhost, err = GetVHost(conn, vhost1Key)
-	c.Assert(err, IsNil)
+	actualvhost = &VHost{}
+	err = conn.Get("/net/vhost/master/test1", actualvhost)
 	actualvhost.SetVersion(nil)
 	c.Check(*actualvhost, DeepEquals, vhost1)
 

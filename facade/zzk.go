@@ -49,6 +49,10 @@ type ZZK interface {
 	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error
 	GetServiceStates2(poolID, serviceID string) ([]zkservice2.State, error) // FIXME: update when integration is complete
 	GetHostStates(poolID, hostID string) ([]zkservice2.State, error)
+	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice2.State, error)
+	StopServiceInstance2(poolID, serviceID string, instanceID int) error
+	StopServiceInstances(poolID, serviceID string) error
+	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 }
 
 func GetFacadeZZK(f *Facade) ZZK {

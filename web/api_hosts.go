@@ -13,16 +13,52 @@
 package web
 
 import (
+	"net/http"
+	"net/url"
+
 	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/go-json-rest"
 )
 
-// getPools returns the list of pools requested.  This call supports paging.
+// getPools returns the list of pools requested.
 func getHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
 	hosts, err := facade.GetReadHosts(dataCtx)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	response := hostsResponse{
+		Results: hosts,
+		Total:   len(hosts),
+		Links: []APILink{APILink{
+			Rel:    "self",
+			HRef:   r.URL.Path,
+			Method: "GET",
+		}},
+	}
+
+	w.WriteJson(response)
+}
+
+// getHostsForPool returns the list of hosts for a pool.
+func getHostsForPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	poolID, err := url.QueryUnescape(r.PathParam("poolId"))
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	} else if len(poolID) == 0 {
+		writeJSON(w, "poolId must be specified", http.StatusBadRequest)
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	hosts, err := facade.FindReadHostsInPool(dataCtx, poolID)
 	if err != nil {
 		restServerError(w, err)
 		return
