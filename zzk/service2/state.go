@@ -27,6 +27,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 )
 
+var ErrInstanceNotFound = errors.New("instance is not scheduled to a host")
+
 // StateError describes an error from a state CRUD operation
 type StateError struct {
 	Request   StateRequest
@@ -189,6 +191,46 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 		ServiceID:    req.ServiceID,
 		InstanceID:   req.InstanceID,
 	}, nil
+}
+
+// GetServiceStateHostID returns the hostid of the matching service state
+func GetServiceStateHostID(conn client.Connection, poolID, serviceID string, instanceID int) (string, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	spth := path.Join(basepth, "/services", serviceID)
+	ch, err := conn.Children(spth)
+	if err != nil && err != client.ErrNoNode {
+
+		logger.WithError(err).Debug("Could not look up states on service")
+
+		// TODO: wrap the error?
+		return "", err
+	}
+
+	// find the matching state id
+	suffix := fmt.Sprintf("-%s-%d", serviceID, instanceID)
+	for _, stateID := range ch {
+		if strings.HasSuffix(stateID, suffix) {
+			hostID, _, _, err := ParseStateID(stateID)
+			if err != nil {
+				// This should never happen, but handle it anyway
+				logger.WithField("stateid", stateID).WithError(err).Debug("Could not parse state")
+				return "", err
+			}
+			logger.WithField("hostid", hostID).Debug("Found state id")
+			return hostID, nil
+		}
+	}
+
+	return "", ErrInstanceNotFound
 }
 
 // GetServiceStateIDs returns the parsed state ids of a running service

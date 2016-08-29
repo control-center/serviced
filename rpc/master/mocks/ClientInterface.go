@@ -2,6 +2,7 @@ package mocks
 
 import "github.com/stretchr/testify/mock"
 
+import "time"
 import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
@@ -9,7 +10,6 @@ import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
 import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/volume"
-import "time"
 
 type ClientInterface struct {
 	mock.Mock
@@ -90,24 +90,24 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddHost(targetHost host.Host) error {
-	ret := _m.Called(targetHost)
+func (_m *ClientInterface) AddHost(h host.Host) error {
+	ret := _m.Called(h)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(targetHost)
+		r0 = rf(h)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateHost(targetHost host.Host) error {
-	ret := _m.Called(targetHost)
+func (_m *ClientInterface) UpdateHost(h host.Host) error {
+	ret := _m.Called(h)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(host.Host) error); ok {
-		r0 = rf(targetHost)
+		r0 = rf(h)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -189,24 +189,24 @@ func (_m *ClientInterface) GetResourcePools() ([]pool.ResourcePool, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) AddResourcePool(targetPool pool.ResourcePool) error {
-	ret := _m.Called(targetPool)
+func (_m *ClientInterface) AddResourcePool(p pool.ResourcePool) error {
+	ret := _m.Called(p)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(targetPool)
+		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) UpdateResourcePool(targetPool pool.ResourcePool) error {
-	ret := _m.Called(targetPool)
+func (_m *ClientInterface) UpdateResourcePool(p pool.ResourcePool) error {
+	ret := _m.Called(p)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pool.ResourcePool) error); ok {
-		r0 = rf(targetPool)
+		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -301,16 +301,80 @@ func (_m *ClientInterface) WaitService(serviceIDs []string, state service.Desire
 
 	return r0
 }
-func (_m *ClientInterface) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (templateID string, err error) {
+func (_m *ClientInterface) GetServiceInstances(serviceID string) ([]service.Instance, error) {
+	ret := _m.Called(serviceID)
+
+	var r0 []service.Instance
+	if rf, ok := ret.Get(0).(func(string) []service.Instance); ok {
+		r0 = rf(serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.Instance)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) StopServiceInstance(serviceID string, instanceID int) error {
+	ret := _m.Called(serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int) error); ok {
+		r0 = rf(serviceID, instanceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) LocateServiceInstance(serviceID string, instanceID int) (*service.LocationInstance, error) {
+	ret := _m.Called(serviceID, instanceID)
+
+	var r0 *service.LocationInstance
+	if rf, ok := ret.Get(0).(func(string, int) *service.LocationInstance); ok {
+		r0 = rf(serviceID, instanceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.LocationInstance)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, int) error); ok {
+		r1 = rf(serviceID, instanceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) SendDockerAction(serviceID string, instanceID int, action string, args []string) error {
+	ret := _m.Called(serviceID, instanceID, action, args)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int, string, []string) error); ok {
+		r0 = rf(serviceID, instanceID, action, args)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ClientInterface) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
 	ret := _m.Called(serviceTemplate)
 
 	var r0 string
 	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplate) string); ok {
 		r0 = rf(serviceTemplate)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(string)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
@@ -322,7 +386,7 @@ func (_m *ClientInterface) AddServiceTemplate(serviceTemplate servicetemplate.Se
 
 	return r0, r1
 }
-func (_m *ClientInterface) GetServiceTemplates() (serviceTemplates map[string]servicetemplate.ServiceTemplate, err error) {
+func (_m *ClientInterface) GetServiceTemplates() (map[string]servicetemplate.ServiceTemplate, error) {
 	ret := _m.Called()
 
 	var r0 map[string]servicetemplate.ServiceTemplate
@@ -343,24 +407,24 @@ func (_m *ClientInterface) GetServiceTemplates() (serviceTemplates map[string]se
 
 	return r0, r1
 }
-func (_m *ClientInterface) RemoveServiceTemplate(templateID string) error {
-	ret := _m.Called(templateID)
+func (_m *ClientInterface) RemoveServiceTemplate(serviceTemplateID string) error {
+	ret := _m.Called(serviceTemplateID)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(templateID)
+		r0 = rf(serviceTemplateID)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) (tenantIDs []string, err error) {
+func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplateDeploymentRequest) ([]string, error) {
 	ret := _m.Called(request)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func() []string); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(servicetemplate.ServiceTemplateDeploymentRequest) []string); ok {
+		r0 = rf(request)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -368,8 +432,8 @@ func (_m *ClientInterface) DeployTemplate(request servicetemplate.ServiceTemplat
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(servicetemplate.ServiceTemplateDeploymentRequest) error); ok {
+		r1 = rf(request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -466,8 +530,7 @@ func (_m *ClientInterface) DockerOverride(newImage string, oldImage string) erro
 
 	return r0
 }
-
-func (_m *ClientInterface) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled, restart bool) (*servicedefinition.Port, error) {
+func (_m *ClientInterface) AddPublicEndpointPort(serviceid string, endpointName string, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
 	ret := _m.Called(serviceid, endpointName, portAddr, usetls, protocol, isEnabled, restart)
 
 	var r0 *servicedefinition.Port
@@ -488,34 +551,31 @@ func (_m *ClientInterface) AddPublicEndpointPort(serviceid, endpointName, portAd
 
 	return r0, r1
 }
-
-func (_m *ClientInterface) RemovePublicEndpointPort(serviceid, endpointName, portAddr string) error {
+func (_m *ClientInterface) RemovePublicEndpointPort(serviceid string, endpointName string, portAddr string) error {
 	ret := _m.Called(serviceid, endpointName, portAddr)
 
 	var r0 error
-	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
 		r0 = rf(serviceid, endpointName, portAddr)
 	} else {
-		r0 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-
-func (_m *ClientInterface) EnablePublicEndpointPort(serviceid, endpointName, portAddr string, isEnabled bool) error {
+func (_m *ClientInterface) EnablePublicEndpointPort(serviceid string, endpointName string, portAddr string, isEnabled bool) error {
 	ret := _m.Called(serviceid, endpointName, portAddr, isEnabled)
 
 	var r0 error
-	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string, bool) error); ok {
 		r0 = rf(serviceid, endpointName, portAddr, isEnabled)
 	} else {
-		r0 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-
-func (_m *ClientInterface) AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+func (_m *ClientInterface) AddPublicEndpointVHost(serviceid string, endpointName string, vhost string, isEnabled bool, restart bool) (*servicedefinition.VHost, error) {
 	ret := _m.Called(serviceid, endpointName, vhost, isEnabled, restart)
 
 	var r0 *servicedefinition.VHost
@@ -536,28 +596,26 @@ func (_m *ClientInterface) AddPublicEndpointVHost(serviceid, endpointName, vhost
 
 	return r0, r1
 }
-
-func (_m *ClientInterface) RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error {
+func (_m *ClientInterface) RemovePublicEndpointVHost(serviceid string, endpointName string, vhost string) error {
 	ret := _m.Called(serviceid, endpointName, vhost)
 
 	var r0 error
-	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
 		r0 = rf(serviceid, endpointName, vhost)
 	} else {
-		r0 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-
-func (_m *ClientInterface) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error {
+func (_m *ClientInterface) EnablePublicEndpointVHost(serviceid string, endpointName string, vhost string, isEnabled bool) error {
 	ret := _m.Called(serviceid, endpointName, vhost, isEnabled)
 
 	var r0 error
-	if rf, ok := ret.Get(1).(func(string, string, string, bool) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string, bool) error); ok {
 		r0 = rf(serviceid, endpointName, vhost, isEnabled)
 	} else {
-		r0 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
 
 	return r0
