@@ -14,6 +14,8 @@
 package master
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -21,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
-	"time"
 )
 
 // The RPC interface is the API for a serviced master.
@@ -44,10 +45,10 @@ type ClientInterface interface {
 	GetActiveHostIDs() ([]string, error)
 
 	// AddHost adds a Host
-	AddHost(host host.Host) error
+	AddHost(h host.Host) error
 
 	// UpdateHost updates a host
-	UpdateHost(host host.Host) error
+	UpdateHost(h host.Host) error
 
 	// RemoveHost removes a host
 	RemoveHost(hostID string) error
@@ -65,10 +66,10 @@ type ClientInterface interface {
 	GetResourcePools() ([]pool.ResourcePool, error)
 
 	// AddResourcePool adds the ResourcePool
-	AddResourcePool(pool pool.ResourcePool) error
+	AddResourcePool(p pool.ResourcePool) error
 
 	// UpdateResourcePool adds the ResourcePool
-	UpdateResourcePool(pool pool.ResourcePool) error
+	UpdateResourcePool(p pool.ResourcePool) error
 
 	// RemoveResourcePool removes a ResourcePool
 	RemoveResourcePool(poolID string) error
@@ -90,6 +91,22 @@ type ClientInterface interface {
 
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
+
+	//--------------------------------------------------------------------------
+	// Service Instance Management Functions
+
+	// GetServiceInstances returns all running instances of a service
+	GetServiceInstances(serviceID string) ([]service.Instance, error)
+
+	// StopServiceInstance stops a single service instance
+	StopServiceInstance(serviceID string, instanceID int) error
+
+	// LocateServiceInstance returns location information about a service
+	// instance
+	LocateServiceInstance(serviceID string, instanceID int) (*service.LocationInstance, error)
+
+	// SendDockerAction submits a docker action to a running container
+	SendDockerAction(serviceID string, instanceID int, action string, args []string) error
 
 	//--------------------------------------------------------------------------
 	// Service Tempatate Management Functions
