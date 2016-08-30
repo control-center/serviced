@@ -136,7 +136,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	//start getting vhost endpoints
 	go sc.syncPublicEndpoints(shutdown)
 	//start watching global vhosts as they are added/deleted/updated in services
-	go sc.syncAllVhosts(shutdown)
+	go sc.syncAllVHosts(shutdown)
 
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
@@ -200,7 +200,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	// FIXME: bubble up these errors to the caller
 	certFile, keyFile, err := sc.getCertFiles()
-	
+
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
 			// bindPort has already been validated, so the Split/access below won't break.
@@ -389,16 +389,12 @@ func init() {
 	allvhosts = make(map[registry.PublicEndpointKey]map[string]struct{})
 }
 
-func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
-	rootConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncAllVhosts - Error getting root zk connection: %v", err)
-		return err
-	}
-
+func (sc *ServiceConfig) syncAllVHosts(shutdown <-chan interface{}) error {
 	cancelChan := make(chan interface{})
-	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+	defer close(cancelChan)
+
+	syncVHosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(1).Infof("syncVHosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		newVhosts := make(map[registry.PublicEndpointKey]map[string]struct{})
 		for _, sv := range childIDs {
@@ -425,19 +421,33 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	}
 
 	for {
-		zkServiceVhost := service.ZKServicePublicEndpoints
+		// Keep trying to get a connection to zk unless we shut down.
+		var rootConn client.Connection
+
+		select {
+		case rootConn = <-zzk.Connect("/", zzk.GetLocalConnection):
+		case <-shutdown:
+			return nil
+		}
+
+		// Check shutdown to make sure it didn't get closed after
+		// we received our connection.
 		select {
 		case <-shutdown:
-			close(cancelChan)
 			return nil
 		default:
 		}
-		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
-		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, pepWatchError)
-		if err != nil {
-			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
-			<-time.After(time.Second * 10)
+
+		if rootConn == nil {
 			continue
+		}
+
+		zkServiceVHost := service.ZKServicePublicEndpoints
+		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVHost)
+		err := registry.WatchChildren(rootConn, zkServiceVHost, cancelChan, syncVHosts, pepWatchError)
+		if err != nil {
+			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVHost, err)
+			<-time.After(time.Second * 10)
 		}
 	}
 }
