@@ -99,8 +99,8 @@
 #    86400 = number of seconds in one day = 24 hr/day * 60 min/hr * 60 sec/min
 # SERVICED_MAX_CONTAINER_AGE=86400
 
-# Set the subnet that dynamic endpoints use, inside the containers
-# SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
+# Set the subnet that dynamic endpoints use, inside the containers (CIDR notation)
+# SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3.0.0/16
 
 # Set the loglevel for serviced
 # SERVICED_LOG_LEVEL=0
