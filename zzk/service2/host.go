@@ -277,7 +277,7 @@ func GetCurrentHosts(conn client.Connection, poolid string) ([]string, error) {
 	onlineHosts := make([]string, 0)
 	pth := path.Join("/pools", poolid, "hosts")
 	ch, err := conn.Children(pth)
-	if err != nil {
+	if err != nil && err != client.ErrNoNode {
 
 		logger.WithError(err).Debug("Could not look up hosts in resource pool")
 
