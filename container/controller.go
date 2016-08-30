@@ -19,12 +19,15 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry2"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/zenoss/glog"
 
@@ -620,6 +623,10 @@ func (c *Controller) Run() (err error) {
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
 	go c.endpoints.Run(rpcDead)
+	if err := c.handleControlCenterImports(rpcDead); err != nil {
+		glog.Error("Could not setup Control Center specific imports: ", err)
+		return err
+	}
 	go c.checkPrereqs(prereqsPassed, rpcDead)
 	go c.reapZombies(rpcDead)
 	healthExit := make(chan struct{})
@@ -799,4 +806,105 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 		defer client.Close()
 		client.ReportHealthStatus(req, nil)
 	})
+}
+
+func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
+	// this function is currently needed to handle special control center imports
+	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
+	// get service endpoints
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return err
+	}
+	defer client.Close()
+	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
+	//       that returns only special "controlplane" imported endpoints
+	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
+	//		We should rename it and clean up the filtering code below.
+
+	epchan := make(chan map[string][]applicationendpoint.ApplicationEndpoint)
+	timeout := make(chan struct{})
+
+	go func(c *node.LBClient, svcid string, epc chan map[string][]applicationendpoint.ApplicationEndpoint, timeout chan struct{}) {
+		var endpoints map[string][]applicationendpoint.ApplicationEndpoint
+	RetryGetServiceEndpoints:
+		for {
+			err = c.GetServiceEndpoints(svcid, &endpoints)
+			if err != nil {
+				select {
+				case <-time.After(1 * time.Second):
+					glog.V(3).Info("Couldn't retrieve service endpoints, trying again")
+					continue RetryGetServiceEndpoints
+				case <-timeout:
+					glog.V(3).Info("Timed out trying to retrieve service endpoints")
+					return
+				}
+			}
+			break
+		}
+
+		// deal with the race between the one minute timeout in handleControlCenterImports() and the
+		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
+		// and sending the result via the epc channel.
+		select {
+		case _, ok := <-epc:
+			if ok {
+				panic("should never receive anything on the endpoints channel")
+			}
+			glog.V(3).Info("Endpoint channel closed, giving up")
+			return
+		default:
+			epc <- endpoints
+		}
+	}(client, c.options.Service.ID, epchan, timeout)
+
+	var endpoints map[string][]applicationendpoint.ApplicationEndpoint
+	select {
+	case <-time.After(1 * time.Minute):
+		close(epchan)
+		timeout <- struct{}{}
+		client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: "unable to retrieve service endpoints"}, nil)
+		return ErrNoServiceEndpoints
+	case <-rpcdead:
+		close(epchan)
+		timeout <- struct{}{}
+		return fmt.Errorf("RPC Service has gone away")
+	case endpoints = <-epchan:
+		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
+	}
+
+	for key, eps := range endpoints {
+		if len(endpoints) == 0 {
+			glog.Warningf("ignoring key: %s with empty endpointList", key)
+			continue
+		} else if !strings.HasPrefix(eps[0].Application, "controlplane") {
+			// ignore endpoints that are not special controlplane imports
+			continue
+		}
+		bind := zkservice.ImportBinding{
+			Application:    eps[0].Application,
+			Purpose:        "import", // Punting on control center dynamic imports for now
+			PortNumber:     eps[0].ProxyPort,
+			VirtualAddress: eps[0].VirtualAddress,
+		}
+		exports := make([]registry.ExportDetails, len(eps))
+		for i, ep := range eps {
+			exports[i] = registry.ExportDetails{
+				ExportBinding: zkservice.ExportBinding{
+					Application: ep.Application,
+					Protocol:    ep.Protocol,
+					PortNumber:  ep.ContainerPort,
+				},
+				PrivateIP:  ep.ContainerIP,
+				HostIP:     ep.HostIP,
+				InstanceID: i,
+			}
+		}
+		c.endpoints.UpdateRemoteExports(bind, exports)
+	}
+	// TODO: agent needs to register controlplane and controlplane_consumer
+	//       but don't do that here in the container code
+
+	return nil
 }

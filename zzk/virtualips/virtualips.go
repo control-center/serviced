@@ -313,11 +313,9 @@ func (l *VirtualIPListener) stopInstances(ip string) {
 	// Stop all instances with the assigned ip
 	for _, req := range states {
 		if err := zkservice.UpdateState(l.conn, req, func(s *zkservice.State) bool {
-			for _, export := range s.Exports {
-				if a := export.Assignment; a != nil && a.IPAddress == ip {
-					s.DesiredState = service.SVCStop
-					return true
-				}
+			if s.AssignedIP == ip && s.DesiredState != service.SVCStop {
+				s.DesiredState = service.SVCStop
+				return true
 			}
 			return false
 		}); err != nil {
