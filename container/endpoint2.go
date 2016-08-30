@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
+	"regexp"
 	"sync"
 	"time"
 
@@ -85,16 +85,15 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		"instanceid":  ce.opts.InstanceID,
 	})
 
-	// get the hostname
-	hostname, err := os.Hostname()
-	if err != nil {
-		logger.WithError(err).Debug("Could not get the hostname to check the docker id")
-		return false, err
-	}
-
 	allowDirect := true
 
 	if ce.opts.IsShell {
+		// get the hostname
+		hostname, err := os.Hostname()
+		if err != nil {
+			logger.WithError(err).Debug("Could not get the hostname to check the docker id")
+			return false, err
+		}
 
 		// this is not a running instance so load whatever data is
 		// available.
@@ -153,7 +152,7 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		go func() {
 			var err error
 			ce.state, err = zkservice.MonitorState(cancel, conn, req, func(s *zkservice.State, exists bool) bool {
-				return exists && strings.HasPrefix(s.ContainerID, hostname)
+				return exists && s.Started.After(s.Terminated)
 			})
 			errc <- err
 		}()
@@ -199,13 +198,43 @@ func (ce *ContainerEndpoints) Run(cancel <-chan struct{}) {
 	}
 
 	// track all of the imports
+	listener := registry.NewImportListener(ce.opts.TenantID)
 	for _, bind := range ce.state.Imports {
+
+		// compile the term as a regex
+		rgx, err := regexp.Compile(bind.Application)
+		if err != nil {
+			plog.WithField("searchterm", bind.Application).WithError(err).Warn("Could not compile term, skipping import")
+			continue
+		}
+
+		ch := listener.AddTerm(rgx)
 		wg.Add(1)
 		go func(bind zkservice.ImportBinding) {
-			ce.AddImport(cancel, bind)
-			wg.Done()
+
+			// set up a listener for each matching application
+			for {
+				select {
+				case app := <-ch:
+					wg.Add(1)
+					go func() {
+						ce.AddImport(cancel, app, bind)
+						wg.Done()
+					}()
+				case <-cancel:
+					wg.Done()
+					return
+				}
+			}
 		}(bind)
 	}
+
+	// start the import listener
+	wg.Add(1)
+	go func() {
+		ce.RunImportListener(cancel, listener)
+		wg.Done()
+	}()
 
 	wg.Wait()
 }
@@ -250,11 +279,37 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 	}
 }
 
+// RunImportListener starts and persists the import listener
+func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, listener *registry.ImportListener) {
+	plog.Debug("Running import listener")
+	defer plog.Debug("Exited import listener")
+
+	for {
+		select {
+		case conn := <-zzk.Connect("/", zzk.GetLocalConnection):
+			if conn != nil {
+
+				plog.Debug("Received coordinator connection")
+				listener.Run(cancel, conn)
+
+				select {
+				case <-cancel:
+					return
+				default:
+				}
+			}
+		case <-cancel:
+			return
+		}
+	}
+}
+
 // AddImport tracks exports for a given import binding
-func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.ImportBinding) {
+func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, application string, bind zkservice.ImportBinding) {
 	logger := plog.WithFields(log.Fields{
-		"application": bind.Application,
-		"purpose":     bind.Purpose,
+		"applciation":     application,
+		"applicationglob": bind.Application,
+		"purpose":         bind.Purpose,
 	})
 	logger.Debug("Tracking exports for endpoint")
 	defer logger.Debug("Exited export tracking for endpoint")
@@ -266,7 +321,7 @@ func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, bind zkservice.I
 
 				logger.Debug("Received coordinator connection")
 
-				ch := registry.TrackExports(cancel, conn, ce.opts.TenantID, bind.Application)
+				ch := registry.TrackExports(cancel, conn, ce.opts.TenantID, application)
 				for exports := range ch {
 					ce.UpdateRemoteExports(bind, exports)
 				}
@@ -303,10 +358,17 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			exLogger := logger.WithField("instanceid", export.InstanceID)
 
 			// calculate the inbound port number
-			port, err := bind.GetPortNumber(export.InstanceID)
-			if err != nil {
-				exLogger.WithError(err).Error("Could not get port for instance")
-				return
+			var port uint16
+			var err error
+
+			if bind.PortTemplate != "" {
+				port, err = bind.GetPortNumber(export.InstanceID)
+				if err != nil {
+					exLogger.WithError(err).Error("Could not get port for instance")
+					return
+				}
+			} else {
+				port = bind.PortNumber + uint16(export.InstanceID)
 			}
 
 			exLogger = exLogger.WithField("portnumber", port)
@@ -342,7 +404,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 				if virtualAddress != "" {
 
 					exLogger = exLogger.WithField("virtualaddress", virtualAddress)
-					if err := ce.vifs.RegisterVirtualAddress(virtualAddress, fmt.Sprintf(":%d", port), export.Protocol); err != nil {
+					if err := ce.vifs.RegisterVirtualAddress(virtualAddress, fmt.Sprintf("%d", port), export.Protocol); err != nil {
 						exLogger.WithError(err).Warn("Could not register virtual address")
 						continue
 					}
@@ -359,6 +421,9 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 		if err != nil {
 			exLogger.WithError(err).Error("Could not get port for application")
 			return
+		}
+		if port == 0 {
+			port = exports[0].PortNumber
 		}
 
 		exLogger = exLogger.WithField("portnumber", port)
@@ -421,6 +486,7 @@ func newProxyCache(tenantID string, tcpMuxPort uint16, useTLS, allowDirect bool)
 		cache:       make(map[proxyKey]*proxy),
 		tenantID:    tenantID,
 		tcpMuxPort:  tcpMuxPort,
+		useTLS:      useTLS,
 		allowDirect: allowDirect,
 	}
 }
