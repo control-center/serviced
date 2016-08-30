@@ -366,19 +366,15 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			//  - If that is not set, then increment the default port number by
 			//    the instance id.
 			//  - Otherwise, just use the port number described by the export.
-			var port uint16
-			var err error
-
-			if bind.PortTemplate != "" {
-				port, err = bind.GetPortNumber(export.InstanceID)
-				if err != nil {
-					exLogger.WithError(err).Error("Could not calculate import port to map export endpoint")
-					continue
+			port, err := bind.GetPortNumber(export.InstanceID)
+			if port == 0 {
+				if bind.PortNumber > 0 {
+					exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, falling back to default import")
+					port = bind.PortNumber + uint16(export.InstanceID)
+				} else {
+					exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, using export port")
+					port = export.PortNumber
 				}
-			} else if bind.PortNumber > 0 {
-				port = bind.PortNumber + uint16(export.InstanceID)
-			} else {
-				port = export.PortNumber
 			}
 
 			exLogger = exLogger.WithField("portnumber", port)
@@ -430,17 +426,15 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 		// calculate the inbound port number, this is based on the port
 		// template being set.
 		port, err := bind.GetPortNumber(0)
-		if err != nil {
-			exLogger.WithError(err).Error("Could not calculate import port to map to proxied exported endpoint")
-			return
-		}
-
-		// if the port is not set, use the port on the export
 		if port == 0 {
-			if len(exports) > 0 {
+			if bind.PortNumber > 0 {
+				exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, falling back to default import")
+				port = bind.PortNumber
+			} else if len(exports) > 0 {
+				exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, using export port")
 				port = exports[0].PortNumber
 			} else {
-				exLogger.Debug("Cannot update proxy to an empty list")
+				exLogger.WithError(err).Debug("Cannot update proxy to an empty list")
 				return
 			}
 		}
