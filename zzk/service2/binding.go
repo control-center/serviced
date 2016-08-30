@@ -65,21 +65,21 @@ func (i ImportBinding) GetPortNumber(instanceID int) (uint16, error) {
 				Field:       i.PortTemplate,
 				Message:     "port value is not an integer",
 			}
-		} else if portNumber <= 0 {
+		} else if portNumber < 0 {
 			return 0, &TemplateError{
 				Application: i.Application,
 				Field:       i.PortTemplate,
-				Message:     "port value must be greater than zero",
+				Message:     "port value must be gte zero",
 			}
 		}
 		return uint16(portNumber), nil
 	}
 
-	if i.PortNumber == 0 {
+	if i.PortNumber < 0 {
 		return 0, &TemplateError{
 			Application: i.Application,
 			Field:       fmt.Sprintf("%d", i.PortNumber),
-			Message:     "port value must be greater than zero",
+			Message:     "port value must be gte zero",
 		}
 	}
 
