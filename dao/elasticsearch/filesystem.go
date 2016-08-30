@@ -85,10 +85,9 @@ var inprogress = &InProgress{locker: &sync.RWMutex{}}
 
 // Backup takes a backup of the full application stack and returns the filename
 // that it is written to.
-func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *string) (err error) {
+func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error) {
 	ctx := datastore.Get()
 
-        dirpath := backupRequest.Dirpath
 	// synchronize the dfs
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock()
@@ -122,13 +121,13 @@ func (dao *ControlPlaneDao) Backup(backupRequest model.BackupRequest, filename *
 	// Smaller blocks will allow other goroutines to get time more frequently.
 	w.SetConcurrency(100000, 2)
 	defer w.Close()
-	err = dao.facade.Backup(ctx, w, backupRequest.Excludes)
+	err = dao.facade.Backup(ctx, w)
 	return
 }
 
 // AsyncBackup is the same as backup, but asynchronous
-func (dao *ControlPlaneDao) AsyncBackup(backupRequest model.BackupRequest, filename *string) (err error) {
-	go dao.Backup(backupRequest, filename)
+func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err error) {
+	go dao.Backup(dirpath, filename)
 	return
 }
 

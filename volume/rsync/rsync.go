@@ -646,10 +646,7 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 }
 
 // Export implements volume.Volume.Export
-func (v *RsyncVolume) Export(label, parent string, writer io.Writer, excludes []string) error {
-	if len(excludes) > 0 {
-		glog.Warning("rsync backups do not support excluding directories")
-	}
+func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 	v.Lock()
 	defer v.Unlock()
 	if label = strings.TrimSpace(label); label == "" {

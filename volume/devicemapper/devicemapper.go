@@ -1159,7 +1159,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 }
 
 // Export implements volume.Volume.Export
-func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer, excludes []string) error {
+func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) error {
 	glog.V(2).Infof("Export() (%s) START", v.name)
 	defer glog.V(2).Infof("Export() (%s) END", v.name)
 	if !v.snapshotExists(label) {
@@ -1231,10 +1231,10 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer, excl
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 
-	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut, []string{}); err != nil {
+	if err := exportDirectoryAsTar(mdpath, fmt.Sprintf("%s-metadata", label), tarOut); err != nil {
 		return err
 	}
-	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut, excludes); err != nil {
+	if err := exportDirectoryAsTar(mountpoint, fmt.Sprintf("%s-volume", label), tarOut); err != nil {
 		return err
 	}
 
@@ -1634,13 +1634,8 @@ func resize2fs(dmDevice string) error {
 	return nil
 }
 
-func exportDirectoryAsTar(path, prefix string, out *tar.Writer, excludes []string) error {
-	cmdString := []string{"-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix)}
-	for _, excludeDir := range excludes {
-		cmdString = append(cmdString, []string{"--exclude", excludeDir, "--exclude", fmt.Sprintf(".%s.serviced.initialized", excludeDir)}...)
-	}
-	cmdString = append(cmdString, ".")
-	cmd := exec.Command("tar", cmdString...)
+func exportDirectoryAsTar(path, prefix string, out *tar.Writer) error {
+	cmd := exec.Command("tar", "-C", path, "-cf", "-", "--transform", fmt.Sprintf("s,^,%s/,", prefix), ".")
 	defer cmd.Wait()
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
