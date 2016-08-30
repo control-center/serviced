@@ -50,12 +50,6 @@ When(/^I click the add Application Template button$/) do
     CC.UI.ApplicationsPage.addAppTemplate_button.click()
 end
 
-When(/^I click the Services Map button$/) do
-    CC.UI.ApplicationsPage.servicesMap_button.click()
-    # wait for the loading animation to clear
-    CC.UI.ApplicationsPage.has_no_content?("One moment please")
-end
-
 When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
     fillInDeploymentID(deploymentID)
 end
@@ -94,12 +88,6 @@ Then (/^the "Status" column should be sorted with active applications on (top|th
         else
             expect(list[i][:class]).to be >= list[i + 1][:class]    # assuming + before - before !
         end
-    end
-end
-
-Then (/^I should see "(.*?)" in the Services Map$/) do |node|
-    within(CC.UI.ServicesMapPage.map) do
-        assert_text(getTableValue(node))
     end
 end
 
