@@ -334,13 +334,9 @@ func (sc *ServiceConfig) createPublicPortServer(node service.ServicePublicEndpoi
 }
 
 func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
-	rootConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("syncAllPublicPorts - Error getting root zk connection: %v", err)
-		return err
-	}
-
 	cancelChan := make(chan interface{})
+	defer close(cancelChan)
+
 	zkServicePEPService := service.ZKServicePublicEndpoints
 
 	syncPorts := func(conn client.Connection, parentPath string, childIDs ...string) {
@@ -357,7 +353,7 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 			glog.V(1).Infof("zkServicePEPService: %s, pepID: %s", zkServicePEPService, pepID)
 			nodePath := fmt.Sprintf("%s/%s", zkServicePEPService, pepID)
 			var node service.ServicePublicEndpointNode
-			err := rootConn.Get(nodePath, &node)
+			err := conn.Get(nodePath, &node)
 			if err != nil {
 				glog.Errorf("Unable to get the ZK Node from PepID")
 				continue
@@ -394,18 +390,29 @@ func (sc *ServiceConfig) syncAllPublicPorts(shutdown <-chan interface{}) error {
 	}
 
 	for {
+		// Keep trying to get a connection to zk unless we shut down.
+		var rootConn client.Connection
+		select {
+		case rootConn = <-zzk.Connect("/", zzk.GetLocalConnection):
+		case <-shutdown:
+			return nil
+		}
+		
+		select {
+		case <-shutdown:
+			return nil
+		default:
+		}
+
+		if rootConn == nil {
+			continue
+		}
+		
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServicePEPService)
 		err := registry.WatchChildren(rootConn, zkServicePEPService, cancelChan, syncPorts, pepWatchError)
 		if err != nil {
 			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServicePEPService, err)
 			<-time.After(time.Second * 10)
-			continue
-		}
-		select {
-		case <-shutdown:
-			close(cancelChan)
-			return nil
-		default:
 		}
 	}
 }
