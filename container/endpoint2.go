@@ -366,15 +366,21 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			//  - If that is not set, then increment the default port number by
 			//    the instance id.
 			//  - Otherwise, just use the port number described by the export.
-			port, err := bind.GetPortNumber(export.InstanceID)
-			if port == 0 {
-				if bind.PortNumber > 0 {
-					exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, falling back to default import")
-					port = bind.PortNumber + uint16(export.InstanceID)
-				} else {
-					exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, using export port")
-					port = export.PortNumber
+			var port uint16
+			if bind.PortTemplate != "" {
+				var err error
+				port, err = bind.GetPortNumber(export.InstanceID)
+				if err != nil {
+					exLogger.WithError(err).Error("Could not calculate inbound port number; not importing endpoint")
+					return
 				}
+				exLogger.Debug("Setting the port to the value defined on the template")
+			} else if bind.PortNumber > 0 {
+				exLogger.Debug("Port template not defined, setting port number to base + instance id")
+				port = bind.PortNumber + uint16(export.InstanceID)
+			} else {
+				exLogger.Debug("Port number not set, using the export's port number")
+				port = export.PortNumber
 			}
 
 			exLogger = exLogger.WithField("portnumber", port)
@@ -383,9 +389,9 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			// (see ce.state.Exports)
 			if _, ok := ce.ports[port]; ok {
 				if collisionCount > 1 {
-					exLogger.Error("Port is already being exported by the service instance")
+					exLogger.Error("Port is already being exposed by the service instance")
 				} else {
-					exLogger.Debug("Port is already being exported by the service instance")
+					exLogger.Debug("Port is already being exposed by the service instance")
 				}
 				collisionCount++
 				continue
@@ -443,7 +449,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 
 		// check if the port is used by an export
 		if _, ok := ce.ports[port]; ok {
-			exLogger.Error("Port is already being exported by the service instance")
+			exLogger.Error("Port is already being exposed by the service instance")
 			return
 		}
 
