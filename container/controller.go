@@ -622,7 +622,16 @@ func (c *Controller) Run() (err error) {
 	var exitAfter <-chan time.Time
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
-	go c.endpoints.Run(rpcDead)
+	endpointExit := make(chan struct{})
+	c.endpoints.Run(endpointExit)
+
+	// HACK: I guess this is how it used to work?  This code is horrible.
+	go func() {
+		errc := <-c.closing
+		close(endpointExit)
+		errc <- nil
+	}()
+
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err

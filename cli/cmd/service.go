@@ -687,7 +687,7 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 // service string, being either a deploymentPath/servicepath/instanceid or
 // serviceid/instanceid
 func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) {
-	servicepath, name := path.Split(strings.ToLower(keyword))
+	servicepath, name := path.Split(keyword)
 	instanceID := -1
 
 	// if the servicepath is empty, then there is no instance id set for this
@@ -734,11 +734,6 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		svc := svcmap[serviceID]
 		serviceName := strings.ToLower(svc.Name)
 		deploymentID := strings.ToLower(svc.DeploymentID)
-
-		// check against the deployment id
-		if strings.HasSuffix(deploymentID, servicePath) {
-			return true
-		}
 
 		// split the service path and the name
 		pth, name := path.Split(servicePath)
@@ -792,6 +787,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		t.AddRow(map[string]interface{}{
 			"Name":       row.Name,
 			"ServiceID":  row.ID,
+			"PoolID":     row.PoolID,
 			"DepID/Path": svcpath(row.ID),
 		})
 	}

@@ -185,27 +185,16 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 
 // Run manages the container endpoints
 func (ce *ContainerEndpoints) Run(cancel <-chan struct{}) {
-	wg := &sync.WaitGroup{}
 
 	// register all of the exports
 	for _, bind := range ce.state.Exports {
 		ce.ports[bind.PortNumber] = struct{}{}
-		wg.Add(1)
-		go func(bind zkservice.ExportBinding) {
-			ce.AddExport(cancel, bind)
-			wg.Done()
-		}(bind)
+		go ce.AddExport(cancel, bind)
 	}
 
 	// track all of the imports
 	// TODO: set up another tracker for cc exports
-	wg.Add(1)
-	go func() {
-		ce.RunImportListener(cancel, ce.opts.TenantID, ce.state.Imports...)
-		wg.Done()
-	}()
-
-	wg.Wait()
+	go ce.RunImportListener(cancel, ce.opts.TenantID, ce.state.Imports...)
 }
 
 // AddExport ensures that an export is registered for other services to bind
@@ -233,7 +222,6 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 			if conn != nil {
 
 				logger.Debug("Received coordinator connection")
-
 				registry.RegisterExport(cancel, conn, ce.opts.TenantID, exp)
 				select {
 				case <-cancel:
@@ -253,9 +241,6 @@ func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, tenantID
 	plog.Debug("Running import listener")
 	defer plog.Debug("Exited import listener")
 
-	wg := &sync.WaitGroup{}
-	defer wg.Wait()
-
 	// set up the import listener and add the import bindings
 	listener := registry.NewImportListener(tenantID)
 	for _, bind := range binds {
@@ -265,19 +250,12 @@ func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, tenantID
 			continue
 		}
 		ch := listener.AddTerm(rgx)
-		wg.Add(1)
 		go func(bind zkservice.ImportBinding) {
 			for {
 				select {
 				case app := <-ch:
-					wg.Add(1)
-					go func() {
-						// add an import listener to each matching application
-						ce.AddImport(cancel, app, bind)
-						wg.Done()
-					}()
+					go ce.AddImport(cancel, app, bind)
 				case <-cancel:
-					wg.Done()
 					return
 				}
 			}
@@ -347,6 +325,7 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 		"purpose":     bind.Purpose,
 	})
 	logger.Debug("Updating exports for endpoint")
+	defer logger.Debug("Done updating exports for endpoint")
 
 	if bind.Purpose == "import_all" {
 
