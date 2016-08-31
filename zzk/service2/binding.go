@@ -75,14 +75,6 @@ func (i ImportBinding) GetPortNumber(instanceID int) (uint16, error) {
 		return uint16(portNumber), nil
 	}
 
-	if i.PortNumber < 0 {
-		return 0, &TemplateError{
-			Application: i.Application,
-			Field:       fmt.Sprintf("%d", i.PortNumber),
-			Message:     "port value must be gte zero",
-		}
-	}
-
 	return i.PortNumber, nil
 }
 
@@ -102,16 +94,10 @@ func (i ImportBinding) GetVirtualAddress(instanceID int) (string, error) {
 	return buffer.String(), nil
 }
 
-// Assignment describes the ip assignment for the export
-type Assignment struct {
-	IPAddress  string
-	PortNumber uint16
-}
-
 // ExportBinding describes an export endpoint
 type ExportBinding struct {
-	Application string
-	Protocol    string
-	PortNumber  uint16
-	Assignment  *Assignment
+	Application        string
+	Protocol           string
+	PortNumber         uint16
+	AssignedPortNumber uint16
 }
