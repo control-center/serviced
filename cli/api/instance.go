@@ -113,12 +113,16 @@ func (a *api) LogsForServiceInstance(serviceID string, instanceID int, command s
 			"serviced", "--endpoint", GetOptionsRPCEndpoint(),
 			"service", "logs", fmt.Sprintf("%s/%d", serviceID, instanceID),
 		}
-		cmd = append(cmd, command)
-		cmd = append(cmd, args...)
+		if command != "" {
+			cmd = append(cmd, command)
+			cmd = append(cmd, args...)
+		}
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	} else {
-		cmd = append(cmd, command)
-		cmd = append(cmd, args...)
+		if command != "" {
+			cmd = append(cmd, command)
+			cmd = append(cmd, args...)
+		}
 		return dockerclient.Logs(location.ContainerID, cmd)
 	}
 }

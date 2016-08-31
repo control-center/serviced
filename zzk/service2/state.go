@@ -51,6 +51,7 @@ type ServiceState struct {
 	Paused      bool
 	PrivateIP   string
 	HostIP      string
+	AssignedIP  string
 	Imports     []ImportBinding
 	Exports     []ExportBinding
 	Started     time.Time
