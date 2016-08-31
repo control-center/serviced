@@ -30,7 +30,7 @@
         let logSearchLink = LogSearch.getDefaultURL();
 
         $scope.navlinks = [
-            { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
+            { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/'] },
             { url: '#/pools', label: 'nav_pools', sublinks: [ '#/pools/' ] },
             { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/', '#/hostsmap' ] },
             { url: '#/status', label: 'nav_status', sublinks: [ '#/status/' ] },

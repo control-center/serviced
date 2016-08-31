@@ -130,11 +130,11 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		// connect to the coordinator
 		conn, err := zzk.GetLocalConnection("/")
 		if err != nil {
-			logger.WithError(err).Debug("Cannot connect to the coordinator")
+			logger.WithError(err).Debug("Cannot connect to the coordination server")
 			return false, err
 		}
 
-		logger.Debug("Connected to the coordinator")
+		logger.Debug("Connected to the coordination server")
 
 		// get the state
 		req := zkservice.StateRequest{
@@ -198,41 +198,10 @@ func (ce *ContainerEndpoints) Run(cancel <-chan struct{}) {
 	}
 
 	// track all of the imports
-	listener := registry.NewImportListener(ce.opts.TenantID)
-	for _, bind := range ce.state.Imports {
-
-		// compile the term as a regex
-		rgx, err := regexp.Compile(bind.Application)
-		if err != nil {
-			plog.WithField("searchterm", bind.Application).WithError(err).Warn("Could not compile term, skipping import")
-			continue
-		}
-
-		ch := listener.AddTerm(rgx)
-		wg.Add(1)
-		go func(bind zkservice.ImportBinding) {
-
-			// set up a listener for each matching application
-			for {
-				select {
-				case app := <-ch:
-					wg.Add(1)
-					go func() {
-						ce.AddImport(cancel, app, bind)
-						wg.Done()
-					}()
-				case <-cancel:
-					wg.Done()
-					return
-				}
-			}
-		}(bind)
-	}
-
-	// start the import listener
+	// TODO: set up another tracker for cc exports
 	wg.Add(1)
 	go func() {
-		ce.RunImportListener(cancel, listener)
+		ce.RunImportListener(cancel, ce.opts.TenantID, ce.state.Imports...)
 		wg.Done()
 	}()
 
@@ -256,7 +225,6 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 	}
 
 	logger.Debug("Registering export")
-
 	defer logger.Debug("Unregistered export")
 
 	for {
@@ -279,11 +247,44 @@ func (ce *ContainerEndpoints) AddExport(cancel <-chan struct{}, bind zkservice.E
 	}
 }
 
-// RunImportListener starts and persists the import listener
-func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, listener *registry.ImportListener) {
+// RunImportListener keeps track of the state of all matching imports
+// TODO: isvcs imports should be stored under tenantID /net/export/cc
+func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, tenantID string, binds ...zkservice.ImportBinding) {
 	plog.Debug("Running import listener")
 	defer plog.Debug("Exited import listener")
 
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+
+	// set up the import listener and add the import bindings
+	listener := registry.NewImportListener(tenantID)
+	for _, bind := range binds {
+		rgx, err := regexp.Compile(fmt.Sprintf("^%s$", bind.Application))
+		if err != nil {
+			plog.WithField("regex", bind.Application).WithError(err).Warn("Could not compile regex; skipping")
+			continue
+		}
+		ch := listener.AddTerm(rgx)
+		wg.Add(1)
+		go func(bind zkservice.ImportBinding) {
+			for {
+				select {
+				case app := <-ch:
+					wg.Add(1)
+					go func() {
+						// add an import listener to each matching application
+						ce.AddImport(cancel, app, bind)
+						wg.Done()
+					}()
+				case <-cancel:
+					wg.Done()
+					return
+				}
+			}
+		}(bind)
+	}
+
+	// start the import listener
 	for {
 		select {
 		case conn := <-zzk.Connect("/", zzk.GetLocalConnection):
@@ -307,12 +308,13 @@ func (ce *ContainerEndpoints) RunImportListener(cancel <-chan struct{}, listener
 // AddImport tracks exports for a given import binding
 func (ce *ContainerEndpoints) AddImport(cancel <-chan struct{}, application string, bind zkservice.ImportBinding) {
 	logger := plog.WithFields(log.Fields{
-		"applciation":     application,
+		"application":     application,
 		"applicationglob": bind.Application,
 		"purpose":         bind.Purpose,
 	})
 	logger.Debug("Tracking exports for endpoint")
 	defer logger.Debug("Exited export tracking for endpoint")
+	bind.Application = application
 
 	for {
 		select {
@@ -349,6 +351,8 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 	if bind.Purpose == "import_all" {
 
 		// keep track of the number of port collisions
+		// 1 means it is probably importing itself (within a cluster)
+		// >1 means there is a port collision
 		collisionCount := 0
 
 		// set up a proxy for each endpoint
@@ -358,33 +362,42 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 			exLogger := logger.WithField("instanceid", export.InstanceID)
 
 			// calculate the inbound port number
+			// Parse the port template with the provided instance id.
+			//  - If that is not set, then increment the default port number by
+			//    the instance id.
+			//  - Otherwise, just use the port number described by the export.
 			var port uint16
-			var err error
-
 			if bind.PortTemplate != "" {
+				var err error
 				port, err = bind.GetPortNumber(export.InstanceID)
 				if err != nil {
-					exLogger.WithError(err).Error("Could not get port for instance")
+					exLogger.WithError(err).Error("Could not calculate inbound port number; not importing endpoint")
 					return
 				}
-			} else {
+				exLogger.Debug("Setting the port to the value defined on the template")
+			} else if bind.PortNumber > 0 {
+				exLogger.Debug("Port template not defined, setting port number to base + instance id")
 				port = bind.PortNumber + uint16(export.InstanceID)
+			} else {
+				exLogger.Debug("Port number not set, using the export's port number")
+				port = export.PortNumber
 			}
 
 			exLogger = exLogger.WithField("portnumber", port)
 
-			// check if the port is in use by an export
+			// check if the port is in use by a previously registered export.
+			// (see ce.state.Exports)
 			if _, ok := ce.ports[port]; ok {
 				if collisionCount > 1 {
-					exLogger.Error("Port is in use")
+					exLogger.Error("Port is already being exposed by the service instance")
 				} else {
-					exLogger.Debug("Port is in use")
+					exLogger.Debug("Port is already being exposed by the service instance")
 				}
 				collisionCount++
 				continue
 			}
 
-			// update the proxy
+			// update the proxy; returns a boolean if a new proxy was created.
 			isNew, err := ce.cache.Set(bind.Application, port, export)
 			if err != nil {
 				exLogger.WithError(err).Error("Could not update proxy")
@@ -413,24 +426,30 @@ func (ce *ContainerEndpoints) UpdateRemoteExports(bind zkservice.ImportBinding, 
 				}
 			}
 		}
-	} else if len(exports) > 0 {
+	} else {
 		exLogger := logger
 
-		// calculate the inbound port number
+		// calculate the inbound port number, this is based on the port
+		// template being set.
 		port, err := bind.GetPortNumber(0)
-		if err != nil {
-			exLogger.WithError(err).Error("Could not get port for application")
-			return
-		}
 		if port == 0 {
-			port = exports[0].PortNumber
+			if bind.PortNumber > 0 {
+				exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, falling back to default import")
+				port = bind.PortNumber
+			} else if len(exports) > 0 {
+				exLogger.WithError(err).Debug("Could not calculate import port to map export endpoint, using export port")
+				port = exports[0].PortNumber
+			} else {
+				exLogger.WithError(err).Debug("Cannot update proxy to an empty list")
+				return
+			}
 		}
 
 		exLogger = exLogger.WithField("portnumber", port)
 
 		// check if the port is used by an export
 		if _, ok := ce.ports[port]; ok {
-			exLogger.Error("Port is in use")
+			exLogger.Error("Port is already being exposed by the service instance")
 			return
 		}
 
