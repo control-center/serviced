@@ -181,22 +181,21 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 		Started:     dctr.State.StartedAt,
 	}
 
+	var assignedIP string
 	for _, ep := range svc.Endpoints {
 		if ep.Purpose == "export" {
-			var assignment *zkservice.Assignment
+			var assignedPortNumber uint16
 			if a := ep.GetAssignment(); a != nil {
-				assignment = &zkservice.Assignment{
-					IPAddress:  ep.AddressAssignment.IPAddr,
-					PortNumber: a.Port,
-				}
+				assignedIP = ep.AddressAssignment.IPAddr
+				assignedPortNumber = a.Port
 			}
 
 			// set the export data
 			state.Exports = append(state.Exports, zkservice.ExportBinding{
-				Application: ep.Application,
-				Protocol:    ep.Protocol,
-				PortNumber:  ep.PortNumber,
-				Assignment:  assignment,
+				Application:        ep.Application,
+				Protocol:           ep.Protocol,
+				PortNumber:         ep.PortNumber,
+				AssignedPortNumber: assignedPortNumber,
 			})
 		} else {
 			state.Imports = append(state.Imports, zkservice.ImportBinding{
@@ -208,6 +207,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 			})
 		}
 	}
+	state.AssignedIP = assignedIP
 
 	go a.exposeAssignedIPs(state, ctr)
 	return state, ev, nil
@@ -376,26 +376,23 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 		"containername": ctr.Name,
 	})
 
-	hasAssignment := false
+	if ip := state.AssignedIP; ip != "" {
+		for _, exp := range state.Exports {
+			if port := exp.AssignedPortNumber; port > 0 {
+				explog := logger.WithFields(log.Fields{
+					"application": exp.Application,
+					"ipaddress":   ip,
+					"portnumber":  port,
+				})
+				explog.Debug("Starting proxy for endpoint")
+				public := iptables.NewAddress(ip, int(port))
+				private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
 
-	for _, exp := range state.Exports {
-		if as := exp.Assignment; as != nil {
-			explog := logger.WithFields(log.Fields{
-				"application": exp.Application,
-				"ipaddress":   as.IPAddress,
-				"portnumber":  as.PortNumber,
-			})
-			explog.Debug("Starting proxy for endpoint")
-			public := iptables.NewAddress(as.IPAddress, int(as.PortNumber))
-			private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
-
-			a.servicedChain.Forward(iptables.Add, exp.Protocol, public, private)
-			defer a.servicedChain.Forward(iptables.Delete, exp.Protocol, public, private)
-			hasAssignment = true
+				a.servicedChain.Forward(iptables.Add, exp.Protocol, public, private)
+				defer a.servicedChain.Forward(iptables.Delete, exp.Protocol, public, private)
+			}
 		}
-	}
 
-	if hasAssignment {
 		ctr.Wait(time.Hour * 24 * 365)
 	}
 }
