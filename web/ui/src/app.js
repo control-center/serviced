@@ -48,9 +48,6 @@ controlplane.
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
                 controller: "HostsController"}).
-            when('/hostsmap', {
-                templateUrl: '/static/partials/view-host-map.html',
-                controller: "HostsMapController"}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
                 controller: "HostDetailsController"}).

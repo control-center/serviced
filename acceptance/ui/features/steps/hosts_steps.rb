@@ -43,10 +43,6 @@ When (/^I click the add Host button$/) do
     clickAddHostButton()
 end
 
-When (/^I click the Hosts Map button$/) do
-    CC.UI.HostsPage.hostsMap_button.click()
-end
-
 When (/^I add the "(.*?)" host$/) do |host|
     CC.CLI.host.add_host_json(host)
 end
