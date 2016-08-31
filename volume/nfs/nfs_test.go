@@ -111,7 +111,7 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 
 	c.Assert(vol.RemoveSnapshot(""), Equals, ErrNotSupported)
 	c.Assert(vol.Rollback(""), Equals, ErrNotSupported)
-	c.Assert(vol.Export("", "", nil, []string{}), Equals, ErrNotSupported)
+	c.Assert(vol.Export("", "", nil), Equals, ErrNotSupported)
 	c.Assert(vol.Import("", nil), Equals, ErrNotSupported)
 
 	c.Assert(driver.Exists(volname), Equals, true)

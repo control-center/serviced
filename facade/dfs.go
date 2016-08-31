@@ -62,7 +62,7 @@ var registryVersionInfos = map[int]registryVersionInfo{
 }
 
 // Backup takes a backup of all installed applications
-func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string) error {
+func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
 	glog.Infof("Starting backup")
@@ -90,7 +90,6 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string) e
 		return err
 	}
 	snapshots := make([]string, len(tenants))
-        snapshotExcludes := map[string][]string{}
 	for i, tenant := range tenants {
 		tag := fmt.Sprintf("backup-%s-%s", tenant, stime)
 		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag})
@@ -100,19 +99,17 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string) e
 		}
 		defer f.DeleteSnapshot(ctx, snapshot)
 		snapshots[i] = snapshot
-                snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
 		glog.Infof("Created a snapshot for tenant %s at %s", tenant, snapshot)
 	}
 	glog.Infof("Loaded tenants")
 	data := dfs.BackupInfo{
-		Templates:        templates,
-		BaseImages:       images,
-		Pools:            pools,
-		Hosts:            hosts,
-		Snapshots:        snapshots,
-                SnapshotExcludes: snapshotExcludes,
-		Timestamp:        stime,
-		BackupVersion:    1,
+		Templates:     templates,
+		BaseImages:    images,
+		Pools:         pools,
+		Hosts:         hosts,
+		Snapshots:     snapshots,
+		Timestamp:     stime,
+		BackupVersion: 1,
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
 		glog.Errorf("Could not backup: %s", err)

@@ -1888,26 +1888,6 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	return svcs, nil
 }
 
-func (f *Facade) getExcludedVolumes(ctx datastore.Context, serviceID string) []string {
-	var (
-		volmap  = map[string]struct{}{}
-		volumes []string
-	)
-	f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
-		for _, vol := range childService.Volumes {
-			if vol.ExcludeFromBackups {
-				volmap[vol.ResourcePath] = struct{}{}
-			}
-		}
-		return nil
-	})
-	for vol := range volmap {
-		volumes = append(volumes, vol)
-	}
-	return volumes
-
-}
-
 func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
 	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
 }
