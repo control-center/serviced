@@ -32,7 +32,7 @@
         $scope.navlinks = [
             { url: '#/apps', label: 'nav_apps', sublinks: [ '#/services/', '#/servicesmap' ] },
             { url: '#/pools', label: 'nav_pools', sublinks: [ '#/pools/' ] },
-            { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/', '#/hostsmap' ] },
+            { url: '#/hosts', label: 'nav_hosts', sublinks: [ '#/hosts/' ] },
             { url: '#/status', label: 'nav_status', sublinks: [ '#/status/' ] },
             { url: logSearchLink, label: 'nav_logs', sublinks: [] },
             { url: '#/backuprestore', label: 'nav_backuprestore', sublinks: [] }
