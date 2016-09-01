@@ -231,7 +231,6 @@ The following example illustrates how to mark a test case as PENDING:
   Scenario: View empty Hosts page
     When PENDING I am on the hosts page
     Then I should see "Applications"
-      And I should see "Hosts Map"
       And I should see "No Data Found"
       And I should see "0 Results"
 ```
