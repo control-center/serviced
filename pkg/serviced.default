@@ -156,10 +156,6 @@
 # To disable snapshot removal, set the value to 0.
 # SERVICED_SNAPSHOT_TTL=12
 
-# The interval, in seconds, at which low-level storage stats will be pulled and
-# analyzed from the devicemapper kernel driver table.
-# SERVICED_STORAGE_STATS_UPDATE_INTERVAL=300
-
 # Set to 0 in order to prevent this host from attempting to mount the DFS
 # Default: 1
 # SERVICED_NFS_CLIENT=1
