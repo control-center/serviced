@@ -154,7 +154,7 @@ func (lst *LocalSyncTest) TestLocalSync_NonInterference(c *C) {
 		}
 	}
 
-	timer := time.NewTimer(time.Second)
+	timer := time.NewTimer(15 * time.Second)
 	defer timer.Stop()
 	select {
 	case <-done:

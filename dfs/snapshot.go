@@ -26,6 +26,10 @@ const (
 	ImagesMetadataFile   = "./.snapshot/images.json"
 )
 
+var (
+	ErrDFSStatusUnavailable = errors.New("Unable to get storage status for dfs root")
+)
+
 // Snapshot saves the current state of a particular application
 func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo, spaceFactor int) (string, error) {
 	label := generateSnapshotLabel()
@@ -112,7 +116,10 @@ func generateSnapshotLabel() string {
 // checks to see if there is enough free space on volume to perform a snapshot
 func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpacePercent int) (bool, error) {
 	status := volume.GetStatus()
-	statusMap := status.DeviceMapperStatusMap[dfs.disk.Root()]
+	statusMap, found := status.DeviceMapperStatusMap[dfs.disk.Root()]
+	if !found {
+		return false, ErrDFSStatusUnavailable
+	}
 	var amountNeeded float64
 	foundTenant := false
 	for i := 0; i < len(statusMap.Tenants); i++ {

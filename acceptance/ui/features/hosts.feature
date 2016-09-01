@@ -11,7 +11,7 @@ Feature: Host Management
   Scenario: View empty Hosts page
     Given there are no hosts added
     When I am on the hosts page
-    Then I should see "Hosts Map"
+    Then I should see "Hosts"
       And I should see "Name"
       And I should see "Active"
       And I should see "Resource Pool"
@@ -195,13 +195,6 @@ Feature: Host Management
     Then I should see "Removed host"
       And I should see an empty Hosts page
 
-  Scenario: View Hosts Map
-    When I am on the hosts page
-      And I click "Hosts Map"
-    Then I should see "By RAM"
-      And I should see "By CPU"
-      And I should not see "Active"
-
   @clean_hosts
   Scenario: View Host Details
     Given only the default host is added
@@ -231,17 +224,3 @@ Feature: Host Management
       And the details for "CC Release" should be "table://hosts/defaultHost/ccRelease"
       And the details for "IP Address" should be "table://hosts/defaultHost/outboundIP"
       And the details for "RAM Limit" should be "table://hosts/defaultHost/ramGB"
-
-  @clean_hosts
-  Scenario: View Host Map
-    Given only the default host is added
-    When I am on the hosts page
-      And I add the "host2" host
-      And I click the Hosts Map button
-    Then I should see "By RAM"
-      And I should see "By CPU"
-      And I should see "table://hosts/defaultHost/name"
-      And I should see "table://hosts/host2/name"
-    When I click "By CPU"
-    Then I should see "table://hosts/defaultHost/name"
-      And I should see "table://hosts/host2/name"
