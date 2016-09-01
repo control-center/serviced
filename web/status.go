@@ -29,7 +29,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"fmt"
 )
 
 var (
@@ -184,27 +183,6 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 		}
 		statuses = append(statuses, stat)
 	}
-	//fmt.Println("Statues: ", statuses)
-	fmt.Println("Name\t ServiceID\t InstanceID\t DockerID\t HostID")
-	zopes := []*ConciseServiceStatus{}
-	for _, s := range statuses {
-		if strings.Contains(s.Name, "Zope") {
-			zopes = append(zopes, s)
-			if s.InstanceID == 0 {
-				fmt.Printf("%s\t %s\t %s\t %d\t %s\t %s\n", s.Name, s.ParentServiceID, s.ServiceID, s.InstanceID, s.DockerID, s.HostID)
-				if s.HealthChecks != nil {
-					//k := memorykey{ServiceID: s.ServiceID, InstanceID:s.InstanceID}
-					fmt.Println("")
-					for hc_key, hc_val := range s.HealthChecks {
-						fmt.Print(hc_key, hc_val)
-					}
-					fmt.Println("")
-				}
-			}
-		}
-
-	}
-	fmt.Println(zopes)
 	return
 }
 
