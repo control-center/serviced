@@ -17,7 +17,7 @@ var kibana *IService
 
 func initKibana() {
 	var err error
-	command := "exec /opt/kibana/bin/kibana"
+	command := "exec /opt/kibana/bin/kibana-start.sh"
 
 	webserverPortBinding := portBinding{
 		HostIp:         "0.0.0.0",
