@@ -35,7 +35,7 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"github.com/control-center/serviced/domain/service"
 

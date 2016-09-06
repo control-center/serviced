@@ -19,35 +19,37 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/zzk"
-	. "github.com/control-center/serviced/zzk/registry2"
-	"github.com/control-center/serviced/zzk/registry2/mocks"
-	"github.com/control-center/serviced/zzk/service2"
+	. "github.com/control-center/serviced/zzk/registry"
+	"github.com/control-center/serviced/zzk/registry/mocks"
+	"github.com/control-center/serviced/zzk/service"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
 
-func (t *ZZKTest) TestVHostListener(c *C) {
+func (t *ZZKTest) TestPublicPortListener(c *C) {
 	// pre-reqs
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 
-	handler := &mocks.VHostHandler{}
-	listener := NewVHostListener("master", handler)
+	handler := &mocks.PublicPortHandler{}
+	listener := NewPublicPortListener("master", handler)
 	listener.SetConnection(conn)
 
-	// vhost is disabled
-	vhost := &VHost{
+	// port is disabled
+	publicPort := &PublicPort{
 		TenantID:    "tenantid",
 		Application: "app",
 		Enabled:     false,
+		Protocol:    "proto",
+		UseTLS:      true,
 	}
-	err = conn.Create("/net/vhost/master/myhost", vhost)
+	err = conn.Create("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
 	go func() {
-		listener.Spawn(shutdown, "myhost")
+		listener.Spawn(shutdown, "10.187.22.151:2181")
 		close(done)
 	}()
 
@@ -58,12 +60,12 @@ func (t *ZZKTest) TestVHostListener(c *C) {
 	case <-timer.C:
 	}
 
-	// vhost is enabled
-	handler.On("Enable", "myhost").Return().Once()
-	err = conn.Get("/net/vhost/master/myhost", vhost)
+	// port is enabled
+	handler.On("Enable", "10.187.22.151:2181", "proto", true).Return().Once()
+	err = conn.Get("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
-	vhost.Enabled = true
-	err = conn.Set("/net/vhost/master/myhost", vhost)
+	publicPort.Enabled = true
+	err = conn.Set("/net/pub/master/10.187.22.151:2181", publicPort)
 	c.Assert(err, IsNil)
 
 	timer.Reset(time.Second)
@@ -82,10 +84,10 @@ func (t *ZZKTest) TestVHostListener(c *C) {
 		},
 		HostIP:     "10.112.15.87",
 		PrivateIP:  "17.147.12.128",
-		MuxPort:    44181,
+		MuxPort:    22250,
 		InstanceID: 0,
 	}
-	handler.On("Set", "myhost", mock.AnythingOfType("[]registry.ExportDetails")).Return().Run(func(a mock.Arguments) {
+	handler.On("Set", "10.187.22.151:2181", mock.AnythingOfType("[]registry.ExportDetails")).Return().Run(func(a mock.Arguments) {
 		actual := a.Get(1).([]ExportDetails)
 		c.Check(actual, HasLen, 1)
 		c.Check(actual[0].ExportBinding, DeepEquals, export.ExportBinding)
@@ -102,7 +104,7 @@ func (t *ZZKTest) TestVHostListener(c *C) {
 	}
 
 	// shutdown
-	handler.On("Disable", "myhost").Return().Once()
+	handler.On("Disable", "10.187.22.151:2181").Return().Once()
 
 	close(shutdown)
 

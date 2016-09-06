@@ -18,7 +18,7 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 type ZZK interface {

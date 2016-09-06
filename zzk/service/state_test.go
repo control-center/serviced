@@ -21,7 +21,7 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
-	. "github.com/control-center/serviced/zzk/service2"
+	. "github.com/control-center/serviced/zzk/service"
 	. "gopkg.in/check.v1"
 )
 

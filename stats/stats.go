@@ -21,7 +21,7 @@ import (
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 

@@ -1,6 +1,6 @@
 package mocks
 
-import zk "github.com/control-center/serviced/zzk/service2"
+import zk "github.com/control-center/serviced/zzk/service"
 import "github.com/stretchr/testify/mock"
 
 import "time"

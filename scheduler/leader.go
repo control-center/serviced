@@ -28,7 +28,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/virtualips"
 )
 

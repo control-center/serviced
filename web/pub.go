@@ -21,7 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/zzk/registry2"
+	"github.com/control-center/serviced/zzk/registry"
 )
 
 var ErrPortServerRunning = errors.New("port server is already running")

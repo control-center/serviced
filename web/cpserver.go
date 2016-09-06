@@ -30,7 +30,7 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry2"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"

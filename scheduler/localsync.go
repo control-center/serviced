@@ -18,8 +18,8 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
-	zkr "github.com/control-center/serviced/zzk/registry2"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkr "github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )

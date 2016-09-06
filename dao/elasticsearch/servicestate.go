@@ -21,7 +21,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
-	zks "github.com/control-center/serviced/zzk/service2"
+	zks "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
