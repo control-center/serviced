@@ -52,6 +52,7 @@ type ServiceState struct {
 	PrivateIP   string
 	HostIP      string
 	AssignedIP  string
+	Static      bool
 	Imports     []ImportBinding
 	Exports     []ExportBinding
 	Started     time.Time

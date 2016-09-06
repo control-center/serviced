@@ -21,6 +21,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
@@ -182,11 +183,13 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	}
 
 	var assignedIP string
+	var static bool
 	for _, ep := range svc.Endpoints {
 		if ep.Purpose == "export" {
 			var assignedPortNumber uint16
 			if a := ep.GetAssignment(); a != nil {
 				assignedIP = ep.AddressAssignment.IPAddr
+				static = ep.AddressAssignment.AssignmentType == commons.STATIC
 				assignedPortNumber = a.Port
 			}
 
@@ -208,6 +211,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 		}
 	}
 	state.AssignedIP = assignedIP
+	state.Static = static
 
 	go a.exposeAssignedIPs(state, ctr)
 	return state, ev, nil

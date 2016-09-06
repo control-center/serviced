@@ -254,7 +254,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 							// Only reschedule services without address
 							// assignments.
 							count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
-								return s.DesiredState == service.SVCStop || s.AssignedIP == ""
+								return s.DesiredState == service.SVCStop || !s.Static
 							})
 							logger.WithField("unscheduled", count).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes")
 
