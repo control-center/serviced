@@ -14,7 +14,6 @@
 package scheduler
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -37,14 +36,14 @@ type StrategyHost struct {
 }
 
 type StrategyRunningService struct {
-	svc dao.RunningService
+	svc service.StrategyInstance
 }
 
 type StrategyService struct {
 	svc *service.Service
 }
 
-func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.Strategy, facade *facade.Facade) (*host.Host, error) {
+func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.Strategy, facade *facade.Facade) (string, error) {
 
 	glog.V(2).Infof("Applying %s strategy for service %s", strat.Name(), svc.ID)
 
@@ -60,9 +59,9 @@ func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.
 
 	// Look up all running services for the hosts
 	glog.V(2).Infof("Looking up instances for hosts: %+v", hostids)
-	svcs, err := facade.GetRunningServicesForHosts(datastore.Get(), hostids...)
+	svcs, err := facade.GetHostStrategyInstances(datastore.Get(), hostids...)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	// Assign the services to the StrategyHosts
 	for _, s := range svcs {
@@ -76,11 +75,11 @@ func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.
 		shosts = append(shosts, h)
 	}
 	if result, err := strat.SelectHost(&StrategyService{svc}, shosts); result == nil || err != nil {
-		return nil, err
+		return "", err
 	} else {
 		h := result.(*StrategyHost).host
 		glog.V(2).Infof("Deploying service %s to host %s", svc.ID, h.ID)
-		return &h, nil
+		return h.ID, nil
 	}
 }
 
@@ -123,11 +122,11 @@ func (s *StrategyRunningService) GetServiceID() string {
 }
 
 func (s *StrategyRunningService) RequestedCorePercent() int {
-	return int(s.svc.CPUCommitment)
+	return s.svc.CPUCommitment
 }
 
 func (s *StrategyRunningService) RequestedMemoryBytes() uint64 {
-	return s.svc.RAMCommitment.Value
+	return s.svc.RAMCommitment
 }
 
 func (s *StrategyRunningService) HostPolicy() servicedefinition.HostPolicy {

@@ -18,7 +18,6 @@
 package node
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -43,19 +42,17 @@ import (
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/registry"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/control-center/serviced/zzk/virtualips"
 )
 
@@ -194,41 +191,6 @@ func (a *HostAgent) evaluateService(client dao.ControlPlane, svc *service.Servic
 	return svc.Evaluate(getService, getServiceChild, instanceID)
 }
 
-// AttachService attempts to attach to a running container
-func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
-	ctr, err := docker.FindContainer(state.DockerID)
-	if err != nil {
-		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID, state.ID)
-		state.DockerID = "" // CC-1341 - don't try to find this container again.
-		return err
-	}
-
-	if !ctr.IsRunning() {
-		defer exited(state.ID)
-		return errors.New("container found but not running")
-	}
-
-	ctr.OnEvent(docker.Die, func(cid string) {
-		defer exited(state.ID)
-		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
-		state.DockerID = cid
-		a.removeInstance(state.ID, ctr)
-	})
-
-	go a.setProxy(svc, ctr)
-	return nil
-}
-
-// PauseService pauses a running service
-func (a *HostAgent) PauseService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Pause)
-}
-
-// ResumeService resumes a paused service
-func (a *HostAgent) ResumeService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Resume)
-}
-
 func attachAndRun(dockerID, command string) error {
 	if dockerID == "" {
 		return errors.New("missing docker ID")
@@ -242,26 +204,6 @@ func attachAndRun(dockerID, command string) error {
 		glog.Errorf("Could not pause container %s: %s", dockerID, err)
 	}
 	return err
-}
-
-// StopService terminates a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
-	if state == nil || state.DockerID == "" {
-		return nil
-	}
-
-	ctr, err := docker.FindContainer(state.DockerID)
-	if err != nil {
-		return err
-	}
-
-	return ctr.Stop(45 * time.Second)
-}
-
-// Get the state of the docker container given the dockerId
-func getDockerState(dockerID string) (*docker.Container, error) {
-	glog.V(1).Infof("Inspecting container: %s", dockerID)
-	return docker.FindContainer(dockerID)
 }
 
 /*
@@ -316,116 +258,6 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 	return nil
 }
 
-// PullImage pulls the image into the local repository.  Returns the current image UUID string
-func (a *HostAgent) PullImage(cancel <-chan time.Time, imageID string) (string, error) {
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("Could not get zk connection: %s", err)
-		return "", err
-	}
-	a.pullreg.SetConnection(conn)
-	if err = a.pullreg.PullImage(cancel, imageID); err != nil {
-		return "", err
-	}
-	uuid, err := registry.GetImageUUID(conn, imageID)
-	if err != nil {
-		return "", fmt.Errorf("unable to get image UUID: %s", err)
-	}
-	return uuid, nil
-}
-
-// StartService starts a new instance of the specified service and updates the control center state accordingly.
-func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
-	handlerInstalled := false
-	defer func() {
-		if !handlerInstalled {
-			exited(state.ID)
-		}
-	}()
-
-	// start from a known good state
-	if state.DockerID != "" {
-		if ctr, err := docker.FindContainer(state.DockerID); err != nil {
-			glog.Errorf("Could not find container %s for %s", state.DockerID, state.ID)
-		} else if err := ctr.Delete(true); err != nil {
-			glog.Errorf("Could not delete container %s for %s", state.DockerID, state.ID)
-		}
-	}
-
-	// set the correct image name
-	name, err := a.pullreg.ImagePath(svc.ImageID)
-	if err != nil {
-		glog.Errorf("Cannot parse service image %s: %s", svc.ImageID, err)
-		return err
-	}
-	svc.ImageID = name
-
-	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
-	client, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer client.Close()
-
-	// create the docker client Config and HostConfig structures necessary to create and start the service
-	config, hostconfig, err := a.setupContainer(client, svc, state.InstanceID)
-
-	if err != nil {
-		glog.Errorf("can't configure container: %v", err)
-		return err
-	}
-
-	cjson, _ := json.MarshalIndent(config, "", "     ")
-	glog.V(3).Infof(">>> CreateContainerOptions:\n%s", string(cjson))
-
-	hcjson, _ := json.MarshalIndent(hostconfig, "", "     ")
-	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
-
-	cd := dockerclient.CreateContainerOptions{
-		Name:       state.ID,
-		Config:     config,
-		HostConfig: hostconfig,
-	}
-
-	ctr, err := docker.NewContainer(&cd, false, 10*time.Second, nil, nil)
-	if err != nil {
-		glog.Errorf("Error trying to create container %v: %v", config, err)
-		return err
-	}
-
-	startLock := &sync.Mutex{}
-	startLock.Lock()
-	ctr.OnEvent(docker.Start, func(cid string) {
-		glog.Infof("Instance %s (%s) for %s (%s) has started", state.ID, ctr.ID, svc.Name, svc.ID)
-		startLock.Unlock()
-	})
-
-	ctr.OnEvent(docker.Die, func(cid string) {
-		defer exited(state.ID)
-		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
-		state.DockerID = cid
-		a.removeInstance(state.ID, ctr)
-	})
-	handlerInstalled = true
-
-	if err := ctr.Start(); err != nil {
-		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		a.removeInstance(state.ID, ctr)
-		return err
-	}
-
-	startLock.Lock()
-	if err := updateInstance(state, ctr); err != nil {
-		glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		ctr.Stop(45 * time.Second)
-		return err
-	}
-
-	go a.setProxy(svc, ctr)
-	return nil
-}
-
 func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *addressassignment.AddressAssignment, ctr *docker.Container, isDelete bool) error {
 	var appendOrDeleteFlag string
 	if isDelete {
@@ -443,79 +275,6 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 		"-j", "DNAT",
 		"--to-destination", fmt.Sprintf("%s:%d", ctr.NetworkSettings.IPAddress, endpoint.PortNumber),
 	).Run()
-}
-
-func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
-	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
-	for _, endpoint := range svc.Endpoints {
-		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
-			glog.V(4).Infof("Found address assignment for %s: %s endpoint %s", svc.Name, svc.ID, endpoint.Name)
-			frontendAddress := iptables.NewAddress(addressConfig.IPAddr, int(addressConfig.Port))
-			backendAddress := iptables.NewAddress(ctr.NetworkSettings.IPAddress, int(endpoint.PortNumber))
-
-			if err := a.servicedChain.Forward(iptables.Add, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
-				glog.Warningf("Could not start external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
-			}
-
-			//local variables, not loop var, for the defer func
-			protocol := endpoint.Protocol
-			endpointName := endpoint.Name
-			serviceID := svc.ID
-			defer func() {
-				if err := a.servicedChain.Forward(iptables.Delete, protocol, frontendAddress, backendAddress); err != nil {
-					glog.Warningf("Could not remove external address proxy for %s:%s: %s", serviceID, endpointName, err)
-				}
-			}()
-		}
-	}
-	ctr.Wait(time.Hour * 24 * 365)
-}
-
-func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
-	rc, err := ctr.Wait(time.Second)
-	if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
-		// TODO: output of docker logs is potentially very large
-		// this should be implemented another way, perhaps a docker attach
-		// or extend docker to give last N seconds
-		if output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput(); err != nil {
-			glog.Errorf("Could not get logs for container %s", ctr.ID)
-		} else {
-			prefix := fmt.Sprintf("ctr-%s: ", ctr.ID[0:5])
-			split := strings.Split(string(output), "\n")
-			for i, s := range split {
-				split[i] = prefix + s
-			}
-			final := strings.Join(split, "\n")
-			glog.Warningf("Last 10000 lines of container %s:\n %s", ctr.ID, string(final))
-		}
-	}
-	if ctr.IsRunning() {
-		glog.Errorf("Instance %s (%s) is still running, killing container", stateID, ctr.ID)
-		ctr.Kill()
-	}
-	if err := ctr.Delete(true); err != nil {
-		glog.Errorf("Could not remove instance %s (%s): %s", stateID, ctr.ID, err)
-	}
-	glog.Infof("Service state %s (%s) received exit code %d", stateID, ctr.ID, rc)
-
-}
-
-func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) error {
-	if _, err := ctr.Inspect(); err != nil {
-		return err
-	}
-	state.DockerID = ctr.ID
-	state.Started = ctr.Created
-	state.PrivateIP = ctr.NetworkSettings.IPAddress
-	state.PortMapping = make(map[string][]domain.HostIPAndPort)
-	for k, v := range ctr.NetworkSettings.Ports {
-		pm := []domain.HostIPAndPort{}
-		for _, pb := range v {
-			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIP, HostPort: pb.HostPort})
-			state.PortMapping[string(k)] = pm
-		}
-	}
-	return nil
 }
 
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure

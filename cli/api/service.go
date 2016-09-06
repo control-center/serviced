@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 
@@ -58,12 +57,6 @@ type SchedulerConfig struct {
 type IPConfig struct {
 	ServiceID string
 	IPAddress string
-}
-
-// RunningService contains the service for a state
-type RunningService struct {
-	Service *service.Service
-	State   *servicestate.ServiceState
 }
 
 // Type of method that controls the state of a service
@@ -108,17 +101,11 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 		}
 	}
 
-	// get hosts
-	hostmap, err := a.GetHostMap()
-	if err != nil {
-		return nil, err
-	}
-
 	// get status
 	rowmap := make(map[string]map[string]interface{})
 	metricReq := dao.MetricRequest{Instances: make([]metrics.ServiceInstance, 0)}
 	for _, svc := range svcs {
-		var status map[string]dao.ServiceStatus
+		var status []service.Instance
 		if err := client.GetServiceStatus(svc.ID, &status); err != nil {
 			return nil, err
 		}
@@ -137,11 +124,11 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			if svc.Instances > 0 {
 				switch service.DesiredState(svc.DesiredState) {
 				case service.SVCRun:
-					row["Status"] = dao.Scheduled.String()
+					row["Status"] = "Scheduled"
 				case service.SVCPause:
-					row["Status"] = dao.Paused.String()
+					row["Status"] = service.Paused
 				case service.SVCStop:
-					row["Status"] = dao.Stopped.String()
+					row["Status"] = service.Stopped
 				}
 			}
 			rowmap[fmt.Sprintf("%s/%d", svc.ID, 0)] = row
@@ -149,7 +136,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			for _, stat := range status {
 				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{
 					ServiceID:  svc.ID,
-					InstanceID: stat.State.InstanceID,
+					InstanceID: stat.ID,
 				})
 				row := make(map[string]interface{})
 				row["ServiceID"] = svc.ID
@@ -160,7 +147,10 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				}
 
 				//round to uptime to nearest second
-				uptime := stat.State.Uptime()
+				var uptime time.Duration
+				if stat.Started.After(stat.Terminated) {
+					uptime = time.Since(stat.Started)
+				}
 				remainder := uptime % time.Second
 				uptime = uptime - remainder
 				if remainder/time.Millisecond >= 500 {
@@ -168,40 +158,40 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				}
 
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
-				row["Status"] = stat.Status.String()
-				row["Hostname"] = hostmap[stat.State.HostID].Name
-				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
+				row["Status"] = stat.CurrentState
+				row["Hostname"] = stat.HostName
+				row["DockerID"] = fmt.Sprintf("%.12s", stat.ContainerID)
 				row["Uptime"] = uptime.String()
 
-				if stat.State.InSync {
+				if stat.ImageSynced {
 					row["InSync"] = "Y"
 				} else {
 					row["InSync"] = "N"
 				}
 				if svc.Instances > 1 {
-					row["Name"] = fmt.Sprintf("%s/%d", svc.Name, stat.State.InstanceID)
+					row["Name"] = fmt.Sprintf("%s/%d", svc.Name, stat.ID)
 				} else {
 					row["Name"] = svc.Name
 				}
 				row["Cur/Max/Avg"] = fmt.Sprintf("--")
 
-				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)] = row
+				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.ID)] = row
 
-				if stat.Status == dao.Running && len(stat.HealthCheckStatuses) > 0 {
+				if stat.CurrentState == service.Running && len(stat.HealthStatus) > 0 {
 
 					explicitFailure := false
 
-					for hcName, hcResult := range stat.HealthCheckStatuses {
+					for hcName, hcResult := range stat.HealthStatus {
 						newrow := make(map[string]interface{})
-						newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID) //make this match the rowmap key
+						newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.ID) //make this match the rowmap key
 						newrow["Healthcheck"] = hcName
-						newrow["Healthcheck Status"] = hcResult.Status
+						newrow["Healthcheck Status"] = hcResult
 
-						if hcResult.Status == health.Failed {
+						if hcResult == health.Failed {
 							explicitFailure = true
 						}
 
-						rowmap[fmt.Sprintf("%s/%d-%v", svc.ID, stat.State.InstanceID, hcName)] = newrow
+						rowmap[fmt.Sprintf("%s/%d-%v", svc.ID, stat.ID, hcName)] = newrow
 					}
 
 					//go back and add the healthcheck field for the parent row
@@ -246,21 +236,6 @@ func (a *api) GetEndpoints(serviceID string, reportImports, reportExports, valid
 	} else {
 		return endpoints, nil
 	}
-}
-
-// Gets all of the available services
-func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	var states []servicestate.ServiceState
-	if err := client.GetServiceStates(serviceID, &states); err != nil {
-		return nil, err
-	}
-
-	return states, nil
 }
 
 // Gets the service definition identified by its service ID

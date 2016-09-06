@@ -44,7 +44,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 
 	logger.Debug("Loaded service")
 
-	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -325,7 +325,7 @@ func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, in
 		return err
 	}
 
-	if err := f.zzk.StopServiceInstance2(svc.PoolID, svc.ID, instanceID); err != nil {
+	if err := f.zzk.StopServiceInstance(svc.PoolID, svc.ID, instanceID); err != nil {
 		logger.WithError(err).Debug("Could not stop service instance")
 		return err
 	}

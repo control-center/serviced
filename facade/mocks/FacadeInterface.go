@@ -11,7 +11,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
-import "github.com/control-center/serviced/domain/servicestate"
 import "github.com/control-center/serviced/domain/servicetemplate"
 
 type FacadeInterface struct {
@@ -87,27 +86,6 @@ func (_m *FacadeInterface) GetServicesByImage(ctx datastore.Context, imageID str
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
 		r1 = rf(ctx, imageID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-func (_m *FacadeInterface) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
-	ret := _m.Called(ctx, serviceID)
-
-	var r0 []servicestate.ServiceState
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []servicestate.ServiceState); ok {
-		r0 = rf(ctx, serviceID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]servicestate.ServiceState)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
 	} else {
 		r1 = ret.Error(1)
 	}
