@@ -2,13 +2,14 @@ package auth
 
 import (
 	"crypto"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 )
 
 var (
-	pubkey  crypto.PublicKey
-	privkey crypto.PrivateKey
+	pubkey  *rsa.PublicKey
+	privkey *rsa.PrivateKey
 )
 
 func init() {
@@ -57,7 +58,7 @@ gTU6k22ENbaM2VIHhEjJQYftvA63316pfDqF31yq/cpspdaNrntc7xc=
 
 	pubblock, _ := pem.Decode(pub)
 	pubparsed, _ := x509.ParsePKIXPublicKey(pubblock.Bytes)
-	if typed, ok := pubparsed.(crypto.PublicKey); ok {
+	if typed, ok := pubparsed.(*rsa.PublicKey); ok {
 		pubkey = typed
 	}
 }
