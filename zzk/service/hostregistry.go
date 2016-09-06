@@ -20,6 +20,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // HostRegistryListener monitors the availability of hosts within a pool
@@ -250,8 +251,21 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 						// soon as possible.
 						select {
 						case <-h.isOnline:
-							count := DeleteHostStates(h.conn, h.poolid, hostid)
+							// Only reschedule services without address
+							// assignments.
+							count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
+								return s.DesiredState == service.SVCStop || s.AssignedIP == ""
+							})
 							logger.WithField("unscheduled", count).Warn("Host is experiencing an outage.  Cleaned up orphaned nodes")
+
+							// To prevent a tight loop, wait for something to
+							// happen.
+							select {
+							case <-availEv:
+							case <-onlineEv:
+							case <-cancel:
+							}
+
 						case <-availEv:
 						case <-onlineEv:
 						case <-cancel:
