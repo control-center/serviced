@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,16 +13,23 @@
 
 package auth
 
-import (
-	"crypto"
-	"errors"
-)
+import "errors"
 
 var (
+	// ErrIdentityTokenInvalid is a generic invalid token error
+	ErrIdentityTokenInvalid = errors.New("Identity token is invalid")
 	// ErrIdentityTokenExpired is thrown when an identity token is expired
 	ErrIdentityTokenExpired = errors.New("Identity token expired")
+	// ErrIdentityTokenNotValidYet is thrown when an identity token is used before its issue time
+	ErrIdentityTokenNotValidYet = errors.New("Identity token used before issue time")
 	// ErrIdentityTokenBadSig is thrown when an identity token has a bad signature
 	ErrIdentityTokenBadSig = errors.New("Identity token signature cannot be verified")
+	// ErrNoPublicKey is thrown when no public key is available to verify a signature
+	ErrNoPublicKey = errors.New("Cannot retrieve public key to verify signature")
+	// ErrInvalidSigningMethod is thrown when an identity token is not signed with the correct method
+	ErrInvalidSigningMethod = errors.New("Identity token signing method was not RSAPSS")
+	// ErrInvalidIdentityTokenClaims is thrown when an identity token does not have required claims
+	ErrInvalidIdentityTokenClaims = errors.New("Identity token is missing required claims")
 	// ErrNotRSAPublicKey is thrown when a key is not an RSA public key and needs to be
 	ErrNotRSAPublicKey = errors.New("Not an RSA public key")
 	// ErrNotRSAPrivateKey is thrown when a key is not an RSA private key and needs to be
@@ -53,5 +60,5 @@ type Identity interface {
 	PoolID() string
 	HasAdminAccess() bool
 	HasDFSAccess() bool
-	PublicKey() crypto.PublicKey
+	Verifier() (Verifier, error)
 }
