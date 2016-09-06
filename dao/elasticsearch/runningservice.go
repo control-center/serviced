@@ -14,87 +14,71 @@
 package elasticsearch
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/domain/service"
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) (err error) {
-	// we initialize the data container to something here in case it has not been initialized yet
-	*allRunningServices = make([]dao.RunningService, 0)
-	// Make the call to the facade to get the services
-	*allRunningServices, err = this.facade.GetRunningServices(datastore.Get())
-	return
-}
-
-func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
-	var err error
-	// we initialize the data container to something here in case it has not been initialized yet
-	*services = make([]dao.RunningService, 0)
-	// Make the call to elastic and zookeeper
-	*services, err = this.facade.GetRunningServicesForHosts(datastore.Get(), hostID)
+	hosts, err := this.facade.GetHosts(datastore.Get())
 	if err != nil {
 		return err
 	}
+	var rss []dao.RunningService
+	for _, h := range hosts {
+		insts, err := this.facade.GetHostInstances(datastore.Get(), h.ID)
+		if err != nil {
+			return err
+		}
+		for _, inst := range insts {
+			rss = append(rss, convertInstanceToRunningService(inst))
+		}
+	}
+	*allRunningServices = rss
+	return nil
+}
+
+func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
+	insts, err := this.facade.GetHostInstances(datastore.Get(), hostID)
+	if err != nil {
+		return nil
+	}
+
+	rss := make([]dao.RunningService, len(insts))
+	for i, inst := range insts {
+		rss[i] = convertInstanceToRunningService(inst)
+	}
+	*services = rss
 	return nil
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
-	// we initialize the data container to something here in case it has not been initialized yet
-	*services = make([]dao.RunningService, 0)
-
-	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	insts, err := this.facade.GetServiceInstances(datastore.Get(), serviceID)
 	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceID, err)
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
-		return err
+	rss := make([]dao.RunningService, len(insts))
+	for i, inst := range insts {
+		rss[i] = convertInstanceToRunningService(inst)
 	}
-
-	svcs, err := zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
-	if err != nil {
-		glog.Errorf("LoadRunningServicesByService failed (conn: %+v serviceID: %v): %v", poolBasedConn, serviceID, err)
-		return err
-	}
-
-	for _, svc := range svcs {
-		*services = append(*services, svc)
-	}
-
+	*services = rss
 	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
-	glog.V(3).Infof("ControlPlaneDao.GetRunningService: request=%v", request)
-	*running = dao.RunningService{}
-
-	serviceID := request.ServiceID
-	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
-	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceID, err)
-		return err
+// FIXME: this will be deleted
+func convertInstanceToRunningService(inst service.Instance) dao.RunningService {
+	return dao.RunningService{
+		ID:           fmt.Sprintf("%s-%s-%d", inst.HostID, inst.ServiceID, inst.ID),
+		ServiceID:    inst.ServiceID,
+		HostID:       inst.HostID,
+		DockerID:     inst.ContainerID,
+		StartedAt:    inst.Started,
+		InSync:       inst.ImageSynced,
+		Name:         inst.ServiceName,
+		DesiredState: int(inst.DesiredState),
+		InstanceID:   inst.ID,
 	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
-		return err
-	}
-
-	if thisRunning, err := zkservice.LoadRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID); err != nil {
-		glog.Errorf("zkservice.LoadRunningService failed (conn: %+v serviceID: %v): %v", poolBasedConn, request.ServiceID, err)
-		return err
-	} else {
-		if thisRunning != nil {
-			*running = *thisRunning
-		}
-	}
-
-	return nil
 }

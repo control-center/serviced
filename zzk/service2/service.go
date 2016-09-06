@@ -166,7 +166,7 @@ func RemoveService(conn client.Connection, poolID, serviceID string) error {
 	}
 
 	// if the service has any children, do not delete
-	if ch, err := conn.Children(serviceID); err != nil {
+	if ch, err := conn.Children(pth); err != nil {
 
 		logger.WithError(err).Debug("Could not look up children of service")
 		return &ServiceError{

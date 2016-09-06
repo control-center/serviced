@@ -401,16 +401,6 @@ describe('ResourcesService', function() {
         expect(running).not.toBeNull();
     });
 
-    it('Can retrieve all running services', function() {
-        $httpBackend.expect('GET', '/running').respond(fake_running_for_host());
-        var running = null;
-        resourcesService.get_running_services(function(data) {
-            running = data;
-        });
-        $httpBackend.flush();
-        expect(running).not.toBeNull();
-    });
-
     it('Can retrieve and cache service definitions', function() {
         // The first time GET is called, we have nothing cached so the first
         // parameter is ignored.

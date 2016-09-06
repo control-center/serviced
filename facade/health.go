@@ -18,8 +18,8 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/health"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/zenoss/glog"
 )
 
@@ -63,13 +63,13 @@ func (f *Facade) GetServiceHealth(ctx datastore.Context, serviceID string) (map[
 }
 
 func (f *Facade) getServiceHealth(svc service.Service) (map[int]map[string]health.HealthStatus, error) {
-	var states []servicestate.ServiceState
-	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+	if err != nil {
 		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}
-	stateMap := make(map[int]servicestate.ServiceState)
-	for _, state := range stateMap {
+	stateMap := make(map[int]zkservice.State)
+	for _, state := range states {
 		stateMap[state.InstanceID] = state
 	}
 	status := make(map[int]map[string]health.HealthStatus)
@@ -82,9 +82,15 @@ func (f *Facade) getServiceHealth(svc service.Service) (map[int]map[string]healt
 				HealthCheckName: name,
 			}
 			result, ok := f.hcache.Get(key)
+			var uptime time.Duration
+			s := stateMap[i]
+			if s.Started.After(s.Terminated) {
+				uptime = time.Since(s.Started)
+			}
+
 			if ok {
 				stats[name] = result
-			} else if stateMap[i].Uptime() == 0 {
+			} else if uptime == 0 {
 				stats[name] = hc.NotRunning()
 			} else {
 				stats[name] = hc.Unknown()

@@ -22,13 +22,14 @@ import (
 	"github.com/control-center/serviced/datastore"
 	imgreg "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"path"
 )
+
+var plog = logging.PackageLogger()
 
 type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
 
@@ -44,7 +45,6 @@ type scheduler struct {
 	snapshotTTL   int
 	facade        *facade.Facade
 	stopped       chan interface{}
-	registry      *registry.EndpointRegistry
 	storageServer *storage.Server
 	pushreg       *imgreg.RegistryListener
 
@@ -131,12 +131,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	}
 	defer leader.ReleaseLead()
 
-	s.registry, err = registry.CreateEndpointRegistry(conn)
-	if err != nil {
-		glog.Errorf("Error initializing endpoint registry: %s", err)
-		return
-	}
-
 	// did I shut down before I became the leader?
 	select {
 	case <-s.shutdown:
@@ -151,9 +145,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	defer close(_shutdown)
 
 	stopped := make(chan struct{}, 2)
-
-	// monitor the resource pool
-	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
 
 	// ensure all the services are unlocked
 	glog.Infof("Resetting service locks")
@@ -202,11 +193,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		case <-stopped:
 			glog.Warningf("Leader died, re-electing...")
 			return
-		case pool := <-monitor:
-			if pool == nil || pool.Realm != s.realm {
-				glog.Warningf("Realm changed, re-electing...")
-				return
-			}
 		case <-s.shutdown:
 			return
 		}

@@ -14,24 +14,21 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
-	zkregistry "github.com/control-center/serviced/zzk/registry"
-	zkservice2 "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 )
 
 type ZZK interface {
-	UpdateService(svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
-	RemoveService(svc *service.Service) error
+	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	RemoveService(poolID, serviceID string) error
+	RemoveServiceEndpoints(serviceID string) error
+	RemoveTenantExports(tenantID string) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
-	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
-	UpdateServiceState(poolID string, state *servicestate.ServiceState) error
-	StopServiceInstance(poolID, hostID, stateID string) error
-	CheckRunningPublicEndpoint(publicendpoint zkregistry.PublicEndpointKey, serviceID string) error
+	GetPublicPort(portAddress string) (string, string, error)
+	GetVHost(subdomain string) (string, string, error)
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error
@@ -46,11 +43,10 @@ type ZZK interface {
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error
 	UnlockServices(svcs []service.Service) error
-	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error
-	GetServiceStates2(poolID, serviceID string) ([]zkservice2.State, error) // FIXME: update when integration is complete
-	GetHostStates(poolID, hostID string) ([]zkservice2.State, error)
-	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice2.State, error)
-	StopServiceInstance2(poolID, serviceID string, instanceID int) error
+	GetServiceStates(poolID, serviceID string) ([]zkservice.State, error)
+	GetHostStates(poolID, hostID string) ([]zkservice.State, error)
+	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice.State, error)
+	StopServiceInstance(poolID, serviceID string, instanceID int) error
 	StopServiceInstances(poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 }
