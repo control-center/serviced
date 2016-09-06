@@ -644,7 +644,6 @@ func (c *Controller) Run() (err error) {
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") != "true" {
 		c.kickOffHealthChecks(healthExit)
 	}
-	doRegisterEndpoints := true
 
 	exited := false
 
