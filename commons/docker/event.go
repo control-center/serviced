@@ -295,10 +295,10 @@ func (s *Subscription) run() error {
 				if e.Status != "" {
 					s.lock.RLock()
 					h, ok := s.handlers[e.Status]
-					s.lock.RUnlock()
 					if ok {
 						h(e)
 					}
+					s.lock.RUnlock()
 				}
 			case crc := <-s.cancelChannel:
 				crc <- struct{}{}

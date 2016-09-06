@@ -6,7 +6,7 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import zkservice "github.com/control-center/serviced/zzk/service2"
+import zkservice "github.com/control-center/serviced/zzk/service"
 
 type ZZK struct {
 	mock.Mock

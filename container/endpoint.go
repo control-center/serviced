@@ -25,8 +25,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry2"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	"github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 // ContainerEndpointsOptions are options for the container endpoint

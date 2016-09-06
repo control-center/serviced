@@ -27,8 +27,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkd "github.com/control-center/serviced/zzk/docker"
-	zkr "github.com/control-center/serviced/zzk/registry2"
-	zks "github.com/control-center/serviced/zzk/service2"
+	zkr "github.com/control-center/serviced/zzk/registry"
+	zks "github.com/control-center/serviced/zzk/service"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )

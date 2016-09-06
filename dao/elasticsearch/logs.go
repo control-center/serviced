@@ -19,7 +19,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/rpc/agent"
-	zks "github.com/control-center/serviced/zzk/service2"
+	zks "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 

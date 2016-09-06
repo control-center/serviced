@@ -23,7 +23,7 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/zzk/registry2"
+	"github.com/control-center/serviced/zzk/registry"
 )
 
 // initialize the logger

@@ -26,8 +26,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry2"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	"github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/zenoss/glog"
 

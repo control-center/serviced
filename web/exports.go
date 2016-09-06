@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/control-center/serviced/zzk/registry2"
+	"github.com/control-center/serviced/zzk/registry"
 )
 
 func init() {

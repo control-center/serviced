@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/zzk"
-	. "github.com/control-center/serviced/zzk/registry2"
-	"github.com/control-center/serviced/zzk/registry2/mocks"
+	. "github.com/control-center/serviced/zzk/registry"
+	"github.com/control-center/serviced/zzk/registry/mocks"
 	. "gopkg.in/check.v1"
 )
 

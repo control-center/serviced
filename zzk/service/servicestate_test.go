@@ -21,8 +21,8 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
-	. "github.com/control-center/serviced/zzk/service2"
-	"github.com/control-center/serviced/zzk/service2/mocks"
+	. "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service/mocks"
 	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"

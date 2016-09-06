@@ -25,7 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	zks "github.com/control-center/serviced/zzk/service2"
+	zks "github.com/control-center/serviced/zzk/service"
 
 	"errors"
 	"fmt"
