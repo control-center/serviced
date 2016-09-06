@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
@@ -139,18 +138,6 @@ func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningSer
 	return s.rpcClient.Call("ControlCenter.GetRunningServices", request, runningServices, 10*time.Second)
 }
 
-func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
-	return s.rpcClient.Call("ControlCenter.GetServiceState", request, state, 0)
-}
-
-func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
-	return s.rpcClient.Call("ControlCenter.GetRunningService", request, running, 0)
-}
-
-func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetServiceStates", serviceId, states, 0)
-}
-
 func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	return s.rpcClient.Call("ControlCenter.StartService", request, affected, 0)
 }
@@ -167,11 +154,7 @@ func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err
 	return s.rpcClient.Call("ControlCenter.WaitService", request, nil, 0)
 }
 
-func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
-	return s.rpcClient.Call("ControlCenter.UpdateServiceState", state, unused, 0)
-}
-
-func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *[]service.Instance) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetServiceStatus", serviceID, statusmap, 0)
 }
 

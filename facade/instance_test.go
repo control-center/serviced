@@ -54,7 +54,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_StatesError(c *C) {
 	}
 
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(svc, nil)
-	ft.zzk.On("GetServiceStates2", "default", "testservice").Return(nil, ErrTestZK)
+	ft.zzk.On("GetServiceStates", "default", "testservice").Return(nil, ErrTestZK)
 	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
 	c.Assert(err, Equals, ErrTestZK)
 	c.Assert(inst, IsNil)
@@ -87,7 +87,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 			},
 		},
 	}
-	ft.zzk.On("GetServiceStates2", "default", "testservice").Return(states, nil)
+	ft.zzk.On("GetServiceStates", "default", "testservice").Return(states, nil)
 
 	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
 	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
@@ -122,7 +122,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 			},
 		},
 	}
-	ft.zzk.On("GetServiceStates2", "default", "testservice").Return(states, nil)
+	ft.zzk.On("GetServiceStates", "default", "testservice").Return(states, nil)
 
 	hst := &host.Host{
 		ID:     "testhost",
@@ -167,7 +167,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 			},
 		},
 	}
-	ft.zzk.On("GetServiceStates2", "default", "testservice").Return(states, nil)
+	ft.zzk.On("GetServiceStates", "default", "testservice").Return(states, nil)
 
 	hst := &host.Host{
 		ID:     "testhost",

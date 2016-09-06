@@ -19,7 +19,6 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 )
@@ -63,32 +62,6 @@ type RunningService struct {
 	CPUCommitment     uint64
 	HostPolicy        servicedefinition.HostPolicy
 	MonitoringProfile domain.MonitorProfile
-}
-
-type Status struct {
-	Key   int
-	Value string
-}
-
-func (s Status) String() string {
-	return s.Value
-}
-
-var (
-	Scheduled = Status{1, "Scheduled"}
-	Starting  = Status{2, "Starting"}
-	Pausing   = Status{3, "Pausing"}
-	Paused    = Status{4, "Paused"}
-	Resuming  = Status{5, "Resuming"}
-	Running   = Status{6, "Running"}
-	Stopping  = Status{7, "Stopping"}
-	Stopped   = Status{8, "Stopped"}
-)
-
-type ServiceStatus struct {
-	State               servicestate.ServiceState
-	Status              Status
-	HealthCheckStatuses map[string]health.HealthStatus //map of healthcheck name --> healthcheck status
 }
 
 // BackupFile is the structure for backup file data

@@ -21,9 +21,10 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/zenoss/glog"
 )
 
@@ -301,16 +302,25 @@ func (l *VirtualIPListener) unbind(ip string) error {
 
 func (l *VirtualIPListener) stopInstances(ip string) {
 	glog.Infof("Stopping service instances using ip %s on host %s", ip, l.hostID)
-	rss, err := zkservice.LoadRunningServicesByHost(l.conn, l.hostID)
+
+	// Get all the states on the host
+	states, err := zkservice.GetHostStateIDs(l.conn, "", l.hostID)
 	if err != nil {
-		glog.Errorf("Could not load running instances on host %s: %s", l.hostID, err)
+		glog.Errorf("Could not look up host states for host %s: %s", l.hostID, err)
 		return
 	}
-	for _, rs := range rss {
-		if rs.IPAddress == ip {
-			if err := zkservice.StopServiceInstance(l.conn, "", l.hostID, rs.ID); err != nil {
-				glog.Warningf("Could not stop service instance %s on host %s: %s", rs.ID, l.hostID, err)
+
+	// Stop all instances with the assigned ip
+	for _, req := range states {
+		if err := zkservice.UpdateState(l.conn, req, func(s *zkservice.State) bool {
+			if s.AssignedIP == ip && s.DesiredState != service.SVCStop {
+				s.DesiredState = service.SVCStop
+				return true
 			}
+			return false
+		}); err != nil {
+			glog.Warningf("Could not stop service state %s on host %s: %s", req.StateID(), l.hostID, err)
+			continue
 		}
 	}
 }

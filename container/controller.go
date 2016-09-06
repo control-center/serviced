@@ -26,7 +26,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
+	"github.com/control-center/serviced/zzk/registry2"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/zenoss/glog"
 
@@ -40,7 +41,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -100,25 +100,20 @@ type ControllerOptions struct {
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
-	options                 ControllerOptions
-	hostID                  string
-	tenantID                string
-	dockerID                string
-	metricForwarder         *MetricForwarder
-	logforwarder            *subprocess.Instance
-	logforwarderExited      chan error
-	closing                 chan chan error
-	prereqs                 []domain.Prereq
-	zkInfo                  node.ZkInfo
-	zkConn                  coordclient.Connection
-	exportedEndpoints       map[string][]export
-	importedEndpoints       map[string]importedEndpoint
-	importedEndpointsLock   sync.RWMutex
-	PIDFile                 string
-	exportedEndpointZKPaths []string
-	publicEndpointZKPaths   []string
-	exitStatus              int
-	allowDirectConn         bool
+	options            ControllerOptions
+	hostID             string
+	tenantID           string
+	dockerID           string
+	metricForwarder    *MetricForwarder
+	logforwarder       *subprocess.Instance
+	logforwarderExited chan error
+	closing            chan chan error
+	prereqs            []domain.Prereq
+	zkInfo             node.ZkInfo
+	zkConn             coordclient.Connection
+	PIDFile            string
+	exitStatus         int
+	endpoints          *ContainerEndpoints
 }
 
 // Close shuts down the controller
@@ -187,6 +182,26 @@ func getAgentHostID(lbClientPort string) (string, error) {
 
 	glog.V(1).Infof("getAgentHostID: %s", hostID)
 	return hostID, nil
+}
+
+// getAgentZkInfo retrieves the agent's zookeeper dsn
+func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
+	var zkInfo node.ZkInfo
+	client, err := node.NewLBClient(lbClientPort)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
+		return zkInfo, err
+	}
+	defer client.Close()
+
+	err = client.GetZkInfo(&zkInfo)
+	if err != nil {
+		glog.Errorf("Error getting zookeeper dsn/poolID, error: %s", err)
+		return zkInfo, err
+	}
+
+	glog.V(1).Infof("GetZkInfo: %+v", zkInfo)
+	return zkInfo, nil
 }
 
 // chownConfFile sets the owner and permissions for a file
@@ -265,20 +280,12 @@ func setupLogstashFiles(hostID string, service *service.Service, instanceID stri
 // NewController creates a new Controller for the given options
 func NewController(options ControllerOptions) (*Controller, error) {
 	c := &Controller{
-		options:               options,
-		importedEndpoints:     make(map[string]importedEndpoint),
-		importedEndpointsLock: sync.RWMutex{},
+		options: options,
 	}
 	c.closing = make(chan chan error)
 
 	if len(options.ServicedEndpoint) <= 0 {
 		return nil, ErrInvalidEndpoint
-	}
-
-	// set vifs subnet
-	if err := vifs.SetSubnet(options.VirtualAddressSubnet); err != nil {
-		glog.Errorf("Could not set VirtualAddressSubnet:%s %s", options.VirtualAddressSubnet, err)
-		return c, fmt.Errorf("container: invalid VirtualAddressSubnet:%s error:%s", options.VirtualAddressSubnet, err)
 	}
 
 	// get service
@@ -293,9 +300,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
-
-	c.allowDirectConn = !service.HasEndpointsFor("import_all")
-	glog.Infof("Allow container to container connections: %t", c.allowDirectConn)
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -389,8 +393,36 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// Keep a copy of the service prerequisites in the Controller object.
 	c.prereqs = service.Prereqs
 
+	// set up the zookeeper client
+	c.zkInfo, err = getAgentZkInfo(options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Invalid zk info: %v", err)
+		return c, err
+	}
+	glog.Infof(" c.zkInfo: %+v", c.zkInfo)
+
+	// endpoints are created at the root level (not pool aware)
+	rootBasePath := ""
+	zClient, err := coordclient.New("zookeeper", c.zkInfo.ZkDSN, rootBasePath, nil)
+	if err != nil {
+		glog.Errorf("failed create a new coordclient: %v", err)
+		return c, err
+	}
+
+	zzk.InitializeLocalClient(zClient)
+
 	// get endpoints
-	if err := c.getEndpoints(service); err != nil {
+	opts := ContainerEndpointsOptions{
+		HostID:               c.hostID,
+		TenantID:             c.tenantID,
+		InstanceID:           instanceID,
+		IsShell:              os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true",
+		TCPMuxPort:           uint16(options.Mux.Port),
+		UseTLS:               options.Mux.TLS,
+		VirtualAddressSubnet: options.VirtualAddressSubnet,
+	}
+	c.endpoints, err = NewContainerEndpoints(service, opts)
+	if err != nil {
 		return c, err
 	}
 
@@ -590,7 +622,16 @@ func (c *Controller) Run() (err error) {
 	var exitAfter <-chan time.Time
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
-	c.watchRemotePorts()
+	endpointExit := make(chan struct{})
+	c.endpoints.Run(endpointExit)
+
+	// HACK: I guess this is how it used to work?  This code is horrible.
+	go func() {
+		errc := <-c.closing
+		close(endpointExit)
+		errc <- nil
+	}()
+
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err
@@ -600,10 +641,7 @@ func (c *Controller) Run() (err error) {
 	healthExit := make(chan struct{})
 	defer close(healthExit)
 	c.kickOffHealthChecks(healthExit)
-	doRegisterEndpoints := true
 	exited := false
-
-	var reregister <-chan struct{}
 
 	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
 		c.options.Service.Autorestart = false
@@ -614,7 +652,6 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 			rpcDead = nil
 			storageDead = nil
-			reregister = nil
 
 			// exitAfter is the deadman switch for unresponsive processes and any processes that have already exited
 			exitAfter = time.After(time.Second * 30)
@@ -668,13 +705,7 @@ func (c *Controller) Run() (err error) {
 		case <-startAfter:
 			glog.Infof("Starting service process for service %s", c.options.Service.ID)
 			service, serviceExited = startService()
-			if doRegisterEndpoints {
-				reregister = registerExportedEndpoints(c, rpcDead)
-				doRegisterEndpoints = false
-			}
 			startAfter = nil
-		case <-reregister:
-			reregister = registerExportedEndpoints(c, rpcDead)
 		case <-rpcDead:
 			glog.Infof("RPC Server has gone away, cleaning up service %s", c.options.Service.ID)
 			shutdownService(service, syscall.SIGTERM)
@@ -699,30 +730,6 @@ func (c *Controller) Run() (err error) {
 	}
 	client.ReportInstanceDead(req, nil)
 	return nil
-}
-
-func registerExportedEndpoints(c *Controller, closing chan struct{}) <-chan struct{} {
-
-	for {
-		err := c.registerExportedEndpoints()
-		if err == nil {
-			return c.watchregistry()
-		}
-		client, err2 := node.NewLBClient(c.options.ServicedEndpoint)
-		if err2 != nil {
-			glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err2)
-
-		} else {
-			client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: fmt.Sprintf("error registering exported endpoints: %s", err)}, nil)
-			client.Close()
-		}
-		select {
-		case <-time.After(time.Second):
-		case <-closing:
-			return nil
-		}
-		glog.Errorf("could not register exported expoints: %s", err)
-	}
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}) error {
@@ -876,46 +883,37 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
-	// convert keys set by GetServiceEndpoints to tenantID_endpointID
-	tmp := make(map[string][]applicationendpoint.ApplicationEndpoint)
-	for key, endpointList := range endpoints {
-		if len(endpointList) <= 0 {
+	for key, eps := range endpoints {
+		if len(endpoints) == 0 {
 			glog.Warningf("ignoring key: %s with empty endpointList", key)
 			continue
-		}
-
-		tenantEndpointID := registry.TenantEndpointKey(c.tenantID, endpointList[0].Application)
-		glog.Infof("changing key from %s to %s: %+v", key, tenantEndpointID, endpointList[0])
-		tmp[tenantEndpointID] = endpoints[key]
-	}
-	endpoints = tmp
-
-	cc_endpoint_purpose := "import" // Punting on control center dynamic imports for now
-
-	for key, endpointList := range endpoints {
-		// ignore endpoints that are not special controlplane imports
-		ignorePrefix := fmt.Sprintf("%s_controlplane", c.tenantID)
-		if !strings.HasPrefix(key, ignorePrefix) {
+		} else if !strings.HasPrefix(eps[0].Application, "controlplane") {
+			// ignore endpoints that are not special controlplane imports
 			continue
 		}
-
-		// set proxy addresses
-		endpointMap := make(map[int]applicationendpoint.ApplicationEndpoint)
-		for i, ep := range endpointList {
-			endpointMap[i] = ep
+		bind := zkservice.ImportBinding{
+			Application:    eps[0].Application,
+			Purpose:        "import", // Punting on control center dynamic imports for now
+			PortNumber:     eps[0].ProxyPort,
+			VirtualAddress: eps[0].VirtualAddress,
 		}
-		c.setProxyAddresses(key, endpointMap, endpointList[0].VirtualAddress, cc_endpoint_purpose)
-
-		// add/replace entries in importedEndpoints
-		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)
-		setImportedEndpoint(c,
-			endpointList[0].Application, instanceIDStr,
-			endpointList[0].VirtualAddress, cc_endpoint_purpose,
-			endpointList[0].ContainerPort)
-
-		// TODO: agent needs to register controlplane and controlplane_consumer
-		//       but don't do that here in the container code
+		exports := make([]registry.ExportDetails, len(eps))
+		for i, ep := range eps {
+			exports[i] = registry.ExportDetails{
+				ExportBinding: zkservice.ExportBinding{
+					Application: ep.Application,
+					Protocol:    ep.Protocol,
+					PortNumber:  ep.ContainerPort,
+				},
+				PrivateIP:  ep.ContainerIP,
+				HostIP:     ep.HostIP,
+				InstanceID: i,
+			}
+		}
+		c.endpoints.UpdateRemoteExports(bind, exports)
 	}
+	// TODO: agent needs to register controlplane and controlplane_consumer
+	//       but don't do that here in the container code
 
 	return nil
 }

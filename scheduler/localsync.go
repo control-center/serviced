@@ -18,7 +18,8 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	zkr "github.com/control-center/serviced/zzk/registry2"
+	zkservice "github.com/control-center/serviced/zzk/service2"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
@@ -87,9 +88,58 @@ func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
 		} else if err = zkservice.SyncServices(conn, svcs); err != nil {
 			glog.Errorf("Could not do a local sync of services: %s", err)
 			return time.After(minWait)
-		} else if err := zkservice.UpdateServicesPublicEndpoints(rootConn, svcs); err != nil {
-			glog.Errorf("Could not sync service public endpoints: %s", err)
-			return time.After(minWait)
+		} else {
+			for _, svc := range svcs {
+				tenantID, err := s.facade.GetTenantID(datastore.Get(), svc.ID)
+				if err != nil {
+					glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
+					return time.After(minWait)
+				}
+
+				// map all the public endpoints on the service
+				pubmap := make(map[zkr.PublicPortKey]zkr.PublicPort)
+				vhmap := make(map[zkr.VHostKey]zkr.VHost)
+
+				for _, ep := range svc.Endpoints {
+					// map the public ports
+					for _, p := range ep.PortList {
+						key := zkr.PublicPortKey{
+							HostID:      "master",
+							PortAddress: p.PortAddr,
+						}
+						pub := zkr.PublicPort{
+							TenantID:    tenantID,
+							Application: ep.Application,
+							ServiceID:   svc.ID,
+							Enabled:     p.Enabled,
+							Protocol:    p.Protocol,
+							UseTLS:      p.UseTLS,
+						}
+						pubmap[key] = pub
+					}
+
+					// map the vhosts
+					for _, v := range ep.VHostList {
+						key := zkr.VHostKey{
+							HostID:    "master",
+							Subdomain: v.Name,
+						}
+						vh := zkr.VHost{
+							TenantID:    tenantID,
+							Application: ep.Application,
+							ServiceID:   svc.ID,
+							Enabled:     v.Enabled,
+						}
+						vhmap[key] = vh
+					}
+				}
+
+				// sync the registry
+				if err := zkr.SyncServiceRegistry(rootConn, svc.ID, pubmap, vhmap); err != nil {
+					glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+					return time.After(minWait)
+				}
+			}
 		}
 
 		// Update Virtual IPs
