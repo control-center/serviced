@@ -334,7 +334,7 @@ func (svc *IService) create() (*docker.Container, error) {
 
 			cd.HostConfig.PortBindings[port] = append(cd.HostConfig.PortBindings[port], portBinding)
 			log.WithFields(logrus.Fields{
-				"bindaddress": fmt.Sprintf("%s:%d", portBinding.HostIP, portBinding.HostPort),
+				"bindaddress": fmt.Sprintf("%s:%s", portBinding.HostIP, portBinding.HostPort),
 			}).Debug("Bound internal service port to host")
 		}
 	}
