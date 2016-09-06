@@ -3,9 +3,9 @@
 # Need to set $HOME so Docker client can find .dockercfg
 # HOME=/root
 
-# Need to set $TMP so backups can have a place to spool snapshots and images
+# Need to set $TMPDIR so backups can have a place to spool snapshots and images
 # for backup
-# TMP=/tmp
+# TMPDIR=/tmp
 
 # Set the number of processors used by serviced
 # GOMAXPROCS=2
