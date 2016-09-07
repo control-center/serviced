@@ -161,8 +161,8 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string)
 						exLogger.WithError(err).Error("Could not track exports for endpoint")
 						return
 					}
-					break
 				}
+				break
 			}
 
 			exports := []ExportDetails{}

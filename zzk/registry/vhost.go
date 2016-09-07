@@ -159,8 +159,8 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
 						}).Error("Could not track exports for endpoint")
 						return
 					}
-					break
 				}
+				break
 			}
 
 			exports := []ExportDetails{}
