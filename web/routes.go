@@ -40,7 +40,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/hosts/:hostId", gz(sc.checkAuth(restUpdateHost))},
 		rest.Route{"GET", "/hosts/:hostId/running", gz(sc.authorizedClient(restGetRunningForHost))},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", gz(sc.authorizedClient(restKillRunning))},
-		rest.Route{"GET", "/hosts/:hostId/instances", gz(sc.checkAuth(restGetHostInstances))},
 
 		// Pools
 		rest.Route{"GET", "/pools/:poolId", gz(sc.checkAuth(restGetPool))},
@@ -74,7 +73,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/startService", gz(sc.authorizedClient(restStartService))},
 		rest.Route{"PUT", "/services/:serviceId/stopService", gz(sc.authorizedClient(restStopService))},
 		rest.Route{"POST", "/services/:serviceId/migrate", sc.authorizedClient(restPostServicesForMigration)},
-		rest.Route{"GET", "/services/:serviceId/instances", gz(sc.checkAuth(restGetServiceInstances))},
 
 		// Services (Virtual Host)
 		rest.Route{"GET", "/services/vhosts", gz(sc.authorizedClient(restGetVirtualHosts))},
@@ -123,6 +121,8 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/pools", gz(sc.checkAuth(getPools))},
 		rest.Route{"GET", "/api/v2/pools/:poolId/hosts", gz(sc.checkAuth(getHostsForPool))},
 		rest.Route{"GET", "/api/v2/hosts", gz(sc.checkAuth(getHosts))},
+		rest.Route{"GET", "/api/v2/hosts/:hostId/instances", gz(sc.checkAuth(restGetHostInstances))},
+		rest.Route{"GET", "/api/v2/services/:serviceId/instances", gz(sc.checkAuth(restGetServiceInstances))},
 	}
 
 	// Hardcoding these target URLs for now.

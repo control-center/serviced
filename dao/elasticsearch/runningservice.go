@@ -15,6 +15,7 @@ package elasticsearch
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -22,13 +23,15 @@ import (
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) (err error) {
+	since := time.Now().Add(-time.Hour)
+
 	hosts, err := this.facade.GetHosts(datastore.Get())
 	if err != nil {
 		return err
 	}
 	var rss []dao.RunningService
 	for _, h := range hosts {
-		insts, err := this.facade.GetHostInstances(datastore.Get(), h.ID)
+		insts, err := this.facade.GetHostInstances(datastore.Get(), since, h.ID)
 		if err != nil {
 			return err
 		}
@@ -41,7 +44,9 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
-	insts, err := this.facade.GetHostInstances(datastore.Get(), hostID)
+	since := time.Now().Add(-time.Hour)
+
+	insts, err := this.facade.GetHostInstances(datastore.Get(), since, hostID)
 	if err != nil {
 		return nil
 	}
@@ -55,7 +60,9 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
-	insts, err := this.facade.GetServiceInstances(datastore.Get(), serviceID)
+	since := time.Now().Add(-time.Hour)
+
+	insts, err := this.facade.GetServiceInstances(datastore.Get(), since, serviceID)
 	if err != nil {
 		return err
 	}
@@ -71,7 +78,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 // FIXME: this will be deleted
 func convertInstanceToRunningService(inst service.Instance) dao.RunningService {
 	return dao.RunningService{
-		ID:           fmt.Sprintf("%s-%s-%d", inst.HostID, inst.ServiceID, inst.ID),
+		ID:           fmt.Sprintf("%s-%s-%d", inst.HostID, inst.ServiceID, inst.InstanceID),
 		ServiceID:    inst.ServiceID,
 		HostID:       inst.HostID,
 		DockerID:     inst.ContainerID,
@@ -79,6 +86,6 @@ func convertInstanceToRunningService(inst service.Instance) dao.RunningService {
 		InSync:       inst.ImageSynced,
 		Name:         inst.ServiceName,
 		DesiredState: int(inst.DesiredState),
-		InstanceID:   inst.ID,
+		InstanceID:   inst.InstanceID,
 	}
 }

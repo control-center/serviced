@@ -13,11 +13,15 @@
 
 package master
 
-import "github.com/control-center/serviced/domain/service"
+import (
+	"time"
+
+	"github.com/control-center/serviced/domain/service"
+)
 
 // GetServiceInstances returns all instances of a service
 func (s *Server) GetServiceInstances(serviceID string, res *[]service.Instance) (err error) {
-	insts, err := s.f.GetServiceInstances(s.context(), serviceID)
+	insts, err := s.f.GetServiceInstances(s.context(), time.Now().Add(-time.Hour), serviceID)
 	if err != nil {
 		return
 	}
