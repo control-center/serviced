@@ -123,6 +123,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/pools", gz(sc.checkAuth(getPools))},
 		rest.Route{"GET", "/api/v2/pools/:poolId/hosts", gz(sc.checkAuth(getHostsForPool))},
 		rest.Route{"GET", "/api/v2/hosts", gz(sc.checkAuth(getHosts))},
+		rest.Route{"GET", "/api/v2/services/:serviceId/services", gz(sc.checkAuth(getChildServiceDetails))},
 	}
 
 	// Hardcoding these target URLs for now.

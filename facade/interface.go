@@ -117,4 +117,6 @@ type FacadeInterface interface {
 	GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error)
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
+
+	GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.Details, error)
 }

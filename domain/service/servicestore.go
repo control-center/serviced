@@ -61,6 +61,9 @@ type Store interface {
 
 	// FindTenantByDeployment returns the tenant service for a given deployment id and service name
 	FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error)
+
+	// GetChildServiceDetails returns the details for the child service of the given parent
+	GetChildServiceDetails(ctx datastore.Context, parentID string) ([]Details, error)
 }
 
 type storeImpl struct {
@@ -90,7 +93,7 @@ func (s *storeImpl) Get(ctx datastore.Context, id string) (*Service, error) {
 
 // Delete removes the a Service if it exists
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
-       return s.ds.Delete(ctx, Key(id))
+	return s.ds.Delete(ctx, Key(id))
 }
 
 // GetServices returns all services
