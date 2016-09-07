@@ -90,7 +90,7 @@ func (s *storeImpl) Get(ctx datastore.Context, id string) (*Service, error) {
 
 // Delete removes the a Service if it exists
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
-       return s.ds.Delete(ctx, Key(id))
+	return s.ds.Delete(ctx, Key(id))
 }
 
 // GetServices returns all services

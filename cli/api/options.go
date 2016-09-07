@@ -85,11 +85,11 @@ type Options struct {
 	LogstashMaxSize            int    // Max size of logstash data
 	LogstashCycleTime          int    // Logstash purging cycle time in hours
 	LogstashURL                string
-	DebugPort                  int    // Port to listen for profile clients
-	AdminGroup                 string // user group that can log in to control center
-	MaxRPCClients              int    // the max number of rpc clients to an endpoint
-	MUXTLSCiphers              []string          // List of tls ciphers supported for mux
-	MUXTLSMinVersion           string            // Minimum TLS version supported for mux
+	DebugPort                  int      // Port to listen for profile clients
+	AdminGroup                 string   // user group that can log in to control center
+	MaxRPCClients              int      // the max number of rpc clients to an endpoint
+	MUXTLSCiphers              []string // List of tls ciphers supported for mux
+	MUXTLSMinVersion           string   // Minimum TLS version supported for mux
 	RPCDialTimeout             int
 	RPCCertVerify              string            //  server certificate verify for rpc connections, string val of bool
 	RPCDisableTLS              string            //  Disable TLS for RPC connections, string val of bool

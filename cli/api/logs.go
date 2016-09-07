@@ -555,13 +555,13 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 //       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
 //       means that some installations may have older log messages with no 'ccWorkerID' field.
 type logSingleLine struct {
-	HostID      string    `json:"ccWorkerID"`
-	ContainerID string    `json:"host"`
-	File        string    `json:"file"`
-	Timestamp   time.Time `json:"@timestamp"`
+	HostID      string      `json:"ccWorkerID"`
+	ContainerID string      `json:"host"`
+	File        string      `json:"file"`
+	Timestamp   time.Time   `json:"@timestamp"`
 	Offset      json.Number `json:"offset"`
-	Message     string    `json:"message"`
-	ServiceID   string    `json:"service"`
+	Message     string      `json:"message"`
+	ServiceID   string      `json:"service"`
 }
 
 type logMultiLine struct {
