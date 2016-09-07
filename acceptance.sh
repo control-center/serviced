@@ -12,6 +12,7 @@
 #
 #######################################################
 
+START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=$(which serviced)
 if [ -z "${SERVICED}" ]; then
@@ -79,8 +80,8 @@ start_serviced() {
     mkdir -p ${SERVICED_VARPATH}
     sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
 
-    echo "Waiting 180 seconds for serviced to become the leader..."
-    retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
+    echo "Waiting $START_TIMEOUT seconds for serviced to become the leader..."
+    retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
 }
 
@@ -146,7 +147,7 @@ echo "Pre-test cleanup complete"
 install_prereqs
 add_to_etc_hosts
 
-start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
+start_serviced             && succeed "Serviced started within timeout"    || fail "serviced failed to start within $START_TIMEOUT seconds."
 
 # build/start mock agents
 cd ${DIR}
