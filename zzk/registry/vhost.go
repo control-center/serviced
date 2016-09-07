@@ -147,6 +147,10 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
 				if ok {
 					ch, exevt, err = l.conn.ChildrenW(expth, done)
 					if err == client.ErrNoNode {
+						logger.Debug("VHost suddenly deleted, retrying")
+						close(done)
+						done = make(chan struct{})
+
 						// we need an event, so try again
 						continue
 					} else if err != nil {
@@ -205,5 +209,8 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
 		case <-shutdown:
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
