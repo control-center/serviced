@@ -264,6 +264,7 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 							case <-availEv:
 							case <-onlineEv:
 							case <-cancel:
+								return
 							}
 
 						case <-availEv:
