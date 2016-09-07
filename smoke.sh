@@ -6,6 +6,7 @@
 #
 #######################################################
 
+START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=$(which serviced)
 if [ -z "${SERVICED}" ]; then
@@ -99,8 +100,8 @@ start_serviced() {
     mkdir -p ${SERVICED_VARPATH}
     sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
 
-    echo "Waiting 120 seconds for serviced to become the leader..."
-    retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
+    echo "Waiting $START_TIMEOUT seconds for serviced to start..."
+    retry $START_TIMEOUT wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
 }
 
@@ -329,7 +330,7 @@ install_prereqs
 add_to_etc_hosts
 
 # Run all the tests
-start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
+start_serviced             && succeed "Serviced has started within timeout"      || fail "serviced failed to start within $START_TIMEOUT seconds."
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
