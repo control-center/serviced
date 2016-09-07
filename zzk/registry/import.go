@@ -84,6 +84,10 @@ func (l *ImportListener) Run(cancel <-chan struct{}, conn client.Connection) {
 			// number of children
 			ch, ev, err = conn.ChildrenW(pth, done)
 			if err == client.ErrNoNode {
+				logger.Debug("Import was suddenly deleted, retrying")
+				close(done)
+				done = make(chan struct{})
+
 				continue
 			} else if err != nil {
 				logger.WithError(err).Error("Could not listen for exports on tenant")
