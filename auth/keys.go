@@ -2,7 +2,9 @@ package auth
 
 import (
 	"crypto"
+	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
 )
@@ -63,21 +65,24 @@ gTU6k22ENbaM2VIHhEjJQYftvA63316pfDqF31yq/cpspdaNrntc7xc=
 	}
 }
 
-type hardcodedKeyStore struct{}
+type devKeyStore struct{}
 
-func (k *hardcodedKeyStore) PublicKey() crypto.PublicKey {
-	return pubkey
+func (k *devKeyStore) Sign(message []byte) ([]byte, error) {
+	hashed := sha256.Sum256(message)
+	return rsa.SignPSS(rand.Reader, privkey, crypto.SHA256, hashed[:], nil)
 }
 
-func (k *hardcodedKeyStore) PrivateKey() crypto.PrivateKey {
-	return privkey
+func (k *devKeyStore) Verify(message []byte, signature []byte) error {
+	hashed := sha256.Sum256(message)
+	return rsa.VerifyPSS(pubkey, crypto.SHA256, hashed[:], signature, nil)
 }
 
-func (k *hardcodedKeyStore) MasterPublicKey() crypto.PublicKey {
-	return pubkey
+// DevRSASigner returns a dev signer for dev purposes
+func DevRSASigner() Signer {
+	return &devKeyStore{}
 }
 
-// DefaultKeyStore returns a hardcoded key store for dev purposes
-func DefaultKeyStore() KeyStore {
-	return &hardcodedKeyStore{}
+// DevRSAVerifier returns a dev verifier for dev purposes
+func DevRSAVerifier() Verifier {
+	return &devKeyStore{}
 }

@@ -16,19 +16,19 @@
 package auth_test
 
 import (
-	"testing"
-
+	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
 )
 
-type TestAuthSuite struct{}
+func (s *TestAuthSuite) TestDevKeys(c *C) {
+	signer := auth.DevRSASigner()
+	verifier := auth.DevRSAVerifier()
 
-var _ = Suite(&TestAuthSuite{})
+	message := []byte("this is a message that I plan to test")
 
-func TestAuth(t *testing.T) { TestingT(t) }
+	sig, err := signer.Sign(message)
+	c.Assert(err, IsNil)
 
-// Above is boilerplate. Now to the tests. Define methods on the suite struct.
-
-func (s *TestAuthSuite) TestSomething(c *C) {
-	c.Assert(true, Equals, true)
+	err = verifier.Verify(message, sig)
+	c.Assert(err, IsNil)
 }

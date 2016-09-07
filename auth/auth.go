@@ -28,12 +28,14 @@ var (
 	// TODO: Remove this comment
 )
 
-// KeyStore represents storage of public/private key pairs, as well as access
-// to the CC master's public key.
-type KeyStore interface {
-	PublicKey() crypto.PublicKey
-	MasterPublicKey() crypto.PublicKey
-	PrivateKey() crypto.PrivateKey
+// Signer is used to sign a message
+type Signer interface {
+	Sign(message []byte) ([]byte, error)
+}
+
+// Verifier is used to verify a signed message
+type Verifier interface {
+	Verify(message []byte, signature []byte) error
 }
 
 // Identity represents the identity of a host. The most-used implementation
