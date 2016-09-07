@@ -1,6 +1,6 @@
 package mocks
 
-import "github.com/control-center/serviced/zzk/registry2"
+import "github.com/control-center/serviced/zzk/registry"
 import "github.com/stretchr/testify/mock"
 
 type VHostHandler struct {

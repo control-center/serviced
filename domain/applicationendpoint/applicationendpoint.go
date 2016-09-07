@@ -15,11 +15,7 @@ package applicationendpoint
 
 import (
 	"fmt"
-	"strconv"
 
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/zenoss/glog"
 	"strings"
 )
 
@@ -45,49 +41,6 @@ type EndpointReport struct {
 
 	// FIXME: Refactor into some kind of array of typed messages (e.g. info, warn and error)
 	Messages []string
-}
-
-// BuildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
-func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (ApplicationEndpoint, error) {
-	var ae ApplicationEndpoint
-
-	ae.ServiceID = state.ServiceID
-	ae.Application = endpoint.Application
-	ae.Protocol = endpoint.Protocol
-	ae.Purpose = endpoint.Purpose
-	ae.ContainerID = state.DockerID
-	ae.ContainerIP = state.PrivateIP
-	if endpoint.PortTemplate != "" {
-		port, err := state.EvalPortTemplate(endpoint.PortTemplate)
-		if err != nil {
-			glog.Errorf("%s", err)
-		} else {
-			ae.ContainerPort = port
-		}
-	} else {
-		// No dynamic port, just use the specified PortNumber
-		ae.ContainerPort = endpoint.PortNumber
-	}
-	ae.HostID = state.HostID
-	ae.HostIP = state.HostIP
-	if len(state.PortMapping) > 0 {
-		pmKey := fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)
-		pm := state.PortMapping[pmKey]
-		if len(pm) > 0 {
-			port, err := strconv.Atoi(pm[0].HostPort)
-			if err != nil {
-				glog.Errorf("Unable to interpret HostPort: %s: %s", pm[0].HostPort, err)
-				return ae, err
-			}
-			ae.HostPort = uint16(port)
-		}
-	}
-	ae.VirtualAddress = endpoint.VirtualAddress
-	ae.InstanceID = state.InstanceID
-
-	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
-
-	return ae, nil
 }
 
 // BuildEndpointReports converts an array of ApplicationEndpoints to an array of EndpointReports

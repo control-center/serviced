@@ -29,7 +29,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -256,110 +255,11 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	w.WriteJson(&services)
 }
 
-func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if strings.Contains(serviceID, "isvc-") {
-		w.WriteJson([]dao.RunningService{})
-		return
-	}
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-	var statusmap map[string]dao.ServiceStatus
-	err = client.GetServiceStatus(serviceID, &statusmap)
-	if err != nil {
-		glog.Errorf("Could not get status for service %s: %v", serviceID, err)
-		restServerError(w, err)
-		return
-	}
-	if statusmap == nil {
-		glog.V(3).Info("Running services was nil, returning empty map instead")
-		statusmap = map[string]dao.ServiceStatus{}
-	}
-	glog.V(2).Infof("Returning %d states for service %s", len(statusmap), serviceID)
-	w.WriteJson(&statusmap)
-}
-
 type uiRunningService struct {
 	dao.RunningService
 	RAMMax     int64
 	RAMLast    int64
 	RAMAverage int64
-}
-
-func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []dao.RunningService
-	err := client.GetRunningServices(&empty, &services)
-	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
-		restServerError(w, err)
-		return
-	}
-	if services == nil {
-		glog.V(3).Info("Services was nil, returning empty list instead")
-		services = []dao.RunningService{}
-	}
-
-	instances := []metrics.ServiceInstance{}
-
-	for _, rsvc := range services {
-		var svc service.Service
-		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
-			glog.Errorf("Could not get services: %v", err)
-			restServerError(w, err)
-		}
-		fillBuiltinMetrics(&svc)
-		rsvc.MonitoringProfile = svc.MonitoringProfile
-		instances = append(instances, metrics.ServiceInstance{
-			rsvc.ServiceID,
-			rsvc.InstanceID,
-		})
-	}
-
-	query := dao.MetricRequest{
-		StartTime: time.Now().Add(-time.Hour * 24),
-		Instances: instances,
-	}
-
-	response := []metrics.MemoryUsageStats{}
-
-	if len(instances) > 0 {
-		client.GetInstanceMemoryStats(query, &response)
-	}
-
-	musMap := make(map[string]metrics.MemoryUsageStats)
-
-	for _, mus := range response {
-		key := fmt.Sprintf("%s-%s", mus.ServiceID, mus.InstanceID)
-		musMap[key] = mus
-	}
-
-	uiServices := []uiRunningService{}
-
-	services = append(services, getIRS()...)
-
-	for _, rsvc := range services {
-		key := fmt.Sprintf("%s-%d", rsvc.ServiceID, rsvc.InstanceID)
-		if mus, ok := musMap[key]; ok {
-			uiServices = append(uiServices, uiRunningService{
-				rsvc,
-				mus.Max,
-				mus.Last,
-				mus.Average,
-			})
-		} else {
-			uiServices = append(uiServices, uiRunningService{
-				rsvc,
-				-1,
-				-1,
-				-1,
-			})
-		}
-	}
-
-	glog.V(2).Infof("Return %d running services", len(uiServices))
-	w.WriteJson(&uiServices)
 }
 
 func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -693,29 +593,6 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.C
 		return
 	}
 	w.WriteJson(&simpleResponse{label, serviceLinks(serviceID)})
-}
-
-func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
-	request := dao.ServiceStateRequest{serviceID, serviceStateID}
-
-	var running dao.RunningService
-	err = client.GetRunningService(request, &running)
-	if err != nil {
-		glog.Errorf("Unexpected error retrieving services: %v", err)
-		restServerError(w, err)
-		return
-	}
-	w.WriteJson(running)
 }
 
 func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

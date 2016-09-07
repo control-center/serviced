@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
@@ -38,8 +37,6 @@ type FacadeInterface interface {
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
 	GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error)
-
-	GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error)
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 

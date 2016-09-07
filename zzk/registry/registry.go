@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,272 +14,331 @@
 package registry
 
 import (
-	"time"
+	"fmt"
+	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 )
 
-type KeyNode struct {
-	ID       string
-	IsRemote bool
-	version  interface{}
+// initialize the package logger
+var plog = logging.PackageLogger()
+
+// RegistryError describes an error with a registry lookup
+type RegistryError struct {
+	Action  string
+	Path    string
+	Message string
 }
 
-func (node *KeyNode) Version() interface{}                { return node.version }
-func (node *KeyNode) SetVersion(version interface{})      { node.version = version }
-func (node *KeyNode) GetID() string                       { return node.ID }
-func (node *KeyNode) Create(conn client.Connection) error { return nil }
-func (node *KeyNode) Update(conn client.Connection) error { return nil }
-
-type registryType struct {
-	getPath   func(nodes ...string) string
-	ephemeral bool
+func (err RegistryError) Error() string {
+	return fmt.Sprintf("could not %s path %s: %s", err.Action, err.Path, err.Message)
 }
 
-// WatchError is called by Watch* functions when there are errors
-type WatchError func(path string, err error)
-
-// ProcessChildrenFunc is called by Watch* functions when node addition/deletion occurs
-type ProcessChildrenFunc func(conn client.Connection, parentPath string, nodeIDs ...string)
-
-//SetEphemeral sets the ephemeral flag
-func (r *registryType) SetEphemeral(useEphemeral bool) {
-	r.ephemeral = useEphemeral
+// PublicPortKey points to a specific public port node
+type PublicPortKey struct {
+	HostID      string
+	PortAddress string
 }
 
-//IsEphemeral gets the ephemeral flag
-func (r *registryType) IsEphemeral() bool {
-	return r.ephemeral
+// VHostKey points to a specific vhost node
+type VHostKey struct {
+	HostID    string
+	Subdomain string
 }
 
-//EnsureKey ensures key path to the registry.  Returns the path of the key in the registry
-func (r *registryType) EnsureKey(conn client.Connection, key string) (string, error) {
+// DeleteExports deletes all export data for a tenant id
+func DeleteExports(conn client.Connection, tenantID string) error {
+	pth := path.Join("/net/export", tenantID)
+	logger := plog.WithFields(log.Fields{
+		"tenantid": tenantID,
+		"zkpath":   pth,
+	})
 
-	path := r.getPath(key)
-	glog.Infof("EnsureKey key:%s path:%s", key, path)
-	exists, err := zzk.PathExists(conn, path)
-	if err != nil {
-		return "", err
-	}
-
-	if !exists {
-		key := &KeyNode{ID: key}
-		if err := conn.Create(path, key); err != nil {
-			return "", err
-		}
-	}
-	glog.Infof("EnsureKey returning path:%s", path)
-	return path, nil
-}
-
-//WatchKey watches a key in the zk registry. Watches indefinitely or until cancelled, will block
-func (r *registryType) WatchKey(conn client.Connection, key string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	keyPath := r.getPath(key)
-	if err := zzk.Ready(cancel, conn, keyPath); err != nil {
-		glog.Errorf("Could not wait for registry key at %s: %s", keyPath, err)
-		return err
-	}
-	return watch(conn, keyPath, cancel, processChildren, errorHandler)
-}
-
-//WatchRegistry watches the registry for new keys in the zk registry. Watches indefinitely or until cancelled, will block
-func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	path := r.getPath()
-	if err := zzk.Ready(cancel, conn, path); err != nil {
-		glog.Errorf("Could not wait for registry at %s: %s", r.getPath(), err)
-		return err
-	}
-	return watch(conn, path, cancel, processChildren, errorHandler)
-}
-
-//Add node to the key in registry.  Returns the path of the node in the registry
-func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureKey(conn, key); err != nil {
-		glog.Errorf("error with addItem.ensureDir(%s) %+v", r.getPath(key), err)
-		return "", err
-	}
-
-	//TODO: make ephemeral
-	path := r.getPath(key, nodeID)
-	glog.V(3).Infof("Adding to %s: %#v", path, node)
-	if r.ephemeral {
-		var err error
-		if path, err = conn.CreateEphemeral(path, node); err != nil {
-			glog.Errorf("error with addItem.CreateEphemeral(%s) %+v", path, err)
-			return "", err
-		}
-	} else {
-		if err := conn.Create(path, node); err != nil {
-			glog.Errorf("error with addItem.Create(%s) %+v", path, err)
-			return "", err
-		}
-	}
-	return path, nil
-}
-
-//Set node to the key in registry.  Returns the path of the node in the registry
-func (r *registryType) setItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureKey(conn, key); err != nil {
-		return "", err
-	}
-
-	//TODO: make ephemeral
-	path := r.getPath(key, nodeID)
-
-	exists, err := zzk.PathExists(conn, path)
-	if err != nil {
-		return "", err
-	}
-
-	if exists {
-		glog.V(3).Infof("Set to %s: %#v", path, node)
-		epn := EndpointNode{}
-		if err := conn.Get(path, &epn); err != nil {
-			return "", err
-		}
-		node.SetVersion(epn.Version())
-		if err := conn.Set(path, node); err != nil {
-			return "", err
-		}
-	} else {
-		if addPath, err := r.addItem(conn, key, nodeID, node); err != nil {
-			return "", err
-		} else {
-			path = addPath
-		}
-		glog.V(3).Infof("Add to %s: %#v", path, node)
-	}
-	return path, nil
-}
-
-func (r *registryType) removeKey(conn client.Connection, key string) error {
-	path := r.getPath(key)
-	return removeNode(conn, path)
-}
-
-func (r *registryType) removeItem(conn client.Connection, key string, nodeID string) error {
-	path := r.getPath(key, nodeID)
-	return removeNode(conn, path)
-}
-
-func removeNode(conn client.Connection, path string) error {
-	exists, err := zzk.PathExists(conn, path)
-	if err != nil {
-		return err
-	}
-
-	if !exists {
+	if err := conn.Delete(pth); err == client.ErrNoNode {
+		logger.Debug("No exports for tenant id")
 		return nil
-	}
-
-	if err := conn.Delete(path); err != nil {
-		glog.Errorf("Unable to delete path:%s error:%v", path, err)
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not delete exports for tenant id")
 		return err
 	}
 
+	logger.Debug("Removed exports for tenant id")
 	return nil
 }
 
-func (r *registryType) ensureKey(conn client.Connection, key string) error {
-	node := &KeyNode{ID: key, IsRemote: false}
-	timeout := time.After(time.Second * 60)
-	var err error
-	path := r.getPath(key)
-	for {
-		err = conn.Create(path, node)
-		if err == client.ErrNodeExists || err == nil {
-			return nil
+// GetPublicPort returns the service id and application of the public port
+func GetPublicPort(conn client.Connection, key PublicPortKey) (string, string, error) {
+	pth := path.Join("/net/pub", key.HostID, key.PortAddress)
+
+	logger := plog.WithFields(log.Fields{
+		"hostid":      key.HostID,
+		"portaddress": key.PortAddress,
+		"zkpath":      pth,
+	})
+
+	pub := &PublicPort{}
+	err := conn.Get(pth, pub)
+	if err == client.ErrNoNode {
+		logger.WithError(err).Debug("Port address not found")
+		return "", "", nil
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up port")
+		return "", "", &RegistryError{
+			Action:  "get",
+			Path:    pth,
+			Message: "could not look up port address",
 		}
-		select {
-		case <-timeout:
-			break
-		default:
+	}
+
+	logger.WithFields(log.Fields{
+		"tenantid":    pub.TenantID,
+		"application": pub.Application,
+	}).Debug("Found port")
+
+	return pub.ServiceID, pub.Application, nil
+}
+
+// GetVHost returns the service id and application of the vhost
+func GetVHost(conn client.Connection, key VHostKey) (string, string, error) {
+	pth := path.Join("/net/vhost", key.HostID, key.Subdomain)
+
+	logger := plog.WithFields(log.Fields{
+		"hostid":    key.HostID,
+		"subdomain": key.Subdomain,
+		"zkpath":    pth,
+	})
+
+	vhost := &VHost{}
+	err := conn.Get(pth, vhost)
+	if err == client.ErrNoNode {
+		logger.WithError(err).Debug("Virtual host subdomain not found")
+		return "", "", nil
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up virtual host subdomain")
+		return "", "", &RegistryError{
+			Action:  "get",
+			Path:    pth,
+			Message: "could not look up virtual host subdomain",
 		}
 	}
+
+	logger.WithFields(log.Fields{
+		"tenantid":    vhost.TenantID,
+		"application": vhost.Application,
+	}).Debug("Found vhost subdomain")
+
+	return vhost.ServiceID, vhost.Application, nil
 }
 
-// getChildren gets all child paths for the given nodeID
-func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]string, error) {
-	path := r.getPath(nodeID)
-	glog.V(4).Infof("Getting children for %v", path)
-	names, err := conn.Children(path)
-	if err != nil {
-		return []string{}, err
-	}
-	result := []string{}
-	for _, name := range names {
-		result = append(result, r.getPath(nodeID, name))
-	}
-	return result, nil
-}
+// SyncServiceRegistry syncs all vhosts and public ports to those of a matching
+// service.
+// FIXME: need to optimize
+func SyncServiceRegistry(conn client.Connection, serviceID string, pubs map[PublicPortKey]PublicPort, vhosts map[VHostKey]VHost) error {
+	logger := plog.WithField("serviceid", serviceID)
 
-func WatchChildren(conn client.Connection, path string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	return watch(conn, path, cancel, processChildren, errorHandler)
-}
+	tx := conn.NewTransaction()
 
-func watch(conn client.Connection, path string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	exists, err := conn.Exists(path)
-	if err != nil {
+	if err := syncServicePublicPorts(conn, tx, serviceID, pubs); err != nil {
 		return err
-	} else if !exists {
-		return client.ErrNoNode
 	}
 
-	done := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&done)
-	for {
-		glog.V(1).Infof("watching children at path: %s", path)
-		nodeIDs, event, err := conn.ChildrenW(path, done)
-		glog.V(1).Infof("child watch for path %s returned: %#v", path, nodeIDs)
-		if err != nil {
-			glog.Errorf("Could not watch %s: %s", path, err)
-			defer errorHandler(path, err)
-			return err
-		}
-		processChildren(conn, path, nodeIDs...)
-		select {
-		case ev := <-event:
-			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
-		case <-cancel:
-			glog.V(1).Infof("watch cancel at path: %s", path)
-			return nil
-		}
-
-		close(done)
-		done = make(chan struct{})
+	if err := syncServiceVHosts(conn, tx, serviceID, vhosts); err != nil {
+		return err
 	}
+
+	if err := tx.Commit(); err != nil {
+		logger.WithError(err).Debug("Could not sync registry for service")
+
+		// TODO: wrap error?
+		return err
+	}
+
+	logger.Debug("Updated registry for service")
+	return nil
 }
 
-func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan interface{}, processNode func(conn client.Connection,
-	node client.Node), errorHandler WatchError) error {
-	exists, err := conn.Exists(path)
-	if err != nil {
-		return err
-	} else if !exists {
-		return client.ErrNoNode
+// syncServicePublicPorts updates the transaction to include public port updates
+func syncServicePublicPorts(conn client.Connection, tx client.Transaction, serviceID string, pubs map[PublicPortKey]PublicPort) error {
+	logger := plog.WithField("serviceid", serviceID)
+
+	// pull all the hosts of all the public ports
+	pth := "/net/pub"
+	logger = logger.WithField("zkpath", pth)
+
+	hostIDs, err := conn.Children(pth)
+	if err == client.ErrNoNode {
+		conn.CreateDir(pth)
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up public ports path")
+		return &RegistryError{
+			Action:  "sync",
+			Path:    pth,
+			Message: "could not look up public ports path",
+		}
 	}
 
-	done := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&done)
-	for {
-		event, err := conn.GetW(path, nodeType, done)
-		if err != nil {
-			glog.Errorf("Could not watch %s: %s", path, err)
-			defer errorHandler(path, err)
-			return err
-		}
-		processNode(conn, nodeType)
-		//This blocks until a change happens under the key
-		select {
-		case ev := <-event:
-			glog.V(2).Infof("watch event %+v at path: %s", ev, path)
-		case <-cancel:
-			return nil
+	// get all the public ports for each host
+	for _, hostID := range hostIDs {
+		hostpth := path.Join(pth, hostID)
+		hostLogger := logger.WithFields(log.Fields{
+			"hostid": hostID,
+			"zkpath": hostpth,
+		})
+
+		portAddrs, err := conn.Children(hostpth)
+		if err == client.ErrNoNode {
+			hostLogger.Debug("Host has been deleted for public ports")
+		} else if err != nil {
+			hostLogger.WithError(err).Debug("Could not look up public ports for host id")
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not look up public ports for host id",
+			}
 		}
 
-		close(done)
-		done = make(chan struct{})
+		for _, portAddr := range portAddrs {
+			key := PublicPortKey{HostID: hostID, PortAddress: portAddr}
+			addrpth := path.Join(hostpth, portAddr)
+			addrLogger := hostLogger.WithFields(log.Fields{
+				"portaddress": portAddr,
+				"zkpath":      addrpth,
+			})
+
+			pub := &PublicPort{}
+			if err := conn.Get(addrpth, pub); err == client.ErrNoNode {
+				addrLogger.Debug("Port address has been deleted for public port")
+				continue
+			} else if err != nil {
+				addrLogger.WithError(err).Debug("could not look up public port address")
+				return &RegistryError{
+					Action:  "sync",
+					Path:    addrpth,
+					Message: "could not look up public port address",
+				}
+			}
+
+			// update the public address if there is a key reference, otherwise
+			// delete it if the service matches.
+			if val, ok := pubs[key]; ok {
+				addrLogger.Debug("Updating public port address")
+				val.SetVersion(pub.Version())
+				tx.Set(addrpth, &val)
+				delete(pubs, key)
+			} else if pub.ServiceID == serviceID {
+				addrLogger.Debug("Deleting public port address")
+				tx.Delete(addrpth)
+			}
+		}
 	}
+
+	// create the remaining public ports
+	for key, val := range pubs {
+		conn.CreateDir(path.Join(pth, key.HostID))
+		addrpth := path.Join(pth, key.HostID, key.PortAddress)
+		val.SetVersion(nil)
+		logger.WithFields(log.Fields{
+			"hostid":      key.HostID,
+			"portaddress": key.PortAddress,
+			"zkpath":      addrpth,
+		}).Debug("Creating public port address")
+		tx.Create(addrpth, &val)
+	}
+
+	logger.Debug("Updated transaction to sync public ports for service")
+	return nil
+}
+
+// syncServiceVHosts updates the transaction to include virtual host updates
+func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID string, vhosts map[VHostKey]VHost) error {
+	logger := plog.WithField("serviceid", serviceID)
+
+	// pull all the hosts of all the virtual hosts
+	pth := "/net/vhost"
+	logger = logger.WithField("zkpath", pth)
+
+	hostIDs, err := conn.Children(pth)
+	if err == client.ErrNoNode {
+		conn.CreateDir(pth)
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up virtual hosts path")
+		return &RegistryError{
+			Action:  "sync",
+			Path:    pth,
+			Message: "could not look up virtual hosts path",
+		}
+	}
+
+	// get all the virtual host subdomains for each host
+	for _, hostID := range hostIDs {
+		hostpth := path.Join(pth, hostID)
+		hostLogger := logger.WithFields(log.Fields{
+			"hostid": hostID,
+			"zkpath": hostpth,
+		})
+
+		subdomains, err := conn.Children(hostpth)
+		if err == client.ErrNoNode {
+			hostLogger.Debug("Host has been deleted for virtual hosts")
+		} else if err != nil {
+			hostLogger.WithError(err).Debug("Could not look up virtual hosts for host id")
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not look up virtual hosts for host id",
+			}
+		}
+
+		for _, subdomain := range subdomains {
+			key := VHostKey{HostID: hostID, Subdomain: subdomain}
+			addrpth := path.Join(hostpth, subdomain)
+			addrLogger := hostLogger.WithFields(log.Fields{
+				"subdomain": subdomain,
+				"zkpath":    addrpth,
+			})
+
+			vhost := &VHost{}
+			if err := conn.Get(addrpth, vhost); err == client.ErrNoNode {
+				addrLogger.Debug("Subdomain has been deleted for virtual host")
+				continue
+			} else if err != nil {
+				addrLogger.WithError(err).Debug("could not look up virtual host subdomain")
+				return &RegistryError{
+					Action:  "sync",
+					Path:    addrpth,
+					Message: "could not look up virtual host subdomain",
+				}
+			}
+
+			// update the public address if there is a key reference, otherwise
+			// delete it if the service matches.
+			if val, ok := vhosts[key]; ok {
+				addrLogger.Debug("Updating virtual host subdomain")
+				val.SetVersion(vhost.Version())
+				tx.Set(addrpth, &val)
+				delete(vhosts, key)
+			} else if vhost.ServiceID == serviceID {
+				addrLogger.Debug("Deleting virtual host subdomain")
+				tx.Delete(addrpth)
+			}
+		}
+	}
+
+	// create the remaining public ports
+	for key, val := range vhosts {
+		conn.CreateDir(path.Join(pth, key.HostID))
+		addrpth := path.Join(pth, key.HostID, key.Subdomain)
+		val.SetVersion(nil)
+		logger.WithFields(log.Fields{
+			"hostid":    key.HostID,
+			"subdomain": key.Subdomain,
+			"zkpath":    addrpth,
+		}).Debug("Creating virtual address subdomain")
+		tx.Create(addrpth, &val)
+	}
+
+	logger.Debug("Updated transaction to sync virtual hosts for service")
+	return nil
 }

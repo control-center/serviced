@@ -14,15 +14,15 @@
 package scheduler
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
@@ -30,7 +30,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/virtualips"
-	"github.com/zenoss/glog"
 )
 
 type leader struct {
@@ -52,7 +51,7 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	// creates a listener for the host registry
 	hreg := zkservice.NewHostRegistryListener(poolID)
 
-	glog.V(0).Info("Processing leader duties")
+	plog.Info("Processing leader duties")
 	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}
 
 	// creates a listener for services
@@ -67,52 +66,68 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	zzk.Start(shutdown, conn, serviceListener, hreg)
 }
 
-// SelectHost chooses a host from the pool for the specified service. If the service
-// has an address assignment the host will already be selected. If not the host with the least amount
-// of memory committed to running containers will be chosen.
-func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
-	glog.Infof("Looking for available hosts in pool %s", l.poolID)
+// SelectHost chooses a host from the pool for the specified service. If the
+// service has an address assignment the host will already be selected. If not
+// the host with the least amount of memory committed to running containers will
+// be chosen.  Returns the hostid, hostip (if it has an address assignment).
+func (l *leader) SelectHost(s *service.Service) (string, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":   s.ID,
+		"servicename": s.Name,
+		"poolid":      s.PoolID,
+	})
+	plog.Debug("Looking for available hosts in resource pool")
 	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {
-		glog.Errorf("Could not get available hosts for pool %s: %s", l.poolID, err)
-		return nil, err
+		plog.WithError(err).Debug("Could not get available hosts from resource pool")
+		return "", err
 	}
 
-	// make sure all of the endpoints have address assignments
-	var assignment *addressassignment.AddressAssignment
-	for i, ep := range s.Endpoints {
+	// if no hosts are returned, then a shutdown has been triggered
+	if len(hosts) == 0 {
+		plog.Debug("Scheduler is shutting down")
+		return "", errors.New("scheduler is shutting down")
+	}
+
+	// make sure all of the applicable endpoints have address assignments
+	var assignment addressassignment.AddressAssignment
+	for _, ep := range s.Endpoints {
 		if ep.IsConfigurable() {
 			if ep.AddressAssignment.IPAddr != "" {
-				assignment = &s.Endpoints[i].AddressAssignment
+				assignment = ep.AddressAssignment
 			} else {
-				return nil, fmt.Errorf("missing address assignment")
+				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
+				return "", errors.New("service is missing an address assignment")
 			}
 		}
 	}
-	if assignment != nil {
-		glog.Infof("Found an address assignment for %s (%s) at %s, checking host availability", s.Name, s.ID, assignment.IPAddr)
-		var hostID string
-		var err error
 
-		// Get the hostID from the address assignment
+	if assignment.IPAddr != "" {
+		logger = logger.WithFields(log.Fields{
+			"ipaddress":      assignment.IPAddr,
+			"assignmenttype": assignment.AssignmentType,
+		})
+		logger.Debug("Checking host availability for service address assignment")
+
+		// find which host the address belongs to
+		hostID := assignment.HostID
 		if assignment.AssignmentType == commons.VIRTUAL {
-			if hostID, err = virtualips.GetHostID(l.conn, l.poolID, assignment.IPAddr); err != nil {
-				glog.Errorf("Host not available for virtual ip address %s: %s", assignment.IPAddr, err)
-				return nil, err
-			}
-		} else {
-			hostID = assignment.HostID
-		}
-
-		// Checking host availability
-		for _, host := range hosts {
-			if host.ID == hostID {
-				return &host, nil
+			hostID, err = virtualips.GetHostID(l.conn, l.poolID, assignment.IPAddr)
+			if err != nil {
+				logger.WithError(err).Debug("Could not get host assignment of virtual ip")
+				return "", err
 			}
 		}
 
-		glog.Errorf("Host %s not available in pool %s.  Check to see if the host is running or reassign ips for service %s (%s)", hostID, l.poolID, s.Name, s.ID)
-		return nil, fmt.Errorf("host %s not available in pool %s", hostID, l.poolID)
+		// is the host available?
+		for _, h := range hosts {
+			if h.ID == hostID {
+				return hostID, nil
+			}
+		}
+
+		logger.WithField("hostid", hostID).Warn("Could not assign service to ip address.  Check to see if host is running or reassign ips")
+		return "", errors.New("assigned ip is not available")
 	}
 
 	hp := s.HostPolicy
@@ -121,7 +136,7 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 	}
 	strat, err := strategy.Get(string(hp))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	return StrategySelectHost(s, hosts, strat, l.facade)

@@ -23,7 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
-	zkservice "github.com/control-center/serviced/zzk/service2"
+	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 // GetServiceInstances returns the state of all instances for a particular
@@ -44,7 +44,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 
 	logger.Debug("Loaded service")
 
-	states, err := f.zzk.GetServiceStates2(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -325,7 +325,7 @@ func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, in
 		return err
 	}
 
-	if err := f.zzk.StopServiceInstance2(svc.PoolID, svc.ID, instanceID); err != nil {
+	if err := f.zzk.StopServiceInstance(svc.PoolID, svc.ID, instanceID); err != nil {
 		logger.WithError(err).Debug("Could not stop service instance")
 		return err
 	}

@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,109 +10,128 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package service
 
 import (
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
 )
 
-const (
-	zkPool = "/pools"
-)
-
-func poolpath(nodes ...string) string {
-	p := append([]string{zkPool}, nodes...)
-	return path.Join(p...)
-}
-
+// PoolNode is the storage object for resource pool data
 type PoolNode struct {
 	*pool.ResourcePool
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *PoolNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *PoolNode) Create(conn client.Connection) error {
-	return UpdateResourcePool(conn, node.ResourcePool)
-}
-
-// Update implements zzk.Node
-func (node *PoolNode) Update(conn client.Connection) error {
-	return UpdateResourcePool(conn, node.ResourcePool)
-}
-
 // Version implements client.Node
-func (node *PoolNode) Version() interface{} { return node.version }
+func (p *PoolNode) Version() interface{} {
+	return p.version
+}
 
 // SetVersion implements client.Node
-func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
-
-func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error {
-	nodes := make([]zzk.Node, len(pools))
-	for i := range pools {
-		nodes[i] = &PoolNode{ResourcePool: &pools[i]}
-	}
-	return zzk.Sync(conn, nodes, poolpath())
+func (p *PoolNode) SetVersion(version interface{}) {
+	p.version = version
 }
 
-func UpdateResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
-	var node PoolNode
-	if err := conn.Get(poolpath(pool.ID), &node); err == client.ErrNoNode {
-		node = PoolNode{ResourcePool: pool}
-		return conn.Create(poolpath(pool.ID), &node)
-	} else if err != nil && err != client.ErrEmptyNode { // workaround to fix acceptance test
+// UpdateResourcePool creates the resource pool if it doesn't exist or updates
+// it if it does exist.
+func UpdateResourcePool(conn client.Connection, p pool.ResourcePool) error {
+	pth := path.Join("/pools", p.ID)
+
+	logger := plog.WithFields(log.Fields{
+		"poolid": p.ID,
+		"zkpath": pth,
+	})
+
+	// create the resource pool if it doesn't exist
+	if err := conn.Create(pth, &PoolNode{ResourcePool: &p}); err == client.ErrNodeExists {
+
+		// the node exists, so get it and update it
+		node := &PoolNode{ResourcePool: &pool.ResourcePool{}}
+		if err := conn.Get(pth, node); err != nil && err != client.ErrEmptyNode {
+
+			logger.WithError(err).Debug("Could not get resource pool entry from zookeeper")
+			return err
+		}
+
+		node.ResourcePool = &p
+		if err := conn.Set(pth, node); err != nil {
+
+			logger.WithError(err).Debug("Could not update resource pool entry in zookeeper")
+			return err
+		}
+
+		logger.Debug("Updated entry for resource pool in zookeeper")
+		return nil
+	} else if err != nil {
+
+		logger.WithError(err).Debug("Could not create resource pool entry in zookeeper")
 		return err
 	}
-	node.ResourcePool = pool
-	return conn.Set(poolpath(pool.ID), &node)
+
+	logger.Debug("Created entry for resource pool in zookeeper")
+	return nil
 }
 
-func RemoveResourcePool(conn client.Connection, poolID string) error {
-	return conn.Delete(poolpath(poolID))
+// RemoveResourcePool removes the resource pool
+func RemoveResourcePool(conn client.Connection, poolid string) error {
+	pth := path.Join("/pools", poolid)
+
+	logger := plog.WithFields(log.Fields{
+		"poolid": poolid,
+		"zkpath": pth,
+	})
+
+	if err := conn.Delete(pth); err != nil {
+
+		logger.WithError(err).Debug("Could not delete resource pool entry from zookeeper")
+		return err
+	}
+
+	logger.Debug("Deleted resource pool entry from zookeeper")
+	return nil
 }
 
-func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, poolID string) <-chan *pool.ResourcePool {
-	monitor := make(chan *pool.ResourcePool)
-	go func() {
-		defer close(monitor)
-		if err := zzk.Ready(shutdown, conn, poolpath(poolID)); err != nil {
-			glog.V(2).Infof("Could not watch pool %s: %s", poolID, err)
-			return
+// SyncResourcePools synchronizes the resource pools to the provided list
+func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error {
+	pth := path.Join("/pools")
+
+	logger := plog.WithField("zkpath", pth)
+
+	// look up the children pool ids
+	ch, err := conn.Children(pth)
+	if err != nil && err != client.ErrNoNode {
+		logger.WithError(err).Debug("Could not look up resource pools")
+		return err
+	}
+
+	// store the pool ids in a hash map
+	chmap := make(map[string]struct{})
+	for _, poolid := range ch {
+		chmap[poolid] = struct{}{}
+	}
+
+	// set the resource pools
+	for _, p := range pools {
+		if err := UpdateResourcePool(conn, p); err != nil {
+			return err
 		}
-		done := make(chan struct{})
-		defer func(channel *chan struct{}) { close(*channel) }(&done)
-		for {
-			var node PoolNode
-			event, err := conn.GetW(poolpath(poolID), &node, done)
-			if err != nil {
-				glog.V(2).Infof("Could not get pool %s: %s", poolID, err)
-				return
-			}
 
-			select {
-			case monitor <- node.ResourcePool:
-			case <-shutdown:
-				return
-			}
-
-			select {
-			case <-event:
-			case <-shutdown:
-				return
-			}
-
-			close(done)
-			done = make(chan struct{})
+		// delete matching records
+		if _, ok := chmap[p.ID]; ok {
+			delete(chmap, p.ID)
 		}
-	}()
-	return monitor
+	}
+
+	// remove any leftovers
+	for poolid := range chmap {
+		if err := RemoveResourcePool(conn, poolid); err != nil {
+			return err
+		}
+	}
+	return nil
 }

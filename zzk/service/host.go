@@ -14,133 +14,200 @@
 package service
 
 import (
-	"errors"
 	"path"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/domain/service"
 )
 
-var (
-	ErrHostInvalid = errors.New("invalid host")
-	ErrShutdown    = errors.New("listener shut down")
-)
-
-// HostNode is the coordinator node for host data
+// HostNode is the storage object for host data
 type HostNode struct {
 	*host.Host
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *HostNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *HostNode) Create(conn client.Connection) error {
-	return AddHost(conn, node.Host)
-}
-
-// Update implements zzk.Node
-func (node *HostNode) Update(conn client.Connection) error {
-	return UpdateHost(conn, node.Host)
-}
-
 // Version implements client.Node
-func (node *HostNode) Version() interface{} {
-	return node.version
+func (h *HostNode) Version() interface{} {
+	return h.version
 }
 
 // SetVersion implements client.Node
-func (node *HostNode) SetVersion(version interface{}) {
-	node.version = version
+func (h *HostNode) SetVersion(version interface{}) {
+	h.version = version
 }
 
-// SyncHosts synchronizes the hosts on the coordinator with the provided list
-func SyncHosts(conn client.Connection, hosts []host.Host) error {
-	nodes := make([]zzk.Node, len(hosts))
-	for i := range hosts {
-		nodes[i] = &HostNode{Host: &hosts[i]}
-	}
-	return zzk.Sync(conn, nodes, "/hosts")
-}
+// AddHost creates the host if it doesn't already exist. (uses a pool-based
+// connection)
+func AddHost(conn client.Connection, h host.Host) error {
+	pth := path.Join("/hosts", h.ID)
 
-func AddHost(conn client.Connection, host *host.Host) error {
-	hpth := path.Join("/hosts", host.ID)
-	hnode := HostNode{Host: host}
-	return conn.Create(hpth, &hnode)
-}
+	logger := plog.WithFields(log.Fields{
+		"poolid": h.PoolID,
+		"hostid": h.ID,
+		"zkpath": pth,
+	})
 
-func UpdateHost(conn client.Connection, h *host.Host) error {
-	hpth := path.Join("/hosts", h.ID)
-	hnode := HostNode{}
-	if err := conn.Get(hpth, &hnode); err != nil {
+	// create the /hosts path if it doesn't exist
+	if err := conn.CreateIfExists("/hosts", &client.Dir{}); err != nil && err != client.ErrNodeExists {
+		logger.WithError(err).Debug("Could not initialize hosts path in zookeeper")
 		return err
 	}
-	hnode.Host = h
-	return conn.Set(hpth, &hnode)
-}
 
-func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string) error {
-	hpth := path.Join("/hosts", hostID)
-	if err := conn.CreateIfExists(path.Join(hpth, "locked"), &client.Dir{}); err == client.ErrNoNode {
-		return nil
-	} else if err != nil && err != client.ErrNodeExists {
+	if err := conn.CreateIfExists(pth, &HostNode{Host: &h}); err != nil {
+		logger.WithError(err).Debug("Could not create host entry in zookeeper")
 		return err
 	}
+
+	logger.Debug("Created entry for host in zookeeper")
+	return nil
+}
+
+// UpdateHost updates an existing host. (uses a pool-based connection)
+func UpdateHost(conn client.Connection, h host.Host) error {
+	pth := path.Join("/hosts", h.ID)
+
+	logger := plog.WithFields(log.Fields{
+		"poolid": h.PoolID,
+		"hostid": h.ID,
+		"zkpath": pth,
+	})
+
+	node := &HostNode{Host: &host.Host{}}
+	if err := conn.Get(pth, node); err != nil {
+		logger.WithError(err).Debug("Could not find host entry in zookeeper")
+		return err
+	}
+
+	node.Host = &h
+
+	if err := conn.Set(pth, node); err != nil {
+		logger.WithError(err).Debug("Could not update host entry in zookeeper")
+		return err
+	}
+
+	logger.Debug("Updated entry to host in zookeeper")
+	return nil
+}
+
+// RemoveHost removes an existing host, after waiting for existing states to
+// shutdown.
+func RemoveHost(cancel <-chan struct{}, conn client.Connection, poolID, hostID string) error {
+	basepth := ""
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+	pth := path.Join(basepth, "/hosts", hostID)
+
+	logger := plog.WithFields(log.Fields{
+		"hostid": hostID,
+		"zkpath": pth,
+	})
 
 	// lock the host from scheduling
-	mu, err := conn.NewLock(path.Join(hpth, "locked"))
+	mu, err := conn.NewLock(path.Join(pth, "locked"))
 	if err != nil {
+		logger.WithError(err).Debug("Could not instantiate scheduling lock")
 		return err
 	}
 	if err := mu.Lock(); err != nil {
+		logger.WithError(err).Debug("Could not lock host from scheduling")
 		return err
 	}
 	defer mu.Unlock()
 
-	// stop all the instances running on that host
-	ch, err := conn.Children(path.Join(hpth, "instances"))
-	if err != nil && err != client.ErrNoNode {
-		return err
-	}
-	for _, stateID := range ch {
-		if err := StopServiceInstance(conn, "", hostID, stateID); err != nil {
-			return err
-		}
-	}
-
-	stop := make(chan struct{})
-	defer func() { close(stop) }()
-
-	// wait for all the instances to die
+	// schedule all running states to stop
+	done := make(chan struct{})
+	defer func() { close(done) }()
 	for {
-		ch, ev, err := conn.ChildrenW(path.Join(hpth, "instances"), stop)
-		if err != nil && err != client.ErrNoNode {
+
+		// clean any bad host states
+		if err := CleanHostStates(conn, poolID, hostID); err != nil {
 			return err
 		}
+
+		// get the list of states
+		ch, ev, err := conn.ChildrenW(path.Join(pth, "instances"), done)
+		if err != nil && err != client.ErrNoNode {
+			logger.WithError(err).Debug("Could not watch instances for host")
+			return err
+		}
+
+		for _, stateID := range ch {
+			st8log := logger.WithField("stateid", stateID)
+
+			_, serviceID, instanceID, err := ParseStateID(stateID)
+			if err != nil {
+
+				// This should never happen, but handle it
+				st8log.WithError(err).Error("Invalid state id while monitoring host")
+				return err
+			}
+
+			req := StateRequest{
+				PoolID:     poolID,
+				HostID:     hostID,
+				ServiceID:  serviceID,
+				InstanceID: instanceID,
+			}
+
+			// set the state to stopped if not already stopped
+			if err := UpdateState(conn, req, func(s *State) bool {
+				if s.DesiredState != service.SVCStop {
+					s.DesiredState = service.SVCStop
+					return true
+				}
+				return false
+			}); err != nil {
+				return err
+			}
+		}
+
+		// if all the states have died, exit loop
 		if len(ch) == 0 {
 			break
 		}
+
+		// otherwise, wait for the number of states to change
 		select {
 		case <-ev:
 		case <-cancel:
-			return ErrShutdown
+			logger.Debug("Delete was cancelled")
+			return nil
 		}
-		close(stop)
-		stop = make(chan struct{})
+		close(done)
+		done = make(chan struct{})
 	}
 
-	t := conn.NewTransaction()
-	if err := rmr(conn, t, hpth); err != nil {
+	if err := removeHost(conn, poolID, hostID); err != nil {
+		logger.WithError(err).Debug("Could not delete host entry from zookeeper")
 		return err
 	}
 
-	return t.Commit()
+	logger.Debug("Deleted host entry from zookeeper")
+	return nil
 }
 
+// removeHost deletes a host from zookeeper
+func removeHost(conn client.Connection, poolID, hostID string) error {
+	basepth := ""
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+	pth := path.Join(basepth, "/hosts", hostID)
+
+	t := conn.NewTransaction()
+	if err := rmr(conn, t, pth); err != nil {
+		return err
+	}
+	if err := t.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// rmr is a recursive delete via transaction
 func rmr(conn client.Connection, t client.Transaction, pth string) error {
 	ch, err := conn.Children(pth)
 	if err == client.ErrNoNode {
@@ -148,6 +215,7 @@ func rmr(conn client.Connection, t client.Transaction, pth string) error {
 	} else if err != nil {
 		return err
 	}
+
 	for _, n := range ch {
 		if err := rmr(conn, t, path.Join(pth, n)); err != nil {
 			return err
@@ -155,4 +223,97 @@ func rmr(conn client.Connection, t client.Transaction, pth string) error {
 	}
 	t.Delete(pth)
 	return nil
+}
+
+// SyncHosts synchronizes the hosts to the provided list (uses a pool-based
+// connection)
+func SyncHosts(conn client.Connection, hosts []host.Host) error {
+	pth := path.Join("/hosts")
+
+	logger := plog.WithField("zkpath", pth)
+
+	// look up children host ids
+	ch, err := conn.Children(pth)
+	if err != nil && err != client.ErrNoNode {
+		logger.WithError(err).Debug("Could not look up hosts")
+		return err
+	}
+
+	// store the host ids in a hash map
+	chmap := make(map[string]struct{})
+	for _, hostID := range ch {
+		chmap[hostID] = struct{}{}
+	}
+
+	// set the hosts
+	for _, h := range hosts {
+		if _, ok := chmap[h.ID]; ok {
+			if err := UpdateHost(conn, h); err != nil {
+				return err
+			}
+			delete(chmap, h.ID)
+		} else {
+			if err := AddHost(conn, h); err != nil {
+				return err
+			}
+		}
+	}
+
+	// remove any leftovers
+	for hostID := range chmap {
+		if err := removeHost(conn, "", hostID); err != nil {
+			logger.WithField("hostid", hostID).WithError(err).Debug("Could not delete host entry from zookeeper")
+			return err
+		}
+	}
+	return nil
+}
+
+// GetCurrentHosts returns the list of hosts that are currently active in a
+// resource pool.
+func GetCurrentHosts(conn client.Connection, poolid string) ([]string, error) {
+	logger := plog.WithField("poolid", poolid)
+
+	onlineHosts := make([]string, 0)
+	pth := path.Join("/pools", poolid, "hosts")
+	ch, err := conn.Children(pth)
+	if err != nil && err != client.ErrNoNode {
+
+		logger.WithError(err).Debug("Could not look up hosts in resource pool")
+
+		// TODO: wrap error?
+		return nil, err
+	}
+	for _, hostid := range ch {
+		isOnline, err := IsHostOnline(conn, poolid, hostid)
+		if err != nil {
+			return nil, err
+		}
+
+		if isOnline {
+			onlineHosts = append(onlineHosts, hostid)
+		}
+	}
+
+	logger.WithField("hostcount", len(onlineHosts)).Debug("Loaded online hosts")
+	return onlineHosts, nil
+}
+
+// IsHostOnline returns true if a provided host is currently active.
+func IsHostOnline(conn client.Connection, poolid, hostid string) (bool, error) {
+	logger := plog.WithField("hostid", hostid)
+
+	basepth := "/"
+	if poolid != "" {
+		basepth = path.Join("/pools", poolid)
+	}
+
+	pth := path.Join(basepth, "/hosts", hostid, "online")
+	ch, err := conn.Children(pth)
+	if err != nil && err != client.ErrNoNode {
+
+		logger.WithError(err).Debug("Could not check online status of host")
+		return false, err
+	}
+	return len(ch) > 0, nil
 }

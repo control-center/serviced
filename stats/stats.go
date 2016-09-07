@@ -18,7 +18,6 @@ package stats
 import (
 	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -103,12 +102,12 @@ func (sr *StatsReporter) getOrCreateContainerRegistry(serviceID string, instance
 	return sr.containerRegistries[key]
 }
 
-func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
+func (sr *StatsReporter) removeStaleRegistries(states []zkservice.State) {
 	// First build a list of what's actually running
 	keys := make(map[string][]int)
 	containers := make(map[string]bool)
-	for _, rs := range *running {
-		containers[rs.DockerID] = true
+	for _, rs := range states {
+		containers[rs.ContainerID] = true
 		if instances, ok := keys[rs.ServiceID]; !ok {
 			instances = []int{rs.InstanceID}
 			keys[rs.ServiceID] = instances
@@ -278,25 +277,24 @@ func (sr *StatsReporter) updateStats() {
 		sr.updateStorageStats()
 	}
 	// Stats for the containers.
-	var running []dao.RunningService
-	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)
+	states, err := zkservice.GetHostStates(sr.conn, "", sr.hostID)
 	if err != nil {
-		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
+		glog.Errorf("updateStats: zkservice.GetHostStates (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
 
-	for _, rs := range running {
-		if rs.DockerID != "" {
+	for _, rs := range states {
+		if rs.ContainerID != "" {
 
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-			stats, err := sr.docker.GetContainerStats(rs.DockerID, 30*time.Second)
+			stats, err := sr.docker.GetContainerStats(rs.ContainerID, 30*time.Second)
 			if err != nil || stats == nil { //stats may be nil if service is shutting down
-				glog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.Name, rs.InstanceID, err)
+				glog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.ServiceID, rs.InstanceID, err)
 				continue
 			}
 
 			// Check to see if we have the previous stats for this running instance
 			usePreviousStats := true
-			key := rs.DockerID
+			key := rs.ContainerID
 			if _, found := sr.previousStats[key]; !found {
 				sr.previousStats[key] = make(map[string]uint64)
 				usePreviousStats = false
@@ -351,7 +349,7 @@ func (sr *StatsReporter) updateStats() {
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", containerRegistry).Update(kernelCPUPercent)
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", containerRegistry).Update(userCPUPercent)
 			} else {
-				glog.V(4).Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.Name, rs.ServiceID)
+				glog.V(4).Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.ServiceID, rs.InstanceID)
 			}
 
 			// Memory Stats
@@ -359,18 +357,18 @@ func (sr *StatsReporter) updateStats() {
 			totalRSS := int64(stats.MemoryStats.Stats.TotalRss)
 			cache := int64(stats.MemoryStats.Stats.Cache)
 			if pgFault < 0 || totalRSS < 0 || cache < 0 {
-				glog.Warningf("Memory metric value for service %s instance %s too big for int64", rs.Name, rs.InstanceID)
+				glog.Warningf("Memory metric value for service %s instance %d too big for int64", rs.ServiceID, rs.InstanceID)
 			}
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
 			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
 			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(cache)
 
 		} else {
-			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
+			glog.V(4).Infof("Skipping stats update for %s (%d), no container ID exists yet", rs.ServiceID, rs.InstanceID)
 		}
 	}
 	// Clean out old container registries
-	sr.removeStaleRegistries(&running)
+	sr.removeStaleRegistries(states)
 }
 
 // Fills out the metric consumer format.

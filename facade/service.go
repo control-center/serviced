@@ -35,12 +35,9 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/validation"
-	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 
 	"github.com/control-center/serviced/utils"
 )
@@ -73,10 +70,10 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err err
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.addService(ctx, svc, false)
+	return f.addService(ctx, tenantID, svc, false)
 }
 
-func (f *Facade) addService(ctx datastore.Context, svc service.Service, setLockOnCreate bool) error {
+func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.Service, setLockOnCreate bool) error {
 	store := f.serviceStore
 	// service add validation
 	if err := f.validateServiceAdd(ctx, &svc); err != nil {
@@ -108,7 +105,7 @@ func (f *Facade) addService(ctx datastore.Context, svc service.Service, setLockO
 	}
 	glog.Infof("Set configuration information for service %s (%s)", svc.Name, svc.ID)
 	// sync the service with the coordinator
-	if err := f.syncService(ctx, svc.ID, setLockOnCreate, setLockOnCreate); err != nil {
+	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnCreate, setLockOnCreate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -157,7 +154,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, svc, false, false)
+	return f.updateService(ctx, tenantID, svc, false, false)
 }
 
 // MigrateService migrates an existing service; return error if the service does
@@ -170,10 +167,10 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc service.Service) erro
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.updateService(ctx, svc, true, false)
+	return f.updateService(ctx, tenantID, svc, true, false)
 }
 
-func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migrate, setLockOnUpdate bool) error {
+func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc service.Service, migrate, setLockOnUpdate bool) error {
 	store := f.serviceStore
 	cursvc, err := f.validateServiceUpdate(ctx, &svc)
 	if err != nil {
@@ -213,15 +210,15 @@ func (f *Facade) updateService(ctx datastore.Context, svc service.Service, migra
 	glog.Infof("Set configuration information for service %s (%s)", svc.Name, svc.ID)
 	// remove the service from coordinator if the pool has changed
 	if cursvc.PoolID != svc.PoolID {
-		if err := f.zzk.RemoveService(cursvc); err != nil {
+		if err := f.zzk.RemoveService(cursvc.PoolID, cursvc.ID); err != nil {
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(cursvc, false, false)
+			f.zzk.UpdateService(tenantID, cursvc, false, false)
 		}
 	}
 	// sync the service with the coordinator
-	if err := f.syncService(ctx, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
+	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -324,19 +321,27 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 			}
 		}
 		for _, vhost := range ep.VHostList {
-			//check that vhosts aren't already started elsewhere
-			key := registry.GetPublicEndpointKey(vhost.Name, registry.EPTypeVHost)
-			if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+			// check that vhosts aren't already started elsewhere
+			serviceID, application, err := f.zzk.GetVHost(vhost.Name)
+			if err != nil {
 				glog.Errorf("Could not check public endpoint for vhost %s: %s", vhost.Name, err)
 				return err
 			}
+			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+				glog.Errorf("Vhost %s is already in use by another application %s (%s)", vhost.Name, serviceID, application)
+				return errors.New("vhost already in use")
+			}
 		}
 		for _, port := range ep.PortList {
-			//check that ports aren't already started elsewhere
-			key := registry.GetPublicEndpointKey(port.PortAddr, registry.EPTypePort)
-			if err := f.zzk.CheckRunningPublicEndpoint(key, svc.ID); err != nil {
+			// check that ports aren't already started elsewhere
+			serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
+			if err != nil {
 				glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
 				return err
+			}
+			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+				glog.Errorf("Port %s is already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+				return errors.New("port already in use")
 			}
 		}
 	}
@@ -344,13 +349,13 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 }
 
 // syncService syncs service data from the database into the coordinator.
-func (f *Facade) syncService(ctx datastore.Context, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
+func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, setLockOnCreate, setLockOnUpdate bool) error {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not get service %s to sync: %s", serviceID, err)
 		return err
 	}
-	if err := f.zzk.UpdateService(svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := f.zzk.UpdateService(tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s to the coordinator: %s", serviceID, err)
 		return err
 	}
@@ -390,7 +395,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)
 				svc.PoolID = "default"
 			}
-			if err := f.addService(ctx, svc, true); err != nil {
+			if err := f.addService(ctx, tenantID, svc, true); err != nil {
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
 				return err
 			}
@@ -560,6 +565,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 			glog.Errorf("Could not destroy volume for tenant %s: %s", tenantID, err)
 			return err
 		}
+		f.zzk.RemoveTenantExports(tenantID)
 		f.zzk.DeleteRegistryLibrary(tenantID)
 	}
 	return nil
@@ -582,7 +588,11 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			}
 			endpoint.RemoveAssignment()
 		}
-		if err := f.zzk.RemoveService(svc); err != nil {
+		if err := f.zzk.RemoveServiceEndpoints(svc.ID); err != nil {
+			glog.Errorf("Could not remove public endpoints for service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			return err
+		}
+		if err := f.zzk.RemoveService(svc.PoolID, svc.ID); err != nil {
 			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
 			return err
 		}
@@ -831,30 +841,23 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, re
 		return nil, err
 	}
 
-	var states []servicestate.ServiceState
-	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+	if err != nil {
 		err = fmt.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}
 
-	someInstancesActive := false
 	appEndpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
 		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc, reportImports, reportExports)...)
 	} else {
 		for _, state := range states {
-			instanceEndpoints := getEndpointsFromServiceState(svc, state, reportImports, reportExports)
+			instanceEndpoints := getEndpointsFromState(state, reportImports, reportExports)
 			appEndpoints = append(appEndpoints, instanceEndpoints...)
-			if state.IsRunning() || state.IsPaused() {
-				someInstancesActive = true
-			}
 		}
 	}
 
 	sort.Sort(applicationendpoint.ApplicationEndpointSlice(appEndpoints))
-	if validate && len(appEndpoints) > 0 && someInstancesActive {
-		f.validateEndpoints(ctx, serviceID, appEndpoints)
-	}
 	return applicationendpoint.BuildEndpointReports(appEndpoints), nil
 }
 
@@ -881,70 +884,44 @@ func getEndpointsFromServiceDefinition(service *service.Service, reportImports, 
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromState(state zkservice.State, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
-	for _, serviceEndpoint := range state.Endpoints {
-		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
-			continue
-		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
-			continue
+	if reportImports {
+		for _, ep := range state.Imports {
+			endpoint := applicationendpoint.ApplicationEndpoint{
+				ServiceID:      state.ServiceID,
+				Application:    ep.Application,
+				Purpose:        ep.Purpose,
+				ContainerID:    state.ContainerID,
+				ContainerIP:    state.PrivateIP,
+				ContainerPort:  ep.PortNumber,
+				HostID:         state.HostID,
+				VirtualAddress: ep.VirtualAddress,
+				InstanceID:     state.InstanceID,
+			}
+			endpoints = append(endpoints, endpoint)
 		}
-
-		applicationEndpoint, err := applicationendpoint.BuildApplicationEndpoint(&state, &serviceEndpoint)
-		if err != nil {
-			glog.Errorf("Unable to build endpoint: %s", err)
-			continue
-		}
-
-		endpoints = append(endpoints, applicationEndpoint)
 	}
+
+	if reportExports {
+		for _, ep := range state.Exports {
+			endpoint := applicationendpoint.ApplicationEndpoint{
+				ServiceID:     state.ServiceID,
+				Application:   ep.Application,
+				Protocol:      ep.Protocol,
+				Purpose:       "export",
+				ContainerID:   state.ContainerID,
+				ContainerIP:   state.PrivateIP,
+				ContainerPort: ep.PortNumber,
+				HostID:        state.HostID,
+				HostIP:        state.HostIP,
+				InstanceID:    state.InstanceID,
+			}
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+
 	return endpoints
-}
-
-// Get a list of exported endpoints for the specified service from the Zookeeper namespace
-func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
-	tenantID, err := f.GetTenantID(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("GetTenantID failed - %s", err)
-		return nil, err
-	}
-
-	var endpoints []applicationendpoint.ApplicationEndpoint
-	err = f.zzk.GetServiceEndpoints(tenantID, serviceID, &endpoints)
-	if err != nil {
-		glog.Errorf("GetServiceEndpoints failed - %s", err)
-		return nil, err
-	}
-
-	return endpoints, nil
-}
-
-func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endpoints []applicationendpoint.ApplicationEndpoint) {
-	zkEndpoints, err := f.getEndpointsFromZK(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Unable to retrieve endpoints directly from ZK: %s", err)
-		return
-	}
-
-	// For each item in the list, if it exists in ZK, make sure the two values match
-	for _, endpoint := range endpoints {
-		zkEndpoint := endpoint.Find(zkEndpoints)
-		if zkEndpoint == nil {
-			// Note that during service startup, some endpoints may not been created in ZK /endpoints yet
-			glog.Infof("Endpoint %v has not been created in ZK endpoints %v", endpoint, zkEndpoints)
-		} else if !endpoint.Equals(zkEndpoint) {
-			glog.Errorf("Endpoint mismatch: %v vs %v", endpoint, zkEndpoint)
-		}
-	}
-
-	// FIXME: This needs to go somewhere else because it's a different kind of validation
-	// If an endpoint exists in ZK, make sure it matches an item in the list
-	// for _, zkEndpoint := range zkEndpoints {
-	// 	endpoint := zkEndpoint.Find(endpoints)
-	// 	if endpoint == nil {
-	// 		glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
-	// 	}
-	// }
 }
 
 // FindChildService walks services below the service specified by serviceId, checking to see
@@ -973,10 +950,10 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.scheduleService(ctx, serviceID, autoLaunch, desiredState, false)
+	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, desiredState, false)
 }
 
-func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
+func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
 	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
 	if desiredState != service.SVCStop {
 		if desiredState.String() == "unknown" {
@@ -999,15 +976,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 		switch desiredState {
 		case service.SVCRestart:
 			// shutdown all service instances
-			var states []servicestate.ServiceState
-			if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
 				return err
-			}
-
-			for _, state := range states {
-				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
-					return err
-				}
 			}
 			svc.DesiredState = int(service.SVCRun)
 		default:
@@ -1016,7 +986,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, serviceID string, autoLa
 		if err := f.fillServiceConfigs(ctx, svc); err != nil {
 			return err
 		}
-		if err := f.updateService(ctx, *svc, false, false); err != nil {
+		if err := f.updateService(ctx, tenantID, *svc, false, false); err != nil {
 			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
@@ -1045,72 +1015,6 @@ func (f *Facade) validateServiceSchedule(ctx datastore.Context, serviceID string
 		return err
 	}
 	return nil
-}
-
-// GetServiceStates returns all the service states given a service ID
-func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
-	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
-
-	svc, err := f.GetService(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Could not find service %s: %s", serviceID, err)
-		return nil, err
-	}
-
-	var states []servicestate.ServiceState
-	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
-		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
-		return nil, err
-	}
-
-	return states, nil
-}
-
-func (f *Facade) GetRunningServices(ctx datastore.Context) ([]dao.RunningService, error) {
-	var services []dao.RunningService
-	pools, err := f.GetResourcePools(ctx)
-	if err != nil {
-		return services, err
-	}
-	for _, pool := range pools {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool.ID))
-		if err != nil {
-			return services, err
-		}
-		svcs, err := zkservice.LoadRunningServices(conn)
-		if err != nil {
-			return services, err
-		}
-		services = append(services, svcs...)
-	}
-	return services, nil
-}
-
-func (f *Facade) GetRunningServicesForHosts(ctx datastore.Context, hostIDs ...string) ([]dao.RunningService, error) {
-	var services []dao.RunningService
-	hostMap := make(map[string][]string)
-	for _, hostID := range hostIDs {
-		host, err := f.GetHost(ctx, hostID)
-		if err != nil {
-			glog.Errorf("Unable to get host %v: %v", hostID, err)
-			return nil, err
-		}
-		hostMap[host.PoolID] = append(hostMap[host.PoolID], hostID)
-	}
-	for pool, hosts := range hostMap {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool))
-		if err != nil {
-			glog.Errorf("Error in getting a connection based on pool %v: %v", pool, err)
-			return nil, err
-		}
-		svcs, err := zkservice.LoadRunningServicesByHost(conn, hosts...)
-		if err != nil {
-			glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v hosts: %v) failed: %v", conn, hosts, err)
-			return nil, err
-		}
-		services = append(services, svcs...)
-	}
-	return services, nil
 }
 
 // WaitService waits for service/s to reach a particular desired state within the designated timeout
@@ -1420,17 +1324,6 @@ func (f *Facade) ServiceUse(ctx datastore.Context, serviceID, imageName, registr
 		for _, svc := range svcsToUpdate {
 			if err = f.UpdateService(ctx, *svc); err != nil {
 				return fmt.Errorf("error updating service %s: %s", svc.Name, err)
-			}
-			states, err := f.GetServiceStates(ctx, svc.ID)
-			if err != nil {
-				return err
-			}
-			for _, state := range states {
-				state.InSync = false
-				glog.V(1).Infof("Updating InSync for service %s", state.ID)
-				if err = f.zzk.UpdateServiceState(svc.PoolID, &state); err != nil {
-					return err
-				}
 			}
 		}
 	}

@@ -13,7 +13,7 @@
 
 // +build integration,!quick
 
-package service
+package service_test
 
 import (
 	"path"
@@ -23,8 +23,8 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+	. "github.com/control-center/serviced/zzk/service"
 
 	. "gopkg.in/check.v1"
 )
@@ -35,7 +35,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 
 	// set up the resource pool
 	p := &pool.ResourcePool{
-		ID:                "test-pool",
+		ID:                "testpool",
 		ConnectionTimeout: 2000,
 	}
 	ppth := path.Join("/pools", p.ID)
@@ -44,7 +44,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 
 	// set up a service
 	s := &service.Service{
-		ID: "test-service",
+		ID: "testservice",
 	}
 	spth := path.Join(ppth, "/services", s.ID)
 	err = conn.Create(spth, &ServiceNode{Service: s})
@@ -98,20 +98,21 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	c.Assert(err, IsNil)
 	c.Logf("Created node at path %s", h1pth)
 
-	st8 := &servicestate.ServiceState{
-		ID:        "test-state",
-		HostID:    h1.ID,
-		ServiceID: s.ID,
+	req := StateRequest{
+		PoolID:     p.ID,
+		HostID:     h1.ID,
+		ServiceID:  s.ID,
+		InstanceID: 0,
 	}
-	err = addInstance(conn, p.ID, *st8)
+	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
 
 	stop = make(chan interface{})
 	done = make(chan struct{})
-	ok, st8ev, err := conn.ExistsW(path.Join(spth, st8.ID), done)
+	ok, st8ev, err := conn.ExistsW(path.Join(spth, req.StateID()), done)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
-	ok, hst8ev, err := conn.ExistsW(path.Join(h1pth, "instances", st8.ID), done)
+	ok, hst8ev, err := conn.ExistsW(path.Join(h1pth, "instances", req.StateID()), done)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
 	go func() {
@@ -121,17 +122,17 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 
 	select {
 	case <-st8ev:
-		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		ok, err := conn.Exists(path.Join(spth, req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
-		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		ok, err = conn.Exists(path.Join(h1pth, "instances", req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
 	case <-hst8ev:
-		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		ok, err := conn.Exists(path.Join(spth, req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
-		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		ok, err = conn.Exists(path.Join(h1pth, "instances", req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
 	case <-done:
@@ -166,12 +167,19 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	}
 
 	// case 5: offline, instance
-	err = addInstance(conn, p.ID, *st8)
+	req = StateRequest{
+		PoolID:     p.ID,
+		HostID:     h1.ID,
+		ServiceID:  s.ID,
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
-	ok, st8ev, err = conn.ExistsW(path.Join(spth, st8.ID), done)
+
+	ok, st8ev, err = conn.ExistsW(path.Join(spth, req.StateID()), done)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
-	ok, hst8ev, err = conn.ExistsW(path.Join(h1pth, "instances", st8.ID), done)
+	ok, hst8ev, err = conn.ExistsW(path.Join(h1pth, "instances", req.StateID()), done)
 	c.Assert(err, IsNil)
 	c.Assert(ok, Equals, true)
 	err = conn.Delete(path.Join(h1pth, "online", path.Base(eh1pth)))
@@ -220,17 +228,17 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	c.Assert(err, IsNil)
 	select {
 	case <-st8ev:
-		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		ok, err := conn.Exists(path.Join(spth, req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
-		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		ok, err = conn.Exists(path.Join(h1pth, "instances", req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
 	case <-hst8ev:
-		ok, err := conn.Exists(path.Join(spth, st8.ID))
+		ok, err := conn.Exists(path.Join(spth, req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
-		ok, err = conn.Exists(path.Join(h1pth, "instances", st8.ID))
+		ok, err = conn.Exists(path.Join(h1pth, "instances", req.StateID()))
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
 	case <-time.After(2*p.GetConnectionTimeout() + time.Second):

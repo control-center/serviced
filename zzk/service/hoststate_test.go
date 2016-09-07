@@ -13,609 +13,953 @@
 
 // +build integration,!quick
 
-package service
+package service_test
 
 import (
-	"fmt"
-	"path"
-
+	"errors"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+	. "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/service/mocks"
+	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
 )
 
-type action int
-
-const (
-	attach action = iota
-	start
-	pause
-	resume
-	stop
+var (
+	ErrTestNoAttach = errors.New("could not attach to container")
 )
 
-type request struct {
-	state    *servicestate.ServiceState
-	action   action
-	purge    func(string)
-	response chan<- error
+// Test Case: Bad state id
+func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	shutdown := make(chan interface{})
+
+	done := make(chan struct{})
+	go func() {
+		listener.Spawn(shutdown, "badstateid")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		close(shutdown)
+		c.Fatalf("Listener did not shut down")
+	}
+	handler.AssertExpectations(c)
 }
 
-type TestHostStateHandler struct {
-	instances map[string]func(string)
-	requestC  chan request
-}
+// Test Case: Missing host state
+func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
 
-func (handler *TestHostStateHandler) init() *TestHostStateHandler {
-	h := TestHostStateHandler{make(map[string]func(string)), make(chan request)}
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	// delete the host state
+	handler.On("StopContainer", "serviceid", 1).Return(nil)
+	err = conn.Delete("/hosts/hostid/instances/" + req.StateID())
+	c.Assert(err, IsNil)
+
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	shutdown := make(chan interface{})
+
+	done := make(chan struct{})
+	ok, ev, err := conn.ExistsW("/services/serviceid/"+req.StateID(), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
 
 	go func() {
-		for req := range h.requestC {
-			switch req.action {
-			case attach:
-				if _, ok := h.instances[req.state.ID]; !ok {
-					req.response <- fmt.Errorf("attach: not running")
-					continue
-				}
-				h.instances[req.state.ID] = req.purge
-				req.state.Started = time.Now()
-				req.response <- nil
-			case start:
-				if _, ok := h.instances[req.state.ID]; ok {
-					req.response <- fmt.Errorf("start: running")
-					continue
-				}
-				h.instances[req.state.ID] = req.purge
-				req.state.Started = time.Now()
-				req.response <- nil
-			case pause:
-				if _, ok := h.instances[req.state.ID]; !ok || !req.state.IsRunning() {
-					req.response <- fmt.Errorf("pause: not running")
-					continue
-				} else if req.state.IsPaused() {
-					req.response <- fmt.Errorf("pause: paused")
-					continue
-				}
-				req.response <- nil
-			case resume:
-				if _, ok := h.instances[req.state.ID]; !ok || !req.state.IsRunning() {
-					req.response <- fmt.Errorf("resume: not running")
-					continue
-				} else if !req.state.IsPaused() {
-					req.response <- fmt.Errorf("resume: resumed")
-					continue
-				}
-				req.response <- nil
-			case stop:
-				purge, ok := h.instances[req.state.ID]
-				if !ok {
-					req.response <- fmt.Errorf("stop: not running")
-					continue
-				}
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
 
-				delete(h.instances, req.state.ID)
-				purge(req.state.ID)
-				req.response <- nil
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Logf("Listener cleaned up orphaned node")
+		timer.Reset(time.Second)
+
+		select {
+		case <-done:
+			c.Logf("Listener shut down")
+		case <-timer.C:
+			c.Fatalf("Listener did not shut down")
+		}
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Listener did not shut down")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Missing service state
+func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	// delete the service state
+	handler.On("StopContainer", "serviceid", 1).Return(nil)
+	err = conn.Delete("/services/serviceid/" + req.StateID())
+	c.Assert(err, IsNil)
+
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	shutdown := make(chan interface{})
+
+	done := make(chan struct{})
+	ok, ev, err := conn.ExistsW("/hosts/hostid/instances/"+req.StateID(), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Logf("Listener cleaned up orphaned node")
+		timer.Reset(time.Second)
+
+		select {
+		case <-done:
+			c.Logf("Listener shut down")
+		case <-timer.C:
+			c.Fatalf("Listener did not shut down")
+		}
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/hosts/hostid/instances/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Listener did not shut down")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Error on attach
+func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+
+	handler.On("StopContainer", "serviceid", 1).Return(nil)
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, ErrTestNoAttach)
+
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	done := make(chan struct{})
+	ok, ev, err := conn.ExistsW("/hosts/hostid/instances/"+req.StateID(), done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Logf("Listener cleaned up orphaned node")
+		timer.Reset(time.Second)
+
+		select {
+		case <-done:
+			c.Logf("Listener shut down")
+		case <-timer.C:
+			c.Fatalf("Listener did not shut down")
+		}
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/hosts/hostid/instances/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Listener did not shut down")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener attaches to a running container
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	// attached, run, no change
+	ssdat := ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.ServiceState = ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	done := make(chan struct{})
+	sspth := "/services/serviceid/" + req.StateID()
+	ev, err := conn.GetW(sspth, &ServiceState{}, done)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	select {
+	case <-ev:
+		c.Errorf("service state changed unexpectedly")
+	case <-time.After(time.Second):
+	}
+	close(shutdown)
+	select {
+	case e := <-ev:
+		c.Assert(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-time.After(5 * time.Second):
+		c.Fatalf("state not deleted")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener attaches to a paused running container
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      true,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+
+	done := make(chan struct{})
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Fatalf("Unexpected event from service state")
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+	}
+
+	// resume container
+	handler.On("ResumeContainer", mock.AnythingOfType("*service.Service"), 1).Return(nil)
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		return true
+	})
+	c.Assert(err, IsNil)
+	timer.Reset(time.Second)
+	select {
+	case <-ev:
+		// make sure the state is paused
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+		c.Assert(err, IsNil)
+
+		// may have been triggered by event to update desired state
+		if ssdat.Paused {
+			timer.Reset(time.Second)
+			select {
+			case <-ev:
+				ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+				c.Assert(err, IsNil)
+			case <-done:
+				c.Fatalf("Listener shutdown")
+			case <-timer.C:
+				c.Fatalf("Listener took too long")
 			}
 		}
-	}()
-	return &h
-}
 
-func (h *TestHostStateHandler) PullImage(cancel <-chan time.Time, imageID string) (string, error) {
-	return "", nil
-}
-
-func (h *TestHostStateHandler) AttachService(svc *service.Service, state *servicestate.ServiceState, purge func(stateID string)) error {
-	response := make(chan error)
-	h.requestC <- request{state, attach, purge, response}
-	return <-response
-}
-
-func (h *TestHostStateHandler) StartService(svc *service.Service, state *servicestate.ServiceState, purge func(stateID string)) error {
-	response := make(chan error)
-	h.requestC <- request{state, start, purge, response}
-	return <-response
-}
-
-func (h *TestHostStateHandler) PauseService(svc *service.Service, state *servicestate.ServiceState) error {
-	response := make(chan error)
-	h.requestC <- request{state, pause, nil, response}
-	return <-response
-}
-
-func (h *TestHostStateHandler) ResumeService(svc *service.Service, state *servicestate.ServiceState) error {
-	response := make(chan error)
-	h.requestC <- request{state, resume, nil, response}
-	return <-response
-}
-
-func (h *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
-	response := make(chan error)
-	h.requestC <- request{state, stop, nil, response}
-	return <-response
-}
-
-func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-
-	shutdown := make(chan interface{})
-	defer close(shutdown)
-	errC := make(chan error, 1)
-
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
-	go zzk.Listen(shutdown, errC, conn, listener)
-
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 3}
-	err = UpdateService(conn, svc, false, false)
-	c.Assert(err, IsNil)
-
-	// Add host
-	go func() {
-		err := AddHost(conn, &host.Host{ID: "test-host-1"})
-		c.Assert(err, IsNil)
-		err = conn.CreateDir(listener.GetPath())
-		c.Assert(err, IsNil)
-		err = RegisterHost(shutdown, conn, "test-host-1")
-		c.Assert(err, IsNil)
-	}()
-
-	// Verify that the host is registered
-	c.Logf("Waiting for 'test-host-1' to be registered")
-	select {
-	case err := <-errC:
-		c.Assert(err, IsNil)
-	case <-time.After(zzk.ZKTestTimeout):
-		// NOTE: this timeout may be adjusted to satisfy race conditions
-		c.Fatalf("timeout waiting for host to be ready")
-	}
-
-	// Add states
-	addstates := func(hostID string, svc *service.Service, count int) []string {
-		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
-		stateIDs := make([]string, count)
-		for i := 0; i < count; i++ {
-			state, err := servicestate.BuildFromService(svc, hostID)
-			c.Assert(err, IsNil)
-			c.Assert(state.IsRunning(), Equals, false)
-			err = addInstance(conn, "", *state)
-			c.Assert(err, IsNil)
-			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
-			c.Assert(err, IsNil)
-			stateIDs[i] = state.ID
-		}
-		return stateIDs
-	}
-	stateIDs := addstates("test-host-1", &svc, 3)
-
-	wait := func(serviceID string, dState service.DesiredState) {
-		errC := make(chan error)
-		c.Logf("Waiting for service instances on 'test-host-1' to %s", dState)
-		go func() {
-			errC <- WaitService(shutdown, conn, serviceID, dState)
-		}()
-
-		// Wait on services or fail trying
-		select {
-		case err := <-errC:
-			c.Assert(err, IsNil)
-		case <-time.After(zzk.ZKTestTimeout):
-			c.Fatalf("timeout waiting for instances to %s", dState)
-		}
-	}
-	wait(svc.ID, service.SVCRun)
-
-	// Pause states
-	for _, stateID := range stateIDs {
-		err = pauseInstance(conn, "", "test-host-1", stateID)
-		c.Assert(err, IsNil)
-	}
-	wait(svc.ID, service.SVCPause)
-
-	// Resume states
-	for _, stateID := range stateIDs {
-		err = resumeInstance(conn, "", "test-host-1", stateID)
-		c.Assert(err, IsNil)
-	}
-	wait(svc.ID, service.SVCRun)
-
-	// Stop states
-	for _, stateID := range stateIDs {
-		err = StopServiceInstance(conn, "", "test-host-1", stateID)
-		c.Assert(err, IsNil)
-	}
-	wait(svc.ID, service.SVCStop)
-}
-
-func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
-	conn, err := zzk.GetLocalConnection("/base_badstate")
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-
-	shutdown := make(chan interface{})
-	defer close(shutdown)
-	errC := make(chan error, 1)
-
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
-
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 3}
-	err = UpdateService(conn, svc, false, false)
-	c.Assert(err, IsNil)
-
-	// Add the host
-	err = AddHost(conn, &host.Host{ID: "test-host-1"})
-	c.Assert(err, IsNil)
-
-	// Create a host state without a service instance (this should not spin!)
-	badstate := HostState{
-		HostID:         listener.hostID,
-		ServiceID:      svc.ID,
-		ServiceStateID: "fail123",
-		DesiredState:   int(service.SVCRun),
-	}
-	badstatepath := path.Join("/hosts", badstate.HostID, "instances", badstate.ServiceStateID)
-	err = conn.Create(badstatepath, &badstate)
-	c.Assert(err, IsNil)
-	err = conn.Set(badstatepath, &badstate)
-	c.Assert(err, IsNil)
-
-	// Set up a watch
-	watchDone := make(chan struct{})
-	defer close(watchDone)
-	event, err := conn.GetW(badstatepath, &HostState{}, watchDone)
-	c.Assert(err, IsNil)
-
-	// Start the listener
-	go zzk.Listen(shutdown, errC, conn, listener)
-
-	select {
-	case e := <-event:
-		c.Assert(e.Type, Equals, client.EventNodeDeleted)
-	case <-time.After(zzk.ZKTestTimeout):
-		c.Fatalf("timeout waiting for event")
-	}
-}
-
-func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-
-	shutdown := make(chan interface{})
-	defer close(shutdown)
-	errC := make(chan error, 1)
-
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false, false)
-	c.Assert(err, IsNil)
-
-	// Add a host
-	register := func(hostID string) string {
-		c.Logf("Registering host %s", hostID)
-		host := host.Host{ID: hostID}
-		err := AddHost(conn, &host)
-		c.Assert(err, IsNil)
-		// Need a path to the node, despite ephemeral node names being
-		// different
-		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
-		c.Assert(err, IsNil)
-		return path.Base(p)
-	}
-	register("test-host-1")
-
-	// Add states
-	addstates := func(hostID string, svc *service.Service, count int) []string {
-		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
-		stateIDs := make([]string, count)
-		for i := 0; i < count; i++ {
-			state, err := servicestate.BuildFromService(svc, hostID)
-			c.Assert(err, IsNil)
-			err = addInstance(conn, "", *state)
-			c.Assert(err, IsNil)
-			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
-			c.Assert(err, IsNil)
-			stateIDs[i] = state.ID
-		}
-		return stateIDs
-	}
-	stateIDs := addstates("test-host-1", &svc, 1)
-	stateID := stateIDs[0]
-
-	wait := func(serviceID string, dState service.DesiredState) {
-		c.Logf("Waiting for service instances on 'test-host-1' to %s", dState)
-		go func() {
-			errC <- WaitService(shutdown, conn, serviceID, dState)
-		}()
-
-		// Wait on services or fail trying
-		select {
-		case err := <-errC:
-			c.Assert(err, IsNil)
-		case <-time.After(zzk.ZKTestTimeout):
-			c.Fatalf("timeout waiting for instances to %s", dState)
-		}
-	}
-
-	var node1, node2 ServiceStateNode
-	listener.Ready()
-	go func() {
-		listener.Spawn(shutdown, stateID)
-	}()
-
-	c.Logf("Checking instance start")
-	wait(svc.ID, service.SVCRun)
-	err = conn.Get(servicepath(svc.ID, stateID), &node1)
-	c.Assert(err, IsNil)
-
-	c.Logf("Stopping service instance")
-	err = handler.StopService(node1.ServiceState)
-	wait(svc.ID, service.SVCRun)
-	err = conn.Get(servicepath(svc.ID, stateID), &node2)
-	c.Assert(err, IsNil)
-	c.Assert(node2.Started.After(node1.Started), Equals, true)
-
-	c.Logf("Pausing service instance")
-	err = pauseInstance(conn, "", "test-host-1", stateID)
-	wait(svc.ID, service.SVCPause)
-
-	c.Logf("Resuming service instance")
-	err = resumeInstance(conn, "", "test-host-1", stateID)
-	c.Assert(err, IsNil)
-	wait(svc.ID, service.SVCRun)
-	// Verify the instance wasn't restarted
-	err = conn.Get(servicepath(svc.ID, stateID), &node1)
-	c.Assert(err, IsNil)
-	c.Assert(node1.Started.Unix(), Equals, node2.Started.Unix())
-
-	c.Logf("Stopping service instance")
-	err = StopServiceInstance(conn, "", "test-host-1", stateID)
-	if err != nil {
-		c.Logf("could not stop, trying again")
-		err = StopServiceInstance(conn, "", "test-host-1", stateID)
-		c.Assert(err, IsNil)
-	}
-	wait(svc.ID, service.SVCStop)
-}
-
-func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-
-	shutdown := make(chan interface{})
-	defer close(shutdown)
-
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false, false)
-	c.Assert(err, IsNil)
-
-	// Add a host
-	register := func(hostID string) string {
-		c.Logf("Registering host %s", hostID)
-		host := host.Host{ID: hostID}
-		err := AddHost(conn, &host)
-		c.Assert(err, IsNil)
-		// Need a path to the node, despite ephemeral node names being
-		// different
-		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
-		c.Assert(err, IsNil)
-		return path.Base(p)
-	}
-	register("test-host-1")
-
-	// Add states
-	addstates := func(hostID string, svc *service.Service, count int) []string {
-		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
-		stateIDs := make([]string, count)
-		for i := 0; i < count; i++ {
-			state, err := servicestate.BuildFromService(svc, hostID)
-			c.Assert(err, IsNil)
-			err = addInstance(conn, "", *state)
-			c.Assert(err, IsNil)
-			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
-			c.Assert(err, IsNil)
-			stateIDs[i] = state.ID
-		}
-		return stateIDs
-	}
-	stateIDs := addstates("test-host-1", &svc, 1)
-	stateID := stateIDs[0]
-
-	var node ServiceStateNode
-	err = conn.Get(servicepath(svc.ID, stateID), &node)
-	c.Assert(err, IsNil)
-
-	c.Logf("Starting the instance to attach")
-	err = handler.StartService(&svc, node.ServiceState, func(_ string) {})
-	c.Assert(err, IsNil)
-	// Update the start time
-	err = conn.Set(servicepath(svc.ID, stateID), &node)
-	c.Assert(err, IsNil)
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		listener.Spawn(shutdown, stateID)
-	}()
-
-	c.Logf("Removing the instance to verify shutdown")
-	time.Sleep(zzk.ZKTestTimeout)
-	err = removeInstance(conn, "", node.ServiceState.HostID, node.ServiceState.ServiceID, node.ServiceState.ID)
-
-	select {
+		c.Check(ssdat.Paused, Equals, false)
 	case <-done:
-	case <-time.After(zzk.ZKTestTimeout):
-		c.Fatalf("timeout waiting for listener to shutdown")
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
 	}
 
-	exists, err := conn.Exists(servicepath(svc.ID, stateID))
-	c.Assert(err, IsNil)
-	c.Assert(exists, Equals, false)
-	exists, err = conn.Exists(path.Join("/hosts", "test-host-1", "instances", stateID))
-	c.Assert(err, IsNil)
-	c.Assert(exists, Equals, false)
-}
-
-func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
-	c.Assert(err, IsNil)
-
-	shutdown := make(chan interface{})
-
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false, false)
-	c.Assert(err, IsNil)
-
-	// Add a host
-	register := func(hostID string) string {
-		c.Logf("Registering host %s", hostID)
-		host := host.Host{ID: hostID}
-		err := AddHost(conn, &host)
-		c.Assert(err, IsNil)
-		// Need a path to the node, despite ephemeral node names being
-		// different
-		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
-		c.Assert(err, IsNil)
-		return path.Base(p)
-	}
-	register("test-host-1")
-
-	// Add states
-	addstates := func(hostID string, svc *service.Service, count int) []string {
-		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
-		stateIDs := make([]string, count)
-		for i := 0; i < count; i++ {
-			state, err := servicestate.BuildFromService(svc, hostID)
-			c.Assert(err, IsNil)
-			err = addInstance(conn, "", *state)
-			c.Assert(err, IsNil)
-			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
-			c.Assert(err, IsNil)
-			stateIDs[i] = state.ID
-		}
-		return stateIDs
-	}
-	stateIDs := addstates("test-host-1", &svc, 1)
-	stateID := stateIDs[0]
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		listener.Spawn(shutdown, stateID)
-	}()
-
-	time.Sleep(zzk.ZKTestTimeout)
+	// shutdown
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
 	close(shutdown)
-
+	timer.Reset(time.Second)
 	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
 	case <-done:
-	case <-time.After(zzk.ZKTestTimeout):
-		c.Fatalf("timeout waiting for listener to shutdown")
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
 	}
-
-	exists, err := conn.Exists(servicepath(svc.ID, stateID))
-	c.Assert(err, IsNil)
-	c.Assert(exists, Equals, false)
-	exists, err = conn.Exists(path.Join("/hosts", "test-host-1", "instances", stateID))
-	c.Assert(err, IsNil)
-	c.Assert(exists, Equals, false)
+	handler.AssertExpectations(c)
 }
 
-func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
-	conn, err := zzk.GetLocalConnection("/base_pauseANDresume")
+// Test Case: Listener attaches to a running container and is triggered to
+// restart it.
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
-	err = conn.CreateDir(servicepath())
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
-	handler := new(TestHostStateHandler).init()
-	listener := NewHostStateListener(handler, "test-host-1")
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
 	listener.SetConnection(conn)
 
-	// Add a service
-	svc := service.Service{ID: "test-service-1", Instances: 1}
-	err = UpdateService(conn, svc, false, false)
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.ServiceState = *ssdat
+		return true
+	})
 	c.Assert(err, IsNil)
 
-	// Add a host
-	register := func(hostID string) string {
-		c.Logf("Registering host %s", hostID)
-		host := host.Host{ID: hostID}
-		err := AddHost(conn, &host)
-		c.Assert(err, IsNil)
-		// Need a path to the node, despite ephemeral node names being
-		// different
-		p, err := conn.CreateEphemeral(path.Join("/hosts", hostID, "online", hostID), &client.Dir{})
-		c.Assert(err, IsNil)
-		return path.Base(p)
-	}
-	register("test-host-1")
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
-	// Add states
-	addstates := func(hostID string, svc *service.Service, count int) []string {
-		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
-		stateIDs := make([]string, count)
-		for i := 0; i < count; i++ {
-			state, err := servicestate.BuildFromService(svc, hostID)
-			c.Assert(err, IsNil)
-			err = addInstance(conn, "", *state)
-			c.Assert(err, IsNil)
-			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
-			c.Assert(err, IsNil)
-			stateIDs[i] = state.ID
+	done := make(chan struct{})
+
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Fatalf("Unexpected event from service state")
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+	}
+
+	ssdat = &ServiceState{
+		ContainerID: "containerid2",
+		ImageID:     "imageid",
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	var retShutdown <-chan interface{} = shutdown
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
+	handler.On("StartContainer", retShutdown, mock.AnythingOfType("*service.Service"), 1).Return(ssdat, retExit, nil)
+
+	containerExit <- time.Now()
+	timer.Reset(time.Second)
+	select {
+	case <-ev:
+		// state is either terminated or overwritten
+		ssdat2 := &ServiceState{}
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat2, done)
+		c.Assert(err, IsNil)
+
+		if ssdat2.ContainerID == "containerid" {
+			timer.Reset(time.Second)
+			c.Check(ssdat2.Terminated.IsZero(), Equals, false)
+
+			select {
+			case <-ev:
+				ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat2, done)
+				c.Assert(err, IsNil)
+			case <-done:
+				c.Fatalf("Listener shutdown")
+			case <-timer.C:
+				c.Fatalf("Listener took too long")
+			}
 		}
-		return stateIDs
+		ssdat2.SetVersion(nil)
+		c.Check(ssdat2.Terminated.IsZero(), Equals, true)
+		ssdat2.Terminated = ssdat.Terminated
+		c.Check(ssdat2.Started.Equal(ssdat.Started), Equals, true)
+		ssdat2.Started = ssdat.Started
+		c.Check(ssdat2, DeepEquals, ssdat)
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
 	}
-	stateIDs := addstates("test-host-1", &svc, 1)
-	stateID := stateIDs[0]
 
-	var node ServiceStateNode
-	err = conn.Get(servicepath(svc.ID, stateID), &node)
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
+
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener attaches to a running container and pauses the state
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
-	err = handler.StartService(&svc, node.ServiceState, func(_ string) {})
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
-	err = conn.Set(servicepath(node.ServiceID, node.ID), &node)
+	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
-	err = listener.pauseInstance(&svc, node.ServiceState)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
-	err = conn.Get(servicepath(node.ServiceID, node.ID), &node)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.ServiceState = *ssdat
+		return true
+	})
 	c.Assert(err, IsNil)
-	c.Assert(node.IsPaused(), Equals, true)
-	err = listener.resumeInstance(&svc, node.ServiceState)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+
+	done := make(chan struct{})
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
 	c.Assert(err, IsNil)
-	err = conn.Get(servicepath(node.ServiceID, node.ID), &node)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Fatalf("Unexpected event from service state")
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+	}
+
+	// pause container
+	handler.On("PauseContainer", mock.AnythingOfType("*service.Service"), 1).Return(nil)
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		return true
+	})
 	c.Assert(err, IsNil)
-	c.Assert(node.IsPaused(), Equals, false)
+	timer.Reset(time.Second)
+	select {
+	case <-ev:
+		// make sure the state is paused
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+		c.Assert(err, IsNil)
+
+		// may have been triggered by event to update desired state
+		if !ssdat.Paused {
+			timer.Reset(time.Second)
+			select {
+			case <-ev:
+				ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+				c.Assert(err, IsNil)
+			case <-done:
+				c.Fatalf("Listener shutdown")
+			case <-timer.C:
+				c.Fatalf("Listener took too long")
+			}
+		}
+
+		c.Check(ssdat.Paused, Equals, true)
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// shutdown
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener attaches to a paused running container (no change)
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	// set up a paused running container
+	ssdat := &ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      true,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+
+	done := make(chan struct{})
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Fatalf("Unexpected event from service state")
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+	}
+
+	// shutdown
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener to pause a stopped container (no change)
+func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		return true
+	})
+	c.Assert(err, IsNil)
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
+
+	done := make(chan struct{})
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), &ServiceState{}, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		c.Fatalf("Unexpected event from service state")
+	case <-done:
+		c.Fatalf("Listener shutdown")
+	case <-timer.C:
+	}
+
+	// shutdown
+	handler.On("StopContainer", "serviceid", 1).Return(nil)
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+	handler.AssertExpectations(c)
+}
+
+// Test Case: Listener attaches to a running container and stops
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	handler := &mocks.HostStateHandler{}
+
+	// Basic set up
+	svc := &service.Service{
+		ID:     "serviceid",
+		Name:   "serviceA",
+		PoolID: "poolid",
+	}
+	spth := "/services/serviceid"
+	sdat := &ServiceNode{Service: svc}
+	err = conn.Create(spth, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir("/hosts/hostid")
+	c.Assert(err, IsNil)
+
+	req := StateRequest{
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: 1,
+	}
+	err = CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	listener := NewHostStateListener(handler, "hostid")
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: "containerid",
+		ImageID:     "imageid",
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCStop
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+
+	done := make(chan struct{})
+
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	})
+	timer := time.NewTimer(time.Second)
+	select {
+	case e := <-ev:
+		c.Check(e.Type, Equals, client.EventNodeDeleted)
+	case <-done:
+		c.Logf("Listener shutdown")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+	handler.AssertExpectations(c)
 }

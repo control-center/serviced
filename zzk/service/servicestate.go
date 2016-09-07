@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,173 +14,400 @@
 package service
 
 import (
-	"errors"
 	"path"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
-var (
-	ErrUnknownState = errors.New("unknown state")
-)
-
-// ServiceStateNode is the zookeeper client node for service states
-type ServiceStateNode struct {
-	*servicestate.ServiceState
-	version interface{}
+// ServiceHandler handles all non-zookeeper interactions required by the service
+type ServiceHandler interface {
+	SelectHost(*service.Service) (string, error)
 }
 
-// Version implements client.Node
-func (node *ServiceStateNode) Version() interface{} { return node.version }
-
-// SetVersion implements client.Node
-func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = version }
-
-// GetServiceState gets a service state
-func GetServiceState(conn client.Connection, state *servicestate.ServiceState, serviceID string, stateID string) error {
-	return conn.Get(servicepath(serviceID, stateID), &ServiceStateNode{ServiceState: state})
+// ServiceListener is the listener for /services
+type ServiceListener struct {
+	conn    client.Connection
+	handler ServiceHandler
+	poolid  string
 }
 
-// GetServiceStates gets all service states for a particular service
-func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []servicestate.ServiceState, err error) {
-	for _, serviceID := range serviceIDs {
-		stateIDs, err := conn.Children(servicepath(serviceID))
-		if err != nil {
-			return nil, err
-		}
+// NewServiceListener instantiates a new ServiceListener
+func NewServiceListener(poolid string, handler ServiceHandler) *ServiceListener {
+	return &ServiceListener{poolid: poolid, handler: handler}
+}
 
-		for _, stateID := range stateIDs {
-			var state servicestate.ServiceState
-			if err := GetServiceState(conn, &state, serviceID, stateID); err != nil {
-				return nil, err
-			}
-			states = append(states, state)
-		}
+// SetConnection implements zzk.Listener
+func (l *ServiceListener) SetConnection(conn client.Connection) { l.conn = conn }
+
+// GetPath implements zzk.Listener
+func (l *ServiceListener) GetPath(nodes ...string) string {
+	parts := append([]string{"/services"}, nodes...)
+	if l.poolid != "" {
+		parts = append([]string{"/pools", l.poolid}, parts...)
 	}
-	return states, nil
+	return path.Join(parts...)
 }
 
-// wait waits for an individual service state to reach its desired state
-func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string, dstate service.DesiredState) error {
+// Ready implements zzk.Listener
+func (l *ServiceListener) Ready() (err error) { return }
+
+// Done implements zzk.Listener
+func (l *ServiceListener) Done() { return }
+
+// PostProcess implements zzk.Listener
+func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
+
+// Spawn watches a service and syncs the number of running instances
+func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
+	logger := plog.WithField("serviceid", serviceID)
+
+	// set up the retry timer
+	timer := time.NewTimer(0)
+	timer.Stop()
+	defer timer.Stop()
+
+	// set up cancellable on zookeeper watches
 	done := make(chan struct{})
-	defer func(channel *chan struct{}) { close(*channel) }(&done)
+	defer func() { close(done) }()
+
 	for {
-		var node ServiceStateNode
-		event, err := conn.GetW(servicepath(serviceID, stateID), &node, done)
+
+		// set up a watch on the service
+		sDat := &ServiceNode{Service: &service.Service{}}
+		sEvt, err := l.conn.GetW(l.GetPath(serviceID), sDat, done)
 		if err == client.ErrNoNode {
-			// if the node no longer exists, then there is nothing to watch, so we are done
-			return nil
+
+			logger.Debug("Service deleted, listener shutting down")
+			return
 		} else if err != nil {
-			glog.Errorf("Got an error while looking for %s (%s): %s", stateID, serviceID, err)
-			return err
+
+			logger.WithError(err).Error("Could not load service")
+			return
 		}
 
+		logger = logger.WithFields(log.Fields{
+			"servicename":      sDat.Name,
+			"desiredstate":     sDat.DesiredState,
+			"desiredinstances": sDat.Instances,
+		})
+
+		// clean invalid states and set up a watch on the service's states
+		if err := CleanServiceStates(l.conn, l.poolid, serviceID); err != nil {
+
+			logger.WithError(err).Error("Could not clean up invalid states on service")
+			return
+		}
+		stateIDs, ssEvt, err := l.conn.ChildrenW(l.GetPath(serviceID), done)
+		if err == client.ErrNoNode {
+
+			logger.Debug("Service deleted, listener shutting down")
+			return
+		} else if err != nil {
+
+			logger.WithError(err).Error("Could not look up states for service")
+			return
+		}
+		reqs, ok := l.getStateRequests(logger, stateIDs)
+		if !ok {
+			timer.Reset(time.Second)
+		}
+
+		// set the state of these services
+		dstate := service.DesiredState(sDat.DesiredState)
 		switch dstate {
-		case service.SVCStop:
-			// pass through, because the node needs to be deleted to be considered Stopped
-		case service.SVCRun, service.SVCRestart:
-			if node.IsRunning() {
-				// instance reached the desired state
-				return nil
+		case service.SVCRun:
+
+			// Resume paused service states
+			if _, ok := l.Resume(reqs); !ok {
+				timer.Reset(time.Second)
 			}
+
+			// Synchronize the number of service states
+			if _, ok := l.Sync(sDat.Locked, sDat.Service, reqs); !ok {
+				timer.Reset(time.Second)
+			}
+
 		case service.SVCPause:
-			if node.IsPaused() {
-				// instance reached the desired state
-				return nil
+
+			// Pause running service states
+			if _, ok := l.Pause(reqs); !ok {
+				timer.Reset(time.Second)
 			}
+
+		case service.SVCStop:
+
+			// Stop all service states
+			if _, ok := l.Stop(reqs); !ok {
+				timer.Reset(time.Second)
+			}
+
+		default:
+			logger.Warn("Could not process desired state for service")
 		}
 
-		// wait for something to change on the node or shutdown
+		logger.Debug("Waiting for service event")
 		select {
-		case <-event:
+		case <-sEvt:
+		case <-ssEvt:
+		case <-timer.C:
 		case <-shutdown:
-			return zzk.ErrShutdown
+
+			logger.Debug("Service listener receieved signal to shut down")
+			return
 		}
 
 		close(done)
 		done = make(chan struct{})
+		timer.Stop()
 	}
 }
 
-// GetServiceStatus creates a map of service states to their corresponding status
-// The ServiceStatus objects returned will NOT include healthcheck info
-func GetServiceStatus(conn client.Connection, serviceID string) (map[string]dao.ServiceStatus, error) {
-	states, err := GetServiceStates(conn, serviceID)
-	if err != nil {
-		glog.Errorf("Could not get states for service %s: %s", serviceID, err)
-		return nil, err
-	}
+// getStateRequests returns a list of state requests
+func (l *ServiceListener) getStateRequests(logger *log.Entry, stateIDs []string) ([]StateRequest, bool) {
 
-	stats := make(map[string]dao.ServiceStatus)
-	for _, state := range states {
-		status, err := getStatus(conn, &state)
+	reqs := make([]StateRequest, len(stateIDs))
+	ok := true
+
+	for i, stateID := range stateIDs {
+		hostID, serviceID, instanceID, err := ParseStateID(stateID)
 		if err != nil {
-			glog.Errorf("Error looking up status %s for service %s: %s", state.ID, serviceID, err)
-			return nil, err
+
+			// This shouldn't happen
+			logger.WithField("stateid", stateID).WithError(err).Warn("Unexpected error trying to parse state id")
+			ok = false
+			continue
 		}
-		stats[state.ID] = dao.ServiceStatus{State: state, Status: status}
+
+		reqs[i] = StateRequest{
+			PoolID:     l.poolid,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
 	}
 
-	return stats, err
+	return reqs, ok
 }
 
-// getStatus computes the status of a service state
-func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.Status, error) {
-	var status dao.Status
+// Sync synchronizes the number of running service states and returns the delta
+// of added (>0) or deleted (<0) instances.
+func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []StateRequest) (int, bool) {
+	ok := true
+	count := len(reqs)
 
-	// Set the state based on the service state object
-	if !state.IsRunning() {
-		status = dao.Stopped
-	} else if state.IsPaused() {
-		status = dao.Paused
-	} else {
-		status = dao.Running
+	// If the service has a change option for restart all on changed, stop all
+	// instances and wait for the nodes to stop.  Once all service instances
+	// have been stopped (deleted), then go ahead and start the instances.
+	if utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
+		if count != 0 && count != svc.Instances {
+			svc.Instances = 0 // NOTE: this will not update the node in zk or elastic
+		}
 	}
 
-	// Set the state based on the host state object
-	hpth := path.Join("/hosts", state.HostID, "instances", state.ID)
-	hdat := HostState{}
-	if err := conn.Get(hpth, &hdat); err != nil && err != client.ErrNoNode {
-		return dao.Status{}, err
+	// Do not create instances if service is locked
+	if isLocked && count < svc.Instances {
+		return 0, ok
 	}
 
-	if hdat.DesiredState == int(service.SVCStop) {
-		switch status {
-		case dao.Running, dao.Paused:
-			status = dao.Stopping
-		case dao.Stopped:
-			// pass
-		default:
-			return dao.Status{}, ErrUnknownState
+	// sort all of the requests by instance id
+	SortStateRequests(reqs)
+
+	// Start instances if there is a deficit
+	delta := 0
+	i := -1
+	for ; count < svc.Instances; count++ {
+		// Assuming that instanceIDs are gte 0 and that all instance IDs are
+		// unique for a service, find the first index that does not match the
+		// instanceID value.
+		// Example: {0,1,4,5}, [0]=>0, [1]=>1, --> [2]=>4 <--
+		for i = i + 1; i < count; i++ {
+			if i < reqs[i].InstanceID {
+				break
+			}
 		}
-	} else if hdat.DesiredState == int(service.SVCRun) {
-		switch status {
-		case dao.Stopped:
-			status = dao.Starting
-		case dao.Paused:
-			status = dao.Resuming
-		case dao.Running:
-			// pass
-		default:
-			return dao.Status{}, ErrUnknownState
+
+		// Create the instance if the service is not locked
+		if !l.Start(svc, i) {
+			return delta, false
 		}
-	} else if hdat.DesiredState == int(service.SVCPause) {
-		switch status {
-		case dao.Running:
-			status = dao.Pausing
-		case dao.Paused, dao.Stopped:
-			// pass
-		default:
-			return dao.Status{}, ErrUnknownState
-		}
-	} else {
-		return dao.Status{}, ErrUnknownState
+		delta++
+
+		// Prepend a request object to the array. You could insert it in order,
+		// but that is more expensive and doesn't matter.  What is important
+		// is that the index of the mismatched value increases by one.
+		// Example: Before: {0, 1, 4, 5}, [2]=>4 After: {2, 0, 1, 4, 5}, [3]=>4
+		reqs = append(make([]StateRequest, 1), reqs...)
+
+		// See https://play.golang.org/p/t8rd97z8nK if you need more proof
 	}
 
-	return status, nil
+	// Stop instances if there is a surplus
+	if count > svc.Instances {
+		delta, pass := l.Stop(reqs[svc.Instances:])
+		return -delta, ok && pass
+	}
+
+	return delta, ok
+}
+
+// Start schedules a service instance
+func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
+
+	logger := plog.WithFields(log.Fields{
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"instanceid":  instanceID,
+	})
+
+	// pick a host
+	hostID, err := l.handler.SelectHost(svc)
+	if err != nil {
+
+		logger.WithError(err).Warn("Could not select host")
+		return false
+	}
+
+	logger.WithField("hostid", hostID).Debug("Service instance scheduled to host")
+	req := StateRequest{
+		PoolID:     l.poolid,
+		HostID:     hostID,
+		ServiceID:  svc.ID,
+		InstanceID: instanceID,
+	}
+
+	// make sure the state exists on neither the service nor the host
+	DeleteState(l.conn, req)
+
+	if err := CreateState(l.conn, req); err != nil {
+
+		logger.WithError(err).Warn("Could not schedule service instance")
+		return false
+	}
+
+	return true
+}
+
+// Stop unschedules the list of service instances and returns the number of
+// instances successfully stopped.
+func (l *ServiceListener) Stop(reqs []StateRequest) (int, bool) {
+	delta := 0
+	ok := true
+
+	for _, req := range reqs {
+
+		logger := plog.WithFields(log.Fields{
+			"hostid":     req.HostID,
+			"serviceid":  req.ServiceID,
+			"instanceid": req.InstanceID,
+		})
+
+		isOnline, err := IsHostOnline(l.conn, req.PoolID, req.HostID)
+
+		if err != nil {
+
+			logger.WithError(err).Warn("Could not verify whether host is online")
+			ok = false
+			continue
+		}
+
+		if isOnline {
+			if err := UpdateState(l.conn, req, func(s *State) bool {
+				if s.DesiredState != service.SVCStop {
+					s.DesiredState = service.SVCStop
+					return true
+				}
+				return false
+			}); err != nil {
+
+				logger.WithError(err).Warn("Could not stop service state")
+				ok = false
+				continue
+			}
+
+			logger.Debug("Set desired state to stop since host is online")
+
+		} else {
+			if err := DeleteState(l.conn, req); err != nil {
+
+				logger.WithError(err).Warn("Could not remove service state")
+				ok = false
+				continue
+			}
+
+			logger.Debug("Removed state since host is offline")
+		}
+		delta++
+	}
+
+	return delta, ok
+}
+
+// Pause schedules the service instance as paused and returns the number of
+// affected instances.
+func (l *ServiceListener) Pause(reqs []StateRequest) (int, bool) {
+	delta := 0
+	ok := true
+
+	for _, req := range reqs {
+
+		logger := plog.WithFields(log.Fields{
+			"hostid":     req.HostID,
+			"serviceid":  req.ServiceID,
+			"instanceid": req.InstanceID,
+		})
+
+		// ONLY pause services with a desired state of run
+		if err := UpdateState(l.conn, req, func(s *State) bool {
+			if s.DesiredState == service.SVCRun {
+				s.DesiredState = service.SVCPause
+				return true
+			}
+			return false
+		}); err != nil {
+
+			logger.WithError(err).Warn("Could not pause service state")
+			ok = false
+			continue
+		}
+		delta++
+	}
+
+	return delta, ok
+}
+
+// Resume schedules the service instance as run and returns the number of
+// affected instances.
+func (l *ServiceListener) Resume(reqs []StateRequest) (int, bool) {
+	delta := 0
+	ok := true
+
+	for _, req := range reqs {
+
+		logger := plog.WithFields(log.Fields{
+			"hostid":     req.HostID,
+			"serviceid":  req.ServiceID,
+			"instanceid": req.InstanceID,
+		})
+
+		// ONLY resume services with a desired state of pause
+		if err := UpdateState(l.conn, req, func(s *State) bool {
+			if s.DesiredState == service.SVCPause {
+				s.DesiredState = service.SVCRun
+				return true
+			}
+			return false
+		}); err != nil {
+
+			logger.WithError(err).Warn("Could not resume service state")
+			ok = false
+			continue
+		}
+		delta++
+	}
+
+	return delta, ok
 }

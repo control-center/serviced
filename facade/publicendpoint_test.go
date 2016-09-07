@@ -21,7 +21,6 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
 )
 
@@ -89,9 +88,9 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd(c *C) {
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
 
 	// Add mock calls.
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy-0"), svcA.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":33333-1"), svcA.ID).Return(nil)
+	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil)
+	ft.zzk.On("GetVHost", "zproxy").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":33333").Return("", "", nil)
 
 	// Add a valid port.
 	port, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":33333",
@@ -111,7 +110,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortAdd_VerifyEnabledFlag(c
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
 
 	// Add mock calls.
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":12345-1"), svcB.ID).Return(nil)
+	ft.zzk.On("GetPublicPort", ":12345").Return("", "", nil)
 
 	// Add a new vhost with enabled=false.
 	_, err := ft.Facade.AddPublicEndpointPort(ft.CTX, svcB.ID, "service2", ":12345", true, "http", false, false)
@@ -431,7 +430,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_VerifyEnabledFlag(
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
 
 	// Mock call expectations:
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("service2-0"), svcB.ID).Return(nil)
+	ft.zzk.On("GetVHost", "service2").Return("", "", nil)
 
 	// Add a new vhost with enabled=false.
 	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "service2", "service2", false, false)
@@ -492,7 +491,7 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd_InvalidVHostName(c
 	_, svcB := ft.setupServiceWithPublicEndpoints(c)
 
 	// Mock call expectations:
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("test#$%-0"), svcB.ID).Return(nil)
+	ft.zzk.On("GetVHost", "test#$%").Return("", "", nil)
 
 	// Add a vhost to a service with a vhost name that contains invalid characters.
 	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcB.ID, "service2", "test#$%", true, true)
@@ -509,9 +508,9 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_VHostAdd(c *C) {
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
 
 	// Mock call expectations:
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey(":22222-1"), svcA.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy-0"), svcA.ID).Return(nil)
-	ft.zzk.On("CheckRunningPublicEndpoint", registry.PublicEndpointKey("zproxy2-0"), svcA.ID).Return(nil)
+	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil)
+	ft.zzk.On("GetVHost", "zproxy").Return("", "", nil)
+	ft.zzk.On("GetVHost", "zproxy2").Return("", "", nil)
 
 	// Add a valid vhost entry.
 	_, err := ft.Facade.AddPublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy2", true, true)
