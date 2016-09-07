@@ -52,6 +52,7 @@ type ServiceState struct {
 	PrivateIP   string
 	HostIP      string
 	AssignedIP  string
+	Static      bool
 	Imports     []ImportBinding
 	Exports     []ExportBinding
 	Started     time.Time
@@ -687,6 +688,62 @@ func DeleteHostStates(conn client.Connection, poolID, hostID string) (count int)
 		}
 
 		count++
+	}
+
+	logger.WithField("statecount", count).Debug("Deleted states")
+	return
+}
+
+// DeleteHostStatesWhen returns the number of states deleted from a host when
+// the state satisfies a particular condition.
+func DeleteHostStatesWhen(conn client.Connection, poolID, hostID string, when func(*State) bool) (count int) {
+	logger := plog.WithField("hostid", hostID)
+
+	basepth := "/"
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+
+	// which states are running on the host
+	hpth := path.Join(basepth, "/hosts", hostID, "instances")
+	ch, err := conn.Children(hpth)
+	if err != nil && err != client.ErrNoNode {
+		logger.WithError(err).Error("Could not look up states on host")
+		return
+	}
+
+	for _, stateID := range ch {
+		_, serviceID, instanceID, err := ParseStateID(stateID)
+		if err != nil {
+			logger.WithField("stateid", stateID).WithError(err).Warn("Could not parse state")
+			continue
+		}
+
+		st8log := logger.WithFields(log.Fields{
+			"serviceid":  serviceID,
+			"instanceid": instanceID,
+		})
+
+		req := StateRequest{
+			PoolID:     poolID,
+			HostID:     hostID,
+			ServiceID:  serviceID,
+			InstanceID: instanceID,
+		}
+
+		state, err := GetState(conn, req)
+		if err != nil {
+			st8log.WithError(err).Warn("Could not load state from host")
+			continue
+		}
+
+		if when(state) {
+			if err := DeleteState(conn, req); err != nil {
+				st8log.WithError(err).Warn("Could not delete state from host")
+				continue
+			}
+			count++
+		}
 	}
 
 	logger.WithField("statecount", count).Debug("Deleted states")
