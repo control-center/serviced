@@ -1031,5 +1031,8 @@ func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateReque
 			logger.Debug("Aborted state monitor")
 			return nil, nil
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }

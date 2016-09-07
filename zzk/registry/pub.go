@@ -151,14 +151,18 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string)
 				if ok {
 					ch, exevt, err = l.conn.ChildrenW(expth, done)
 					if err == client.ErrNoNode {
+						logger.Debug("Public port was suddenly deleted, retrying")
+						close(done)
+						done = make(chan struct{})
+
 						// we need an event, so try again
 						continue
 					} else if err != nil {
 						exLogger.WithError(err).Error("Could not track exports for endpoint")
 						return
 					}
-					break
 				}
+				break
 			}
 
 			exports := []ExportDetails{}
@@ -208,5 +212,8 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string)
 		case <-shutdown:
 			return
 		}
+
+		close(done)
+		done = make(chan struct{})
 	}
 }
