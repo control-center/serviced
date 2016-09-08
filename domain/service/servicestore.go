@@ -63,7 +63,7 @@ type Store interface {
 	FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error)
 
 	// GetChildServiceDetails returns the details for the child service of the given parent
-	GetChildServiceDetails(ctx datastore.Context, parentID string) ([]Details, error)
+	GetChildServiceDetails(ctx datastore.Context, parentID string) ([]ServiceDetails, error)
 }
 
 type storeImpl struct {

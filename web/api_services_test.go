@@ -23,11 +23,11 @@ import (
 )
 
 var serviceDetailsTestData = struct {
-	firstDetails  service.Details
-	secondDetails service.Details
+	firstDetails  service.ServiceDetails
+	secondDetails service.ServiceDetails
 }{
 
-	firstDetails: service.Details{
+	firstDetails: service.ServiceDetails{
 		ID:              "firstDetails",
 		Name:            "firstDetailsName",
 		Description:     "The first child service details",
@@ -35,7 +35,7 @@ var serviceDetailsTestData = struct {
 		ParentServiceID: "parentService",
 	},
 
-	secondDetails: service.Details{
+	secondDetails: service.ServiceDetails{
 		ID:              "secondDetails",
 		Name:            "secondDetailsName",
 		Description:     "The second child service details",
@@ -50,7 +50,7 @@ func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnStatusOK(c *C) 
 
 	s.mockFacade.
 		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.Details{serviceDetailsTestData.firstDetails}, nil)
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 
@@ -63,7 +63,7 @@ func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnCorrectValueFor
 
 	s.mockFacade.
 		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.Details{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 
@@ -79,7 +79,7 @@ func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnCorrectLinkValu
 
 	s.mockFacade.
 		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.Details{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 

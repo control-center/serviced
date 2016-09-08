@@ -22,7 +22,7 @@ import (
 )
 
 // GetChildServiceDetails returns service details given parent service id
-func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID string) ([]Details, error) {
+func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
 	id := strings.TrimSpace(parentID)
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
@@ -41,6 +41,7 @@ func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID strin
 			"term": map[string]string{"ParentServiceID": id},
 		},
 		"fields": []string{"ID", "Name", "Description", "PoolID", "ParentServiceID"},
+		"size":   50000,
 	}
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
@@ -48,9 +49,9 @@ func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID strin
 		return nil, err
 	}
 
-	details := []Details{}
+	details := []ServiceDetails{}
 	for results.HasNext() {
-		var d Details
+		var d ServiceDetails
 		err := results.Next(&d)
 		if err != nil {
 			return nil, err

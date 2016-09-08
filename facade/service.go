@@ -1793,6 +1793,6 @@ var (
 )
 
 // Get the details of the child services for the given parent
-func (f *Facade) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.Details, error) {
+func (f *Facade) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
 	return f.serviceStore.GetChildServiceDetails(ctx, serviceID)
 }

@@ -769,15 +769,15 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.Details, error) {
+func (_m *FacadeInterface) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
 	ret := _m.Called(ctx, serviceID)
 
-	var r0 []service.Details
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Details); ok {
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
 		r0 = rf(ctx, serviceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Details)
+			r0 = ret.Get(0).([]service.ServiceDetails)
 		}
 	}
 

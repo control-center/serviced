@@ -55,7 +55,7 @@ func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, ctx *reques
 }
 
 type childServiceDetailsResponse struct {
-	Results []service.Details `json:"results"`
-	Total   int               `json:"total"`
-	Links   []APILink         `json:"links"`
+	Results []service.ServiceDetails `json:"results"`
+	Total   int                      `json:"total"`
+	Links   []APILink                `json:"links"`
 }

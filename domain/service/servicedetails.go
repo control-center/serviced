@@ -18,8 +18,8 @@ import (
 	"github.com/control-center/serviced/validation"
 )
 
-// Details is the minimal data necessary to show for a service
-type Details struct {
+// ServiceDetails is the minimal data necessary to show for a service
+type ServiceDetails struct {
 	ID              string
 	Name            string
 	Description     string
@@ -28,8 +28,8 @@ type Details struct {
 	datastore.VersionedEntity
 }
 
-// Validation for Service Details entity
-func (d *Details) ValidEntity() error {
+// Validation for Service ServiceDetails entity
+func (d *ServiceDetails) ValidEntity() error {
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("ServiceDetails.ID", d.ID))
 	violations.Add(validation.NotEmpty("ServiceDetails.Name", d.Name))
