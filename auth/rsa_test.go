@@ -18,6 +18,7 @@ package auth_test
 import (
 	"bytes"
 	"crypto/rsa"
+	"strings"
 
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
@@ -69,7 +70,7 @@ func (s *TestAuthSuite) TestRSAPublicKeyFromPEM(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(key, FitsTypeOf, sample)
 
-	// Test a public key
+	// Test a private key
 	key, err = auth.RSAPublicKeyFromPEM(auth.DevPrivKeyPEM)
 	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
 	c.Assert(key, IsNil)
@@ -125,4 +126,28 @@ func (s *TestAuthSuite) TestRSASignAndVerify(c *C) {
 	// Verify the signature
 	err = verifier.Verify(message, sig)
 	c.Assert(err, IsNil)
+}
+
+func (s *TestAuthSuite) TestPEMFromRSAPPublicKey(c *C) {
+	pem := auth.DevPubKeyPEM
+	expected := strings.TrimSpace(string(pem[:]))
+	pub, err := auth.RSAPublicKeyFromPEM(pem)
+
+	// Get a PEM from the public key
+	out, err := auth.PEMFromRSAPublicKey(pub, nil)
+	c.Assert(err, IsNil)
+	actual := strings.TrimSpace(string(out[:]))
+	c.Assert(actual, Equals, expected)
+}
+
+func (s *TestAuthSuite) TestPEMFromRSAPrivateKey(c *C) {
+	pem := auth.DevPrivKeyPEM
+	expected := strings.TrimSpace(string(pem[:]))
+	priv, err := auth.RSAPrivateKeyFromPEM(pem)
+
+	// Get a PEM from the private key
+	out, err := auth.PEMFromRSAPrivateKey(priv, nil)
+	c.Assert(err, IsNil)
+	actual := strings.TrimSpace(string(out[:]))
+	c.Assert(actual, Equals, expected)
 }
