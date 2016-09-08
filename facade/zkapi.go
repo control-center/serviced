@@ -692,3 +692,21 @@ func (zk *zkf) SendDockerAction(poolID, serviceID string, instanceID int, comman
 	logger.Debug("Submitted docker action")
 	return nil
 }
+
+// GetServiceStateIDs returns the ids of all the states running on a given
+// service
+func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest, error) {
+	logger := plog.WithFields(log.Fields{
+		"poolid":    poolID,
+		"serviceid": serviceID,
+	})
+
+	// get the root-based connection to look up the state ids for a service
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire root-based connection")
+		return nil, err
+	}
+
+	return zks.GetServiceStateIDs(conn, poolID, serviceID)
+}
