@@ -13,8 +13,11 @@
 
 package mocks
 
-import "github.com/control-center/serviced/datastore"
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/metrics"
+	"github.com/stretchr/testify/mock"
+)
 
 type Context struct {
 	mock.Mock
@@ -38,4 +41,8 @@ func (_m *Context) Connection() (datastore.Connection, error) {
 	}
 
 	return r0, r1
+}
+
+func (m *Context) Metrics() *metrics.Metrics {
+	return nil
 }
