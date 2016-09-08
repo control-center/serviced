@@ -1791,3 +1791,8 @@ var (
 	tenantIDs    = make(map[string]string)
 	tenanIDMutex = sync.RWMutex{}
 )
+
+// Get the details of the child services for the given parent
+func (f *Facade) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetChildServiceDetails(ctx, serviceID)
+}
