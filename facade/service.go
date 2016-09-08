@@ -155,7 +155,7 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 					return err
 				}
 				if serviceID != "" || application != "" {
-					glog.Warningf("Publc port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+					glog.Warningf("Public port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
 					svc.Endpoints[i].PortList[j].Enabled = false
 				}
 			}

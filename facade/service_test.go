@@ -153,6 +153,14 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 		DesiredState: int(service.SVCStop),
 	}
 	svc.Endpoints = endpoints
+	for _, ep := range endpoints {
+		for _, vhost := range ep.VHostList {
+			ft.zzk.On("GetVHost", vhost.Name).Return(svc.ID, ep.Application, nil).Once()
+		}
+		for _, port := range ep.PortList {
+			ft.zzk.On("GetPublicPort", port.PortAddr).Return(svc.ID, ep.Application, nil).Once()
+		}
+	}
 	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
 	return &svc
 }
@@ -552,6 +560,8 @@ func (ft *FacadeIntegrationTest) setupServiceWithEndpoints(t *C) (*service.Servi
 		},
 	}
 
+	ft.zzk.On("GetVHost", "test_vhost_1").Return("", "", nil).Once()
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil).Once()
 	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
 		t.Errorf("Setup failed; could not add svc %s: %s", svc.ID, err)
 		return nil, err
