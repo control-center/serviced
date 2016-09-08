@@ -62,3 +62,8 @@ type Identity interface {
 	HasDFSAccess() bool
 	Verifier() (Verifier, error)
 }
+
+// TODO: Placeholder until we have the token available
+func AuthToken() string {
+    return "my super fake token"
+}
