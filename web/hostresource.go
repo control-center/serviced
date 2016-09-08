@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
@@ -61,9 +62,22 @@ func restGetHostInstances(w *rest.ResponseWriter, r *rest.Request, ctx *requestC
 		return
 	}
 
+	since := r.URL.Query().Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Hour
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	instances, err := facade.GetHostInstances(dataCtx, hostID)
+	instances, err := facade.GetHostInstances(dataCtx, time.Now().Add(-tsince), hostID)
 	if err != nil {
 		glog.Error("Could not get host instances:", err)
 		restServerError(w, err)
@@ -84,9 +98,22 @@ func restGetServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 		return
 	}
 
+	since := r.URL.Query().Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Hour
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	instances, err := facade.GetServiceInstances(dataCtx, serviceID)
+	instances, err := facade.GetServiceInstances(dataCtx, time.Now().Add(-tsince), serviceID)
 	if err != nil {
 		glog.Error("Could not get service instances:", err)
 		restServerError(w, err)

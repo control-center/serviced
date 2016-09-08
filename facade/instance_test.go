@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/stretchr/testify/mock"
@@ -37,9 +38,11 @@ var (
 	ErrTestImageStore = errors.New("mock image store error")
 )
 
+var testStartTime = time.Now().Add(-time.Hour)
+
 func (ft *FacadeUnitTest) TestGetServiceInstances_ServiceNotFound(c *C) {
 	ft.serviceStore.On("Get", ft.ctx, "badservice").Return(nil, facade.ErrServiceDoesNotExist)
-	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "badservice")
+	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "badservice")
 	c.Assert(err, Equals, facade.ErrServiceDoesNotExist)
 	c.Assert(inst, IsNil)
 }
@@ -55,7 +58,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_StatesError(c *C) {
 
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(svc, nil)
 	ft.zzk.On("GetServiceStates", "default", "testservice").Return(nil, ErrTestZK)
-	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
+	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, Equals, ErrTestZK)
 	c.Assert(inst, IsNil)
 }
@@ -90,7 +93,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 	ft.zzk.On("GetServiceStates", "default", "testservice").Return(states, nil)
 
 	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
-	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
+	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, Equals, ErrTestHostStore)
 	c.Assert(inst, IsNil)
 }
@@ -135,7 +138,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 	})
 
 	ft.registryStore.On("Get", ft.ctx, "testtenant/image:latest").Return(nil, ErrTestImageStore)
-	inst, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
+	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, Equals, ErrTestImageStore)
 	c.Assert(inst, IsNil)
 }
@@ -189,7 +192,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 
 	expected := []service.Instance{
 		{
-			ID:           1,
+			InstanceID:   1,
 			HostID:       "testhost",
 			HostName:     "sometest.host.org",
 			ServiceID:    "testservice",
@@ -199,19 +202,26 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 			DesiredState: service.SVCRun,
 			CurrentState: service.Running,
 			HealthStatus: make(map[string]health.Status),
+			MemoryUsage:  service.Usage{Cur: 5, Max: 10, Avg: 7},
 			Scheduled:    states[0].Scheduled,
 			Started:      states[0].Started,
 			Terminated:   states[0].Terminated,
 		},
 	}
-	actual, err := ft.Facade.GetServiceInstances(ft.ctx, "testservice")
+
+	ft.metricsClient.On("GetInstanceMemoryStats", testStartTime, []metrics.ServiceInstance{{ServiceID: "testservice", InstanceID: 1}}).Return(
+		[]metrics.MemoryUsageStats{
+			{HostID: "testhost", ServiceID: "testservice", InstanceID: "1", Last: 5, Max: 10, Average: 7},
+		}, nil)
+
+	actual, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 }
 
 func (ft *FacadeUnitTest) TestGetHostInstances_HostNotFound(c *C) {
 	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
-	inst, err := ft.Facade.GetHostInstances(ft.ctx, "testhost")
+	inst, err := ft.Facade.GetHostInstances(ft.ctx, testStartTime, "testhost")
 	c.Assert(err, Equals, ErrTestHostStore)
 	c.Assert(inst, IsNil)
 }
@@ -228,7 +238,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_StatesError(c *C) {
 	})
 
 	ft.zzk.On("GetHostStates", "default", "testhost").Return(nil, ErrTestZK)
-	inst, err := ft.Facade.GetHostInstances(ft.ctx, "testhost")
+	inst, err := ft.Facade.GetHostInstances(ft.ctx, testStartTime, "testhost")
 	c.Assert(err, Equals, ErrTestZK)
 	c.Assert(inst, IsNil)
 }
@@ -264,7 +274,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_ServiceNotFound(c *C) {
 	ft.zzk.On("GetHostStates", "default", "testhost").Return(states, nil)
 
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(nil, facade.ErrServiceDoesNotExist)
-	inst, err := ft.Facade.GetHostInstances(ft.ctx, "testhost")
+	inst, err := ft.Facade.GetHostInstances(ft.ctx, testStartTime, "testhost")
 	c.Assert(err, Equals, facade.ErrServiceDoesNotExist)
 	c.Assert(inst, IsNil)
 }
@@ -318,7 +328,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 
 	expected := []service.Instance{
 		{
-			ID:           1,
+			InstanceID:   1,
 			HostID:       "testhost",
 			HostName:     "sometest.host.org",
 			ServiceID:    "testservice",
@@ -328,12 +338,17 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 			DesiredState: service.SVCRun,
 			CurrentState: service.Running,
 			HealthStatus: make(map[string]health.Status),
+			MemoryUsage:  service.Usage{Cur: 5, Max: 10, Avg: 7},
 			Scheduled:    states[0].Scheduled,
 			Started:      states[0].Started,
 			Terminated:   states[0].Terminated,
 		},
 	}
-	actual, err := ft.Facade.GetHostInstances(ft.ctx, "testhost")
+	ft.metricsClient.On("GetInstanceMemoryStats", testStartTime, []metrics.ServiceInstance{{ServiceID: "testservice", InstanceID: 1}}).Return(
+		[]metrics.MemoryUsageStats{
+			{HostID: "testhost", ServiceID: "testservice", InstanceID: "1", Last: 5, Max: 10, Average: 7},
+		}, nil)
+	actual, err := ft.Facade.GetHostInstances(ft.ctx, testStartTime, "testhost")
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 }

@@ -14,6 +14,8 @@
 package facade
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -24,6 +26,10 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
 )
+
+type MetricsClient interface {
+	GetInstanceMemoryStats(time.Time, ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error)
+}
 
 // instantiate the package logger
 var plog = logging.PackageLogger()
@@ -53,7 +59,7 @@ type Facade struct {
 	zzk           ZZK
 	dfs           dfs.DFS
 	hcache        *health.HealthStatusCache
-	metricsClient *metrics.Client
+	metricsClient MetricsClient
 
 	isvcsPath string
 }
@@ -74,6 +80,6 @@ func (f *Facade) SetTemplateStore(store servicetemplate.Store) { f.templateStore
 
 func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = hcache }
 
-func (f *Facade) SetMetricsClient(client *metrics.Client) { f.metricsClient = client }
+func (f *Facade) SetMetricsClient(client MetricsClient) { f.metricsClient = client }
 
 func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
