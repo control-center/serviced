@@ -76,6 +76,8 @@ func (ft *FacadeIntegrationTest) setupServiceWithPublicEndpoints(c *C) (service.
 			},
 		},
 	}
+	ft.zzk.On("GetVHost", "zproxy").Return("", "", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return("", "", nil).Once()
 	c.Assert(ft.Facade.AddService(ft.CTX, svcA), IsNil)
 	c.Assert(ft.Facade.AddService(ft.CTX, svcB), IsNil)
 	return svcA, svcB
@@ -227,6 +229,8 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortRemove(c *C) {
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
 
 	// Remove port.
+	ft.zzk.On("GetVHost", "zproxy").Return(svcA.ID, "zproxy", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return(svcA.ID, "zproxy", nil).Once()
 	err := ft.Facade.RemovePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222")
 	c.Assert(err, IsNil)
 
@@ -292,6 +296,8 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpoint_PortDisable(c *C) {
 	}
 
 	// Disable the port.
+	ft.zzk.On("GetVHost", "zproxy").Return(svcA.ID, "zproxy", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return(svcA.ID, "zproxy", nil).Once()
 	err = ft.Facade.EnablePublicEndpointPort(ft.CTX, svcA.ID, "zproxy", ":22222", false)
 	c.Assert(err, IsNil)
 	svc, err = ft.Facade.GetService(ft.CTX, svcA.ID)
@@ -528,6 +534,8 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Remove(c *C) {
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
 
 	// Remove port.
+	ft.zzk.On("GetVHost", "zproxy").Return(svcA.ID, "zproxy", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return(svcA.ID, "zproxy", nil).Once()
 	err := ft.Facade.RemovePublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy")
 	c.Assert(err, IsNil)
 
@@ -585,6 +593,8 @@ func (ft *FacadeIntegrationTest) Test_PublicEndpointVHost_Disable(c *C) {
 	svcA, _ := ft.setupServiceWithPublicEndpoints(c)
 
 	// Enable a vhost.
+	ft.zzk.On("GetVHost", "zproxy").Return(svcA.ID, "zproxy", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return(svcA.ID, "zproxy", nil).Once()
 	err := ft.Facade.EnablePublicEndpointVHost(ft.CTX, svcA.ID, "zproxy", "zproxy", false)
 	if err != nil {
 		c.Errorf("Unexpected failure disabling a vhost")
