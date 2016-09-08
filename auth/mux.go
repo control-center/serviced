@@ -78,11 +78,11 @@ func BuildMuxHeader(address []byte) ([]byte, error) {
 	return headerBuf.Bytes(), nil
 }
 
-func errorExtractingHeader(err error) (string, Identity, error) {
-	return "", nil, err
+func errorExtractingHeader(err error) ([]byte, Identity, error) {
+	return nil, nil, err
 }
 
-func ExtractMuxHeader(rawHeader []byte) (string, Identity, error) {
+func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 	var offset uint32 = 0
 
 	if len(rawHeader) <= TOKEN_LEN_BYTES+ADDRESS_BYTES {
@@ -108,7 +108,7 @@ func ExtractMuxHeader(rawHeader []byte) (string, Identity, error) {
 	}
 
 	// Next six bytes is going to be the address
-	address := string(rawHeader[offset : offset+ADDRESS_BYTES])
+	address := rawHeader[offset : offset+ADDRESS_BYTES]
 	offset += ADDRESS_BYTES
 
 	// get the part of the header that has been signed
@@ -121,11 +121,10 @@ func ExtractMuxHeader(rawHeader []byte) (string, Identity, error) {
 	senderVerifier, err := senderIdentity.Verifier()
 	if err != nil {
 		return errorExtractingHeader(err)
-	} else {
-		err := senderVerifier.Verify(signed_message, signature)
-		if err != nil {
-			return errorExtractingHeader(err)
-		}
+	}
+	err := senderVerifier.Verify(signed_message, signature)
+	if err != nil {
+		return errorExtractingHeader(err)
 	}
 
 	return address, senderIdentity, nil
