@@ -220,31 +220,40 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 				}
 			}
 
-			// update the public address if there is a key reference, otherwise
-			// delete it if the service matches.
-			if val, ok := pubs[key]; ok {
-				addrLogger.Debug("Updating public port address")
-				val.SetVersion(pub.Version())
-				tx.Set(addrpth, &val)
+			// Update the public address if the service matches and there is a
+			// key reference.  Otherwise, delete the public address if the
+			// service matches.
+			val, ok := pubs[key]
+			if ok {
 				delete(pubs, key)
-			} else if pub.ServiceID == serviceID {
-				addrLogger.Debug("Deleting public port address")
-				tx.Delete(addrpth)
+			}
+
+			if pub.ServiceID == serviceID {
+				if val.Enabled {
+					addrLogger.Debug("Updating public port address")
+					val.SetVersion(pub.Version())
+					tx.Set(addrpth, &val)
+				} else {
+					addrLogger.Debug("Deleting public port address")
+					tx.Delete(addrpth)
+				}
 			}
 		}
 	}
 
-	// create the remaining public ports
+	// create the remaining public ports if the ports are enabled
 	for key, val := range pubs {
-		conn.CreateDir(path.Join(pth, key.HostID))
-		addrpth := path.Join(pth, key.HostID, key.PortAddress)
-		val.SetVersion(nil)
-		logger.WithFields(log.Fields{
-			"hostid":      key.HostID,
-			"portaddress": key.PortAddress,
-			"zkpath":      addrpth,
-		}).Debug("Creating public port address")
-		tx.Create(addrpth, &val)
+		if val.Enabled {
+			conn.CreateDir(path.Join(pth, key.HostID))
+			addrpth := path.Join(pth, key.HostID, key.PortAddress)
+			val.SetVersion(nil)
+			logger.WithFields(log.Fields{
+				"hostid":      key.HostID,
+				"portaddress": key.PortAddress,
+				"zkpath":      addrpth,
+			}).Debug("Creating public port address")
+			tx.Create(addrpth, &val)
+		}
 	}
 
 	logger.Debug("Updated transaction to sync public ports for service")
@@ -312,31 +321,39 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 				}
 			}
 
-			// update the public address if there is a key reference, otherwise
-			// delete it if the service matches.
-			if val, ok := vhosts[key]; ok {
-				addrLogger.Debug("Updating virtual host subdomain")
-				val.SetVersion(vhost.Version())
-				tx.Set(addrpth, &val)
+			// update the virtual host if there is a key reference and the
+			// services match, otherwise delete it if the service matches.
+			val, ok := vhosts[key]
+			if ok {
 				delete(vhosts, key)
-			} else if vhost.ServiceID == serviceID {
-				addrLogger.Debug("Deleting virtual host subdomain")
-				tx.Delete(addrpth)
+			}
+
+			if vhost.ServiceID == serviceID {
+				if val.Enabled {
+					addrLogger.Debug("Updating virtual host subdomain")
+					val.SetVersion(vhost.Version())
+					tx.Set(addrpth, &val)
+				} else {
+					addrLogger.Debug("Deleting virtual host subdomain")
+					tx.Delete(addrpth)
+				}
 			}
 		}
 	}
 
-	// create the remaining public ports
+	// create the remaining public ports if they are enabled
 	for key, val := range vhosts {
-		conn.CreateDir(path.Join(pth, key.HostID))
-		addrpth := path.Join(pth, key.HostID, key.Subdomain)
-		val.SetVersion(nil)
-		logger.WithFields(log.Fields{
-			"hostid":    key.HostID,
-			"subdomain": key.Subdomain,
-			"zkpath":    addrpth,
-		}).Debug("Creating virtual address subdomain")
-		tx.Create(addrpth, &val)
+		if val.Enabled {
+			conn.CreateDir(path.Join(pth, key.HostID))
+			addrpth := path.Join(pth, key.HostID, key.Subdomain)
+			val.SetVersion(nil)
+			logger.WithFields(log.Fields{
+				"hostid":    key.HostID,
+				"subdomain": key.Subdomain,
+				"zkpath":    addrpth,
+			}).Debug("Creating virtual address subdomain")
+			tx.Create(addrpth, &val)
+		}
 	}
 
 	logger.Debug("Updated transaction to sync virtual hosts for service")
