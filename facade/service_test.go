@@ -338,6 +338,52 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_noDupsInAll
 	t.Assert(err, IsNil)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePublicEndpoint(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+				VHostList: []servicedefinition.VHost{
+					servicedefinition.VHost{
+						Name:    "zproxy",
+						Enabled: true,
+					},
+				},
+			},
+		},
+	}
+
+	ft.zzk.On("GetVHost", "zproxy").Return("svc2", "zproxy", nil).Once()
+	ft.zzk.On("GetPublicPort", ":22222").Return("svc2", "zproxy", nil).Once()
+	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
+		return
+	}
+
+	svc2, err := ft.Facade.GetService(ft.CTX, svc.ID)
+	t.Assert(err, IsNil)
+	t.Check(svc2.Endpoints[0].PortList[0].Enabled, Equals, false)
+	t.Check(svc2.Endpoints[0].VHostList[0].Enabled, Equals, false)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
