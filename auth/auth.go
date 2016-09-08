@@ -55,3 +55,8 @@ type Identity interface {
 	HasDFSAccess() bool
 	PublicKey() crypto.PublicKey
 }
+
+// TODO: Placeholder until we have the token available
+func AuthToken() string {
+    return "my super fake token"
+}
