@@ -14,7 +14,6 @@
 package user
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
@@ -35,6 +34,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-		glog.Fatalf("error creating user mapping: %v", mappingError)
+		plog.WithError(mappingError).Fatal("error creating mapping for the user object")
 	}
 }

@@ -15,7 +15,6 @@ package pool
 
 import (
 	"github.com/control-center/serviced/datastore/elastic"
-	"github.com/zenoss/glog"
 )
 
 var (
@@ -42,6 +41,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-		glog.Fatalf("error creating pool mapping: %v", mappingError)
+          plog.WithError(mappingError).Fatal("error creating mapping for the pool object")
 	}
 }

@@ -14,19 +14,16 @@
 package servicedefinition
 
 import (
-	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/validation"
-	"github.com/zenoss/glog"
-
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/validation"
 )
 
 //ValidEntity validates Host fields
 func (sd *ServiceDefinition) ValidEntity() error {
-	glog.V(4).Info("Validating ServiceDefinition")
-
 	context := validationContext{make(map[string]EndpointDefinition)}
 	//TODO: do servicedefinition names need to be unique?
 	err := sd.validate(&context)

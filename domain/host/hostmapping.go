@@ -14,7 +14,6 @@
 package host
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
@@ -51,6 +50,6 @@ var (
 
 func init() {
 	if mappingError != nil {
-		glog.Fatalf("error creating host mapping: %v", mappingError)
+          plog.WithError(mappingError).Fatal("error creating mapping for the host object")
 	}
 }

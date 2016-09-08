@@ -14,16 +14,13 @@
 package user
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/validation"
-
 	"strings"
+
+	"github.com/control-center/serviced/validation"
 )
 
 //ValidEntity validates Host fields
 func (u *User) ValidEntity() error {
-	glog.V(4).Info("Validating User")
-
 	trimmed := strings.TrimSpace(u.Name)
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("User.Name", u.Name))

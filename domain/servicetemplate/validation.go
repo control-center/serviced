@@ -14,11 +14,10 @@
 package servicetemplate
 
 import (
-	"github.com/control-center/serviced/validation"
-
-	//	"strings"
 	"fmt"
+
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/validation"
 )
 
 // ValidEntity ensure that a ServiceTemplate has valid values

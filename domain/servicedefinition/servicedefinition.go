@@ -14,16 +14,20 @@
 package servicedefinition
 
 import (
-	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/health"
-	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
-
 	"encoding/json"
 	"errors"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/logging"
+	"github.com/control-center/serviced/utils"
 )
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 //ServiceDefinition is the definition of a service hierarchy.
 type ServiceDefinition struct {
@@ -220,7 +224,6 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-	glog.V(4).Infof("EndpointDefintion UnmarshalJSON %#v", e)
 	if len(e.VHostList) > 0 {
 		//VHostList is defined, keep it and unset deprecated field if set
 		e.VHosts = nil
@@ -228,13 +231,16 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	}
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
-		if glog.V(2) {
-			glog.Warningf("EndpointDefinition VHosts field is deprecated, see VHostList: %#v", e.VHosts)
+		if log.GetLevel() == log.DebugLevel {
+			plog.WithField("Vhosts", e.VHosts).Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
 		}
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
 		}
-		glog.V(2).Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		plog.WithFields(log.Fields{
+			"VHostList": e.VHostList,
+			"VHosts": e.VHosts,
+		}).Debug("VHostList converted from VHosts")
 		e.VHosts = nil
 	}
 	return nil

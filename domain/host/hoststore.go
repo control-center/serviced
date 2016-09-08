@@ -14,13 +14,12 @@
 package host
 
 import (
-	"github.com/control-center/serviced/datastore"
-	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
-
 	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a HostStore
@@ -104,14 +103,14 @@ func HostKey(id string) datastore.Key {
 
 func convert(results datastore.Results) ([]Host, error) {
 	hosts := make([]Host, results.Len())
-	glog.V(4).Infof("Results are %v", results)
+	plog.WithField("results", results).Debug("convert results", results)
 	for idx := range hosts {
 		var host Host
 		err := results.Get(idx, &host)
 		if err != nil {
 			return nil, err
 		}
-		glog.V(4).Infof("Adding %v to hosts", host)
+		plog.WithField("host", host).Debug("Adding host")
 		hosts[idx] = host
 	}
 	return hosts, nil

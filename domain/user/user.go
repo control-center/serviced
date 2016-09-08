@@ -13,7 +13,10 @@
 
 package user
 
-import "github.com/control-center/serviced/datastore"
+import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/logging"
+)
 
 // User for the system???
 type User struct {
@@ -21,3 +24,6 @@ type User struct {
 	Password string // no requirements on passwords yet
 	datastore.VersionedEntity
 }
+
+// initialize the package logger
+var plog = logging.PackageLogger()

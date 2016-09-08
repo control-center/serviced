@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
 	"github.com/control-center/serviced/datastore"
@@ -396,10 +395,8 @@ func (s *S) TestEvaluateStartupTemplate(t *C) {
 	t.Assert(err, IsNil)
 
 	for _, testcase := range startup_testcases {
-		glog.Infof("Service.Startup before: %s", testcase.service.Startup)
 		err = testcase.service.EvaluateStartupTemplate(s.getSVC, s.findChild, 0)
 		t.Assert(err, IsNil)
-		glog.Infof("Service.Startup after: %s, error=%s", testcase.service.Startup, err)
 		result := testcase.service.Startup
 		if result != testcase.expected {
 			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
@@ -413,15 +410,12 @@ func (s *S) TestEvaluateActionsTemplate(t *C) {
 	err := createSvcs(s.store, s.ctx)
 	t.Assert(err, IsNil)
 	for _, testcase := range startup_testcases {
-		glog.Infof("Service.Actions before: %s", testcase.service.Actions)
 		err = testcase.service.EvaluateActionsTemplate(s.getSVC, s.findChild, 0)
-		glog.Infof("Service.Actions after: %v, error=%v", testcase.service.Actions, err)
 		for key, result := range testcase.service.Actions {
 			expected := fmt.Sprintf("%s %s", testcase.service.Name, key)
 			if result != expected {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", expected, result)
 			}
-			glog.Infof("Expecting \"%s\" got \"%s\"\n", expected, result)
 		}
 	}
 }
@@ -430,10 +424,8 @@ func (s *S) TestEvaluateEnvironmentTemplate(t *C) {
 	err := createSvcs(s.store, s.ctx)
 	t.Assert(err, IsNil)
 	for _, testcase := range environ_testcases {
-		glog.Infof("Service.Environment before: %s", testcase.service.Environment)
 		err = testcase.service.EvaluateEnvironmentTemplate(s.getSVC, s.findChild, 0)
 		t.Assert(err, IsNil)
-		glog.Infof("Service.Environment after: %s, error=%s", testcase.service.Environment, err)
 		result := testcase.service.Environment[0]
 		if result != testcase.expected {
 			t.Errorf("Expecting \"%s\" got \"%s\"\n", testcase.expected, result)
@@ -447,10 +439,8 @@ func (s *S) TestEvaluateEndpointTemplate(t *C) {
 
 	for _, testcase := range endpoint_testcases {
 		if len(testcase.service.Endpoints) > 0 {
-			glog.Infof("Service.Endpoint[0].Application: %s", testcase.service.Endpoints[0].Application)
 			oldApp := testcase.service.Endpoints[0].Application
 			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild, 0)
-			glog.Infof("Service.Endpoint[0].Application: %s, error=%s", testcase.service.Endpoints[0].Application, err)
 
 			result := testcase.service.Endpoints[0].Application
 			if result != testcase.expected {
@@ -460,7 +450,6 @@ func (s *S) TestEvaluateEndpointTemplate(t *C) {
 				t.Errorf("Expecting \"%s\" got \"%s\"\n", oldApp, testcase.service.Endpoints[0].ApplicationTemplate)
 			}
 
-			glog.Infof("Evaluate ServiceEndpoints a second time")
 			err = testcase.service.EvaluateEndpointTemplates(s.getSVC, s.findChild, 0)
 			result = testcase.service.Endpoints[0].Application
 			if result != testcase.expected {

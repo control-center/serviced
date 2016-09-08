@@ -16,8 +16,12 @@ package serviceconfigfile
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 )
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 //SvcConfigFile is used to store and track service config files that have been modified
 type SvcConfigFile struct {

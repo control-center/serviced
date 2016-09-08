@@ -14,11 +14,10 @@
 package servicetemplate
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
-
-	"fmt"
 )
 
 //NewStore creates a ResourcePool store
@@ -76,7 +75,6 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 
 // GetServiceTemplates returns all ServiceTemplates
 func (s *storeImpl) GetServiceTemplates(ctx datastore.Context) ([]*ServiceTemplate, error) {
-	glog.V(3).Infof("Store.GetServiceTemplates")
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Query(query)

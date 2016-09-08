@@ -15,7 +15,12 @@ package domain
 
 import (
 	"fmt"
+
+	"github.com/control-center/serviced/logging"
 )
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 type MinMax struct {
 	Min     int

@@ -14,8 +14,6 @@
 package servicedefinition
 
 import (
-	"github.com/zenoss/glog"
-
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -55,7 +55,9 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 	svc := ServiceDefinition{}
 	err = json.Unmarshal(blob, &svc)
 	if err != nil {
-		glog.Errorf("Could not unmarshal service at %s", path)
+		plog.WithFields(log.Fields{
+			"path": path,
+		}).Error("Could not unmarshal service")
 		return nil, err
 	}
 	//Launch isn't usually in a file but it is required, this sets it to a default value if not set
@@ -116,7 +118,10 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			}
 			filters, err := getFiltersFromDirectory(path + "/" + subpath.Name())
 			if err != nil {
-				glog.Errorf("Error fetching filters at "+path, err)
+				plog.WithError(err).WithFields(log.Fields{
+					"path": path,
+					"subpath": subpath.Name(),
+				}).Error("rror fetching filters")
 			} else {
 				svc.LogFilters = filters
 			}
@@ -130,7 +135,10 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 			// else just skip this subdirectory
 
 		default:
-			glog.V(4).Infof("Unrecognized file %s at %s", subpath.Name(), path)
+			plog.WithFields(log.Fields{
+				"path": path,
+				"subpath": subpath.Name(),
+			}).Debug("Unrecognized file")
 		}
 	}
 	svc.Services = make([]ServiceDefinition, len(subServices))
@@ -157,18 +165,27 @@ func getFiltersFromDirectory(path string) (filters map[string]string, err error)
 
 		// make sure it is a valid filter
 		if !strings.HasSuffix(filterName, ".conf") {
-			glog.Warning("Skipping %s because it doesn't have a .conf extension", filterName)
+			plog.WithFields(log.Fields{
+				"path": path,
+				"filterName": filterName,
+			}).Warning("Skipping filter because it doesn't have a .conf extension")
 			continue
 		}
 		// read the contents and add it to our map
-		contents, err := ioutil.ReadFile(path + "/" + filterName)
+		filePath := path + "/" + filterName
+		contents, err := ioutil.ReadFile(filePath)
 		if err != nil {
-			glog.Errorf("Unable to read the file %s, skipping", path+"/"+filterName)
+			plog.WithFields(log.Fields{
+				"filePath": filePath,
+			}).Error("Unable to read filter file, skipping")
 			continue
 		}
 		filterName = strings.TrimSuffix(filterName, ".conf")
 		filters[filterName] = string(contents)
 	}
-	glog.V(2).Infof("Here are the filters %v from path %s", filters, path)
+	plog.WithFields(log.Fields{
+		"path": path,
+		"filters": filters,
+	}).Debug("Found filters")
 	return filters, nil
 }

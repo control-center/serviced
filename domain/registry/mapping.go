@@ -19,10 +19,13 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 )
 
 const kind = "imageregistry"
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 var (
 	mappingString = fmt.Sprintf(`                                                              
@@ -43,7 +46,7 @@ var (
 
 func init() {
 	if mappingError != nil {
-		glog.Fatalf("error creating image registry mapping: %s", mappingError)
+		plog.WithError(mappingError).Fatal("error creating mapping for the imageregistry object")
 	}
 }
 

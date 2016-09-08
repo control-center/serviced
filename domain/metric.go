@@ -16,14 +16,14 @@
 package domain
 
 import (
-	"github.com/zenoss/glog"
-
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Metric defines the meta-data for a single metric
@@ -154,7 +154,7 @@ func (builder *MetricBuilder) Config(ID, Name, Description, Start string) (*Metr
 	//build the query body object
 	bodyBytes, err := json.Marshal(request)
 	if err != nil {
-		glog.Errorf("Failed to marshal query body: %+v", err)
+		plog.WithError(err).Error("Failed to marshal query body")
 		return nil, err
 	}
 
@@ -174,7 +174,10 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	//use url.Parse to ensure proper RequestURI. 'http://localhost' is removed when Config is built
 	url, err := url.Parse("http://localhost/" + requestURI)
 	if err != nil {
-		glog.Errorf("Invalid Url: RequestURI=%s, method=%s, err=%+v", RequestURI, Method, err)
+		plog.WithError(err).WithFields(log.Fields{
+			"RequestURI": RequestURI,
+			"Method": Method,
+		}).Error("Invalid URL")
 		return nil, err
 	}
 
@@ -184,7 +187,10 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	case "PUT":
 	case "POST":
 	default:
-		glog.Errorf("Invalid http method: RequestURI=%s, method=%s", RequestURI, Method)
+		plog.WithError(err).WithFields(log.Fields{
+			"RequestURI": RequestURI,
+			"Method": Method,
+		}).Error("Invalid HTTP method")
 		return nil, errors.New("invalid method")
 	}
 
