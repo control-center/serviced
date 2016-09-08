@@ -18,6 +18,7 @@ package registry_test
 import (
 	"path"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
@@ -136,15 +137,11 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:2181", actualpub)
-	c.Assert(err, IsNil)
-	actualpub.SetVersion(nil)
-	c.Check(*actualpub, DeepEquals, pub1)
+	c.Assert(err, Equals, client.ErrNoNode)
 
 	actualvhost = &VHost{}
 	err = conn.Get("/net/vhost/master/test1", actualvhost)
-	c.Assert(err, IsNil)
-	actualvhost.SetVersion(nil)
-	c.Check(*actualvhost, DeepEquals, vhost1)
+	c.Assert(err, Equals, client.ErrNoNode)
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:22181", actualpub)
@@ -164,13 +161,11 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:2181", actualpub)
-	actualpub.SetVersion(nil)
-	c.Check(*actualpub, DeepEquals, pub1)
+	c.Assert(err, Equals, client.ErrNoNode)
 
 	actualvhost = &VHost{}
 	err = conn.Get("/net/vhost/master/test1", actualvhost)
-	actualvhost.SetVersion(nil)
-	c.Check(*actualvhost, DeepEquals, vhost1)
+	c.Assert(err, Equals, client.ErrNoNode)
 
 	ok, err := conn.Exists(path.Join("/net/pub", pub2Key.HostID, pub2Key.PortAddress))
 	c.Assert(err, IsNil)

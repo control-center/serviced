@@ -566,7 +566,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 	handler.On("StartContainer", retShutdown, mock.AnythingOfType("*service.Service"), 1).Return(ssdat, retExit, nil)
 
 	containerExit <- time.Now()
-	timer.Reset(time.Second)
+	timer = time.NewTimer(time.Second)
 	select {
 	case <-ev:
 		// state is either terminated or overwritten
@@ -602,7 +602,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
 		containerExit <- time.Now()
-	})
+	}).Once()
 
 	close(shutdown)
 	timer.Reset(time.Second)
@@ -805,9 +805,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 	// shutdown
 	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
 		containerExit <- time.Now()
-	})
+	}).Once()
 	close(shutdown)
-	timer.Reset(time.Second)
+	timer = time.NewTimer(time.Second)
 	select {
 	case e := <-ev:
 		c.Check(e.Type, Equals, client.EventNodeDeleted)
@@ -876,9 +876,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 	}
 
 	// shutdown
-	handler.On("StopContainer", "serviceid", 1).Return(nil)
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Once()
 	close(shutdown)
-	timer.Reset(time.Second)
+	timer = time.NewTimer(time.Second)
 	select {
 	case e := <-ev:
 		c.Check(e.Type, Equals, client.EventNodeDeleted)

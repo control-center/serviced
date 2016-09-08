@@ -108,13 +108,15 @@ type FacadeInterface interface {
 
 	EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error
 
-	GetHostInstances(ctx datastore.Context, hostid string) ([]service.Instance, error)
+	GetHostInstances(ctx datastore.Context, since time.Time, hostid string) ([]service.Instance, error)
 
-	GetServiceInstances(ctx datastore.Context, serviceid string) ([]service.Instance, error)
+	GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error)
 
 	GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error)
 
 	GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error)
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
+
+	GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 }
