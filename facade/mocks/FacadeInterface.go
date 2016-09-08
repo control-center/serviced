@@ -664,12 +664,12 @@ func (_m *FacadeInterface) EnablePublicEndpointVHost(ctx datastore.Context, serv
 
 	return r0
 }
-func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, hostid string) ([]service.Instance, error) {
-	ret := _m.Called(ctx, hostid)
+func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, since time.Time, hostid string) ([]service.Instance, error) {
+	ret := _m.Called(ctx, since, hostid)
 
 	var r0 []service.Instance
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Instance); ok {
-		r0 = rf(ctx, hostid)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, string) []service.Instance); ok {
+		r0 = rf(ctx, since, hostid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.Instance)
@@ -677,20 +677,20 @@ func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, hostid string
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, hostid)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, string) error); ok {
+		r1 = rf(ctx, since, hostid)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, serviceid string) ([]service.Instance, error) {
-	ret := _m.Called(ctx, serviceid)
+func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error) {
+	ret := _m.Called(ctx, since, serviceid)
 
 	var r0 []service.Instance
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Instance); ok {
-		r0 = rf(ctx, serviceid)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, string) []service.Instance); ok {
+		r0 = rf(ctx, since, serviceid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.Instance)
@@ -698,8 +698,8 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, serviceid 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceid)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, string) error); ok {
+		r1 = rf(ctx, since, serviceid)
 	} else {
 		r1 = ret.Error(1)
 	}

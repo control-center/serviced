@@ -28,7 +28,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
-	"github.com/control-center/serviced/metrics"
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/pivotal-golang/bytefmt"
@@ -103,7 +102,6 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 	// get status
 	rowmap := make(map[string]map[string]interface{})
-	metricReq := dao.MetricRequest{Instances: make([]metrics.ServiceInstance, 0)}
 	for _, svc := range svcs {
 		var status []service.Instance
 		if err := client.GetServiceStatus(svc.ID, &status); err != nil {
@@ -134,10 +132,6 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			rowmap[fmt.Sprintf("%s/%d", svc.ID, 0)] = row
 		} else {
 			for _, stat := range status {
-				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{
-					ServiceID:  svc.ID,
-					InstanceID: stat.ID,
-				})
 				row := make(map[string]interface{})
 				row["ServiceID"] = svc.ID
 				if svc.ParentServiceID != "" {
@@ -169,13 +163,16 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 					row["InSync"] = "N"
 				}
 				if svc.Instances > 1 {
-					row["Name"] = fmt.Sprintf("%s/%d", svc.Name, stat.ID)
+					row["Name"] = fmt.Sprintf("%s/%d", svc.Name, stat.InstanceID)
 				} else {
 					row["Name"] = svc.Name
 				}
-				row["Cur/Max/Avg"] = fmt.Sprintf("--")
+				cur := bytefmt.ByteSize(uint64(stat.MemoryUsage.Cur))
+				max := bytefmt.ByteSize(uint64(stat.MemoryUsage.Max))
+				avg := bytefmt.ByteSize(uint64(stat.MemoryUsage.Avg))
+				row["Cur/Max/Avg"] = fmt.Sprintf("%s / %s / %s", cur, max, avg)
 
-				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.ID)] = row
+				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.InstanceID)] = row
 
 				if stat.CurrentState == service.Running && len(stat.HealthStatus) > 0 {
 
@@ -183,7 +180,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 					for hcName, hcResult := range stat.HealthStatus {
 						newrow := make(map[string]interface{})
-						newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.ID) //make this match the rowmap key
+						newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.InstanceID) //make this match the rowmap key
 						newrow["Healthcheck"] = hcName
 						newrow["Healthcheck Status"] = hcResult
 
@@ -191,7 +188,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 							explicitFailure = true
 						}
 
-						rowmap[fmt.Sprintf("%s/%d-%v", svc.ID, stat.ID, hcName)] = newrow
+						rowmap[fmt.Sprintf("%s/%d-%v", svc.ID, stat.InstanceID, hcName)] = newrow
 					}
 
 					//go back and add the healthcheck field for the parent row
@@ -200,20 +197,6 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 					}
 				}
 
-			}
-		}
-	}
-
-	// get memoryStats
-	metricReq.StartTime = time.Now().Add(-24 * time.Hour)
-	var memstats []metrics.MemoryUsageStats
-
-	if len(metricReq.Instances) > 0 {
-		if err := client.GetInstanceMemoryStats(metricReq, &memstats); err == nil {
-			for _, memstat := range memstats {
-				id := fmt.Sprintf("%s/%s", memstat.ServiceID, memstat.InstanceID)
-				row := rowmap[id]
-				row["Cur/Max/Avg"] = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(memstat.Last)), bytefmt.ByteSize(uint64(memstat.Max)), bytefmt.ByteSize(uint64(memstat.Average)))
 			}
 		}
 	}
