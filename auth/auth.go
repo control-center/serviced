@@ -23,6 +23,12 @@ var (
 	ErrIdentityTokenExpired = errors.New("Identity token expired")
 	// ErrIdentityTokenBadSig is thrown when an identity token has a bad signature
 	ErrIdentityTokenBadSig = errors.New("Identity token signature cannot be verified")
+	// ErrNotRSAPublicKey is thrown when a key is not an RSA public key and needs to be
+	ErrNotRSAPublicKey = errors.New("Not an RSA public key")
+	// ErrNotRSAPrivateKey is thrown when a key is not an RSA private key and needs to be
+	ErrNotRSAPrivateKey = errors.New("Not an RSA private key")
+	// ErrNotPEMEncoded is thrown when bytes are not PEM encoded and need to be
+	ErrNotPEMEncoded = errors.New("Not PEM encoded")
 
 	// Devs: Feel free to add more, or replace those above, but define errors in a nice well-known place
 	// TODO: Remove this comment
@@ -41,7 +47,7 @@ type Verifier interface {
 // Identity represents the identity of a host. The most-used implementation
 // will involve serializing this to a token.
 type Identity interface {
-	Verify() bool
+	Valid() error
 	Expired() bool
 	HostID() string
 	PoolID() string
