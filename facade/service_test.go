@@ -371,8 +371,8 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePu
 		},
 	}
 
-	ft.zzk.On("GetVHost", "zproxy").Return("svc2", "zproxy", nil).Once()
-	ft.zzk.On("GetPublicPort", ":22222").Return("svc2", "zproxy", nil).Once()
+	ft.zzk.On("GetVHost", "zproxy").Return("svc2", "zproxy", nil).Twice()
+	ft.zzk.On("GetPublicPort", ":22222").Return("svc2", "zproxy", nil).Twice()
 	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
 		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
 		return
@@ -382,6 +382,10 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePu
 	t.Assert(err, IsNil)
 	t.Check(svc2.Endpoints[0].PortList[0].Enabled, Equals, false)
 	t.Check(svc2.Endpoints[0].VHostList[0].Enabled, Equals, false)
+	svc.Endpoints[0].PortList[0].Enabled = true
+	svc.Endpoints[0].VHostList[0].Enabled = true
+
+	t.Assert(ft.Facade.UpdateService(ft.CTX, svc), NotNil)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C) {
