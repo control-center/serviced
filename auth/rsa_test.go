@@ -153,12 +153,12 @@ func (s *TestAuthSuite) TestPEMFromRSAPrivateKey(c *C) {
 	c.Assert(actual, Equals, expected)
 }
 
-func (s *TestAuthSuite) TestGenerateKey(c *C) {
+func (s *TestAuthSuite) TestGenerateRSAKeyPairPEM(c *C) {
 
 	var samplePriv *rsa.PrivateKey
 	var samplePub *rsa.PublicKey
 
-	pub, priv, err := auth.GenerateKey(nil)
+	pub, priv, err := auth.GenerateRSAKeyPairPEM(nil)
 	c.Assert(err, IsNil)
 
 	// Make sure pub is a public key and priv is a private key
@@ -184,8 +184,27 @@ func (s *TestAuthSuite) TestGenerateKey(c *C) {
 	c.Assert(len(privBlock.Headers), Equals, 0)
 	c.Assert(len(privRest), Equals, 0)
 
+	// Test signing and verifying
+	// Get valid verifier
+	verifier, err := auth.RSAVerifierFromPEM(pub)
+	c.Assert(err, IsNil)
+
+	// Get valid signer
+	signer, err := auth.RSASignerFromPEM(priv)
+	c.Assert(err, IsNil)
+
+	message := []byte("Four score and seven years ago our fathers brought forth on this continent a new nation")
+
+	// Sign it
+	sig, err := signer.Sign(message)
+	c.Assert(err, IsNil)
+
+	// Verify the signature
+	err = verifier.Verify(message, sig)
+	c.Assert(err, IsNil)
+
 	// Generate another pair, and make sure they are unique
-	newpub, newpriv, err := auth.GenerateKey(nil)
+	newpub, newpriv, err := auth.GenerateRSAKeyPairPEM(nil)
 	c.Assert(err, IsNil)
 	c.Assert(newpub, Not(DeepEquals), pub)
 	c.Assert(newpriv, Not(DeepEquals), priv)
@@ -194,7 +213,7 @@ func (s *TestAuthSuite) TestGenerateKey(c *C) {
 	headers := make(map[string]string)
 	headers["header1"] = "value1"
 	headers["header2"] = "value2"
-	pubwheader, privwheader, err := auth.GenerateKey(headers)
+	pubwheader, privwheader, err := auth.GenerateRSAKeyPairPEM(headers)
 	c.Assert(err, IsNil)
 	pubBlock, _ = pem.Decode(pubwheader)
 	privBlock, _ = pem.Decode(privwheader)

@@ -204,7 +204,7 @@ func PEMFromRSAPrivateKey(key crypto.PrivateKey, headers map[string]string) ([]b
 
 // GenerateKey generates an RSA key pair and returns the public and private
 // PEM blocks for that key.
-func GenerateKey(headers map[string]string) (public []byte, private []byte, err error) {
+func GenerateRSAKeyPairPEM(headers map[string]string) (public []byte, private []byte, err error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, rsaKeyLength)
 	if err != nil {
 		return nil, nil, err
