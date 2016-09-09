@@ -237,12 +237,54 @@ func (_m *Store) FindTenantByDeploymentID(ctx datastore.Context, deploymentID st
 
 	return r0, r1
 }
-func (_m *Store) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
+func (_m *Store) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
 	ret := _m.Called(ctx, serviceID)
+
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceDetails); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, parentID)
 
 	var r0 []service.ServiceDetails
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, serviceID)
+		r0 = rf(ctx, parentID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -251,7 +293,7 @@ func (_m *Store) GetChildServiceDetails(ctx datastore.Context, serviceID string)
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
+		r1 = rf(ctx, parentID)
 	} else {
 		r1 = ret.Error(1)
 	}
