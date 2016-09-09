@@ -221,3 +221,67 @@ func (s *TestAuthSuite) TestGenerateRSAKeyPairPEM(c *C) {
 	c.Assert(privBlock.Headers, DeepEquals, headers)
 
 }
+
+func (s *TestAuthSuite) TestDumpAndLoadPEMKeyPairs(c *C) {
+	// Generate a key pair
+	pub, priv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	// Pass a private key for pub
+	data, err := auth.DumpPEMKeyPair(priv, priv)
+	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
+	c.Assert(data, IsNil)
+
+	// Pass a public key for private
+	data, err = auth.DumpPEMKeyPair(pub, pub)
+	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
+	c.Assert(data, IsNil)
+
+	// Pass the correct parameters
+	data, err = auth.DumpPEMKeyPair(pub, priv)
+	c.Assert(err, IsNil)
+
+	// Test loading
+	// Pass empty data
+	pubLoaded, privLoaded, err := auth.LoadKeyPair([]byte{})
+	c.Assert(err, Equals, auth.ErrBadKeysFile)
+	c.Assert(pubLoaded, IsNil)
+	c.Assert(privLoaded, IsNil)
+
+	// First block is public, not private
+	pubLoaded, privLoaded, err = auth.LoadKeyPair(pub)
+	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
+	c.Assert(pubLoaded, IsNil)
+	c.Assert(privLoaded, IsNil)
+
+	// Second block is missing
+	pubLoaded, privLoaded, err = auth.LoadKeyPair(priv)
+	c.Assert(err, Equals, auth.ErrBadKeysFile)
+	c.Assert(pubLoaded, IsNil)
+	c.Assert(privLoaded, IsNil)
+
+	// Second block is not public
+	var badData bytes.Buffer
+	_, err = badData.Write(priv)
+	c.Assert(err, IsNil)
+	_, err = badData.Write(priv)
+	c.Assert(err, IsNil)
+
+	pubLoaded, privLoaded, err = auth.LoadKeyPair(badData.Bytes())
+	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
+	c.Assert(pubLoaded, IsNil)
+	c.Assert(privLoaded, IsNil)
+
+	// Pass correct data
+	pubLoaded, privLoaded, err = auth.LoadKeyPair(data)
+	c.Assert(err, IsNil)
+
+	// Convert to PEM and verify it is what we passed in
+	pubLoadedPEM, err := auth.PEMFromRSAPublicKey(pubLoaded, nil)
+	c.Assert(err, IsNil)
+	privLoadedPEM, err := auth.PEMFromRSAPrivateKey(privLoaded, nil)
+
+	c.Assert(pubLoadedPEM, DeepEquals, pub)
+	c.Assert(privLoadedPEM, DeepEquals, priv)
+
+}

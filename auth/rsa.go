@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -231,12 +232,9 @@ func DevRSAVerifier() Verifier {
 	return verifier
 }
 
-// TODO: LocalPrivateKey, LocalPublicKey, MasterPublicKey
-// are just a placeholder until we have the required keys loaded in memory somewhere
-
+// TODO: Elimnate these three methods.  Leaving these here for now so the code will build
 func LocalPrivateKey() crypto.PrivateKey {
-	key, _ := RSAPrivateKeyFromPEM(DevPrivKeyPEM)
-	return key
+	return delegateKeys.localPrivate
 }
 
 func LocalPublicKey() crypto.PublicKey {
@@ -245,6 +243,52 @@ func LocalPublicKey() crypto.PublicKey {
 }
 
 func MasterPublicKey() crypto.PublicKey {
-	key, _ := RSAPublicKeyFromPEM(DevPubKeyPEM)
-	return key
+	masterPublic, _ := GetMasterPublicKey()
+	return masterPublic
+}
+
+// DumpPEMKeyPair dumps PEM-encoded public and private keys to a single byte array
+func DumpPEMKeyPair(public, private []byte) ([]byte, error) {
+	// Do some validation first.  These don't have to be a matched pair,
+	//   but they do have to be PEM, and they have to be a public and
+	//	 private key, respectively
+	if _, err := RSAPublicKeyFromPEM(public); err != nil {
+		return nil, err
+	}
+
+	if _, err := RSAPrivateKeyFromPEM(private); err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+	if _, err := out.Write(private); err != nil {
+		return nil, err
+	}
+	if _, err := out.Write(public); err != nil {
+		return nil, err
+	}
+
+	return out.Bytes(), nil
+}
+
+// LoadPEMKeyPair loads a private/public key pair from a reader over PEM-encoded data.
+//  The private key is first, the public key is second.
+func LoadKeyPair(data []byte) (public crypto.PublicKey, private crypto.PrivateKey, err error) {
+	firstblock, rest := pem.Decode(data)
+	if firstblock == nil {
+		return nil, nil, ErrBadKeysFile
+	}
+	privatekey, err := RSAPrivateKeyFromPEM(pem.EncodeToMemory(firstblock))
+	if err != nil {
+		return nil, nil, err
+	}
+	secondblock, _ := pem.Decode(rest)
+	if secondblock == nil {
+		return nil, nil, ErrBadKeysFile
+	}
+	publickey, err := RSAPublicKeyFromPEM(pem.EncodeToMemory(secondblock))
+	if err != nil {
+		return nil, nil, err
+	}
+	return publickey, privatekey, nil
 }
