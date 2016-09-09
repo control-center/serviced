@@ -112,6 +112,8 @@ type FacadeInterface interface {
 
 	GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error)
 
+	GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error)
+
 	GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error)
 
 	GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error)

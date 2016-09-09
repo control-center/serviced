@@ -706,6 +706,27 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, since time
 
 	return r0, r1
 }
+func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error) {
+	ret := _m.Called(ctx, since, serviceids)
+
+	var r0 []service.AggregateService
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, []string) []service.AggregateService); ok {
+		r0 = rf(ctx, since, serviceids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.AggregateService)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, []string) error); ok {
+		r1 = rf(ctx, since, serviceids)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *FacadeInterface) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 	ret := _m.Called(ctx)
 
