@@ -17,9 +17,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/hostkey"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
@@ -36,42 +38,42 @@ const (
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// AddHost registers a host with serviced. Returns an error if host already
-// exists or if the host's IP is a virtual IP.
-func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
+// AddHost registers a host with serviced. Returns the host's private key.
+// Returns an error if host already exists or if the host's IP is a virtual IP.
+func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add host: %s", err)
-		return err
+		return nil, err
 	}
 	defer f.DFSLock(ctx).Unlock()
 	return f.addHost(ctx, entity)
 }
 
-func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) error {
+func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if exists != nil {
-		return fmt.Errorf("host already exists: %s", entity.ID)
+		return nil, fmt.Errorf("host already exists: %s", entity.ID)
 	}
 
 	// validate Pool exists
 	pool, err := f.GetResourcePool(ctx, entity.PoolID)
 	if err != nil {
-		return fmt.Errorf("error verifying pool exists: %v", err)
+		return nil, fmt.Errorf("error verifying pool exists: %v", err)
 	}
 	if pool == nil {
-		return fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
+		return nil, fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
 	}
 
 	// verify that there are no virtual IPs with the given host IP(s)
 	for _, ip := range entity.IPs {
 		if exists, err := f.HasIP(ctx, pool.ID, ip.IPAddress); err != nil {
-			return fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
+			return nil, fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
 		} else if exists {
-			return fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
+			return nil, fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
 		}
 	}
 
@@ -79,7 +81,18 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) error {
 	err = nil
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
-		return err
+		return nil, err
+	}
+
+	// Generate and store an RSA key for the host
+	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(nil)
+	if err != nil {
+		return nil, err
+	}
+	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
+	if err != nil {
+		return nil, err
 	}
 
 	now := time.Now()
@@ -87,10 +100,10 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) error {
 	entity.UpdatedAt = now
 
 	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
-		return err
+		return nil, err
 	}
 	err = f.zzk.AddHost(entity)
-	return err
+	return privatePEM, err
 }
 
 // UpdateHost information for a registered host
@@ -207,6 +220,17 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 		return nil, err
 	}
 	return &value, nil
+}
+
+// GetHostKey gets a host key by id. Returns nil if host not found
+func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
+	glog.V(2).Infof("Facade.GetHostKey: id=%s", hostID)
+
+	if key, err := f.hostkeyStore.Get(ctx, hostID); err != nil {
+		return nil, err
+	} else {
+		return []byte(key.PEM), nil
+	}
 }
 
 // GetHosts returns a list of all registered hosts

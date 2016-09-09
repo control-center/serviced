@@ -45,8 +45,12 @@ func (c *Client) GetActiveHostIDs() ([]string, error) {
 }
 
 //AddHost adds a Host
-func (c *Client) AddHost(host host.Host) error {
-	return c.call("AddHost", host, nil)
+func (c *Client) AddHost(host host.Host) ([]byte, error) {
+	response := []byte{}
+	if err := c.call("AddHost", host, &response); err != nil {
+		return []byte{}, err
+	}
+	return response, nil
 }
 
 //UpdateHost updates a host
