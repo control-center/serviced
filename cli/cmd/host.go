@@ -16,6 +16,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -61,6 +62,11 @@ func (c *ServicedCli) initHost() {
 						Name:  "memory",
 						Value: "",
 						Usage: "Memory to allocate on this host, e.g. 20G, 50%",
+					},
+					cli.StringFlag{
+						Name:  "key-file, k",
+						Value: "",
+						Usage: "Name of the output host key file",
 					},
 				},
 			}, {
@@ -232,9 +238,14 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
+		keyfileName := ctx.String("key-file")
+		if keyfileName == "" {
+			keyfileName = fmt.Sprintf("IP-%s.delegate.key", strings.Replace(host.IPAddr, ".", "-", -1))
+		}
+		if err := ioutil.WriteFile(keyfileName, privateKey, 0440); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		fmt.Println(host.ID)
-		// TODO: write the private key to a file
-		fmt.Println(string(privateKey[:]))
 	}
 }
 
