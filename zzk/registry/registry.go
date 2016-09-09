@@ -242,7 +242,8 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 	}
 
 	// create the remaining public ports if the ports are enabled
-	for key, val := range pubs {
+	for key := range pubs {
+		val := pubs[key]
 		if val.Enabled {
 			conn.CreateDir(path.Join(pth, key.HostID))
 			addrpth := path.Join(pth, key.HostID, key.PortAddress)
@@ -342,7 +343,8 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 	}
 
 	// create the remaining public ports if they are enabled
-	for key, val := range vhosts {
+	for key := range vhosts {
+		val := vhosts[key]
 		if val.Enabled {
 			conn.CreateDir(path.Join(pth, key.HostID))
 			addrpth := path.Join(pth, key.HostID, key.Subdomain)
