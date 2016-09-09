@@ -120,5 +120,9 @@ type FacadeInterface interface {
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
 
-	GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+	GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error)
+
+	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
+	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 }
