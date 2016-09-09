@@ -17,9 +17,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/hostkey"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
@@ -80,6 +82,17 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) error {
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
 	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
 		return err
+	}
+
+	// Generate and store an RSA key for the host
+	publicPEM, _, err := auth.GenerateRSAKeyPairPEM(nil)
+	if err != nil {
+		return nil, err
+	}
+	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
+	if err != nil {
+		return nil, err
 	}
 
 	now := time.Now()
