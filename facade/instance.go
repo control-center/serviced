@@ -16,6 +16,7 @@ package facade
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -271,6 +272,94 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	logger.Debug("Loaded service instance")
 
 	return inst, nil
+}
+
+// GetAggregateServices returns the aggregated states of a bulk of services
+func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, serviceIDs []string) ([]service.AggregateService, error) {
+	logger := plog.WithField("serviceids", strings.Join(serviceIDs, ","))
+
+	// Create an instance map to map instances to their memory usage.  This is
+	// so that we only have to make one call to query service to get metrics
+	// for all the instances.
+	instanceMap := make(map[string]*service.Usage)
+
+	// Set up an array containing all the metrics to collect
+	var metricsreq []metrics.ServiceInstance
+
+	// Results are for saving the metric data that will be returned to the
+	// caller.
+	results := make([]service.AggregateService, len(serviceIDs))
+
+	for i, serviceID := range serviceIDs {
+		svclog := logger.WithField("serviceid", serviceID)
+
+		svc, err := f.serviceStore.Get(ctx, serviceID)
+		if datastore.IsErrNoSuchEntity(err) {
+
+			// If the service is not found, set the NotFound boolean to true
+			// and continue
+			results[i] = service.AggregateService{
+				ServiceID: serviceID,
+				NotFound:  true,
+			}
+			svclog.Debug("Service not found")
+			continue
+		} else if err != nil {
+			svclog.WithError(err).Debug("Could not retrieve service")
+			return nil, err
+		}
+
+		// Get all the state ids running on that service
+		stateIDs, err := f.zzk.GetServiceStateIDs(svc.PoolID, svc.ID)
+		if err != nil {
+			svclog.WithError(err).Debug("Could not retrieve instances for service")
+			return nil, err
+		}
+
+		// set up the aggregated service object
+		results[i] = service.AggregateService{
+			ServiceID:    serviceID,
+			DesiredState: service.DesiredState(svc.DesiredState),
+			Status:       make([]service.StatusInstance, len(stateIDs)),
+			NotFound:     false,
+		}
+
+		// set up the status of each instance
+		for j, stateID := range stateIDs {
+
+			// report the instance id and the health
+			results[i].Status[j] = service.StatusInstance{
+				InstanceID: stateID.InstanceID,
+				Health:     f.getInstanceHealth(svc, stateID.InstanceID),
+			}
+
+			// append a request to the metrics query for this instance
+			metricsreq = append(metricsreq, metrics.ServiceInstance{
+				ServiceID:  serviceID,
+				InstanceID: stateID.InstanceID,
+			})
+
+			// add the memory usage response
+			instanceMap[fmt.Sprintf("%s-%d", serviceID, stateID.InstanceID)] = &results[i].Status[j].MemoryUsage
+		}
+	}
+
+	// look up the metrics of all the instances
+	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+	if err != nil {
+		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+	} else {
+		for _, metric := range metricsres {
+			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+				Cur: metric.Last,
+				Max: metric.Max,
+				Avg: metric.Average,
+			}
+		}
+	}
+
+	logger.Debug("Loaded aggregate service instance data")
+	return results, nil
 }
 
 // getInstanceHealth returns the health of the instance of a given service
