@@ -400,3 +400,24 @@ func (_m *ZZK) SendDockerAction(poolID string, serviceID string, instanceID int,
 
 	return r0
 }
+func (_m *ZZK) GetServiceStateIDs(poolID string, serviceID string) ([]zkservice.StateRequest, error) {
+	ret := _m.Called(poolID, serviceID)
+
+	var r0 []zkservice.StateRequest
+	if rf, ok := ret.Get(0).(func(string, string) []zkservice.StateRequest); ok {
+		r0 = rf(poolID, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]zkservice.StateRequest)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(poolID, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

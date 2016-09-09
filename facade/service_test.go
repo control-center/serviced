@@ -182,44 +182,6 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressA
 
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkVHostFail(c *C) {
-	// set up the endpoint with an invalid vhost
-	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
-		Name:        "ep2",
-		Application: "ep2",
-		Purpose:     "export",
-		VHostList: []servicedefinition.VHost{
-			{
-				Name:    "vh1",
-				Enabled: true,
-			},
-		},
-	})
-	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("GetVHost", "vh1").Return("", "", ErrTestEPValidationFail)
-	err := ft.Facade.validateServiceStart(ft.CTX, svc)
-	c.Assert(err, Equals, ErrTestEPValidationFail)
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkPortFail(c *C) {
-	// set up the endpoint with in invalid public port
-	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
-		Name:        "ep3",
-		Application: "ep3",
-		Purpose:     "export",
-		PortList: []servicedefinition.Port{
-			{
-				PortAddr: ":1234",
-				Enabled:  true,
-			},
-		},
-	})
-	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("GetPublicPort", ":1234").Return("", "", ErrTestEPValidationFail)
-	err := ft.Facade.validateServiceStart(ft.CTX, svc)
-	c.Assert(err, Equals, ErrTestEPValidationFail)
-}
-
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
 	// successfully add address assignment, vhost, and port
 	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{

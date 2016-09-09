@@ -21,28 +21,17 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 )
 
-// GetChildServiceDetails returns service details given parent service id
-func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
-	id := strings.TrimSpace(parentID)
-	if id == "" {
-		return nil, errors.New("empty parent service id not allowed")
-	}
-
-	searchRequest := elastic.ElasticSearchRequest{
-		Pretty: false,
-		Index:  "controlplane",
-		Type:   "service",
-		Scroll: "",
-		Scan:   0,
-	}
-
-	searchRequest.Query = map[string]interface{}{
+// GetAllServiceDetails returns service details for an id
+func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetails, error) {
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
-			"term": map[string]string{"ParentServiceID": id},
+			"query_string": map[string]string{
+				"query": "_exists_:ID",
+			},
 		},
-		"fields": []string{"ID", "Name", "Description", "PoolID", "ParentServiceID"},
+		"fields": serviceDetailsFields,
 		"size":   50000,
-	}
+	})
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
@@ -60,4 +49,90 @@ func (s *storeImpl) GetChildServiceDetails(ctx datastore.Context, parentID strin
 	}
 
 	return details, nil
+}
+
+// GetServiceDetails returns service details for an id
+func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (*ServiceDetails, error) {
+	id := strings.TrimSpace(serviceID)
+	if id == "" {
+		return nil, errors.New("empty service id not allowed")
+	}
+
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"ids": map[string]interface{}{
+				"values": []string{id},
+			},
+		},
+		"fields": serviceDetailsFields,
+		"size":   50000,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.HasNext() {
+		var details ServiceDetails
+		err = results.Next(&details)
+		if err != nil {
+			return nil, err
+		}
+		return &details, nil
+	}
+
+	// no errors but also no results for given id
+	return nil, nil
+}
+
+// GetChildServiceDetails returns service details given parent service id
+func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]string{"ParentServiceID": parentID},
+		},
+		"fields": serviceDetailsFields,
+		"size":   50000,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	details := []ServiceDetails{}
+	for results.HasNext() {
+		var d ServiceDetails
+		err := results.Next(&d)
+		if err != nil {
+			return nil, err
+		}
+		details = append(details, d)
+	}
+
+	return details, nil
+}
+
+func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
+	return elastic.ElasticSearchRequest{
+		Pretty: false,
+		Index:  "controlplane",
+		Type:   "service",
+		Scroll: "",
+		Scan:   0,
+		Query:  query,
+	}
+}
+
+var serviceDetailsFields = []string{
+	"ID",
+	"Name",
+	"Description",
+	"PoolID",
+	"ParentServiceID",
+	"Instances",
+	"InstanceLimits",
+	"RAMCommitment",
+	"Startup",
 }

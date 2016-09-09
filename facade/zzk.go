@@ -49,6 +49,7 @@ type ZZK interface {
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
 	StopServiceInstances(poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
+	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
 }
 
 func GetFacadeZZK(f *Facade) ZZK {
