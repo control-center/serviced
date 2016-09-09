@@ -36,6 +36,8 @@ var (
 	ErrNotRSAPrivateKey = errors.New("Not an RSA private key")
 	// ErrNotPEMEncoded is thrown when bytes are not PEM encoded and need to be
 	ErrNotPEMEncoded = errors.New("Not PEM encoded")
+	// ErrBadKeysFile is thrown when the local keys file isn't parseable
+	ErrBadKeysFile = errors.New("Unable to read security keys file")
 
 	// Devs: Feel free to add more, or replace those above, but define errors in a nice well-known place
 	// TODO: Remove this comment
