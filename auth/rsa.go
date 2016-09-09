@@ -9,6 +9,8 @@ import (
 	"encoding/pem"
 )
 
+const rsaKeyLength = 2048
+
 var (
 	// DevPubKeyPEM is a sample public key for use in dev
 	DevPubKeyPEM = []byte(`-----BEGIN PUBLIC KEY-----
@@ -198,6 +200,23 @@ func PEMFromRSAPrivateKey(key crypto.PrivateKey, headers map[string]string) ([]b
 	}
 	bytes := pem.EncodeToMemory(&block)
 	return bytes, nil
+}
+
+// GenerateKey generates an RSA key pair and returns the public and private
+// PEM blocks for that key.
+func GenerateRSAKeyPairPEM(headers map[string]string) (public []byte, private []byte, err error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, rsaKeyLength)
+	if err != nil {
+		return nil, nil, err
+	}
+	if private, err = PEMFromRSAPrivateKey(privateKey, headers); err != nil {
+		return nil, nil, err
+	}
+	publicKey := privateKey.Public()
+	if public, err = PEMFromRSAPublicKey(publicKey, headers); err != nil {
+		return nil, nil, err
+	}
+	return public, private, nil
 }
 
 // DevRSASigner returns a dev signer for dev purposes

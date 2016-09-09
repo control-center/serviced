@@ -18,6 +18,7 @@ package auth_test
 import (
 	"bytes"
 	"crypto/rsa"
+	"encoding/pem"
 	"strings"
 
 	"github.com/control-center/serviced/auth"
@@ -150,4 +151,73 @@ func (s *TestAuthSuite) TestPEMFromRSAPrivateKey(c *C) {
 	c.Assert(err, IsNil)
 	actual := strings.TrimSpace(string(out[:]))
 	c.Assert(actual, Equals, expected)
+}
+
+func (s *TestAuthSuite) TestGenerateRSAKeyPairPEM(c *C) {
+
+	var samplePriv *rsa.PrivateKey
+	var samplePub *rsa.PublicKey
+
+	pub, priv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	// Make sure pub is a public key and priv is a private key
+	publicKey, err := auth.RSAPublicKeyFromPEM(pub)
+	c.Assert(err, IsNil)
+	c.Assert(publicKey, FitsTypeOf, samplePub)
+	privateKey, err := auth.RSAPrivateKeyFromPEM(priv)
+	c.Assert(err, IsNil)
+	c.Assert(privateKey, FitsTypeOf, samplePriv)
+
+	// Make sure the keys are a pair
+	expectedPublicKey := privateKey.Public()
+	expectedpublicPEM, err := auth.PEMFromRSAPublicKey(expectedPublicKey, nil)
+	c.Assert(err, IsNil)
+	c.Assert(pub, DeepEquals, expectedpublicPEM)
+
+	// Headers are empty
+	pubBlock, pubRest := pem.Decode(pub)
+	c.Assert(len(pubBlock.Headers), Equals, 0)
+	c.Assert(len(pubRest), Equals, 0)
+
+	privBlock, privRest := pem.Decode(priv)
+	c.Assert(len(privBlock.Headers), Equals, 0)
+	c.Assert(len(privRest), Equals, 0)
+
+	// Test signing and verifying
+	// Get valid verifier
+	verifier, err := auth.RSAVerifierFromPEM(pub)
+	c.Assert(err, IsNil)
+
+	// Get valid signer
+	signer, err := auth.RSASignerFromPEM(priv)
+	c.Assert(err, IsNil)
+
+	message := []byte("Four score and seven years ago our fathers brought forth on this continent a new nation")
+
+	// Sign it
+	sig, err := signer.Sign(message)
+	c.Assert(err, IsNil)
+
+	// Verify the signature
+	err = verifier.Verify(message, sig)
+	c.Assert(err, IsNil)
+
+	// Generate another pair, and make sure they are unique
+	newpub, newpriv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+	c.Assert(newpub, Not(DeepEquals), pub)
+	c.Assert(newpriv, Not(DeepEquals), priv)
+
+	// Pass in some headers and make sure they survive
+	headers := make(map[string]string)
+	headers["header1"] = "value1"
+	headers["header2"] = "value2"
+	pubwheader, privwheader, err := auth.GenerateRSAKeyPairPEM(headers)
+	c.Assert(err, IsNil)
+	pubBlock, _ = pem.Decode(pubwheader)
+	privBlock, _ = pem.Decode(privwheader)
+	c.Assert(pubBlock.Headers, DeepEquals, headers)
+	c.Assert(privBlock.Headers, DeepEquals, headers)
+
 }
