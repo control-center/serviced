@@ -1834,7 +1834,17 @@ var (
 	tenanIDMutex = sync.RWMutex{}
 )
 
+// Get all the service details
+func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetAllServiceDetails(ctx)
+}
+
+// Get the details of the services for the given id
+func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetails(ctx, serviceID)
+}
+
 // Get the details of the child services for the given parent
-func (f *Facade) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
-	return f.serviceStore.GetChildServiceDetails(ctx, serviceID)
+func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
 }

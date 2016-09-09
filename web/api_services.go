@@ -14,6 +14,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -21,8 +22,37 @@ import (
 	"github.com/zenoss/go-json-rest"
 )
 
-// getPools returns the list of details requested.  This call supports paging.
-func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
+	ctx := c.getDatastoreContext()
+
+	var err error
+	var details []service.ServiceDetails
+
+	if _, ok := r.URL.Query()["tenants"]; ok {
+		details, err = c.getFacade().GetServiceDetailsByParentID(ctx, "")
+	} else {
+		details, err = c.getFacade().GetAllServiceDetails(ctx)
+	}
+
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(serviceDetailsListResponse{
+		Results: details,
+		Total:   len(details),
+		Links: []APILink{
+			APILink{
+				Rel:    "self",
+				HRef:   r.URL.Path,
+				Method: "GET",
+			},
+		},
+	})
+}
+
+func getServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		writeJSON(w, err, http.StatusBadRequest)
@@ -32,29 +62,69 @@ func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, ctx *reques
 		return
 	}
 
-	facade := ctx.getFacade()
-	dataCtx := ctx.getDatastoreContext()
+	ctx := c.getDatastoreContext()
 
-	details, err := facade.GetChildServiceDetails(dataCtx, serviceID)
+	details, err := c.getFacade().GetServiceDetails(ctx, serviceID)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
 
-	response := childServiceDetailsResponse{
-		Results: details,
-		Total:   len(details),
-		Links: []APILink{APILink{
-			Rel:    "self",
-			HRef:   r.URL.Path,
-			Method: "GET",
-		}},
+	if details == nil {
+		msg := fmt.Sprintf("Service %v Not Found", serviceID)
+		writeJSON(w, msg, http.StatusNotFound)
+		return
 	}
 
-	w.WriteJson(response)
+	w.WriteJson(serviceDetailsResponse{
+		Results: *details,
+		Links: []APILink{
+			APILink{
+				Rel:    "self",
+				HRef:   r.URL.Path,
+				Method: "GET",
+			},
+		},
+	})
 }
 
-type childServiceDetailsResponse struct {
+func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	} else if len(serviceID) == 0 {
+		writeJSON(w, "serviceId must be specified", http.StatusBadRequest)
+		return
+	}
+
+	ctx := c.getDatastoreContext()
+
+	details, err := c.getFacade().GetServiceDetailsByParentID(ctx, serviceID)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(serviceDetailsListResponse{
+		Results: details,
+		Total:   len(details),
+		Links: []APILink{
+			APILink{
+				Rel:    "self",
+				HRef:   r.URL.Path,
+				Method: "GET",
+			},
+		},
+	})
+}
+
+type serviceDetailsResponse struct {
+	Results service.ServiceDetails `json:"results"`
+	Links   []APILink              `json:"links"`
+}
+
+type serviceDetailsListResponse struct {
 	Results []service.ServiceDetails `json:"results"`
 	Total   int                      `json:"total"`
 	Links   []APILink                `json:"links"`
