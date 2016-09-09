@@ -77,7 +77,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
 
 		// set up a watch on the service
-		sDat := &ServiceNode{Service: &service.Service{}}
+		sDat := NewServiceNodeFromService(&service.Service{})
 		sEvt, err := l.conn.GetW(l.GetPath(serviceID), sDat, done)
 		if err == client.ErrNoNode {
 
@@ -127,7 +127,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 
 			// Synchronize the number of service states
-			if _, ok := l.Sync(sDat.Locked, sDat.Service, reqs); !ok {
+			if _, ok := l.Sync(sDat.Locked, sDat.AsService(), reqs); !ok {
 				timer.Reset(time.Second)
 			}
 

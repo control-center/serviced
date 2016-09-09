@@ -20,6 +20,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 )
 
 // ServiceError manages service errors
@@ -35,9 +36,49 @@ func (err ServiceError) Error() string {
 
 // ServiceNode is the storage object for service data
 type ServiceNode struct {
-	*service.Service
+	//*service.Service
+	ID            string
+	Name          string
+	DesiredState  int
+	Instances     int
+	RAMCommitment utils.EngNotation
+	ChangeOptions []string
+	//non-service fields
 	Locked  bool
 	version interface{}
+}
+
+func NewServiceNodeFromService(s *service.Service) *ServiceNode {
+	return &ServiceNode{
+		ID:            s.ID,
+		Name:          s.Name,
+		DesiredState:  s.DesiredState,
+		Instances:     s.Instances,
+		RAMCommitment: s.RAMCommitment,
+		ChangeOptions: s.ChangeOptions,
+	}
+}
+
+/*
+func (s *ServiceNode) SetServiceInfo(svc *service.Service) {
+	s.ID = svc.ID
+	s.Name = svc.Name
+	s.DesiredState = svc.DesiredState
+	s.Instances = svc.Instances
+	s.RAMCommitment = svc.RAMCommitment
+	s.ChangeOptions = svc.ChangeOptions
+}
+*/
+
+func (s *ServiceNode) AsService() *service.Service {
+	return &service.Service{
+		ID:            s.ID,
+		Name:          s.Name,
+		DesiredState:  s.DesiredState,
+		Instances:     s.Instances,
+		RAMCommitment: s.RAMCommitment,
+		ChangeOptions: s.ChangeOptions,
+	}
 }
 
 // Version implements client.Node
@@ -73,10 +114,12 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 
 	// create the service if it doesn't exist
 	// setLockOnCreate sets the lock as the node is created
-	if err := conn.CreateIfExists(pth, &ServiceNode{Service: getLiteService(svc), Locked: setLockOnCreate}); err == client.ErrNodeExists {
+	sn := NewServiceNodeFromService(&svc)
+	sn.Locked = setLockOnCreate
+	if err := conn.CreateIfExists(pth, sn); err == client.ErrNodeExists {
 
 		// the node exists so get it and update it
-		node := &ServiceNode{Service: &service.Service{}}
+		node := &ServiceNode{}
 		if err := conn.Get(pth, node); err != nil && err != client.ErrEmptyNode {
 
 			logger.WithError(err).Debug("Could not get service entry from zookeeper")
@@ -87,14 +130,13 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 			}
 		}
 
-		node.Service = getLiteService(svc)
-
 		// setLockOnUpdate sets the lock to true if enabled, otherwise it uses
 		// whatever existing value was previously set on the node.
 		if setLockOnUpdate {
 			node.Locked = true
 		}
-		if err := conn.Set(pth, node); err != nil {
+		sn.SetVersion(node.Version())
+		if err := conn.Set(pth, sn); err != nil {
 
 			logger.WithError(err).Debug("Could not update service entry in zookeeper")
 			return &ServiceError{

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
@@ -109,21 +108,11 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 // StartContainer creates a new container and starts.  It returns info about
 // the container, and an event monitor to track the running state of the
 // service.
-func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
+func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"imageid":     svc.ImageID,
-		"instanceid":  instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
-
-	// pull the service image
-	imageUUID, imageName, err := a.pullImage(logger, cancel, svc.ImageID)
-	if err != nil {
-		logger.WithError(err).Debug("Could not pull the service image")
-		return nil, nil, err
-	}
-	svc.ImageID = imageName
 
 	// Establish a connection to the master
 	// TODO: use the new rpc calls instead
@@ -134,27 +123,33 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	}
 	defer client.Close()
 
+	svc, err := a.getService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not get service")
+		return nil, nil, err
+	}
+
+	// pull the service image
+	imageUUID, imageName, err := a.pullImage(logger, cancel, svc.ImageID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not pull the service image")
+		return nil, nil, err
+	}
+	svc.ImageID = imageName
+
+	//// get the container configs
+	//conf, hostConf, err := a.setupContainer(client, svc, instanceID)
+	//if err != nil {
+	//	logger.WithError(err).Debug("Could not setup container")
+	//	return nil, nil, err
+	//}
+
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(client, svc, instanceID)
+	ctr, state, err := a.setupContainer(client, svc, instanceID, imageUUID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
 	}
-
-	// create the container
-	opts := dockerclient.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%d", svc.ID, instanceID),
-		Config:     conf,
-		HostConfig: hostConf,
-	}
-
-	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
-	if err != nil {
-		logger.WithError(err).Debug("Could not create container")
-		return nil, nil, err
-	}
-	logger = logger.WithField("containerid", ctr.ID)
-	logger.Debug("Created a new container")
 
 	// start the container
 	ev := a.monitorContainer(logger, ctr)
@@ -167,64 +162,28 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	logger.Debug("Started container")
 
 	dctr, err := ctr.Inspect()
-	if err != nil {
-		logger.WithError(err).Debug("Could not inspect container")
-		ctr.CancelOnEvent(docker.Die)
-		return nil, nil, err
-	}
+	// TODO: handle error
 
-	state := &zkservice.ServiceState{
-		ContainerID: ctr.ID,
-		ImageID:     imageUUID,
-		Paused:      false,
-		PrivateIP:   ctr.NetworkSettings.IPAddress,
-		HostIP:      a.ipaddress,
-		Started:     dctr.State.StartedAt,
-	}
-
-	var assignedIP string
-	var static bool
-	for _, ep := range svc.Endpoints {
-		if ep.Purpose == "export" {
-			var assignedPortNumber uint16
-			if a := ep.GetAssignment(); a != nil {
-				assignedIP = ep.AddressAssignment.IPAddr
-				static = ep.AddressAssignment.AssignmentType == commons.STATIC
-				assignedPortNumber = a.Port
-			}
-
-			// set the export data
-			state.Exports = append(state.Exports, zkservice.ExportBinding{
-				Application:        ep.Application,
-				Protocol:           ep.Protocol,
-				PortNumber:         ep.PortNumber,
-				AssignedPortNumber: assignedPortNumber,
-			})
-		} else {
-			state.Imports = append(state.Imports, zkservice.ImportBinding{
-				Application:    ep.Application,
-				Purpose:        ep.Purpose,
-				PortNumber:     ep.PortNumber,
-				PortTemplate:   ep.PortTemplate,
-				VirtualAddress: ep.VirtualAddress,
-			})
-		}
-	}
-	state.AssignedIP = assignedIP
-	state.Static = static
+	state.HostIP = a.ipaddress
+	state.PrivateIP = ctr.NetworkSettings.IPAddress
+	state.Started = dctr.State.StartedAt
 
 	go a.exposeAssignedIPs(state, ctr)
 	return state, ev, nil
 }
 
 // ResumeContainer resumes a paused container
-func (a *HostAgent) ResumeContainer(svc *service.Service, instanceID int) error {
+func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":     svc.ID,
-		"servicename":   svc.Name,
-		"resumecommand": svc.Snapshot.Resume,
-		"instanceid":    instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
+
+	svc, err := a.getService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Unable to retrieve service")
+	}
+
 	ctrName := fmt.Sprintf("%s-%d", svc.ID, instanceID)
 
 	// check to see if the container exists and is running
@@ -251,14 +210,12 @@ func (a *HostAgent) ResumeContainer(svc *service.Service, instanceID int) error 
 }
 
 // PauseContainer pauses a running container
-func (a *HostAgent) PauseContainer(svc *service.Service, instanceID int) error {
+func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":    svc.ID,
-		"servicename":  svc.Name,
-		"pausecommand": svc.Snapshot.Pause,
-		"instanceid":   instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
-	ctrName := fmt.Sprintf("%s-%d", svc.ID, instanceID)
+	ctrName := fmt.Sprintf("%s-%d", serviceID, instanceID)
 
 	// check to see if the container exists and is running
 	ctr, err := docker.FindContainer(ctrName)
@@ -270,6 +227,13 @@ func (a *HostAgent) PauseContainer(svc *service.Service, instanceID int) error {
 	if !ctr.IsRunning() {
 		// container has stopped and the event monitor should catch this
 		logger.Debug("Container stopped")
+		return nil
+	}
+
+	// Get the service from the client
+	svc, err := a.getService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Unable to get service")
 		return nil
 	}
 
@@ -399,6 +363,34 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 
 		ctr.Wait(time.Hour * 24 * 365)
 	}
+}
+
+func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid": serviceID,
+	})
+
+	// Get an RPC client
+	client, err := NewControlClient(a.master)
+	if err != nil {
+		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
+		return nil, err
+	}
+	defer client.Close()
+
+	//create a service instance
+	svc, err := service.NewService()
+	if err != nil {
+		logger.WithError(err).Debug("Could not create a new service")
+		return nil, err
+	}
+
+	// Get the service from the RPC client
+	if err := client.GetService(serviceID, svc); err != nil {
+		logger.WithError(err).Debug("Could not Get the service")
+		return nil, err
+	}
+	return svc, nil
 }
 
 // dockerLogsToFile dumps container logs to file

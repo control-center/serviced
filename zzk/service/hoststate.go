@@ -39,15 +39,15 @@ type HostStateHandler interface {
 	// StartContainer creates and starts a new container for the given service
 	// instance.  It returns relevant information about the container and a
 	// channel that triggers when the container has stopped.
-	StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*ServiceState, <-chan time.Time, error)
+	StartContainer(cancel <-chan interface{}, serviceID string, instanceID int) (*ServiceState, <-chan time.Time, error)
 
 	// ResumeContainer resumes a paused container.  Returns nil if the
 	// container has stopped or if it doesn't exist.
-	ResumeContainer(svc *service.Service, instanceID int) error
+	ResumeContainer(serviceID string, instanceID int) error
 
 	// PauseContainer pauses a running container.  Returns nil if the container
 	// has stopped or if it doesn't exist.
-	PauseContainer(svc *service.Service, instanceID int) error
+	PauseContainer(serviceID string, instanceID int) error
 }
 
 // HostStateListener is the listener for monitoring service instances
@@ -157,25 +157,16 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 		// load the service state node
 		sspth := path.Join("/services", serviceID, stateID)
-		ssdat := &ServiceState{}
-		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
-
+		exists, err := l.conn.Exists(sspth)
+		if !exists {
 			logger.Debug("Service state was removed, exiting")
 			return
 		} else if err != nil {
-
-			logger.WithError(err).Error("Could not load service state")
+			logger.WithError(err).Error("Could not verify service state")
 			return
 		}
 
-		// load the service
-		spth := path.Join("/services", serviceID)
-		sdat := &ServiceNode{Service: &service.Service{}}
-		if err := l.conn.Get(spth, sdat); err != nil {
-
-			logger.WithError(err).Error("Could not load service")
-			return
-		}
+		ssdat := &ServiceState{}
 
 		// attach to the container if not already attached
 		if containerExit == nil {
@@ -193,7 +184,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if containerExit == nil {
 
 				// container is detached because it doesn't exist
-				ssdat, containerExit, err = l.handler.StartContainer(shutdown, sdat.Service, instanceID)
+				ssdat, containerExit, err = l.handler.StartContainer(shutdown, serviceID, instanceID)
 				if err != nil {
 
 					logger.WithError(err).Error("Could not start container")
@@ -214,7 +205,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			} else if ssdat.Paused {
 
 				// resume paused container
-				if err := l.handler.ResumeContainer(sdat.Service, instanceID); err != nil {
+				if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
 
 					logger.WithError(err).Error("Could not resume container")
 					return
@@ -237,7 +228,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if containerExit != nil && !ssdat.Paused {
 
 				// container is attached and not paused, so pause the container
-				if err := l.handler.PauseContainer(sdat.Service, instanceID); err != nil {
+				if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
 
 					logger.WithError(err).Error("Could not pause container")
 					return

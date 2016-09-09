@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
@@ -280,7 +282,12 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  svc.ID,
+		"instanceid": instanceID,
+		"imageUUID":  imageUUID,
+	})
 
 	// Evaluate service template fields
 	if err := a.evaluateService(client, svc, instanceID); err != nil {
@@ -315,6 +322,47 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
+	///************************************/
+	//var assignedIP string
+	//var static bool
+	//for _, ep := range svc.Endpoints {
+	//	if ep.Purpose == "export" {
+	//		var assignedPortNumber uint16
+	//		if a := ep.GetAssignment(); a != nil {
+	//			assignedIP = ep.AddressAssignment.IPAddr
+	//			static = ep.AddressAssignment.AssignmentType == commons.STATIC
+	//			assignedPortNumber = a.Port
+	//		}
+	//
+	//		// set the export data
+	//		state.Exports = append(state.Exports, zkservice.ExportBinding{
+	//			Application:        ep.Application,
+	//			Protocol:           ep.Protocol,
+	//			PortNumber:         ep.PortNumber,
+	//			AssignedPortNumber: assignedPortNumber,
+	//		})
+	//	} else {
+	//		state.Imports = append(state.Imports, zkservice.ImportBinding{
+	//			Application:    ep.Application,
+	//			Purpose:        ep.Purpose,
+	//			PortNumber:     ep.PortNumber,
+	//			PortTemplate:   ep.PortTemplate,
+	//			VirtualAddress: ep.VirtualAddress,
+	//		})
+	//	}
+	//}
+	//state.AssignedIP = assignedIP
+	//state.Static = static
+	/**************************************/
+
+	state := &zkservice.ServiceState{
+		ImageID: imageUUID,
+		Paused:  false,
+		HostIP:  a.ipaddress,
+	}
+
+	var assignedIP string
+	var static bool
 	if svc.Endpoints != nil {
 		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
 		for _, endpoint := range svc.Endpoints {
@@ -328,8 +376,33 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 				}
 				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
 				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
+
+				var assignedPortNumber uint16
+				if a := endpoint.GetAssignment(); a != nil {
+					assignedIP = endpoint.AddressAssignment.IPAddr
+					static = endpoint.AddressAssignment.AssignmentType == commons.STATIC
+					assignedPortNumber = a.Port
+				}
+
+				// set the export data
+				state.Exports = append(state.Exports, zkservice.ExportBinding{
+					Application:        endpoint.Application,
+					Protocol:           endpoint.Protocol,
+					PortNumber:         endpoint.PortNumber,
+					AssignedPortNumber: assignedPortNumber,
+				})
+			} else {
+				state.Imports = append(state.Imports, zkservice.ImportBinding{
+					Application:    endpoint.Application,
+					Purpose:        endpoint.Purpose,
+					PortNumber:     endpoint.PortNumber,
+					PortTemplate:   endpoint.PortTemplate,
+					VirtualAddress: endpoint.VirtualAddress,
+				})
 			}
 		}
+		state.AssignedIP = assignedIP
+		state.Static = static
 	}
 
 	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
@@ -535,7 +608,17 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			Hard: 0,
 		},
 	}
-	return cfg, hcfg, nil
+
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, imageUUID, instanceID)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"imageUUID":  imageUUID,
+			"instanceID": instanceID,
+		}).WithError(err).Error("Could not create container")
+	}
+	state.ContainerID = ctr.ID
+
+	return ctr, state, nil
 }
 
 // setupVolume
@@ -830,4 +913,29 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 	}
 	glog.V(0).Info("All service state nodes are shut down")
 	return
+}
+
+func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID, imageUUID string, instanceID int) (*docker.Container, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  svcID,
+		"instanceid": instanceID,
+		"imageUUID":  imageUUID,
+	})
+
+	// create the container
+	opts := dockerclient.CreateContainerOptions{
+		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
+		Config:     conf,
+		HostConfig: hostConf,
+	}
+
+	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
+	if err != nil {
+		logger.WithError(err).Debug("Could not create container")
+		return nil, err
+	}
+	logger = logger.WithField("containerid", ctr.ID)
+	logger.Debug("Created a new container")
+
+	return ctr, nil
 }
