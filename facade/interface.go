@@ -77,6 +77,8 @@ type FacadeInterface interface {
 
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
 
+	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
 	UpdateHost(ctx datastore.Context, entity *host.Host) error
