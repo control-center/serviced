@@ -16,6 +16,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -91,6 +92,44 @@ func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
+}
+
+func (s *FacadeIntegrationTest) Test_HostGetKey(t *C) {
+	testid := "deadb10f"
+	poolid := "pool-id"
+
+	// confirm error on gethostkey for nonexistent host
+	public, err := s.Facade.GetHostKey(s.CTX, testid)
+	t.Assert(err, NotNil)
+
+	//create pool for test
+	rp := pool.New(poolid)
+	err = s.Facade.AddResourcePool(s.CTX, rp)
+	t.Assert(err, IsNil)
+	defer s.Facade.RemoveResourcePool(s.CTX, poolid)
+
+	// create host for test
+	h, err := host.Build("", "65535", poolid, "", []string{}...)
+	t.Assert(err, IsNil)
+	h.ID = testid
+	private, err := s.Facade.AddHost(s.CTX, h)
+	t.Assert(err, IsNil)
+	defer s.Facade.RemoveHost(s.CTX, testid)
+
+	// get host key
+	public, err = s.Facade.GetHostKey(s.CTX, testid)
+	t.Assert(err, IsNil)
+
+	// confirm that the public and private keys correspond
+	signer, err := auth.RSASignerFromPEM(private)
+	t.Assert(err, IsNil)
+	verifier, err := auth.RSAVerifierFromPEM(public)
+	t.Assert(err, IsNil)
+	message := []byte("Now is the time for all good")
+	signed, err := signer.Sign(message)
+	t.Assert(err, IsNil)
+	err = verifier.Verify(message, signed)
+	t.Assert(err, IsNil)
 }
 
 func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {

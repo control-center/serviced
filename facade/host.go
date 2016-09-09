@@ -222,6 +222,17 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 	return &value, nil
 }
 
+// GetHostKey gets a host key by id. Returns nil if host not found
+func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
+	glog.V(2).Infof("Facade.GetHostKey: id=%s", hostID)
+
+	if key, err := f.hostkeyStore.Get(ctx, hostID); err != nil {
+		return nil, err
+	} else {
+		return []byte(key.PEM), nil
+	}
+}
+
 // GetHosts returns a list of all registered hosts
 func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
