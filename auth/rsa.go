@@ -166,8 +166,12 @@ func RSAVerifierFromPEM(key []byte) (Verifier, error) {
 }
 
 // PEMFromRSAPublicKey creates a PEM block from an RSA public key
-func PEMFromRSAPublicKey(key *rsa.PublicKey, headers map[string]string) ([]byte, error) {
-	marshalled, err := x509.MarshalPKIXPublicKey(key)
+func PEMFromRSAPublicKey(key crypto.PublicKey, headers map[string]string) ([]byte, error) {
+	pkey, err := verifyRSAPublicKey(key)
+	if err != nil {
+		return nil, err
+	}
+	marshalled, err := x509.MarshalPKIXPublicKey(pkey)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -180,9 +184,13 @@ func PEMFromRSAPublicKey(key *rsa.PublicKey, headers map[string]string) ([]byte,
 	return bytes, nil
 }
 
-// PEMFromRSAPublicKey creates a PEM block from an RSA public key
-func PEMFromRSAPrivateKey(key *rsa.PrivateKey, headers map[string]string) ([]byte, error) {
-	marshalled := x509.MarshalPKCS1PrivateKey(key)
+// PEMFromRSAPrivateKey creates a PEM block from an RSA public key
+func PEMFromRSAPrivateKey(key crypto.PrivateKey, headers map[string]string) ([]byte, error) {
+	pkey, err := verifyRSAPrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	marshalled := x509.MarshalPKCS1PrivateKey(pkey)
 	block := pem.Block{
 		Type:    "RSA PRIVATE KEY",
 		Headers: headers,
