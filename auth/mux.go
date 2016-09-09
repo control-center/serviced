@@ -15,6 +15,7 @@ package auth
 
 import (
 	"bytes"
+	"crypto"
 	"encoding/binary"
 	"errors"
 )
@@ -33,6 +34,7 @@ var (
 	endian           = binary.BigEndian
 	ErrBadMuxAddress = errors.New("Bad mux address")
 	ErrBadMuxHeader  = errors.New("Bad mux header")
+	ErrBadToken      = errors.New("Could not extract token")
 )
 
 const (
@@ -41,14 +43,24 @@ const (
 )
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
-	headerBuf := new(bytes.Buffer)
+	// get current host token
+	token := AuthToken()
 
+	// get a Signer
+	myPrivateKey := LocalPrivateKey()
+	signer, err := RSASigner(myPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return BuildAuthMuxHeader(address, token, signer)
+}
+
+func BuildAuthMuxHeader(address []byte, token string, signer Signer) ([]byte, error) {
 	if len(address) != ADDRESS_BYTES {
 		return nil, ErrBadMuxAddress
 	}
-
-	//get current host token
-	token := AuthToken()
+	headerBuf := new(bytes.Buffer)
 
 	// add token length
 	var tokenLen uint32 = uint32(len(token))
@@ -63,11 +75,6 @@ func BuildMuxHeader(address []byte) ([]byte, error) {
 	headerBuf.Write([]byte(address))
 
 	// Sign what we have so far
-	myPrivateKey := LocalPrivateKey()
-	signer, err := RSASigner(myPrivateKey)
-	if err != nil {
-		return nil, err
-	}
 	signature, err := signer.Sign(headerBuf.Bytes())
 	if err != nil {
 		return nil, err
@@ -83,11 +90,16 @@ func errorExtractingHeader(err error) ([]byte, Identity, error) {
 }
 
 func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
-	var offset uint32 = 0
+	masterPublicKey := MasterPublicKey()
+	return ExtractAuthMuxHeader(rawHeader, masterPublicKey)
+}
 
+func ExtractAuthMuxHeader(rawHeader []byte, masterPublicKey crypto.PublicKey) ([]byte, Identity, error) {
 	if len(rawHeader) <= TOKEN_LEN_BYTES+ADDRESS_BYTES {
 		return errorExtractingHeader(ErrBadMuxHeader)
 	}
+
+	var offset uint32 = 0
 
 	// First four bytes represents the token length
 	tokenLen := endian.Uint32(rawHeader[offset : offset+TOKEN_LEN_BYTES])
@@ -101,9 +113,11 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 	offset += tokenLen
 
 	// Validate the token can be parsed
-	masterPublicKey := MasterPublicKey()
-	senderIdentity, err := ParseJWTIdentity(token, &masterPublicKey)
-	if err != nil {
+	senderIdentity, err := ParseJWTIdentity(token, masterPublicKey)
+	if err != nil || senderIdentity == nil {
+		if err == nil || senderIdentity == nil {
+			err = ErrBadToken
+		}
 		return errorExtractingHeader(err)
 	}
 
@@ -122,7 +136,7 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 	if err != nil {
 		return errorExtractingHeader(err)
 	}
-	err := senderVerifier.Verify(signed_message, signature)
+	err = senderVerifier.Verify(signed_message, signature)
 	if err != nil {
 		return errorExtractingHeader(err)
 	}
