@@ -101,7 +101,6 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 			s.Scroll,
 			s.Scan,
 		)
-		glog.Infof("search result %v", resp)
 		if err != nil {
 			err = fmt.Errorf("error executing query %v", err)
 			return nil, err

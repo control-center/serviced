@@ -124,6 +124,37 @@ func restGetServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 	w.WriteJson(&instances)
 }
 
+// restGetAggregateServices provides aggregate service information
+func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	values := r.URL.Query()
+	serviceIDs := values["serviceId"]
+
+	since := values.Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Hour
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	aggServices, err := facade.GetAggregateServices(dataCtx, time.Now().Add(-tsince), serviceIDs)
+	if err != nil {
+		glog.Error("Could not look up aggregate service instances:", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceInstances: id %s, instances %#v", serviceIDs, aggServices)
+	w.WriteJson(&aggServices)
+}
+
 func restGetActiveHostIDs(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
