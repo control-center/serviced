@@ -53,8 +53,13 @@ func (s *Server) GetActiveHostIDs(empty struct{}, hostReply *[]string) error {
 }
 
 // AddHost adds the host
-func (s *Server) AddHost(host host.Host, _ *struct{}) error {
-	return s.f.AddHost(s.context(), &host)
+func (s *Server) AddHost(host host.Host, hostReply *[]byte) error {
+	privateKey, err := s.f.AddHost(s.context(), &host)
+	if err != nil {
+		return err
+	}
+	*hostReply = privateKey
+	return nil
 }
 
 // UpdateHost updates the host

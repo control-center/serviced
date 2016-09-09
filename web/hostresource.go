@@ -149,6 +149,11 @@ type addHostRequest struct {
 	RAMLimit string
 }
 
+type addHostResponse struct {
+	simpleResponse
+	PrivateKey string
+}
+
 //restAddHost adds a Host. Request input is host.Host
 func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload addHostRequest
@@ -203,14 +208,14 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	err = facade.AddHost(dataCtx, host)
+	privateKey, err := facade.AddHost(dataCtx, host)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
 		restServerError(w, err)
 		return
 	}
 	glog.V(0).Info("Added host ", host.ID)
-	w.WriteJson(&simpleResponse{"Added host", hostLinks(host.ID)})
+	w.WriteJson(&addHostResponse{simpleResponse{"Added host", hostLinks(host.ID)}, string(privateKey[:])})
 }
 
 //restUpdateHost updates a host. Request input is host.Host
