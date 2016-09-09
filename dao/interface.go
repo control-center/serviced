@@ -44,6 +44,11 @@ type ServiceRequest struct {
 	NameRegex    string
 }
 
+type EvaluateServiceRequest struct {
+	ServiceID  string
+	InstanceID int
+}
+
 type ServiceCloneRequest struct {
 	ServiceID string
 	Suffix    string
@@ -148,6 +153,9 @@ type ControlPlane interface {
 
 	// Get a service from serviced
 	GetService(serviceId string, svc *service.Service) error
+
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(request EvaluateServiceRequest, svc *service.Service) error
 
 	// Get a list of services from serviced
 	GetServices(request ServiceRequest, services *[]service.Service) error

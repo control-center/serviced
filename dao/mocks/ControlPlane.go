@@ -110,6 +110,18 @@ func (_m *ControlPlane) GetService(serviceId string, svc *service.Service) error
 
 	return r0
 }
+func (_m *ControlPlane) GetEvaluatedService(request dao.EvaluateServiceRequest, svc *service.Service) error {
+	ret := _m.Called(request, svc)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.EvaluateServiceRequest, *service.Service) error); ok {
+		r0 = rf(request, svc)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ControlPlane) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
 	ret := _m.Called(request, services)
 

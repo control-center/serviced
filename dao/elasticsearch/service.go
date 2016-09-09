@@ -128,6 +128,15 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 	return err
 }
 
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (this *ControlPlaneDao) GetEvaluatedService(request dao.EvaluateServiceRequest, myService *service.Service) error {
+	svc, err := this.facade.GetEvaluatedService(datastore.Get(), request.ServiceID, request.InstanceID)
+	if svc != nil {
+		*myService = *svc
+	}
+	return err
+}
+
 // Get the services (can filter by name and/or tenantID)
 func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
 	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {

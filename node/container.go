@@ -123,7 +123,6 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
 	}
-	svc.ImageID = imageName
 
 	// Establish a connection to the master
 	// TODO: use the new rpc calls instead
@@ -135,7 +134,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	defer client.Close()
 
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(client, svc, instanceID)
+	conf, hostConf, err := a.setupContainer(client, svc, instanceID, imageName)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err

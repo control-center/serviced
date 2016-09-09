@@ -171,25 +171,6 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	return agent, err
 }
 
-// evaluateService translates the service template fields
-func (a *HostAgent) evaluateService(client dao.ControlPlane, svc *service.Service, instanceID int) error {
-
-	// service lookup
-	getService := func(id string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.GetService(id, &svc)
-		return svc, err
-	}
-
-	// service child lookup
-	getServiceChild := func(id, name string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.FindChildService(dao.FindChildRequest{id, name}, &svc)
-		return svc, err
-	}
-
-	return svc.Evaluate(getService, getServiceChild, instanceID)
-}
 
 func attachAndRun(dockerID, command string) error {
 	if dockerID == "" {
@@ -280,13 +261,18 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 
-	// Evaluate service template fields
-	if err := a.evaluateService(client, svc, instanceID); err != nil {
-		glog.Errorf("Could not evaluate service %s (%s) templates: %s", svc.Name, svc.ID, err)
+	request := dao.EvaluateServiceRequest{
+		ServiceID:  svc.ID,
+		InstanceID: instanceID,
+	}
+	if err := client.GetEvaluatedService(request, svc); err != nil {
+		glog.Errorf("Could not get service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, nil, err
 	}
+	// Update the service with the complete image name
+	svc.ImageID = imageName
 
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
