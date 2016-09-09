@@ -88,19 +88,17 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService = make([]dao.RunningService, 0)
 	for _, hostID := range hostIDs {
-		if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
-			return nil, err
-		} else if !exists {
-			continue
-		}
-
 		stateIDs, err := conn.Children(hostpath(hostID))
-		if err != nil {
+		if err == client.ErrNoNode {
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		for _, ssID := range stateIDs {
 			var hs HostState
-			if err := conn.Get(hostpath(hostID, ssID), &hs); err != nil {
+			if err := conn.Get(hostpath(hostID, ssID), &hs); err == client.ErrNoNode {
+				continue
+			} else if err != nil {
 				return nil, err
 			}
 
@@ -119,14 +117,10 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao
 func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]dao.RunningService, error) {
 	var rss []dao.RunningService
 	for _, serviceID := range serviceIDs {
-		if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
-			return nil, err
-		} else if !exists {
-			continue
-		}
-
 		stateIDs, err := conn.Children(servicepath(serviceID))
-		if err != nil {
+		if err == client.ErrNoNode {
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		for _, ssID := range stateIDs {
