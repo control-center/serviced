@@ -170,7 +170,7 @@ func (s *TestAuthSuite) TestGenerateKey(c *C) {
 	c.Assert(privateKey, FitsTypeOf, samplePriv)
 
 	// Make sure the keys are a pair
-	expectedPublicKey := privateKey.Public().(*rsa.PublicKey)
+	expectedPublicKey := privateKey.Public()
 	expectedpublicPEM, err := auth.PEMFromRSAPublicKey(expectedPublicKey, nil)
 	c.Assert(err, IsNil)
 	c.Assert(pub, DeepEquals, expectedpublicPEM)

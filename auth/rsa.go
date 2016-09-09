@@ -212,7 +212,7 @@ func GenerateKey(headers map[string]string) (public []byte, private []byte, err 
 	if private, err = PEMFromRSAPrivateKey(privateKey, headers); err != nil {
 		return nil, nil, err
 	}
-	publicKey := privateKey.Public().(*rsa.PublicKey)
+	publicKey := privateKey.Public()
 	if public, err = PEMFromRSAPublicKey(publicKey, headers); err != nil {
 		return nil, nil, err
 	}
