@@ -227,12 +227,14 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		Memory:  ctx.String("memory"),
 	}
 
-	if host, err := c.driver.AddHost(cfg); err != nil {
+	if host, privateKey, err := c.driver.AddHost(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
 	} else {
 		fmt.Println(host.ID)
+		// TODO: write the private key to a file
+		fmt.Println(string(privateKey[:]))
 	}
 }
 

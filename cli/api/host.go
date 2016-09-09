@@ -76,10 +76,10 @@ func (a *api) GetHostMemory(id string) (*metrics.MemoryUsageStats, error) {
 }
 
 // Adds a new host
-func (a *api) AddHost(config HostConfig) (*host.Host, error) {
+func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	agentClient, err := a.connectAgent(config.Address.String())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req := agent.BuildHostRequest{
@@ -91,19 +91,24 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 
 	h, err := agentClient.BuildHost(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	masterClient, err := a.connectMaster()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := masterClient.AddHost(*h); err != nil {
-		return nil, err
+	var privateKey []byte
+	if privateKey, err = masterClient.AddHost(*h); err != nil {
+		return nil, nil, err
 	}
 
-	return a.GetHost(h.ID)
+	if host_, err := a.GetHost(h.ID); err != nil {
+		return nil, nil, err
+	} else {
+		return host_, privateKey, nil
+	}
 }
 
 // Removes an existing host by its id

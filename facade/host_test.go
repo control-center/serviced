@@ -39,7 +39,7 @@ func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
 	glog.Infof("Facade test add host %v", h)
-	err = s.Facade.AddHost(s.CTX, h)
+	_, err = s.Facade.AddHost(s.CTX, h)
 	//should fail since pool doesn't exist
 	if err == nil {
 		t.Errorf("Expected error: %v", err)
@@ -52,13 +52,13 @@ func (s *FacadeIntegrationTest) Test_HostCRUD(t *C) {
 	}
 	defer s.Facade.RemoveResourcePool(s.CTX, poolid)
 
-	err = s.Facade.AddHost(s.CTX, h)
+	_, err = s.Facade.AddHost(s.CTX, h)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)
 	}
 
 	//Test re-add fails
-	err = s.Facade.AddHost(s.CTX, h)
+	_, err = s.Facade.AddHost(s.CTX, h)
 	if err == nil {
 		t.Errorf("Expected already exists error: %v", err)
 	}
@@ -113,7 +113,7 @@ func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 			},
 		},
 	}
-	err := s.Facade.AddHost(s.CTX, &h1)
+	_, err := s.Facade.AddHost(s.CTX, &h1)
 	if err != nil {
 		t.Fatalf("Failed to add host %+v: %s", h1, err)
 	}
@@ -132,7 +132,7 @@ func (s *FacadeIntegrationTest) Test_HostRemove(t *C) {
 			},
 		},
 	}
-	err = s.Facade.AddHost(s.CTX, &h2)
+	_, err = s.Facade.AddHost(s.CTX, &h2)
 	if err != nil {
 		t.Fatalf("Failed to add host %+v: %s", h2, err)
 	}

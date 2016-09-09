@@ -280,7 +280,7 @@ func (ft *FacadeIntegrationTest) Test_GetPoolsIPs(t *C) {
 	assignIPsHost.ID = hostID
 	assignIPsHost.PoolID = assignIPsPool.ID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
+	_, err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("failed to add host: %v", err)
 	}
@@ -337,7 +337,7 @@ func (ft *FacadeIntegrationTest) Test_VirtualIPs(t *C) {
 	assignIPsHost.ID = hostID
 	assignIPsHost.PoolID = assignIPsPool.ID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
+	_, err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("failed to add host: %v", err)
 	}
@@ -439,7 +439,7 @@ func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
 	assignIPsHost.ID = hostID
 	assignIPsHost.PoolID = assignIPsPool.ID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
+	_, err = ft.Facade.AddHost(ft.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("failed to add host: %v", err)
 	}
@@ -519,7 +519,7 @@ func (ft *FacadeIntegrationTest) Test_PoolCapacity(t *C) {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
 
-	err = ft.Facade.AddHost(ft.CTX, h)
+	_, err = ft.Facade.AddHost(ft.CTX, h)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)
 	}

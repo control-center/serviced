@@ -47,8 +47,8 @@ type ClientInterface interface {
 	// GetActiveHosts returns all active host ids or empty array
 	GetActiveHostIDs() ([]string, error)
 
-	// AddHost adds a Host
-	AddHost(h host.Host) error
+	// AddHost adds a Host; returns
+	AddHost(h host.Host) ([]byte, error)
 
 	// UpdateHost updates a host
 	UpdateHost(h host.Host) error
