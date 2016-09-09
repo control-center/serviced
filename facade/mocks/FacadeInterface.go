@@ -50,6 +50,27 @@ func (_m *FacadeInterface) GetService(ctx datastore.Context, id string) (*servic
 
 	return r0, r1
 }
+func (_m *FacadeInterface) GetEvaluatedService(ctx datastore.Context, serviceID string, instanceID int) (*service.Service, error) {
+	ret := _m.Called(ctx, instanceID)
+
+	var r0 *service.Service
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, int) *service.Service); ok {
+		r0 = rf(ctx, serviceID, instanceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.Service)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, int) error); ok {
+		r1 = rf(ctx, serviceID, instanceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *FacadeInterface) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	ret := _m.Called(ctx, request)
 

@@ -34,6 +34,9 @@ type FacadeInterface interface {
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
 
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(ctx datastore.Context, servicedID string, instanceID int) (*service.Service, error)
+
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
 	GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error)
