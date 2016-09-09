@@ -18,7 +18,6 @@ package registry_test
 import (
 	"path"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
@@ -34,7 +33,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     true,
 		Protocol:    "http",
 		UseTLS:      false,
 	}
@@ -45,7 +43,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     true,
 	}
 	vhosts1 := map[VHostKey]VHost{vhost1Key: vhost1}
 
@@ -69,7 +66,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app2",
 		ServiceID:   "serviceid2",
-		Enabled:     true,
 		Protocol:    "https",
 		UseTLS:      true,
 	}
@@ -80,7 +76,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app2",
 		ServiceID:   "serviceid2",
-		Enabled:     true,
 	}
 	vhosts2 := map[VHostKey]VHost{vhost2Key: vhost2}
 
@@ -117,7 +112,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     false,
 		Protocol:    "",
 		UseTLS:      true,
 	}
@@ -128,7 +122,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     false,
 	}
 	vhosts1 = map[VHostKey]VHost{vhost1Key: vhost1}
 
@@ -137,11 +130,15 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:2181", actualpub)
-	c.Assert(err, Equals, client.ErrNoNode)
+	c.Assert(err, IsNil)
+	actualpub.SetVersion(nil)
+	c.Check(*actualpub, DeepEquals, pub1)
 
 	actualvhost = &VHost{}
 	err = conn.Get("/net/vhost/master/test1", actualvhost)
-	c.Assert(err, Equals, client.ErrNoNode)
+	c.Assert(err, IsNil)
+	actualvhost.SetVersion(nil)
+	c.Check(*actualvhost, DeepEquals, vhost1)
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:22181", actualpub)
@@ -161,11 +158,13 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 
 	actualpub = &PublicPort{}
 	err = conn.Get("/net/pub/master/:2181", actualpub)
-	c.Assert(err, Equals, client.ErrNoNode)
+	actualpub.SetVersion(nil)
+	c.Check(*actualpub, DeepEquals, pub1)
 
 	actualvhost = &VHost{}
 	err = conn.Get("/net/vhost/master/test1", actualvhost)
-	c.Assert(err, Equals, client.ErrNoNode)
+	actualvhost.SetVersion(nil)
+	c.Check(*actualvhost, DeepEquals, vhost1)
 
 	ok, err := conn.Exists(path.Join("/net/pub", pub2Key.HostID, pub2Key.PortAddress))
 	c.Assert(err, IsNil)
