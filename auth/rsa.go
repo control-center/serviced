@@ -230,3 +230,21 @@ func DevRSAVerifier() Verifier {
 	verifier, _ := RSAVerifierFromPEM(DevPubKeyPEM)
 	return verifier
 }
+
+// TODO: LocalPrivateKey, LocalPublicKey, MasterPublicKey
+// are just a placeholder until we have the required keys loaded in memory somewhere
+
+func LocalPrivateKey() crypto.PrivateKey {
+	key, _ := RSAPrivateKeyFromPEM(DevPrivKeyPEM)
+	return key
+}
+
+func LocalPublicKey() crypto.PublicKey {
+	key, _ := RSAPublicKeyFromPEM(DevPubKeyPEM)
+	return key
+}
+
+func MasterPublicKey() crypto.PublicKey {
+	key, _ := RSAPublicKeyFromPEM(DevPubKeyPEM)
+	return key
+}
