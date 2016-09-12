@@ -602,67 +602,6 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestDao_GetTenantId(t *C) {
-	var err error
-	var tenantId string
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err == nil {
-		t.Errorf("Expected failure for getting tenantId for 0")
-		t.Fail()
-	}
-
-	s0, _ := service.NewService()
-	s0.Name = "name0"
-	s0.PoolID = "default"
-	s0.Launch = "auto"
-	s0.ID = "0"
-	s0.DeploymentID = "deployment_id"
-
-	s01, _ := service.NewService()
-	s01.ID = "01"
-	s01.ParentServiceID = "0"
-	s01.Name = "name1"
-	s01.PoolID = "default"
-	s01.Launch = "auto"
-	s01.DeploymentID = "deployment_id"
-
-	s011, _ := service.NewService()
-	s011.ID = "011"
-	s011.ParentServiceID = "01"
-	s011.Name = "name2"
-	s011.PoolID = "default"
-	s011.Launch = "auto"
-	s011.DeploymentID = "deployment_id"
-
-	err = dt.Dao.AddService(*s0, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s01, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s011, &id)
-	t.Assert(err, IsNil)
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("01", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("011", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-}
-
 func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.ID)

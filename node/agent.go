@@ -284,7 +284,8 @@ func (a *HostAgent) setupContainer(daoClient dao.ControlPlane, masterClient mast
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	if err := daoClient.GetTenantId(svc.ID, &tenantID); err != nil {
+	tenantID, err = masterClient.GetTenantID(svc.ID)
+	if err != nil {
 		logger.WithError(err).Error("Failed to get the tenant ID for the service")
 		return nil, nil, err
 	} else if len(tenantID) == 0 && len(svc.Volumes) > 0 {

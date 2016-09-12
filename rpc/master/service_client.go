@@ -83,3 +83,10 @@ func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service
 	err := c.call("GetEvaluatedService", request, svc)
 	return svc, err
 }
+
+// GetTenantID returns the ID of the service's tenant (i.e. the root service's ID)
+func (c *Client) GetTenantID(serviceID string) (string, error) {
+	tenantID := ""
+	err := c.call("GetTenantID", serviceID, &tenantID)
+	return tenantID, err
+}

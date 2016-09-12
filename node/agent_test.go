@@ -142,7 +142,7 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 		ImageID: "busybox:latest",
 	}
 
-	fakeDaoClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
+	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
 	fakeDaoClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
 	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
 

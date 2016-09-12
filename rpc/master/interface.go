@@ -101,6 +101,9 @@ type ClientInterface interface {
 	// Get a service from serviced where all templated properties have been evaluated
 	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error)
 
+	// Get the tenant ID for a service
+	GetTenantID(serviceID string) (string, error)
+
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error
 

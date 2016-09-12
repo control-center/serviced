@@ -78,10 +78,6 @@ func (s *ControlClient) FindChildService(request dao.FindChildRequest, service *
 	return s.rpcClient.Call("ControlCenter.FindChildService", request, service, 0)
 }
 
-func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetTenantId", serviceId, tenantId, 0)
-}
-
 func (s *ControlClient) AddService(service service.Service, serviceId *string) (err error) {
 	return s.rpcClient.Call("ControlCenter.AddService", service, serviceId, 0)
 }

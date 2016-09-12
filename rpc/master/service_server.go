@@ -49,3 +49,13 @@ func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, svc *servic
 	*svc = *result
 	return nil
 }
+
+// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
+func (s *Server) GetTenantID(serviceID string, tenantId *string) error {
+	result, err := s.f.GetTenantID(s.context(), serviceID)
+	if err != nil {
+		return err
+	}
+	*tenantId = result
+	return nil
+}

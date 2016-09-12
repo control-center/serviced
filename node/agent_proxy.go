@@ -25,11 +25,13 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 )
 
@@ -136,13 +138,21 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 
 // Call the master's to retrieve its tenant id
 func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
-	client, err := NewControlClient(a.master)
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
+		plog.WithFields(log.Fields{
+			"master": a.master,
+			"serviceID": serviceId,
+		}).WithError(err).Error("Could not connect to the master")
 		return err
 	}
-	defer client.Close()
-	return client.GetTenantId(serviceId, tenantId)
+	defer masterClient.Close()
+	result, err := masterClient.GetTenantID(serviceId)
+	if err != nil {
+		return err
+	}
+	*tenantId = result
+	return nil
 }
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service

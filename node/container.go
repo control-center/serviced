@@ -129,14 +129,14 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	// TODO: use the new rpc calls instead
 	daoClient, err := NewControlClient(a.master)
 	if err != nil {
-		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
+		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
 		return nil, nil, err
 	}
 	defer daoClient.Close()
 
 	masterClient, err := master.NewClient(a.master)
 	if err != nil {
-		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
+		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
 		return nil, nil, err
 	}
 	defer masterClient.Close()
