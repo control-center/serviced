@@ -17,6 +17,12 @@ import (
 	"crypto"
 	"io/ioutil"
 	"os"
+	"path"
+)
+
+const (
+	DelegateKeyFileName = ".keys/delegate.keys"
+	MasterKeyFileName   = ".keys/master.keys"
 )
 
 var (
@@ -125,6 +131,7 @@ func LoadDelegateKeysFromFile(filename string) error {
 //  write them to disk.
 func CreateOrLoadMasterKeys(filename string) error {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		os.MkdirAll(path.Dir(filename), os.ModeDir|0700)
 		pub, priv, err := GenerateRSAKeyPairPEM(nil)
 		if err != nil {
 			return err
