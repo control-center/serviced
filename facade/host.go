@@ -85,12 +85,22 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	}
 
 	// Generate and store an RSA key for the host
-	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(nil)
+	delegateHeaders := map[string]string{
+		"purpose": "delegate",
+		"host_ip": entity.IPAddr,
+		"host_id": entity.ID}
+	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(delegateHeaders)
 	if err != nil {
 		return nil, err
 	}
 	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
 	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	masterHeaders := map[string]string{"purpose": "master"}
+	masterPEM, err := auth.PEMFromRSAPublicKey(auth.MasterPublicKey(), masterHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +113,9 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 		return nil, err
 	}
 	err = f.zzk.AddHost(entity)
-	return privatePEM, err
+
+	PEMBlocks := append(privatePEM, masterPEM...)
+	return PEMBlocks, nil
 }
 
 // UpdateHost information for a registered host
