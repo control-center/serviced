@@ -133,7 +133,7 @@ func getService(lbClientPort string, serviceID string, instanceID int) (*service
 	defer client.Close()
 
 	var svc service.Service
-	err = client.GetServiceInstance(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+	err = client.GetEvaluatedService(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)

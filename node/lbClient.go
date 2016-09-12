@@ -68,16 +68,11 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 	return a.rpcClient.Call("ControlCenterAgent.GetServiceEndpoints", serviceId, endpoints, 0)
 }
 
-// GetService returns a service for the given service id request.
-func (a *LBClient) GetService(serviceId string, service *service.Service) error {
-	glog.V(0).Infof("ControlCenterAgent.GetService()")
-	return a.rpcClient.Call("ControlCenterAgent.GetService", serviceId, service, 0)
-}
 
-// GetServiceInstance returns a service for the given service id request.
-func (a *LBClient) GetServiceInstance(req ServiceInstanceRequest, service *service.Service) error {
-	glog.V(0).Infof("ControlCenterAgent.GetServiceInstance()")
-	return a.rpcClient.Call("ControlCenterAgent.GetServiceInstance", req, service, 0)
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (a *LBClient) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error {
+	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
+	return a.rpcClient.Call("ControlCenterAgent.GetEvaluatedService", request, response, 0)
 }
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service

@@ -70,70 +70,27 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
-	*response = service.Service{}
+func (a *HostAgent) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) (err error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceID": request.ServiceID,
+		"instanceID": request.InstanceID,
+	})
 
-	controlClient, err := NewControlClient(a.master)
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return nil
-	}
-	defer controlClient.Close()
-
-	err = controlClient.GetService(serviceID, response)
-	if response == nil {
-		*response = service.Service{}
-	}
-	if err != nil {
+		logger.WithField("master", a.master).WithError(err).Error("Could not connect to the master")
 		return err
 	}
+	defer masterClient.Close()
 
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-
-	return response.Evaluate(getSvc, findChild, 0)
-}
-
-func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
-	*response = service.Service{}
-
-	controlClient, err := NewControlClient(a.master)
+	var svc *service.Service
+	svc, err = masterClient.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return nil
-	}
-	defer controlClient.Close()
-
-	err = controlClient.GetService(req.ServiceID, response)
-	if response == nil {
-		*response = service.Service{}
-	}
-	if err != nil {
+		logger.WithError(err).Error("Failed to get service")
 		return err
 	}
-
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-
-	return response.Evaluate(getSvc, findChild, req.InstanceID)
+	*response = *svc
+	return nil
 }
 
 // Call the master's to retrieve its tenant id
@@ -357,7 +314,8 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 	}
 
 	var service service.Service
-	if err := a.GetService(serviceID, &service); err != nil {
+
+	if err := a.GetEvaluatedService(ServiceInstanceRequest{ServiceID: serviceID, InstanceID: 0}, &service); err != nil {
 		return err
 	}
 

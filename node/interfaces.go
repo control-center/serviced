@@ -126,12 +126,8 @@ type LoadBalancer interface {
 	// cache.
 	ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error
 
-	// GetService retrieves a service object with templates evaluated.
-	GetService(serviceId string, response *service.Service) error
-
-	// GetServiceInstance retrieves a service object with templates evaluated using a
-	// given instance ID.
-	GetServiceInstance(req ServiceInstanceRequest, response *service.Service) error
+	// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+	GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error
 
 	// Ping waits for the specified time then returns the server time
 	Ping(waitFor time.Duration, timestamp *time.Time) error
