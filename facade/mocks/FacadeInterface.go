@@ -664,12 +664,12 @@ func (_m *FacadeInterface) EnablePublicEndpointVHost(ctx datastore.Context, serv
 
 	return r0
 }
-func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, hostid string) ([]service.Instance, error) {
-	ret := _m.Called(ctx, hostid)
+func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, since time.Time, hostid string) ([]service.Instance, error) {
+	ret := _m.Called(ctx, since, hostid)
 
 	var r0 []service.Instance
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Instance); ok {
-		r0 = rf(ctx, hostid)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, string) []service.Instance); ok {
+		r0 = rf(ctx, since, hostid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.Instance)
@@ -677,20 +677,20 @@ func (_m *FacadeInterface) GetHostInstances(ctx datastore.Context, hostid string
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, hostid)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, string) error); ok {
+		r1 = rf(ctx, since, hostid)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, serviceid string) ([]service.Instance, error) {
-	ret := _m.Called(ctx, serviceid)
+func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error) {
+	ret := _m.Called(ctx, since, serviceid)
 
 	var r0 []service.Instance
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Instance); ok {
-		r0 = rf(ctx, serviceid)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, string) []service.Instance); ok {
+		r0 = rf(ctx, since, serviceid)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.Instance)
@@ -698,8 +698,29 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, serviceid 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceid)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, string) error); ok {
+		r1 = rf(ctx, since, serviceid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error) {
+	ret := _m.Called(ctx, since, serviceids)
+
+	var r0 []service.AggregateService
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, []string) []service.AggregateService); ok {
+		r0 = rf(ctx, since, serviceids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.AggregateService)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, []string) error); ok {
+		r1 = rf(ctx, since, serviceids)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -763,6 +784,69 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
 		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceDetails); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, parentID)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
+		r0 = rf(ctx, parentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, parentID)
 	} else {
 		r1 = ret.Error(1)
 	}

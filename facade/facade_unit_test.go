@@ -43,6 +43,7 @@ type FacadeUnitTest struct {
 	registryStore *registrymocks.ImageRegistryStore
 	serviceStore  *servicemocks.Store
 	templateStore *templatemocks.Store
+	metricsClient *zzkmocks.MetricsClient
 }
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
@@ -72,6 +73,9 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
+
+	ft.metricsClient = &zzkmocks.MetricsClient{}
+	ft.Facade.SetMetricsClient(ft.metricsClient)
 }
 
 // Mock all DFS locking operations into no-ops

@@ -32,9 +32,16 @@ const (
 	Stopped               = "stopped"
 )
 
+// Usage describes the current, max, and avg values of an instance
+type Usage struct {
+	Cur int64
+	Max int64
+	Avg int64
+}
+
 // Instance describes an instance of a service
 type Instance struct {
-	ID           int
+	InstanceID   int
 	HostID       string
 	HostName     string
 	ServiceID    string
@@ -44,6 +51,7 @@ type Instance struct {
 	DesiredState DesiredState
 	CurrentState CurrentState
 	HealthStatus map[string]health.Status
+	MemoryUsage  Usage
 	Scheduled    time.Time
 	Started      time.Time
 	Terminated   time.Time
@@ -64,4 +72,12 @@ type LocationInstance struct {
 	HostID      string
 	HostIP      string
 	ContainerID string
+}
+
+// StatusInstance is an abbreviated version of the above instance data,
+// designed to be polled at a high frequency and attached to a service
+type StatusInstance struct {
+	InstanceID  int
+	Health      map[string]health.Status
+	MemoryUsage Usage
 }

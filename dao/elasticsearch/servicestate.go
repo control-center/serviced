@@ -16,6 +16,8 @@ package elasticsearch
 import (
 	//	"errors"
 
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -49,7 +51,8 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 }
 
 func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *[]service.Instance) error {
-	inst, err := this.facade.GetServiceInstances(datastore.Get(), serviceID)
+	since := time.Now().Add(-time.Hour)
+	inst, err := this.facade.GetServiceInstances(datastore.Get(), since, serviceID)
 	if err != nil {
 		return err
 	}

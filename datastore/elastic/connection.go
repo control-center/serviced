@@ -83,18 +83,32 @@ func (ec *elasticConnection) Delete(key datastore.Key) error {
 }
 
 func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, error) {
-	search, ok := query.(*search.SearchDsl)
-	if !ok {
+	switch s := query.(type) {
+	case *search.SearchDsl:
+		resp, err := s.Result()
+		if err != nil {
+			err = fmt.Errorf("error executing query %v", err)
+			glog.Errorf("%v", err)
+			return nil, err
+		}
+		return toJSONMessages(resp), nil
+	case ElasticSearchRequest:
+		resp, err := core.SearchRequest(
+			s.Pretty,
+			s.Index,
+			s.Type,
+			s.Query,
+			s.Scroll,
+			s.Scan,
+		)
+		if err != nil {
+			err = fmt.Errorf("error executing query %v", err)
+			return nil, err
+		}
+		return toJSONMessages(&resp), nil
+	default:
 		return nil, fmt.Errorf("invalid search type %v", reflect.ValueOf(query))
 	}
-	resp, err := search.Result()
-	if err != nil {
-		err = fmt.Errorf("error executing query %v", err)
-		glog.Errorf("%v", err)
-		return nil, err
-	}
-
-	return toJSONMessages(resp), nil
 }
 
 // convert search result of json host to dao.Host array
@@ -105,8 +119,15 @@ func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
 	for i := 0; i < total; i++ {
 		glog.V(4).Infof("Adding result %s", string(result.Hits.Hits[i].Source))
 		src := result.Hits.Hits[i].Source
+		fields := result.Hits.Hits[i].Fields
+		var data []byte
+		if len(fields) == 0 {
+			data = src
+		} else {
+			data = fields
+		}
 		version := result.Hits.Hits[i].Version
-		msg := datastore.NewJSONMessage(src, version)
+		msg := datastore.NewJSONMessage(data, version)
 		msgs[i] = msg
 	}
 	return msgs
@@ -145,4 +166,14 @@ type elasticResponse struct {
 	Version int             `json:"_version,omitempty"`
 	Found   bool            `json:"found,omitempty"`
 	Exists  bool            `json:"exists,omitempty"`
+}
+
+// Used to directly search elastic
+type ElasticSearchRequest struct {
+	Pretty bool
+	Index  string
+	Type   string
+	Query  interface{}
+	Scroll string
+	Scan   int
 }

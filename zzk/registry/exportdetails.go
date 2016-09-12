@@ -92,6 +92,7 @@ func RegisterExport(shutdown <-chan struct{}, conn client.Connection, tenantID s
 			epLogger.Debug("Listener shutting down")
 			return
 		}
+
 		close(done)
 		done = make(chan struct{})
 	}
@@ -133,6 +134,10 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 			if ok {
 				ch, ev, err = conn.ChildrenW(pth, done)
 				if err == client.ErrNoNode {
+					logger.Debug("Export was suddenly deleted, retrying")
+					close(done)
+					done = make(chan struct{})
+
 					continue
 				} else if err != nil {
 					logger.WithError(err).Error("Could not monitor application ports")
@@ -180,6 +185,7 @@ func TrackExports(shutdown <-chan struct{}, conn client.Connection, tenantID, ap
 			case <-shutdown:
 				return
 			}
+
 			close(done)
 			done = make(chan struct{})
 		}
