@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -126,15 +127,22 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 
 	// Establish a connection to the master
 	// TODO: use the new rpc calls instead
-	client, err := NewControlClient(a.master)
+	daoClient, err := NewControlClient(a.master)
 	if err != nil {
 		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
 		return nil, nil, err
 	}
-	defer client.Close()
+	defer daoClient.Close()
+
+	masterClient, err := master.NewClient(a.master)
+	if err != nil {
+		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
+		return nil, nil, err
+	}
+	defer masterClient.Close()
 
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(client, svc, instanceID, imageName)
+	conf, hostConf, err := a.setupContainer(daoClient, masterClient, svc, instanceID, imageName)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err

@@ -74,10 +74,6 @@ func (s *ControlClient) GetService(serviceId string, service *service.Service) (
 	return s.rpcClient.Call("ControlCenter.GetService", serviceId, service, 0)
 }
 
-func (s *ControlClient) GetEvaluatedService(request dao.EvaluateServiceRequest, service *service.Service) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetEvaluatedService", request, service, 0)
-}
-
 func (s *ControlClient) FindChildService(request dao.FindChildRequest, service *service.Service) (err error) {
 	return s.rpcClient.Call("ControlCenter.FindChildService", request, service, 0)
 }

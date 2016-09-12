@@ -98,6 +98,9 @@ type ClientInterface interface {
 	// GetServiceInstances returns all running instances of a service
 	GetServiceInstances(serviceID string) ([]service.Instance, error)
 
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error)
+
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error
 

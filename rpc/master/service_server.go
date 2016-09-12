@@ -39,3 +39,13 @@ func (s *Server) GetService(serviceID string, svc *service.Service) error {
 	*svc = *sv
 	return nil
 }
+
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, svc *service.Service) error {
+	result, err := s.f.GetEvaluatedService(s.context(), request.ServiceID, request.InstanceID)
+	if err != nil {
+		return err
+	}
+	*svc = *result
+	return nil
+}

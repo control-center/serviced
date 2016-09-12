@@ -48,6 +48,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
@@ -261,13 +262,10 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
-
-	request := dao.EvaluateServiceRequest{
-		ServiceID:  svc.ID,
-		InstanceID: instanceID,
-	}
-	if err := client.GetEvaluatedService(request, svc); err != nil {
+func (a *HostAgent) setupContainer(daoClient dao.ControlPlane, masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+	var err error
+	svc, err = masterClient.GetEvaluatedService(svc.ID, instanceID)
+	if err != nil {
 		glog.Errorf("Could not get service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, nil, err
 	}
@@ -279,7 +277,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	if err := client.GetTenantId(svc.ID, &tenantID); err != nil {
+	if err := daoClient.GetTenantId(svc.ID, &tenantID); err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
 		return nil, nil, err
 	}
@@ -287,7 +285,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	// get the system user
 	unused := 0
 	systemUser := user.User{}
-	if err := client.GetSystemUser(unused, &systemUser); err != nil {
+	if err := daoClient.GetSystemUser(unused, &systemUser); err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
 		return nil, nil, err
 	}
