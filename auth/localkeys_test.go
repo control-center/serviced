@@ -77,7 +77,7 @@ func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
 func (s *TestAuthSuite) TestCreateMasterKeys(c *C) {
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
-	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
+	masterKeyFile := fmt.Sprintf("%s/.keys/master", tmpDir)
 	// hostKeyFile := fmt.Sprintf("%s/delegate", tmpDir)
 
 	// Master key file should not exist

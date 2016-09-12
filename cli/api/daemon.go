@@ -425,7 +425,7 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	// Load keys if they exist, else generate them
-	masterKeyFile := "/opt/serviced/var/isvcs/master.keys" //<--TODO: Store this somewhere globally
+	masterKeyFile := path.Join(options.IsvcsPath, auth.MasterKeyFileName)
 	if err = auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
 		log.WithError(err).Fatal("Unable to load or create master keys")
 	}
