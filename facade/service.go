@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
@@ -759,7 +760,13 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (f *Facade) GetEvaluatedService(ctx datastore.Context, serviceID string, instanceID int) (*service.Service, error) {
-	glog.V(3).Infof("Facade.GetEvaluatedService: serviceID=%s instanceID=%d", serviceID, instanceID)
+	logger := plog.WithFields(log.Fields{
+		"serviceID": serviceID,
+		"instanceID": instanceID,
+	})
+	logger.Debug("Started Facade.GetEvaluatedService")
+	defer logger.Debug("Finished Facade.GetEvaluatedService")
+
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		return nil, err
