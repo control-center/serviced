@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
 )
 
 // Network protocol type.
@@ -114,8 +113,6 @@ type LoadBalancer interface {
 
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
-
-	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]health.HealthCheck) error
 
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 

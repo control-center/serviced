@@ -114,6 +114,7 @@ type Controller struct {
 	PIDFile            string
 	exitStatus         int
 	endpoints          *ContainerEndpoints
+	healthChecks       map[string]health.HealthCheck
 }
 
 // Close shuts down the controller
@@ -300,6 +301,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+	c.healthChecks = service.HealthChecks
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -778,20 +780,13 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 		return
 	}
 	defer client.Close()
-	var healthChecks map[string]health.HealthCheck
 
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
 		return
 	}
-	err = client.GetHealthCheck(node.HealthCheckRequest{
-		c.options.Service.ID, instanceID}, &healthChecks)
-	if err != nil {
-		glog.Errorf("Error getting health checks: %s", err)
-		return
-	}
-	for name, hc := range healthChecks {
+	for name, hc := range c.healthChecks {
 		glog.Infof("Kicking off health check %s.", name)
 		glog.Infof("Setting up health check: %s", hc.Script)
 		key := health.HealthStatusKey{

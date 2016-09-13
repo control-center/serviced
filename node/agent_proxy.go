@@ -30,7 +30,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 )
@@ -123,42 +122,6 @@ func (a *HostAgent) GetProxySnapshotQuiece(serviceId string, snapshotId *string)
 func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error {
 	glog.Errorf("AckProxySnapshotQuiece() Unimplemented")
 	return errors.New("unimplemented")
-}
-
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]health.HealthCheck) error {
-	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
-	*healthChecks = make(map[string]health.HealthCheck, 0)
-
-	// FIXME: use new master.ClientInterface instead
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-
-	var svc service.Service
-	err = controlClient.GetService(req.ServiceID, &svc)
-	if err != nil {
-		return err
-	}
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
-	if svc.HealthChecks != nil {
-		*healthChecks = svc.HealthChecks
-	}
-	return nil
 }
 
 // LogHealthCheck proxies RegisterHealthCheck.

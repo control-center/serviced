@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
 
@@ -110,12 +109,6 @@ func (a *LBClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) 
 func (a *LBClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
 	glog.V(4).Infof("ControlCenterAgent.ReportInstanceDead()")
 	return a.rpcClient.Call("ControlCenterAgent.ReportInstanceDead", req, unused, 0)
-}
-
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]health.HealthCheck) error {
-	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
-	return a.rpcClient.Call("ControlCenterAgent.GetHealthCheck", req, healthChecks, 0)
 }
 
 // GetHostID returns the agent's host id
