@@ -28,6 +28,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
@@ -1847,4 +1848,13 @@ func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*se
 // Get the details of the child services for the given parent
 func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
 	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
+}
+
+// Get the monitoring profile of a given service
+func (f *Facade) GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error) {
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return &svc.MonitoringProfile, nil
 }
