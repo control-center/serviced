@@ -247,8 +247,8 @@ func MasterPublicKey() crypto.PublicKey {
 	return masterPublic
 }
 
-// DumpPEMKeyPair dumps PEM-encoded public and private keys to a single byte array
-func DumpPEMKeyPair(public, private []byte) ([]byte, error) {
+// DumpRSAPEMKeyPair dumps PEM-encoded public and private keys to a single byte array
+func DumpRSAPEMKeyPair(public, private []byte) ([]byte, error) {
 	// Do some validation first.  These don't have to be a matched pair,
 	//   but they do have to be PEM, and they have to be a public and
 	//	 private key, respectively
@@ -271,9 +271,9 @@ func DumpPEMKeyPair(public, private []byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// LoadPEMKeyPair loads a private/public key pair from a reader over PEM-encoded data.
+// LoadRSAKeyPairPackage loads a private/public key pair from a reader over PEM-encoded data.
 //  The private key is first, the public key is second.
-func LoadKeyPair(data []byte) (public crypto.PublicKey, private crypto.PrivateKey, err error) {
+func LoadRSAKeyPairPackage(data []byte) (public crypto.PublicKey, private crypto.PrivateKey, err error) {
 	firstblock, rest := pem.Decode(data)
 	if firstblock == nil {
 		return nil, nil, ErrBadKeysFile
@@ -291,4 +291,19 @@ func LoadKeyPair(data []byte) (public crypto.PublicKey, private crypto.PrivateKe
 		return nil, nil, err
 	}
 	return publickey, privatekey, nil
+}
+
+// LoadRSAKeyPair loads a private/public key pair from separate PEM-encoded byte arrays
+func LoadRSAKeyPair(pub, priv []byte) (public crypto.PublicKey, private crypto.PrivateKey, err error) {
+	public, err = RSAPublicKeyFromPEM(pub)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	private, err = RSAPrivateKeyFromPEM(priv)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return public, private, nil
 }

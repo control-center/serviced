@@ -157,7 +157,7 @@ func CreateOrLoadMasterKeys(filename string) error {
 
 // DumpPEMKeyPairToFile dumps PEM-encoded public and private keys to a single file
 func DumpPEMKeyPairToFile(filename string, public, private []byte) error {
-	data, err := DumpPEMKeyPair(public, private)
+	data, err := DumpRSAPEMKeyPair(public, private)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,32 @@ func LoadKeyPairFromFile(filename string) (public crypto.PublicKey, private cryp
 	if err != nil {
 		return nil, nil, err
 	}
-	return LoadKeyPair(data)
+	return LoadRSAKeyPairPackage(data)
+}
+
+// LoadDelegateKeysFromPEM loads the local delegate keys (master public, delegate private)
+//  from PEM data passed in directly
+//  Useful mostly for writing tests
+func LoadDelegateKeysFromPEM(public, private []byte) error {
+	pub, priv, err := LoadRSAKeyPair(public, private)
+	if err != nil {
+		return err
+	}
+
+	delegateKeys = HostKeys{pub, priv}
+	return nil
+}
+
+// LoadMasterKeysFromPEM loads the local master keys from PEM data passed in directly
+//  Useful mostly for writing tests
+func LoadMasterKeysFromPEM(public, private []byte) error {
+	pub, priv, err := LoadRSAKeyPair(public, private)
+	if err != nil {
+		return err
+	}
+
+	masterKeys = MasterKeys{pub, priv}
+	return nil
 }
 
 // ClearKeys wipes the current state
