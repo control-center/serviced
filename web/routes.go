@@ -127,6 +127,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/services/:serviceId/services", gz(sc.checkAuth(getChildServiceDetails))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/instances", gz(sc.checkAuth(restGetServiceInstances))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/monitoringprofile", gz(sc.checkAuth(restGetServiceMonitoringProfile))},
+		rest.Route{"GET", "/api/v2/services/:serviceId/publicendpoints", gz(sc.checkAuth(restGetServicePublicEndpoints))},
 		rest.Route{"GET", "/api/v2/statuses", gz(sc.checkAuth(restGetAggregateServices))},
 	}
 

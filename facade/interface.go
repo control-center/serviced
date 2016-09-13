@@ -128,4 +128,6 @@ type FacadeInterface interface {
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
+
+	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 }
