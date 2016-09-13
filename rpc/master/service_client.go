@@ -20,26 +20,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-type ServiceUseRequest struct {
-	ServiceID   string
-	ImageID     string
-	ReplaceImgs []string
-	Registry    string
-	NoOp        bool
-}
-
-type WaitServiceRequest struct {
-	ServiceIDs []string
-	State      service.DesiredState
-	Timeout    time.Duration
-	Recursive  bool
-}
-
-type EvaluateServiceRequest struct {
-	ServiceID  string
-	InstanceID int
-}
-
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
 func (c *Client) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
 	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
