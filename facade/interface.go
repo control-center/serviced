@@ -141,4 +141,10 @@ type FacadeInterface interface {
 	GetSystemUser(ctx datastore.Context) (user.User, error)
 
 	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+
+	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
+
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
+
+	ReportInstanceDead(serviceID string, instanceID int)
 }

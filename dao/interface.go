@@ -18,7 +18,6 @@ import (
 
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
 
@@ -206,22 +205,6 @@ type ControlPlane interface {
 
 	// Get service memory stats for a particular service instance
 	GetInstanceMemoryStats(req MetricRequest, stats *[]metrics.MemoryUsageStats) error
-
-	//---------------------------------------------------------------------------
-	// Service CRUD
-
-	// Check the health of control center
-	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
-
-	// ReportHealthStatus reports the status of a health check to the health
-	// status cache.
-	ReportHealthStatus(req HealthStatusRequest, unused *int) error
-
-	// ReportInstanceDead reports the status of a service instance as dead.
-	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
-
-	// GetServicesHealth returns all health checks for all services
-	GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error
 
 	// -----------------------------------------------------------------------
 	// Filesystem CRUD

@@ -5,7 +5,6 @@ import "github.com/stretchr/testify/mock"
 
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
 
 type ControlPlane struct {
@@ -318,54 +317,6 @@ func (_m *ControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.MetricRequest, *[]metrics.MemoryUsageStats) error); ok {
 		r0 = rf(req, stats)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
-	ret := _m.Called(IServiceNames, results)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func([]string, *[]dao.IServiceHealthResult) error); ok {
-		r0 = rf(IServiceNames, results)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	ret := _m.Called(req, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.HealthStatusRequest, *int) error); ok {
-		r0 = rf(req, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	ret := _m.Called(req, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.ServiceInstanceRequest, *int) error); ok {
-		r0 = rf(req, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error {
-	ret := _m.Called(unused, results)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *map[string]map[int]map[string]health.HealthStatus) error); ok {
-		r0 = rf(unused, results)
 	} else {
 		r0 = ret.Error(0)
 	}

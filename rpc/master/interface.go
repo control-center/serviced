@@ -17,12 +17,14 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/applicationendpoint"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -181,4 +183,19 @@ type ClientInterface interface {
 
 	// Validate the credentials of the specified user
 	ValidateCredentials(user user.User) (bool, error)
+
+	//--------------------------------------------------------------------------
+	// Healthcheck Management Functions
+
+	// GetISvcsHealth returns health status for a list of isvcs
+	GetISvcsHealth(IServiceNames []string) ([]isvcs.IServiceHealthResult, error)
+
+	// GetServicesHealth returns health checks for all services.
+	GetServicesHealth() (map[string]map[int]map[string]health.HealthStatus, error)
+
+	// ReportHealthStatus sends an update to the health check status cache.
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) error
+
+	// ReportInstanceDead removes stopped instances from the health check status cache.
+	ReportInstanceDead(serviceID string, instanceID int) error
 }

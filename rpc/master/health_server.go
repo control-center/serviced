@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,22 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package elasticsearch
+package master
 
 import (
-
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
+
+	"time"
 )
 
-func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
+// HealthStatusRequest sends health status data to the health status cache.
+type HealthStatusRequest struct {
+	Key     health.HealthStatusKey
+	Value   health.HealthStatus
+	Expires time.Duration
+}
+
+// GetISvcsHealth returns health status for a list of isvcs
+func (s *Server) GetISvcsHealth(IServiceNames []string, results *[]isvcs.IServiceHealthResult) error {
 	if len(IServiceNames) == 0 {
 		IServiceNames = isvcs.Mgr.GetServiceNames()
 	}
 
-	healthStatuses := make([]dao.IServiceHealthResult, len(IServiceNames))
+	healthStatuses := make([]isvcs.IServiceHealthResult, len(IServiceNames))
 	for i, name := range IServiceNames {
 		status, err := isvcs.Mgr.GetHealthStatus(name)
 		if err != nil {
@@ -41,19 +48,23 @@ func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results
 }
 
 // GetServicesHealth returns health checks for all services.
-func (this *ControlPlaneDao) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) (err error) {
-	*results, err = this.facade.GetServicesHealth(datastore.Get())
-	return
+func (s *Server) GetServicesHealth(unused struct{}, results *map[string]map[int]map[string]health.HealthStatus) error {
+	if healthStatuses, err := s.f.GetServicesHealth(s.context()); err != nil {
+		return err
+	} else {
+		*results = healthStatuses
+	}
+	return nil
 }
 
 // ReportHealthStatus sends an update to the health check status cache.
-func (this *ControlPlaneDao) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	this.facade.ReportHealthStatus(req.Key, req.Value, req.Expires)
+func (s *Server) ReportHealthStatus(request HealthStatusRequest, unused *string) error  {
+	s.f.ReportHealthStatus(request.Key, request.Value, request.Expires)
 	return nil
 }
 
 // ReportInstanceDead removes stopped instances from the health check status cache.
-func (this *ControlPlaneDao) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	this.facade.ReportInstanceDead(req.ServiceID, req.InstanceID)
+func (s *Server) ReportInstanceDead(request ServiceInstanceRequest, unused *string) error {
+	s.f.ReportInstanceDead(request.ServiceID, request.InstanceID)
 	return nil
 }

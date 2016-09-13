@@ -58,7 +58,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 		// Services (Apps)
 		rest.Route{"GET", "/services", gz(sc.authorizedClient(restGetAllServices))},
-		rest.Route{"GET", "/servicehealth", gz(sc.authorizedClient(restGetServicesHealth))},
+		rest.Route{"GET", "/servicehealth", gz(sc.checkAuth(restGetServicesHealth))},
 		rest.Route{"GET", "/services/:serviceId", gz(sc.authorizedClient(restGetService))},
 		rest.Route{"GET", "/services/:serviceId/running", gz(sc.authorizedClient(restGetRunningForService))},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", gz(sc.authorizedClient(restGetServiceStateLogs))},
@@ -104,7 +104,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
 		rest.Route{"GET", "/config", gz(sc.authorizedClient(restGetUIConfig))},
-		rest.Route{"GET", "/servicestatus", gz(sc.authorizedClient(restGetConciseServiceStatus))},
+		rest.Route{"GET", "/servicestatus", gz(sc.checkAuth(restGetConciseServiceStatus))},
 
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},

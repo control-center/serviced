@@ -71,18 +71,20 @@ func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *
 }
 
 // restGetServicesHealth returns health checks for all services
-func restGetServicesHealth(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	stats := make(map[string]map[int]map[string]health.HealthStatus)
-	if err := client.GetServicesHealth(0, &stats); err != nil {
+func restGetServicesHealth(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	healthStatuses, err := ctx.getFacade().GetServicesHealth(ctx.getDatastoreContext())
+	if err != nil {
 		glog.Errorf("Could not get services health: %s", err)
 		restServerError(w, err)
 		return
 	}
+
 	w.WriteJson(struct {
 		Timestamp int64
 		Statuses  map[string]map[int]map[string]health.HealthStatus
 	}{
 		Timestamp: time.Now().UTC().Unix(),
-		Statuses:  stats,
+		Statuses:  healthStatuses,
 	})
+	return
 }

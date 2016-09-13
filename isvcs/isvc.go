@@ -16,6 +16,7 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
@@ -33,6 +34,13 @@ const (
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v7"
 )
+
+type IServiceHealthResult struct {
+	ServiceName    string
+	ContainerName  string
+	ContainerID    string
+	HealthStatuses []domain.HealthCheckStatus
+}
 
 func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
 	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second

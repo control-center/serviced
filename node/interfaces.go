@@ -23,10 +23,10 @@ package node
 import (
 	"time"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/master"
 )
 
 // Network protocol type.
@@ -115,11 +115,11 @@ type LoadBalancer interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	// ReportHealthStatus writes the health check status to the cache
-	ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error
+	ReportHealthStatus(req master.HealthStatusRequest, unused *int) error
 
 	// ReportInstanceDead removes all health checks for the provided instance from the
 	// cache.
-	ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error
+	ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error
 
 	// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 	GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error

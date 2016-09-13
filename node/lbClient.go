@@ -14,9 +14,9 @@
 package node
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
 
@@ -94,13 +94,13 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 
 
 // ReportHealthStatus stores a health check result.
-func (a *LBClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
+func (a *LBClient) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
 	glog.V(4).Infof("ControlCenterAgent.ReportHealthStatus()")
 	return a.rpcClient.Call("ControlCenterAgent.ReportHealthStatus", req, unused, 0)
 }
 
 // ReportInstanceDead removes health check results for an instance.
-func (a *LBClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+func (a *LBClient) ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error {
 	glog.V(4).Infof("ControlCenterAgent.ReportInstanceDead()")
 	return a.rpcClient.Call("ControlCenterAgent.ReportInstanceDead", req, unused, 0)
 }

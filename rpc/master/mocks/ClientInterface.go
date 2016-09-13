@@ -4,12 +4,14 @@ import "github.com/stretchr/testify/mock"
 
 import "time"
 import "github.com/control-center/serviced/domain/applicationendpoint"
+import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
 import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/domain/user"
+import "github.com/control-center/serviced/isvcs"
 import "github.com/control-center/serviced/volume"
 
 type ClientInterface struct {
@@ -781,4 +783,78 @@ func (_m *ClientInterface) ValidateCredentials(someUser user.User) (bool, error)
 	}
 
 	return r0, r1
+}
+
+// GetISvcsHealth provides a mock function with given fields: IServiceNames
+func (_m *ClientInterface) GetISvcsHealth(IServiceNames []string) ([]isvcs.IServiceHealthResult, error) {
+	ret := _m.Called(IServiceNames)
+
+	var r0 []isvcs.IServiceHealthResult
+	if rf, ok := ret.Get(0).(func([]string) []isvcs.IServiceHealthResult); ok {
+		r0 = rf(IServiceNames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]isvcs.IServiceHealthResult)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(IServiceNames)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetServicesHealth provides a mock function with given fields:
+func (_m *ClientInterface) GetServicesHealth() (map[string]map[int]map[string]health.HealthStatus, error) {
+	ret := _m.Called()
+
+	var r0 map[string]map[int]map[string]health.HealthStatus
+	if rf, ok := ret.Get(0).(func() map[string]map[int]map[string]health.HealthStatus); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[int]map[string]health.HealthStatus)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ReportHealthStatus provides a mock function with given fields: key, value, expires
+func (_m *ClientInterface) ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) error {
+	ret := _m.Called(key, value, expires)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(health.HealthStatusKey, health.HealthStatus, time.Duration) error); ok {
+		r0 = rf(key, value, expires)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ReportInstanceDead provides a mock function with given fields: serviceID, instanceID
+func (_m *ClientInterface) ReportInstanceDead(serviceID string, instanceID int) error {
+	ret := _m.Called(serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, int) error); ok {
+		r0 = rf(serviceID, instanceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }

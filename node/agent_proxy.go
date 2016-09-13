@@ -26,7 +26,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
@@ -125,27 +124,25 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
-func (a *HostAgent) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	// FIXME: use new master.ClientInterface instead
-	client, err := NewControlClient(a.master)
+func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client: %s", err)
 		return err
 	}
-	defer client.Close()
-	return client.ReportHealthStatus(req, unused)
+	defer masterClient.Close()
+	return masterClient.ReportHealthStatus(req.Key, req.Value, req.Expires)
 }
 
 // ReportInstanceDead proxies ReportInstanceDead to the master server.
-func (a *HostAgent) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	// FIXME: use new master.ClientInterface instead
-	client, err := NewControlClient(a.master)
+func (a *HostAgent) ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error {
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client; %s", err)
 		return err
 	}
-	defer client.Close()
-	return client.ReportInstanceDead(req, unused)
+	defer masterClient.Close()
+	return masterClient.ReportInstanceDead(req.ServiceID, req.InstanceID)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control center api

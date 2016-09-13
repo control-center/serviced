@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	template "github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/script"
 	"github.com/control-center/serviced/volume"
@@ -33,7 +34,7 @@ type API interface {
 
 	// Server
 	StartServer() error
-	ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error)
+	ServicedHealthCheck(IServiceNames []string) ([]isvcs.IServiceHealthResult, error)
 
 	// Hosts
 	GetHosts() ([]host.Host, error)

@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
@@ -181,22 +180,6 @@ func (s *ControlClient) GetServiceMemoryStats(req dao.MetricRequest, stats *metr
 
 func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
 	return s.rpcClient.Call("ControlCenter.GetInstanceMemoryStats", req, stats, 5*time.Second)
-}
-
-func (s *ControlClient) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error {
-	return s.rpcClient.Call("ControlCenter.GetServicesHealth", unused, results, 0)
-}
-
-func (s *ControlClient) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
-	return s.rpcClient.Call("ControlCenter.ServicedHealthCheck", IServiceNames, results, 0)
-}
-
-func (s *ControlClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.ReportHealthStatus", req, unused, 0)
-}
-
-func (s *ControlClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.ReportInstanceDead", req, unused, 0)
 }
 
 func (s *ControlClient) Backup(backupRequest dao.BackupRequest, filename *string) (err error) {

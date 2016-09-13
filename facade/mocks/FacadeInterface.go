@@ -1070,3 +1070,28 @@ func (_m *FacadeInterface) ValidateCredentials(ctx datastore.Context, someUser u
 
 	return r0, r1
 }
+func (_m *FacadeInterface) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
+	ret := _m.Called(ctx)
+
+	var r0 map[string]map[int]map[string]health.HealthStatus
+	if rf, ok := ret.Get(0).(func(datastore.Context) map[string]map[int]map[string]health.HealthStatus); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(map[string]map[int]map[string]health.HealthStatus)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) {
+	_m.Called(key, value, expires)
+}
+func (_m *FacadeInterface) ReportInstanceDead(serviceID string, instanceID int) {
+	_m.Called(serviceID, instanceID)
+}
