@@ -22,9 +22,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	docker "github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao/mocks"
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const example_state = `
@@ -117,11 +120,27 @@ func TestParseContainerState(t *testing.T) {
 func TestSetupContainer_DockerLog(t *testing.T) {
 	assert := assert.New(t)
 
+	// Set up a fake docker Event Monitor
+	fakeEventMonitor := &test.MockEventMonitor{}
+	fakeDockerContainer := &dockerclient.Container{}
+
+	// Set up a fake docker client
+	fakeDockerClient := &test.MockDockerClient{}
+	fakeDockerClient.On("MonitorEvents").Return(fakeEventMonitor, nil)
+	fakeDockerClient.On("CreateContainer", mock.Anything).Return(fakeDockerContainer, nil).Run(func(args mock.Arguments) {
+		cco := args.Get(0).(dockerclient.CreateContainerOptions)
+		fakeDockerContainer.HostConfig = cco.HostConfig
+		fakeDockerContainer.Config = cco.Config
+		fakeDockerContainer.Name = cco.Name
+	})
+
+	docker.SetDockerClientGetter(func() (docker.ClientInterface, error) { return fakeDockerClient, nil })
+
 	// Create a fake pull registry that doesn't pull images
 	fakeRegistry := &regmocks.Registry{}
-	fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
-	fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
-	fakeRegistry.On("PullImage", mock.Anything).Return(nil)
+	//fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
+	//fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
+	//fakeRegistry.On("PullImage", mock.Anything).Return(nil)
 
 	// Create a fake HostAgent
 	fakeHostAgent := &HostAgent{
@@ -138,21 +157,29 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	// Create a fake service.Service
 	fakeService := &service.Service{
 		ImageID: "busybox:latest",
+		ID:      "faketestService",
 	}
 
 	fakeClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
 	fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
 
 	// Call setupContainer
-	config, hostconfig, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0)
+	container, servicestate, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0, "")
 
-	assert.NotNil(config)
-	assert.NotNil(hostconfig)
+	assert.NotNil(container)
+	assert.NotNil(servicestate)
 	assert.Nil(err)
+	assert.NotNil(container.HostConfig)
+	assert.NotNil(container.HostConfig.LogConfig)
 
 	// Test that hostconfig values are as intended
-	assert.Equal(hostconfig.LogConfig.Type, "fakejson-log")
-	assert.Equal(hostconfig.LogConfig.Config["alpha"], "one")
-	assert.Equal(hostconfig.LogConfig.Config["bravo"], "two")
-	assert.Equal(hostconfig.LogConfig.Config["charlie"], "three")
+	assert.Equal(container.HostConfig.LogConfig.Type, "fakejson-log")
+	assert.Equal(container.HostConfig.LogConfig.Config["alpha"], "one")
+	assert.Equal(container.HostConfig.LogConfig.Config["bravo"], "two")
+	assert.Equal(container.HostConfig.LogConfig.Config["charlie"], "three")
+
+	fakeDockerClient.AssertExpectations(t)
+	fakeEventMonitor.AssertExpectations(t)
+	fakeClient.AssertExpectations(t)
+	fakeRegistry.AssertExpectations(t)
 }

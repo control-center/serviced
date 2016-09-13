@@ -284,9 +284,10 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // the service, serviceState, and conn values that are passed into setupContainer.
 func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":  svc.ID,
-		"instanceid": instanceID,
-		"imageUUID":  imageUUID,
+		"serviceName": svc.Name,
+		"serviceID":   svc.ID,
+		"instanceID":  instanceID,
+		"imageUUID":   imageUUID,
 	})
 
 	// Evaluate service template fields
@@ -321,39 +322,6 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
-
-	///************************************/
-	//var assignedIP string
-	//var static bool
-	//for _, ep := range svc.Endpoints {
-	//	if ep.Purpose == "export" {
-	//		var assignedPortNumber uint16
-	//		if a := ep.GetAssignment(); a != nil {
-	//			assignedIP = ep.AddressAssignment.IPAddr
-	//			static = ep.AddressAssignment.AssignmentType == commons.STATIC
-	//			assignedPortNumber = a.Port
-	//		}
-	//
-	//		// set the export data
-	//		state.Exports = append(state.Exports, zkservice.ExportBinding{
-	//			Application:        ep.Application,
-	//			Protocol:           ep.Protocol,
-	//			PortNumber:         ep.PortNumber,
-	//			AssignedPortNumber: assignedPortNumber,
-	//		})
-	//	} else {
-	//		state.Imports = append(state.Imports, zkservice.ImportBinding{
-	//			Application:    ep.Application,
-	//			Purpose:        ep.Purpose,
-	//			PortNumber:     ep.PortNumber,
-	//			PortTemplate:   ep.PortTemplate,
-	//			VirtualAddress: ep.VirtualAddress,
-	//		})
-	//	}
-	//}
-	//state.AssignedIP = assignedIP
-	//state.Static = static
-	/**************************************/
 
 	state := &zkservice.ServiceState{
 		ImageID: imageUUID,
@@ -403,6 +371,8 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 		}
 		state.AssignedIP = assignedIP
 		state.Static = static
+	} else {
+		log.Warn("svc.endpoints was nil.")
 	}
 
 	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
@@ -423,9 +393,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			return nil, nil, err
 		}
 
-		resourcePath = strings.TrimSpace(resourcePath)
-		containerPath := strings.TrimSpace(volume.ContainerPath)
-		bindsMap[containerPath] = resourcePath
+		addBindingToMap(&bindsMap, volume.ContainerPath, resourcePath)
 	}
 
 	// mount serviced path
@@ -436,18 +404,13 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	}
 
 	dir, binary := filepath.Split(a.controllerBinary)
-	resourcePath := strings.TrimSpace(dir)
-	containerPath := strings.TrimSpace("/serviced")
-	bindsMap[containerPath] = resourcePath
+	addBindingToMap(&bindsMap, "/serviced", dir)
 
 	// bind mount everything we need for filebeat
 	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
-		resourcePath := strings.TrimSpace(logstashPath)
-		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		bindsMap[containerPath] = resourcePath
-		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
+		addBindingToMap(&bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
 	}
 
 	// specify temporary volume paths for docker to create
@@ -503,9 +466,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			}
 
 			if matchedRequestedImage {
-				hostPath = strings.TrimSpace(hostPath)
-				containerPath = strings.TrimSpace(containerPath)
-				bindsMap[containerPath] = hostPath
+				addBindingToMap(&bindsMap, containerPath, hostPath)
 			}
 		} else {
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
@@ -516,6 +477,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	hcfg.Binds = []string{}
 	for containerPath, hostPath := range bindsMap {
 		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
+		log.WithFields(log.Fields{"HostPath": hostPath, "ContainerPath": containerPath, "Binding": binding}).Info("Adding binding to binds")
 		hcfg.Binds = append(hcfg.Binds, binding)
 	}
 
@@ -609,12 +571,18 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 		},
 	}
 
-	ctr, err := a.createContainer(cfg, hcfg, svc.ID, imageUUID, instanceID)
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, imageUUID, instanceID) //FIXME: if ctr comes back nil, line 586 below will panic
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"imageUUID":  imageUUID,
 			"instanceID": instanceID,
 		}).WithError(err).Error("Could not create container")
+	}
+	if state == nil {
+		logger.Error("state is nil.")
+	}
+	if ctr == nil {
+		logger.Error("ctr is nil.")
 	}
 	state.ContainerID = ctr.ID
 
@@ -922,6 +890,10 @@ func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerc
 		"imageUUID":  imageUUID,
 	})
 
+	if hostConf == nil {
+		logger.Error("Host Config passed to createContainer is nil.")
+	}
+
 	// create the container
 	opts := dockerclient.CreateContainerOptions{
 		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
@@ -929,13 +901,29 @@ func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerc
 		HostConfig: hostConf,
 	}
 
+	if opts.HostConfig == nil {
+		logger.Error("Host Config in opts is nil.")
+	}
+
 	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
 	if err != nil {
-		logger.WithError(err).Debug("Could not create container")
+		logger.WithError(err).Error("Could not create container")
 		return nil, err
 	}
-	logger = logger.WithField("containerid", ctr.ID)
-	logger.Debug("Created a new container")
-
+	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
+	if ctr.HostConfig == nil {
+		logger.Error("Host Config in created container is nil.")
+	}
 	return ctr, nil
+}
+
+func addBindingToMap(bindsMap *map[string]string, cp, rp string) {
+	rp = strings.TrimSpace(rp)
+	cp = strings.TrimSpace(cp)
+	if len(rp) > 0 && len(cp) > 0 {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Info("Adding path to bindsMap")
+		(*bindsMap)[cp] = rp
+	} else {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
+	}
 }
