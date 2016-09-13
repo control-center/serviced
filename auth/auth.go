@@ -26,6 +26,8 @@ var (
 	ErrIdentityTokenBadSig = errors.New("Identity token signature cannot be verified")
 	// ErrNoPublicKey is thrown when no public key is available to verify a signature
 	ErrNoPublicKey = errors.New("Cannot retrieve public key to verify signature")
+	// ErrNoPrivateKey is thrown when no private key is available to sign a message
+	ErrNoPrivateKey = errors.New("Cannot retrieve private key to sign message")
 	// ErrInvalidSigningMethod is thrown when an identity token is not signed with the correct method
 	ErrInvalidSigningMethod = errors.New("Identity token signing method was not RSAPSS")
 	// ErrInvalidIdentityTokenClaims is thrown when an identity token does not have required claims
