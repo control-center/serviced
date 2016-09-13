@@ -100,15 +100,20 @@ func (s *TestAuthSuite) TestCreateMasterKeys(c *C) {
 	// verify the signature
 	err = auth.VerifyMasterSignature(msg_master_signed, master_sig)
 	c.Assert(err, IsNil)
+
+	// Load them again
+	err = auth.CreateOrLoadMasterKeys(masterKeyFile)
+	c.Assert(err, IsNil)
+
+	// keys should not have changed
+	err = auth.VerifyMasterSignature(msg_master_signed, master_sig)
+	c.Assert(err, IsNil)
 }
 
 func (s *TestAuthSuite) TestGetMasterPublicKey(c *C) {
-	// We'll need a temp dir:
-	tmpDir := c.MkDir()
-	hostKeyFile := fmt.Sprintf("%s/host", tmpDir)
+	auth.ClearKeys()
 
 	// Try to get master public key without loading anything
-	auth.ClearKeys()
 	mpk, err := auth.GetMasterPublicKey()
 	c.Assert(err, Equals, auth.ErrNoPublicKey)
 	c.Assert(mpk, IsNil)
@@ -117,10 +122,7 @@ func (s *TestAuthSuite) TestGetMasterPublicKey(c *C) {
 	pub, priv, err := auth.GenerateRSAKeyPairPEM(nil)
 	c.Assert(err, IsNil)
 
-	err = auth.DumpPEMKeyPairToFile(hostKeyFile, pub, priv)
-	c.Assert(err, IsNil)
-
-	err = auth.LoadDelegateKeysFromFile(hostKeyFile)
+	err = auth.LoadDelegateKeysFromPEM(pub, priv)
 	c.Assert(err, IsNil)
 
 	// Call GetMasterPublicKey() and make sure it matches
@@ -128,4 +130,83 @@ func (s *TestAuthSuite) TestGetMasterPublicKey(c *C) {
 	c.Assert(err, IsNil)
 	mpkPEM, err := auth.PEMFromRSAPublicKey(mpk, nil)
 	c.Assert(mpkPEM, DeepEquals, pub)
+
+	// Test that it falls back to master keys if delegate keys don't exist
+	auth.ClearKeys()
+
+	// Create some keys and load them
+	mpub, mpriv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	err = auth.LoadMasterKeysFromPEM(mpub, mpriv)
+	c.Assert(err, IsNil)
+
+	// Call GetMasterPublicKey() and make sure it matches
+	mpk, err = auth.GetMasterPublicKey()
+	c.Assert(err, IsNil)
+	mpkPEM, err = auth.PEMFromRSAPublicKey(mpk, nil)
+	c.Assert(mpkPEM, DeepEquals, mpub)
+	c.Assert(mpkPEM, Not(DeepEquals), pub)
+}
+
+func (s *TestAuthSuite) TestLoadKeysFromPEM(c *C) {
+	auth.ClearKeys()
+	// Create some keys
+	delegate_pub, delegate_priv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	master_pub, master_priv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	// Pub for priv should fail
+	err = auth.LoadDelegateKeysFromPEM(master_pub, master_pub)
+	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
+
+	// Priv for pub should fail
+	err = auth.LoadDelegateKeysFromPEM(delegate_priv, delegate_priv)
+	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
+
+	// Passing them correctly should work
+	err = auth.LoadDelegateKeysFromPEM(master_pub, delegate_priv)
+	c.Assert(err, IsNil)
+
+	// Repeat for master keys
+	// Pub for priv should fail
+	err = auth.LoadMasterKeysFromPEM(master_pub, master_pub)
+	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
+
+	// Priv for pub should fail
+	err = auth.LoadMasterKeysFromPEM(master_priv, master_priv)
+	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
+
+	// Passing them both should work
+	err = auth.LoadMasterKeysFromPEM(master_pub, master_priv)
+	c.Assert(err, IsNil)
+
+	// Test Signing and Verifying
+	//
+	msg_delegate_signed := []byte("This was signed by the delegate")
+	msg_master_signed := []byte("This was signed by the master")
+
+	// Test VerifyMasterSignature
+	// Sign something as master
+	master_sig, err := auth.SignAsMaster(msg_master_signed)
+	c.Assert(err, IsNil)
+
+	// verify the signature
+	err = auth.VerifyMasterSignature(msg_master_signed, master_sig)
+	c.Assert(err, IsNil)
+
+	// Test SignAsDelegate
+	//  Sign something as delegate
+	delegate_sig, err := auth.SignAsDelegate(msg_delegate_signed)
+	c.Assert(err, IsNil)
+
+	verifier, err := auth.RSAVerifierFromPEM(delegate_pub)
+	c.Assert(err, IsNil)
+
+	// Verify the signature
+	err = verifier.Verify(msg_delegate_signed, delegate_sig)
+	c.Assert(err, IsNil)
+
 }

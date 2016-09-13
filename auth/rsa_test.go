@@ -228,34 +228,34 @@ func (s *TestAuthSuite) TestDumpAndLoadPEMKeyPairs(c *C) {
 	c.Assert(err, IsNil)
 
 	// Pass a private key for pub
-	data, err := auth.DumpPEMKeyPair(priv, priv)
+	data, err := auth.DumpRSAPEMKeyPair(priv, priv)
 	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
 	c.Assert(data, IsNil)
 
 	// Pass a public key for private
-	data, err = auth.DumpPEMKeyPair(pub, pub)
+	data, err = auth.DumpRSAPEMKeyPair(pub, pub)
 	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
 	c.Assert(data, IsNil)
 
 	// Pass the correct parameters
-	data, err = auth.DumpPEMKeyPair(pub, priv)
+	data, err = auth.DumpRSAPEMKeyPair(pub, priv)
 	c.Assert(err, IsNil)
 
 	// Test loading
 	// Pass empty data
-	pubLoaded, privLoaded, err := auth.LoadKeyPair([]byte{})
+	pubLoaded, privLoaded, err := auth.LoadRSAKeyPairPackage([]byte{})
 	c.Assert(err, Equals, auth.ErrBadKeysFile)
 	c.Assert(pubLoaded, IsNil)
 	c.Assert(privLoaded, IsNil)
 
 	// First block is public, not private
-	pubLoaded, privLoaded, err = auth.LoadKeyPair(pub)
+	pubLoaded, privLoaded, err = auth.LoadRSAKeyPairPackage(pub)
 	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
 	c.Assert(pubLoaded, IsNil)
 	c.Assert(privLoaded, IsNil)
 
 	// Second block is missing
-	pubLoaded, privLoaded, err = auth.LoadKeyPair(priv)
+	pubLoaded, privLoaded, err = auth.LoadRSAKeyPairPackage(priv)
 	c.Assert(err, Equals, auth.ErrBadKeysFile)
 	c.Assert(pubLoaded, IsNil)
 	c.Assert(privLoaded, IsNil)
@@ -267,13 +267,13 @@ func (s *TestAuthSuite) TestDumpAndLoadPEMKeyPairs(c *C) {
 	_, err = badData.Write(priv)
 	c.Assert(err, IsNil)
 
-	pubLoaded, privLoaded, err = auth.LoadKeyPair(badData.Bytes())
+	pubLoaded, privLoaded, err = auth.LoadRSAKeyPairPackage(badData.Bytes())
 	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
 	c.Assert(pubLoaded, IsNil)
 	c.Assert(privLoaded, IsNil)
 
 	// Pass correct data
-	pubLoaded, privLoaded, err = auth.LoadKeyPair(data)
+	pubLoaded, privLoaded, err = auth.LoadRSAKeyPairPackage(data)
 	c.Assert(err, IsNil)
 
 	// Convert to PEM and verify it is what we passed in
@@ -284,4 +284,35 @@ func (s *TestAuthSuite) TestDumpAndLoadPEMKeyPairs(c *C) {
 	c.Assert(pubLoadedPEM, DeepEquals, pub)
 	c.Assert(privLoadedPEM, DeepEquals, priv)
 
+}
+
+func (s *TestAuthSuite) TestLoadRSAKeyPair(c *C) {
+	// Create some keys
+	pub, priv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+
+	// Pub for priv should fail
+	rsapub, rsapriv, err := auth.LoadRSAKeyPair(pub, pub)
+	c.Assert(err, Equals, auth.ErrNotRSAPrivateKey)
+	c.Assert(rsapub, IsNil)
+	c.Assert(rsapriv, IsNil)
+
+	// Priv for pub should fail
+	rsapub, rsapriv, err = auth.LoadRSAKeyPair(priv, priv)
+	c.Assert(err, Equals, auth.ErrNotRSAPublicKey)
+	c.Assert(rsapub, IsNil)
+	c.Assert(rsapriv, IsNil)
+
+	// Passing them correctly should work
+	rsapub, rsapriv, err = auth.LoadRSAKeyPair(pub, priv)
+	c.Assert(err, IsNil)
+
+	// Wrap them back up as PEM and make sure they match
+	rsapubpem, err := auth.PEMFromRSAPublicKey(rsapub, nil)
+	c.Assert(err, IsNil)
+	c.Assert(rsapubpem, DeepEquals, pub)
+
+	rsaprivpem, err := auth.PEMFromRSAPrivateKey(rsapriv, nil)
+	c.Assert(err, IsNil)
+	c.Assert(rsaprivpem, DeepEquals, priv)
 }
