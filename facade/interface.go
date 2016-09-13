@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
 
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -125,4 +126,6 @@ type FacadeInterface interface {
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+
+	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
 }

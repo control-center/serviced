@@ -5,6 +5,7 @@ import "github.com/stretchr/testify/mock"
 import "time"
 import "github.com/control-center/serviced/dao"
 import "github.com/control-center/serviced/datastore"
+import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/host"
@@ -832,12 +833,12 @@ func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID st
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, parentID)
+func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, serviceID)
 
 	var r0 []service.ServiceDetails
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, parentID)
+		r0 = rf(ctx, serviceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -846,7 +847,28 @@ func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, pa
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, parentID)
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 *domain.MonitorProfile
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *domain.MonitorProfile); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.MonitorProfile)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
 	} else {
 		r1 = ret.Error(1)
 	}
