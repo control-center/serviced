@@ -34,9 +34,7 @@ func (s *TestAuthSuite) TestBuildHeaderBadAddr(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	addr := "this is more than 6 bytes"
-	fakeSigner, err := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	c.Assert(err, IsNil)
-	_, err = auth.BuildAuthMuxHeader([]byte(addr), fakeToken, fakeSigner)
+	_, err = auth.BuildAuthMuxHeader([]byte(addr), fakeToken)
 	c.Assert(err, Equals, auth.ErrBadMuxAddress)
 }
 
@@ -49,13 +47,10 @@ func (s *TestAuthSuite) TestExtractBadHeader(c *C) {
 func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
 	fakeToken, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
-	fakeSigner, err := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
-	c.Assert(fakeSigner, NotNil)
 	addr := "zenoss"
 	// build header
-	header, err := auth.BuildAuthMuxHeader([]byte(addr), fakeToken, fakeSigner)
+	header, err := auth.BuildAuthMuxHeader([]byte(addr), fakeToken)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header

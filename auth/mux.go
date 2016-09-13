@@ -43,8 +43,7 @@ const (
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
 	// get current host token
-	token := AuthToken()
-	return BuildAuthMuxHeader(address, token)
+	return BuildAuthMuxHeader(address, AuthToken())
 }
 
 func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {

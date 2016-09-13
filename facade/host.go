@@ -100,7 +100,11 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	}
 
 	masterHeaders := map[string]string{"purpose": "master"}
-	masterPEM, err := auth.PEMFromRSAPublicKey(auth.MasterPublicKey(), masterHeaders)
+	masterPublicKey, err := auth.GetMasterPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	masterPEM, err := auth.PEMFromRSAPublicKey(masterPublicKey, masterHeaders)
 	if err != nil {
 		return nil, err
 	}
