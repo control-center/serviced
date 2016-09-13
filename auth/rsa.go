@@ -232,21 +232,6 @@ func DevRSAVerifier() Verifier {
 	return verifier
 }
 
-// TODO: Elimnate these three methods.  Leaving these here for now so the code will build
-func LocalPrivateKey() crypto.PrivateKey {
-	return delegateKeys.localPrivate
-}
-
-func LocalPublicKey() crypto.PublicKey {
-	key, _ := RSAPublicKeyFromPEM(DevPubKeyPEM)
-	return key
-}
-
-func MasterPublicKey() crypto.PublicKey {
-	masterPublic, _ := GetMasterPublicKey()
-	return masterPublic
-}
-
 // DumpRSAPEMKeyPair dumps PEM-encoded public and private keys to a single byte array
 func DumpRSAPEMKeyPair(public, private []byte) ([]byte, error) {
 	// Do some validation first.  These don't have to be a matched pair,

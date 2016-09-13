@@ -43,19 +43,10 @@ const (
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
 	// get current host token
-	token := AuthToken()
-
-	// get a Signer
-	myPrivateKey := LocalPrivateKey()
-	signer, err := RSASigner(myPrivateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return BuildAuthMuxHeader(address, token, signer)
+	return BuildAuthMuxHeader(address, AuthToken())
 }
 
-func BuildAuthMuxHeader(address []byte, token string, signer Signer) ([]byte, error) {
+func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {
 	if len(address) != ADDRESS_BYTES {
 		return nil, ErrBadMuxAddress
 	}
@@ -74,7 +65,7 @@ func BuildAuthMuxHeader(address []byte, token string, signer Signer) ([]byte, er
 	headerBuf.Write([]byte(address))
 
 	// Sign what we have so far
-	signature, err := signer.Sign(headerBuf.Bytes())
+	signature, err := SignAsDelegate(headerBuf.Bytes())
 	if err != nil {
 		return nil, err
 	}
