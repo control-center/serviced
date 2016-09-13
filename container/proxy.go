@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -263,7 +264,12 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
 			return
 		}
-		remote.Write(muxHeader)
+		muxAuthHeader, err := auth.BuildMuxHeader(muxHeader)
+		if err != nil {
+			glog.Errorf("Error building authenticaetd mux header. %s", err)
+			return
+		}
+		remote.Write(muxAuthHeader)
 	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
