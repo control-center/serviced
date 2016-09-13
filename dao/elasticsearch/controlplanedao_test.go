@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
@@ -165,7 +164,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 
 	// create the account credentials
-	if err := createSystemUser(dt.Dao); err != nil {
+	if err :=  dt.Facade.CreateSystemUser(dt.CTX); err != nil {
 		c.Fatalf("could not create systemuser: %s", err)
 	}
 }
@@ -737,84 +736,4 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
 
 	time.Sleep(10 * time.Second)
-}
-
-func (dt *DaoTest) TestUser_UserOperations(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-
-	newUser := userdomain.User{}
-	err = dt.Dao.GetUser("Pepe", &newUser)
-	if err != nil {
-		t.Fatalf("Failure getting user %s", err)
-	}
-
-	// make sure they are the same user
-	if newUser.Name != user.Name {
-		t.Fatalf("Retrieved an unexpected user %v", newUser)
-	}
-
-	// make sure the password was hashed
-	if newUser.Password == "Pepe" {
-		t.Fatalf("Did not hash the password %+v", user)
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-}
-
-func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	var isValid bool
-	attemptUser := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
-
-	if !isValid {
-		t.Fatalf("Unable to authenticate user credentials")
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-
-	// update the user
-	user.Password = "pepe2"
-	err = dt.Dao.UpdateUser(user, &unused)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	attemptUser.Password = "Pepe2"
-	// make sure we can validate against the updated credentials
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
 }

@@ -31,9 +31,9 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/user"
-	"github.com/control-center/serviced/node"
 	worker "github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/rpc/master"
 )
 
 var empty interface{}
@@ -337,8 +337,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistry, controller string) (*exec.Cmd, error) {
 	// look up the service on the master
-	//FIXME: use rpc instead of dao
-	masterClient, err := node.NewControlClient(masterAddress)
+	masterClient, err := master.NewClient(masterAddress)
 	if err != nil {
 		glog.Errorf("Could not connect to the master server at %s: %s", masterAddress, err)
 		return nil, err
@@ -346,7 +345,7 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	defer masterClient.Close()
 	glog.Infof("Connected to master at %s", masterAddress)
 	svc := &service.Service{}
-	if err := masterClient.GetService(cfg.ServiceID, svc); err != nil {
+	if svc, err = masterClient.GetService(cfg.ServiceID); err != nil {
 		glog.Errorf("Could not get service %s: %s", cfg.ServiceID, err)
 		return nil, err
 	}
@@ -433,8 +432,8 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 	}
 
 	// set the systemuser and password
-	systemUser := &user.User{}
-	if err := masterClient.GetSystemUser(0, systemUser); err != nil {
+	systemUser := user.User{}
+	if systemUser, err = masterClient.GetSystemUser(); err != nil {
 		glog.Errorf("Unable to get system user account for client: %s", err)
 	}
 

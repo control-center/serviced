@@ -471,7 +471,9 @@ func (d *daemon) startMaster() (err error) {
 		log.WithError(err).Fatal("Unable to acquire application context from Elastic")
 	}
 
-	d.facade = d.initFacade()
+	if d.facade, err = d.initFacade(); err != nil {
+		log.WithError(err).Fatal("Unable to initialize Facade layer")
+	}
 
 	if d.cpDao, err = d.initDAO(); err != nil {
 		log.WithError(err).Fatal("Unable to initialize DAO layer")
@@ -876,7 +878,7 @@ func initMetricsClient() *metrics.Client {
 	return client
 }
 
-func (d *daemon) initFacade() *facade.Facade {
+func (d *daemon) initFacade() (*facade.Facade, error) {
 	log.Debug("Initializing facade")
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
@@ -891,7 +893,8 @@ func (d *daemon) initFacade() *facade.Facade {
 	f.SetHealthCache(d.hcache)
 	client := initMetricsClient()
 	f.SetMetricsClient(client)
-	return f
+	err := f.CreateSystemUser(d.dsContext)
+	return f, err
 }
 
 // startLogstashPurger purges logstash based on days and size

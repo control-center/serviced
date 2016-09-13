@@ -41,7 +41,6 @@ import (
 	"github.com/control-center/serviced/commons/iptables"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
@@ -263,7 +262,7 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(daoClient dao.ControlPlane, masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceName": svc.Name,
 		"serviceID": svc.ID,
@@ -294,9 +293,9 @@ func (a *HostAgent) setupContainer(daoClient dao.ControlPlane, masterClient mast
 	}
 
 	// get the system user
-	unused := 0
-	systemUser := user.User{}
-	if err := daoClient.GetSystemUser(unused, &systemUser); err != nil {
+	var systemUser user.User
+	systemUser, err = masterClient.GetSystemUser()
+	if err != nil {
 		logger.WithError(err).Error("Failed to get the system user account")
 		return nil, nil, err
 	}

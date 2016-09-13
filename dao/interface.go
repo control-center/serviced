@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
@@ -211,12 +210,6 @@ type ControlPlane interface {
 
 	//---------------------------------------------------------------------------
 	// Service CRUD
-
-	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, usr *user.User) error
-
-	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(usr user.User, result *bool) error
 
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error

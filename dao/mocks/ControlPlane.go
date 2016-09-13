@@ -6,7 +6,6 @@ import "github.com/stretchr/testify/mock"
 import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
-import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/health"
 import "github.com/control-center/serviced/metrics"
 
@@ -320,30 +319,6 @@ func (_m *ControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.MetricRequest, *[]metrics.MemoryUsageStats) error); ok {
 		r0 = rf(req, stats)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetSystemUser(unused int, usr *user.User) error {
-	ret := _m.Called(unused, usr)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *user.User) error); ok {
-		r0 = rf(unused, usr)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ValidateCredentials(usr user.User, result *bool) error {
-	ret := _m.Called(usr, result)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(user.User, *bool) error); ok {
-		r0 = rf(usr, result)
 	} else {
 		r0 = ret.Error(0)
 	}

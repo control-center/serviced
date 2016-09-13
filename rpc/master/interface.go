@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -158,6 +159,7 @@ type ClientInterface interface {
 	// DockerOverride replaces an image in the docker registry with a new image
 	DockerOverride(newImage, oldImage string) error
 
+	//--------------------------------------------------------------------------
 	// Public Endpoint Management Functions
 	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
 
@@ -170,4 +172,13 @@ type ClientInterface interface {
 	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
+
+	//--------------------------------------------------------------------------
+	// User Management Functions
+
+	// Get the system user record
+	GetSystemUser() (user.User, error)
+
+	// Validate the credentials of the specified user
+	ValidateCredentials(user user.User) (bool, error)
 }

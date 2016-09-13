@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 )
 
 // The FacadeInterface is the API for a Facade
@@ -122,4 +123,16 @@ type FacadeInterface interface {
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
 
 	GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+
+	AddUser(ctx datastore.Context, newUser user.User) error
+
+	GetUser(ctx datastore.Context, userName string) (user.User, error)
+
+	UpdateUser(ctx datastore.Context, user user.User) error
+
+	RemoveUser(ctx datastore.Context, userName string) error
+
+	GetSystemUser(ctx datastore.Context) (user.User, error)
+
+	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
 }

@@ -26,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/rpcutils"
@@ -152,14 +151,6 @@ func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err
 
 func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *[]service.Instance) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetServiceStatus", serviceID, statusmap, 0)
-}
-
-func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
-	return s.rpcClient.Call("ControlCenter.ValidateCredentials", user, result, 0)
-}
-
-func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
-	return s.rpcClient.Call("ControlCenter.GetSystemUser", unused, user, 0)
 }
 
 func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {

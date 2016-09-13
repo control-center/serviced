@@ -126,14 +126,6 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	}
 
 	// Establish a connection to the master
-	// TODO: use the new rpc calls instead
-	daoClient, err := NewControlClient(a.master)
-	if err != nil {
-		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
-		return nil, nil, err
-	}
-	defer daoClient.Close()
-
 	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
@@ -142,7 +134,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	defer masterClient.Close()
 
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(daoClient, masterClient, svc, instanceID, imageName)
+	conf, hostConf, err := a.setupContainer(masterClient, svc, instanceID, imageName)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err

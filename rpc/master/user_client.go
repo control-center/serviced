@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,32 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package user
+package master
 
 import (
-	"github.com/control-center/serviced/datastore"
-
-	"strings"
+	"github.com/control-center/serviced/domain/user"
 )
 
-// NewStore creates a user Store
-func NewStore() Store {
-	return &userStoreImpl{}
+// Get the system user record
+func (c *Client) GetSystemUser() (user.User, error) {
+	systemUser := user.User{}
+	err := c.call("GetSystemUser", empty, &systemUser)
+	return systemUser, err
 }
 
-// UserStore type for interacting with User persistent storage
-type Store interface {
-	datastore.EntityStore
+// Validate the credentials of the specified user
+func (c *Client) ValidateCredentials(user user.User) (bool, error) {
+	result := false
+	err := c.call("ValidateCredentials", user, &result)
+	return result, err
 }
-
-type userStoreImpl struct {
-	datastore.DataStore
-}
-
-//Key creates a Key suitable for getting, putting and deleting Users
-func Key(id string) datastore.Key {
-	id = strings.TrimSpace(id)
-	return datastore.NewKey(kind, id)
-}
-
-var kind = "user"

@@ -130,6 +130,7 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
 	*healthChecks = make(map[string]health.HealthCheck, 0)
 
+	// FIXME: use new master.ClientInterface instead
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client %v", err)
@@ -162,6 +163,7 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 
 // LogHealthCheck proxies RegisterHealthCheck.
 func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
+	// FIXME: use new master.ClientInterface instead
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client %v", err)
@@ -174,6 +176,7 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
+	// FIXME: use new master.ClientInterface instead
 	client, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client: %s", err)
@@ -185,6 +188,7 @@ func (a *HostAgent) ReportHealthStatus(req dao.HealthStatusRequest, unused *int)
 
 // ReportInstanceDead proxies ReportInstanceDead to the master server.
 func (a *HostAgent) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+	// FIXME: use new master.ClientInterface instead
 	client, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client; %s", err)

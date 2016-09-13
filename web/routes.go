@@ -98,7 +98,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/templates/deploy/active", gz(sc.checkAuth(restDeployAppTemplateActive))},
 
 		// Login
-		rest.Route{"POST", "/login", gz(sc.unAuthorizedClient(restLogin))},
+		rest.Route{"POST", "/login", gz(sc.noAuth(restLogin))},
 		rest.Route{"DELETE", "/login", gz(restLogout)},
 
 		// "Misc" stuff

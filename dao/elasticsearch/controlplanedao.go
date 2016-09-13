@@ -136,11 +136,6 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, backupsPath
 	//Used to bridge old to new
 	s.facade = facade
 
-	// create the account credentials
-	if err = createSystemUser(s); err != nil {
-		return nil, err
-	}
-
 	// initialize the metrics client
 	metricClient, err := metrics.NewClient(fmt.Sprintf("http://%s:8888", hostName))
 	if err != nil {
