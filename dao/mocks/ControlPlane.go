@@ -3,7 +3,6 @@ package mocks
 import "github.com/control-center/serviced/dao"
 import "github.com/stretchr/testify/mock"
 
-import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/addressassignment"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/health"
@@ -319,18 +318,6 @@ func (_m *ControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.MetricRequest, *[]metrics.MemoryUsageStats) error); ok {
 		r0 = rf(req, stats)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	ret := _m.Called(result, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(domain.HealthCheckResult, *int) error); ok {
-		r0 = rf(result, unused)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
@@ -182,10 +181,6 @@ func (s *ControlClient) GetServiceMemoryStats(req dao.MetricRequest, stats *metr
 
 func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
 	return s.rpcClient.Call("ControlCenter.GetInstanceMemoryStats", req, stats, 5*time.Second)
-}
-
-func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.LogHealthCheck", result, unused, 0)
 }
 
 func (s *ControlClient) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error {

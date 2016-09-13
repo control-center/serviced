@@ -114,8 +114,6 @@ type LoadBalancer interface {
 	// GetTenantId retrieves a service's tenant id
 	GetTenantId(serviceId string, tenantId *string) error
 
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
-
 	// ReportHealthStatus writes the health check status to the cache
 	ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error
 

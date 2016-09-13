@@ -15,7 +15,6 @@ package node
 
 import (
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/rpcutils"
@@ -93,11 +92,6 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlCenterAgent.GetTenantId", serviceId, tenantId, 0)
 }
 
-// LogHealthCheck stores a health check result.
-func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	glog.V(4).Infof("ControlCenterAgent.LogHealthCheck()")
-	return a.rpcClient.Call("ControlCenterAgent.LogHealthCheck", result, unused, 0)
-}
 
 // ReportHealthStatus stores a health check result.
 func (a *LBClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {

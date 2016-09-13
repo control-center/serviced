@@ -27,7 +27,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
@@ -124,18 +123,6 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-// LogHealthCheck proxies RegisterHealthCheck.
-func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	// FIXME: use new master.ClientInterface instead
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-	err = controlClient.LogHealthCheck(result, unused)
-	return err
-}
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {

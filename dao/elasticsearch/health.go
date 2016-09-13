@@ -14,15 +14,11 @@
 package elasticsearch
 
 import (
-	"strconv"
-	"time"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/zenoss/glog"
 )
 
 func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
@@ -41,46 +37,6 @@ func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results
 	}
 
 	*results = healthStatuses
-	return nil
-}
-
-// DEPRECATED: LogHealthCheck is retrofitted to send an update to the new
-// health check status cache (use ReportHealthStatus and ReportInstanceDead
-// instead).
-func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	instanceID, err := strconv.Atoi(result.InstanceID)
-	if err != nil {
-		glog.Errorf("Could not parse instance ID %s: %s", result.InstanceID, err)
-		return err
-	}
-	if result.Name == "__instance_shutdown" {
-		this.facade.ReportInstanceDead(result.ServiceID, instanceID)
-		return nil
-	}
-	key := health.HealthStatusKey{
-		ServiceID:       result.ServiceID,
-		InstanceID:      instanceID,
-		HealthCheckName: result.Name,
-	}
-	startedAt, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", result.Timestamp)
-	if err != nil {
-		glog.Errorf("Could not parse timestamp %s: %s", result.Timestamp, err)
-		return err
-	}
-	var status health.Status
-	switch result.Passed {
-	case "passed":
-		status = health.OK
-	case "failed":
-		status = health.Failed
-	default:
-		status = health.Unknown
-	}
-	value := health.HealthStatus{
-		Status:    status,
-		StartedAt: startedAt,
-	}
-	this.facade.ReportHealthStatus(key, value, health.DefaultExpiration)
 	return nil
 }
 

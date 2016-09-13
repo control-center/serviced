@@ -16,7 +16,6 @@ package dao
 import (
 	"time"
 
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
@@ -210,9 +209,6 @@ type ControlPlane interface {
 
 	//---------------------------------------------------------------------------
 	// Service CRUD
-
-	// Register a health check result
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
 	// Check the health of control center
 	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
