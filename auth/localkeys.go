@@ -115,6 +115,13 @@ func GetMasterPublicKey() (crypto.PublicKey, error) {
 	return delegateKeys.masterPublic, nil
 }
 
+func getMasterPrivateKey() (crypto.PrivateKey, error) {
+	if masterKeys.private == nil {
+		return nil, ErrNoPrivateKey
+	}
+	return masterKeys.private, nil
+}
+
 // LoadKeysFromFile loads keys from a file on disk.
 func LoadDelegateKeysFromFile(filename string) error {
 	pub, priv, err := LoadKeyPairFromFile(filename)

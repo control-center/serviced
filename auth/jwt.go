@@ -14,7 +14,6 @@
 package auth
 
 import (
-	"crypto"
 	"crypto/rsa"
 	"time"
 
@@ -40,17 +39,21 @@ type jwtIdentity struct {
 }
 
 // ParseJWTIdentity parses a JSON Web Token string, verifying that it was signed by the master.
-func ParseJWTIdentity(token string, masterPubKey crypto.PublicKey) (Identity, error) {
+func ParseJWTIdentity(token string) (Identity, error) {
 	claims := &jwtIdentity{}
 	parsed, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
 		// Validate the algorithm matches the key
 		if _, ok := token.Method.(*jwt.SigningMethodRSAPSS); !ok {
 			return nil, ErrInvalidSigningMethod
 		}
-		if _, ok := masterPubKey.(*rsa.PublicKey); !ok {
+		key, err := GetMasterPublicKey()
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := key.(*rsa.PublicKey); !ok {
 			return nil, ErrNotRSAPublicKey
 		}
-		return masterPubKey, nil
+		return key, nil
 	})
 	if err != nil {
 		if verr, ok := err.(*jwt.ValidationError); ok {
@@ -74,12 +77,8 @@ func ParseJWTIdentity(token string, masterPubKey crypto.PublicKey) (Identity, er
 }
 
 // CreateJWTIdentity returns a signed string
-func CreateJWTIdentity(hostID, poolID string, admin, dfs bool, pubkey crypto.PublicKey, expiration time.Duration, masterPrivKey crypto.PrivateKey) (string, error) {
+func CreateJWTIdentity(hostID, poolID string, admin, dfs bool, pubKeyPEM []byte, expiration time.Duration) (string, error) {
 	now := jwt.TimeFunc().UTC()
-	pem, err := PEMFromRSAPublicKey(pubkey, nil)
-	if err != nil {
-		return "", err
-	}
 	claims := &jwtIdentity{
 		Host:        hostID,
 		Pool:        poolID,
@@ -87,9 +86,13 @@ func CreateJWTIdentity(hostID, poolID string, admin, dfs bool, pubkey crypto.Pub
 		IssuedAt:    now.Unix(),
 		AdminAccess: admin,
 		DFSAccess:   dfs,
-		PubKey:      string(pem),
+		PubKey:      string(pubKeyPEM),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodPS256, claims)
+	masterPrivKey, err := getMasterPrivateKey()
+	if err != nil {
+		return "", err
+	}
 	return token.SignedString(masterPrivKey)
 }
 

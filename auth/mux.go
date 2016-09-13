@@ -15,7 +15,6 @@ package auth
 
 import (
 	"bytes"
-	"crypto"
 	"encoding/binary"
 	"errors"
 )
@@ -90,11 +89,6 @@ func errorExtractingHeader(err error) ([]byte, Identity, error) {
 }
 
 func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
-	masterPublicKey := MasterPublicKey()
-	return ExtractAuthMuxHeader(rawHeader, masterPublicKey)
-}
-
-func ExtractAuthMuxHeader(rawHeader []byte, masterPublicKey crypto.PublicKey) ([]byte, Identity, error) {
 	if len(rawHeader) <= TOKEN_LEN_BYTES+ADDRESS_BYTES {
 		return errorExtractingHeader(ErrBadMuxHeader)
 	}
@@ -113,7 +107,7 @@ func ExtractAuthMuxHeader(rawHeader []byte, masterPublicKey crypto.PublicKey) ([
 	offset += tokenLen
 
 	// Validate the token can be parsed
-	senderIdentity, err := ParseJWTIdentity(token, masterPublicKey)
+	senderIdentity, err := ParseJWTIdentity(token)
 	if err != nil || senderIdentity == nil {
 		if err == nil || senderIdentity == nil {
 			err = ErrBadToken

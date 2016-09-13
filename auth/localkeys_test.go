@@ -17,9 +17,10 @@ package auth_test
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
-	"os"
 )
 
 func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
@@ -75,6 +76,7 @@ func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
 }
 
 func (s *TestAuthSuite) TestCreateMasterKeys(c *C) {
+	auth.ClearKeys()
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
 	masterKeyFile := fmt.Sprintf("%s/.keys/master", tmpDir)
