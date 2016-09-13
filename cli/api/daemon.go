@@ -17,6 +17,7 @@ import (
 	"bytes"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -422,6 +423,17 @@ func (d *daemon) startMaster() (err error) {
 			"rpcport": rpcPort,
 		}).WithError(err).Fatal("Unable to register master as host")
 	}
+
+	// Load keys if they exist, else generate them
+	masterKeyFile := path.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	keylog := log.WithFields(logrus.Fields{
+		"keyfile": masterKeyFile,
+	})
+	if err = auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+		keylog.WithError(err).Fatal("Unable to load or create master keys")
+	}
+
+	keylog.Info("Loaded master keys from disk")
 
 	// This is storage related
 	storagelogger := log.WithFields(logrus.Fields{
