@@ -229,7 +229,7 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 			}
 
 			if pub.ServiceID == serviceID {
-				if val.Enabled {
+				if ok {
 					addrLogger.Debug("Updating public port address")
 					val.SetVersion(pub.Version())
 					tx.Set(addrpth, &val)
@@ -241,20 +241,18 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 		}
 	}
 
-	// create the remaining public ports if the ports are enabled
+	// create the remaining public ports
 	for key := range pubs {
 		val := pubs[key]
-		if val.Enabled {
-			conn.CreateDir(path.Join(pth, key.HostID))
-			addrpth := path.Join(pth, key.HostID, key.PortAddress)
-			val.SetVersion(nil)
-			logger.WithFields(log.Fields{
-				"hostid":      key.HostID,
-				"portaddress": key.PortAddress,
-				"zkpath":      addrpth,
-			}).Debug("Creating public port address")
-			tx.Create(addrpth, &val)
-		}
+		conn.CreateDir(path.Join(pth, key.HostID))
+		addrpth := path.Join(pth, key.HostID, key.PortAddress)
+		val.SetVersion(nil)
+		logger.WithFields(log.Fields{
+			"hostid":      key.HostID,
+			"portaddress": key.PortAddress,
+			"zkpath":      addrpth,
+		}).Debug("Creating public port address")
+		tx.Create(addrpth, &val)
 	}
 
 	logger.Debug("Updated transaction to sync public ports for service")
@@ -330,7 +328,7 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 			}
 
 			if vhost.ServiceID == serviceID {
-				if val.Enabled {
+				if ok {
 					addrLogger.Debug("Updating virtual host subdomain")
 					val.SetVersion(vhost.Version())
 					tx.Set(addrpth, &val)
@@ -345,17 +343,15 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 	// create the remaining public ports if they are enabled
 	for key := range vhosts {
 		val := vhosts[key]
-		if val.Enabled {
-			conn.CreateDir(path.Join(pth, key.HostID))
-			addrpth := path.Join(pth, key.HostID, key.Subdomain)
-			val.SetVersion(nil)
-			logger.WithFields(log.Fields{
-				"hostid":    key.HostID,
-				"subdomain": key.Subdomain,
-				"zkpath":    addrpth,
-			}).Debug("Creating virtual address subdomain")
-			tx.Create(addrpth, &val)
-		}
+		conn.CreateDir(path.Join(pth, key.HostID))
+		addrpth := path.Join(pth, key.HostID, key.Subdomain)
+		val.SetVersion(nil)
+		logger.WithFields(log.Fields{
+			"hostid":    key.HostID,
+			"subdomain": key.Subdomain,
+			"zkpath":    addrpth,
+		}).Debug("Creating virtual address subdomain")
+		tx.Create(addrpth, &val)
 	}
 
 	logger.Debug("Updated transaction to sync virtual hosts for service")

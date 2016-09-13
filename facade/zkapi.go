@@ -66,34 +66,36 @@ func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 	for _, ep := range svc.Endpoints {
 		// map the public ports
 		for _, p := range ep.PortList {
-			key := zkr.PublicPortKey{
-				HostID:      "master",
-				PortAddress: p.PortAddr,
+			if p.Enabled {
+				key := zkr.PublicPortKey{
+					HostID:      "master",
+					PortAddress: p.PortAddr,
+				}
+				pub := zkr.PublicPort{
+					TenantID:    tenantID,
+					Application: ep.Application,
+					ServiceID:   svc.ID,
+					Protocol:    p.Protocol,
+					UseTLS:      p.UseTLS,
+				}
+				pubmap[key] = pub
 			}
-			pub := zkr.PublicPort{
-				TenantID:    tenantID,
-				Application: ep.Application,
-				ServiceID:   svc.ID,
-				Enabled:     p.Enabled,
-				Protocol:    p.Protocol,
-				UseTLS:      p.UseTLS,
-			}
-			pubmap[key] = pub
 		}
 
 		// map the vhosts
 		for _, v := range ep.VHostList {
-			key := zkr.VHostKey{
-				HostID:    "master",
-				Subdomain: v.Name,
+			if v.Enabled {
+				key := zkr.VHostKey{
+					HostID:    "master",
+					Subdomain: v.Name,
+				}
+				vh := zkr.VHost{
+					TenantID:    tenantID,
+					Application: ep.Application,
+					ServiceID:   svc.ID,
+				}
+				vhmap[key] = vh
 			}
-			vh := zkr.VHost{
-				TenantID:    tenantID,
-				Application: ep.Application,
-				ServiceID:   svc.ID,
-				Enabled:     v.Enabled,
-			}
-			vhmap[key] = vh
 		}
 	}
 
