@@ -18,6 +18,17 @@
 
 package elasticsearch
 
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+//               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
+//
+// THAT MEANS DO NOT ADD MORE METHODS TO dao.ControlPlane
+//
+// Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
+// rpc/master.ClientInterface
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+
 import (
 	"fmt"
 	"strconv"

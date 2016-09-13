@@ -16,9 +16,9 @@ package web
 import (
 	"time"
 
+	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/health"
-	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -26,7 +26,7 @@ import (
 )
 
 // restServiceAutomaticAssignIP rest resource for automatic assigning ips to a service
-func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)
@@ -45,7 +45,7 @@ func restServiceAutomaticAssignIP(w *rest.ResponseWriter, r *rest.Request, clien
 }
 
 // restServiceManualAssignIP rest resource for manual assigning ips to a service
-func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restServiceManualAssignIP(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Could not get serviceId: %v", err)

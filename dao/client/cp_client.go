@@ -16,7 +16,18 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package node
+package client
+
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+//               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
+//
+// THAT MEANS DO NOT ADD MORE METHODS TO client.ControlClient and/or dao.ControlPlane
+//
+// Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
+// rpc/master.ClientInterface
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 
 import (
 	"time"
