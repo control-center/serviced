@@ -13,7 +13,11 @@
 
 package auth
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/control-center/serviced/logging"
+)
 
 var (
 	// ErrIdentityTokenInvalid is a generic invalid token error
@@ -40,9 +44,10 @@ var (
 	ErrNotPEMEncoded = errors.New("Not PEM encoded")
 	// ErrBadKeysFile is thrown when the local keys file isn't parseable
 	ErrBadKeysFile = errors.New("Unable to read security keys file")
+	// ErrNotAuthenticated is thrown when there's no authentication token
+	ErrNotAuthenticated = errors.New("No authentication token available")
 
-	// Devs: Feel free to add more, or replace those above, but define errors in a nice well-known place
-	// TODO: Remove this comment
+	log = logging.PackageLogger()
 )
 
 // Signer is used to sign a message
@@ -65,9 +70,4 @@ type Identity interface {
 	HasAdminAccess() bool
 	HasDFSAccess() bool
 	Verifier() (Verifier, error)
-}
-
-// TODO: Placeholder until we have the token available
-func AuthToken() string {
-	return "my super fake token"
 }

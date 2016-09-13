@@ -14,6 +14,9 @@
 package master
 
 import (
+	"time"
+
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/domain/host"
 )
 
@@ -70,4 +73,22 @@ func (c *Client) FindHostsInPool(poolID string) ([]host.Host, error) {
 		return []host.Host{}, err
 	}
 	return response, nil
+}
+
+// AuthenticateHost authenticates a host
+func (c *Client) AuthenticateHost(hostID string) (string, int64, error) {
+	req := &HostAuthenticationRequest{
+		HostID:  hostID,
+		Expires: time.Now().Add(time.Duration(1 * time.Minute)).UTC().Unix(),
+	}
+	sig, err := auth.SignAsDelegate(req.toMessage())
+	if err != nil {
+		return "", 0, err
+	}
+	req.Signature = sig
+	var response HostAuthenticationResponse
+	if err := c.call("AuthenticateHost", req, &response); err != nil {
+		return "", 0, err
+	}
+	return response.Token, response.Expires, nil
 }
