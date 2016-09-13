@@ -14,7 +14,6 @@
 package auth
 
 import (
-	"crypto/rsa"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -46,14 +45,7 @@ func ParseJWTIdentity(token string) (Identity, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSAPSS); !ok {
 			return nil, ErrInvalidSigningMethod
 		}
-		key, err := GetMasterPublicKey()
-		if err != nil {
-			return nil, err
-		}
-		if _, ok := key.(*rsa.PublicKey); !ok {
-			return nil, ErrNotRSAPublicKey
-		}
-		return key, nil
+		return GetMasterPublicKey()
 	})
 	if err != nil {
 		if verr, ok := err.(*jwt.ValidationError); ok {
