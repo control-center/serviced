@@ -17,13 +17,13 @@ import (
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -730,7 +730,7 @@ func (c *Controller) Run() (err error) {
 	}
 	defer client.Close()
 	c.Close()
-	req := dao.ServiceInstanceRequest{
+	req := master.ServiceInstanceRequest{
 		ServiceID:  c.options.Service.ID,
 		InstanceID: instID,
 	}
@@ -801,7 +801,7 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 
 func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStatusKey, hc health.HealthCheck) {
 	hc.Ping(cancel, func(stat health.HealthStatus) {
-		req := dao.HealthStatusRequest{
+		req := master.HealthStatusRequest{
 			Key:     key,
 			Value:   stat,
 			Expires: hc.Expires(),
