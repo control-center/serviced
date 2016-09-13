@@ -25,7 +25,6 @@ type VHost struct {
 	TenantID    string
 	ServiceID   string
 	Application string
-	Enabled     bool
 	version     interface{}
 }
 
@@ -121,86 +120,79 @@ func (l *VHostListener) Spawn(shutdown <-chan interface{}, subdomain string) {
 			return
 		}
 
-		// track the exports if the vhost is enabled
+		// track the exports
+		exLogger := logger.WithFields(log.Fields{
+			"tenantid":    dat.TenantID,
+			"application": dat.Application,
+		})
+
 		var exevt <-chan client.Event
-		if dat.Enabled {
-			exLogger := logger.WithFields(log.Fields{
-				"tenantid":    dat.TenantID,
-				"application": dat.Application,
-			})
+		var ch []string
 
-			var ch []string
+		expth := path.Join("/net/export", dat.TenantID, dat.Application)
 
-			expth := path.Join("/net/export", dat.TenantID, dat.Application)
+		// keep checking until we have an event or an error
+		for {
+			var ok bool
+			var err error
 
-			// keep checking until we have an event or an error
-			for {
-				var ok bool
-				var err error
+			ok, exevt, err = l.conn.ExistsW(expth, done)
+			if err != nil {
+				exLogger.WithError(err).Error("Could not check exports for endpoint")
+				return
+			}
 
-				ok, exevt, err = l.conn.ExistsW(expth, done)
-				if err != nil {
-					exLogger.WithError(err).Error("Could not check exports for endpoint")
+			if ok {
+				ch, exevt, err = l.conn.ChildrenW(expth, done)
+				if err == client.ErrNoNode {
+					logger.Debug("VHost suddenly deleted, retrying")
+					close(done)
+					done = make(chan struct{})
+
+					// we need an event, so try again
+					continue
+				} else if err != nil {
+					exLogger.WithFields(log.Fields{
+						"Error": err,
+					}).Error("Could not track exports for endpoint")
 					return
 				}
+			}
+			break
+		}
 
-				if ok {
-					ch, exevt, err = l.conn.ChildrenW(expth, done)
-					if err == client.ErrNoNode {
-						logger.Debug("VHost suddenly deleted, retrying")
-						close(done)
-						done = make(chan struct{})
+		exports := []ExportDetails{}
 
-						// we need an event, so try again
-						continue
-					} else if err != nil {
-						exLogger.WithFields(log.Fields{
-							"Error": err,
-						}).Error("Could not track exports for endpoint")
-						return
-					}
+		// get the exports and update the cache
+		sendUpdate := len(ch) != len(exportMap)
+		chMap := make(map[string]ExportDetails)
+		for _, name := range ch {
+			export, ok := exportMap[name]
+			if !ok {
+				sendUpdate = true
+				if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
+					continue
+				} else if err != nil {
+					exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
+					return
 				}
-				break
 			}
+			chMap[name] = export
+			exports = append(exports, export)
+		}
 
-			exports := []ExportDetails{}
+		exportMap = chMap
 
-			// get the exports and update the cache
-			sendUpdate := len(ch) != len(exportMap)
-			chMap := make(map[string]ExportDetails)
-			for _, name := range ch {
-				export, ok := exportMap[name]
-				if !ok {
-					sendUpdate = true
-					if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
-						continue
-					} else if err != nil {
-						exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
-						return
-					}
-				}
-				chMap[name] = export
-				exports = append(exports, export)
-			}
-
-			exportMap = chMap
-
-			// only send an update if the exports have changed
-			if sendUpdate {
-				l.handler.Set(subdomain, exports)
-			}
+		// only send an update if the exports have changed
+		if sendUpdate {
+			l.handler.Set(subdomain, exports)
 		}
 
 		// do something if the state of the vhost has changed
-		if isEnabled != dat.Enabled {
-			if dat.Enabled {
-				l.handler.Enable(subdomain)
-				logger.Debug("Enabled vhost")
-			} else {
-				l.handler.Disable(subdomain)
-				logger.Info("Disabled vhost")
-			}
-			isEnabled = dat.Enabled
+		if !isEnabled {
+			l.handler.Enable(subdomain)
+			logger.Debug("Enabled vhost")
+			isEnabled = true
 		}
 
 		select {

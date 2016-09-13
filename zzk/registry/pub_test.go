@@ -35,11 +35,10 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 	listener := NewPublicPortListener("master", handler)
 	listener.SetConnection(conn)
 
-	// port is disabled
+	handler.On("Enable", "10.187.22.151:2181", "proto", true).Return().Once()
 	publicPort := &PublicPort{
 		TenantID:    "tenantid",
 		Application: "app",
-		Enabled:     false,
 		Protocol:    "proto",
 		UseTLS:      true,
 	}
@@ -54,21 +53,6 @@ func (t *ZZKTest) TestPublicPortListener(c *C) {
 	}()
 
 	timer := time.NewTimer(time.Second)
-	select {
-	case <-done:
-		c.Fatalf("Listener exited unexpectedly")
-	case <-timer.C:
-	}
-
-	// port is enabled
-	handler.On("Enable", "10.187.22.151:2181", "proto", true).Return().Once()
-	err = conn.Get("/net/pub/master/10.187.22.151:2181", publicPort)
-	c.Assert(err, IsNil)
-	publicPort.Enabled = true
-	err = conn.Set("/net/pub/master/10.187.22.151:2181", publicPort)
-	c.Assert(err, IsNil)
-
-	timer.Reset(time.Second)
 	select {
 	case <-done:
 		c.Fatalf("Listener exited unexpectedly")

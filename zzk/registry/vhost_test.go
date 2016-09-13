@@ -35,11 +35,10 @@ func (t *ZZKTest) TestVHostListener(c *C) {
 	listener := NewVHostListener("master", handler)
 	listener.SetConnection(conn)
 
-	// vhost is disabled
+	handler.On("Enable", "myhost").Return().Once()
 	vhost := &VHost{
 		TenantID:    "tenantid",
 		Application: "app",
-		Enabled:     false,
 	}
 	err = conn.Create("/net/vhost/master/myhost", vhost)
 	c.Assert(err, IsNil)
@@ -52,21 +51,6 @@ func (t *ZZKTest) TestVHostListener(c *C) {
 	}()
 
 	timer := time.NewTimer(time.Second)
-	select {
-	case <-done:
-		c.Fatalf("Listener exited unexpectedly")
-	case <-timer.C:
-	}
-
-	// vhost is enabled
-	handler.On("Enable", "myhost").Return().Once()
-	err = conn.Get("/net/vhost/master/myhost", vhost)
-	c.Assert(err, IsNil)
-	vhost.Enabled = true
-	err = conn.Set("/net/vhost/master/myhost", vhost)
-	c.Assert(err, IsNil)
-
-	timer.Reset(time.Second)
 	select {
 	case <-done:
 		c.Fatalf("Listener exited unexpectedly")

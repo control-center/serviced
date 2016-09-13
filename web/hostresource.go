@@ -14,6 +14,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -122,6 +123,29 @@ func restGetServiceInstances(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 
 	glog.V(4).Infof("restGetServiceInstances: id %s, instances %#v", serviceID, instances)
 	w.WriteJson(&instances)
+}
+
+func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	mp, err := facade.GetServiceMonitoringProfile(dataCtx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not get service monitoring profile: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceMonitoringProfile: id %s, monitoring profile %#v", serviceID, mp)
+	w.WriteJson(&mp)
 }
 
 // restGetAggregateServices provides aggregate service information
