@@ -114,28 +114,30 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 		currentVIPs[vip.IP] = vip
 	}
 
-	var newVIPs []pool.VirtualIP
+	vips := []pool.VirtualIP{}
 
 	// Add the virtual ips that do not already exist
 	for _, vip := range entity.VirtualIPs {
-		if _, ok := currentVIPs[vip.IP]; ok {
-			delete(currentVIPs, vip.IP)
-		} else if err := f.addVirtualIP(ctx, &vip); err != nil {
-			glog.Warningf("Could not add virtual ip %s: %s", vip.IP, err)
+		if _, ok := currentVIPs[vip.IP]; !ok {
+			if err := f.addVirtualIP(ctx, &vip); err != nil {
+				glog.Warningf("Could not add virtual ip %s: %s", vip.IP, err)
+				continue
+			}
 		} else {
-			newVIPs = append(newVIPs, vip)
+			delete(currentVIPs, vip.IP)
 		}
+		vips = append(vips, vip)
 	}
 
 	// Delete the remaining virtual ips
 	for _, vip := range currentVIPs {
 		if err := f.removeVirtualIP(ctx, vip.PoolID, vip.IP); err != nil {
 			glog.Warningf("Could not remove virtual ip %s: %s", vip.IP, err)
-			newVIPs = append(newVIPs, vip)
+			vips = append(vips, vip)
 		}
 	}
 
-	entity.VirtualIPs = newVIPs
+	entity.VirtualIPs = vips
 	entity.UpdatedAt = time.Now()
 
 	evtctx := newEventCtx()
