@@ -811,10 +811,8 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, since time
 
 	return r0, r1
 }
-<<<<<<< HEAD
 
 // GetReadPools provides a mock function with given fields: ctx
-=======
 func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error) {
 	ret := _m.Called(ctx, since, serviceids)
 
@@ -836,7 +834,7 @@ func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since tim
 
 	return r0, r1
 }
->>>>>>> 4722849315532c08199f77fa03cb42d0d2987b60
+
 func (_m *FacadeInterface) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 	ret := _m.Called(ctx)
 
@@ -904,7 +902,27 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 
 	return r0, r1
 }
-=
+func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
 	ret := _m.Called(ctx, serviceID)
 
