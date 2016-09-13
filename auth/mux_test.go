@@ -16,38 +16,27 @@
 package auth_test
 
 import (
-	"crypto"
+	"time"
+
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
-	"time"
 )
 
 var (
-	mockPublicKey  crypto.PublicKey
-	mockPrivateKey crypto.PrivateKey
-	hostId         = "MyHost"
-	poolId         = "MyPool"
-	admin          = false
-	dfs            = true
-	fakeSigner     auth.Signer
-	fakeToken      string
+	hostId = "MyHost"
+	poolId = "MyPool"
+	admin  = false
+	dfs    = true
 )
 
-func init() {
-	// For simplicity we will sign the token and header with the same private key
-	mockPublicKey, _ = auth.RSAPublicKeyFromPEM(auth.DevPubKeyPEM)
-	mockPrivateKey, _ = auth.RSAPrivateKeyFromPEM(auth.DevPrivKeyPEM)
-	// Build a fake token
-	fakeToken, _ = auth.CreateJWTIdentity(hostId, poolId, admin, dfs, mockPublicKey, time.Hour, mockPrivateKey)
-	// Build a fake signer
-	fakeSigner, _ = auth.RSASigner(mockPrivateKey)
-}
-
 func (s *TestAuthSuite) TestBuildHeaderBadAddr(c *C) {
+	fakeToken, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
-	c.Assert(fakeSigner, NotNil)
 	addr := "this is more than 6 bytes"
-	_, err := auth.BuildAuthMuxHeader([]byte(addr), fakeToken, fakeSigner)
+	fakeSigner, err := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	c.Assert(err, IsNil)
+	_, err = auth.BuildAuthMuxHeader([]byte(addr), fakeToken, fakeSigner)
 	c.Assert(err, Equals, auth.ErrBadMuxAddress)
 }
 
@@ -58,6 +47,10 @@ func (s *TestAuthSuite) TestExtractBadHeader(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
+	fakeToken, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	c.Assert(err, IsNil)
+	fakeSigner, err := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	c.Assert(fakeSigner, NotNil)
 	addr := "zenoss"
@@ -66,7 +59,7 @@ func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
-	extractedAddr, ident, err := auth.ExtractAuthMuxHeader(header, mockPublicKey)
+	extractedAddr, ident, err := auth.ExtractMuxHeader(header)
 	// check the address is correctly decoded
 	c.Assert(err, IsNil)
 	c.Assert(string(extractedAddr), DeepEquals, addr)
