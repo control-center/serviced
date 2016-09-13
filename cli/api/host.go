@@ -137,3 +137,11 @@ func (a *api) SetHostMemory(config HostUpdateConfig) error {
 	h.RAMLimit = config.Memory
 	return client.UpdateHost(*h)
 }
+
+func (a *api) AuthenticateHost(hostID string) (string, int64, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return "", 0, err
+	}
+	return client.AuthenticateHost(hostID)
+}

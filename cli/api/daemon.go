@@ -616,6 +616,37 @@ func (d *daemon) startAgent() error {
 		"hostid": myHostID,
 	})
 
+	// Load delegate keys if they exist
+	delegateKeyFile := path.Join(options.IsvcsPath, auth.DelegateKeyFileName)
+	keylog := log.WithFields(logrus.Fields{
+		"keyfile": delegateKeyFile,
+	})
+	if err = auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
+		keylog.WithError(err).Fatal("Unable to load delegate keys")
+	}
+
+	// Authenticate against the master
+	getToken := func() (string, int64, error) {
+		masterClient, err := master.NewClient(d.servicedEndpoint)
+		if err != nil {
+			return "", 0, err
+		}
+		defer masterClient.Close()
+		token, expires, err := masterClient.AuthenticateHost(myHostID)
+		if err != nil {
+			return "", 0, err
+		}
+		return token, expires, nil
+	}
+
+	go auth.TokenLoop(getToken, d.shutdown)
+
+	select {
+	case <-d.shutdown:
+		return nil
+	case <-auth.WaitUntilAuthenticated():
+	}
+
 	// Flag so we only log that a host hasn't been added yet once
 	var loggedNoHost bool
 

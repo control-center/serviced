@@ -36,7 +36,7 @@ func at(t time.Time, f func()) {
 }
 
 func (s *TestAuthSuite) TestIdentityHappyPath(c *C) {
-	token, err := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
+	token, _, err := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	c.Assert(err, IsNil)
 
@@ -61,7 +61,7 @@ func (s *TestAuthSuite) TestIdentityHappyPath(c *C) {
 }
 
 func (s *TestAuthSuite) TestExpiredToken(c *C) {
-	token, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
+	token, _, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	fakenow := time.Now().UTC().Add(time.Hour)
 	at(fakenow, func() {
@@ -71,7 +71,7 @@ func (s *TestAuthSuite) TestExpiredToken(c *C) {
 }
 
 func (s *TestAuthSuite) TestEarlyToken(c *C) {
-	token, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
+	token, _, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	fakenow := time.Unix(0, 0)
 	at(fakenow, func() {
@@ -82,7 +82,7 @@ func (s *TestAuthSuite) TestEarlyToken(c *C) {
 
 func (s *TestAuthSuite) TestBadSignature(c *C) {
 	auth.LoadMasterKeysFromPEM(s.masterPubPEM, s.delegatePrivPEM)
-	token, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
+	token, _, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	_, err := auth.ParseJWTIdentity(token)
 	c.Assert(err, Equals, auth.ErrIdentityTokenBadSig)

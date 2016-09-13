@@ -30,7 +30,7 @@ var (
 )
 
 func (s *TestAuthSuite) TestBuildHeaderBadAddr(c *C) {
-	fakeToken, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	fakeToken, _, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	addr := "this is more than 6 bytes"
@@ -45,7 +45,7 @@ func (s *TestAuthSuite) TestExtractBadHeader(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
-	fakeToken, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	fakeToken, _, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	addr := "zenoss"
