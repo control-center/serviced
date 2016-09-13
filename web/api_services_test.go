@@ -18,39 +18,77 @@ package web
 import (
 	"net/http"
 
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 	. "gopkg.in/check.v1"
 )
 
 var serviceDetailsTestData = struct {
-	firstDetails  service.ServiceDetails
-	secondDetails service.ServiceDetails
+	tenant        service.ServiceDetails
+	firstService  service.ServiceDetails
+	secondService service.ServiceDetails
 }{
-
-	firstDetails: service.ServiceDetails{
-		ID:              "firstDetails",
-		Name:            "firstDetailsName",
-		Description:     "The first child service details",
+	tenant: service.ServiceDetails{
+		ID:              "tenant",
+		Name:            "Tenant Name",
+		Description:     "Tenant Description",
 		PoolID:          "pool",
-		ParentServiceID: "parentService",
+		ParentServiceID: "",
+		Instances:       1,
+		InstanceLimits: domain.MinMax{
+			Min:     0,
+			Max:     2,
+			Default: 1,
+		},
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(2147483648),
+		},
+		Startup: "firstservice -start",
 	},
-
-	secondDetails: service.ServiceDetails{
-		ID:              "secondDetails",
-		Name:            "secondDetailsName",
-		Description:     "The second child service details",
+	firstService: service.ServiceDetails{
+		ID:              "firstService",
+		Name:            "First Service Name",
+		Description:     "The first child service",
 		PoolID:          "pool",
-		ParentServiceID: "parentService",
+		ParentServiceID: "tenant",
+		Instances:       1,
+		InstanceLimits: domain.MinMax{
+			Min:     0,
+			Max:     2,
+			Default: 1,
+		},
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(2147483648),
+		},
+		Startup: "firstservice -start",
+	},
+	secondService: service.ServiceDetails{
+		ID:              "secondService",
+		Name:            "Second Service Name",
+		Description:     "The second child service",
+		PoolID:          "pool",
+		ParentServiceID: "tenant",
+		Instances:       1,
+		InstanceLimits: domain.MinMax{
+			Min:     0,
+			Max:     10,
+			Default: 1,
+		},
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(1073741824),
+		},
+		Startup: "secondservice -start",
 	},
 }
 
 func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnStatusOK(c *C) {
-	request := s.buildRequest("GET", "http://www.example.com/services/parentService/services", "")
-	request.PathParams["serviceId"] = "parentService"
+	request := s.buildRequest("GET", "http://www.example.com/services/tenant/services", "")
+	request.PathParams["serviceId"] = "tenant"
 
 	s.mockFacade.
-		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails}, nil)
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "tenant").
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstService}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 
@@ -58,35 +96,153 @@ func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnStatusOK(c *C) 
 }
 
 func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnCorrectValueForTotal(c *C) {
-	request := s.buildRequest("GET", "http://www.example.com/services/parentService/services", "")
-	request.PathParams["serviceId"] = "parentService"
+	request := s.buildRequest("GET", "http://www.example.com/services/tenant/services", "")
+	request.PathParams["serviceId"] = "tenant"
 
 	s.mockFacade.
-		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "tenant").
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstService, serviceDetailsTestData.secondService}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 
-	response := childServiceDetailsResponse{}
+	response := serviceDetailsListResponse{}
 	s.getResult(c, &response)
 
 	c.Assert(response.Total, Equals, 2)
 }
 
 func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnCorrectLinkValues(c *C) {
-	request := s.buildRequest("GET", "http://www.example.com/services/parentService/services", "")
-	request.PathParams["serviceId"] = "parentService"
+	request := s.buildRequest("GET", "http://www.example.com/services/tenant/services", "")
+	request.PathParams["serviceId"] = "tenant"
 
 	s.mockFacade.
-		On("GetChildServiceDetails", s.ctx.getDatastoreContext(), "parentService").
-		Return([]service.ServiceDetails{serviceDetailsTestData.firstDetails, serviceDetailsTestData.secondDetails}, nil)
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "tenant").
+		Return([]service.ServiceDetails{serviceDetailsTestData.firstService, serviceDetailsTestData.secondService}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
 
-	response := childServiceDetailsResponse{}
+	response := serviceDetailsListResponse{}
 	s.getResult(c, &response)
 
-	c.Assert(response.Links[0].HRef, Equals, "/services/parentService/services")
+	c.Assert(response.Links[0].HRef, Equals, "/services/tenant/services")
 	c.Assert(response.Links[0].Rel, Equals, "self")
 	c.Assert(response.Links[0].Method, Equals, "GET")
+}
+
+func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusOK(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services/firstservice/services", "")
+	request.PathParams["serviceId"] = "firstservice"
+
+	s.mockFacade.
+		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
+		Return(&serviceDetailsTestData.firstService, nil)
+
+	getServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+}
+
+func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnCorrectLinkValues(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services/firstservice/services", "")
+	request.PathParams["serviceId"] = "firstservice"
+
+	s.mockFacade.
+		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
+		Return(&serviceDetailsTestData.firstService, nil)
+
+	getServiceDetails(&(s.writer), &request, s.ctx)
+
+	response := serviceDetailsResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Links[0].HRef, Equals, "/services/firstservice/services")
+	c.Assert(response.Links[0].Rel, Equals, "self")
+	c.Assert(response.Links[0].Method, Equals, "GET")
+}
+
+func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusNotFoundIfNoService(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services/firstservice/services", "")
+	request.PathParams["serviceId"] = "firstservice"
+
+	s.mockFacade.
+		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
+		Return(nil, nil)
+
+	getServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusNotFound)
+}
+
+func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldReturnStatusOK(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services", "")
+
+	s.mockFacade.
+		On("GetAllServiceDetails", s.ctx.getDatastoreContext()).
+		Return([]service.ServiceDetails{
+			serviceDetailsTestData.firstService,
+			serviceDetailsTestData.secondService,
+			serviceDetailsTestData.tenant,
+		}, nil)
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+}
+
+func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldReturnCorrectValueForTotal(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services", "")
+
+	s.mockFacade.
+		On("GetAllServiceDetails", s.ctx.getDatastoreContext()).
+		Return([]service.ServiceDetails{
+			serviceDetailsTestData.firstService,
+			serviceDetailsTestData.secondService,
+			serviceDetailsTestData.tenant,
+		}, nil)
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	response := serviceDetailsListResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Total, Equals, 3)
+}
+
+func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldReturnCorrectLinkValues(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services", "")
+
+	s.mockFacade.
+		On("GetAllServiceDetails", s.ctx.getDatastoreContext()).
+		Return([]service.ServiceDetails{
+			serviceDetailsTestData.firstService,
+			serviceDetailsTestData.secondService,
+			serviceDetailsTestData.tenant,
+		}, nil)
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	response := serviceDetailsListResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(response.Links[0].HRef, Equals, "/services")
+	c.Assert(response.Links[0].Rel, Equals, "self")
+	c.Assert(response.Links[0].Method, Equals, "GET")
+}
+
+func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldOnlyReturnTenants(c *C) {
+	request := s.buildRequest("GET", "http://www.example.com/services?tenants", "")
+
+	s.mockFacade.
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "").
+		Return([]service.ServiceDetails{
+			serviceDetailsTestData.tenant,
+		}, nil)
+
+	getAllServiceDetails(&(s.writer), &request, s.ctx)
+
+	response := serviceDetailsListResponse{}
+	s.getResult(c, &response)
+
+	c.Assert(len(response.Results), Equals, 1)
+	c.Assert(response.Results[0].ID, Equals, "tenant")
 }

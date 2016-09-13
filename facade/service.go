@@ -387,30 +387,6 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 				return ErrServiceMissingAssignment
 			}
 		}
-		for _, vhost := range ep.VHostList {
-			// check that vhosts aren't already started elsewhere
-			serviceID, application, err := f.zzk.GetVHost(vhost.Name)
-			if err != nil {
-				glog.Errorf("Could not check public endpoint for vhost %s: %s", vhost.Name, err)
-				return err
-			}
-			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-				glog.Errorf("Vhost %s is already in use by another application %s (%s)", vhost.Name, serviceID, application)
-				return errors.New("vhost already in use")
-			}
-		}
-		for _, port := range ep.PortList {
-			// check that ports aren't already started elsewhere
-			serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
-			if err != nil {
-				glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
-				return err
-			}
-			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-				glog.Errorf("Port %s is already in use by another application %s (%s)", port.PortAddr, serviceID, application)
-				return errors.New("port already in use")
-			}
-		}
 	}
 	return nil
 }
@@ -1906,7 +1882,17 @@ var (
 	tenanIDMutex = sync.RWMutex{}
 )
 
+// Get all the service details
+func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetAllServiceDetails(ctx)
+}
+
+// Get the details of the services for the given id
+func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetails(ctx, serviceID)
+}
+
 // Get the details of the child services for the given parent
-func (f *Facade) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
-	return f.serviceStore.GetChildServiceDetails(ctx, serviceID)
+func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
 }

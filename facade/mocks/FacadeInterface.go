@@ -811,8 +811,32 @@ func (_m *FacadeInterface) GetServiceInstances(ctx datastore.Context, since time
 
 	return r0, r1
 }
+<<<<<<< HEAD
 
 // GetReadPools provides a mock function with given fields: ctx
+=======
+func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error) {
+	ret := _m.Called(ctx, since, serviceids)
+
+	var r0 []service.AggregateService
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Time, []string) []service.AggregateService); ok {
+		r0 = rf(ctx, since, serviceids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.AggregateService)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Time, []string) error); ok {
+		r1 = rf(ctx, since, serviceids)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+>>>>>>> 4722849315532c08199f77fa03cb42d0d2987b60
 func (_m *FacadeInterface) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 	ret := _m.Called(ctx)
 
@@ -880,14 +904,34 @@ func (_m *FacadeInterface) FindReadHostsInPool(ctx datastore.Context, poolID str
 
 	return r0, r1
 }
-
-// GetChildServiceDetails provides a mock function with given fields: ctx, serviceID
-func (_m *FacadeInterface) GetChildServiceDetails(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
+=
+func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
 	ret := _m.Called(ctx, serviceID)
+
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceDetails); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, parentID)
 
 	var r0 []service.ServiceDetails
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, serviceID)
+		r0 = rf(ctx, parentID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -896,7 +940,7 @@ func (_m *FacadeInterface) GetChildServiceDetails(ctx datastore.Context, service
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
+		r1 = rf(ctx, parentID)
 	} else {
 		r1 = ret.Error(1)
 	}

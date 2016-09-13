@@ -50,7 +50,7 @@ Feature: Service Endpoints
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "Missing port"
 
   Scenario: Public Endpoint dialog - bad port given
@@ -59,7 +59,7 @@ Feature: Service Endpoints
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
       And I fill in Port "99999"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "Port must be between 1 and 65536"
 
 
@@ -70,7 +70,7 @@ Feature: Service Endpoints
       And I should see the Add Public Endpoint dialog
       And I fill in Host "a.b.c.d"
       And I fill in Port "table://services/childServiceWithVHost/port_placeholder"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "no such host"
 
   Scenario: Public Endpoint dialog - add https
@@ -82,7 +82,7 @@ Feature: Service Endpoints
       And I fill in Host "table://services/childServiceWithVHost/host"
       And I fill in Port "table://services/childServiceWithVHost/port_https"
       And I select Protocol "table://services/childServiceWithVHost/protocol_https"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
       And I should see only one endpoint entry of Port "table://services/childServiceWithVHost/port_https"
@@ -101,7 +101,7 @@ Feature: Service Endpoints
       And I fill in Host "table://services/childServiceWithVHost/host"
       And I fill in Port "table://services/childServiceWithVHost/port_http"
       And I select Protocol "table://services/childServiceWithVHost/protocol_http"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
       And I should see only one endpoint entry of Port "table://services/childServiceWithVHost/port_http"
@@ -120,7 +120,7 @@ Feature: Service Endpoints
       And I fill in Host "table://services/childServiceWithVHost/host"
       And I fill in Port "table://services/childServiceWithVHost/port_tls"
       And I select Protocol "table://services/childServiceWithVHost/protocol_tls"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
       And I should see only one endpoint entry of Port "table://services/childServiceWithVHost/port_tls"
@@ -139,7 +139,7 @@ Feature: Service Endpoints
       And I fill in Host "table://services/childServiceWithVHost/host"
       And I fill in Port "table://services/childServiceWithVHost/port_other"
       And I select Protocol "table://services/childServiceWithVHost/protocol_other"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
       And I should see only one endpoint entry of Port "table://services/childServiceWithVHost/port_other"
@@ -182,7 +182,7 @@ Feature: Service Endpoints
       And I fill in Host "table://services/childServiceWithVHost/host"
       And I fill in Port "table://services/childServiceWithVHost/port_https"
       And I select Protocol "table://services/childServiceWithVHost/protocol_https"
-      And I click "Add and Restart Service"
+      And I click "Add"
     Then I should see "table://services/childServiceWithVHost/name"
       And I should see "Public Endpoints"
       And I should see only one endpoint entry of Port "table://services/childServiceWithVHost/port_https"
