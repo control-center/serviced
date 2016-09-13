@@ -18,17 +18,39 @@ package auth_test
 import (
 	"testing"
 
+	"github.com/control-center/serviced/auth"
+
 	. "gopkg.in/check.v1"
 )
 
-type TestAuthSuite struct{}
+type TestAuthSuite struct {
+	masterPubPEM    []byte
+	masterPrivPEM   []byte
+	delegatePubPEM  []byte
+	delegatePrivPEM []byte
+}
+
+var (
+	mPub, mPriv, dPub, dPriv []byte
+)
+
+func init() {
+	mPub, mPriv, _ = auth.GenerateRSAKeyPairPEM(nil)
+	dPub, dPriv, _ = auth.GenerateRSAKeyPairPEM(nil)
+}
 
 var _ = Suite(&TestAuthSuite{})
 
 func TestAuth(t *testing.T) { TestingT(t) }
 
-// Above is boilerplate. Now to the tests. Define methods on the suite struct.
+func (s *TestAuthSuite) SetUpTest(c *C) {
+	s.masterPubPEM, s.masterPrivPEM = mPub, mPriv
+	s.delegatePubPEM, s.delegatePrivPEM = dPub, dPriv
 
-func (s *TestAuthSuite) TestSomething(c *C) {
-	c.Assert(true, Equals, true)
+	auth.LoadMasterKeysFromPEM(mPub, mPriv)
+	auth.LoadDelegateKeysFromPEM(mPub, dPriv)
+}
+
+func (s *TestAuthSuite) TearDownTest(c *C) {
+	auth.ClearKeys()
 }
