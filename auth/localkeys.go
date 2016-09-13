@@ -76,7 +76,7 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 // to the delegate running this process.
 func SignAsDelegate(message []byte) ([]byte, error) {
 	if delegateKeys.localPrivate == nil {
-		return nil, ErrNotRSAPrivateKey
+		return nil, ErrNoPrivateKey
 	}
 	return delegateKeys.Sign(message)
 }
@@ -85,7 +85,7 @@ func SignAsDelegate(message []byte) ([]byte, error) {
 // will return an error if the delegate running this process is not the master
 func SignAsMaster(message []byte) ([]byte, error) {
 	if masterKeys.private == nil {
-		return nil, ErrNotRSAPrivateKey
+		return nil, ErrNoPrivateKey
 	}
 	return masterKeys.Sign(message)
 }
@@ -131,7 +131,10 @@ func LoadDelegateKeysFromFile(filename string) error {
 //  write them to disk.
 func CreateOrLoadMasterKeys(filename string) error {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		os.MkdirAll(path.Dir(filename), os.ModeDir|0700)
+		if err = os.MkdirAll(path.Dir(filename), os.ModeDir|0700); err != nil {
+			return err
+		}
+
 		pub, priv, err := GenerateRSAKeyPairPEM(nil)
 		if err != nil {
 			return err

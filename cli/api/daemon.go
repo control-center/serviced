@@ -426,9 +426,14 @@ func (d *daemon) startMaster() (err error) {
 
 	// Load keys if they exist, else generate them
 	masterKeyFile := path.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	keylog := log.WithFields(logrus.Fields{
+		"keyfile": masterKeyFile,
+	})
 	if err = auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
-		log.WithError(err).Fatal("Unable to load or create master keys")
+		keylog.WithError(err).Fatal("Unable to load or create master keys")
 	}
+
+	keylog.Info("Loaded master keys from disk")
 
 	// This is storage related
 	storagelogger := log.WithFields(logrus.Fields{
