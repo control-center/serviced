@@ -43,10 +43,7 @@ const (
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
 	// get current host token
-	token, err := AuthToken()
-	if err != nil {
-		return nil, err
-	}
+	token := AuthToken()
 
 	// get a Signer
 	myPrivateKey := LocalPrivateKey()

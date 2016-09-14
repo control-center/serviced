@@ -18,6 +18,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
@@ -212,4 +216,46 @@ func LoadMasterKeysFromPEM(public, private []byte) error {
 // ClearKeys wipes the current state
 func ClearKeys() {
 	delegateKeys, masterKeys = HostKeys{}, MasterKeys{}
+}
+
+func WatchForDelegateKeys(filename string, cancel chan interface{}) error {
+	filename = filepath.Clean(filename)
+
+	log := log.WithFields(logrus.Fields{
+		"keyfile": filename,
+	})
+
+	err := LoadDelegateKeysFromFile(filename)
+	if err == nil {
+		return nil
+	}
+	log.WithError(err).Warn("Unable to load delegate keys from file. Watching for changes")
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	cleanDir, _ := filepath.Split(filename)
+	ops := fsnotify.Write | fsnotify.Create
+	if err := w.Add(cleanDir); err != nil {
+		return err
+	}
+	for {
+		select {
+		case e := <-w.Events:
+			if filepath.Clean(e.Name) == filename {
+				if e.Op&ops > 0 {
+					// We have a change to our file. See if it loads up ok
+					if err := LoadDelegateKeysFromFile(filename); err != nil {
+						log.WithError(err).Warn("Unable to load delegate keys from file. Continuing to watch for changes")
+						continue
+					}
+					return nil
+				}
+			}
+		case <-cancel:
+			return nil
+		}
+	}
 }
