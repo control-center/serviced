@@ -141,13 +141,13 @@ type FacadeInterface interface {
 
 	GetUser(ctx datastore.Context, userName string) (user.User, error)
 
-	UpdateUser(ctx datastore.Context, user user.User) error
+	UpdateUser(ctx datastore.Context, u user.User) error
 
 	RemoveUser(ctx datastore.Context, userName string) error
 
 	GetSystemUser(ctx datastore.Context) (user.User, error)
 
-	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+	ValidateCredentials(ctx datastore.Context, u user.User) (bool, error)
 
 	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
 

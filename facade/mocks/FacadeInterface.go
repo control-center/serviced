@@ -970,12 +970,12 @@ func (_m *FacadeInterface) GetUser(ctx datastore.Context, userName string) (user
 
 	return r0, r1
 }
-func (_m *FacadeInterface) UpdateUser(ctx datastore.Context, user user.User) error {
-	ret := _m.Called(ctx, user)
+func (_m *FacadeInterface) UpdateUser(ctx datastore.Context, u user.User) error {
+	ret := _m.Called(ctx, u)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(datastore.Context, user.User) error); ok {
-		r0 = rf(ctx, user)
+		r0 = rf(ctx, u)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1013,19 +1013,19 @@ func (_m *FacadeInterface) GetSystemUser(ctx datastore.Context) (user.User, erro
 
 	return r0, r1
 }
-func (_m *FacadeInterface) ValidateCredentials(ctx datastore.Context, user user.User) (bool, error) {
-	ret := _m.Called(ctx, user)
+func (_m *FacadeInterface) ValidateCredentials(ctx datastore.Context, u user.User) (bool, error) {
+	ret := _m.Called(ctx, u)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(datastore.Context, user.User) bool); ok {
-		r0 = rf(ctx, user)
+		r0 = rf(ctx, u)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, user.User) error); ok {
-		r1 = rf(ctx, user)
+		r1 = rf(ctx, u)
 	} else {
 		r1 = ret.Error(1)
 	}
