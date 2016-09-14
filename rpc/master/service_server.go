@@ -13,7 +13,31 @@
 
 package master
 
-import "github.com/control-center/serviced/domain/service"
+import (
+	"time"
+
+	"github.com/control-center/serviced/domain/service"
+)
+
+type ServiceUseRequest struct {
+	ServiceID   string
+	ImageID     string
+	ReplaceImgs []string
+	Registry    string
+	NoOp        bool
+}
+
+type WaitServiceRequest struct {
+	ServiceIDs []string
+	State      service.DesiredState
+	Timeout    time.Duration
+	Recursive  bool
+}
+
+type EvaluateServiceRequest struct {
+	ServiceID  string
+	InstanceID int
+}
 
 // Use a new image for a given service - this will pull the image and tag it
 func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
@@ -37,5 +61,25 @@ func (s *Server) GetService(serviceID string, svc *service.Service) error {
 		return err
 	}
 	*svc = *sv
+	return nil
+}
+
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, svc *service.Service) error {
+	result, err := s.f.GetEvaluatedService(s.context(), request.ServiceID, request.InstanceID)
+	if err != nil {
+		return err
+	}
+	*svc = *result
+	return nil
+}
+
+// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
+func (s *Server) GetTenantID(serviceID string, tenantId *string) error {
+	result, err := s.f.GetTenantID(s.context(), serviceID)
+	if err != nil {
+		return err
+	}
+	*tenantId = result
 	return nil
 }

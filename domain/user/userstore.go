@@ -19,13 +19,17 @@ import (
 	"strings"
 )
 
-//NewStore creates a UserStore
-func NewStore() *UserStore {
-	return &UserStore{}
+// NewStore creates a user Store
+func NewStore() Store {
+	return &userStoreImpl{}
 }
 
-//UserStore type for interacting with User persistent storage
-type UserStore struct {
+// UserStore type for interacting with User persistent storage
+type Store interface {
+	datastore.EntityStore
+}
+
+type userStoreImpl struct {
 	datastore.DataStore
 }
 

@@ -15,6 +15,9 @@ package facade
 
 import (
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
@@ -23,14 +26,19 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/metrics"
 	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 // GetServiceInstances returns the state of all instances for a particular
 // service.
-func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([]service.Instance, error) {
+func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, serviceID string) ([]service.Instance, error) {
 	logger := plog.WithField("serviceid", serviceID)
 
+	// create an instance map to map instances to their memory usage
+	instanceMap := make(map[string]*service.Usage)
+
+	// keep track of the hosts previously looked up
 	hostMap := make(map[string]host.Host)
 
 	svc, err := f.serviceStore.Get(ctx, serviceID)
@@ -54,6 +62,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 	logger = logger.WithField("instances", len(states))
 	logger.Debug("Found running instances for service")
 
+	metricsreq := make([]metrics.ServiceInstance, len(states))
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 		hst, ok := hostMap[state.HostID]
@@ -74,18 +83,37 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, serviceID string) ([
 		if err != nil {
 			return nil, err
 		}
+		metricsreq[i] = metrics.ServiceInstance{ServiceID: inst.ServiceID, InstanceID: inst.InstanceID}
 		insts[i] = *inst
+		instanceMap[fmt.Sprintf("%s-%d", inst.ServiceID, inst.InstanceID)] = &insts[i].MemoryUsage
+	}
+
+	// look up the metrics of all the instances
+	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+	if err != nil {
+		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+	} else {
+		for _, metric := range metricsres {
+			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+				Cur: metric.Last,
+				Max: metric.Max,
+				Avg: metric.Average,
+			}
+		}
 	}
 
 	logger.Debug("Loaded instances for service")
-
 	return insts, nil
 }
 
 // GetHostInstances returns the state of all instances for a particular host.
-func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]service.Instance, error) {
+func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID string) ([]service.Instance, error) {
 	logger := plog.WithField("hostid", hostID)
 
+	// create an instance map to map instances to their memory usage
+	instanceMap := make(map[string]*service.Usage)
+
+	// keep track of the services previously looked up
 	svcMap := make(map[string]service.Service)
 
 	var hst host.Host
@@ -111,6 +139,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 	logger = logger.WithField("instances", len(states))
 	logger.Debug("Found running instances for services")
 
+	metricsreq := make([]metrics.ServiceInstance, len(states))
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 
@@ -134,11 +163,26 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, hostID string) ([]servi
 		if err != nil {
 			return nil, err
 		}
+		metricsreq[i] = metrics.ServiceInstance{ServiceID: inst.ServiceID, InstanceID: inst.InstanceID}
 		insts[i] = *inst
+		instanceMap[fmt.Sprintf("%s-%d", inst.ServiceID, inst.InstanceID)] = &insts[i].MemoryUsage
+	}
+
+	// look up the metrics of all the instances
+	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+	if err != nil {
+		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+	} else {
+		for _, metric := range metricsres {
+			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+				Cur: metric.Last,
+				Max: metric.Max,
+				Avg: metric.Average,
+			}
+		}
 	}
 
 	logger.Debug("Loaded instances for host")
-
 	return insts, nil
 }
 
@@ -210,12 +254,121 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	}
 	logger.Debug("Calulated service status")
 
-	// get the health status
+	inst := &service.Instance{
+		InstanceID:   state.InstanceID,
+		HostID:       hst.ID,
+		HostName:     hst.Name,
+		ServiceID:    svc.ID,
+		ServiceName:  svc.Name,
+		ContainerID:  state.ContainerID,
+		ImageSynced:  imageSynced,
+		DesiredState: state.DesiredState,
+		CurrentState: curState,
+		HealthStatus: f.getInstanceHealth(&svc, state.InstanceID),
+		Scheduled:    state.Scheduled,
+		Started:      state.Started,
+		Terminated:   state.Terminated,
+	}
+	logger.Debug("Loaded service instance")
+
+	return inst, nil
+}
+
+// GetAggregateServices returns the aggregated states of a bulk of services
+func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, serviceIDs []string) ([]service.AggregateService, error) {
+	logger := plog.WithField("serviceids", strings.Join(serviceIDs, ","))
+
+	// Create an instance map to map instances to their memory usage.  This is
+	// so that we only have to make one call to query service to get metrics
+	// for all the instances.
+	instanceMap := make(map[string]*service.Usage)
+
+	// Set up an array containing all the metrics to collect
+	var metricsreq []metrics.ServiceInstance
+
+	// Results are for saving the metric data that will be returned to the
+	// caller.
+	results := make([]service.AggregateService, len(serviceIDs))
+
+	for i, serviceID := range serviceIDs {
+		svclog := logger.WithField("serviceid", serviceID)
+
+		svc, err := f.serviceStore.Get(ctx, serviceID)
+		if datastore.IsErrNoSuchEntity(err) {
+
+			// If the service is not found, set the NotFound boolean to true
+			// and continue
+			results[i] = service.AggregateService{
+				ServiceID: serviceID,
+				NotFound:  true,
+			}
+			svclog.Debug("Service not found")
+			continue
+		} else if err != nil {
+			svclog.WithError(err).Debug("Could not retrieve service")
+			return nil, err
+		}
+
+		// Get all the state ids running on that service
+		stateIDs, err := f.zzk.GetServiceStateIDs(svc.PoolID, svc.ID)
+		if err != nil {
+			svclog.WithError(err).Debug("Could not retrieve instances for service")
+			return nil, err
+		}
+
+		// set up the aggregated service object
+		results[i] = service.AggregateService{
+			ServiceID:    serviceID,
+			DesiredState: service.DesiredState(svc.DesiredState),
+			Status:       make([]service.StatusInstance, len(stateIDs)),
+			NotFound:     false,
+		}
+
+		// set up the status of each instance
+		for j, stateID := range stateIDs {
+
+			// report the instance id and the health
+			results[i].Status[j] = service.StatusInstance{
+				InstanceID: stateID.InstanceID,
+				Health:     f.getInstanceHealth(svc, stateID.InstanceID),
+			}
+
+			// append a request to the metrics query for this instance
+			metricsreq = append(metricsreq, metrics.ServiceInstance{
+				ServiceID:  serviceID,
+				InstanceID: stateID.InstanceID,
+			})
+
+			// add the memory usage response
+			instanceMap[fmt.Sprintf("%s-%d", serviceID, stateID.InstanceID)] = &results[i].Status[j].MemoryUsage
+		}
+	}
+
+	// look up the metrics of all the instances
+	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+	if err != nil {
+		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+	} else {
+		for _, metric := range metricsres {
+			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+				Cur: metric.Last,
+				Max: metric.Max,
+				Avg: metric.Average,
+			}
+		}
+	}
+
+	logger.Debug("Loaded aggregate service instance data")
+	return results, nil
+}
+
+// getInstanceHealth returns the health of the instance of a given service
+func (f *Facade) getInstanceHealth(svc *service.Service, instanceID int) map[string]health.Status {
 	hstats := make(map[string]health.Status)
 	for name := range svc.HealthChecks {
 		key := health.HealthStatusKey{
 			ServiceID:       svc.ID,
-			InstanceID:      state.InstanceID,
+			InstanceID:      instanceID,
 			HealthCheckName: name,
 		}
 		result, ok := f.hcache.Get(key)
@@ -225,26 +378,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 			hstats[name] = health.Unknown
 		}
 	}
-	logger.Debug("Loaded service health")
-
-	inst := &service.Instance{
-		ID:           state.InstanceID,
-		HostID:       hst.ID,
-		HostName:     hst.Name,
-		ServiceID:    svc.ID,
-		ServiceName:  svc.Name,
-		ContainerID:  state.ContainerID,
-		ImageSynced:  imageSynced,
-		DesiredState: state.DesiredState,
-		CurrentState: curState,
-		HealthStatus: hstats,
-		Scheduled:    state.Scheduled,
-		Started:      state.Started,
-		Terminated:   state.Terminated,
-	}
-	logger.Debug("Loaded service instance")
-
-	return inst, nil
+	return hstats
 }
 
 // GetHostStrategyInstances returns the strategy objects of all the instances

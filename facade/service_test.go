@@ -153,6 +153,14 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 		DesiredState: int(service.SVCStop),
 	}
 	svc.Endpoints = endpoints
+	for _, ep := range endpoints {
+		for _, vhost := range ep.VHostList {
+			ft.zzk.On("GetVHost", vhost.Name).Return(svc.ID, ep.Application, nil).Once()
+		}
+		for _, port := range ep.PortList {
+			ft.zzk.On("GetPublicPort", port.PortAddr).Return(svc.ID, ep.Application, nil).Once()
+		}
+	}
 	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
 	return &svc
 }
@@ -172,44 +180,6 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressA
 	err := ft.Facade.validateServiceStart(ft.CTX, svc)
 	c.Assert(err, Equals, ErrServiceMissingAssignment)
 
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkVHostFail(c *C) {
-	// set up the endpoint with an invalid vhost
-	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
-		Name:        "ep2",
-		Application: "ep2",
-		Purpose:     "export",
-		VHostList: []servicedefinition.VHost{
-			{
-				Name:    "vh1",
-				Enabled: true,
-			},
-		},
-	})
-	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("GetVHost", "vh1").Return("", "", ErrTestEPValidationFail)
-	err := ft.Facade.validateServiceStart(ft.CTX, svc)
-	c.Assert(err, Equals, ErrTestEPValidationFail)
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_checkPortFail(c *C) {
-	// set up the endpoint with in invalid public port
-	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
-		Name:        "ep3",
-		Application: "ep3",
-		Purpose:     "export",
-		PortList: []servicedefinition.Port{
-			{
-				PortAddr: ":1234",
-				Enabled:  true,
-			},
-		},
-	})
-	svc := ft.setup_validateServiceStart(c, endpoint)
-	ft.zzk.On("GetPublicPort", ":1234").Return("", "", ErrTestEPValidationFail)
-	err := ft.Facade.validateServiceStart(ft.CTX, svc)
-	c.Assert(err, Equals, ErrTestEPValidationFail)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart(c *C) {
@@ -328,6 +298,56 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_noDupsInAll
 
 	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
 	t.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePublicEndpoint(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.ServiceEndpoint{
+				Application: "zproxy",
+				Name:        "zproxy",
+				PortNumber:  8080,
+				Protocol:    "tcp",
+				Purpose:     "export",
+				PortList: []servicedefinition.Port{
+					servicedefinition.Port{
+						PortAddr: ":22222",
+						Enabled:  true,
+						UseTLS:   true,
+						Protocol: "https",
+					},
+				},
+				VHostList: []servicedefinition.VHost{
+					servicedefinition.VHost{
+						Name:    "zproxy",
+						Enabled: true,
+					},
+				},
+			},
+		},
+	}
+
+	ft.zzk.On("GetVHost", "zproxy").Return("svc2", "zproxy", nil).Twice()
+	ft.zzk.On("GetPublicPort", ":22222").Return("svc2", "zproxy", nil).Twice()
+	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
+		return
+	}
+
+	svc2, err := ft.Facade.GetService(ft.CTX, svc.ID)
+	t.Assert(err, IsNil)
+	t.Check(svc2.Endpoints[0].PortList[0].Enabled, Equals, false)
+	t.Check(svc2.Endpoints[0].VHostList[0].Enabled, Equals, false)
+	svc.Endpoints[0].PortList[0].Enabled = true
+	svc.Endpoints[0].VHostList[0].Enabled = true
+
+	t.Assert(ft.Facade.UpdateService(ft.CTX, svc), NotNil)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C) {
@@ -552,6 +572,8 @@ func (ft *FacadeIntegrationTest) setupServiceWithEndpoints(t *C) (*service.Servi
 		},
 	}
 
+	ft.zzk.On("GetVHost", "test_vhost_1").Return("", "", nil).Once()
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil).Once()
 	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
 		t.Errorf("Setup failed; could not add svc %s: %s", svc.ID, err)
 		return nil, err

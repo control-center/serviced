@@ -17,6 +17,14 @@ import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 )
 
+// Defines a request to get a list of endpoints for one or more services
+type EndpointRequest struct {
+	ServiceIDs []string
+	ReportImports bool
+	ReportExports bool
+	Validate   bool
+}
+
 // Get the endpoints for one or more services
 func (s *Server) GetServiceEndpoints(request *EndpointRequest, reply *[]applicationendpoint.EndpointReport) error {
 	endpoints, err := s.f.GetServiceEndpoints(s.context(), request.ServiceIDs[0], request.ReportImports, request.ReportExports, request.Validate)

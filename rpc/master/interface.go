@@ -17,11 +17,14 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/applicationendpoint"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -98,6 +101,12 @@ type ClientInterface interface {
 	// GetServiceInstances returns all running instances of a service
 	GetServiceInstances(serviceID string) ([]service.Instance, error)
 
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error)
+
+	// Get the tenant ID for a service
+	GetTenantID(serviceID string) (string, error)
+
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error
 
@@ -152,6 +161,7 @@ type ClientInterface interface {
 	// DockerOverride replaces an image in the docker registry with a new image
 	DockerOverride(newImage, oldImage string) error
 
+	//--------------------------------------------------------------------------
 	// Public Endpoint Management Functions
 	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
 
@@ -164,4 +174,28 @@ type ClientInterface interface {
 	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
+
+	//--------------------------------------------------------------------------
+	// User Management Functions
+
+	// Get the system user record
+	GetSystemUser() (user.User, error)
+
+	// Validate the credentials of the specified user
+	ValidateCredentials(user user.User) (bool, error)
+
+	//--------------------------------------------------------------------------
+	// Healthcheck Management Functions
+
+	// GetISvcsHealth returns health status for a list of isvcs
+	GetISvcsHealth(IServiceNames []string) ([]isvcs.IServiceHealthResult, error)
+
+	// GetServicesHealth returns health checks for all services.
+	GetServicesHealth() (map[string]map[int]map[string]health.HealthStatus, error)
+
+	// ReportHealthStatus sends an update to the health check status cache.
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) error
+
+	// ReportInstanceDead removes stopped instances from the health check status cache.
+	ReportInstanceDead(serviceID string, instanceID int) error
 }

@@ -15,7 +15,7 @@ package web
 
 import (
 	userdomain "github.com/control-center/serviced/domain/user"
-	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -152,7 +152,7 @@ func restLogout(w *rest.ResponseWriter, r *rest.Request) {
 /*
  * Perform login, return JSON
  */
-func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	creds := login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
@@ -164,6 +164,12 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 	if creds.Username == "root" && !allowRootLogin {
 		glog.V(1).Info("root login disabled")
 		writeJSON(w, &simpleResponse{"Root login disabled", loginLink()}, http.StatusUnauthorized)
+		return
+	}
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		restServerError(w, err)
 		return
 	}
 
@@ -202,10 +208,8 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 	}
 }
 
-func validateLogin(creds *login, client *node.ControlClient) bool {
-	var systemUser userdomain.User
-
-	err := client.GetSystemUser(0, &systemUser)
+func validateLogin(creds *login, client master.ClientInterface) bool {
+	systemUser, err := client.GetSystemUser()
 	if err == nil && creds.Username == systemUser.Name {
 		validated := cpValidateLogin(creds, client)
 
@@ -217,7 +221,7 @@ func validateLogin(creds *login, client *node.ControlClient) bool {
 	return pamValidateLogin(creds, adminGroup)
 }
 
-func cpValidateLogin(creds *login, client *node.ControlClient) bool {
+func cpValidateLogin(creds *login, client master.ClientInterface) bool {
 	glog.V(0).Infof("Attempting to validate user %v against the control center api", creds.Username)
 	// create a client
 	user := userdomain.User{
@@ -226,8 +230,7 @@ func cpValidateLogin(creds *login, client *node.ControlClient) bool {
 	}
 	// call validate token on it
 	var result bool
-	err := client.ValidateCredentials(user, &result)
-
+	result, err := client.ValidateCredentials(user)
 	if err != nil {
 		glog.Errorf("Unable to validate credentials %s", err)
 	}

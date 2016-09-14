@@ -14,11 +14,9 @@
 package node
 
 import (
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
 
@@ -68,16 +66,11 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 	return a.rpcClient.Call("ControlCenterAgent.GetServiceEndpoints", serviceId, endpoints, 0)
 }
 
-// GetService returns a service for the given service id request.
-func (a *LBClient) GetService(serviceId string, service *service.Service) error {
-	glog.V(0).Infof("ControlCenterAgent.GetService()")
-	return a.rpcClient.Call("ControlCenterAgent.GetService", serviceId, service, 0)
-}
 
-// GetServiceInstance returns a service for the given service id request.
-func (a *LBClient) GetServiceInstance(req ServiceInstanceRequest, service *service.Service) error {
-	glog.V(0).Infof("ControlCenterAgent.GetServiceInstance()")
-	return a.rpcClient.Call("ControlCenterAgent.GetServiceInstance", req, service, 0)
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (a *LBClient) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error {
+	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
+	return a.rpcClient.Call("ControlCenterAgent.GetEvaluatedService", request, response, 0)
 }
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
@@ -99,28 +92,17 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlCenterAgent.GetTenantId", serviceId, tenantId, 0)
 }
 
-// LogHealthCheck stores a health check result.
-func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	glog.V(4).Infof("ControlCenterAgent.LogHealthCheck()")
-	return a.rpcClient.Call("ControlCenterAgent.LogHealthCheck", result, unused, 0)
-}
 
 // ReportHealthStatus stores a health check result.
-func (a *LBClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
+func (a *LBClient) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
 	glog.V(4).Infof("ControlCenterAgent.ReportHealthStatus()")
 	return a.rpcClient.Call("ControlCenterAgent.ReportHealthStatus", req, unused, 0)
 }
 
 // ReportInstanceDead removes health check results for an instance.
-func (a *LBClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
+func (a *LBClient) ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error {
 	glog.V(4).Infof("ControlCenterAgent.ReportInstanceDead()")
 	return a.rpcClient.Call("ControlCenterAgent.ReportInstanceDead", req, unused, 0)
-}
-
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]health.HealthCheck) error {
-	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
-	return a.rpcClient.Call("ControlCenterAgent.GetHealthCheck", req, healthChecks, 0)
 }
 
 // GetHostID returns the agent's host id

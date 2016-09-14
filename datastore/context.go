@@ -13,10 +13,17 @@
 
 package datastore
 
+import (
+	"github.com/control-center/serviced/metrics"
+)
+
 // Context is the context of the application or request being made
 type Context interface {
 	// Get a connection to the datastore
 	Connection() (Connection, error)
+
+	// Get the Metrics object from the context
+	Metrics() *metrics.Metrics
 }
 
 //Register a driver to use for the context
@@ -33,13 +40,18 @@ var ctx Context
 
 //new Creates a new context with a Driver to a datastore
 func newCtx(driver Driver) Context {
-	return &context{driver}
+	return &context{driver, metrics.NewMetrics()}
 }
 
 type context struct {
-	driver Driver
+	driver  Driver
+	metrics metrics.Metrics
 }
 
 func (c *context) Connection() (Connection, error) {
 	return c.driver.GetConnection()
+}
+
+func (c *context) Metrics() *metrics.Metrics {
+	return &c.metrics
 }

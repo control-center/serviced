@@ -24,6 +24,7 @@ import (
 	poolmocks "github.com/control-center/serviced/domain/pool/mocks"
 	registrymocks "github.com/control-center/serviced/domain/registry/mocks"
 	servicemocks "github.com/control-center/serviced/domain/service/mocks"
+	configmocks "github.com/control-center/serviced/domain/serviceconfigfile/mocks"
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	"github.com/control-center/serviced/facade"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
@@ -42,7 +43,9 @@ type FacadeUnitTest struct {
 	poolStore     *poolmocks.Store
 	registryStore *registrymocks.ImageRegistryStore
 	serviceStore  *servicemocks.Store
+	configStore   *configmocks.Store
 	templateStore *templatemocks.Store
+	metricsClient *zzkmocks.MetricsClient
 }
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
@@ -67,11 +70,17 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.serviceStore = &servicemocks.Store{}
 	ft.Facade.SetServiceStore(ft.serviceStore)
 
+	ft.configStore = &configmocks.Store{}
+	ft.Facade.SetConfigStore(ft.configStore)
+
 	ft.templateStore = &templatemocks.Store{}
 	ft.Facade.SetTemplateStore(ft.templateStore)
 
 	ft.zzk = &zzkmocks.ZZK{}
 	ft.Facade.SetZZK(ft.zzk)
+
+	ft.metricsClient = &zzkmocks.MetricsClient{}
+	ft.Facade.SetMetricsClient(ft.metricsClient)
 }
 
 // Mock all DFS locking operations into no-ops

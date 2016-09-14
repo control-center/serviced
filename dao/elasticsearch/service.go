@@ -163,16 +163,6 @@ func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, servi
 	}
 }
 
-// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
-	if tid, err := this.facade.GetTenantID(datastore.Get(), serviceID); err == nil {
-		*tenantId = tid
-		return nil
-	} else {
-		return err
-	}
-}
-
 // start the provided service
 func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
 	*affected, err = this.facade.StartService(datastore.Get(), request)

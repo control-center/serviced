@@ -25,7 +25,6 @@ type PublicPort struct {
 	TenantID    string
 	Application string
 	ServiceID   string // TODO: search by tenant and application
-	Enabled     bool
 	Protocol    string
 	UseTLS      bool
 	version     interface{}
@@ -101,7 +100,6 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string)
 	// looked up.
 	exportMap := make(map[string]ExportDetails)
 
-	// keep track of the on/off state of the export
 	isEnabled := false
 	defer func() {
 		if isEnabled {
@@ -125,85 +123,77 @@ func (l *PublicPortListener) Spawn(shutdown <-chan interface{}, portAddr string)
 			return
 		}
 
-		// track the exports if the port is enabled
+		// track the exports
+		exLogger := logger.WithFields(log.Fields{
+			"tenantid":    dat.TenantID,
+			"application": dat.Application,
+		})
+
 		var exevt <-chan client.Event
-		if dat.Enabled {
-			exLogger := logger.WithFields(log.Fields{
-				"tenantid":    dat.TenantID,
-				"application": dat.Application,
-			})
+		var ch []string
 
-			var ch []string
+		expth := path.Join("/net/export", dat.TenantID, dat.Application)
 
-			expth := path.Join("/net/export", dat.TenantID, dat.Application)
+		// keep checking until we have an event or an error
+		for {
+			var ok bool
+			var err error
 
-			// keep checking until we have an event or an error
-			for {
-				var ok bool
-				var err error
+			ok, exevt, err = l.conn.ExistsW(expth, done)
+			if err != nil {
+				exLogger.WithError(err).Error("Could not check exports for endpoint")
+				return
+			}
 
-				ok, exevt, err = l.conn.ExistsW(expth, done)
-				if err != nil {
-					exLogger.WithError(err).Error("Could not check exports for endpoint")
+			if ok {
+				ch, exevt, err = l.conn.ChildrenW(expth, done)
+				if err == client.ErrNoNode {
+					exLogger.Debug("Public port was suddenly deleted, retrying")
+					close(done)
+					done = make(chan struct{})
+
+					// we need an event, so try again
+					continue
+				} else if err != nil {
+					exLogger.WithError(err).Error("Could not track exports for endpoint")
 					return
 				}
-
-				if ok {
-					ch, exevt, err = l.conn.ChildrenW(expth, done)
-					if err == client.ErrNoNode {
-						logger.Debug("Public port was suddenly deleted, retrying")
-						close(done)
-						done = make(chan struct{})
-
-						// we need an event, so try again
-						continue
-					} else if err != nil {
-						exLogger.WithError(err).Error("Could not track exports for endpoint")
-						return
-					}
-				}
-				break
 			}
-
-			exports := []ExportDetails{}
-
-			// get the exports and update the cache
-			sendUpdate := len(ch) != len(exportMap)
-			chMap := make(map[string]ExportDetails)
-			for _, name := range ch {
-				export, ok := exportMap[name]
-				if !ok {
-					sendUpdate = true
-					if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
-						continue
-					} else if err != nil {
-						exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
-						return
-					}
-				}
-				chMap[name] = export
-				exports = append(exports, export)
-			}
-
-			exportMap = chMap
-
-			// only set new values if the exports have changed
-			if sendUpdate {
-				l.handler.Set(portAddr, exports)
-				exLogger.Debug("Set new endpoints for export")
-			}
+			break
 		}
 
-		// do something if the state of the port has changed
-		if isEnabled != dat.Enabled {
-			if dat.Enabled {
-				l.handler.Enable(portAddr, dat.Protocol, dat.UseTLS)
-				logger.Debug("Enabled port")
-			} else {
-				l.handler.Disable(portAddr)
-				logger.Info("Disabled port")
+		exports := []ExportDetails{}
+
+		// get the exports and update the cache
+		sendUpdate := len(ch) != len(exportMap)
+		chMap := make(map[string]ExportDetails)
+		for _, name := range ch {
+			export, ok := exportMap[name]
+			if !ok {
+				sendUpdate = true
+				if err := l.conn.Get(path.Join(expth, name), &export); err == client.ErrNoNode {
+					continue
+				} else if err != nil {
+					exLogger.WithField("exportkey", name).WithError(err).Error("Could not look up export")
+					return
+				}
 			}
-			isEnabled = dat.Enabled
+			chMap[name] = export
+			exports = append(exports, export)
+		}
+
+		exportMap = chMap
+
+		// only set new values if the exports have changed
+		if sendUpdate {
+			l.handler.Set(portAddr, exports)
+			exLogger.Debug("Set new endpoints for export")
+		}
+
+		if !isEnabled {
+			l.handler.Enable(portAddr, dat.Protocol, dat.UseTLS)
+			logger.Debug("Enabled port")
+			isEnabled = true
 		}
 
 		select {

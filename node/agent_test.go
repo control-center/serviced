@@ -24,9 +24,10 @@ import (
 
 	docker "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/docker/test"
-	"github.com/control-center/serviced/dao/mocks"
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/user"
+	rpcmocks "github.com/control-center/serviced/rpc/master/mocks"
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
@@ -138,9 +139,6 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 
 	// Create a fake pull registry that doesn't pull images
 	fakeRegistry := &regmocks.Registry{}
-	//fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
-	//fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
-	//fakeRegistry.On("PullImage", mock.Anything).Return(nil)
 
 	// Create a fake HostAgent
 	fakeHostAgent := &HostAgent{
@@ -152,19 +150,20 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	}
 
 	// Create a fake client that won't make any RPC calls
-	fakeClient := &mocks.ControlPlane{}
+	fakeMasterClient := &rpcmocks.ClientInterface{}
 
 	// Create a fake service.Service
 	fakeService := &service.Service{
 		ImageID: "busybox:latest",
 		ID:      "faketestService",
 	}
-
-	fakeClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
-	fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
+	fakeUser := user.User{}
+	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
+	fakeMasterClient.On("GetSystemUser").Return(fakeUser, nil)
+	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
 
 	// Call setupContainer
-	container, servicestate, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0, "")
+	container, servicestate, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID)
 
 	assert.NotNil(container)
 	assert.NotNil(servicestate)
@@ -180,6 +179,6 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 
 	fakeDockerClient.AssertExpectations(t)
 	fakeEventMonitor.AssertExpectations(t)
-	fakeClient.AssertExpectations(t)
+	fakeMasterClient.AssertExpectations(t)
 	fakeRegistry.AssertExpectations(t)
 }

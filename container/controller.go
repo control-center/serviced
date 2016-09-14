@@ -17,13 +17,13 @@ import (
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -114,6 +114,7 @@ type Controller struct {
 	PIDFile            string
 	exitStatus         int
 	endpoints          *ContainerEndpoints
+	healthChecks       map[string]health.HealthCheck
 }
 
 // Close shuts down the controller
@@ -133,7 +134,7 @@ func getService(lbClientPort string, serviceID string, instanceID int) (*service
 	defer client.Close()
 
 	var svc service.Service
-	err = client.GetServiceInstance(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+	err = client.GetEvaluatedService(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
@@ -300,6 +301,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+	c.healthChecks = service.HealthChecks
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -728,7 +730,7 @@ func (c *Controller) Run() (err error) {
 	}
 	defer client.Close()
 	c.Close()
-	req := dao.ServiceInstanceRequest{
+	req := master.ServiceInstanceRequest{
 		ServiceID:  c.options.Service.ID,
 		InstanceID: instID,
 	}
@@ -778,20 +780,13 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 		return
 	}
 	defer client.Close()
-	var healthChecks map[string]health.HealthCheck
 
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
 		return
 	}
-	err = client.GetHealthCheck(node.HealthCheckRequest{
-		c.options.Service.ID, instanceID}, &healthChecks)
-	if err != nil {
-		glog.Errorf("Error getting health checks: %s", err)
-		return
-	}
-	for name, hc := range healthChecks {
+	for name, hc := range c.healthChecks {
 		glog.Infof("Kicking off health check %s.", name)
 		glog.Infof("Setting up health check: %s", hc.Script)
 		key := health.HealthStatusKey{
@@ -806,7 +801,7 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 
 func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStatusKey, hc health.HealthCheck) {
 	hc.Ping(cancel, func(stat health.HealthStatus) {
-		req := dao.HealthStatusRequest{
+		req := master.HealthStatusRequest{
 			Key:     key,
 			Value:   stat,
 			Expires: hc.Expires(),

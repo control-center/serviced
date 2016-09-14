@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
 
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -26,6 +27,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 )
 
 // The FacadeInterface is the API for a Facade
@@ -33,6 +35,9 @@ type FacadeInterface interface {
 	AddService(ctx datastore.Context, svc service.Service) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
+
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(ctx datastore.Context, servicedID string, instanceID int) (*service.Service, error)
 
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
@@ -108,13 +113,43 @@ type FacadeInterface interface {
 
 	EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error
 
-	GetHostInstances(ctx datastore.Context, hostid string) ([]service.Instance, error)
+	GetHostInstances(ctx datastore.Context, since time.Time, hostid string) ([]service.Instance, error)
 
-	GetServiceInstances(ctx datastore.Context, serviceid string) ([]service.Instance, error)
+	GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error)
+
+	GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error)
 
 	GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error)
 
 	GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error)
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
+
+	GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error)
+
+	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
+	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+
+	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
+
+	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
+
+	AddUser(ctx datastore.Context, newUser user.User) error
+
+	GetUser(ctx datastore.Context, userName string) (user.User, error)
+
+	UpdateUser(ctx datastore.Context, user user.User) error
+
+	RemoveUser(ctx datastore.Context, userName string) error
+
+	GetSystemUser(ctx datastore.Context) (user.User, error)
+
+	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+
+	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
+
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
+
+	ReportInstanceDead(serviceID string, instanceID int)
 }

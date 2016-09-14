@@ -220,22 +220,30 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, servi
 				}
 			}
 
-			// update the public address if there is a key reference, otherwise
-			// delete it if the service matches.
-			if val, ok := pubs[key]; ok {
-				addrLogger.Debug("Updating public port address")
-				val.SetVersion(pub.Version())
-				tx.Set(addrpth, &val)
+			// Update the public address if the service matches and there is a
+			// key reference.  Otherwise, delete the public address if the
+			// service matches.
+			val, ok := pubs[key]
+			if ok {
 				delete(pubs, key)
-			} else if pub.ServiceID == serviceID {
-				addrLogger.Debug("Deleting public port address")
-				tx.Delete(addrpth)
+			}
+
+			if pub.ServiceID == serviceID {
+				if ok {
+					addrLogger.Debug("Updating public port address")
+					val.SetVersion(pub.Version())
+					tx.Set(addrpth, &val)
+				} else {
+					addrLogger.Debug("Deleting public port address")
+					tx.Delete(addrpth)
+				}
 			}
 		}
 	}
 
 	// create the remaining public ports
-	for key, val := range pubs {
+	for key := range pubs {
+		val := pubs[key]
 		conn.CreateDir(path.Join(pth, key.HostID))
 		addrpth := path.Join(pth, key.HostID, key.PortAddress)
 		val.SetVersion(nil)
@@ -312,22 +320,29 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 				}
 			}
 
-			// update the public address if there is a key reference, otherwise
-			// delete it if the service matches.
-			if val, ok := vhosts[key]; ok {
-				addrLogger.Debug("Updating virtual host subdomain")
-				val.SetVersion(vhost.Version())
-				tx.Set(addrpth, &val)
+			// update the virtual host if there is a key reference and the
+			// services match, otherwise delete it if the service matches.
+			val, ok := vhosts[key]
+			if ok {
 				delete(vhosts, key)
-			} else if vhost.ServiceID == serviceID {
-				addrLogger.Debug("Deleting virtual host subdomain")
-				tx.Delete(addrpth)
+			}
+
+			if vhost.ServiceID == serviceID {
+				if ok {
+					addrLogger.Debug("Updating virtual host subdomain")
+					val.SetVersion(vhost.Version())
+					tx.Set(addrpth, &val)
+				} else {
+					addrLogger.Debug("Deleting virtual host subdomain")
+					tx.Delete(addrpth)
+				}
 			}
 		}
 	}
 
-	// create the remaining public ports
-	for key, val := range vhosts {
+	// create the remaining public ports if they are enabled
+	for key := range vhosts {
+		val := vhosts[key]
 		conn.CreateDir(path.Join(pth, key.HostID))
 		addrpth := path.Join(pth, key.HostID, key.Subdomain)
 		val.SetVersion(nil)

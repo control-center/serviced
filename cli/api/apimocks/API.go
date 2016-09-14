@@ -12,6 +12,7 @@ import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
 
 import template "github.com/control-center/serviced/domain/servicetemplate"
+import "github.com/control-center/serviced/isvcs"
 import "github.com/control-center/serviced/metrics"
 import "github.com/control-center/serviced/script"
 import "github.com/control-center/serviced/volume"
@@ -32,15 +33,15 @@ func (_m *API) StartServer() error {
 
 	return r0
 }
-func (_m *API) ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error) {
+func (_m *API) ServicedHealthCheck(IServiceNames []string) ([]isvcs.IServiceHealthResult, error) {
 	ret := _m.Called(IServiceNames)
 
-	var r0 []dao.IServiceHealthResult
-	if rf, ok := ret.Get(0).(func([]string) []dao.IServiceHealthResult); ok {
+	var r0 []isvcs.IServiceHealthResult
+	if rf, ok := ret.Get(0).(func([]string) []isvcs.IServiceHealthResult); ok {
 		r0 = rf(IServiceNames)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]dao.IServiceHealthResult)
+			r0 = ret.Get(0).([]isvcs.IServiceHealthResult)
 		}
 	}
 

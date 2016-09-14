@@ -13,14 +13,22 @@
 
 package dao
 
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+//               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
+//
+// THAT MEANS DO NOT ADD MORE METHODS TO dao.ControlPlane
+//
+// Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
+// rpc/master.ClientInterface
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+
 import (
 	"time"
 
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
 
@@ -125,9 +133,6 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	//for a service, get it's tenant Id
-	GetTenantId(serviceId string, tenantId *string) error
-
 	// Add a new service
 	AddService(svc service.Service, serviceId *string) error
 
@@ -211,31 +216,6 @@ type ControlPlane interface {
 
 	// Get service memory stats for a particular service instance
 	GetInstanceMemoryStats(req MetricRequest, stats *[]metrics.MemoryUsageStats) error
-
-	//---------------------------------------------------------------------------
-	// Service CRUD
-
-	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, usr *user.User) error
-
-	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(usr user.User, result *bool) error
-
-	// Register a health check result
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
-
-	// Check the health of control center
-	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
-
-	// ReportHealthStatus reports the status of a health check to the health
-	// status cache.
-	ReportHealthStatus(req HealthStatusRequest, unused *int) error
-
-	// ReportInstanceDead reports the status of a service instance as dead.
-	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
-
-	// GetServicesHealth returns all health checks for all services
-	GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error
 
 	// -----------------------------------------------------------------------
 	// Filesystem CRUD

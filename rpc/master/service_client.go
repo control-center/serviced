@@ -20,21 +20,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-type ServiceUseRequest struct {
-	ServiceID   string
-	ImageID     string
-	ReplaceImgs []string
-	Registry    string
-	NoOp        bool
-}
-
-type WaitServiceRequest struct {
-	ServiceIDs []string
-	State      service.DesiredState
-	Timeout    time.Duration
-	Recursive  bool
-}
-
 // ServiceUse will use a new image for a given service - this will pull the image and tag it
 func (c *Client) ServiceUse(serviceID string, imageID string, registry string, replaceImgs []string, noOp bool) (string, error) {
 	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, ReplaceImgs: replaceImgs, Registry: registry, NoOp: noOp}
@@ -66,4 +51,22 @@ func (c *Client) GetService(serviceID string) (*service.Service, error) {
 	svc := &service.Service{}
 	err := c.call("GetService", serviceID, svc)
 	return svc, err
+}
+
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error) {
+	svc := &service.Service{}
+	request := EvaluateServiceRequest{
+		ServiceID: serviceID,
+		InstanceID: instanceID,
+	}
+	err := c.call("GetEvaluatedService", request, svc)
+	return svc, err
+}
+
+// GetTenantID returns the ID of the service's tenant (i.e. the root service's ID)
+func (c *Client) GetTenantID(serviceID string) (string, error) {
+	tenantID := ""
+	err := c.call("GetTenantID", serviceID, &tenantID)
+	return tenantID, err
 }

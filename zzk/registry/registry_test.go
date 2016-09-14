@@ -33,7 +33,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     true,
 		Protocol:    "http",
 		UseTLS:      false,
 	}
@@ -44,7 +43,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     true,
 	}
 	vhosts1 := map[VHostKey]VHost{vhost1Key: vhost1}
 
@@ -68,7 +66,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app2",
 		ServiceID:   "serviceid2",
-		Enabled:     true,
 		Protocol:    "https",
 		UseTLS:      true,
 	}
@@ -79,7 +76,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app2",
 		ServiceID:   "serviceid2",
-		Enabled:     true,
 	}
 	vhosts2 := map[VHostKey]VHost{vhost2Key: vhost2}
 
@@ -116,7 +112,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     false,
 		Protocol:    "",
 		UseTLS:      true,
 	}
@@ -127,7 +122,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 		TenantID:    "tenantid",
 		Application: "app1",
 		ServiceID:   "serviceid1",
-		Enabled:     false,
 	}
 	vhosts1 = map[VHostKey]VHost{vhost1Key: vhost1}
 

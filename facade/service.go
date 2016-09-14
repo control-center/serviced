@@ -23,11 +23,13 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
@@ -130,6 +132,38 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 		glog.Errorf("Could not add service %s to parent %s: %s", svc.Name, svc.ParentServiceID, err)
 		return err
 	}
+
+	// disable ports and vhosts that are already in use by another application
+	for i, ep := range svc.Endpoints {
+		for j, vhost := range ep.VHostList {
+			if vhost.Enabled {
+				serviceID, application, err := f.zzk.GetVHost(vhost.Name)
+				if err != nil {
+					glog.Errorf("Could not check public endpoint for virtual host %s: %s", vhost.Name, err)
+					return err
+				}
+				if serviceID != "" || application != "" {
+					glog.Warningf("VHost %s already in use by another application %s (%s)", vhost.Name, serviceID, application)
+					svc.Endpoints[i].VHostList[j].Enabled = false
+				}
+			}
+		}
+
+		for j, port := range ep.PortList {
+			if port.Enabled {
+				serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
+				if err != nil {
+					glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
+					return err
+				}
+				if serviceID != "" || application != "" {
+					glog.Warningf("Public port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+					svc.Endpoints[i].PortList[j].Enabled = false
+				}
+			}
+		}
+	}
+
 	// set service defaults
 	svc.DesiredState = int(service.SVCStop) // new services must always be stopped
 	svc.DatabaseVersion = 0                 // create service set database version to 0
@@ -248,6 +282,40 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 			return nil, err
 		}
 	}
+
+	// disallow enabling ports and vhosts that are already enabled by a different
+	// service and application.
+	// TODO: what if they are on the same service?
+	for _, ep := range svc.Endpoints {
+		for _, vhost := range ep.VHostList {
+			if vhost.Enabled {
+				serviceID, application, err := f.zzk.GetVHost(vhost.Name)
+				if err != nil {
+					glog.Errorf("Could not check public endpoint for virtual host %s: %s", vhost.Name, err)
+					return nil, err
+				}
+				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+					glog.Errorf("VHost %s already in use by another application %s (%s)", vhost.Name, serviceID, application)
+					return nil, fmt.Errorf("vhost %s is already in use", vhost.Name)
+				}
+			}
+		}
+
+		for _, port := range ep.PortList {
+			if port.Enabled {
+				serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
+				if err != nil {
+					glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
+					return nil, err
+				}
+				if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
+					glog.Errorf("Public port %s already in use by another application %s (%s)", port.PortAddr, serviceID, application)
+					return nil, fmt.Errorf("port %s is already in use", port.PortAddr)
+				}
+			}
+		}
+	}
+
 	// set read-only fields
 	svc.CreatedAt = cursvc.CreatedAt
 	svc.DeploymentID = cursvc.DeploymentID
@@ -318,30 +386,6 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 			}
 			if as == nil {
 				return ErrServiceMissingAssignment
-			}
-		}
-		for _, vhost := range ep.VHostList {
-			// check that vhosts aren't already started elsewhere
-			serviceID, application, err := f.zzk.GetVHost(vhost.Name)
-			if err != nil {
-				glog.Errorf("Could not check public endpoint for vhost %s: %s", vhost.Name, err)
-				return err
-			}
-			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-				glog.Errorf("Vhost %s is already in use by another application %s (%s)", vhost.Name, serviceID, application)
-				return errors.New("vhost already in use")
-			}
-		}
-		for _, port := range ep.PortList {
-			// check that ports aren't already started elsewhere
-			serviceID, application, err := f.zzk.GetPublicPort(port.PortAddr)
-			if err != nil {
-				glog.Errorf("Could not check public endpoint for port %s: %s", port.PortAddr, err)
-				return err
-			}
-			if (serviceID != "" && serviceID != svc.ID) || (application != "" && application != ep.Application) {
-				glog.Errorf("Port %s is already in use by another application %s (%s)", port.PortAddr, serviceID, application)
-				return errors.New("port already in use")
 			}
 		}
 	}
@@ -690,6 +734,53 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 	glog.V(3).Infof("Facade.GetService: id=%s, service=%+v, err=%s", id, svc, err)
 	return svc, nil
 }
+
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (f *Facade) GetEvaluatedService(ctx datastore.Context, serviceID string, instanceID int) (*service.Service, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceID": serviceID,
+		"instanceID": instanceID,
+	})
+	logger.Debug("Started Facade.GetEvaluatedService")
+	defer logger.Debug("Finished Facade.GetEvaluatedService")
+
+	svc, err := f.GetService(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := f.evaluateService(ctx, svc, instanceID); err != nil {
+		return nil, err
+	}
+	return svc, nil
+}
+
+// evaluateService translates the service template fields
+func (f *Facade) evaluateService(ctx datastore.Context, svc *service.Service, instanceID int) error {
+
+	// service lookup
+	getService := func(serviceID string) (service.Service, error) {
+		svc := service.Service{}
+		result, err := f.GetService(ctx, serviceID)
+		if result != nil {
+			svc = *result
+		}
+		return svc, err
+	}
+
+	// service child lookup
+	getServiceChild := func(parentID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		result, err := f.FindChildService(ctx, parentID, childName)
+		if result != nil {
+			svc = *result
+		}
+		return svc, err
+	}
+
+	return svc.Evaluate(getService, getServiceChild, instanceID)
+}
+
 
 // GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
@@ -1791,3 +1882,102 @@ var (
 	tenantIDs    = make(map[string]string)
 	tenanIDMutex = sync.RWMutex{}
 )
+
+// Get all the service details
+func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetAllServiceDetails(ctx)
+}
+
+// Get the details of the services for the given id
+func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetails(ctx, serviceID)
+}
+
+// Get the details of the child services for the given parent
+func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
+}
+
+// Get the monitoring profile of a given service
+func (f *Facade) GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error) {
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return &svc.MonitoringProfile, nil
+}
+
+// GetServicePublicEndpoints returns all the endpoints for a service and its
+// children if enabled.
+func (f *Facade) GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error) {
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	pubeps := f.getServicePublicEndpoints(*svc)
+
+	if children {
+		var setChildrenPublicEndpoints func(serviceID string) error
+
+		setChildrenPublicEndpoints = func(serviceID string) error {
+			svcs, err := f.serviceStore.GetChildServices(ctx, serviceID)
+			if err != nil {
+				return err
+			}
+
+			for _, svc := range svcs {
+				pubeps = append(pubeps, f.getServicePublicEndpoints(svc)...)
+				if err := setChildrenPublicEndpoints(svc.ID); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+
+		if err := setChildrenPublicEndpoints(serviceID); err != nil {
+			return nil, err
+		}
+	}
+
+	return pubeps, nil
+}
+
+func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.PublicEndpoint {
+	pubs := []service.PublicEndpoint{}
+
+	for _, ep := range svc.Endpoints {
+		for _, vhost := range ep.VHostList {
+			pubs = append(pubs, service.PublicEndpoint{
+				ServiceID:   svc.ID,
+				ServiceName: svc.Name,
+				Application: ep.Application,
+				Protocol:    "https",
+				VHostName:   vhost.Name,
+				Enabled:     vhost.Enabled,
+			})
+		}
+
+		for _, port := range ep.PortList {
+			pub := service.PublicEndpoint{
+				ServiceID:   svc.ID,
+				ServiceName: svc.Name,
+				Application: ep.Application,
+				PortAddress: port.PortAddr,
+				Enabled:     port.Enabled,
+			}
+
+			if strings.HasPrefix(port.Protocol, "http") {
+				pub.Protocol = port.Protocol
+			} else if port.UseTLS {
+				pub.Protocol = "Other, secure (TLS)"
+			} else {
+				pub.Protocol = "Other, non-secure"
+			}
+
+			pubs = append(pubs, pub)
+		}
+	}
+
+	return pubs
+}

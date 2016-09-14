@@ -33,7 +33,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
@@ -42,7 +41,6 @@ import (
 	"github.com/control-center/serviced/commons/iptables"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
@@ -50,6 +48,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
@@ -173,26 +172,6 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	return agent, err
 }
 
-// evaluateService translates the service template fields
-func (a *HostAgent) evaluateService(client dao.ControlPlane, svc *service.Service, instanceID int) error {
-
-	// service lookup
-	getService := func(id string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.GetService(id, &svc)
-		return svc, err
-	}
-
-	// service child lookup
-	getServiceChild := func(id, name string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.FindChildService(dao.FindChildRequest{id, name}, &svc)
-		return svc, err
-	}
-
-	return svc.Evaluate(getService, getServiceChild, instanceID)
-}
-
 func attachAndRun(dockerID, command string) error {
 	if dockerID == "" {
 		return errors.New("missing docker ID")
@@ -282,38 +261,44 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
+func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceName": svc.Name,
 		"serviceID":   svc.ID,
 		"instanceID":  instanceID,
-		"imageUUID":   imageUUID,
+		"imageID":     imageName,
 	})
-
-	// Evaluate service template fields
-	if err := a.evaluateService(client, svc, instanceID); err != nil {
-		glog.Errorf("Could not evaluate service %s (%s) templates: %s", svc.Name, svc.ID, err)
+	var err error
+	svc, err = masterClient.GetEvaluatedService(svc.ID, instanceID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
 	}
+	// Update the service with the complete image name
+	svc.ImageID = imageName
 
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
 	//get this service's tenantId for volume mapping
 	var tenantID string
-	if err := client.GetTenantId(svc.ID, &tenantID); err != nil {
-		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
+	tenantID, err = masterClient.GetTenantID(svc.ID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get the tenant ID for the service")
 		return nil, nil, err
+	} else if len(tenantID) == 0 && len(svc.Volumes) > 0 {
+		// FIXME: find a better way of handling this error condition
+		logger.Fatal("Could not get tenant ID and need to mount a volume")
 	}
 
 	// get the system user
-	unused := 0
-	systemUser := user.User{}
-	if err := client.GetSystemUser(unused, &systemUser); err != nil {
-		glog.Errorf("Unable to get system user account for agent %s", err)
+	var systemUser user.User
+	systemUser, err = masterClient.GetSystemUser()
+	if err != nil {
+		logger.WithError(err).Error("Failed to get the system user account")
 		return nil, nil, err
 	}
-	glog.V(1).Infof("System User %v", systemUser)
+	logger.WithField("systemUser", systemUser.Name).Debug("Got system user")
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
@@ -324,7 +309,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
 	state := &zkservice.ServiceState{
-		ImageID: imageUUID,
+		ImageID: imageName,
 		Paused:  false,
 		HostIP:  a.ipaddress,
 	}
@@ -332,7 +317,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	var assignedIP string
 	var static bool
 	if svc.Endpoints != nil {
-		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
+		logger.WithField("endpoints", svc.Endpoints).Debug("Endpoints for service")
 		for _, endpoint := range svc.Endpoints {
 			if endpoint.Purpose == "export" { // only expose remote endpoints
 				var p string
@@ -375,11 +360,6 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 		log.Warn("svc.endpoints was nil.")
 	}
 
-	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
-		// FIXME: find a better way of handling this error condition
-		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %d, service id: %s", instanceID, svc.ID)
-	}
-
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	// iterate svc.Volumes - create bindings for non-dfs volumes
@@ -399,7 +379,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	// mount serviced path
 	dir, _, err := ExecPath()
 	if err != nil {
-		glog.Errorf("Error getting exec path: %v", err)
+		logger.WithError(err).Error("Error getting the path to the serviced executable")
 		return nil, nil, err
 	}
 
@@ -420,23 +400,18 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			tmpVolumes = append(tmpVolumes, volume.ContainerPath)
 		}
 	}
-	for _, path := range tmpVolumes {
-		glog.V(4).Infof("added temporary docker container path: %s", path)
-	}
 
 	// add arguments to mount requested directory (if requested)
-	glog.V(2).Infof("Checking Mount options for service %#v", svc)
+	logger.Debug("Checking service's mount options")
 	for _, bindMountString := range a.mount {
-		glog.V(2).Infof("bindmount is  %#v", bindMountString)
+		logger.WithField("bindmount", bindMountString).Debug("Checking bindmount string")
 		splitMount := strings.Split(bindMountString, ",")
 		numMountArgs := len(splitMount)
 
 		if numMountArgs == 2 || numMountArgs == 3 {
 
 			requestedImage := splitMount[0]
-			glog.V(2).Infof("mount requestedImage %#v", requestedImage)
 			hostPath := splitMount[1]
-			glog.V(2).Infof("mount hostPath %#v", hostPath)
 			// assume the container path is going to be the same as the host path
 			containerPath := hostPath
 
@@ -444,7 +419,11 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			if numMountArgs > 2 {
 				containerPath = splitMount[2]
 			}
-			glog.V(2).Infof("mount containerPath %#v", containerPath)
+			logger.WithFields(log.Fields{
+				"requestedImage": requestedImage,
+				"hostPath":       hostPath,
+				"containerPath":  containerPath,
+			}).Debug("Parsed out bind mount information")
 
 			// insert tenantId into requestedImage - see facade.DeployService
 			matchedRequestedImage := false
@@ -453,23 +432,29 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 			} else {
 				imageID, err := commons.ParseImageID(requestedImage)
 				if err != nil {
-					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
+					logger.WithError(err).
+						WithField("requestedImageID", requestedImage).
+						Error("Unable to parse requested ImageID")
 					continue
 				}
 				svcImageID, err := commons.ParseImageID(svc.ImageID)
 				if err != nil {
-					glog.Errorf("error parsing service imageid %v; %v", svc.ImageID, err)
+					logger.WithError(err).Error("Unable to parse service imageID")
 					continue
 				}
-				glog.V(2).Infof("mount checking %#v and %#v ", imageID, svcImageID)
 				matchedRequestedImage = (imageID.Repo == svcImageID.Repo)
 			}
+
+			logger.WithFields(log.Fields{
+				"matchedRequestedImage": matchedRequestedImage,
+			}).Debug("Finished evaluation for matchedRequestedImage")
 
 			if matchedRequestedImage {
 				addBindingToMap(&bindsMap, containerPath, hostPath)
 			}
 		} else {
-			glog.Warningf("Could not bind mount the following: %s", bindMountString)
+			logger.WithField("bindMount", bindMountString).
+				Warn("Could not bind mount the requested mount point")
 		}
 	}
 
@@ -484,7 +469,7 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 	// Get host IP
 	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
-		glog.Errorf("Error getting host IP addresses: %v", err)
+		logger.WithError(err).Error("Unable to get host IP addresses")
 		return nil, nil, err
 	}
 
@@ -571,10 +556,10 @@ func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service
 		},
 	}
 
-	ctr, err := a.createContainer(cfg, hcfg, svc.ID, imageUUID, instanceID) //FIXME: if ctr comes back nil, line 586 below will panic
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID) //FIXME: if ctr comes back nil, line 586 below will panic
 	if err != nil {
 		logger.WithFields(log.Fields{
-			"imageUUID":  imageUUID,
+			"imageUUID":  imageName,
 			"instanceID": instanceID,
 		}).WithError(err).Error("Could not create container")
 	}
@@ -883,11 +868,10 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 	return
 }
 
-func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID, imageUUID string, instanceID int) (*docker.Container, error) {
+func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID string, instanceID int) (*docker.Container, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  svcID,
 		"instanceid": instanceID,
-		"imageUUID":  imageUUID,
 	})
 
 	if hostConf == nil {

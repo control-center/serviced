@@ -17,17 +17,6 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
-// Defines a request to add a port public endpoints to a service
-type PublicEndpointRequest struct {
-	Serviceid    string
-	EndpointName string
-	Name         string
-	UseTLS       bool
-	Protocol     string
-	IsEnabled    bool
-	Restart      bool
-}
-
 // Adds a port public endpoint to a service.
 func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool,
 	protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {

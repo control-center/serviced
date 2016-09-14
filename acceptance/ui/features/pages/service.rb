@@ -52,7 +52,7 @@ class Service < SitePrism::Page
                 if btn
                     btn.click
                     # confirm the removal
-                    cnf = find(:xpath, "//div[@class='modal-content']//button", :text => "Remove and Restart Service")
+                    cnf = find(:xpath, "//div[@class='modal-content']//button", :text => "Remove")
                     cnf.click
                     refreshPage()
                     return true
