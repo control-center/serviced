@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/fsnotify/fsnotify"
@@ -32,6 +33,8 @@ const (
 var (
 	delegateKeys HostKeys
 	masterKeys   MasterKeys
+
+	dKeyCond = &sync.Cond{L: &sync.Mutex{}}
 )
 
 type HostKeys struct {
@@ -79,6 +82,8 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 // SignAsDelegate signs the given message with the private key local
 // to the delegate running this process.
 func SignAsDelegate(message []byte) ([]byte, error) {
+	dKeyCond.L.Lock()
+	defer dKeyCond.L.Unlock()
 	if delegateKeys.localPrivate == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -97,6 +102,8 @@ func SignAsMaster(message []byte) ([]byte, error) {
 // VerifyMasterSignature verifies that a given message was signed by the master
 // whose public key we have.
 func VerifyMasterSignature(message, signature []byte) error {
+	dKeyCond.L.Lock()
+	defer dKeyCond.L.Unlock()
 	if delegateKeys.masterPublic == nil {
 		if masterKeys.public == nil {
 			return ErrNoPublicKey
@@ -110,6 +117,8 @@ func VerifyMasterSignature(message, signature []byte) error {
 //  If the host keys have not been loaded yet, it checks to see if
 //  master keys have been loaded.  If neither exists, returns ErrNoPublicKey
 func GetMasterPublicKey() (crypto.PublicKey, error) {
+	dKeyCond.L.Lock()
+	defer dKeyCond.L.Unlock()
 	if delegateKeys.masterPublic == nil {
 		if masterKeys.public == nil {
 			return nil, ErrNoPublicKey
@@ -133,7 +142,7 @@ func LoadDelegateKeysFromFile(filename string) error {
 		return err
 	}
 
-	delegateKeys = HostKeys{pub, priv}
+	updateDelegateKeys(pub, priv)
 	return nil
 }
 
@@ -196,8 +205,7 @@ func LoadDelegateKeysFromPEM(public, private []byte) error {
 	if err != nil {
 		return err
 	}
-
-	delegateKeys = HostKeys{pub, priv}
+	updateDelegateKeys(pub, priv)
 	return nil
 }
 
@@ -215,21 +223,37 @@ func LoadMasterKeysFromPEM(public, private []byte) error {
 
 // ClearKeys wipes the current state
 func ClearKeys() {
-	delegateKeys, masterKeys = HostKeys{}, MasterKeys{}
+	masterKeys = MasterKeys{}
+	updateDelegateKeys(nil, nil)
 }
 
-func WatchForDelegateKeys(filename string, cancel chan interface{}) error {
+// WaitForDelegateKeys blocks until delegate keys are defined.
+func WaitForDelegateKeys() {
+	dKeyCond.L.Lock()
+	defer dKeyCond.L.Unlock()
+	for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
+		dKeyCond.Wait()
+	}
+}
+
+// WatchDelegateKeyFile watches the delegate key file on the filesystem and
+// updates the internal delegate keys when changes are detected.
+func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
 	filename = filepath.Clean(filename)
 
 	log := log.WithFields(logrus.Fields{
 		"keyfile": filename,
 	})
 
-	err := LoadDelegateKeysFromFile(filename)
-	if err == nil {
-		return nil
+	loadKeys := func() {
+		if err := LoadDelegateKeysFromFile(filename); err != nil {
+			log.WithError(err).Warn("Unable to load delegate keys from file. Continuing to watch for changes")
+		}
+		log.Info("Loaded delegate keys from file")
 	}
-	log.WithError(err).Warn("Unable to load delegate keys from file. Watching for changes")
+
+	// Try an initial load without any file changes
+	loadKeys()
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -244,18 +268,20 @@ func WatchForDelegateKeys(filename string, cancel chan interface{}) error {
 	for {
 		select {
 		case e := <-w.Events:
-			if filepath.Clean(e.Name) == filename {
-				if e.Op&ops > 0 {
-					// We have a change to our file. See if it loads up ok
-					if err := LoadDelegateKeysFromFile(filename); err != nil {
-						log.WithError(err).Warn("Unable to load delegate keys from file. Continuing to watch for changes")
-						continue
-					}
-					return nil
-				}
+			if filepath.Clean(e.Name) == filename && e.Op&ops != 0 {
+				// We have a change to our file. Load 'em
+				loadKeys()
 			}
+		case <-w.Errors:
 		case <-cancel:
 			return nil
 		}
 	}
+}
+
+func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {
+	dKeyCond.L.Lock()
+	delegateKeys = HostKeys{pub, priv}
+	dKeyCond.L.Unlock()
+	dKeyCond.Broadcast()
 }
