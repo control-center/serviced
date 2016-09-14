@@ -46,15 +46,10 @@ func (c *ServicedCli) cmdHostKey(ctx *cli.Context) {
 		cli.ShowCommandHelp(ctx, "list")
 		return
 	}
-	hostID := args[0]
-	if host, err := c.driver.GetHost(hostID); host == nil || err != nil {
-		fmt.Fprintln(os.Stderr, "Host not found.")
-		return
-	}
-	key, err := c.driver.GetHostPublicKey(hostID)
+	key, err := c.driver.GetHostPublicKey(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Could not retrieve host's public key.")
+		fmt.Fprintln(os.Stderr, "Could not retrieve host's public key. ", err.Error())
 		return
 	}
-	fmt.Printf(string(key), "\n\n")
+	fmt.Printf(string(key))
 }
