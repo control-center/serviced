@@ -19,7 +19,6 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -114,25 +113,11 @@ func (s *SnapshotInfo) Equals(s2 *SnapshotInfo) bool {
 		s.Invalid == s2.Invalid
 }
 
-type IServiceHealthResult struct {
-	ServiceName    string
-	ContainerName  string
-	ContainerID    string
-	HealthStatuses []domain.HealthCheckStatus
-}
-
 // ServiceInstanceRequest requests information about a service instance given
 // the service ID and instance ID.
 type ServiceInstanceRequest struct {
 	ServiceID  string
 	InstanceID int
-}
-
-// HealthStatusRequest sends health status data to the health status cache.
-type HealthStatusRequest struct {
-	Key     health.HealthStatusKey
-	Value   health.HealthStatus
-	Expires time.Duration
 }
 
 type BackupRequest struct {

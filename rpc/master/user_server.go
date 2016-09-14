@@ -11,25 +11,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package master
 
-// AggregateService is a lighter service object for providing aggregate service
-// status information
-type AggregateService struct {
-	ServiceID    string
-	DesiredState DesiredState
-	Status       []StatusInstance
-	NotFound     bool
+import (
+	"github.com/control-center/serviced/domain/user"
+)
+
+
+// Get the system user
+func (s *Server) GetSystemUser(unused struct{}, systemUser *user.User) error {
+	result, err := s.f.GetSystemUser(s.context())
+	if err != nil {
+		return err
+	}
+	*systemUser = result
+	return nil
 }
 
-// PublicEndpoint is a minimal service object that describes a public endpoint
-// for a service
-type PublicEndpoint struct {
-	ServiceID   string
-	ServiceName string
-	Application string
-	Protocol    string
-	VHostName   string
-	PortAddress string
-	Enabled     bool
+// Validate the credentials of the specified user
+func (s *Server) ValidateCredentials(someUser user.User, valid *bool) error {
+	result, err := s.f.ValidateCredentials(s.context(), someUser)
+	if err != nil {
+		return err
+	}
+	*valid = result
+	return nil
 }

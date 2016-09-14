@@ -21,10 +21,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
+
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
@@ -163,7 +164,7 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 func (a *api) connectDAO() (dao.ControlPlane, error) {
 	if a.dao == nil {
 		var err error
-		a.dao, err = node.NewControlClient(options.Endpoint)
+		a.dao, err = client.NewControlClient(options.Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}

@@ -18,8 +18,8 @@ package web
 
 import (
 	"github.com/control-center/serviced/dao"
+	daoclient "github.com/control-center/serviced/dao/client"
 	svc "github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -288,7 +288,7 @@ type virtualHost struct {
 }
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var services []svc.Service
 	var serviceRequest dao.ServiceRequest
 	err := client.GetServices(serviceRequest, &services)

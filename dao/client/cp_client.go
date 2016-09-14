@@ -16,18 +16,26 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package node
+package client
+
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+//               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
+//
+// THAT MEANS DO NOT ADD MORE METHODS TO client.ControlClient and/or dao.ControlPlane
+//
+// Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
+// rpc/master.ClientInterface
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
@@ -76,10 +84,6 @@ func (s *ControlClient) GetService(serviceId string, service *service.Service) (
 
 func (s *ControlClient) FindChildService(request dao.FindChildRequest, service *service.Service) (err error) {
 	return s.rpcClient.Call("ControlCenter.FindChildService", request, service, 0)
-}
-
-func (s *ControlClient) GetTenantId(serviceId string, tenantId *string) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetTenantId", serviceId, tenantId, 0)
 }
 
 func (s *ControlClient) AddService(service service.Service, serviceId *string) (err error) {
@@ -158,14 +162,6 @@ func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *[]service.
 	return s.rpcClient.Call("ControlCenter.GetServiceStatus", serviceID, statusmap, 0)
 }
 
-func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
-	return s.rpcClient.Call("ControlCenter.ValidateCredentials", user, result, 0)
-}
-
-func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
-	return s.rpcClient.Call("ControlCenter.GetSystemUser", unused, user, 0)
-}
-
 func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 	return s.rpcClient.Call("ControlCenter.Action", req, unused, 0)
 }
@@ -195,26 +191,6 @@ func (s *ControlClient) GetServiceMemoryStats(req dao.MetricRequest, stats *metr
 
 func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
 	return s.rpcClient.Call("ControlCenter.GetInstanceMemoryStats", req, stats, 5*time.Second)
-}
-
-func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.LogHealthCheck", result, unused, 0)
-}
-
-func (s *ControlClient) GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error {
-	return s.rpcClient.Call("ControlCenter.GetServicesHealth", unused, results, 0)
-}
-
-func (s *ControlClient) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
-	return s.rpcClient.Call("ControlCenter.ServicedHealthCheck", IServiceNames, results, 0)
-}
-
-func (s *ControlClient) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.ReportHealthStatus", req, unused, 0)
-}
-
-func (s *ControlClient) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	return s.rpcClient.Call("ControlCenter.ReportInstanceDead", req, unused, 0)
 }
 
 func (s *ControlClient) Backup(backupRequest dao.BackupRequest, filename *string) (err error) {

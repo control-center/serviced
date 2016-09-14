@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -123,19 +124,17 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
 	}
-	svc.ImageID = imageName
 
 	// Establish a connection to the master
-	// TODO: use the new rpc calls instead
-	client, err := NewControlClient(a.master)
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
-		logger.WithField("client", a.master).WithError(err).Debug("Could not connect to the master")
+		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
 		return nil, nil, err
 	}
-	defer client.Close()
+	defer masterClient.Close()
 
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(client, svc, instanceID)
+	conf, hostConf, err := a.setupContainer(masterClient, svc, instanceID, imageName)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err

@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
+	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
@@ -269,9 +270,9 @@ func (sc *ServiceConfig) isCollectingStats() handlerFunc {
 	}
 }
 
-func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
+func (sc *ServiceConfig) getClient() (c *daoclient.ControlClient, err error) {
 	// setup the client
-	if c, err = node.NewControlClient(sc.agentPort); err != nil {
+	if c, err = daoclient.NewControlClient(sc.agentPort); err != nil {
 		glog.Errorf("Could not create a control center client: %s", err)
 	}
 	return

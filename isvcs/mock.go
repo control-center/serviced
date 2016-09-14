@@ -16,7 +16,7 @@ package isvcs
 import (
 	"time"
 
-	. "github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	s "github.com/control-center/serviced/domain/service"
 )
@@ -34,19 +34,19 @@ var DockerRegistryISVC s.Service
 var KibanaISVC s.Service
 var ISVCSMap map[string]*s.Service
 
-var InternalServicesIRS RunningService
-var ElasticsearchLogStashIRS RunningService
-var ElasticsearchServicedIRS RunningService
-var ZookeeperIRS RunningService
-var LogstashIRS RunningService
-var OpentsdbIRS RunningService
-var CeleryIRS RunningService
-var DockerRegistryIRS RunningService
-var KibanaIRS RunningService
-var IRSMap map[string]*RunningService
+var InternalServicesIRS dao.RunningService
+var ElasticsearchLogStashIRS dao.RunningService
+var ElasticsearchServicedIRS dao.RunningService
+var ZookeeperIRS dao.RunningService
+var LogstashIRS dao.RunningService
+var OpentsdbIRS dao.RunningService
+var CeleryIRS dao.RunningService
+var DockerRegistryIRS dao.RunningService
+var KibanaIRS dao.RunningService
+var IRSMap map[string]*dao.RunningService
 
 func init() {
-	InternalServicesIRS = RunningService{
+	InternalServicesIRS = dao.RunningService{
 		Name:         "Internal Services",
 		Description:  "Internal Services",
 		ID:           "isvc-internalservices",
@@ -143,7 +143,7 @@ func init() {
 			},
 		},
 	}
-	ElasticsearchLogStashIRS = RunningService{
+	ElasticsearchLogStashIRS = dao.RunningService{
 		Name:         "Elastic Search - LogStash",
 		Description:  "Internal Elastic Search - LogStash",
 		ID:           "isvc-elasticsearch-logstash",
@@ -151,7 +151,7 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
-	ElasticsearchServicedIRS = RunningService{
+	ElasticsearchServicedIRS = dao.RunningService{
 		Name:         "Elastic Search - Serviced",
 		Description:  "Internal Elastic Search - Serviced",
 		ID:           "isvc-elasticsearch-serviced",
@@ -361,7 +361,7 @@ func init() {
 			},
 		},
 	}
-	ZookeeperIRS = RunningService{
+	ZookeeperIRS = dao.RunningService{
 		Name:         "ZooKeeper",
 		Description:  "Internal ZooKeeper",
 		ID:           "isvc-zookeeper",
@@ -477,7 +477,7 @@ func init() {
 			},
 		},
 	}
-	LogstashIRS = RunningService{
+	LogstashIRS = dao.RunningService{
 		Name:         "Logstash",
 		Description:  "Internal Logstash",
 		ID:           "isvc-logstash",
@@ -593,7 +593,7 @@ func init() {
 			},
 		},
 	}
-	OpentsdbIRS = RunningService{
+	OpentsdbIRS = dao.RunningService{
 		Name:         "OpenTSDB",
 		Description:  "Internal Open TSDB",
 		ID:           "isvc-opentsdb",
@@ -709,7 +709,7 @@ func init() {
 			},
 		},
 	}
-	CeleryIRS = RunningService{
+	CeleryIRS = dao.RunningService{
 		Name:         "Celery",
 		Description:  "Internal Celery",
 		ID:           "isvc-celery",
@@ -825,7 +825,7 @@ func init() {
 			},
 		},
 	}
-	DockerRegistryIRS = RunningService{
+	DockerRegistryIRS = dao.RunningService{
 		Name:         "Docker Registry",
 		Description:  "Internal Docker Registry",
 		ID:           "isvc-docker-registry",
@@ -941,7 +941,7 @@ func init() {
 			},
 		},
 	}
-	KibanaIRS = RunningService{
+	KibanaIRS = dao.RunningService{
 		Name:         "Kibana",
 		Description:  "Internal Kibana",
 		ID:           "isvc-kibana",
@@ -1070,7 +1070,7 @@ func init() {
 		"isvc-kibana":                 &KibanaISVC,
 	}
 
-	IRSMap = map[string]*RunningService{
+	IRSMap = map[string]*dao.RunningService{
 		"isvc-internalservices":       &InternalServicesIRS,
 		"isvc-elasticsearch-logstash": &ElasticsearchLogStashIRS,
 		"isvc-elasticsearch-serviced": &ElasticsearchServicedIRS,

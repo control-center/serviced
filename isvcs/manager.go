@@ -17,7 +17,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 
 	"errors"
@@ -134,8 +133,8 @@ func (m *Manager) GetServiceNames() []string {
 	return names
 }
 
-func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error) {
-	result := dao.IServiceHealthResult{
+func (m *Manager) GetHealthStatus(name string) (IServiceHealthResult, error) {
+	result := IServiceHealthResult{
 		ServiceName:    name,
 		ContainerName:  "",
 		ContainerID:    "",
@@ -147,7 +146,7 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 		log.WithFields(logrus.Fields{
 			"isvc": name,
 		}).Warn("Internal service not found")
-		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
+		return IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
 	}
 
 	if ctr, err := docker.FindContainer(svc.name()); err == nil {
