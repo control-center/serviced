@@ -21,7 +21,11 @@ if [ -z "${SERVICED_STORAGE}" ]; then
 fi
 
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-SERVICED_VARPATH=/tmp/serviced-smoke/var
+SMOKE_VAR_PATH=/tmp/serviced-smoke/var
+SERVICED_VOLUMES_PATH=${SMOKE_VAR_PATH}/volumes
+SERVICED_ISVCS_PATH=${SMOKE_VAR_PATH}/isvcs
+SERVICED_BACKUPS_PATH=${SMOKE_VAR_PATH}/backups
+
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
@@ -69,7 +73,7 @@ cleanup() {
 
     # Get a list of mounted volumes before 'set -e' because the grep exits with 1
     # in scenarios where nothing is mounted.
-    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VARPATH}/volumes 2>/dev/null`
+    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VOLUMES_PATH} 2>/dev/null`
 
     # By default, exit on the first error
     if [ "$1" != "--ignore-errors" ]; then
@@ -78,27 +82,32 @@ cleanup() {
 
     # Unmount all of the devicemapper volumes so that the mount points can be deleted
     if [ ! -z "${MOUNTED_VOLUMES}" ]; then
-        echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
-        sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
+        echo "Unmounting ${SERVICED_VOLUMES_PATH}/* ..."
+        sudo umount -f ${SERVICED_VOLUMES_PATH}/* 2>/dev/null
     fi
 
     # Disable the DM device so that the space for the loopback device is really freed
-    # when we remove SERVICED_VARPATH/volumes
+    # when we remove SERVICED_VOLUMES_PATH
     echo "Cleaning up serviced storage ..."
-    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VARPATH}/volumes
+    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VOLUMES_PATH}
 
-    echo "Removing up ${SERVICED_VARPATH} ..."
-    sudo rm -rf ${SERVICED_VARPATH}
+    echo "Removing up ${SMOKE_VAR_PATH} ..."
+    sudo rm -rf ${SMOKE_VAR_PATH}
 }
 trap cleanup EXIT
 
 
 start_serviced() {
     # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
-    #   all of to force the proper subdirectories to be created under SERVICED_VARPATH
+    #   all of to force the proper subdirectories to be created under SMOKE_VAR_PATH
     echo "Starting serviced..."
-    mkdir -p ${SERVICED_VARPATH}
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
+    mkdir -p ${SMOKE_VAR_PATH}
+    mkdir -p ${SERVICED_VOLUMES_PATH}
+    mkdir -p ${SERVICED_ISVCS_PATH}
+    mkdir -p ${SERVICED_BACKUPS_PATH}
+
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}\
+    SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start..."
     retry $START_TIMEOUT wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null

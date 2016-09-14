@@ -288,7 +288,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
 	homepath := config.StringVal("HOME", "")
-	varpath := config.StringVal("VARPATH", getDefaultVarPath(homepath))
+	varpath := getDefaultVarPath(homepath)
 
 	options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
