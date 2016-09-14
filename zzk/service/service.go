@@ -59,17 +59,6 @@ func NewServiceNodeFromService(s *service.Service) *ServiceNode {
 	}
 }
 
-/*
-func (s *ServiceNode) SetServiceInfo(svc *service.Service) {
-	s.ID = svc.ID
-	s.Name = svc.Name
-	s.DesiredState = svc.DesiredState
-	s.Instances = svc.Instances
-	s.RAMCommitment = svc.RAMCommitment
-	s.ChangeOptions = svc.ChangeOptions
-}
-*/
-
 func (s *ServiceNode) AsService() *service.Service {
 	return &service.Service{
 		ID:            s.ID,

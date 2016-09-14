@@ -555,7 +555,7 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 		},
 	}
 
-	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID) //FIXME: if ctr comes back nil, line 586 below will panic
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID)
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"imageUUID":  imageName,

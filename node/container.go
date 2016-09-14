@@ -155,7 +155,11 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	logger.Debug("Started container")
 
 	dctr, err := ctr.Inspect()
-	// TODO: handle error
+	if err != nil {
+		logger.WithError(err).Debug("Could not inspect container")
+		ctr.CancelOnEvent(docker.Die)
+		return nil, nil, err
+	}
 
 	state.HostIP = a.ipaddress
 	state.PrivateIP = ctr.NetworkSettings.IPAddress
