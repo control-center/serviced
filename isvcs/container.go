@@ -258,9 +258,7 @@ func (svc *IService) getResourcePath(p string) string {
 	const defaultdir string = "isvcs"
 
 	if svc.root == "" {
-		if p := strings.TrimSpace(os.Getenv("SERVICED_VARPATH")); p != "" {
-			svc.root = filepath.Join(p, defaultdir)
-		} else if p := strings.TrimSpace(os.Getenv("SERVICED_HOME")); p != "" {
+		if p := strings.TrimSpace(os.Getenv("SERVICED_HOME")); p != "" {
 			svc.root = filepath.Join(p, "var", defaultdir)
 		} else if user, err := user.Current(); err == nil {
 			svc.root = filepath.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username), "var", defaultdir)
