@@ -71,3 +71,9 @@ func (c *Client) FindHostsInPool(poolID string) ([]host.Host, error) {
 	}
 	return response, nil
 }
+
+func (c *Client) GetHostPublicKey(hostID string) ([]byte, error) {
+	response := []byte{}
+	err := c.call("GetHostPublicKey", hostID, &response)
+	return response, err
+}

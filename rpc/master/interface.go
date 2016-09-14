@@ -56,6 +56,9 @@ type ClientInterface interface {
 	// FindHostsInPool returns all hosts in a pool
 	FindHostsInPool(poolID string) ([]host.Host, error)
 
+	// Get hostID's public key
+	GetHostPublicKey(hostID string) ([]byte, error)
+
 	//--------------------------------------------------------------------------
 	// Pool Management Functions
 
