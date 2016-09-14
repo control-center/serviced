@@ -22,9 +22,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/control-center/serviced/dao/mocks"
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
+	rpcmocks"github.com/control-center/serviced/rpc/master/mocks"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/user"
 )
 
 const example_state = `
@@ -133,18 +134,19 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	}
 
 	// Create a fake client that won't make any RPC calls
-	fakeClient := &mocks.ControlPlane{}
+	fakeMasterClient := &rpcmocks.ClientInterface{}
 
 	// Create a fake service.Service
 	fakeService := &service.Service{
 		ImageID: "busybox:latest",
 	}
-
-	fakeClient.On("GetTenantId", mock.Anything, mock.Anything).Return(nil)
-	fakeClient.On("GetSystemUser", mock.Anything, mock.Anything).Return(nil)
+	fakeUser := user.User{}
+	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
+	fakeMasterClient.On("GetSystemUser").Return(fakeUser, nil)
+	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
 
 	// Call setupContainer
-	config, hostconfig, err := fakeHostAgent.setupContainer(fakeClient, fakeService, 0)
+	config, hostconfig, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID)
 
 	assert.NotNil(config)
 	assert.NotNil(hostconfig)

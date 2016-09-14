@@ -108,12 +108,12 @@ func cliServiceWait(a *api) script.ServiceWait {
 
 func cliTenantLookup(a *api) script.TenantIDLookup {
 	return func(svcID string) (string, error) {
-		client, err := a.connectDAO()
+		client, err := a.connectMaster()
 		if err != nil {
 			return "", err
 		}
 		var tID string
-		err = client.GetTenantId(svcID, &tID)
+		tID, err = client.GetTenantID(svcID)
 		if err != nil {
 			return "", err
 		}

@@ -18,19 +18,25 @@ import (
 	"github.com/control-center/serviced/datastore"
 )
 
-//NewStore creates a Service  store
-func NewStore() *Store {
-	return &Store{}
+//NewStore creates a Service Config File store
+func NewStore() Store {
+	return &storeImpl{}
 }
 
-//Store type for interacting with Service persistent storage
-type Store struct {
+//Store type for interacting with Service Config File persistent storage
+type Store interface {
+	datastore.EntityStore
+
+	GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error)
+}
+
+type storeImpl struct {
 	datastore.DataStore
 }
 
 //GetConfigFiles returns all Configuration Files in tenant service that have the given service path. The service path
 //is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
-func (s *Store) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
+func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
 		search.Filter().Terms("ServiceTenantID", tenantID),

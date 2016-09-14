@@ -1,4 +1,4 @@
-// Copyright 2015 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,24 +14,26 @@
 package master
 
 import (
-	"github.com/control-center/serviced/domain/applicationendpoint"
+	"github.com/control-center/serviced/domain/user"
 )
 
-// Defines a request to get a list of endpoints for one or more services
-type EndpointRequest struct {
-	ServiceIDs []string
-	ReportImports bool
-	ReportExports bool
-	Validate   bool
-}
 
-// Get the endpoints for one or more services
-func (s *Server) GetServiceEndpoints(request *EndpointRequest, reply *[]applicationendpoint.EndpointReport) error {
-	endpoints, err := s.f.GetServiceEndpoints(s.context(), request.ServiceIDs[0], request.ReportImports, request.ReportExports, request.Validate)
+// Get the system user
+func (s *Server) GetSystemUser(unused struct{}, systemUser *user.User) error {
+	result, err := s.f.GetSystemUser(s.context())
 	if err != nil {
 		return err
 	}
+	*systemUser = result
+	return nil
+}
 
-	*reply = endpoints
+// Validate the credentials of the specified user
+func (s *Server) ValidateCredentials(someUser user.User, valid *bool) error {
+	result, err := s.f.ValidateCredentials(s.context(), someUser)
+	if err != nil {
+		return err
+	}
+	*valid = result
 	return nil
 }

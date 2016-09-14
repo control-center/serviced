@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 )
 
 // The FacadeInterface is the API for a Facade
@@ -34,6 +35,9 @@ type FacadeInterface interface {
 	AddService(ctx datastore.Context, svc service.Service) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
+
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(ctx datastore.Context, servicedID string, instanceID int) (*service.Service, error)
 
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
@@ -130,4 +134,22 @@ type FacadeInterface interface {
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
 
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
+
+	AddUser(ctx datastore.Context, newUser user.User) error
+
+	GetUser(ctx datastore.Context, userName string) (user.User, error)
+
+	UpdateUser(ctx datastore.Context, user user.User) error
+
+	RemoveUser(ctx datastore.Context, userName string) error
+
+	GetSystemUser(ctx datastore.Context) (user.User, error)
+
+	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+
+	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
+
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
+
+	ReportInstanceDead(serviceID string, instanceID int)
 }

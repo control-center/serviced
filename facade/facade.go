@@ -21,10 +21,12 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
+	"github.com/control-center/serviced/domain/user"
 )
 
 type MetricsClient interface {
@@ -44,7 +46,9 @@ func New() *Facade {
 		registryStore: registry.NewStore(),
 		poolStore:     pool.NewStore(),
 		serviceStore:  service.NewStore(),
+		configStore:   serviceconfigfile.NewStore(),
 		templateStore: servicetemplate.NewStore(),
+		userStore:     user.NewStore(),
 	}
 }
 
@@ -55,6 +59,8 @@ type Facade struct {
 	poolStore     pool.Store
 	templateStore servicetemplate.Store
 	serviceStore  service.Store
+	configStore   serviceconfigfile.Store
+	userStore     user.Store
 
 	zzk           ZZK
 	dfs           dfs.DFS
@@ -75,6 +81,10 @@ func (f *Facade) SetRegistryStore(store registry.ImageRegistryStore) { f.registr
 func (f *Facade) SetPoolStore(store pool.Store) { f.poolStore = store }
 
 func (f *Facade) SetServiceStore(store service.Store) { f.serviceStore = store }
+
+func (f *Facade) SetConfigStore(store serviceconfigfile.Store) { f.configStore = store }
+
+func (f *Facade) SetUserStore(store user.Store) { f.userStore = store }
 
 func (f *Facade) SetTemplateStore(store servicetemplate.Store) { f.templateStore = store }
 

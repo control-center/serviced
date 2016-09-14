@@ -35,7 +35,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
@@ -165,7 +164,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 
 	// create the account credentials
-	if err := createSystemUser(dt.Dao); err != nil {
+	if err :=  dt.Facade.CreateSystemUser(dt.CTX); err != nil {
 		c.Fatalf("could not create systemuser: %s", err)
 	}
 }
@@ -602,67 +601,6 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestDao_GetTenantId(t *C) {
-	var err error
-	var tenantId string
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err == nil {
-		t.Errorf("Expected failure for getting tenantId for 0")
-		t.Fail()
-	}
-
-	s0, _ := service.NewService()
-	s0.Name = "name0"
-	s0.PoolID = "default"
-	s0.Launch = "auto"
-	s0.ID = "0"
-	s0.DeploymentID = "deployment_id"
-
-	s01, _ := service.NewService()
-	s01.ID = "01"
-	s01.ParentServiceID = "0"
-	s01.Name = "name1"
-	s01.PoolID = "default"
-	s01.Launch = "auto"
-	s01.DeploymentID = "deployment_id"
-
-	s011, _ := service.NewService()
-	s011.ID = "011"
-	s011.ParentServiceID = "01"
-	s011.Name = "name2"
-	s011.PoolID = "default"
-	s011.Launch = "auto"
-	s011.DeploymentID = "deployment_id"
-
-	err = dt.Dao.AddService(*s0, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s01, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s011, &id)
-	t.Assert(err, IsNil)
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("01", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("011", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-}
-
 func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
 	fmt.Printf("%s\n", assignIPsPool.ID)
@@ -798,84 +736,4 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
 
 	time.Sleep(10 * time.Second)
-}
-
-func (dt *DaoTest) TestUser_UserOperations(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-
-	newUser := userdomain.User{}
-	err = dt.Dao.GetUser("Pepe", &newUser)
-	if err != nil {
-		t.Fatalf("Failure getting user %s", err)
-	}
-
-	// make sure they are the same user
-	if newUser.Name != user.Name {
-		t.Fatalf("Retrieved an unexpected user %v", newUser)
-	}
-
-	// make sure the password was hashed
-	if newUser.Password == "Pepe" {
-		t.Fatalf("Did not hash the password %+v", user)
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-}
-
-func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	var isValid bool
-	attemptUser := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
-
-	if !isValid {
-		t.Fatalf("Unable to authenticate user credentials")
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-
-	// update the user
-	user.Password = "pepe2"
-	err = dt.Dao.UpdateUser(user, &unused)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	attemptUser.Password = "Pepe2"
-	// make sure we can validate against the updated credentials
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
 }

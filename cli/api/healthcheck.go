@@ -14,18 +14,18 @@
 package api
 
 import (
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/isvcs"
 )
 
-func (a *api) ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error) {
-	client, err := a.connectDAO()
+func (a *api) ServicedHealthCheck(IServiceNames []string) ([]isvcs.IServiceHealthResult, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var results []dao.IServiceHealthResult
-	if err := client.ServicedHealthCheck(IServiceNames, &results); err != nil {
+	if results, err := client.GetISvcsHealth(IServiceNames); err != nil {
 		return nil, err
+	} else {
+		return results, nil
 	}
-	return results, nil
 }

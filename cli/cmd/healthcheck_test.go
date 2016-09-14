@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -62,32 +62,32 @@ var UnknownHealthStatus = domain.HealthCheckStatus{
 	Failure:   "",
 }
 
-var DefaultTestHealthCheckResults = []dao.IServiceHealthResult{
-	dao.IServiceHealthResult{
+var DefaultTestHealthCheckResults = []isvcs.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-1",
 		ContainerName:  "container-1",
 		ContainerID:    "id1",
 		HealthStatuses: []domain.HealthCheckStatus{DefaultHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-2",
 		ContainerName:  "container-2",
 		ContainerID:    "id2",
 		HealthStatuses: []domain.HealthCheckStatus{DefaultHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-failed",
 		ContainerName:  "container-failed",
 		ContainerID:    "id-failed",
 		HealthStatuses: []domain.HealthCheckStatus{FailedHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-stopped",
 		ContainerName:  "container-stopped",
 		ContainerID:    "id-stopped",
 		HealthStatuses: []domain.HealthCheckStatus{StoppedHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-unknown",
 		ContainerName:  "container-unknown",
 		ContainerID:    "id-unknown",
@@ -97,7 +97,7 @@ var DefaultTestHealthCheckResults = []dao.IServiceHealthResult{
 
 type HealthCheckAPITest struct {
 	api.API
-	apiResults []dao.IServiceHealthResult
+	apiResults []isvcs.IServiceHealthResult
 }
 
 func InitHealthCheckAPITest(args ...string) {
@@ -106,8 +106,8 @@ func InitHealthCheckAPITest(args ...string) {
 	c.Run(args)
 }
 
-func (t HealthCheckAPITest) ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error) {
-	mockResults := make([]dao.IServiceHealthResult, 0)
+func (t HealthCheckAPITest) ServicedHealthCheck(IServiceNames []string) ([]isvcs.IServiceHealthResult, error) {
+	mockResults := make([]isvcs.IServiceHealthResult, 0)
 	for _, serviceName := range IServiceNames {
 		found := false
 		for _, result := range t.apiResults {

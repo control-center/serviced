@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
@@ -733,6 +734,53 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 	glog.V(3).Infof("Facade.GetService: id=%s, service=%+v, err=%s", id, svc, err)
 	return svc, nil
 }
+
+// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+func (f *Facade) GetEvaluatedService(ctx datastore.Context, serviceID string, instanceID int) (*service.Service, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceID": serviceID,
+		"instanceID": instanceID,
+	})
+	logger.Debug("Started Facade.GetEvaluatedService")
+	defer logger.Debug("Finished Facade.GetEvaluatedService")
+
+	svc, err := f.GetService(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := f.evaluateService(ctx, svc, instanceID); err != nil {
+		return nil, err
+	}
+	return svc, nil
+}
+
+// evaluateService translates the service template fields
+func (f *Facade) evaluateService(ctx datastore.Context, svc *service.Service, instanceID int) error {
+
+	// service lookup
+	getService := func(serviceID string) (service.Service, error) {
+		svc := service.Service{}
+		result, err := f.GetService(ctx, serviceID)
+		if result != nil {
+			svc = *result
+		}
+		return svc, err
+	}
+
+	// service child lookup
+	getServiceChild := func(parentID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		result, err := f.FindChildService(ctx, parentID, childName)
+		if result != nil {
+			svc = *result
+		}
+		return svc, err
+	}
+
+	return svc.Evaluate(getService, getServiceChild, instanceID)
+}
+
 
 // GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {

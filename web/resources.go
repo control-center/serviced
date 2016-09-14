@@ -25,11 +25,11 @@ import (
 	"github.com/zenoss/go-json-rest"
 
 	"github.com/control-center/serviced/dao"
+	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -40,13 +40,13 @@ var empty interface{}
 var snapshotSpacePercent int
 
 type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
-type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
+type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient)
 
-func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	w.WriteJson(&map[string]bool{"dockerLoggedIn": utils.DockerIsLoggedIn()})
 }
 
-func getTaggedServices(client *node.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
+func getTaggedServices(client *daoclient.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
 	services := []service.Service{}
 	tagsSlice := strings.Split(tags, ",")
 	serviceRequest := dao.ServiceRequest{
@@ -63,7 +63,7 @@ func getTaggedServices(client *node.ControlClient, tags, nmregex string, tenantI
 	return services, nil
 }
 
-func getNamedServices(client *node.ControlClient, nmregex string, tenantID string) ([]service.Service, error) {
+func getNamedServices(client *daoclient.ControlClient, nmregex string, tenantID string) ([]service.Service, error) {
 	services := []service.Service{}
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
@@ -79,7 +79,7 @@ func getNamedServices(client *node.ControlClient, nmregex string, tenantID strin
 	return services, nil
 }
 
-func getServices(client *node.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
+func getServices(client *daoclient.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
 	services := []service.Service{}
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
@@ -125,7 +125,7 @@ func getIRS() []dao.RunningService {
 	return services
 }
 
-func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var migrationRequest dao.ServiceMigrationRequest
 	err := r.DecodeJsonPayload(&migrationRequest)
 	if err != nil {
@@ -141,7 +141,7 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 	w.WriteJson(&simpleResponse{"Migrated services.", []link{}})
 }
 
-func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
@@ -209,7 +209,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	w.WriteJson(&result)
 }
 
-func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -230,7 +230,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	w.WriteJson(&services)
 }
 
-func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if strings.Contains(serviceID, "isvc-") {
 		w.WriteJson([]dao.RunningService{})
@@ -262,7 +262,7 @@ type uiRunningService struct {
 	RAMAverage int64
 }
 
-func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -287,7 +287,7 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 	w.WriteJson(&simpleResponse{"Marked for death", servicesLinks()})
 }
 
-func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var allServices []service.Service
 	topServices := []service.Service{}
 	var serviceRequest dao.ServiceRequest
@@ -307,7 +307,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	w.WriteJson(&topServices)
 }
 
-func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -348,7 +348,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	restServerError(w, err)
 }
 
-func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var svc service.Service
 	var serviceID string
 	err := r.DecodeJsonPayload(&svc)
@@ -416,7 +416,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	w.WriteJson(&simpleResponse{"Added service", serviceLinks(serviceID)})
 }
 
-func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var payload dao.ServiceDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
@@ -437,7 +437,7 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceID)})
 }
 
-func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	glog.V(3).Infof("Received update request for %s", serviceID)
 	if err != nil {
@@ -462,7 +462,7 @@ func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	w.WriteJson(&simpleResponse{"Updated service", serviceLinks(serviceID)})
 }
 
-func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var unused int
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
@@ -479,7 +479,7 @@ func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	w.WriteJson(&simpleResponse{"Removed service", servicesLinks()})
 }
 
-func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -496,7 +496,7 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 }
 
 // restRestartService restarts the service with the given id and all of its children
-func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -523,7 +523,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 }
 
 // restStartService starts the service with the given id and all of its children
-func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -550,7 +550,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 }
 
 // restStopService stop the service with the given id and all of its children
-func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -576,7 +576,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 	w.WriteJson(&simpleResponse{"Stopped service", serviceLinks(serviceID)})
 }
 
-func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -595,7 +595,7 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	w.WriteJson(&simpleResponse{label, serviceLinks(serviceID)})
 }
 
-func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -618,7 +618,7 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 	w.WriteJson(&simpleResponse{logs, servicesLinks()})
 }
 
-func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -650,11 +650,11 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *n
 	w.Write([]byte(logs))
 }
 
-func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	w.WriteJson(servicedversion.GetVersion())
 }
 
-func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	volumeStatuses := volume.GetStatus()
 	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
 		err := fmt.Errorf("Unexpected error getting volume status")
@@ -691,11 +691,11 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	w.WriteJson(storageInfo)
 }
 
-func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetUIConfig(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	w.WriteJson(uiConfig)
 }
 
-func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	dir := ""
 	filePath := ""
 	req := dao.BackupRequest{
@@ -711,7 +711,7 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	w.WriteJson(&simpleResponse{filePath, servicesLinks()})
 }
 
-func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	err := r.ParseForm()
 	filePath := r.FormValue("filename")
 
@@ -733,7 +733,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 // RestBackupFileList implements a rest call that will return a list of the current backup files.
 // The return value is a JSON struct of type JsonizableFileInfo.
-func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	var fileData []dao.BackupFile
 	if err := client.ListBackups("", &fileData); err != nil {
 		restServerError(w, err)
@@ -742,7 +742,7 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	w.WriteJson(&fileData)
 }
 
-func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	backupStatus := ""
 	err := client.BackupStatus(0, &backupStatus)
 	if err != nil {
@@ -753,7 +753,7 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	w.WriteJson(&simpleResponse{backupStatus, servicesLinks()})
 }
 
-func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	restoreStatus := ""
 	err := client.BackupStatus(0, &restoreStatus)
 	if err != nil {
