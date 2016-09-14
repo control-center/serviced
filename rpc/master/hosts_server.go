@@ -81,3 +81,10 @@ func (s *Server) FindHostsInPool(poolID string, hostReply *[]host.Host) error {
 	*hostReply = hosts
 	return nil
 }
+
+// Return host's public key
+func (s *Server) GetHostPublicKey(hostID string, key *[]byte) error {
+	publicKey, err := s.f.GetHostKey(s.context(), hostID)
+	*key = publicKey
+	return err
+}

@@ -137,3 +137,12 @@ func (a *api) SetHostMemory(config HostUpdateConfig) error {
 	h.RAMLimit = config.Memory
 	return client.UpdateHost(*h)
 }
+
+// Retrieve host's public key
+func (a *api) GetHostPublicKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetHostPublicKey(id)
+}
