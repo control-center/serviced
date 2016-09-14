@@ -621,25 +621,28 @@ func (d *daemon) startAgent() error {
 	keylog := log.WithFields(logrus.Fields{
 		"keyfile": delegateKeyFile,
 	})
-	auth.WatchForDelegateKeys(delegateKeyFile, d.shutdown)
-	keylog.Info("Loaded delegate keys")
 
-	// Authenticate against the master
-	getToken := func() (string, int64, error) {
-		masterClient, err := master.NewClient(d.servicedEndpoint)
-		if err != nil {
-			return "", 0, err
-		}
-		defer masterClient.Close()
-		token, expires, err := masterClient.AuthenticateHost(myHostID)
-		if err != nil {
-			return "", 0, err
-		}
-		return token, expires, nil
-	}
+	go func() {
+		auth.WatchForDelegateKeys(delegateKeyFile, d.shutdown)
+		keylog.Info("Loaded delegate keys")
 
-	// Start authenticating
-	go auth.TokenLoop(getToken, d.shutdown)
+		// Authenticate against the master
+		getToken := func() (string, int64, error) {
+			masterClient, err := master.NewClient(d.servicedEndpoint)
+			if err != nil {
+				return "", 0, err
+			}
+			defer masterClient.Close()
+			token, expires, err := masterClient.AuthenticateHost(myHostID)
+			if err != nil {
+				return "", 0, err
+			}
+			return token, expires, nil
+		}
+
+		// Start authenticating
+		go auth.TokenLoop(getToken, d.shutdown)
+	}()
 
 	// Flag so we only log that a host hasn't been added yet once
 	var loggedNoHost bool
