@@ -462,7 +462,6 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 	hcfg.Binds = []string{}
 	for containerPath, hostPath := range bindsMap {
 		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
-		log.WithFields(log.Fields{"HostPath": hostPath, "ContainerPath": containerPath, "Binding": binding}).Info("Adding binding to binds")
 		hcfg.Binds = append(hcfg.Binds, binding)
 	}
 
@@ -562,12 +561,16 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 			"imageUUID":  imageName,
 			"instanceID": instanceID,
 		}).WithError(err).Error("Could not create container")
+		return nil, nil, err
+	}
+	// This shouldn't happen, but if it does, it's an error.
+	if ctr == nil {
+		logger.Error("created container is nil.")
+		return nil, nil, errors.New("created container is nil.")
 	}
 	if state == nil {
-		logger.Error("state is nil.")
-	}
-	if ctr == nil {
-		logger.Error("ctr is nil.")
+		logger.Error("state in created container is nil.")
+		return nil, nil, errors.New("state field in created container is nil.")
 	}
 	state.ContainerID = ctr.ID
 
@@ -895,9 +898,6 @@ func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerc
 		return nil, err
 	}
 	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
-	if ctr.HostConfig == nil {
-		logger.Error("Host Config in created container is nil.")
-	}
 	return ctr, nil
 }
 
@@ -905,7 +905,7 @@ func addBindingToMap(bindsMap *map[string]string, cp, rp string) {
 	rp = strings.TrimSpace(rp)
 	cp = strings.TrimSpace(cp)
 	if len(rp) > 0 && len(cp) > 0 {
-		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Info("Adding path to bindsMap")
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Debug("Adding path to bindsMap")
 		(*bindsMap)[cp] = rp
 	} else {
 		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
