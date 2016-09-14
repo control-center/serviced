@@ -627,13 +627,13 @@ func (d *daemon) startAgent() error {
 
 	// Load delegate keys if they exist
 	delegateKeyFile := path.Join(options.IsvcsPath, auth.DelegateKeyFileName)
-	keylog := log.WithFields(logrus.Fields{
-		"keyfile": delegateKeyFile,
-	})
+
+	// Start watching for delegate keys to be loaded
+	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
 
 	go func() {
-		auth.WatchForDelegateKeys(delegateKeyFile, d.shutdown)
-		keylog.Info("Loaded delegate keys")
+		// Wait for delegate keys to exist before trying to authenticate
+		auth.WaitForDelegateKeys()
 
 		// Authenticate against the master
 		getToken := func() (string, int64, error) {
