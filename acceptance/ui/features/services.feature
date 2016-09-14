@@ -18,7 +18,6 @@ Feature: Service Management
       And I should see "IP Assignments"
       And I should see "Configuration Files"
       And I should see "Services"
-      And I should see "Scheduled Tasks"
       And I should see "table://services/childServiceNoVHosts/name"
       And I should see "table://services/childServiceWithVHost/name"
 

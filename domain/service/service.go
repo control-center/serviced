@@ -81,7 +81,6 @@ type Service struct {
 	Privileged        bool
 	Launch            string
 	Endpoints         []ServiceEndpoint
-	Tasks             []servicedefinition.Task
 	ParentServiceID   string
 	Volumes           []servicedefinition.Volume
 	CreatedAt         time.Time

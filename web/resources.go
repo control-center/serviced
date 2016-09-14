@@ -105,7 +105,6 @@ func getISVCS() []service.Service {
 	services = append(services, isvcs.ZookeeperISVC)
 	services = append(services, isvcs.LogstashISVC)
 	services = append(services, isvcs.OpentsdbISVC)
-	services = append(services, isvcs.CeleryISVC)
 	services = append(services, isvcs.DockerRegistryISVC)
 	services = append(services, isvcs.KibanaISVC)
 	return services
@@ -119,7 +118,6 @@ func getIRS() []dao.RunningService {
 	services = append(services, isvcs.ZookeeperIRS)
 	services = append(services, isvcs.LogstashIRS)
 	services = append(services, isvcs.OpentsdbIRS)
-	services = append(services, isvcs.CeleryIRS)
 	services = append(services, isvcs.DockerRegistryIRS)
 	services = append(services, isvcs.KibanaIRS)
 	return services
