@@ -135,6 +135,8 @@ type FacadeInterface interface {
 
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 
+	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
+
 	AddUser(ctx datastore.Context, newUser user.User) error
 
 	GetUser(ctx datastore.Context, userName string) (user.User, error)

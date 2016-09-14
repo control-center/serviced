@@ -220,6 +220,25 @@ func (_m *ZZK) RemoveVirtualIP(vip *pool.VirtualIP) error {
 
 	return r0
 }
+func (_m *ZZK) GetVirtualIPHostID(poolID string, ip string) (string, error) {
+	ret := _m.Called(poolID, ip)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(poolID, ip)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(poolID, ip)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *ZZK) GetRegistryImage(id string) (*registry.Image, error) {
 	ret := _m.Called(id)
 

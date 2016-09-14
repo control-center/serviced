@@ -16,21 +16,115 @@ package facade
 import (
 	"fmt"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
 
-// GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string, assignments *[]addressassignment.AddressAssignment) error {
-	store := addressassignment.NewStore()
-
-	results, err := store.GetServiceAddressAssignments(ctx, serviceID)
+// GetServiceAddressAssignmentDetails provides details about address assignments
+// for the specified service id as is presented to the front-end.
+func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
+	// get the service
+	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	*assignments = results
-	return nil
+
+	return f.getServiceAddressAssignmentDetails(ctx, *svc, children)
+}
+
+func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc service.Service, children bool) ([]service.IPAssignment, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+	})
+
+	// Initialize the object and the potential address.  The assumption is that
+	// all address assignments for a service must point to the same ip.
+	addrs := []service.IPAssignment{}
+	addr := service.IPAssignment{
+		ServiceID:   svc.ID,
+		ServiceName: svc.Name,
+		PoolID:      svc.PoolID,
+	}
+
+	// Look for endpoints with address assignments
+	for _, ep := range svc.Endpoints {
+		if ep.AddressConfig.Port > 0 {
+
+			if addr.IPAddress == "" {
+
+				// Get the assignment if it exists
+				store := addressassignment.NewStore()
+				assign, err := store.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name)
+				if err != nil {
+					logger.WithError(err).Debug("Could not look up assignment")
+					return nil, err
+				}
+
+				if assign != nil {
+					// Get the host info for the address assignment
+					var hostID, hostName string
+
+					if assign.AssignmentType == "virtual" {
+						hostID, _ = f.zzk.GetVirtualIPHostID(svc.PoolID, assign.IPAddr)
+					} else {
+						hostID = assign.HostID
+					}
+
+					if hostID != "" {
+						hst := &host.Host{}
+						if err := f.hostStore.Get(ctx, host.HostKey(hostID), hst); err != nil {
+							logger.WithField("hostid", hostID).WithError(err).Debug("Could not look up host for address assignment")
+							return nil, err
+						}
+						hostName = hst.Name
+					}
+
+					addr.Type = assign.AssignmentType
+					addr.HostID = hostID
+					addr.HostName = hostName
+					addr.IPAddress = assign.IPAddr
+					logger.Debug("Set address assignment for service")
+				}
+			}
+
+			// Append the port
+			addr.Ports = append(addr.Ports, ep.AddressConfig.Port)
+			logger.WithField("port", ep.AddressConfig.Port).Debug("Added port")
+		}
+	}
+
+	if len(addr.Ports) > 0 {
+		addrs = append(addrs, addr)
+	}
+
+	if children {
+		svcs, err := f.serviceStore.GetChildServices(ctx, svc.ID)
+		if err != nil {
+			logger.WithError(err).Debug("Could not look up children of service")
+			return nil, err
+		}
+		for _, svc := range svcs {
+			childAddrs, err := f.getServiceAddressAssignmentDetails(ctx, svc, children)
+			if err != nil {
+				return nil, err
+			}
+			addrs = append(addrs, childAddrs...)
+		}
+	}
+
+	return addrs, nil
+}
+
+// GetServiceAddressAssignments fills in all address assignments for the specified service id.
+func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]addressassignment.AddressAssignment, error) {
+	store := addressassignment.NewStore()
+	return store.GetServiceAddressAssignments(ctx, serviceID)
 }
 
 func (f *Facade) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port uint16) ([]addressassignment.AddressAssignment, error) {

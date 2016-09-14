@@ -397,6 +397,14 @@ func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
 	return zkvirtualip.RemoveVirtualIP(conn, virtualIP.IP)
 }
 
+func (z *zkf) GetVirtualIPHostID(poolID, ip string) (string, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return "", err
+	}
+	return zkvirtualip.GetHostID(conn, poolID, ip)
+}
+
 func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
