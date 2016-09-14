@@ -85,7 +85,7 @@ func TokenLoop(f TokenFunc, done chan interface{}) {
 			continue
 		}
 		// Reauthenticate 1 minute before the token expires
-		expiration := time.Unix(expires, 0).Sub(time.Now().UTC())
+		expiration := time.Unix(expires, 0).Sub(now())
 		refresh := expiration - time.Duration(1*time.Minute)
 		select {
 		case <-done:
