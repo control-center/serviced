@@ -379,14 +379,14 @@ func (d *daemon) run() (err error) {
 	return nil
 }
 
-func (d *daemon) initContext() (datastore.Context, error) {
+func (d *daemon) initContext() datastore.Context {
 	log.Debug("Acquiring application context from Elastic")
 	datastore.Register(d.dsDriver)
 	ctx := datastore.Get()
 	if ctx == nil {
 		log.Fatal("Unable to acquire application context from Elastic")
 	}
-	return ctx, nil
+	return ctx
 }
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
@@ -463,21 +463,10 @@ func (d *daemon) startMaster() (err error) {
 		log.WithError(err).Fatal("Unable to create internal NFS server manager")
 	}
 
-	if d.dsDriver, err = d.initDriver(); err != nil {
-		log.WithError(err).Fatal("Unable to establish connection to Elastic database")
-	}
-
-	if d.dsContext, err = d.initContext(); err != nil {
-		log.WithError(err).Fatal("Unable to acquire application context from Elastic")
-	}
-
-	if d.facade, err = d.initFacade(); err != nil {
-		log.WithError(err).Fatal("Unable to initialize Facade layer")
-	}
-
-	if d.cpDao, err = d.initDAO(); err != nil {
-		log.WithError(err).Fatal("Unable to initialize DAO layer")
-	}
+	d.dsDriver = d.initDriver()
+	d.dsContext = d.initContext()
+	d.facade = d.initFacade()
+	d.cpDao = d.initDAO()
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		log.WithError(err).Fatal("Unable to create default pool")
@@ -843,7 +832,7 @@ func (d *daemon) registerMasterRPC() error {
 	return nil
 }
 
-func (d *daemon) initDriver() (datastore.Driver, error) {
+func (d *daemon) initDriver() datastore.Driver {
 	log := log.WithFields(logrus.Fields{
 		"address": "localhost:9200",
 		"index":   "controlplane",
@@ -861,7 +850,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 	if err != nil {
 		log.WithError(err).Fatal("Unable to establish connection to Elastic database")
 	}
-	return eDriver, nil
+	return eDriver
 }
 
 func initMetricsClient() *metrics.Client {
@@ -878,7 +867,7 @@ func initMetricsClient() *metrics.Client {
 	return client
 }
 
-func (d *daemon) initFacade() (*facade.Facade, error) {
+func (d *daemon) initFacade() *facade.Facade {
 	log.Debug("Initializing facade")
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
@@ -893,8 +882,10 @@ func (d *daemon) initFacade() (*facade.Facade, error) {
 	f.SetHealthCache(d.hcache)
 	client := initMetricsClient()
 	f.SetMetricsClient(client)
-	err := f.CreateSystemUser(d.dsContext)
-	return f, err
+	if err := f.CreateSystemUser(d.dsContext); err != nil {
+		log.WithError(err).Fatal("Unable to create system user")
+	}
+	return f
 }
 
 // startLogstashPurger purges logstash based on days and size
@@ -915,17 +906,22 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 	}
 }
 
-func (d *daemon) initDAO() (dao.ControlPlane, error) {
+// FIXME: The dao package is deprecated and should be removed.
+func (d *daemon) initDAO() dao.ControlPlane {
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
-		return nil, err
+		log.WithField("rpcPort", options.RPCPort).WithError(err).Fatal("RPC Port invalid")
 	}
 	if err := os.MkdirAll(options.BackupsPath, 0777); err != nil && !os.IsExist(err) {
 		log.WithFields(logrus.Fields{
 			"backupspath": options.BackupsPath,
 		}).WithError(err).Fatal("Unable to create backup path")
 	}
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
+	cp, err := elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt);
+	if err != nil {
+		log.WithError(err).Fatal("Unable to initialize DAO layer")
+	}
+	return cp
 }
 
 func (d *daemon) initWeb() {
