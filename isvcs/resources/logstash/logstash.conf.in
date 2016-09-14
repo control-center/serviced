@@ -1,5 +1,5 @@
 input {
-    beat {
+    beats {
         port => 5043
         ssl => true
    	    # The paths to your ssl cert and key, these are from the perspective of the container

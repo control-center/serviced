@@ -133,6 +133,8 @@ type FacadeInterface interface {
 
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
 
+	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
+
 	AddUser(ctx datastore.Context, newUser user.User) error
 
 	GetUser(ctx datastore.Context, userName string) (user.User, error)

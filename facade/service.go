@@ -1906,3 +1906,78 @@ func (f *Facade) GetServiceMonitoringProfile(ctx datastore.Context, serviceID st
 	}
 	return &svc.MonitoringProfile, nil
 }
+
+// GetServicePublicEndpoints returns all the endpoints for a service and its
+// children if enabled.
+func (f *Facade) GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error) {
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	pubeps := f.getServicePublicEndpoints(*svc)
+
+	if children {
+		var setChildrenPublicEndpoints func(serviceID string) error
+
+		setChildrenPublicEndpoints = func(serviceID string) error {
+			svcs, err := f.serviceStore.GetChildServices(ctx, serviceID)
+			if err != nil {
+				return err
+			}
+
+			for _, svc := range svcs {
+				pubeps = append(pubeps, f.getServicePublicEndpoints(svc)...)
+				if err := setChildrenPublicEndpoints(svc.ID); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+
+		if err := setChildrenPublicEndpoints(serviceID); err != nil {
+			return nil, err
+		}
+	}
+
+	return pubeps, nil
+}
+
+func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.PublicEndpoint {
+	pubs := []service.PublicEndpoint{}
+
+	for _, ep := range svc.Endpoints {
+		for _, vhost := range ep.VHostList {
+			pubs = append(pubs, service.PublicEndpoint{
+				ServiceID:   svc.ID,
+				ServiceName: svc.Name,
+				Application: ep.Application,
+				Protocol:    "https",
+				VHostName:   vhost.Name,
+				Enabled:     vhost.Enabled,
+			})
+		}
+
+		for _, port := range ep.PortList {
+			pub := service.PublicEndpoint{
+				ServiceID:   svc.ID,
+				ServiceName: svc.Name,
+				Application: ep.Application,
+				PortAddress: port.PortAddr,
+				Enabled:     port.Enabled,
+			}
+
+			if strings.HasPrefix(port.Protocol, "http") {
+				pub.Protocol = port.Protocol
+			} else if port.UseTLS {
+				pub.Protocol = "Other, secure (TLS)"
+			} else {
+				pub.Protocol = "Other, non-secure"
+			}
+
+			pubs = append(pubs, pub)
+		}
+	}
+
+	return pubs
+}

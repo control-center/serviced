@@ -987,7 +987,27 @@ func (_m *FacadeInterface) GetServiceMonitoringProfile(ctx datastore.Context, se
 
 	return r0, r1
 }
+func (_m *FacadeInterface) GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error) {
+	ret := _m.Called(ctx, serviceID, children)
 
+	var r0 []service.PublicEndpoint
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) []service.PublicEndpoint); ok {
+		r0 = rf(ctx, serviceID, children)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.PublicEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool) error); ok {
+		r1 = rf(ctx, serviceID, children)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 // AddUser provides a mock function with given fields: ctx, newUser
 func (_m *FacadeInterface) AddUser(ctx datastore.Context, newUser user.User) error {
 	ret := _m.Called(ctx, newUser)
@@ -1108,7 +1128,7 @@ func (_m *FacadeInterface) GetServicesHealth(ctx datastore.Context) (map[string]
 	} else {
 		r1 = ret.Error(1)
 	}
-
+	
 	return r0, r1
 }
 func (_m *FacadeInterface) ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) {

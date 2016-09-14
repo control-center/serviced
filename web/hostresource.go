@@ -148,6 +148,32 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 	w.WriteJson(&mp)
 }
 
+func restGetServicePublicEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	pubs, err := facade.GetServicePublicEndpoints(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up public endpoints: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServicePublicEndpoints: id %s, publicEndpoints: %#v", serviceID, pubs)
+	w.WriteJson(&pubs)
+}
+
 // restGetAggregateServices provides aggregate service information
 func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()
