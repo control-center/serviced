@@ -92,3 +92,9 @@ func (c *Client) AuthenticateHost(hostID string) (string, int64, error) {
 	}
 	return response.Token, response.Expires, nil
 }
+
+func (c *Client) GetHostPublicKey(hostID string) ([]byte, error) {
+	response := []byte{}
+	err := c.call("GetHostPublicKey", hostID, &response)
+	return response, err
+}

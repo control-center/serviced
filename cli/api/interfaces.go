@@ -44,6 +44,7 @@ type API interface {
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
 	SetHostMemory(HostUpdateConfig) error
+	GetHostPublicKey(string) ([]byte, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)

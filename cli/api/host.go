@@ -145,3 +145,12 @@ func (a *api) AuthenticateHost(hostID string) (string, int64, error) {
 	}
 	return client.AuthenticateHost(hostID)
 }
+
+// Retrieve host's public key
+func (a *api) GetHostPublicKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetHostPublicKey(id)
+}
