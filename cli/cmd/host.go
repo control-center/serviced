@@ -77,6 +77,11 @@ func (c *ServicedCli) initHost() {
 				BashComplete: c.printHostsAll,
 				Action:       c.cmdHostRemove,
 			}, {
+				Name:        "register",
+				Usage:       "Set the authentication keys to use for this host. When KEYSFILE is -, read from stdin.",
+				Description: "serviced host register KEYSFILE",
+				Action:      c.cmdHostRegister,
+			}, {
 				Name:         "set-memory",
 				Usage:        "Set the memory allocation for a specific host",
 				Description:  "serviced host set-memory HOSTID ALLOCATION",
@@ -278,5 +283,14 @@ func (c *ServicedCli) cmdHostSetMemory(ctx *cli.Context) {
 
 	if err := c.driver.SetHostMemory(api.HostUpdateConfig{args[0], args[1]}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	}
+}
+
+// serviced host register (KEYSFILE | -)
+func (c *ServicedCli) cmdHostRegister(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) != 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "register")
 	}
 }
