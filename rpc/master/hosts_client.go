@@ -77,7 +77,7 @@ func (c *Client) FindHostsInPool(poolID string) ([]host.Host, error) {
 
 // AuthenticateHost authenticates a host
 func (c *Client) AuthenticateHost(hostID string) (string, int64, error) {
-	req := &HostAuthenticationRequest{
+	req := HostAuthenticationRequest{
 		HostID:  hostID,
 		Expires: time.Now().Add(time.Duration(1 * time.Minute)).UTC().Unix(),
 	}

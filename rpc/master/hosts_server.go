@@ -101,11 +101,11 @@ type HostAuthenticationResponse struct {
 	Expires int64
 }
 
-func (req *HostAuthenticationRequest) toMessage() []byte {
+func (req HostAuthenticationRequest) toMessage() []byte {
 	return []byte(fmt.Sprintf("%s:%d", req.HostID, req.Expires))
 }
 
-func (req *HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
+func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
 	verifier, err := auth.RSAVerifierFromPEM(publicKeyPEM)
 	if err != nil {
 		return err
@@ -119,7 +119,7 @@ func (req *HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
 	return nil
 }
 
-func (s *Server) AuthenticateHost(req *HostAuthenticationRequest, resp *HostAuthenticationResponse) error {
+func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthenticationResponse) error {
 	keypem, err := s.f.GetHostKey(s.context(), req.HostID)
 	if err != nil {
 		return err
