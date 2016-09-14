@@ -38,13 +38,9 @@ HOSTNAME=$(hostname)
 #
 # Setup of env vars required to build mockAgent
 echo ==== ENV INFO =====
-gvm use go1.6
 go version
 docker version
 echo ===================
-
-export GOPATH=$WORKSPACE/gopath
-export PATH=$GOPATH/bin:$PATH
 
 succeed() {
     echo ===== SUCCESS =====
