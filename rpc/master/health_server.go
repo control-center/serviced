@@ -20,11 +20,17 @@ import (
 	"time"
 )
 
+
 // HealthStatusRequest sends health status data to the health status cache.
 type HealthStatusRequest struct {
 	Key     health.HealthStatusKey
 	Value   health.HealthStatus
 	Expires time.Duration
+}
+
+type ReportDeadInstanceRequest struct {
+	ServiceID  string
+	InstanceID int
 }
 
 // GetISvcsHealth returns health status for a list of isvcs
@@ -64,7 +70,7 @@ func (s *Server) ReportHealthStatus(request HealthStatusRequest, unused *string)
 }
 
 // ReportInstanceDead removes stopped instances from the health check status cache.
-func (s *Server) ReportInstanceDead(request ServiceInstanceRequest, unused *string) error {
+func (s *Server) ReportInstanceDead(request ReportDeadInstanceRequest, unused *string) error {
 	s.f.ReportInstanceDead(request.ServiceID, request.InstanceID)
 	return nil
 }

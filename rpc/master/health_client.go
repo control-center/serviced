@@ -48,7 +48,7 @@ func (c *Client) ReportHealthStatus(key health.HealthStatusKey, value health.Hea
 
 // ReportInstanceDead removes stopped instances from the health check status cache.
 func (c *Client) ReportInstanceDead(serviceID string, instanceID int) error {
-	request := ServiceInstanceRequest{
+	request := ReportDeadInstanceRequest{
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
