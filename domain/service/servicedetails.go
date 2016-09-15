@@ -31,6 +31,7 @@ type ServiceDetails struct {
 	InstanceLimits  domain.MinMax
 	RAMCommitment   utils.EngNotation
 	Startup         string
+	HasChildren     bool
 	datastore.VersionedEntity
 }
 
