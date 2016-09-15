@@ -142,7 +142,7 @@ func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, 
 		"query": map[string]interface{}{
 			"term": map[string]string{"ParentServiceID": serviceID},
 		},
-		"fields": []string{"ID", "ParentServiceID"},
+		"fields": []string{"ID"},
 		"size":   1,
 	})
 
