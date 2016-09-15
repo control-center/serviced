@@ -248,8 +248,9 @@ func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
 	loadKeys := func() {
 		if err := LoadDelegateKeysFromFile(filename); err != nil {
 			log.WithError(err).Warn("Unable to load delegate keys from file. Continuing to watch for changes")
+		} else {
+			log.Info("Loaded delegate keys from file")
 		}
-		log.Info("Loaded delegate keys from file")
 	}
 
 	// Try an initial load without any file changes
