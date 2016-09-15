@@ -138,3 +138,11 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	*resp = HostAuthenticationResponse{signed, expires}
 	return nil
 }
+
+// Return host's public key
+func (s *Server) GetHostPublicKey(hostID string, key *[]byte) error {
+	publicKey, err := s.f.GetHostKey(s.context(), hostID)
+	*key = publicKey
+	return err
+
+}

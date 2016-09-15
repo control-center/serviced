@@ -59,6 +59,9 @@ type ClientInterface interface {
 	// Authenticate a host and receive an identity token and expiration
 	AuthenticateHost(hostID string) (string, int64, error)
 
+	// Get hostID's public key
+	GetHostPublicKey(hostID string) ([]byte, error)
+
 	//--------------------------------------------------------------------------
 	// Pool Management Functions
 

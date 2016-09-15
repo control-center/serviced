@@ -156,6 +156,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.initScript()
 	c.initServer()
 	c.initVolume()
+	c.initKey()
 
 	return c
 }
