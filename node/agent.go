@@ -261,11 +261,12 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*docker.Container, *zkservice.ServiceState, error) {
+func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageUUID string, imageName string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceName": svc.Name,
 		"serviceID":   svc.ID,
 		"instanceID":  instanceID,
+		"imageUUID":   imageUUID,
 		"imageID":     imageName,
 	})
 	var err error
@@ -274,6 +275,7 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
 	}
+	logger.WithFields(log.Fields{"svc.ImageID": svc.ImageID, "imageName": imageName}).Info("Back from GetEvaluatedService. About to set svc.ImageID to imageName.")
 	// Update the service with the complete image name
 	svc.ImageID = imageName
 
@@ -309,7 +311,7 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 
 	state := &zkservice.ServiceState{
-		ImageID: imageName,
+		ImageID: imageUUID,
 		Paused:  false,
 		HostIP:  a.ipaddress,
 	}

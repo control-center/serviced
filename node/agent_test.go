@@ -156,6 +156,7 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	fakeService := &service.Service{
 		ImageID: "busybox:latest",
 		ID:      "faketestService",
+		Name:    "fakeTestServiceName",
 	}
 	fakeUser := user.User{}
 	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
@@ -163,7 +164,7 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
 
 	// Call setupContainer
-	container, servicestate, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID)
+	container, servicestate, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID, fakeService.Name)
 
 	assert.NotNil(container)
 	assert.NotNil(servicestate)

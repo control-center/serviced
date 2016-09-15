@@ -131,6 +131,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 
 	// pull the service image
 	imageUUID, imageName, err := a.pullImage(logger, cancel, svc.ImageID)
+	logger.WithFields(log.Fields{"imageUUID": imageUUID, "imageName": imageName}).Info("back from a.pullImage")
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
@@ -138,7 +139,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	svc.ImageID = imageName
 
 	// set up the container
-	ctr, state, err := a.setupContainer(masterClient, svc, instanceID, imageUUID)
+	ctr, state, err := a.setupContainer(masterClient, svc, instanceID, imageUUID, imageName)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
