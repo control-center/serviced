@@ -42,6 +42,7 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc s
 		"servicename": svc.Name,
 		"poolid":      svc.PoolID,
 	})
+	store := addressassignment.NewStore()
 
 	// Initialize the object and the potential address.  The assumption is that
 	// all address assignments for a service must point to the same ip.
@@ -59,7 +60,6 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc s
 			if addr.IPAddress == "" {
 
 				// Get the assignment if it exists
-				store := addressassignment.NewStore()
 				assign, err := store.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name)
 				if err != nil {
 					logger.WithError(err).Debug("Could not look up assignment")
