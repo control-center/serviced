@@ -411,6 +411,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
 	entity.Description = "Default Pool"
+	entity.Permissions = pool.DFSAccess + pool.AdminAccess
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
 	}
