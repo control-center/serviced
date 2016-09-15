@@ -89,15 +89,17 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	}
 
 	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
@@ -168,16 +170,18 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 		instanceMap[fmt.Sprintf("%s-%d", inst.ServiceID, inst.InstanceID)] = &insts[i].MemoryUsage
 	}
 
-	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		// look up the metrics of all the instances
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
