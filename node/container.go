@@ -131,7 +131,6 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 
 	// pull the service image
 	imageUUID, imageName, err := a.pullImage(logger, cancel, svc.ImageID)
-	logger.WithFields(log.Fields{"imageUUID": imageUUID, "imageName": imageName}).Info("back from a.pullImage")
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err

@@ -275,7 +275,7 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
 	}
-	logger.WithFields(log.Fields{"svc.ImageID": svc.ImageID, "imageName": imageName}).Info("Back from GetEvaluatedService. About to set svc.ImageID to imageName.")
+
 	// Update the service with the complete image name
 	svc.ImageID = imageName
 
