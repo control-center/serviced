@@ -174,6 +174,32 @@ func restGetServicePublicEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx 
 	w.WriteJson(&pubs)
 }
 
+func restGetServiceIPAssignments(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	addrs, err := facade.GetServiceAddressAssignmentDetails(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up address assignments: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceAddressAssignments: id %s, addressAssignmentsL %#v", serviceID, addrs)
+	w.WriteJson(&addrs)
+}
+
 // restGetAggregateServices provides aggregate service information
 func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()
