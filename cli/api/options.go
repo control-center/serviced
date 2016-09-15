@@ -85,11 +85,11 @@ type Options struct {
 	LogstashMaxSize            int    // Max size of logstash data
 	LogstashCycleTime          int    // Logstash purging cycle time in hours
 	LogstashURL                string
-	DebugPort                  int    // Port to listen for profile clients
-	AdminGroup                 string // user group that can log in to control center
-	MaxRPCClients              int    // the max number of rpc clients to an endpoint
-	MUXTLSCiphers              []string          // List of tls ciphers supported for mux
-	MUXTLSMinVersion           string            // Minimum TLS version supported for mux
+	DebugPort                  int      // Port to listen for profile clients
+	AdminGroup                 string   // user group that can log in to control center
+	MaxRPCClients              int      // the max number of rpc clients to an endpoint
+	MUXTLSCiphers              []string // List of tls ciphers supported for mux
+	MUXTLSMinVersion           string   // Minimum TLS version supported for mux
 	RPCDialTimeout             int
 	RPCCertVerify              string            //  server certificate verify for rpc connections, string val of bool
 	RPCDisableTLS              string            //  Disable TLS for RPC connections, string val of bool
@@ -111,6 +111,7 @@ type Options struct {
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
+	TokenExpiration            int               // The time in seconds before an authentication token expires
 }
 
 // LoadOptions overwrites the existing server options
@@ -274,6 +275,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
+		TokenExpiration:            config.IntVal("AUTH_TOKEN_EXPIRATION", 24*60*60),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")

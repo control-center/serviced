@@ -105,6 +105,7 @@ type daemon struct {
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
+	tokenExpiration  time.Duration
 
 	facade *facade.Facade
 	hcache *health.HealthStatusCache
@@ -118,7 +119,7 @@ func init() {
 	commonsdocker.StartKernel()
 }
 
-func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string, tokenExpiration time.Duration) (*daemon, error) {
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
@@ -126,6 +127,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
 		rpcServer:        rpc.NewServer(),
+		tokenExpiration:  tokenExpiration,
 	}
 	return d, nil
 }
@@ -625,6 +627,34 @@ func (d *daemon) startAgent() error {
 		"hostid": myHostID,
 	})
 
+	// Load delegate keys if they exist
+	delegateKeyFile := path.Join(options.IsvcsPath, auth.DelegateKeyFileName)
+
+	// Start watching for delegate keys to be loaded
+	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
+
+	go func() {
+		// Wait for delegate keys to exist before trying to authenticate
+		auth.WaitForDelegateKeys()
+
+		// Authenticate against the master
+		getToken := func() (string, int64, error) {
+			masterClient, err := master.NewClient(d.servicedEndpoint)
+			if err != nil {
+				return "", 0, err
+			}
+			defer masterClient.Close()
+			token, expires, err := masterClient.AuthenticateHost(myHostID)
+			if err != nil {
+				return "", 0, err
+			}
+			return token, expires, nil
+		}
+
+		// Start authenticating
+		go auth.TokenLoop(getToken, d.shutdown)
+	}()
+
 	// Flag so we only log that a host hasn't been added yet once
 	var loggedNoHost bool
 
@@ -828,7 +858,7 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	log.Debug("Registering master RPC services")
 
-	server := master.NewServer(d.facade)
+	server := master.NewServer(d.facade, d.tokenExpiration)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),

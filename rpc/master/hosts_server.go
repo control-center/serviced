@@ -14,9 +14,17 @@
 package master
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/domain/host"
 
 	"errors"
+)
+
+var (
+	ErrRequestExpired = errors.New("Authentication request expired")
 )
 
 // GetHost gets the host
@@ -82,9 +90,59 @@ func (s *Server) FindHostsInPool(poolID string, hostReply *[]host.Host) error {
 	return nil
 }
 
+type HostAuthenticationRequest struct {
+	HostID    string
+	Expires   int64
+	Signature []byte
+}
+
+type HostAuthenticationResponse struct {
+	Token   string
+	Expires int64
+}
+
+func (req HostAuthenticationRequest) toMessage() []byte {
+	return []byte(fmt.Sprintf("%s:%d", req.HostID, req.Expires))
+}
+
+func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
+	verifier, err := auth.RSAVerifierFromPEM(publicKeyPEM)
+	if err != nil {
+		return err
+	}
+	if err := verifier.Verify(req.toMessage(), req.Signature); err != nil {
+		return err
+	}
+	if time.Now().UTC().Unix() >= req.Expires {
+		return ErrRequestExpired
+	}
+	return nil
+}
+
+func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthenticationResponse) error {
+	keypem, err := s.f.GetHostKey(s.context(), req.HostID)
+	if err != nil {
+		return err
+	}
+	if err := req.valid(keypem); err != nil {
+		return err
+	}
+	host, err := s.f.GetHost(s.context(), req.HostID)
+	if err != nil {
+		return err
+	}
+	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, s.expiration)
+	if err != nil {
+		return err
+	}
+	*resp = HostAuthenticationResponse{signed, expires}
+	return nil
+}
+
 // Return host's public key
 func (s *Server) GetHostPublicKey(hostID string, key *[]byte) error {
 	publicKey, err := s.f.GetHostKey(s.context(), hostID)
 	*key = publicKey
 	return err
+
 }

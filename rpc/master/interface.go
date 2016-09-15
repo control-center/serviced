@@ -56,6 +56,9 @@ type ClientInterface interface {
 	// FindHostsInPool returns all hosts in a pool
 	FindHostsInPool(poolID string) ([]host.Host, error)
 
+	// Authenticate a host and receive an identity token and expiration
+	AuthenticateHost(hostID string) (string, int64, error)
+
 	// Get hostID's public key
 	GetHostPublicKey(hostID string) ([]byte, error)
 
