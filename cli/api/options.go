@@ -15,8 +15,6 @@ package api
 
 import (
 	"fmt"
-	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -34,6 +32,7 @@ import (
 )
 
 const (
+	DefaultHomeDir       = "/opt/serviced"
 	DefaultRPCPort       = 4979
 	outboundIPRetryDelay = 1
 	outboundIPMaxWait    = 90
@@ -289,8 +288,8 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
 	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
-	homepath := config.StringVal("HOME", "")
-	varpath := getDefaultVarPath(homepath)
+	homepath := config.StringVal("HOME", DefaultHomeDir)
+	varpath := filepath.Join(homepath, "var")
 
 	options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
@@ -298,18 +297,6 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
 
 	return options
-}
-
-func getDefaultVarPath(home string) string {
-	if home == "" {
-		if user, err := user.Current(); err != nil {
-			home = filepath.Join(os.TempDir(), "serviced")
-		} else {
-			home = filepath.Join(os.TempDir(), "serviced-"+user.Username)
-		}
-	}
-
-	return filepath.Join(home, "var")
 }
 
 func getDefaultESStartupTimeout(timeout int) int {
