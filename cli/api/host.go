@@ -145,6 +145,7 @@ func (a *api) AuthenticateHost(hostID string) (string, int64, error) {
 		return "", 0, err
 	}
 	return client.AuthenticateHost(hostID)
+}
 
 // Retrieve host's public key
 func (a *api) GetHostPublicKey(id string) ([]byte, error) {
@@ -153,3 +154,4 @@ func (a *api) GetHostPublicKey(id string) ([]byte, error) {
 		return nil, err
 	}
 	return client.GetHostPublicKey(id)
+}
