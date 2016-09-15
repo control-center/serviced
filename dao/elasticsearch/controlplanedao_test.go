@@ -164,7 +164,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 
 	// create the account credentials
-	if err :=  dt.Facade.CreateSystemUser(dt.CTX); err != nil {
+	if err := dt.Facade.CreateSystemUser(dt.CTX); err != nil {
 		c.Fatalf("could not create systemuser: %s", err)
 	}
 }

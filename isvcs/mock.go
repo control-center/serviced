@@ -1087,5 +1087,5 @@ func init() {
 	initElasticSearch()
 	initCelery()
 	initDockerRegistry()
-    initKibana()
+	initKibana()
 }

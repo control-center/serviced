@@ -14,8 +14,8 @@
 package serviceconfigfile
 
 import (
-	"github.com/zenoss/elastigo/search"
 	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a Service Config File store

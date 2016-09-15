@@ -23,10 +23,10 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/domain/user"
 )
 
 type MetricsClient interface {

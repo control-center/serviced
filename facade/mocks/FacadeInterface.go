@@ -1008,6 +1008,7 @@ func (_m *FacadeInterface) GetServicePublicEndpoints(ctx datastore.Context, serv
 
 	return r0, r1
 }
+
 // AddUser provides a mock function with given fields: ctx, newUser
 func (_m *FacadeInterface) AddUser(ctx datastore.Context, newUser user.User) error {
 	ret := _m.Called(ctx, newUser)
@@ -1128,7 +1129,7 @@ func (_m *FacadeInterface) GetServicesHealth(ctx datastore.Context) (map[string]
 	} else {
 		r1 = ret.Error(1)
 	}
-	
+
 	return r0, r1
 }
 func (_m *FacadeInterface) ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) {

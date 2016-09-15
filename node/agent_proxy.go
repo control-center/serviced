@@ -69,7 +69,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 
 func (a *HostAgent) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) (err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID": request.ServiceID,
+		"serviceID":  request.ServiceID,
 		"instanceID": request.InstanceID,
 	})
 
@@ -95,7 +95,7 @@ func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
 	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		plog.WithFields(log.Fields{
-			"master": a.master,
+			"master":    a.master,
 			"serviceID": serviceId,
 		}).WithError(err).Error("Could not connect to the master")
 		return err
@@ -121,7 +121,6 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	glog.Errorf("AckProxySnapshotQuiece() Unimplemented")
 	return errors.New("unimplemented")
 }
-
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {

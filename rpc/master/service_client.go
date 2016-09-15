@@ -57,7 +57,7 @@ func (c *Client) GetService(serviceID string) (*service.Service, error) {
 func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error) {
 	svc := &service.Service{}
 	request := EvaluateServiceRequest{
-		ServiceID: serviceID,
+		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
 	err := c.call("GetEvaluatedService", request, svc)

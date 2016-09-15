@@ -135,7 +135,7 @@ func getAllServiceStatuses(ctx *requestContext) (statuses []*ConciseServiceStatu
 	healthChecks := make(map[memorykey]map[string]health.HealthStatus)
 	if len(instances) > 0 {
 		results, err := ctx.getFacade().GetServicesHealth(ctx.getDatastoreContext())
-		if  err != nil {
+		if err != nil {
 			glog.Errorf("Unable to look up health check results (%s)", err)
 		}
 		for svcid, insts := range results {
