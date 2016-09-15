@@ -29,7 +29,6 @@ var ElasticsearchServicedISVC s.Service
 var ZookeeperISVC s.Service
 var LogstashISVC s.Service
 var OpentsdbISVC s.Service
-var CeleryISVC s.Service
 var DockerRegistryISVC s.Service
 var KibanaISVC s.Service
 var ISVCSMap map[string]*s.Service
@@ -40,7 +39,6 @@ var ElasticsearchServicedIRS dao.RunningService
 var ZookeeperIRS dao.RunningService
 var LogstashIRS dao.RunningService
 var OpentsdbIRS dao.RunningService
-var CeleryIRS dao.RunningService
 var DockerRegistryIRS dao.RunningService
 var KibanaIRS dao.RunningService
 var IRSMap map[string]*dao.RunningService
@@ -709,122 +707,6 @@ func init() {
 			},
 		},
 	}
-	CeleryIRS = dao.RunningService{
-		Name:         "Celery",
-		Description:  "Internal Celery",
-		ID:           "isvc-celery",
-		ServiceID:    "isvc-celery",
-		DesiredState: 1,
-		StartedAt:    time.Now(),
-	}
-	CeleryISVC = s.Service{
-		Name:            "Celery",
-		ID:              "isvc-celery",
-		Startup:         "supervisord -n -c /opt/celery/etc/supervisor.conf",
-		Description:     "Internal Celery",
-		ParentServiceID: "isvc-internalservices",
-		DesiredState:    1,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-		MonitoringProfile: domain.MonitorProfile{
-			MetricConfigs: []domain.MetricConfig{
-				domain.MetricConfig{
-					ID:          "cpu",
-					Name:        "CPU Usage",
-					Description: "CPU Statistics",
-					Metrics: []domain.Metric{
-						domain.Metric{ID: "docker.usageinkernelmode", Name: "CPU System"},
-						domain.Metric{ID: "docker.usageinusermode", Name: "CPU User"},
-					},
-				},
-				domain.MetricConfig{
-					ID:          "memory",
-					Name:        "Memory Usage",
-					Description: "Memory Usage Statistics",
-					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
-					},
-				},
-			},
-			GraphConfigs: []domain.GraphConfig{
-				domain.GraphConfig{
-					ID:     "cpuUsage",
-					Name:   "CPU Usage",
-					Footer: false,
-					Format: "%4.2f",
-					MaxY:   nil,
-					MinY:   &zero,
-					Range: &domain.GraphConfigRange{
-						End:   "0s-ago",
-						Start: "1h-ago",
-					},
-					YAxisLabel: "% Used",
-					ReturnSet:  "EXACT",
-					Type:       "area",
-					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					Units:      "Percent",
-					DataPoints: []domain.DataPoint{
-						domain.DataPoint{
-							ID:           "system",
-							MetricSource: "cpu",
-							Aggregator:   "avg",
-							Fill:         false,
-							Format:       "%4.2f",
-							Legend:       "CPU (System)",
-							Metric:       "docker.usageinkernelmode",
-							Name:         "CPU (System)",
-							Rate:         false,
-							Type:         "area",
-						},
-						domain.DataPoint{
-							ID:           "system",
-							MetricSource: "cpu",
-							Aggregator:   "avg",
-							Fill:         false,
-							Format:       "%4.2f",
-							Legend:       "CPU (User)",
-							Metric:       "docker.usageinusermode",
-							Name:         "CPU (User)",
-							Rate:         false,
-							Type:         "area",
-						},
-					},
-				},
-				domain.GraphConfig{
-					ID:     "memoryUsage",
-					Name:   "Memory Usage",
-					Footer: false,
-					Format: "%4.2f",
-					MaxY:   nil,
-					MinY:   &zero,
-					Range: &domain.GraphConfigRange{
-						End:   "0s-ago",
-						Start: "1h-ago",
-					},
-					YAxisLabel: "bytes",
-					ReturnSet:  "EXACT",
-					Type:       "area",
-					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					Units:      "Bytes",
-					Base:       1024,
-					DataPoints: []domain.DataPoint{
-						domain.DataPoint{
-							ID:           "rssmemory",
-							MetricSource: "memory",
-							Aggregator:   "avg",
-							Fill:         false,
-							Format:       "%4.2f",
-							Legend:       "Memory Usage",
-							Metric:       "cgroup.memory.totalrss",
-							Name:         "Memory Usage",
-							Rate:         false,
-							Type:         "area",
-						},
-					},
-				},
-			},
-		},
-	}
 	DockerRegistryIRS = dao.RunningService{
 		Name:         "Docker Registry",
 		Description:  "Internal Docker Registry",
@@ -1065,7 +947,6 @@ func init() {
 		"isvc-zookeeper":              &ZookeeperISVC,
 		"isvc-logstash":               &LogstashISVC,
 		"isvc-opentsdb":               &OpentsdbISVC,
-		"isvc-celery":                 &CeleryISVC,
 		"isvc-docker-registry":        &DockerRegistryISVC,
 		"isvc-kibana":                 &KibanaISVC,
 	}
@@ -1077,7 +958,6 @@ func init() {
 		"isvc-zookeeper":              &ZookeeperIRS,
 		"isvc-logstash":               &LogstashIRS,
 		"isvc-opentsdb":               &OpentsdbIRS,
-		"isvc-celery":                 &CeleryIRS,
 		"isvc-docker-registry":        &DockerRegistryIRS,
 		"isvc-kibana":                 &KibanaIRS,
 	}
@@ -1085,7 +965,6 @@ func init() {
 	initOTSDB()
 	initLogstash()
 	initElasticSearch()
-	initCelery()
 	initDockerRegistry()
 	initKibana()
 }
