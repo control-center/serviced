@@ -37,6 +37,7 @@ type ZZK interface {
 	RemoveResourcePool(poolID string) error
 	AddVirtualIP(vip *pool.VirtualIP) error
 	RemoveVirtualIP(vip *pool.VirtualIP) error
+	GetVirtualIPHostID(poolID, ip string) (string, error)
 	GetRegistryImage(id string) (*registry.Image, error)
 	SetRegistryImage(rImage *registry.Image) error
 	DeleteRegistryImage(id string) error

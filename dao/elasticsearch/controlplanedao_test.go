@@ -164,7 +164,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 
 	// create the account credentials
-	if err :=  dt.Facade.CreateSystemUser(dt.CTX); err != nil {
+	if err := dt.Facade.CreateSystemUser(dt.CTX); err != nil {
 		c.Fatalf("could not create systemuser: %s", err)
 	}
 }
@@ -666,8 +666,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []addressassignment.AddressAssignment{}
-	err = dt.Facade.GetServiceAddressAssignments(dt.CTX, testService.ID, &assignments)
+	assignments, err := dt.Facade.GetServiceAddressAssignments(dt.CTX, testService.ID)
 	if err != nil {
 		t.Errorf("GetServiceAddressAssignments failed: %v", err)
 	}

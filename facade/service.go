@@ -1266,8 +1266,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 		glog.V(1).Infof("Found %+v ports for service %s (%s)", portmap.List(), svc.Name, svc.ID)
 
 		// get all of the address assignments for the service
-		var assignments []addressassignment.AddressAssignment
-		if err := f.GetServiceAddressAssignments(ctx, svc.ID, &assignments); err != nil {
+		assignments, err := f.GetServiceAddressAssignments(ctx, svc.ID)
+		if err != nil {
 			glog.Errorf("Could not get address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
