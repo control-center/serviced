@@ -293,4 +293,25 @@ func (c *ServicedCli) cmdHostRegister(ctx *cli.Context) {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "register")
 	}
+
+	var (
+		data []byte
+		err  error
+	)
+	fname := args[0]
+	switch fname {
+	case "-":
+		data, err = ioutil.ReadAll(os.Stdin)
+	default:
+		data, err = ioutil.ReadFile(fname)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := c.driver.RegisterHost(data); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 }
