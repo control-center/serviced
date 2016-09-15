@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"net"
 )
 
 /*
@@ -24,9 +25,9 @@ import (
    the sender sends an authentication token and signs the whole message. The token determines
    if the sender is authorized to send data to the receiver or not
 
-   ----------------------------------------------------------------------------------------------
-   | Auth Token length (4 bytes)  |     Auth Token (N bytes)  | Address (6 bytes) |  Signature  |
-   ----------------------------------------------------------------------------------------------
+   --------------------------------------------------------------------------------------------------------
+   | Auth Token length (4 bytes)  |     Auth Token (N bytes)  | Address (6 bytes) |  Signature (32 bytes) |
+   --------------------------------------------------------------------------------------------------------
 */
 
 var (
@@ -39,6 +40,7 @@ var (
 const (
 	ADDRESS_BYTES   = 6
 	TOKEN_LEN_BYTES = 4
+	SIGNATURE_BYTES = 32
 )
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
@@ -127,4 +129,21 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 	}
 
 	return address, senderIdentity, nil
+}
+
+func ReadMuxHeader(conn net.Conn) ([]byte, error) {
+	// Read token Length
+	tokenLenBuff := make([]byte, 4)
+	_, err := conn.Read(tokenLenBuff)
+	if err != nil {
+		return nil, err
+	}
+	tokenLen := endian.Uint32(tokenLenBuff)
+	// Read rest of the header
+	remainderBuff := make([]byte, tokenLen + ADDRESS_BYTES + SIGNATURE_BYTES)
+	_, err = conn.Read(remainderBuff)
+	if err != nil {
+		return nil, err
+	}
+	return append(tokenLenBuff, remainderBuff...), nil
 }
