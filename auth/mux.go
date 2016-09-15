@@ -133,7 +133,7 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 
 func ReadMuxHeader(conn net.Conn) ([]byte, error) {
 	// Read token Length
-	tokenLenBuff := make([]byte, 4)
+	tokenLenBuff := make([]byte, TOKEN_LEN_BYTES)
 	_, err := conn.Read(tokenLenBuff)
 	if err != nil {
 		return nil, err
