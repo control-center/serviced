@@ -225,20 +225,7 @@
         </table>
     </div>
 
-    <!-- SCHEDULED TASKS -->
-    <div ng-show="!services.current.isIsvc()">
-        <h3 translate>scheduled_tasks</h3>
-        <table jelly-table data-data="services.current.model.Tasks" data-config="scheduledTasksTable" class="table">
-            <tr ng-repeat="task in $data">
-                <td data-title="'task_schedule'|translate" sortable="'Schedule'" style="font-family:monospace">{{ task.Schedule }}</td>
-                <td data-title="'task_command'|translate" sortable="'Command'">{{ task.Command }}</td>
-                <td data-title="'task_last_run'|translate" sortable="'LastRunAt'">{{ task.LastRunAt }}</td>
-                <td data-title="'task_run_count'|translate" sortable="'TotalRunCount'">{{ task.TotalRunCount }}</td>
-            </tr>
-      </table>
-  </div>
+    <br>
 
-  <br>
-
-  <!-- Graphs -->
-  <graph-panel ng-if="services.current.model.MonitoringProfile.GraphConfigs.length > 0" data-service-id="services.current.model.ID" data-graph-configs="services.current.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
+    <!-- Graphs -->
+    <graph-panel ng-if="services.current.model.MonitoringProfile.GraphConfigs.length > 0" data-service-id="services.current.model.ID" data-graph-configs="services.current.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>

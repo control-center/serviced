@@ -78,12 +78,6 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 			"isvc": "opentsdb",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
-	celery.docker = dockerAPI
-	if err := Mgr.Register(celery); err != nil {
-		log.WithFields(logrus.Fields{
-			"isvc": "celery",
-		}).WithError(err).Fatal("Unable to register internal service")
-	}
 	dockerRegistry.docker = dockerAPI
 	if err := Mgr.Register(dockerRegistry); err != nil {
 		log.WithFields(logrus.Fields{
