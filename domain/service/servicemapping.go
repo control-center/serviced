@@ -78,15 +78,6 @@ var (
 			"VirtualAddress" :      {"type": "string", "index":"not_analyzed"},
 			"VHost" :               {"type": "string", "index":"not_analyzed"}
 		  }
-		},
-		"Tasks": {
-		  "properties": {
-			"Name" :           {"type": "string", "index":"not_analyzed"},
-			"Schedule" :       {"type": "string", "index":"not_analyzed"},
-			"Command" :        {"type": "string", "index":"not_analyzed"},
-			"LastRunAt" :      {"type": "date", "format" : "dateOptionalTime"},
-			"TotalRunCount" :  {"type": "long",   "index":"not_analyzed"}
-		  }
 		}
 	  }
 	}
