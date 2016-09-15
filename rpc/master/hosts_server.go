@@ -131,7 +131,7 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	if err != nil {
 		return err
 	}
-	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, time.Duration(1*time.Hour))
+	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, s.expiration)
 	if err != nil {
 		return err
 	}

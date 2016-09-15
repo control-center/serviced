@@ -105,6 +105,7 @@ type daemon struct {
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
+	tokenExpiration  time.Duration
 
 	facade *facade.Facade
 	hcache *health.HealthStatusCache
@@ -118,7 +119,7 @@ func init() {
 	commonsdocker.StartKernel()
 }
 
-func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string, tokenExpiration time.Duration) (*daemon, error) {
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
@@ -126,6 +127,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
 		rpcServer:        rpc.NewServer(),
+		tokenExpiration:  tokenExpiration,
 	}
 	return d, nil
 }
@@ -847,7 +849,7 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	log.Debug("Registering master RPC services")
 
-	server := master.NewServer(d.facade)
+	server := master.NewServer(d.facade, d.tokenExpiration)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),

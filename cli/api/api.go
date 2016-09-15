@@ -18,6 +18,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
@@ -108,7 +109,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID)
+	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID, time.Duration(options.TokenExpiration)*time.Second)
 	if err != nil {
 		return err
 	}
