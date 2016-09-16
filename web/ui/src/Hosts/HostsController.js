@@ -118,7 +118,7 @@
                             } else {
                                 this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
                             }
-                        } catch(e) {
+                        } catch(err) {
                             this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
                         }
                     });
