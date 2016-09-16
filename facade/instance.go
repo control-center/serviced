@@ -259,19 +259,20 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	logger.Debug("Calulated service status")
 
 	inst := &service.Instance{
-		InstanceID:   state.InstanceID,
-		HostID:       hst.ID,
-		HostName:     hst.Name,
-		ServiceID:    svc.ID,
-		ServiceName:  svc.Name,
-		ContainerID:  state.ContainerID,
-		ImageSynced:  imageSynced,
-		DesiredState: state.DesiredState,
-		CurrentState: curState,
-		HealthStatus: f.getInstanceHealth(&svc, state.InstanceID),
-		Scheduled:    state.Scheduled,
-		Started:      state.Started,
-		Terminated:   state.Terminated,
+		InstanceID:    state.InstanceID,
+		HostID:        hst.ID,
+		HostName:      hst.Name,
+		ServiceID:     svc.ID,
+		ServiceName:   svc.Name,
+		ContainerID:   state.ContainerID,
+		ImageSynced:   imageSynced,
+		DesiredState:  state.DesiredState,
+		CurrentState:  curState,
+		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),
+		RAMCommitment: int32(svc.RAMCommitment.Value),
+		Scheduled:     state.Scheduled,
+		Started:       state.Started,
+		Terminated:    state.Terminated,
 	}
 	logger.Debug("Loaded service instance")
 
@@ -322,10 +323,12 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 
 		// set up the aggregated service object
 		results[i] = service.AggregateService{
-			ServiceID:    serviceID,
-			DesiredState: service.DesiredState(svc.DesiredState),
-			Status:       make([]service.StatusInstance, len(stateIDs)),
-			NotFound:     false,
+			ServiceID:     serviceID,
+			Instances:     svc.Instances,
+			RAMCommitment: int32(svc.RAMCommitment.Value),
+			DesiredState:  service.DesiredState(svc.DesiredState),
+			Status:        make([]service.StatusInstance, len(stateIDs)),
+			NotFound:      false,
 		}
 
 		// set up the status of each instance
