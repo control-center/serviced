@@ -143,15 +143,14 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
 	// Read in the authenticated mux header
-	authMuxHeader := make([]byte, 1024)
-	nBytes, err := conn.Read(authMuxHeader)
+	authMuxHeader, err := auth.ReadMuxHeader(conn)
 	if err != nil {
 		log.WithError(err).Warn("Unable to read valid mux header. Closing connection")
 		conn.Close()
 		return
 	}
 	// TODO retrieve and validate the identity of the sender
-	muxHeader, _, err := auth.ExtractMuxHeader(authMuxHeader[:nBytes])
+	muxHeader, _, err := auth.ExtractMuxHeader(authMuxHeader)
 
 	address := utils.UnpackTCPAddressToString(muxHeader)
 
