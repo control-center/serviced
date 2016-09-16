@@ -427,7 +427,7 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	// Load keys if they exist, else generate them
-	masterKeyFile := path.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
 	keylog := log.WithFields(logrus.Fields{
 		"keyfile": masterKeyFile,
 	})
@@ -619,7 +619,8 @@ func (d *daemon) startAgent() error {
 	})
 
 	// Load delegate keys if they exist
-	delegateKeyFile := path.Join(options.EtcPath, auth.DelegateKeyFileName)
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	tokenFile := filepath.Join(options.IsvcsPath, auth.TokenFileName)
 
 	// Start watching for delegate keys to be loaded
 	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
@@ -643,7 +644,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Start authenticating
-		go auth.TokenLoop(getToken, d.shutdown)
+		go auth.TokenLoop(getToken, tokenFile, d.shutdown)
 	}()
 
 	// Flag so we only log that a host hasn't been added yet once

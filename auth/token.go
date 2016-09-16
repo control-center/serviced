@@ -14,11 +14,15 @@
 package auth
 
 import (
+	"io/ioutil"
 	"sync"
 	"time"
 )
 
 var (
+	// TokenFileName is the file in which we store the current token
+	TokenFileName = ".keys/auth.token"
+
 	currentToken string
 	expiration   time.Time
 	cond         = &sync.Cond{L: &sync.Mutex{}}
@@ -50,13 +54,13 @@ const (
 type TokenFunc func() (string, int64, error)
 
 // RefreshToken gets a new token, sets it as the current, and returns the expiration time
-func RefreshToken(f TokenFunc) (int64, error) {
+func RefreshToken(f TokenFunc, filename string) (int64, error) {
 	log.Debug("Refreshing authentication token")
 	token, expires, err := f()
 	if err != nil {
 		return 0, err
 	}
-	updateToken(token, expires)
+	updateToken(token, expires, filename)
 	log.WithField("expiration", expires).Info("Received new authentication token")
 	return expires, err
 }
@@ -72,9 +76,9 @@ func AuthToken() string {
 	return currentToken
 }
 
-func TokenLoop(f TokenFunc, done chan interface{}) {
+func TokenLoop(f TokenFunc, tokenfile string, done chan interface{}) {
 	for {
-		expires, err := RefreshToken(f)
+		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
 			log.WithError(err).Warn("Unable to obtain authentication token. Retrying in 10s")
 			select {
@@ -95,10 +99,13 @@ func TokenLoop(f TokenFunc, done chan interface{}) {
 	}
 }
 
-func updateToken(token string, expires int64) {
+func updateToken(token string, expires int64, filename string) {
 	cond.L.Lock()
 	currentToken = token
 	expiration = time.Unix(expires, 0)
+	if filename != "" {
+		ioutil.WriteFile(filename, []byte(token), 0600)
+	}
 	cond.L.Unlock()
 	cond.Broadcast()
 }
