@@ -33,3 +33,16 @@ type PublicEndpoint struct {
 	PortAddress string
 	Enabled     bool
 }
+
+// IPAssignment is a minimal service object that describes an address assignment
+// for a service.
+type IPAssignment struct {
+	ServiceID   string
+	ServiceName string
+	PoolID      string
+	HostID      string
+	HostName    string
+	Type        string
+	IPAddress   string
+	Ports       []uint16
+}
