@@ -161,7 +161,7 @@ func (a *api) GetHostPublicKey(id string) ([]byte, error) {
 
 // Write delegate keys to disk
 func (a *api) RegisterHost(keydata []byte) error {
-	keyfile := filepath.Join(options.IsvcsPath, auth.DelegateKeyFileName)
+	keyfile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
 	keydir := filepath.Dir(keyfile)
 	if err := os.MkdirAll(keydir, os.ModeDir|700); err != nil {
 		return err

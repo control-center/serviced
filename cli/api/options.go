@@ -59,6 +59,7 @@ type Options struct {
 	IsvcsPath                  string
 	BackupsPath                string
 	ResourcePath               string
+	EtcPath                    string
 	Zookeepers                 []string
 	ReportStats                bool
 	HostStats                  string
@@ -294,6 +295,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 	options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
+	options.EtcPath = config.StringVal("ETC_PATH", filepath.Join(homepath, "etc"))
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, config)
 
 	return options
