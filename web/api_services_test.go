@@ -20,7 +20,6 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/utils"
 	. "gopkg.in/check.v1"
 )
 
@@ -35,14 +34,10 @@ var serviceDetailsTestData = struct {
 		Description:     "Tenant Description",
 		PoolID:          "pool",
 		ParentServiceID: "",
-		Instances:       1,
 		InstanceLimits: domain.MinMax{
 			Min:     0,
 			Max:     2,
 			Default: 1,
-		},
-		RAMCommitment: utils.EngNotation{
-			Value: uint64(2147483648),
 		},
 		Startup: "firstservice -start",
 	},
@@ -52,14 +47,10 @@ var serviceDetailsTestData = struct {
 		Description:     "The first child service",
 		PoolID:          "pool",
 		ParentServiceID: "tenant",
-		Instances:       1,
 		InstanceLimits: domain.MinMax{
 			Min:     0,
 			Max:     2,
 			Default: 1,
-		},
-		RAMCommitment: utils.EngNotation{
-			Value: uint64(2147483648),
 		},
 		Startup: "firstservice -start",
 	},
@@ -69,14 +60,10 @@ var serviceDetailsTestData = struct {
 		Description:     "The second child service",
 		PoolID:          "pool",
 		ParentServiceID: "tenant",
-		Instances:       1,
 		InstanceLimits: domain.MinMax{
 			Min:     0,
 			Max:     10,
 			Default: 1,
-		},
-		RAMCommitment: utils.EngNotation{
-			Value: uint64(1073741824),
 		},
 		Startup: "secondservice -start",
 	},
