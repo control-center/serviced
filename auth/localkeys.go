@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	DelegateKeyFileName = ".keys/delegate.keys"
+	DelegateKeyFileName = "delegate.keys"
 	MasterKeyFileName   = ".keys/master.keys"
 )
 

@@ -619,7 +619,7 @@ func (d *daemon) startAgent() error {
 	})
 
 	// Load delegate keys if they exist
-	delegateKeyFile := path.Join(options.IsvcsPath, auth.DelegateKeyFileName)
+	delegateKeyFile := path.Join(options.EtcPath, auth.DelegateKeyFileName)
 
 	// Start watching for delegate keys to be loaded
 	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
@@ -959,7 +959,7 @@ func (d *daemon) initDAO() dao.ControlPlane {
 			"backupspath": options.BackupsPath,
 		}).WithError(err).Fatal("Unable to create backup path")
 	}
-	cp, err := elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt);
+	cp, err := elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize DAO layer")
 	}
