@@ -104,16 +104,17 @@ func (t HostAPITest) GetHost(id string) (*host.Host, error) {
 	return nil, nil
 }
 
-func (t HostAPITest) AddHost(config api.HostConfig) (*host.Host, error) {
+func (t HostAPITest) AddHost(config api.HostConfig) (*host.Host, []byte, error) {
 	if t.fail {
-		return nil, ErrInvalidHost
+		return nil, nil, ErrInvalidHost
 	} else if config.PoolID == NilPool {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	h := host.New()
 	h.ID = fmt.Sprintf("%s-%s", config.Address.Host, config.PoolID)
-	return h, nil
+	h.IPAddr = "127.0.0.1"
+	return h, []byte("Fake HostKeys"), nil
 }
 
 func (t HostAPITest) RemoveHost(id string) error {
@@ -221,25 +222,6 @@ func ExampleServicedCLI_CmdHostAdd() {
 	// Output:
 	// bad format: badurl; must be formatted as HOST:PORT
 	// 127.0.0.1-default
-}
-
-func ExampleServicedCLI_CmdHostAdd_usage() {
-	InitHostAPITest("serviced", "host", "add")
-
-	// Output:
-	// Incorrect Usage.
-	//
-	// NAME:
-	//    add - Adds a new host
-	//
-	// USAGE:
-	//    command add [command options] [arguments...]
-	//
-	// DESCRIPTION:
-	//    serviced host add HOST:PORT RESOURCE_POOL
-	//
-	// OPTIONS:
-	//    --memory 	Memory to allocate on this host, e.g. 20G, 50%
 }
 
 func ExampleServicedCLI_CmdHostAdd_fail() {

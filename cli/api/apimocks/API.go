@@ -117,7 +117,7 @@ func (_m *API) GetHostMap() (map[string]host.Host, error) {
 
 	return r0, r1
 }
-func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, error) {
+func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, []byte, error) {
 	ret := _m.Called(_a0)
 
 	var r0 *host.Host
@@ -136,7 +136,7 @@ func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, error) {
 		r1 = ret.Error(1)
 	}
 
-	return r0, r1
+	return r0, []byte("Fake host keys"), r1
 }
 func (_m *API) RemoveHost(_a0 string) error {
 	ret := _m.Called(_a0)
@@ -182,6 +182,15 @@ func (_m *API) SetHostMemory(_a0 api.HostUpdateConfig) error {
 	}
 
 	return r0
+}
+func (_m *API) GetHostPublicKey(string) ([]byte, error) {
+	return nil, nil
+}
+func (_m *API) RegisterHost([]byte) error {
+	return nil
+}
+func (_m *API) RegisterRemoteHost(*host.Host, []byte) error {
+	return nil
 }
 func (_m *API) GetResourcePools() ([]pool.ResourcePool, error) {
 	ret := _m.Called()
