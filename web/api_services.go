@@ -119,6 +119,62 @@ func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestC
 	})
 }
 
+func getServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	} else if len(serviceID) == 0 {
+		writeJSON(w, "serviceId must be specified", http.StatusBadRequest)
+		return
+	}
+
+	ctx := c.getDatastoreContext()
+
+	service, err := c.getFacade().GetService(ctx, serviceID)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(service.Context)
+
+}
+
+func putServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
+	ctx := c.getDatastoreContext()
+	f := c.getFacade()
+
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	var payload map[string]interface{}
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	svc, e := f.GetService(ctx, serviceID)
+	if e != nil {
+		restServerError(w, e)
+		return
+	}
+
+	svc.Context = payload
+
+	err = f.UpdateService(ctx, *svc)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	writeJSON(w, "Service Context Updated.", http.StatusOK)
+}
+
 type serviceDetailsResponse struct {
 	Results service.ServiceDetails `json:"results"`
 	Links   []APILink              `json:"links"`
