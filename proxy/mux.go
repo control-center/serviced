@@ -143,7 +143,11 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 
 	// Read in the mux header (a 6-byte representation of a TCP address)
 	muxHeader := make([]byte, 6)
-	if _, err := conn.Read(muxHeader); err != nil {
+	if _, err := conn.Read(muxHeader); err == io.EOF {
+		log.Debug("Detected closed connection in mux.")
+		conn.Close()
+		return
+	} else if err != nil {
 		log.WithError(err).Warn("Unable to read valid mux header. Closing connection")
 		conn.Close()
 		return
