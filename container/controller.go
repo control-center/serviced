@@ -14,6 +14,7 @@
 package container
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
@@ -62,9 +63,14 @@ var (
 	ErrNoServiceEndpoints = errors.New("container: unable to retrieve service endpoints")
 )
 
-// containerEnvironmentFile writes out all the environment variables passed to the container so
-// that programs that switch users can access those environment strings
-const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+const (
+	// containerEnvironmentFile writes out all the environment variables passed to the container so
+	// that programs that switch users can access those environment strings
+	containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+	// ContainerKeysDir holds the delegate's private key and auth token
+	containerDelegateKeyFile = "/etc/serviced/delegate.keys"
+	containerTokenFile       = "/etc/serviced/auth.token"
+)
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
@@ -336,6 +342,15 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid hostID")
 		return c, ErrInvalidHostID
 	}
+
+	// Load keys
+	keyshutdown := make(chan interface{})
+	go func() {
+		<-c.closing
+		close(keyshutdown)
+	}()
+	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
+	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
 
 	if options.Logforwarder.Enabled {
 		if err := setupLogstashFiles(c.hostID, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
