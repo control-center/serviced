@@ -790,103 +790,106 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 	})
 }
 
+func (c *Controller) exportEndpoint(endpoint applicationendpoint.ApplicationEndpoint) {
+	bind := zkservice.ImportBinding{
+		Application:    endpoint.Application,
+		Purpose:        "import", // Punting on control center dynamic imports for now
+		PortNumber:     endpoint.ProxyPort,
+		VirtualAddress: endpoint.VirtualAddress,
+	}
+	exports := make([]registry.ExportDetails, 1)
+	exports[0] = registry.ExportDetails{
+		ExportBinding: zkservice.ExportBinding{
+			Application: endpoint.Application,
+			Protocol:    endpoint.Protocol,
+			PortNumber:  endpoint.ContainerPort,
+		},
+		PrivateIP:  endpoint.ContainerIP,
+		HostIP:     endpoint.HostIP,
+		InstanceID: 0,
+	}
+	c.endpoints.UpdateRemoteExports(bind, exports)
+	return
+}
+
+func (c *Controller) createControlplaneEndpoints() map[string][]applicationendpoint.ApplicationEndpoint {
+	master := os.Getenv("SERVICED_MASTER_IP")
+	hostip := strings.Split(master, ":")[0]
+	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint, 0)
+
+	//control center should always be reachable on port 443 in a container
+	cp_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane",
+		Application:   "controlplane",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 443,
+		ProxyPort:     443,
+		HostPort:      443,
+		HostIP:        hostip,
+		Protocol:      "tcp",
+	}
+	endpoints["tcp:443"] = []applicationendpoint.ApplicationEndpoint{cp_endpoint}
+
+	cpc_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_consumer",
+		Application:   "controlplane_consumer",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 8443,
+		ProxyPort:     8444,
+		HostPort:      8443,
+		HostIP:        hostip,
+		Protocol:      "tcp",
+	}
+	endpoints["tcp:8443"] = []applicationendpoint.ApplicationEndpoint{cpc_endpoint}
+
+	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_logstash_tcp",
+		Application:   "controlplane_logstash_tcp",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5042,
+		HostPort:      5042,
+		ProxyPort:     5042,
+		HostIP:        hostip,
+		Protocol:      "tcp",
+	}
+	endpoints["tcp:5042"] = []applicationendpoint.ApplicationEndpoint{tcp_endpoint}
+
+	filebeat_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_logstash_filebeat",
+		Application:   "controlplane_logstash_filebeat",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5043,
+		HostPort:      5043,
+		ProxyPort:     5043,
+		HostIP:        hostip,
+		Protocol:      "tcp",
+	}
+	endpoints["tcp:5043"] = []applicationendpoint.ApplicationEndpoint{filebeat_endpoint}
+
+	kibana_endpoint := applicationendpoint.ApplicationEndpoint{
+		ServiceID:     "controlplane_kibana_tcp",
+		Application:   "controlplane_kibana_tcp",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5601,
+		HostPort:      5601,
+		ProxyPort:     5601,
+		HostIP:        hostip,
+		Protocol:      "tcp",
+	}
+	endpoints["tcp:5601"] = []applicationendpoint.ApplicationEndpoint{kibana_endpoint}
+
+	return endpoints
+}
+
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// this function is currently needed to handle special control center imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 	// get service endpoints
-	client, err := node.NewLBClient(c.options.ServicedEndpoint)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return err
+
+	endpoints := c.createControlplaneEndpoints()
+	for _, ep := range endpoints {
+		c.exportEndpoint(ep[0])
 	}
-	defer client.Close()
-	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
-	//       that returns only special "controlplane" imported endpoints
-	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
-	//		We should rename it and clean up the filtering code below.
-
-	epchan := make(chan map[string][]applicationendpoint.ApplicationEndpoint)
-	timeout := make(chan struct{})
-
-	go func(c *node.LBClient, svcid string, epc chan map[string][]applicationendpoint.ApplicationEndpoint, timeout chan struct{}) {
-		var endpoints map[string][]applicationendpoint.ApplicationEndpoint
-	RetryGetServiceEndpoints:
-		for {
-			err = c.GetServiceEndpoints(svcid, &endpoints)
-			if err != nil {
-				select {
-				case <-time.After(1 * time.Second):
-					glog.V(3).Info("Couldn't retrieve service endpoints, trying again")
-					continue RetryGetServiceEndpoints
-				case <-timeout:
-					glog.V(3).Info("Timed out trying to retrieve service endpoints")
-					return
-				}
-			}
-			break
-		}
-
-		// deal with the race between the one minute timeout in handleControlCenterImports() and the
-		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
-		// and sending the result via the epc channel.
-		select {
-		case _, ok := <-epc:
-			if ok {
-				panic("should never receive anything on the endpoints channel")
-			}
-			glog.V(3).Info("Endpoint channel closed, giving up")
-			return
-		default:
-			epc <- endpoints
-		}
-	}(client, c.options.Service.ID, epchan, timeout)
-
-	var endpoints map[string][]applicationendpoint.ApplicationEndpoint
-	select {
-	case <-time.After(1 * time.Minute):
-		close(epchan)
-		timeout <- struct{}{}
-		client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: "unable to retrieve service endpoints"}, nil)
-		return ErrNoServiceEndpoints
-	case <-rpcdead:
-		close(epchan)
-		timeout <- struct{}{}
-		return fmt.Errorf("RPC Service has gone away")
-	case endpoints = <-epchan:
-		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
-	}
-
-	for key, eps := range endpoints {
-		if len(endpoints) == 0 {
-			glog.Warningf("ignoring key: %s with empty endpointList", key)
-			continue
-		} else if !strings.HasPrefix(eps[0].Application, "controlplane") {
-			// ignore endpoints that are not special controlplane imports
-			continue
-		}
-		bind := zkservice.ImportBinding{
-			Application:    eps[0].Application,
-			Purpose:        "import", // Punting on control center dynamic imports for now
-			PortNumber:     eps[0].ProxyPort,
-			VirtualAddress: eps[0].VirtualAddress,
-		}
-		exports := make([]registry.ExportDetails, len(eps))
-		for i, ep := range eps {
-			exports[i] = registry.ExportDetails{
-				ExportBinding: zkservice.ExportBinding{
-					Application: ep.Application,
-					Protocol:    ep.Protocol,
-					PortNumber:  ep.ContainerPort,
-				},
-				PrivateIP:  ep.ContainerIP,
-				HostIP:     ep.HostIP,
-				InstanceID: i,
-			}
-		}
-		c.endpoints.UpdateRemoteExports(bind, exports)
-	}
-	// TODO: agent needs to register controlplane and controlplane_consumer
-	//       but don't do that here in the container code
 
 	return nil
 }
