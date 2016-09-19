@@ -75,7 +75,7 @@ func GetCertFiles(certFile, keyFile string) (string, string) {
 
 // GetRemoteConnection returns a connection to a remote address
 func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote net.Conn, err error) {
-	isLocalAddress := IsLocalAddress(export.PrivateIP)
+	isLocalAddress := IsLocalAddress(export.HostIP)
 
 	if isLocalAddress {
 		// if the address is local return the connection
