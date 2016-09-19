@@ -140,6 +140,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
 		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 		cli.StringFlag{"allow-loop-back", defaultOps.AllowLoopBack, "allow loop-back device with devicemapper"},
+		cli.StringFlag{"etc-path", defaultOps.EtcPath, "path to configuration"},
 	}
 
 	c.initVersion()
@@ -274,6 +275,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
+		EtcPath:                    ctx.GlobalString("etc-path"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
