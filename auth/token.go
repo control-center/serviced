@@ -14,14 +14,18 @@
 package auth
 
 import (
+	"bytes"
 	"io/ioutil"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
 )
 
 var (
 	// TokenFileName is the file in which we store the current token
-	TokenFileName = ".keys/auth.token"
+	TokenFileName = "auth.token"
 
 	currentToken string
 	expiration   time.Time
@@ -97,6 +101,36 @@ func TokenLoop(f TokenFunc, tokenfile string, done chan interface{}) {
 		case <-time.After(refresh):
 		}
 	}
+}
+
+// Watch a token file for changes. Load the token when those changes occur.
+func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
+	log := log.WithFields(logrus.Fields{
+		"tokenfile": tokenfile,
+	})
+
+	loadToken := func() {
+		data, err := ioutil.ReadFile(tokenfile)
+		if err != nil {
+			log.WithError(err).Warn("Unable to load authentication token from file. Continuing to watch for changes")
+		}
+		// No need to handle expires or save file, because we're loading from the file rather
+		// than re-requesting authentication tokens
+		updateToken(string(bytes.TrimSpace(data)), time.Unix(0, 0).Unix(), "")
+	}
+
+	// An initial token load without any file changes
+	loadToken()
+
+	// Now watch for changes
+	filechanges, err := NotifyOnChange(tokenfile, fsnotify.Write|fsnotify.Create, done)
+	if err != nil {
+		return err
+	}
+	for _ = range filechanges {
+		loadToken()
+	}
+	return nil
 }
 
 func updateToken(token string, expires int64, filename string) {

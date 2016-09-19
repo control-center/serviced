@@ -620,7 +620,7 @@ func (d *daemon) startAgent() error {
 
 	// Load delegate keys if they exist
 	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
-	tokenFile := filepath.Join(options.IsvcsPath, auth.TokenFileName)
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
 
 	// Start watching for delegate keys to be loaded
 	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
@@ -782,6 +782,8 @@ func (d *daemon) startAgent() error {
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
 			ZKSessionTimeout:     options.ZKSessionTimeout,
+			DelegateKeyFile:      delegateKeyFile,
+			TokenFile:            tokenFile,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
