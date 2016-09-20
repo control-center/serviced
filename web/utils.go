@@ -75,7 +75,7 @@ func GetCertFiles(certFile, keyFile string) (string, string) {
 
 // GetRemoteConnection returns a connection to a remote address
 func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote net.Conn, err error) {
-	isLocalAddress := IsLocalAddress(export.PrivateIP)
+	isLocalAddress := IsLocalAddress(export.HostIP)
 
 	if isLocalAddress {
 		// if the address is local return the connection
@@ -90,6 +90,11 @@ func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote ne
 		remote, err = tls.Dial("tcp4", remoteAddress, &config)
 	} else {
 		remote, err = net.Dial("tcp4", remoteAddress)
+	}
+
+	// Prevent a panic if we couldn't connect to the mux.
+	if err != nil {
+		return nil, err
 	}
 
 	// set the muxHeader on the remote connection
