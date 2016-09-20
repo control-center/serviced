@@ -1059,3 +1059,81 @@ func (_m *FacadeInterface) ReportHealthStatus(key health.HealthStatusKey, value 
 func (_m *FacadeInterface) ReportInstanceDead(serviceID string, instanceID int) {
 	_m.Called(serviceID, instanceID)
 }
+func (_m *FacadeInterface) GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 []service.Config
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Config); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.Config)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceConfig(ctx datastore.Context, fileID string) (*servicedefinition.ConfigFile, error) {
+	ret := _m.Called(ctx, fileID)
+
+	var r0 *servicedefinition.ConfigFile
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *servicedefinition.ConfigFile); ok {
+		r0 = rf(ctx, fileID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*servicedefinition.ConfigFile)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, fileID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) AddServiceConfig(ctx datastore.Context, serviceID string, conf servicedefinition.ConfigFile) error {
+	ret := _m.Called(ctx, serviceID, conf)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, servicedefinition.ConfigFile) error); ok {
+		r0 = rf(ctx, serviceID, conf)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *FacadeInterface) UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error {
+	ret := _m.Called(ctx, fileID, conf)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, servicedefinition.ConfigFile) error); ok {
+		r0 = rf(ctx, fileID, conf)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *FacadeInterface) DeleteServiceConfig(ctx datastore.Context, fileID string) error {
+	ret := _m.Called(ctx, fileID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) error); ok {
+		r0 = rf(ctx, fileID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

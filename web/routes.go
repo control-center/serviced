@@ -130,6 +130,12 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/services/:serviceId/publicendpoints", gz(sc.checkAuth(restGetServicePublicEndpoints))},
 		rest.Route{"GET", "/api/v2/services/:serviceId/ipassignments", gz(sc.checkAuth(restGetServiceIPAssignments))},
 		rest.Route{"GET", "/api/v2/statuses", gz(sc.checkAuth(restGetAggregateServices))},
+
+		rest.Route{"GET", "/api/v2/services/:serviceId/serviceconfigs", gz(sc.checkAuth(restGetServiceConfigFiles))},
+		rest.Route{"POST", "/api/v2/services/:serviceId/serviceconfigs", gz(sc.checkAuth(restAddServiceConfigFile))},
+		rest.Route{"GET", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restGetServiceConfigFile))},
+		rest.Route{"PUT", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restUpdateServiceConfigFile))},
+		rest.Route{"DELETE", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restDeleteServiceConfigFile))},
 	}
 
 	// Hardcoding these target URLs for now.
