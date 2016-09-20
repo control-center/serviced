@@ -25,9 +25,9 @@ import (
    the sender sends an authentication token and signs the whole message. The token determines
    if the sender is authorized to send data to the receiver or not
 
-   --------------------------------------------------------------------------------------------------------
-   | Auth Token length (4 bytes)  |     Auth Token (N bytes)  | Address (6 bytes) |  Signature (32 bytes) |
-   --------------------------------------------------------------------------------------------------------
+   ---------------------------------------------------------------------------------------------------------
+   | Auth Token length (4 bytes)  |     Auth Token (N bytes)  | Address (6 bytes) |  Signature (256 bytes) |
+   ---------------------------------------------------------------------------------------------------------
 */
 
 var (
@@ -40,7 +40,7 @@ var (
 const (
 	ADDRESS_BYTES   = 6
 	TOKEN_LEN_BYTES = 4
-	SIGNATURE_BYTES = 32
+	SIGNATURE_BYTES = 256
 )
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
