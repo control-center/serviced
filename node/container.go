@@ -115,16 +115,18 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 // StartContainer creates a new container and starts.  It returns info about
 // the container, and an event monitor to track the running state of the
 // service.
-func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
+// FIXME - when integrated with changes for CC-2590, the partialSvc parameter should be replaced with the handful of
+//         props we really need; e.g. ID & ImageID
+func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"imageid":     svc.ImageID,
+		"serviceid":   partialSvc.ID,
+		"servicename": partialSvc.Name,
+		"imageid":     partialSvc.ImageID,
 		"instanceid":  instanceID,
 	})
 
 	// pull the service image
-	imageUUID, imageName, err := a.pullImage(logger, cancel, svc.ImageID)
+	imageUUID, imageName, err := a.pullImage(logger, cancel, partialSvc.ImageID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
@@ -138,8 +140,36 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 	}
 	defer masterClient.Close()
 
+	evaluatedService, err := masterClient.GetEvaluatedService(partialSvc.ID, instanceID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get service")
+		return nil, nil, err
+	}
+	// Update the service with the complete image name
+	evaluatedService.ImageID = imageName
+
+	// FIXME: as further optimization, would be nice to remove this GetTenantID call and have the value
+	//        passed in somehow since the TenantID for a given service is a stable value over time.
+	// get this service's tenantId for volume mapping
+	tenantID, err := masterClient.GetTenantID(partialSvc.ID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get the tenant ID for the service")
+		return nil, nil, err
+	} else if len(tenantID) == 0 && len(evaluatedService.Volumes) > 0 {
+		// FIXME: find a better way of handling this error condition
+		logger.Fatal("Could not get tenant ID and need to mount a volume")
+	}
+
+	// get the system user
+	systemUser, err := masterClient.GetSystemUser()
+	if err != nil {
+		logger.WithError(err).Error("Failed to get the system user account")
+		return nil, nil, err
+	}
+	logger.WithField("systemUser", systemUser.Name).Debug("Got system user")
+
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(masterClient, svc, instanceID, imageName)
+	conf, hostConf, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
@@ -147,7 +177,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 
 	// create the container
 	opts := dockerclient.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%d", svc.ID, instanceID),
+		Name:       fmt.Sprintf("%s-%d", partialSvc.ID, instanceID),
 		Config:     conf,
 		HostConfig: hostConf,
 	}
@@ -188,7 +218,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, svc *service.Servi
 
 	var assignedIP string
 	var static bool
-	for _, ep := range svc.Endpoints {
+	for _, ep := range evaluatedService.Endpoints {
 		if ep.Purpose == "export" {
 			var assignedPortNumber uint16
 			if a := ep.GetAssignment(); a != nil {
@@ -434,44 +464,16 @@ func dockerLogsToFile(containerid string, numlines int) {
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	logger := plog.WithFields(log.Fields{
+		"tenantID": tenantID,
 		"serviceName": svc.Name,
 		"serviceID": svc.ID,
 		"instanceID": instanceID,
-		"imageID": imageName,
 	})
-	var err error
-	svc, err = masterClient.GetEvaluatedService(svc.ID, instanceID)
-	if err != nil {
-		logger.WithError(err).Error("Failed to get service")
-		return nil, nil, err
-	}
-	// Update the service with the complete image name
-	svc.ImageID = imageName
 
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
-
-	//get this service's tenantId for volume mapping
-	var tenantID string
-	tenantID, err = masterClient.GetTenantID(svc.ID)
-	if err != nil {
-		logger.WithError(err).Error("Failed to get the tenant ID for the service")
-		return nil, nil, err
-	} else if len(tenantID) == 0 && len(svc.Volumes) > 0 {
-		// FIXME: find a better way of handling this error condition
-		logger.Fatal("Could not get tenant ID and need to mount a volume")
-	}
-
-	// get the system user
-	var systemUser user.User
-	systemUser, err = masterClient.GetSystemUser()
-	if err != nil {
-		logger.WithError(err).Error("Failed to get the system user account")
-		return nil, nil, err
-	}
-	logger.WithField("systemUser", systemUser.Name).Debug("Got system user")
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
