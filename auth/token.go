@@ -14,7 +14,6 @@
 package auth
 
 import (
-	"bytes"
 	"io/ioutil"
 	"sync"
 	"time"
@@ -28,6 +27,7 @@ var (
 	TokenFileName = "auth.token"
 
 	currentToken string
+	zerotime     time.Time
 	expiration   time.Time
 	cond         = &sync.Cond{L: &sync.Mutex{}}
 )
@@ -64,7 +64,7 @@ func RefreshToken(f TokenFunc, filename string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	updateToken(token, expires, filename)
+	updateToken(token, time.Unix(expires, 0), filename)
 	log.WithField("expiration", expires).Info("Received new authentication token")
 	return expires, err
 }
@@ -116,7 +116,7 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 		}
 		// No need to handle expires or save file, because we're loading from the file rather
 		// than re-requesting authentication tokens
-		updateToken(string(bytes.TrimSpace(data)), time.Unix(0, 0).Unix(), "")
+		updateToken(string(data), zerotime, "")
 		log.Infof("Updated authentication token from disk")
 	}
 
@@ -134,10 +134,10 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	return nil
 }
 
-func updateToken(token string, expires int64, filename string) {
+func updateToken(token string, expires time.Time, filename string) {
 	cond.L.Lock()
 	currentToken = token
-	expiration = time.Unix(expires, 0)
+	expiration = expires
 	if filename != "" {
 		ioutil.WriteFile(filename, []byte(token), 0600)
 	}
