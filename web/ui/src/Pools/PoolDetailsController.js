@@ -8,10 +8,10 @@
 
     controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location",
     "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
-    "miscUtils", "hostsFactory", "poolsFactory", "areUIReady",
+    "miscUtils", "hostsFactory", "poolsFactory", "areUIReady", "POOL_PERMISSIONS",
     function($scope, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification, utils,
-    hostsFactory, poolsFactory, areUIReady){
+    hostsFactory, poolsFactory, areUIReady, POOL_PERMISSIONS){
         // Ensure logged in
         authService.checkLogin($scope);
 

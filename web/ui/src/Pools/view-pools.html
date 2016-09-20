@@ -16,8 +16,11 @@
     <td data-title="'pools_tbl_id'|translate" sortable="'id'" ng-click="click_pool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
     <td data-title="'core_capacity'|translate" sortable="'model.CoreCapacity'">{{pool.model.CoreCapacity}}</td>
     <td data-title="'memory_usage'|translate" sortable="'model.MemoryCommitment'"><span ng-class="{error: pool.model.MemoryCommitment>pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}</td>
-    <td data-title="'pools_tbl_created_at'|translate" sortable="'model.CreatedAt'">{{pool.model.CreatedAt | date : 'medium'}}</td>
-    <td data-title="'updated_at'|translate" sortable="'model.UpdatedAt'">{{pool.model.UpdatedAt | date : 'medium'}}</td>
+    <td data-title="'Access'|translate">
+        <span ng-repeat="permission in pool.permissions" class="permission-tag" title="{{permission.description}}">
+            {{permission.label}}
+        </span>
+    </td>
     <td data-title="'pools_tbl_actions'|translate"><button ng-click="clickRemovePool(pool.id)" ng-class="{disabled: isDefaultPool(pool.id)}" class="btn btn-link action" name="{{pool.id}}">
           <i class="glyphicon glyphicon-remove-sign"></i>
           <span translate>delete</span>

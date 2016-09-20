@@ -1940,3 +1940,15 @@ body.no-animation *:after {
 .instructions-block {
     font-size: 1.1em;
 }
+
+.permission-tag {
+    cursor: default;
+}
+.permission-tag::after {
+    content: ",";
+    padding-right: 2px;
+}
+.permission-tag:last-of-type::after {
+    content: "";
+    padding-right: 0;
+}
