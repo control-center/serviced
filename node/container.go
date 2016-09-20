@@ -131,14 +131,14 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 	}
 	defer masterClient.Close()
 
-	evaluatedService, err := masterClient.GetEvaluatedService(partialSvc.ID, instanceID)
+	evaluatedService, tenantID, err := masterClient.GetEvaluatedService(partialSvc.ID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
 	}
 
 	// pull the service image
-	imageUUID, imageName, err := a.pullImage(logger, cancel, partialSvc.ImageID)
+	imageUUID, imageName, err := a.pullImage(logger, cancel, evaluatedService.ImageID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
@@ -146,14 +146,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 	// Update the service with the complete image name
 	evaluatedService.ImageID = imageName
 
-	// FIXME: as further optimization, would be nice to remove this GetTenantID call and have the value
-	//        passed in somehow since the TenantID for a given service is a stable value over time.
-	// get this service's tenantId for volume mapping
-	tenantID, err := masterClient.GetTenantID(partialSvc.ID)
-	if err != nil {
-		logger.WithError(err).Error("Failed to get the tenant ID for the service")
-		return nil, nil, err
-	} else if len(tenantID) == 0 && len(evaluatedService.Volumes) > 0 {
+	if len(tenantID) == 0 && len(evaluatedService.Volumes) > 0 {
 		// FIXME: find a better way of handling this error condition
 		logger.Fatal("Could not get tenant ID and need to mount a volume")
 	}
@@ -175,7 +168,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 
 	// create the container
 	opts := dockerclient.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%d", partialSvc.ID, instanceID),
+		Name:       fmt.Sprintf("%s-%d", evaluatedService.ID, instanceID),
 		Config:     conf,
 		HostConfig: hostConf,
 	}
