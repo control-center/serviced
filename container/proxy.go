@@ -235,22 +235,41 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
 
+	// Build the authentication header before dialing the connection, so the
+	// connection isn't sitting open waiting for an authentication token to be
+	// loaded.
+	var muxAuthHeader []byte
+	if !isLocalContainer {
+		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
+		if err != nil {
+			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
+			return
+		}
+		muxAuthHeader, err = auth.BuildMuxHeader(muxHeader)
+		if err != nil {
+			glog.Errorf("Error building authenticaetd mux header. %s", err)
+			return
+		}
+	}
+
+	// Dial the target connection, which will be either a local container
+	// address or a mux port on a remote host.
 	switch {
 	case isLocalContainer:
-		glog.V(2).Infof("dialing local addr=> %s", localAddr)
+		glog.V(0).Infof("dialing local addr=> %s", localAddr)
 		remote, err = net.Dial("tcp4", localAddr)
 	case p.useTLS:
-		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
+		glog.V(0).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
 		var tlsConn *tls.Conn
 		tlsConn, err = tls.Dial("tcp4", muxAddr, &config)
 		remote = tlsConn
 
 		cipher := tlsConn.ConnectionState().CipherSuite
-		glog.V(2).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
+		glog.V(0).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
 
 	default:
-		glog.V(2).Infof("dialing remote => %s", muxAddr)
+		glog.V(0).Infof("dialing remote => %s", muxAddr)
 		remote, err = net.Dial("tcp4", muxAddr)
 	}
 	if err != nil {
@@ -258,34 +277,25 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		return
 	}
 
-	if !isLocalContainer {
-		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
-		if err != nil {
-			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
-			return
-		}
-		muxAuthHeader, err := auth.BuildMuxHeader(muxHeader)
-		if err != nil {
-			glog.Errorf("Error building authenticaetd mux header. %s", err)
-			return
-		}
-		remote.Write(muxAuthHeader)
-	}
+	// Write the authentication header, which will be empty if this is a local
+	// container.
+	glog.V(0).Infof("Writing muxAuthHeader: %d %s", len(muxAuthHeader), muxAuthHeader)
+	remote.Write(muxAuthHeader)
 
-	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
+	glog.V(0).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	go func(address string) {
 		defer local.Close()
 		defer remote.Close()
 		io.Copy(local, remote)
-		glog.V(2).Infof("Closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
+		glog.V(0).Infof("Closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	}(address.containerAddr)
 	go func(address string) {
 		defer local.Close()
 		defer remote.Close()
 		io.Copy(remote, local)
-		glog.V(2).Infof("closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
+		glog.V(0).Infof("closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	}(address.containerAddr)
 }
