@@ -138,9 +138,11 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}()
 
 	done := make(chan struct{})
-	defer func() { close(done) }()
-	for {
+	defer func() {
+		close(done)
+	}()
 
+	for {
 		// set up a listener on the host state node
 		hspth := l.GetPath(stateID)
 		hsdat := &HostState{}
@@ -157,16 +159,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 		// load the service state node
 		sspth := path.Join("/services", serviceID, stateID)
-		exists, err := l.conn.Exists(sspth)
-		if !exists {
-			logger.Debug("Service state was removed, exiting")
+		ssdat := &ServiceState{}
+		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
 			return
 		} else if err != nil {
-			logger.WithError(err).Error("Could not verify service state")
+			logger.WithError(err).Error("Could not load service state")
 			return
 		}
-
-		ssdat := &ServiceState{}
 
 		// attach to the container if not already attached
 		if containerExit == nil {

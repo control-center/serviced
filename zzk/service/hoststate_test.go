@@ -35,6 +35,9 @@ var (
 
 // Test Case: Bad state id
 func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -47,13 +50,13 @@ func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	shutdown := make(chan interface{})
@@ -75,6 +78,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
 
 // Test Case: Missing host state
 func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -87,14 +93,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -106,7 +112,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
 	err = conn.Delete("/hosts/hostid/instances/" + req.StateID())
 	c.Assert(err, IsNil)
 
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	shutdown := make(chan interface{})
@@ -147,6 +153,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrHostState(c *C) {
 
 // Test Case: Missing service state
 func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -159,7 +168,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
@@ -178,7 +187,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 	err = conn.Delete("/services/serviceid/" + req.StateID())
 	c.Assert(err, IsNil)
 
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	shutdown := make(chan interface{})
@@ -220,6 +229,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 
 // Test Case: Error on attach
 func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -232,14 +244,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -251,7 +263,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 	handler.On("StopContainer", "serviceid", 1).Return(nil)
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, ErrTestNoAttach)
 
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	done := make(chan struct{})
@@ -290,6 +302,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 
 // Test Case: Listener attaches to a running container
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -302,14 +317,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -331,10 +346,8 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
-	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
-		containerExit <- time.Now()
-	})
-	listener := NewHostStateListener(handler, "hostid")
+	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) { containerExit <- time.Now() })
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	done := make(chan struct{})
@@ -370,6 +383,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 
 // Test Case: Listener attaches to a paused running container
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -382,14 +398,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -397,7 +413,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	// set up a running container
@@ -416,6 +432,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
+
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
@@ -436,7 +453,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 	}
 
 	// resume container
-	handler.On("ResumeContainer", mock.AnythingOfType("*service.Service"), 1).Return(nil)
+	handler.On("ResumeContainer", "serviceid", 1).Return(nil)
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCRun
 		return true
@@ -490,6 +507,15 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 // Test Case: Listener attaches to a running container and is triggered to
 // restart it.
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
+	// Constants
+	const ServiceId = "serviceid"
+	const ContainerId = "containerid"
+	const ContainerId2 = "containerid2"
+	const ImageId = "imageid"
+	const HostId = "hostid"
+	const ServiceA = "serviceA"
+	const PoolId = "poolid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -497,36 +523,37 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 	// Basic set up
 	svc := &service.Service{
-		ID:     "serviceid",
-		Name:   "serviceA",
-		PoolID: "poolid",
+		ID:     ServiceId,
+		Name:   ServiceA,
+		PoolID: PoolId,
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
-		ServiceID:  "serviceid",
+		HostID:     HostId,
+		ServiceID:  ServiceId,
 		InstanceID: 1,
 	}
 	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	// set up a running container
 	ssdat := &ServiceState{
-		ContainerID: "containerid",
-		ImageID:     "imageid",
+		ContainerID: ContainerId,
+		ImageID:     ImageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
+
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.ServiceState = *ssdat
 		return true
@@ -535,12 +562,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
-	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), ServiceId, 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
 	c.Assert(err, IsNil)
+
 	go func() {
 		listener.Spawn(shutdown, req.StateID())
 		close(done)
@@ -556,14 +585,15 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 	}
 
 	ssdat = &ServiceState{
-		ContainerID: "containerid2",
-		ImageID:     "imageid",
+		ContainerID: ContainerId2,
+		ImageID:     ImageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
 	var retShutdown <-chan interface{} = shutdown
-	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
-	handler.On("StartContainer", retShutdown, mock.AnythingOfType("*service.Service"), 1).Return(ssdat, retExit, nil)
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), ServiceId, 1).Return(nil, nil).Once()
+	handler.On("StartContainer", retShutdown, ServiceId, 1).Return(ssdat, retExit, nil).Once()
 
 	containerExit <- time.Now()
 	timer = time.NewTimer(time.Second)
@@ -573,8 +603,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 		ssdat2 := &ServiceState{}
 		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat2, done)
 		c.Assert(err, IsNil)
-
-		if ssdat2.ContainerID == "containerid" {
+		if ssdat2.ContainerID == ContainerId {
 			timer.Reset(time.Second)
 			c.Check(ssdat2.Terminated.IsZero(), Equals, false)
 
@@ -600,12 +629,10 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 		c.Fatalf("Listener took too long")
 	}
 
-	handler.On("StopContainer", "serviceid", 1).Return(nil).Run(func(_ mock.Arguments) {
-		containerExit <- time.Now()
-	}).Once()
+	handler.On("StopContainer", ServiceId, 1).Return(nil).Run(func(args mock.Arguments) { containerExit <- time.Now() }).Once()
 
 	close(shutdown)
-	timer.Reset(time.Second)
+	timer = time.NewTimer(time.Second)
 	select {
 	case e := <-ev:
 		c.Check(e.Type, Equals, client.EventNodeDeleted)
@@ -619,6 +646,11 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 // Test Case: Listener attaches to a running container and pauses the state
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
+	// Constants
+	const HostId = "hostid"
+	const ImageId = "imageid"
+	const ServiceId = "serviceid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -631,14 +663,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -646,13 +678,13 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	// set up a running container
 	ssdat := &ServiceState{
 		ContainerID: "containerid",
-		ImageID:     "imageid",
+		ImageID:     ImageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
@@ -664,11 +696,13 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
+
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
 	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
 	c.Assert(err, IsNil)
+	c.Logf("ev channel address is %v", ev)
 	go func() {
 		listener.Spawn(shutdown, req.StateID())
 		close(done)
@@ -684,7 +718,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 	}
 
 	// pause container
-	handler.On("PauseContainer", mock.AnythingOfType("*service.Service"), 1).Return(nil)
+	handler.On("PauseContainer", ServiceId, 1).Return(nil)
 	err = UpdateState(conn, req, func(s *State) bool {
 		s.DesiredState = service.SVCPause
 		return true
@@ -737,6 +771,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 
 // Test Case: Listener attaches to a paused running container (no change)
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -749,14 +786,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -764,7 +801,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	// set up a paused running container
@@ -783,6 +820,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
+
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})
@@ -821,6 +859,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 
 // Test Case: Listener to pause a stopped container (no change)
 func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
+	// constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -833,14 +874,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -848,7 +889,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	err = UpdateState(conn, req, func(s *State) bool {
@@ -856,6 +897,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 		return true
 	})
 	c.Assert(err, IsNil)
+
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(nil, nil).Once()
 
 	done := make(chan struct{})
@@ -892,6 +934,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_DetachPause(c *C) {
 
 // Test Case: Listener attaches to a running container and stops
 func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
+	// Constants
+	const HostId = "hostid"
+
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
@@ -904,14 +949,14 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 		PoolID: "poolid",
 	}
 	spth := "/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := NewServiceNodeFromService(svc)
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/hosts/hostid")
 	c.Assert(err, IsNil)
 
 	req := StateRequest{
-		HostID:     "hostid",
+		HostID:     HostId,
 		ServiceID:  "serviceid",
 		InstanceID: 1,
 	}
@@ -919,7 +964,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
-	listener := NewHostStateListener(handler, "hostid")
+	listener := NewHostStateListener(handler, HostId)
 	listener.SetConnection(conn)
 
 	// set up a running container
@@ -938,6 +983,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
+
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), "serviceid", 1).Return(retExit, nil).Once()
 
 	done := make(chan struct{})

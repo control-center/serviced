@@ -47,7 +47,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 		ID: "testservice",
 	}
 	spth := path.Join(ppth, "/services", s.ID)
-	err = conn.Create(spth, &ServiceNode{Service: s})
+	err = conn.Create(spth, NewServiceNodeFromService(s))
 	c.Assert(err, IsNil)
 
 	// initialize the listener
