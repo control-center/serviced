@@ -26,10 +26,11 @@ var (
 	// TokenFileName is the file in which we store the current token
 	TokenFileName = "auth.token"
 
-	currentToken string
-	zerotime     time.Time
-	expiration   time.Time
-	cond         = &sync.Cond{L: &sync.Mutex{}}
+	currentToken    string
+	currentIdentity Identity
+	zerotime        time.Time
+	expiration      time.Time
+	cond            = &sync.Cond{L: &sync.Mutex{}}
 )
 
 func now() time.Time {
@@ -137,10 +138,27 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 func updateToken(token string, expires time.Time, filename string) {
 	cond.L.Lock()
 	currentToken = token
+	currentIdentity = getIdentityFromToken(token)
 	expiration = expires
 	if filename != "" {
 		ioutil.WriteFile(filename, []byte(token), 0600)
 	}
 	cond.L.Unlock()
 	cond.Broadcast()
+}
+
+func getIdentityFromToken(token string) Identity {
+	identity, err := ParseJWTIdentity(token)
+	if err != nil {
+		log.WithError(err).Error("Unable to obtain identity from token.")
+		return nil
+	}
+	return identity
+}
+
+//Return the current identity or nil if the token is not yet available
+func CurrentIdentity() Identity {
+	cond.L.Lock()
+	defer cond.L.Unlock()
+	return currentIdentity
 }
