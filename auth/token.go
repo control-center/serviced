@@ -117,6 +117,7 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 		// No need to handle expires or save file, because we're loading from the file rather
 		// than re-requesting authentication tokens
 		updateToken(string(bytes.TrimSpace(data)), time.Unix(0, 0).Unix(), "")
+		log.Infof("Updated authentication token from disk")
 	}
 
 	// An initial token load without any file changes

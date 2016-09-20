@@ -295,6 +295,16 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
+	// Load keys
+	keyshutdown := make(chan interface{})
+	go func() {
+		<-c.closing
+		close(keyshutdown)
+	}()
+
+	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
+	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
+
 	// get service
 	instanceID, err := strconv.Atoi(options.Service.InstanceID)
 	if err != nil {
@@ -342,15 +352,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid hostID")
 		return c, ErrInvalidHostID
 	}
-
-	// Load keys
-	keyshutdown := make(chan interface{})
-	go func() {
-		<-c.closing
-		close(keyshutdown)
-	}()
-	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
-	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
 
 	if options.Logforwarder.Enabled {
 		if err := setupLogstashFiles(c.hostID, service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {

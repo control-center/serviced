@@ -141,7 +141,6 @@ func LoadDelegateKeysFromFile(filename string) error {
 	if err != nil {
 		return err
 	}
-
 	updateDelegateKeys(pub, priv)
 	return nil
 }
