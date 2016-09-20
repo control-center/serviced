@@ -256,20 +256,20 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	// address or a mux port on a remote host.
 	switch {
 	case isLocalContainer:
-		glog.V(0).Infof("dialing local addr=> %s", localAddr)
+		glog.V(2).Infof("dialing local addr=> %s", localAddr)
 		remote, err = net.Dial("tcp4", localAddr)
 	case p.useTLS:
-		glog.V(0).Infof("dialing remote tls => %s", muxAddr)
+		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
 		var tlsConn *tls.Conn
 		tlsConn, err = tls.Dial("tcp4", muxAddr, &config)
 		remote = tlsConn
 
 		cipher := tlsConn.ConnectionState().CipherSuite
-		glog.V(0).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
+		glog.V(2).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
 
 	default:
-		glog.V(0).Infof("dialing remote => %s", muxAddr)
+		glog.V(2).Infof("dialing remote => %s", muxAddr)
 		remote, err = net.Dial("tcp4", muxAddr)
 	}
 	if err != nil {
@@ -279,23 +279,22 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	// Write the authentication header, which will be empty if this is a local
 	// container.
-	glog.V(0).Infof("Writing muxAuthHeader: %d %s", len(muxAuthHeader), muxAuthHeader)
 	remote.Write(muxAuthHeader)
 
-	glog.V(0).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
+	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	go func(address string) {
 		defer local.Close()
 		defer remote.Close()
 		io.Copy(local, remote)
-		glog.V(0).Infof("Closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
+		glog.V(2).Infof("Closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	}(address.containerAddr)
 	go func(address string) {
 		defer local.Close()
 		defer remote.Close()
 		io.Copy(remote, local)
-		glog.V(0).Infof("closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
+		glog.V(2).Infof("closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	}(address.containerAddr)
 }
