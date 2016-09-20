@@ -14,7 +14,6 @@
 package web
 
 import (
-	"github.com/control-center/serviced/domain/pool"
 	"github.com/zenoss/go-json-rest"
 )
 
@@ -29,21 +28,5 @@ func getPools(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	response := poolsResponse{
-		Results: pools,
-		Total:   len(pools),
-		Links: []APILink{APILink{
-			Rel:    "self",
-			HRef:   r.URL.Path,
-			Method: "GET",
-		}},
-	}
-
-	w.WriteJson(response)
-}
-
-type poolsResponse struct {
-	Results []pool.ReadPool `json:"results"`
-	Total   int             `json:"total"`
-	Links   []APILink       `json:"links"`
+	w.WriteJson(pools)
 }

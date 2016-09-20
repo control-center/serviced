@@ -39,17 +39,7 @@ func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestCon
 		return
 	}
 
-	w.WriteJson(serviceDetailsListResponse{
-		Results: details,
-		Total:   len(details),
-		Links: []APILink{
-			APILink{
-				Rel:    "self",
-				HRef:   r.URL.Path,
-				Method: "GET",
-			},
-		},
-	})
+	w.WriteJson(details)
 }
 
 func getServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
@@ -76,16 +66,7 @@ func getServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 		return
 	}
 
-	w.WriteJson(serviceDetailsResponse{
-		Results: *details,
-		Links: []APILink{
-			APILink{
-				Rel:    "self",
-				HRef:   r.URL.Path,
-				Method: "GET",
-			},
-		},
-	})
+	w.WriteJson(*details)
 }
 
 func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
@@ -106,17 +87,7 @@ func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestC
 		return
 	}
 
-	w.WriteJson(serviceDetailsListResponse{
-		Results: details,
-		Total:   len(details),
-		Links: []APILink{
-			APILink{
-				Rel:    "self",
-				HRef:   r.URL.Path,
-				Method: "GET",
-			},
-		},
-	})
+	w.WriteJson(details)
 }
 
 func getServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
@@ -173,15 +144,4 @@ func putServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 	}
 
 	writeJSON(w, "Service Context Updated.", http.StatusOK)
-}
-
-type serviceDetailsResponse struct {
-	Results service.ServiceDetails `json:"results"`
-	Links   []APILink              `json:"links"`
-}
-
-type serviceDetailsListResponse struct {
-	Results []service.ServiceDetails `json:"results"`
-	Total   int                      `json:"total"`
-	Links   []APILink                `json:"links"`
 }
