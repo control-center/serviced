@@ -32,8 +32,8 @@ import (
 	"sync"
 	"time"
 
-	dockerclient "github.com/fsouza/go-dockerclient"
 	log "github.com/Sirupsen/logrus"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons"
@@ -96,6 +96,8 @@ type HostAgent struct {
 	dockerLogConfig      map[string]string
 	pullreg              registry.Registry
 	zkSessionTimeout     int
+	delegateKeyFile      string
+	tokenFile            string
 }
 
 func getZkDSN(zookeepers []string, timeout int) string {
@@ -130,6 +132,8 @@ type AgentOptions struct {
 	DockerLogDriver      string
 	DockerLogConfig      map[string]string
 	ZKSessionTimeout     int
+	DelegateKeyFile      string
+	TokenFile            string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -153,6 +157,8 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.dockerLogDriver = options.DockerLogDriver
 	agent.dockerLogConfig = options.DockerLogConfig
 	agent.zkSessionTimeout = options.ZKSessionTimeout
+	agent.delegateKeyFile = options.DelegateKeyFile
+	agent.tokenFile = options.TokenFile
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
@@ -171,7 +177,6 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.pullreg = reg
 	return agent, err
 }
-
 
 func attachAndRun(dockerID, command string) error {
 	if dockerID == "" {
@@ -265,9 +270,9 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *service.Service, instanceID int, imageName string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceName": svc.Name,
-		"serviceID": svc.ID,
-		"instanceID": instanceID,
-		"imageID": imageName,
+		"serviceID":   svc.ID,
+		"instanceID":  instanceID,
+		"imageID":     imageName,
 	})
 	var err error
 	svc, err = masterClient.GetEvaluatedService(svc.ID, instanceID)
@@ -366,6 +371,10 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 		logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Debug("Added logstash bindmount")
 	}
 
+	// Bind mount the keys we need
+	containerEtcPath := "/etc/serviced"
+	bindsMap[containerEtcPath] = "/opt/serviced/etc"
+
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
 	for _, volume := range svc.Volumes {
@@ -394,8 +403,8 @@ func (a *HostAgent) setupContainer(masterClient master.ClientInterface, svc *ser
 			}
 			logger.WithFields(log.Fields{
 				"requestedImage": requestedImage,
-				"hostPath": hostPath,
-				"containerPath": containerPath,
+				"hostPath":       hostPath,
+				"containerPath":  containerPath,
 			}).Debug("Parsed out bind mount information")
 
 			// insert tenantId into requestedImage - see facade.DeployService

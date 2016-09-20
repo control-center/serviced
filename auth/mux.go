@@ -140,7 +140,7 @@ func ReadMuxHeader(conn net.Conn) ([]byte, error) {
 	}
 	tokenLen := endian.Uint32(tokenLenBuff)
 	// Read rest of the header
-	remainderBuff := make([]byte, tokenLen + ADDRESS_BYTES + SIGNATURE_BYTES)
+	remainderBuff := make([]byte, tokenLen+ADDRESS_BYTES+SIGNATURE_BYTES)
 	_, err = conn.Read(remainderBuff)
 	if err != nil {
 		return nil, err

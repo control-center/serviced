@@ -141,7 +141,6 @@ func LoadDelegateKeysFromFile(filename string) error {
 	if err != nil {
 		return err
 	}
-
 	updateDelegateKeys(pub, priv)
 	return nil
 }
@@ -256,28 +255,14 @@ func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
 	// Try an initial load without any file changes
 	loadKeys()
 
-	w, err := fsnotify.NewWatcher()
+	filechanges, err := NotifyOnChange(filename, fsnotify.Write|fsnotify.Create, cancel)
 	if err != nil {
 		return err
 	}
-	defer w.Close()
-	cleanDir, _ := filepath.Split(filename)
-	ops := fsnotify.Write | fsnotify.Create
-	if err := w.Add(cleanDir); err != nil {
-		return err
+	for _ = range filechanges {
+		loadKeys()
 	}
-	for {
-		select {
-		case e := <-w.Events:
-			if filepath.Clean(e.Name) == filename && e.Op&ops != 0 {
-				// We have a change to our file. Load 'em
-				loadKeys()
-			}
-		case <-w.Errors:
-		case <-cancel:
-			return nil
-		}
-	}
+	return nil
 }
 
 func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {

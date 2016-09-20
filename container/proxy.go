@@ -235,6 +235,25 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
 
+	// Build the authentication header before dialing the connection, so the
+	// connection isn't sitting open waiting for an authentication token to be
+	// loaded.
+	var muxAuthHeader []byte
+	if !isLocalContainer {
+		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
+		if err != nil {
+			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
+			return
+		}
+		muxAuthHeader, err = auth.BuildMuxHeader(muxHeader)
+		if err != nil {
+			glog.Errorf("Error building authenticaetd mux header. %s", err)
+			return
+		}
+	}
+
+	// Dial the target connection, which will be either a local container
+	// address or a mux port on a remote host.
 	switch {
 	case isLocalContainer:
 		glog.V(2).Infof("dialing local addr=> %s", localAddr)
@@ -258,19 +277,9 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		return
 	}
 
-	if !isLocalContainer {
-		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
-		if err != nil {
-			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
-			return
-		}
-		muxAuthHeader, err := auth.BuildMuxHeader(muxHeader)
-		if err != nil {
-			glog.Errorf("Error building authenticaetd mux header. %s", err)
-			return
-		}
-		remote.Write(muxAuthHeader)
-	}
+	// Write the authentication header, which will be empty if this is a local
+	// container.
+	remote.Write(muxAuthHeader)
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)

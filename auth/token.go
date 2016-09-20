@@ -14,12 +14,20 @@
 package auth
 
 import (
+	"io/ioutil"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/fsnotify/fsnotify"
 )
 
 var (
+	// TokenFileName is the file in which we store the current token
+	TokenFileName = "auth.token"
+
 	currentToken string
+	zerotime     time.Time
 	expiration   time.Time
 	cond         = &sync.Cond{L: &sync.Mutex{}}
 )
@@ -50,13 +58,13 @@ const (
 type TokenFunc func() (string, int64, error)
 
 // RefreshToken gets a new token, sets it as the current, and returns the expiration time
-func RefreshToken(f TokenFunc) (int64, error) {
+func RefreshToken(f TokenFunc, filename string) (int64, error) {
 	log.Debug("Refreshing authentication token")
 	token, expires, err := f()
 	if err != nil {
 		return 0, err
 	}
-	updateToken(token, expires)
+	updateToken(token, time.Unix(expires, 0), filename)
 	log.WithField("expiration", expires).Info("Received new authentication token")
 	return expires, err
 }
@@ -72,9 +80,9 @@ func AuthToken() string {
 	return currentToken
 }
 
-func TokenLoop(f TokenFunc, done chan interface{}) {
+func TokenLoop(f TokenFunc, tokenfile string, done chan interface{}) {
 	for {
-		expires, err := RefreshToken(f)
+		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
 			log.WithError(err).Warn("Unable to obtain authentication token. Retrying in 10s")
 			select {
@@ -95,10 +103,44 @@ func TokenLoop(f TokenFunc, done chan interface{}) {
 	}
 }
 
-func updateToken(token string, expires int64) {
+// Watch a token file for changes. Load the token when those changes occur.
+func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
+	log := log.WithFields(logrus.Fields{
+		"tokenfile": tokenfile,
+	})
+
+	loadToken := func() {
+		data, err := ioutil.ReadFile(tokenfile)
+		if err != nil {
+			log.WithError(err).Warn("Unable to load authentication token from file. Continuing to watch for changes")
+		}
+		// No need to handle expires or save file, because we're loading from the file rather
+		// than re-requesting authentication tokens
+		updateToken(string(data), zerotime, "")
+		log.Infof("Updated authentication token from disk")
+	}
+
+	// An initial token load without any file changes
+	loadToken()
+
+	// Now watch for changes
+	filechanges, err := NotifyOnChange(tokenfile, fsnotify.Write|fsnotify.Create, done)
+	if err != nil {
+		return err
+	}
+	for _ = range filechanges {
+		loadToken()
+	}
+	return nil
+}
+
+func updateToken(token string, expires time.Time, filename string) {
 	cond.L.Lock()
 	currentToken = token
-	expiration = time.Unix(expires, 0)
+	expiration = expires
+	if filename != "" {
+		ioutil.WriteFile(filename, []byte(token), 0600)
+	}
 	cond.L.Unlock()
 	cond.Broadcast()
 }
