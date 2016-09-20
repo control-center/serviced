@@ -120,17 +120,8 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":   partialSvc.ID,
-		"servicename": partialSvc.Name,
-		"imageid":     partialSvc.ImageID,
 		"instanceid":  instanceID,
 	})
-
-	// pull the service image
-	imageUUID, imageName, err := a.pullImage(logger, cancel, partialSvc.ImageID)
-	if err != nil {
-		logger.WithError(err).Debug("Could not pull the service image")
-		return nil, nil, err
-	}
 
 	// Establish a connection to the master
 	masterClient, err := master.NewClient(a.master)
@@ -143,6 +134,13 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 	evaluatedService, err := masterClient.GetEvaluatedService(partialSvc.ID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
+		return nil, nil, err
+	}
+
+	// pull the service image
+	imageUUID, imageName, err := a.pullImage(logger, cancel, partialSvc.ImageID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not pull the service image")
 		return nil, nil, err
 	}
 	// Update the service with the complete image name
