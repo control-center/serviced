@@ -126,6 +126,14 @@ func (t HostAPITest) RemoveHost(id string) error {
 	return nil
 }
 
+func (t HostAPITest) RegisterRemoteHost(h *host.Host, data []byte) error {
+	return nil
+}
+
+func (t HostAPITest) WriteDelegateKey(filename string, data []byte) error {
+	return nil
+}
+
 func TestServicedCLI_CmdHostList_one(t *testing.T) {
 	hostID := "test-host-id-1"
 
@@ -214,14 +222,20 @@ func ExampleServicedCLI_CmdHostList_complete() {
 }
 
 func ExampleServicedCLI_CmdHostAdd() {
-	// Bad URL
-	InitHostAPITest("serviced", "host", "add", "badurl", "default")
 	// Success
 	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default")
 
 	// Output:
-	// bad format: badurl; must be formatted as HOST:PORT
+	// Wrote delegate key file to IP-127-0-0-1.delegate.key
 	// 127.0.0.1-default
+}
+
+func ExampleServicedCLI_CmdHostAdd_badurl() {
+	// Bad URL
+	InitHostAPITest("serviced", "host", "add", "badurl", "default")
+
+	// Output:
+	// bad format: badurl; must be formatted as HOST:PORT
 }
 
 func ExampleServicedCLI_CmdHostAdd_fail() {
