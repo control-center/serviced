@@ -21,12 +21,9 @@ if [ -z "${SERVICED_STORAGE}" ]; then
 fi
 
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-SMOKE_VAR_PATH=/tmp/serviced-smoke/var
-SERVICED_VOLUMES_PATH=${SMOKE_VAR_PATH}/volumes
-SERVICED_ISVCS_PATH=${SMOKE_VAR_PATH}/isvcs
-SERVICED_BACKUPS_PATH=${SMOKE_VAR_PATH}/backups
-
-export SERVICED_HOME=${SMOKE_VAR_PATH}/home
+export SERVICED_HOME=/tmp/serviced-smoke
+SERVICED="SERVICED_HOME=${SERVICED_HOME} ${SERVICED}"
+SERVICED_VOLUMES_PATH=${SERVICED_HOME}/var/volumes
 
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
@@ -75,7 +72,7 @@ cleanup() {
 
     # Get a list of mounted volumes before 'set -e' because the grep exits with 1
     # in scenarios where nothing is mounted.
-    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VOLUMES_PATH} 2>/dev/null`
+	MOUNTED_VOLUMES=$(cat /proc/mounts | grep ${SERVICED_VOLUMES_PATH} 2>/dev/null)
 
     # By default, exit on the first error
     if [ "$1" != "--ignore-errors" ]; then
@@ -93,24 +90,19 @@ cleanup() {
     echo "Cleaning up serviced storage ..."
     sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VOLUMES_PATH}
 
-    echo "Removing up ${SMOKE_VAR_PATH} ..."
-    sudo rm -rf ${SMOKE_VAR_PATH}
+    echo "Removing up ${SERVICED_HOME} ..."
+    sudo rm -rf ${SERVICED_HOME}
 }
 trap cleanup EXIT
 
 
 start_serviced() {
     # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
-    #   all of to force the proper subdirectories to be created under SMOKE_VAR_PATH
+    #   all of to force the proper subdirectories to be created under SERVICED_HOME
     echo "Starting serviced..."
-    mkdir -p ${SMOKE_VAR_PATH}
-    mkdir -p ${SERVICED_VOLUMES_PATH}
-    mkdir -p ${SERVICED_ISVCS_PATH}
-    mkdir -p ${SERVICED_BACKUPS_PATH}
     mkdir -p ${SERVICED_HOME}
 
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}\
-    SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
+    sudo SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start..."
     retry $START_TIMEOUT wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
@@ -119,7 +111,7 @@ start_serviced() {
 
 # Add a host
 add_host() {
-    KEY_FILE="${SMOKE_VAR_PATH}/hostkey"
+    KEY_FILE="${SERVICED_HOME}/hostkey"
     HOST_ID=$(${SERVICED} host add "${IP}:4979" default -k "${KEY_FILE}")
     sleep 1
     sudo ${SERVICED} host register "${KEY_FILE}" || return 1
