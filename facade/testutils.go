@@ -72,7 +72,7 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 
 	// Create a master key pair
 	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
-	auth.LoadMasterKeys(pub, priv)
+	auth.LoadMasterKeysFromPEM(pub, priv)
 }
 
 func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
