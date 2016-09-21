@@ -338,17 +338,24 @@ func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string) (string, er
 
 	return r0, r1
 }
-func (_m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) error {
+func (_m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	ret := _m.Called(ctx, entity)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(datastore.Context, *host.Host) error); ok {
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(datastore.Context, *host.Host) []byte); ok {
 		r0 = rf(ctx, entity)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).([]byte)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, *host.Host) error); ok {
+		r1 = rf(ctx, entity)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *FacadeInterface) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
 	ret := _m.Called(ctx, hostID)

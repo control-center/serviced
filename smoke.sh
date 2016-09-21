@@ -26,6 +26,8 @@ SERVICED_VOLUMES_PATH=${SMOKE_VAR_PATH}/volumes
 SERVICED_ISVCS_PATH=${SMOKE_VAR_PATH}/isvcs
 SERVICED_BACKUPS_PATH=${SMOKE_VAR_PATH}/backups
 
+export SERVICED_HOME=${SMOKE_VAR_PATH}/home
+
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
 
@@ -105,6 +107,7 @@ start_serviced() {
     mkdir -p ${SERVICED_VOLUMES_PATH}
     mkdir -p ${SERVICED_ISVCS_PATH}
     mkdir -p ${SERVICED_BACKUPS_PATH}
+    mkdir -p ${SERVICED_HOME}
 
     sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}\
     SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
@@ -119,7 +122,7 @@ add_host() {
     KEY_FILE="${SMOKE_VAR_PATH}/hostkey"
     HOST_ID=$(${SERVICED} host add "${IP}:4979" default -k "${KEY_FILE}")
     sleep 1
-    ${SERVICED} host register "${KEY_FILE}" || return 1
+    sudo ${SERVICED} host register "${KEY_FILE}" || return 1
     sleep 1
     [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0
