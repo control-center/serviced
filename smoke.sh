@@ -118,7 +118,7 @@ start_serviced() {
 
 # Add a host
 add_host() {
-    KEY_FILE="/tmp/smoke-hostkey"
+    KEY_FILE="${SMOKE_VAR_PATH}/smoke-hostkey"
     HOST_ID=$(${SERVICED} host add "${IP}:4979" default -k "${KEY_FILE}")
     sleep 1
     sudo SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host register "${KEY_FILE}" || return 1
