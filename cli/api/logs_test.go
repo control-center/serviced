@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"encoding/json"
 
 	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
@@ -28,7 +29,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestAPISuite) testConvertOffsets(c *C, received []string, expected []uint64) {
+func (s *TestAPISuite) testConvertOffsets(c *C, received []json.Number, expected []uint64) {
 	converted, err := convertOffsets(received)
 	if err != nil {
 		c.Fatalf("unexpected error converting offsets: %s", err)
@@ -58,8 +59,8 @@ func (s *TestAPISuite) testGenerateOffsets(c *C, inMessages []string, inOffsets,
 }
 
 func (s *TestAPISuite) TestLogs_Offsets(c *C) {
-	s.testConvertOffsets(c, []string{"123", "456", "789"}, []uint64{123, 456, 789})
-	s.testConvertOffsets(c, []string{"456", "123", "789"}, []uint64{456, 123, 789})
+	s.testConvertOffsets(c, []json.Number{"123", "456", "789"}, []uint64{123, 456, 789})
+	s.testConvertOffsets(c, []json.Number{"456", "123", "789"}, []uint64{456, 123, 789})
 
 	s.testUint64sAreSorted(c, []uint64{123, 124, 125}, true)
 	s.testUint64sAreSorted(c, []uint64{123, 125, 124}, false)
@@ -97,7 +98,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"servicedID1\")")
+	c.Assert(query, Equals, "fields.service:(\"servicedID1\")")
 	c.Assert(err, IsNil)
 }
 
@@ -111,7 +112,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, fmt.Sprintf("service:(\"%s\")", serviceID))
+	c.Assert(query, Equals, fmt.Sprintf("fields.service:(\"%s\")", serviceID))
 	c.Assert(err, IsNil)
 }
 
@@ -130,7 +131,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, fmt.Sprintf("service:(\"child1\" OR \"child2\" OR \"%s\")", parentServiceID))
+	c.Assert(query, Equals, fmt.Sprintf("fields.service:(\"child1\" OR \"child2\" OR \"%s\")", parentServiceID))
 	c.Assert(err, IsNil)
 }
 
@@ -148,7 +149,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
+	c.Assert(query, Equals, "fields.service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
 }
 
@@ -166,7 +167,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
+	c.Assert(query, Equals, "fields.service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
 }
 
