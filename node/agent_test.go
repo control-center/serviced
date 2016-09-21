@@ -18,16 +18,6 @@ package node
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
-	docker "github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/commons/docker/test"
-	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
-	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const example_state = `
@@ -115,64 +105,4 @@ func TestParseContainerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem unmarshaling test state: %s", err)
 	}
-}
-
-func TestSetupContainer_DockerLog(t *testing.T) {
-	assert := assert.New(t)
-
-	// Set up a fake docker Event Monitor
-	fakeEventMonitor := &test.MockEventMonitor{}
-	fakeDockerContainer := &dockerclient.Container{}
-
-	// Set up a fake docker client
-	fakeDockerClient := &test.MockDockerClient{}
-	fakeDockerClient.On("MonitorEvents").Return(fakeEventMonitor, nil)
-	fakeDockerClient.On("CreateContainer", mock.Anything).Return(fakeDockerContainer, nil).Run(func(args mock.Arguments) {
-		cco := args.Get(0).(dockerclient.CreateContainerOptions)
-		fakeDockerContainer.HostConfig = cco.HostConfig
-		fakeDockerContainer.Config = cco.Config
-		fakeDockerContainer.Name = cco.Name
-	})
-
-	fakeEventMonitor.On("Subscribe", mock.Anything).Return(&docker.Subscription{}, nil)
-
-	docker.SetDockerClientGetter(func() (docker.ClientInterface, error) { return fakeDockerClient, nil })
-
-	// Create a fake pull registry that doesn't pull images
-	fakeRegistry := &regmocks.Registry{}
-
-	// Create a fake HostAgent
-	fakeHostAgent := &HostAgent{
-		uiport:               ":443",
-		dockerLogDriver:      "fakejson-log",
-		dockerLogConfig:      map[string]string{"alpha": "one", "bravo": "two", "charlie": "three"},
-		virtualAddressSubnet: "0.0.0.0",
-		pullreg:              fakeRegistry,
-	}
-
-	// Create a fake service.Service
-	fakeService := &service.Service{
-		ImageID: "busybox:latest",
-		ID:      "faketestService",
-		Name:    "fakeTestServiceName",
-	}
-	fakeUser := user.User{}
-
-	// Call setupContainer
-	container, servicestate, err := fakeHostAgent.setupContainer("unused", fakeService, 0, fakeUser, "unused")
-
-	assert.NotNil(container)
-	assert.NotNil(servicestate)
-	assert.Nil(err)
-	assert.NotNil(container.HostConfig)
-	assert.NotNil(container.HostConfig.LogConfig)
-
-	// Test that hostconfig values are as intended
-	assert.Equal(container.HostConfig.LogConfig.Type, "fakejson-log")
-	assert.Equal(container.HostConfig.LogConfig.Config["alpha"], "one")
-	assert.Equal(container.HostConfig.LogConfig.Config["bravo"], "two")
-	assert.Equal(container.HostConfig.LogConfig.Config["charlie"], "three")
-
-	fakeDockerClient.AssertExpectations(t)
-	fakeRegistry.AssertExpectations(t)
 }

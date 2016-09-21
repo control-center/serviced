@@ -14,7 +14,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -439,7 +438,32 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 		"serviceID":   svc.ID,
 		"instanceID":  instanceID,
 	})
+	cfg, hcfg, state, err := a.createContainerConfig(tenantID, svc, instanceID, systemUser, imageUUID)
+	if err != nil {
+		logger.WithError(err).Error("Unable to create container configuration")
+		return nil, nil, err
+	}
 
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"image":      cfg.Image,
+			"instanceID": instanceID,
+		}).WithError(err).Error("Could not create container")
+		return nil, nil, err
+	}
+	state.ContainerID = ctr.ID
+
+	return ctr, state, nil
+}
+
+func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
+	logger := plog.WithFields(log.Fields{
+		"tenantID":    tenantID,
+		"serviceName": svc.Name,
+		"serviceID":   svc.ID,
+		"instanceID":  instanceID,
+	})
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
@@ -512,7 +536,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 
 		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		addBindingToMap(&bindsMap, volume.ContainerPath, resourcePath)
@@ -522,7 +546,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	dir, _, err := ExecPath()
 	if err != nil {
 		logger.WithError(err).Error("Error getting the path to the serviced executable")
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	dir, binary := filepath.Split(a.controllerBinary)
@@ -611,7 +635,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
 		logger.WithError(err).Error("Unable to get host IP addresses")
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
@@ -696,25 +720,5 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 			Hard: 0,
 		},
 	}
-
-	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID)
-	if err != nil {
-		logger.WithFields(log.Fields{
-			"image":      cfg.Image,
-			"instanceID": instanceID,
-		}).WithError(err).Error("Could not create container")
-		return nil, nil, err
-	}
-	// This shouldn't happen, but if it does, it's an error.
-	if ctr == nil {
-		logger.Error("created container is nil.")
-		return nil, nil, errors.New("created container is nil.")
-	}
-	if state == nil {
-		logger.Error("state in created container is nil.")
-		return nil, nil, errors.New("state field in created container is nil.")
-	}
-	state.ContainerID = ctr.ID
-
-	return ctr, state, nil
+	return cfg, hcfg, state, nil
 }
