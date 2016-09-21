@@ -48,3 +48,9 @@ type IPAssignment struct {
 	IPAddress   string
 	Ports       []uint16
 }
+
+// Config displays the most basic information about a service config file
+type Config struct {
+	ID       string
+	Filename string
+}
