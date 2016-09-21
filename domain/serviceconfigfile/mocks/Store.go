@@ -9,6 +9,44 @@ type Store struct {
 	mock.Mock
 }
 
+func (_m *Store) Put(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	ret := _m.Called(ctx, key, entity)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, datastore.Key, datastore.ValidEntity) error); ok {
+		r0 = rf(ctx, key, entity)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+func (_m *Store) Get(ctx datastore.Context, key datastore.Key, entity datastore.ValidEntity) error {
+	ret := _m.Called(ctx, key, entity)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, datastore.Key, datastore.ValidEntity) error); ok {
+		r0 = rf(ctx, key, entity)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *Store) Delete(ctx datastore.Context, key datastore.Key) error {
+	ret := _m.Called(ctx, key)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, datastore.Key) error); ok {
+		r0 = rf(ctx, key)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 func (_m *Store) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*serviceconfigfile.SvcConfigFile, error) {
 	ret := _m.Called(ctx, tenantID, svcPath)
 
