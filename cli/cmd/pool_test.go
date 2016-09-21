@@ -32,8 +32,6 @@ const (
 	NilPool = "NilPool"
 )
 
-var DefaultPoolAPITest = PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
-
 var DefaultTestPools = []pool.ResourcePool{
 	{
 		ID:          "test-pool-id-1",
@@ -78,8 +76,12 @@ type PoolAPITest struct {
 	hostIPs []host.HostIPResource
 }
 
-func InitPoolAPITest(args ...string) {
-	New(DefaultPoolAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
+func DefaultPoolAPI() PoolAPITest {
+	return PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
+}
+
+func RunCmd(test api.API, args ...string) {
+	New(test, utils.TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
@@ -144,13 +146,14 @@ func (t PoolAPITest) GetPoolIPs(id string) (*pool.PoolIPs, error) {
 func TestServicedCLI_CmdPoolList_one(t *testing.T) {
 	poolID := "test-pool-id-1"
 
-	expected, err := DefaultPoolAPITest.GetResourcePool(poolID)
+	test := DefaultPoolAPI()
+	expected, err := test.GetResourcePool(poolID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var actual pool.ResourcePool
-	output := pipe(InitPoolAPITest, "serviced", "pool", "list", poolID)
+	output := pipeAPI(RunCmd, test, "serviced", "pool", "list", poolID)
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -162,13 +165,14 @@ func TestServicedCLI_CmdPoolList_one(t *testing.T) {
 }
 
 func TestServicedCLI_CmdPoolList_all(t *testing.T) {
-	expected, err := DefaultPoolAPITest.GetResourcePools()
+	test := DefaultPoolAPI()
+	expected, err := test.GetResourcePools()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var actual []*pool.ResourcePool
-	output := pipe(InitPoolAPITest, "serviced", "pool", "list", "--verbose")
+	output := pipeAPI(RunCmd, test, "serviced", "pool", "list", "--verbose")
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -186,16 +190,16 @@ func TestServicedCLI_CmdPoolList_all(t *testing.T) {
 
 func ExampleServicedCLI_CmdPoolList() {
 	// Gofmt cleans up the spaces at the end of each row
-	InitPoolAPITest("serviced", "pool", "list")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "list")
 }
 
 func ExampleServicedCLI_CmdPoolList_fail() {
-	DefaultPoolAPITest.fail = true
-	defer func() { DefaultPoolAPITest.fail = false }()
+	test := DefaultPoolAPI()
+	test.fail = true
 	// Error retrieving pool
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-1")
+	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list", "test-pool-id-1")
 	// Error retrieving all pools
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
+	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list")
 
 	// Output:
 	// invalid pool
@@ -203,12 +207,12 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 }
 
 func ExampleServicedCLI_CmdPoolList_err() {
-	DefaultPoolAPITest.pools = make([]pool.ResourcePool, 0)
-	defer func() { DefaultPoolAPITest.pools = DefaultTestPools }()
+	test := DefaultPoolAPI()
+	test.pools = make([]pool.ResourcePool, 0)
 	// Pool not found
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-0")
+	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list", "test-pool-id-0")
 	// No pools found
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list")
+	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list")
 
 	// Output:
 	// pool not found
@@ -216,7 +220,7 @@ func ExampleServicedCLI_CmdPoolList_err() {
 }
 
 func ExampleServicedCLI_CmdPoolList_complete() {
-	InitPoolAPITest("serviced", "pool", "list", "--generate-bash-completion")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "list", "--generate-bash-completion")
 
 	// Output:
 	// test-pool-id-1
@@ -230,28 +234,28 @@ func ExampleServicedCLI_CmdPoolAdd() {
 	// // Bad MemoryLimit
 	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
 	// Success
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "3")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "add", "test-pool", "3")
 
 	// Output:
 	// test-pool
 }
 
 func ExampleServicedCLI_CmdPoolAdd_err() {
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "add", NilPool, "4", "1024", "3")
+	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "add", NilPool, "4", "1024", "3")
 
 	// Output:
 	// received nil resource pool
 }
 
 func ExampleServicedCLI_CmdPoolRemove() {
-	InitPoolAPITest("serviced", "pool", "remove", "test-pool-id-1")
+	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-1")
 
 	// Output:
 	// test-pool-id-1
 }
 
 func ExampleServicedCLI_CmdPoolRemove_usage() {
-	InitPoolAPITest("serviced", "pool", "rm")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "rm")
 
 	// Output:
 	// Incorrect Usage.
@@ -269,16 +273,17 @@ func ExampleServicedCLI_CmdPoolRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolRemove_err() {
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "remove", "test-pool-id-0")
+	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-0")
 
 	// Output:
 	// test-pool-id-0: pool not found
 }
 
 func ExampleServicedCLI_CmdPoolRemove_complete() {
-	InitPoolAPITest("serviced", "pool", "rm", "--generate-bash-completion")
+	test := DefaultPoolAPI()
+	RunCmd(test, "serviced", "pool", "rm", "--generate-bash-completion")
 	fmt.Println("")
-	InitPoolAPITest("serviced", "pool", "rm", "test-pool-id-2", "--generate-bash-completion")
+	RunCmd(test, "serviced", "pool", "rm", "test-pool-id-2", "--generate-bash-completion")
 
 	// Output:
 	// test-pool-id-1
@@ -291,16 +296,17 @@ func ExampleServicedCLI_CmdPoolRemove_complete() {
 
 func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
 	poolID := "test-pool-id-1"
+	test := DefaultPoolAPI()
 
 	var expected []host.HostIPResource
-	if ips, err := DefaultPoolAPITest.GetPoolIPs(poolID); err != nil {
+	if ips, err := test.GetPoolIPs(poolID); err != nil {
 		t.Fatal(err)
 	} else {
 		expected = ips.HostIPs
 	}
 
 	var actual []host.HostIPResource
-	output := pipe(InitPoolAPITest, "serviced", "pool", "list-ips", poolID, "--verbose")
+	output := pipeAPI(RunCmd, test, "serviced", "pool", "list-ips", poolID, "--verbose")
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -312,11 +318,11 @@ func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
 
 func ExampleServicedCLI_CmdPoolListIPs() {
 	// Gofmt cleans up the spaces at the end of each row
-	InitPoolAPITest("serviced", "pool", "list-ips", "test-pool-id-1")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "list-ips", "test-pool-id-1")
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_usage() {
-	InitPoolAPITest("serviced", "pool", "list-ips")
+	RunCmd(DefaultPoolAPI(), "serviced", "pool", "list-ips")
 
 	// Output:
 	// Incorrect Usage.
@@ -336,16 +342,16 @@ func ExampleServicedCLI_CmdPoolListIPs_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_fail() {
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-0")
+	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "list-ips", "test-pool-id-0")
 
 	// Output:
 	// no pool found
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_err() {
-	DefaultPoolAPITest.hostIPs = nil
-	defer func() { DefaultPoolAPITest.hostIPs = DefaultTestHostIPs }()
-	pipeStderr(InitPoolAPITest, "serviced", "pool", "list-ips", "test-pool-id-1")
+	test := DefaultPoolAPI()
+	test.hostIPs = nil
+	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list-ips", "test-pool-id-1")
 
 	// Output:
 	// no resource pool IPs found
