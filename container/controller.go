@@ -131,44 +131,24 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, error) {
+func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, string, error) {
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return nil, err
+		return nil, "", err
 	}
 	defer client.Close()
 
-	var svc service.Service
-	err = client.GetEvaluatedService(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+	var evaluatedServiceResponse node.EvaluateServiceResponse
+	err = client.GetEvaluatedService(node.EvaluateServiceRequest{serviceID, instanceID}, &evaluatedServiceResponse)
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
-		return nil, err
+		return nil, "", err
 	}
 
-	glog.V(1).Infof("getService: service id=%s: %+v", serviceID, svc)
-	return &svc, nil
-}
-
-// getServiceTenantID retrieves a service's tenantID
-func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
-	client, err := node.NewLBClient(lbClientPort)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return "", err
-	}
-	defer client.Close()
-
-	var tenantID string
-	err = client.GetTenantId(serviceID, &tenantID)
-	if err != nil {
-		glog.Errorf("Error getting service %s's tenantID, error: %s", serviceID, err)
-		return "", err
-	}
-
-	glog.V(1).Infof("getServiceTenantID: service id=%s: %s", serviceID, tenantID)
-	return tenantID, nil
+	glog.V(2).Infof("getService: serviceID=%s, tenantID=%s: %+v", serviceID, evaluatedServiceResponse.TenantID, evaluatedServiceResponse.Service)
+	return &evaluatedServiceResponse.Service, evaluatedServiceResponse.TenantID, nil
 }
 
 // getAgentHostID retrieves the agent's host id
@@ -311,13 +291,14 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 	}
-	service, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
+	service, tenantID, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
 	if err != nil {
 		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
 	c.healthChecks = service.HealthChecks
+	c.tenantID = tenantID
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -337,13 +318,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
-	}
-
-	// get service tenantID
-	c.tenantID, err = getServiceTenantID(options.ServicedEndpoint, options.Service.ID)
-	if err != nil {
-		glog.Errorf("Invalid tenantID from serviceID:%s", options.Service.ID)
-		return c, ErrInvalidTenantID
 	}
 
 	// get host id
