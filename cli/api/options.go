@@ -225,7 +225,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		OutboundIP:                 config.StringVal("OUTBOUND_IP", ""),
 		DockerDNS:                  config.StringSlice("DOCKER_DNS", []string{}),
 		Master:                     config.BoolVal("MASTER", false),
-		Agent:                      config.BoolVal("AGENT", false),
+		Agent:                      config.BoolVal("AGENT", true),
 		MuxPort:                    config.IntVal("MUX_PORT", 22250),
 		MuxDisableTLS:              config.BoolVal("MUX_DISABLE_TLS", false),
 		KeyPEMFile:                 config.StringVal("KEY_FILE", ""),
