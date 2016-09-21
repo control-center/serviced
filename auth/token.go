@@ -152,6 +152,7 @@ func expired() bool {
 }
 
 func updateToken(token string, expires time.Time, filename string) {
+	WaitForDelegateKeys()
 	cond.L.Lock()
 	currentToken = token
 	currentIdentity = getIdentityFromToken(token)
