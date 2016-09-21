@@ -275,7 +275,7 @@ func GetDefaultOptions(config utils.ConfigReader) Options {
 		StorageStatsUpdateInterval: config.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       config.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           config.IntVal("ZK_SESSION_TIMEOUT", 15),
-		TokenExpiration:            config.IntVal("AUTH_TOKEN_EXPIRATION", 24*60*60),
+		TokenExpiration:            config.IntVal("AUTH_TOKEN_EXPIRATION", 60*60),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", "")
