@@ -19,6 +19,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+// NotifyOnChange watches a file for changes that match the given operation set
+// and notifies on a channel when they occur.
 func NotifyOnChange(filename string, ops fsnotify.Op, cancel <-chan interface{}) (<-chan struct{}, error) {
 	filename = filepath.Clean(filename)
 	dir := filepath.Dir(filename)

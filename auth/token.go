@@ -79,7 +79,7 @@ func CurrentIdentity() Identity {
 // periodically refresh that token, one minute before it is due to expire,
 // setting the result as the current live token, until the done channel is
 // closed.
-func TokenLoop(f TokenFunc, tokenfile string, done chan interface{}) {
+func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
 	for {
 		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
@@ -123,11 +123,11 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	loadToken()
 
 	// Now watch for changes
-	filechanges, err := NotifyOnChange(tokenfile, fsnotify.Write|fsnotify.Create, done)
+	filechangechan, err := NotifyOnChange(tokenfile, fsnotify.Write|fsnotify.Create, done)
 	if err != nil {
 		return err
 	}
-	for _ = range filechanges {
+	for _ = range filechangechan {
 		loadToken()
 	}
 	return nil

@@ -644,7 +644,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Start authenticating
-		go auth.TokenLoop(getToken, tokenFile, d.shutdown)
+		auth.TokenLoop(getToken, tokenFile, d.shutdown)
 	}()
 
 	// Flag so we only log that a host hasn't been added yet once
