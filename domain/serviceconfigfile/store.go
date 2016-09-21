@@ -14,8 +14,8 @@
 package serviceconfigfile
 
 import (
-	"github.com/zenoss/elastigo/search"
 	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a Service Config File store
@@ -28,6 +28,7 @@ type Store interface {
 	datastore.EntityStore
 
 	GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error)
+	GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error)
 }
 
 type storeImpl struct {
@@ -49,6 +50,31 @@ func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPa
 		return nil, err
 	}
 	return convert(results)
+}
+
+func (s *storeImpl) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ServiceTenantID", tenantID),
+		search.Filter().Terms("ServicePath", svcPath),
+		search.Filter().Terms("ConfFile.Filename", filename),
+	)
+
+	q := datastore.NewQuery(ctx)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.Len() > 0 {
+		matches, err := convert(results)
+		if err != nil {
+			return nil, err
+		}
+		return matches[0], nil
+	}
+
+	return nil, nil
 }
 
 func convert(results datastore.Results) ([]*SvcConfigFile, error) {
