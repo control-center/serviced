@@ -146,11 +146,6 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 	// Update the service with the complete image name
 	evaluatedService.ImageID = imageName
 
-	if len(tenantID) == 0 && len(evaluatedService.Volumes) > 0 {
-		// FIXME: find a better way of handling this error condition
-		logger.Fatal("Could not get tenant ID and need to mount a volume")
-	}
-
 	// get the system user
 	systemUser, err := masterClient.GetSystemUser()
 	if err != nil {
