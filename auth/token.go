@@ -22,6 +22,13 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+const (
+	// expirationDelta is a margin of error during which a token should be
+	// considered expired. This should help avoid expiration races when server
+	// times don't match
+	expirationDelta = 10 * time.Second
+)
+
 var (
 	// TokenFileName is the file in which we store the current token
 	TokenFileName = "auth.token"
@@ -31,27 +38,6 @@ var (
 	zerotime        time.Time
 	expiration      time.Time
 	cond            = &sync.Cond{L: &sync.Mutex{}}
-)
-
-func now() time.Time {
-	return time.Now().UTC()
-}
-
-func expired() bool {
-	if currentToken == "" {
-		return true
-	}
-	if expiration.IsZero() {
-		return false
-	}
-	return expiration.Add(-expirationDelta).Before(now())
-}
-
-const (
-	// expirationDelta is a margin of error during which a token should be
-	// considered expired. This should help avoid expiration races when server
-	// times don't match
-	expirationDelta = 10 * time.Second
 )
 
 // TokenFunc is a function that can return an authentication token and its
@@ -81,6 +67,18 @@ func AuthToken() string {
 	return currentToken
 }
 
+// CurrentIdentity returns the identity represented by the currently-live token,
+// or nil if the token is not yet available
+func CurrentIdentity() Identity {
+	cond.L.Lock()
+	defer cond.L.Unlock()
+	return currentIdentity
+}
+
+// TokenLoop accepts a function that returns an expiring token. It will then
+// periodically refresh that token, one minute before it is due to expire,
+// setting the result as the current live token, until the done channel is
+// closed.
 func TokenLoop(f TokenFunc, tokenfile string, done chan interface{}) {
 	for {
 		expires, err := RefreshToken(f, tokenfile)
@@ -135,6 +133,24 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	return nil
 }
 
+func now() time.Time {
+	return time.Now().UTC()
+}
+
+// expired returns whether the currently-live token has expired. If the token
+// is empty, is is considered expired for these purposes. If it is the zero
+// instant, it never expires. Otherwise, it is expired if the expiration time
+// minus a margin of error is in the past.
+func expired() bool {
+	if currentToken == "" {
+		return true
+	}
+	if expiration.IsZero() {
+		return false
+	}
+	return expiration.Add(-expirationDelta).Before(now())
+}
+
 func updateToken(token string, expires time.Time, filename string) {
 	cond.L.Lock()
 	currentToken = token
@@ -154,11 +170,4 @@ func getIdentityFromToken(token string) Identity {
 		return nil
 	}
 	return identity
-}
-
-//Return the current identity or nil if the token is not yet available
-func CurrentIdentity() Identity {
-	cond.L.Lock()
-	defer cond.L.Unlock()
-	return currentIdentity
 }
