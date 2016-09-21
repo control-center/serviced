@@ -116,11 +116,11 @@ func TestTCPMux(t *testing.T) {
 	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
 	auth.LoadMasterKeysFromPEM(pub, priv)
 
-	dpub, priv, _ = auth.GenerateRSAKeyPairPEM(nil)
+	dpub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
 	auth.LoadDelegateKeysFromPEM(pub, priv)
 
 	auth.RefreshToken(func() (string, int64, error) {
-		return CreateJWTIdentity("host", "pool", true, true, dpub, time.Duration(1*time.Year))
+		return auth.CreateJWTIdentity("host", "pool", true, true, dpub, time.Duration(365*24*60*60)*time.Second)
 	}, "")
 
 	target := newEchoListener(t)
