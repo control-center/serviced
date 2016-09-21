@@ -16,7 +16,6 @@ package service
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 )
 
@@ -27,9 +26,7 @@ type ServiceDetails struct {
 	Description     string
 	PoolID          string
 	ParentServiceID string
-	Instances       int
 	InstanceLimits  domain.MinMax
-	RAMCommitment   utils.EngNotation
 	Startup         string
 	HasChildren     bool
 	datastore.VersionedEntity
