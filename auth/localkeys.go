@@ -147,7 +147,7 @@ func LoadDelegateKeysFromFile(filename string) error {
 
 // LoadMasterKeys sets the current master key pair to the one specified
 func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
-	masterKeys = MasterKeys{publicKey, privateKey}
+	masterKeys = MasterKeys{public, private}
 }
 
 // CreateOrLoadMasterKeys will load the master keys from disk
