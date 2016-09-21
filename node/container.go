@@ -528,7 +528,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 
 	// Bind mount the keys we need
 	containerEtcPath := "/etc/serviced"
-	bindMap[containerEtcPath] = "/opt/serviced/etc"
+	bindsMap[containerEtcPath] = "/opt/serviced/etc"
 
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
