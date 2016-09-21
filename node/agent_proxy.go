@@ -27,7 +27,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/applicationendpoint"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 )
@@ -67,7 +66,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) (err error) {
+func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceID": request.ServiceID,
 		"instanceID": request.InstanceID,
@@ -80,32 +79,13 @@ func (a *HostAgent) GetEvaluatedService(request ServiceInstanceRequest, response
 	}
 	defer masterClient.Close()
 
-	var svc *service.Service
-	svc, err = masterClient.GetEvaluatedService(request.ServiceID, request.InstanceID)
+	svc, tenantID, err := masterClient.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return err
 	}
-	*response = *svc
-	return nil
-}
-
-// Call the master's to retrieve its tenant id
-func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		plog.WithFields(log.Fields{
-			"master": a.master,
-			"serviceID": serviceId,
-		}).WithError(err).Error("Could not connect to the master")
-		return err
-	}
-	defer masterClient.Close()
-	result, err := masterClient.GetTenantID(serviceId)
-	if err != nil {
-		return err
-	}
-	*tenantId = result
+	response.Service = *svc
+	response.TenantID = tenantID
 	return nil
 }
 
@@ -259,16 +239,12 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 	glog.V(4).Infof("ControlCenterAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 	*bindmounts = make(map[string]string, 0)
 
-	var tenantID string
-	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
+	var evaluatedServiceResponse EvaluateServiceResponse
+	if err := a.GetEvaluatedService(EvaluateServiceRequest{ServiceID: serviceID, InstanceID: 0}, &evaluatedServiceResponse); err != nil {
 		return err
 	}
-
-	var service service.Service
-
-	if err := a.GetEvaluatedService(ServiceInstanceRequest{ServiceID: serviceID, InstanceID: 0}, &service); err != nil {
-		return err
-	}
+	service := evaluatedServiceResponse.Service
+	tenantID := evaluatedServiceResponse.TenantID
 
 	response := map[string]string{}
 	for _, volume := range service.Volumes {
