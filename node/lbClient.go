@@ -15,7 +15,6 @@ package node
 
 import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
@@ -68,7 +67,7 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
-func (a *LBClient) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error {
+func (a *LBClient) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error {
 	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
 	return a.rpcClient.Call("ControlCenterAgent.GetEvaluatedService", request, response, 0)
 }
@@ -84,12 +83,6 @@ func (a *LBClient) GetProxySnapshotQuiece(serviceId string, snapshotId *string) 
 func (a *LBClient) AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error {
 	glog.V(4).Infof("ControlCenterAgent.AckProxySnapshotQuiece()")
 	return a.rpcClient.Call("ControlCenterAgent.AckProxySnapshotQuiece", snapshotId, unused, 0)
-}
-
-// GetTenantId return's the service's tenant id
-func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
-	glog.V(4).Infof("ControlCenterAgent.GetTenantId()")
-	return a.rpcClient.Call("ControlCenterAgent.GetTenantId", serviceId, tenantId, 0)
 }
 
 
