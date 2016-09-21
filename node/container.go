@@ -527,8 +527,10 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	}
 
 	// Bind mount the keys we need
-	containerEtcPath := "/etc/serviced"
-	bindsMap[containerEtcPath] = filepath.Dir(a.delegateKeyFile)
+	containerPath = "/etc/serviced"
+	resourcePath = filepath.Dir(a.delegateKeyFile)
+	bindsMap[containerPath] = resourcePath
+	logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Info("Added etc bindmount")
 
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
