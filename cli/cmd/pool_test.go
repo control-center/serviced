@@ -236,24 +236,6 @@ func ExampleServicedCLI_CmdPoolAdd() {
 	// test-pool
 }
 
-func ExampleServicedCLI_CmdPoolAdd_usage() {
-	InitPoolAPITest("serviced", "pool", "add")
-
-	// Output:
-	// Incorrect Usage.
-	//
-	// NAME:
-	//    add - Adds a new resource pool
-	//
-	// USAGE:
-	//    command add [command options] [arguments...]
-	//
-	// DESCRIPTION:
-	//    serviced pool add POOLID
-	//
-	// OPTIONS:
-}
-
 func ExampleServicedCLI_CmdPoolAdd_err() {
 	pipeStderr(InitPoolAPITest, "serviced", "pool", "add", NilPool, "4", "1024", "3")
 
