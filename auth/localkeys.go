@@ -145,6 +145,11 @@ func LoadDelegateKeysFromFile(filename string) error {
 	return nil
 }
 
+// LoadMasterKeys sets the current master key pair to the one specified
+func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
+	masterKeys = MasterKeys{publicKey, privateKey}
+}
+
 // CreateOrLoadMasterKeys will load the master keys from disk
 //  If the file does not exist, it will generate new keys and
 //  write them to disk.
@@ -172,7 +177,7 @@ func CreateOrLoadMasterKeys(filename string) error {
 		return err
 	}
 
-	masterKeys = MasterKeys{publicKey, privateKey}
+	LoadMasterKeys(publicKey, privateKey)
 
 	return nil
 }
