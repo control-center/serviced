@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,27 +16,16 @@
 package service_test
 
 import (
-	"github.com/control-center/serviced/domain/service"
+	"testing"
+
 	. "gopkg.in/check.v1"
 )
 
-type roundTest struct {
-	value    float64
-	expected int64
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }
 
-var roundTests = []roundTest{
-	roundTest{0.49, 0},
-	roundTest{0.5, 1},
-	roundTest{0.99, 1},
-	roundTest{1.001, 1},
-	roundTest{-0.4999, 0},
-	roundTest{-0.999, -1},
-	roundTest{-1.001, -1},
-}
+var _ = Suite(&ServiceDomainUnitTestSuite{})
 
-func (s *ServiceDomainUnitTestSuite) TestRound(c *C) {
-	for _, test := range roundTests {
-		c.Assert(service.Round(test.value), Equals, test.expected)
-	}
-}
+type ServiceDomainUnitTestSuite struct{}
