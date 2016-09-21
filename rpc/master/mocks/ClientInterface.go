@@ -364,7 +364,7 @@ func (_m *ClientInterface) GetServiceInstances(serviceID string) ([]service.Inst
 }
 
 // GetEvaluatedService provides a mock function with given fields: serviceID, instanceID
-func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error) {
+func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
 	ret := _m.Called(serviceID, instanceID)
 
 	var r0 *service.Service
@@ -376,14 +376,23 @@ func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int)
 		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string, int) error); ok {
+	var r1 string
+	if rf, ok := ret.Get(1).(func(string, int) string); ok {
 		r1 = rf(serviceID, instanceID)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(string)
+		}
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(string, int) error); ok {
+		r2 = rf(serviceID, instanceID)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetTenantID provides a mock function with given fields: serviceID

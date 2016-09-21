@@ -39,6 +39,11 @@ type EvaluateServiceRequest struct {
 	InstanceID int
 }
 
+type EvaluateServiceResponse struct {
+	Service  service.Service
+	TenantID string
+}
+
 // Use a new image for a given service - this will pull the image and tag it
 func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
 	if err := s.f.ServiceUse(s.context(), request.ServiceID, request.ImageID, request.Registry, request.ReplaceImgs, request.NoOp); err != nil {
@@ -65,12 +70,18 @@ func (s *Server) GetService(serviceID string, svc *service.Service) error {
 }
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
-func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, svc *service.Service) error {
-	result, err := s.f.GetEvaluatedService(s.context(), request.ServiceID, request.InstanceID)
+func (s *Server) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error {
+	svc, err := s.f.GetEvaluatedService(s.context(), request.ServiceID, request.InstanceID)
 	if err != nil {
 		return err
 	}
-	*svc = *result
+
+	tenantID, err := s.f.GetTenantID(s.context(), request.ServiceID)
+	if err != nil {
+		return err
+	}
+	response.Service = *svc
+	response.TenantID = tenantID
 	return nil
 }
 

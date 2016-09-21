@@ -89,15 +89,17 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	}
 
 	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
@@ -168,16 +170,18 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 		instanceMap[fmt.Sprintf("%s-%d", inst.ServiceID, inst.InstanceID)] = &insts[i].MemoryUsage
 	}
 
-	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		// look up the metrics of all the instances
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
@@ -255,19 +259,20 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	logger.Debug("Calulated service status")
 
 	inst := &service.Instance{
-		InstanceID:   state.InstanceID,
-		HostID:       hst.ID,
-		HostName:     hst.Name,
-		ServiceID:    svc.ID,
-		ServiceName:  svc.Name,
-		ContainerID:  state.ContainerID,
-		ImageSynced:  imageSynced,
-		DesiredState: state.DesiredState,
-		CurrentState: curState,
-		HealthStatus: f.getInstanceHealth(&svc, state.InstanceID),
-		Scheduled:    state.Scheduled,
-		Started:      state.Started,
-		Terminated:   state.Terminated,
+		InstanceID:    state.InstanceID,
+		HostID:        hst.ID,
+		HostName:      hst.Name,
+		ServiceID:     svc.ID,
+		ServiceName:   svc.Name,
+		ContainerID:   state.ContainerID,
+		ImageSynced:   imageSynced,
+		DesiredState:  state.DesiredState,
+		CurrentState:  curState,
+		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),
+		RAMCommitment: int32(svc.RAMCommitment.Value),
+		Scheduled:     state.Scheduled,
+		Started:       state.Started,
+		Terminated:    state.Terminated,
 	}
 	logger.Debug("Loaded service instance")
 
@@ -318,10 +323,12 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 
 		// set up the aggregated service object
 		results[i] = service.AggregateService{
-			ServiceID:    serviceID,
-			DesiredState: service.DesiredState(svc.DesiredState),
-			Status:       make([]service.StatusInstance, len(stateIDs)),
-			NotFound:     false,
+			ServiceID:     serviceID,
+			Instances:     svc.Instances,
+			RAMCommitment: int32(svc.RAMCommitment.Value),
+			DesiredState:  service.DesiredState(svc.DesiredState),
+			Status:        make([]service.StatusInstance, len(stateIDs)),
+			NotFound:      false,
 		}
 
 		// set up the status of each instance

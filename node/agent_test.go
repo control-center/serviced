@@ -27,7 +27,6 @@ import (
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/user"
-	rpcmocks "github.com/control-center/serviced/rpc/master/mocks"
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
@@ -135,6 +134,8 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 		fakeDockerContainer.Name = cco.Name
 	})
 
+	fakeEventMonitor.On("Subscribe", mock.Anything).Return(&docker.Subscription{}, nil)
+
 	docker.SetDockerClientGetter(func() (docker.ClientInterface, error) { return fakeDockerClient, nil })
 
 	// Create a fake pull registry that doesn't pull images
@@ -149,9 +150,6 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 		pullreg:              fakeRegistry,
 	}
 
-	// Create a fake client that won't make any RPC calls
-	fakeMasterClient := &rpcmocks.ClientInterface{}
-
 	// Create a fake service.Service
 	fakeService := &service.Service{
 		ImageID: "busybox:latest",
@@ -159,12 +157,9 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 		Name:    "fakeTestServiceName",
 	}
 	fakeUser := user.User{}
-	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
-	fakeMasterClient.On("GetSystemUser").Return(fakeUser, nil)
-	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
 
 	// Call setupContainer
-	container, servicestate, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID, fakeService.Name)
+	container, servicestate, err := fakeHostAgent.setupContainer("unused", fakeService, 0, fakeUser, "unused")
 
 	assert.NotNil(container)
 	assert.NotNil(servicestate)
@@ -179,7 +174,5 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 	assert.Equal(container.HostConfig.LogConfig.Config["charlie"], "three")
 
 	fakeDockerClient.AssertExpectations(t)
-	fakeEventMonitor.AssertExpectations(t)
-	fakeMasterClient.AssertExpectations(t)
 	fakeRegistry.AssertExpectations(t)
 }

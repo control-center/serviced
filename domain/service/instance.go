@@ -41,20 +41,21 @@ type Usage struct {
 
 // Instance describes an instance of a service
 type Instance struct {
-	InstanceID   int
-	HostID       string
-	HostName     string
-	ServiceID    string
-	ServiceName  string // FIXME: service path would be better
-	ContainerID  string
-	ImageSynced  bool
-	DesiredState DesiredState
-	CurrentState CurrentState
-	HealthStatus map[string]health.Status
-	MemoryUsage  Usage
-	Scheduled    time.Time
-	Started      time.Time
-	Terminated   time.Time
+	InstanceID    int
+	HostID        string
+	HostName      string
+	ServiceID     string
+	ServiceName   string // FIXME: service path would be better
+	ContainerID   string
+	ImageSynced   bool
+	DesiredState  DesiredState
+	CurrentState  CurrentState
+	HealthStatus  map[string]health.Status
+	RAMCommitment int32
+	MemoryUsage   Usage
+	Scheduled     time.Time
+	Started       time.Time
+	Terminated    time.Time
 }
 
 // StrategyInstance collects service strategy information about a service

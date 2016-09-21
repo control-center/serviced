@@ -381,7 +381,7 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.Service, e
 		// sort the query parts for predictable testability of the query string
 		sort.Sort(sort.StringSlice(queryParts))
 
-		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
+		query = fmt.Sprintf("fields.service:(%s)", strings.Join(queryParts, " OR "))
 	}
 	if exporter.Debug {
 		log.WithFields(logrus.Fields{
@@ -565,13 +565,13 @@ type logSingleLine struct {
 }
 
 type logMultiLine struct {
-	HostID      string    `json:"ccWorkerID"`
-	ContainerID string    `json:"host"`
-	File        string    `json:"file"`
-	Timestamp   time.Time `json:"@timestamp"`
-	Offset      []string  `json:"offset"`
-	Message     string    `json:"message"`
-	ServiceID   string    `json:"service"`
+	HostID      string        `json:"ccWorkerID"`
+	ContainerID string        `json:"host"`
+	File        string        `json:"file"`
+	Timestamp   time.Time     `json:"@timestamp"`
+	Offset      []json.Number `json:"offset"`
+	Message     string        `json:"message"`
+	ServiceID   string        `json:"service"`
 }
 
 type compactLogLine struct {
@@ -604,14 +604,14 @@ type outputFileInfo struct {
 var newline = regexp.MustCompile("\\r?\\n")
 
 // convertOffsets converts a list of strings into a list of uint64s
-func convertOffsets(offsets []string) ([]uint64, error) {
+func convertOffsets(offsets []json.Number) ([]uint64, error) {
 	result := make([]uint64, len(offsets))
-	for i, offsetString := range offsets {
-		offset, e := strconv.ParseUint(offsetString, 10, 64)
+	for i, offset := range offsets {
+		offsetUint, e := strconv.ParseUint(string(offset), 10, 64)
 		if e != nil {
-			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, offsetString, offsets, e)
+			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, string(offset), offsets, e)
 		}
-		result[i] = offset
+		result[i] = offsetUint
 	}
 
 	return result, nil

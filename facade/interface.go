@@ -135,21 +135,33 @@ type FacadeInterface interface {
 
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 
+	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
+
 	AddUser(ctx datastore.Context, newUser user.User) error
 
 	GetUser(ctx datastore.Context, userName string) (user.User, error)
 
-	UpdateUser(ctx datastore.Context, user user.User) error
+	UpdateUser(ctx datastore.Context, u user.User) error
 
 	RemoveUser(ctx datastore.Context, userName string) error
 
 	GetSystemUser(ctx datastore.Context) (user.User, error)
 
-	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+	ValidateCredentials(ctx datastore.Context, u user.User) (bool, error)
 
 	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
 
 	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
 
 	ReportInstanceDead(serviceID string, instanceID int)
+
+	GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error)
+
+	GetServiceConfig(ctx datastore.Context, fileID string) (*servicedefinition.ConfigFile, error)
+
+	AddServiceConfig(ctx datastore.Context, serviceID string, conf servicedefinition.ConfigFile) error
+
+	UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error
+
+	DeleteServiceConfig(ctx datastore.Context, fileID string) error
 }

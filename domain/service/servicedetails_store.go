@@ -30,13 +30,15 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetail
 			},
 		},
 		"fields": serviceDetailsFields,
-		"size":   50000,
+		"size":   serviceDetailsLimit,
 	})
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
 	if err != nil {
 		return nil, err
 	}
+
+	parentMap := make(map[string]struct{})
 
 	details := []ServiceDetails{}
 	for results.HasNext() {
@@ -45,7 +47,14 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetail
 		if err != nil {
 			return nil, err
 		}
+
+		parentMap[d.ParentServiceID] = struct{}{}
+
 		details = append(details, d)
+	}
+
+	for i, d := range details {
+		_, details[i].HasChildren = parentMap[d.ID]
 	}
 
 	return details, nil
@@ -65,7 +74,7 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 			},
 		},
 		"fields": serviceDetailsFields,
-		"size":   50000,
+		"size":   1,
 	})
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
@@ -79,6 +88,13 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 		if err != nil {
 			return nil, err
 		}
+
+		if hasChildren, err := s.hasChildren(ctx, details.ID); err == nil {
+			details.HasChildren = hasChildren
+		} else {
+			return nil, err
+		}
+
 		return &details, nil
 	}
 
@@ -86,14 +102,14 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 	return nil, nil
 }
 
-// GetChildServiceDetails returns service details given parent service id
+// GetChildServiceDetailsByParentID returns service details given parent service id
 func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]string{"ParentServiceID": parentID},
 		},
 		"fields": serviceDetailsFields,
-		"size":   50000,
+		"size":   serviceDetailsLimit,
 	})
 
 	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
@@ -108,10 +124,35 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 		if err != nil {
 			return nil, err
 		}
+
+		if hasChildren, err := s.hasChildren(ctx, d.ID); err == nil {
+			d.HasChildren = hasChildren
+		} else {
+			return nil, err
+		}
+
 		details = append(details, d)
 	}
 
 	return details, nil
+}
+
+func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]string{"ParentServiceID": serviceID},
+		},
+		"fields": []string{"ID"},
+		"size":   1,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return false, err
+	}
+
+	return results.Len() > 0, nil
+
 }
 
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
@@ -125,14 +166,14 @@ func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchReq
 	}
 }
 
+var serviceDetailsLimit = 50000
+
 var serviceDetailsFields = []string{
 	"ID",
 	"Name",
 	"Description",
 	"PoolID",
 	"ParentServiceID",
-	"Instances",
 	"InstanceLimits",
-	"RAMCommitment",
 	"Startup",
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) (err error) {
@@ -78,14 +79,15 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 // FIXME: this will be deleted
 func convertInstanceToRunningService(inst service.Instance) dao.RunningService {
 	return dao.RunningService{
-		ID:           fmt.Sprintf("%s-%s-%d", inst.HostID, inst.ServiceID, inst.InstanceID),
-		ServiceID:    inst.ServiceID,
-		HostID:       inst.HostID,
-		DockerID:     inst.ContainerID,
-		StartedAt:    inst.Started,
-		InSync:       inst.ImageSynced,
-		Name:         inst.ServiceName,
-		DesiredState: int(inst.DesiredState),
-		InstanceID:   inst.InstanceID,
+		ID:            fmt.Sprintf("%s-%s-%d", inst.HostID, inst.ServiceID, inst.InstanceID),
+		ServiceID:     inst.ServiceID,
+		HostID:        inst.HostID,
+		DockerID:      inst.ContainerID,
+		StartedAt:     inst.Started,
+		InSync:        inst.ImageSynced,
+		Name:          inst.ServiceName,
+		DesiredState:  int(inst.DesiredState),
+		RAMCommitment: utils.NewEngNotation(inst.RAMCommitment),
+		InstanceID:    inst.InstanceID,
 	}
 }

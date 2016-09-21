@@ -102,7 +102,7 @@ type ClientInterface interface {
 	GetServiceInstances(serviceID string) ([]service.Instance, error)
 
 	// Get a service from serviced where all templated properties have been evaluated
-	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, error)
+	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error)
 
 	// Get the tenant ID for a service
 	GetTenantID(serviceID string) (string, error)
