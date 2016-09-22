@@ -60,16 +60,6 @@ func (s *scheduler) GetHostsByPool(id string) ([]host.Host, error) {
 	return s.facade.FindHostsInPool(datastore.Get(), id)
 }
 
-func (s *scheduler) AddUpdateHost(host *host.Host) error {
-	if h, err := s.facade.GetHost(datastore.Get(), host.ID); err != nil {
-		return err
-	} else if h == nil {
-		return s.facade.AddHost(datastore.Get(), host)
-	}
-
-	return s.facade.UpdateHost(datastore.Get(), host)
-}
-
 func (s *scheduler) RemoveHost(id string) error {
 	return s.facade.RemoveHost(datastore.Get(), id)
 }

@@ -350,8 +350,8 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 
 			// report the instance id and the health
 			results[i].Status[j] = service.StatusInstance{
-				InstanceID: stateID.InstanceID,
-				Health:     f.getInstanceHealth(svc, stateID.InstanceID),
+				InstanceID:   stateID.InstanceID,
+				HealthStatus: f.getInstanceHealth(svc, stateID.InstanceID),
 			}
 
 			// append a request to the metrics query for this instance
