@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 )
@@ -79,7 +80,7 @@ func loopBackOptionsFound(storageOptions []string) bool {
 	return found
 }
 
-func validateStorageArgs() error {
+func validateStorageArgs(options *config.Options) error {
 	if options.Master {
 		log := log.WithFields(logrus.Fields{
 			"driver": options.FSType,

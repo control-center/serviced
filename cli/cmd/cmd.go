@@ -23,6 +23,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/logging"
@@ -177,11 +178,11 @@ func (c *ServicedCli) Run(args []string) {
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-	if err := api.ValidateCommonOptions(options); err != nil {
+	if err := config.ValidateCommonOptions(options); err != nil {
 		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
 	}
-	api.LoadOptions(options)
+	config.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
@@ -207,8 +208,8 @@ func (c *ServicedCli) exit(code int) error {
 
 // Get all runtime options as a combination of default values, environment variable settings and
 // command line overrides.
-func getRuntimeOptions(ctx *cli.Context) api.Options {
-	options := api.Options{
+func getRuntimeOptions(ctx *cli.Context) config.Options {
+	options := config.Options{
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),
@@ -309,7 +310,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 //
 // TODO: This method is eerily similar to logic in api.ValidateServerOptions(). The two should be reconciled
 //       at some point to avoid duplicate/inconsistent code
-func getEndpoint(options api.Options) string {
+func getEndpoint(options config.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {

@@ -17,6 +17,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	dfsdocker "github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
@@ -30,7 +31,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -255,18 +255,9 @@ func (svc *IService) Exec(command []string) ([]byte, error) {
 }
 
 func (svc *IService) getResourcePath(p string) string {
-	const defaultdir string = "isvcs"
-
 	if svc.root == "" {
-		if p := strings.TrimSpace(os.Getenv("SERVICED_HOME")); p != "" {
-			svc.root = filepath.Join(p, "var", defaultdir)
-		} else if user, err := user.Current(); err == nil {
-			svc.root = filepath.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username), "var", defaultdir)
-		} else {
-			svc.root = filepath.Join(os.TempDir(), "serviced", "var", defaultdir)
-		}
+		svc.root = config.GetOptions().IsvcsPath
 	}
-
 	return filepath.Join(svc.root, svc.Name, p)
 }
 

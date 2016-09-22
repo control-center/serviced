@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	ccconfig "github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -120,7 +121,7 @@ func (a *api) StartShell(config ShellConfig) error {
 		Command:   utils.ShellQuoteArgs(command),
 	}
 
-	// TODO: change me to use sockets
+	options := ccconfig.GetOptions()
 	cmd, err := shell.StartDocker(&cfg, options.Endpoint, config.ServicedEndpoint, options.DockerRegistry, options.ControllerBinary)
 	if err != nil {
 		return fmt.Errorf("failed to connect to service: %s", err)
@@ -196,7 +197,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 		return 1, err
 	}
 
-	// TODO: change me to use sockets
+	options := ccconfig.GetOptions()
 	cmd, err := shell.StartDocker(&cfg, options.Endpoint, config.ServicedEndpoint, options.DockerRegistry, options.ControllerBinary)
 	if err != nil {
 		return 1, fmt.Errorf("failed to connect to service: %s", err)
