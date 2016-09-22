@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 )
 
@@ -32,7 +33,7 @@ func (a *api) Backup(dirpath string, excludes []string) (string, error) {
 	var path string
 	req := dao.BackupRequest{
 		Dirpath:              dirpath,
-		SnapshotSpacePercent: options.SnapshotSpacePercent,
+		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 		Excludes:             excludes,
 	}
 	if err := client.Backup(req, &path); err != nil {
