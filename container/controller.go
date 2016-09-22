@@ -278,8 +278,12 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	// Load keys
 	keyshutdown := make(chan interface{})
 	go func() {
-		<-c.closing
+		// This is a ridiculous shutdown pattern I'll follow for the sake of
+		// not destabilizing the controller this late in a release.
+		// TODO: Make this not stupid
+		errc := <-c.closing
 		close(keyshutdown)
+		errc <- nil
 	}()
 
 	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
