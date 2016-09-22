@@ -46,6 +46,7 @@ type API interface {
 	SetHostMemory(HostUpdateConfig) error
 	GetHostPublicKey(string) ([]byte, error)
 	RegisterHost([]byte) error
+	AuthenticateHost(string) (string, int64, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)
