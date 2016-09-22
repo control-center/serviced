@@ -31,7 +31,16 @@ var (
 	ErrBadRPCHeader = errors.New("Bad rpc header")
 )
 
-func BuildRPCHeader() ([]byte, error) {
+type RPCHeaderParser interface {
+	ParseHeader([]byte) (Identity, error)
+}
+type RPCHeaderBuilder interface {
+	BuildHeader() ([]byte, error)
+}
+
+type RPCHeaderHandler struct{}
+
+func (r *RPCHeaderHandler) BuildHeader() ([]byte, error) {
 	var (
 		token        string
 		err          error
@@ -53,10 +62,10 @@ func BuildRPCHeader() ([]byte, error) {
 		signAsMaster = true
 	}
 
-	return BuildAuthRPCHeader(token, signAsMaster)
+	return r.BuildAuthRPCHeader(token, signAsMaster)
 }
 
-func BuildAuthRPCHeader(token string, signAsMaster bool) ([]byte, error) {
+func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, signAsMaster bool) ([]byte, error) {
 	headerBuf := new(bytes.Buffer)
 
 	// add token length
@@ -85,7 +94,7 @@ func BuildAuthRPCHeader(token string, signAsMaster bool) ([]byte, error) {
 	return headerBuf.Bytes(), nil
 }
 
-func ExtractRPCHeader(rawHeader []byte) (Identity, error) {
+func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte) (Identity, error) {
 
 	if len(rawHeader) <= TOKEN_LEN_BYTES {
 		return nil, ErrBadRPCHeader

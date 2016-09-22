@@ -25,12 +25,13 @@ import (
 )
 
 var (
-	endian = binary.BigEndian
+	endian           = binary.BigEndian
+	rpcHeaderHandler = &auth.RPCHeaderHandler{}
 )
 
 func (s *TestAuthSuite) TestExtractBadRPCHeader(c *C) {
 	mockHeader := []byte{0, 0, 0, 19, 109, 121, 32, 115, 117, 112, 101, 114, 32, 102}
-	_, err := auth.ExtractRPCHeader(mockHeader)
+	_, err := rpcHeaderHandler.ParseHeader(mockHeader)
 	c.Assert(err, Equals, auth.ErrBadRPCHeader)
 }
 
@@ -41,7 +42,7 @@ func (s *TestAuthSuite) TestExtractBadToken(c *C) {
 	mockHeader := make([]byte, mockHeaderLength)
 	endian.PutUint32(mockHeader[:auth.TOKEN_LEN_BYTES], uint32(tokenLength))
 	_ = copy(mockHeader[auth.TOKEN_LEN_BYTES:auth.TOKEN_LEN_BYTES+tokenLength], badToken)
-	_, err := auth.ExtractRPCHeader(mockHeader)
+	_, err := rpcHeaderHandler.ParseHeader(mockHeader)
 	c.Assert(err, Equals, auth.ErrBadToken)
 }
 
@@ -54,7 +55,7 @@ func (s *TestAuthSuite) TestExtractBadSignature(c *C) {
 	mockHeader := make([]byte, mockHeaderLength)
 	endian.PutUint32(mockHeader[:auth.TOKEN_LEN_BYTES], uint32(tokenLength))
 	_ = copy(mockHeader[auth.TOKEN_LEN_BYTES:auth.TOKEN_LEN_BYTES+tokenLength], fakeToken)
-	_, err = auth.ExtractRPCHeader(mockHeader)
+	_, err = rpcHeaderHandler.ParseHeader(mockHeader)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }
 
@@ -64,11 +65,11 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the delegate
-	header, err := auth.BuildAuthRPCHeader(fakeToken, false)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, false)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
-	ident, err := auth.ExtractRPCHeader(header)
+	ident, err := rpcHeaderHandler.ParseHeader(header)
 	c.Assert(err, IsNil)
 	// check the identity has been correctly extracted
 	c.Assert(s.hostId, DeepEquals, ident.HostID())
@@ -83,11 +84,11 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the master
-	header, err := auth.BuildAuthRPCHeader(fakeToken, true)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, true)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
-	ident, err := auth.ExtractRPCHeader(header)
+	ident, err := rpcHeaderHandler.ParseHeader(header)
 	c.Assert(err, IsNil)
 	// check the identity has been correctly extracted
 	c.Assert(ident.HostID(), DeepEquals, "")
@@ -102,11 +103,11 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned_WrongKey(c *C)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the master
-	header, err := auth.BuildAuthRPCHeader(fakeToken, true)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, true)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header, should fail verification
-	_, err = auth.ExtractRPCHeader(header)
+	_, err = rpcHeaderHandler.ParseHeader(header)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }
 
@@ -116,10 +117,10 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_DelegateSigned_WrongKey(c *
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the delegate
-	header, err := auth.BuildAuthRPCHeader(fakeToken, false)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, false)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header, should fail verification
-	_, err = auth.ExtractRPCHeader(header)
+	_, err = rpcHeaderHandler.ParseHeader(header)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }
