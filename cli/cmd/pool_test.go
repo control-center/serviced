@@ -72,12 +72,17 @@ var (
 type PoolAPITest struct {
 	api.API
 	fail    bool
-	pools   []pool.ResourcePool
+	pools   *[]pool.ResourcePool
 	hostIPs []host.HostIPResource
 }
 
 func DefaultPoolAPI() PoolAPITest {
-	return PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
+	test := PoolAPITest{
+		pools:   &[]pool.ResourcePool{},
+		hostIPs: DefaultTestHostIPs,
+	}
+	*test.pools = append(*test.pools, DefaultTestPools[:]...)
+	return test
 }
 
 func RunCmd(test api.API, args ...string) {
@@ -89,7 +94,7 @@ func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 		return nil, ErrInvalidPool
 	}
 
-	return t.pools, nil
+	return *t.pools, nil
 }
 
 func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
@@ -97,7 +102,7 @@ func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
 		return nil, ErrInvalidPool
 	}
 
-	for _, p := range t.pools {
+	for _, p := range *t.pools {
 		if p.ID == id {
 			return &p, nil
 		}
@@ -119,17 +124,23 @@ func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool,
 		MemoryLimit: config.MemoryLimit,
 	}
 
+	*t.pools = append(*t.pools, *p)
 	return p, nil
 }
 
 func (t PoolAPITest) RemoveResourcePool(id string) error {
-	if p, err := t.GetResourcePool(id); err != nil {
-		return err
-	} else if p == nil {
-		return ErrNoPoolFound
+	if t.fail {
+		return ErrInvalidPool
 	}
 
-	return nil
+	for i, p := range *t.pools {
+		if p.ID == id {
+			tmp := *t.pools
+			*t.pools = append(tmp[:i], tmp[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNoPoolFound
 }
 
 func (t PoolAPITest) GetPoolIPs(id string) (*pool.PoolIPs, error) {
@@ -208,7 +219,8 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 
 func ExampleServicedCLI_CmdPoolList_err() {
 	test := DefaultPoolAPI()
-	test.pools = make([]pool.ResourcePool, 0)
+	*test.pools = make([]pool.ResourcePool, 0)
+
 	// Pool not found
 	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list", "test-pool-id-0")
 	// No pools found
