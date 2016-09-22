@@ -76,7 +76,11 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 
 	for {
 		// set up a watch on the service
-		sDat := NewServiceNodeFromService(&service.Service{})
+		sDat, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			logger.WithError(err).Debug("Could not create service node from service")
+			return
+		}
 		sEvt, err := l.conn.GetW(l.GetPath(serviceID), sDat, done)
 		if err == client.ErrNoNode {
 

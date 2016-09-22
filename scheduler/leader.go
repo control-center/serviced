@@ -21,9 +21,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs/ttl"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
@@ -75,12 +73,6 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		"serviceid":   sn.ID,
 		"servicename": sn.Name,
 	})
-	s, err := l.facade.GetService(datastore.Get(), sn.ID)
-	if err != nil {
-		plog.WithError(err).Debug("Could not get service")
-		return "", err
-	}
-	73
 
 	plog.Debug("Looking for available hosts in resource pool")
 	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
@@ -95,18 +87,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		return "", errors.New("scheduler is shutting down")
 	}
 
-	// make sure all of the applicable endpoints have address assignments
-	var assignment addressassignment.AddressAssignment
-	for _, ep := range s.Endpoints {
-		if ep.IsConfigurable() {
-			if ep.AddressAssignment.IPAddr != "" {
-				assignment = ep.AddressAssignment
-			} else {
-				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
-				return "", errors.New("service is missing an address assignment")
-			}
-		}
-	}
+	assignment := sn.AddressAssignment
 
 	if assignment.IPAddr != "" {
 		logger = logger.WithFields(log.Fields{
@@ -136,7 +117,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		return "", errors.New("assigned ip is not available")
 	}
 
-	hp := s.HostPolicy
+	hp := sn.HostPolicy
 	if hp == "" {
 		hp = servicedefinition.Balance
 	}
@@ -145,5 +126,5 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		return "", err
 	}
 
-	return StrategySelectHost(s, hosts, strat, l.facade)
+	return StrategySelectHost(sn, hosts, strat, l.facade)
 }

@@ -536,7 +536,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 			return nil, nil, nil, err
 		}
 
-		addBindingToMap(&bindsMap, volume.ContainerPath, resourcePath)
+		addBindingToMap(bindsMap, volume.ContainerPath, resourcePath)
 	}
 
 	// mount serviced path
@@ -547,17 +547,17 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	}
 
 	dir, binary := filepath.Split(a.controllerBinary)
-	addBindingToMap(&bindsMap, "/serviced", dir)
+	addBindingToMap(bindsMap, "/serviced", dir)
 
 	// bind mount everything we need for filebeat
 	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
-		addBindingToMap(&bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
+		addBindingToMap(bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
 	}
 
 	// Bind mount the keys we need
-	addBindingToMap(&bindsMap, "/etc/serviced", filepath.Dir(a.delegateKeyFile))
+	addBindingToMap(bindsMap, "/etc/serviced", filepath.Dir(a.delegateKeyFile))
 
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
@@ -616,7 +616,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 			}).Debug("Finished evaluation for matchedRequestedImage")
 
 			if matchedRequestedImage {
-				addBindingToMap(&bindsMap, containerPath, hostPath)
+				addBindingToMap(bindsMap, containerPath, hostPath)
 			}
 		} else {
 			logger.WithField("bindmount", bindMountString).
@@ -729,19 +729,11 @@ func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerc
 		"instanceid": instanceID,
 	})
 
-	if hostConf == nil {
-		logger.Error("Host Config passed to createContainer is nil.")
-	}
-
 	// create the container
 	opts := dockerclient.CreateContainerOptions{
 		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
 		Config:     conf,
 		HostConfig: hostConf,
-	}
-
-	if opts.HostConfig == nil {
-		logger.Error("Host Config in opts is nil.")
 	}
 
 	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
@@ -751,4 +743,15 @@ func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerc
 	}
 	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
 	return ctr, nil
+}
+
+func addBindingToMap(bindsMap map[string]string, cp, rp string) {
+	rp = strings.TrimSpace(rp)
+	cp = strings.TrimSpace(cp)
+	if len(rp) > 0 && len(cp) > 0 {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Debug("Adding path to bindsMap")
+		bindsMap[cp] = rp
+	} else {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
+	}
 }

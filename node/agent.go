@@ -31,8 +31,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/commons/docker"
@@ -552,15 +550,4 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 	}
 	glog.V(0).Info("All service state nodes are shut down")
 	return
-}
-
-func addBindingToMap(bindsMap *map[string]string, cp, rp string) {
-	rp = strings.TrimSpace(rp)
-	cp = strings.TrimSpace(cp)
-	if len(rp) > 0 && len(cp) > 0 {
-		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Debug("Adding path to bindsMap")
-		(*bindsMap)[cp] = rp
-	} else {
-		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
-	}
 }

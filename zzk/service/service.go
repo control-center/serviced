@@ -17,9 +17,12 @@ import (
 	"fmt"
 	"path"
 
+	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -36,19 +39,22 @@ func (err ServiceError) Error() string {
 
 // ServiceNode is the storage object for service data
 type ServiceNode struct {
-	ID            string
-	Name          string
-	DesiredState  int
-	Instances     int
-	RAMCommitment utils.EngNotation
-	ChangeOptions []string
+	ID                string
+	Name              string
+	DesiredState      int
+	HostPolicy        servicedefinition.HostPolicy
+	Instances         int
+	RAMCommitment     utils.EngNotation
+	CPUCommitment     uint64
+	ChangeOptions     []string
+	AddressAssignment addressassignment.AddressAssignment
 	//non-service fields
 	Locked  bool
 	version interface{}
 }
 
-func NewServiceNodeFromService(s *service.Service) *ServiceNode {
-	return &ServiceNode{
+func NewServiceNodeFromService(s *service.Service) (*ServiceNode, error) {
+	sn := ServiceNode{
 		ID:            s.ID,
 		Name:          s.Name,
 		DesiredState:  s.DesiredState,
@@ -56,6 +62,18 @@ func NewServiceNodeFromService(s *service.Service) *ServiceNode {
 		RAMCommitment: s.RAMCommitment,
 		ChangeOptions: s.ChangeOptions,
 	}
+	// make sure all of the applicable endpoints have address assignments
+	for _, ep := range s.Endpoints {
+		if ep.IsConfigurable() {
+			if ep.AddressAssignment.IPAddr != "" {
+				sn.AddressAssignment = ep.AddressAssignment
+			} else {
+				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
+				return nil, errors.New("service is missing an address assignment")
+			}
+		}
+	}
+	return &sn, nil
 }
 
 // Version implements client.Node
@@ -91,7 +109,16 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 
 	// create the service if it doesn't exist
 	// setLockOnCreate sets the lock as the node is created
-	sn := NewServiceNodeFromService(&svc)
+	sn, err := NewServiceNodeFromService(&svc)
+	if err != nil {
+		logger.WithError(err).Debug("Could not create service node from service")
+		return &ServiceError{
+			Action:    "update",
+			ServiceID: svc.ID,
+			Message:   "could not create service node from service",
+		}
+	}
+
 	sn.Locked = setLockOnCreate
 	if err := conn.CreateIfExists(pth, sn); err == client.ErrNodeExists {
 

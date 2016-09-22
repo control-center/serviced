@@ -53,7 +53,10 @@ func (l ServiceLockNode) Path() string {
 func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := NewServiceNodeFromService(&service.Service{})
+		node, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			return err
+		}
 		if err := conn.Get(svc.Path(), node); err != nil {
 			return err
 		}
@@ -67,7 +70,10 @@ func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 func UnlockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := NewServiceNodeFromService(&service.Service{})
+		node, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			return err
+		}
 		if err := conn.Get(svc.Path(), node); err != nil && err != client.ErrNoNode {
 			return err
 		}
