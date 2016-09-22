@@ -16,6 +16,7 @@
 package api
 
 import (
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	. "gopkg.in/check.v1"
@@ -200,44 +201,44 @@ func (s *TestAPISuite) TestLoopBackOptionsFoundWithBothKindsOfOptions(c *C) {
 }
 
 func (s *TestAPISuite) TestValidateStorageArgsPassBtrfs(c *C) {
-	testOptions := Options{
+	testOptions := config.Options{
 		Master:        true,
 		FSType:        volume.DriverTypeBtrFS,
 		StorageArgs:   []string{},
 		AllowLoopBack: "false",
 	}
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestValidateStorageArgsPassRsync(c *C) {
-	testOptions := Options{
+	testOptions := config.Options{
 		Master:        true,
 		FSType:        volume.DriverTypeRsync,
 		StorageArgs:   []string{},
 		AllowLoopBack: "false",
 	}
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestValidateStorageArgsPassDMWithThinpool(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{"DM_THINPOOLDEV": "foo"})
 	storageArgs := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	testOptions := Options{
+	testOptions := config.Options{
 		Master:        true,
 		FSType:        volume.DriverTypeDeviceMapper,
 		StorageArgs:   storageArgs,
 		AllowLoopBack: "false",
 	}
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -245,9 +246,9 @@ func (s *TestAPISuite) TestValidateStorageArgsPassDMWithThinpool(c *C) {
 func (s *TestAPISuite) TestValidateStorageArgsFailDMWithLoopBack(c *C) {
 	testOptions := setupOptionsForDMWithLoopBack()
 	testOptions.AllowLoopBack = "false"
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 
 	s.assertErrorContent(c, err, "devicemapper loop back device is not allowed")
 }
@@ -255,9 +256,9 @@ func (s *TestAPISuite) TestValidateStorageArgsFailDMWithLoopBack(c *C) {
 func (s *TestAPISuite) TestValidateStorageArgsPassDMWithAllowLoopBack(c *C) {
 	testOptions := setupOptionsForDMWithLoopBack()
 	testOptions.AllowLoopBack = "true"
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -267,9 +268,9 @@ func (s *TestAPISuite) TestValidateStorageArgsDoesNotFailIfAgentOnly(c *C) {
 	testOptions.Master = false
 	testOptions.Agent = true
 	testOptions.AllowLoopBack = "false"
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
-	err := validateStorageArgs()
+	err := validateStorageArgs(&testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -280,12 +281,12 @@ func verifyOptions(c *C, actual []string, expected []string) {
 	c.Assert(actual, DeepEquals, expected)
 }
 
-func setupOptionsForDMWithLoopBack() Options {
+func setupOptionsForDMWithLoopBack() config.Options {
 	// Technically speaking, we w/loopback is indicated by no DM_THINPOOLDEV, still add a loop-back option
 	// to emphasize the point
 	configReader := utils.TestConfigReader(map[string]string{"DM_LOOPDATASIZE": "1G"})
 	storageArgs := getDefaultStorageOptions(volume.DriverTypeDeviceMapper, configReader)
-	testOptions := Options{
+	testOptions := config.Options{
 		Master:      true,
 		FSType:      volume.DriverTypeDeviceMapper,
 		StorageArgs: storageArgs,

@@ -16,6 +16,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 )
 
@@ -92,7 +93,7 @@ func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 		Message:              cfg.Message,
 		Tag:                  cfg.Tag,
 		ContainerID:          cfg.DockerID,
-		SnapshotSpacePercent: options.SnapshotSpacePercent,
+		SnapshotSpacePercent: config.GetOptions().SnapshotSpacePercent,
 	}
 	var snapshotID string
 	if err := client.Snapshot(req, &snapshotID); err != nil {

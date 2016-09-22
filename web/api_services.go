@@ -112,6 +112,50 @@ func getServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 
 }
 
+func putServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
+	ctx := c.getDatastoreContext()
+	f := c.getFacade()
+
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	var payload service.ServiceDetails
+	err = r.DecodeJsonPayload(&payload)
+	if err != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	payload.ID = serviceID
+	if invalid := payload.ValidEntity(); invalid != nil {
+		writeJSON(w, err, http.StatusBadRequest)
+	}
+
+	svc, e := f.GetService(ctx, serviceID)
+	if e != nil {
+		restServerError(w, e)
+		return
+	}
+
+	svc.Name = payload.Name
+	svc.Description = payload.Description
+	svc.PoolID = payload.PoolID
+	svc.Instances = payload.Instances
+	svc.Startup = payload.Startup
+	svc.RAMCommitment = payload.RAMCommitment
+
+	err = f.UpdateService(ctx, *svc)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	writeJSON(w, "Service Updated.", http.StatusOK)
+}
+
 func putServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
 	ctx := c.getDatastoreContext()
 	f := c.getFacade()

@@ -339,12 +339,10 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 
 		// set up the aggregated service object
 		results[i] = service.AggregateService{
-			ServiceID:     serviceID,
-			Instances:     svc.Instances,
-			RAMCommitment: int32(svc.RAMCommitment.Value),
-			DesiredState:  service.DesiredState(svc.DesiredState),
-			Status:        make([]service.StatusInstance, len(stateIDs)),
-			NotFound:      false,
+			ServiceID:    serviceID,
+			DesiredState: service.DesiredState(svc.DesiredState),
+			Status:       make([]service.StatusInstance, len(stateIDs)),
+			NotFound:     false,
 		}
 
 		// set up the status of each instance
