@@ -94,6 +94,7 @@ cleanup() {
 
     echo "Removing up ${SMOKE_VAR_PATH} ..."
     sudo rm -rf ${SMOKE_VAR_PATH}
+    sudo rm -rf /tmp/serviced-root
 }
 trap cleanup EXIT
 
