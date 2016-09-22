@@ -71,11 +71,13 @@ type FacadeInterface interface {
 
 	DeployTemplateStatus(deploymentID string) (status string, err error)
 
-	AddHost(ctx datastore.Context, entity *host.Host) error
+	AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error)
 
 	GetHost(ctx datastore.Context, hostID string) (*host.Host, error)
 
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
+
+	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 

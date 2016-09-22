@@ -556,6 +556,9 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		addBindingToMap(&bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
 	}
 
+	// Bind mount the keys we need
+	addBindingToMap(&bindsMap, "/etc/serviced", filepath.Dir(a.delegateKeyFile))
+
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
 	for _, volume := range svc.Volumes {

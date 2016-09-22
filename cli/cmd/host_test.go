@@ -67,9 +67,11 @@ var (
 
 type HostAPITest struct {
 	api.API
-	fail  bool
-	pools []pool.ResourcePool
-	hosts []host.Host
+	fail         bool
+	registerFail bool
+	writeFail    bool
+	pools        []pool.ResourcePool
+	hosts        []host.Host
 }
 
 func InitHostAPITest(args ...string) {
@@ -104,16 +106,18 @@ func (t HostAPITest) GetHost(id string) (*host.Host, error) {
 	return nil, nil
 }
 
-func (t HostAPITest) AddHost(config api.HostConfig) (*host.Host, error) {
+func (t HostAPITest) AddHost(config api.HostConfig) (*host.Host, []byte, error) {
 	if t.fail {
-		return nil, ErrInvalidHost
+		return nil, nil, ErrInvalidHost
 	} else if config.PoolID == NilPool {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	h := host.New()
 	h.ID = fmt.Sprintf("%s-%s", config.Address.Host, config.PoolID)
-	return h, nil
+	h.PoolID = config.PoolID
+	h.IPAddr = config.Address.Host
+	return h, []byte("Fake HostKeys"), nil
 }
 
 func (t HostAPITest) RemoveHost(id string) error {
@@ -121,6 +125,20 @@ func (t HostAPITest) RemoveHost(id string) error {
 		return err
 	} else if h == nil {
 		return ErrNoHostFound
+	}
+	return nil
+}
+
+func (t HostAPITest) RegisterRemoteHost(h *host.Host, data []byte) error {
+	if t.registerFail {
+		return errors.New("Forcing RemoteRegisterHost to fail for testing")
+	}
+	return nil
+}
+
+func (t HostAPITest) WriteDelegateKey(filename string, data []byte) error {
+	if t.writeFail {
+		return errors.New("Forcing WriteDelegateKey to fail for testing")
 	}
 	return nil
 }
@@ -213,33 +231,72 @@ func ExampleServicedCLI_CmdHostList_complete() {
 }
 
 func ExampleServicedCLI_CmdHostAdd() {
-	// Bad URL
-	InitHostAPITest("serviced", "host", "add", "badurl", "default")
 	// Success
-	InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default")
+	InitHostAPITest("serviced", "host", "add", "127.0.0.111:8080", "default")
 
 	// Output:
-	// bad format: badurl; must be formatted as HOST:PORT
+	// Wrote delegate key file to IP-127-0-0-111.delegate.key
+	// 127.0.0.111-default
+}
+
+func ExampleServicedCLI_CmdHostAdd_register() {
+	// Register host.  Do not write key file
+	InitHostAPITest("serviced", "host", "add", "--register", "127.0.0.33:8080", "default")
+
+	// Output:
+	// Registered host at 127.0.0.33
+	// 127.0.0.33-default
+}
+
+func ExampleServicedCLI_CmdHostAdd_registerfail() {
+	// Register host failed.  Write key file
+	DefaultHostAPITest.registerFail = true
+	defer func() { DefaultHostAPITest.registerFail = false }()
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--register", "127.0.0.1:8080", "default")
+
+	// Output:
+	// Wrote delegate key file to IP-127-0-0-1.delegate.key
+	// 127.0.0.1-default
+	// Error registering host: Forcing RemoteRegisterHost to fail for testing
+}
+
+func ExampleServicedCLI_CmdHostAdd_keyfile() {
+	// Specify location of key file.
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--key-file", "foobar", "127.0.0.1:8080", "default")
+
+	// Output:
+	// Wrote delegate key file to foobar
 	// 127.0.0.1-default
 }
 
-func ExampleServicedCLI_CmdHostAdd_usage() {
-	InitHostAPITest("serviced", "host", "add")
+func ExampleServicedCLI_CmdHostAdd_keyfilefail() {
+	// Failure writing keyfile
+	DefaultHostAPITest.writeFail = true
+	defer func() { DefaultHostAPITest.writeFail = false }()
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", "default")
 
 	// Output:
-	// Incorrect Usage.
-	//
-	// NAME:
-	//    add - Adds a new host
-	//
-	// USAGE:
-	//    command add [command options] [arguments...]
-	//
-	// DESCRIPTION:
-	//    serviced host add HOST:PORT RESOURCE_POOL
-	//
-	// OPTIONS:
-	//    --memory 	Memory to allocate on this host, e.g. 20G, 50%
+	// 127.0.0.1-default
+	// Error writing delegate key file "IP-127-0-0-1.delegate.key": Forcing WriteDelegateKey to fail for testing
+}
+
+func ExampleServicedCLI_CmdHostAdd_keyfileRegister() {
+	// Specify location of key file and register host.
+	// Write the key file even though we registered.
+	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--register", "--key-file", "foobar", "127.0.0.3:8080", "default")
+
+	// Output:
+	// Registered host at 127.0.0.3
+	// Wrote delegate key file to foobar
+	// 127.0.0.3-default
+}
+
+func ExampleServicedCLI_CmdHostAdd_badurl() {
+	// Bad URL
+	InitHostAPITest("serviced", "host", "add", "badurl", "default")
+
+	// Output:
+	// bad format: badurl; must be formatted as HOST:PORT
 }
 
 func ExampleServicedCLI_CmdHostAdd_fail() {

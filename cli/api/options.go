@@ -15,8 +15,6 @@ package api
 
 import (
 	"fmt"
-	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -31,6 +29,7 @@ import (
 )
 
 const (
+	DefaultHomeDir       = "/opt/serviced"
 	DefaultRPCPort       = 4979
 	outboundIPRetryDelay = 1
 	outboundIPMaxWait    = 90
@@ -154,6 +153,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		StorageStatsUpdateInterval: cfg.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       cfg.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           cfg.IntVal("ZK_SESSION_TIMEOUT", 15),
+		TokenExpiration:            cfg.IntVal("AUTH_TOKEN_EXPIRATION", 60*60),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")
@@ -167,27 +167,16 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
 	options.ControllerBinary = cfg.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
-	homepath := cfg.StringVal("HOME", "")
-	varpath := getDefaultVarPath(homepath)
+	homepath := cfg.StringVal("HOME", DefaultHomeDir)
+	varpath := filepath.Join(homepath, "var")
 
 	options.IsvcsPath = cfg.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 	options.VolumesPath = cfg.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
 	options.BackupsPath = cfg.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
+	options.EtcPath = cfg.StringVal("ETC_PATH", filepath.Join(homepath, "etc"))
 	options.StorageArgs = getDefaultStorageOptions(options.FSType, cfg)
 
 	return options
-}
-
-func getDefaultVarPath(home string) string {
-	if home == "" {
-		if user, err := user.Current(); err != nil {
-			home = filepath.Join(os.TempDir(), "serviced")
-		} else {
-			home = filepath.Join(os.TempDir(), "serviced-"+user.Username)
-		}
-	}
-
-	return filepath.Join(home, "var")
 }
 
 func getDefaultESStartupTimeout(timeout int) int {

@@ -57,6 +57,7 @@ type Options struct {
 	KeyPEMFile                 string
 	CertPEMFile                string
 	VolumesPath                string
+	EtcPath                    string
 	IsvcsPath                  string
 	BackupsPath                string
 	ResourcePath               string
@@ -111,6 +112,7 @@ type Options struct {
 	StorageStatsUpdateInterval int               // frequency in seconds that low-level devicemapper storage stats should be refreshed
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
+	TokenExpiration            int               // The time in seconds before an authentication token expires
 }
 
 // GetOptions returns a COPY of the global options struct

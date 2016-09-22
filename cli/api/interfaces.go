@@ -40,10 +40,14 @@ type API interface {
 	GetHosts() ([]host.Host, error)
 	GetHost(string) (*host.Host, error)
 	GetHostMap() (map[string]host.Host, error)
-	AddHost(HostConfig) (*host.Host, error)
+	AddHost(HostConfig) (*host.Host, []byte, error)
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
 	SetHostMemory(HostUpdateConfig) error
+	GetHostPublicKey(string) ([]byte, error)
+	RegisterHost([]byte) error
+	RegisterRemoteHost(*host.Host, []byte) error
+	WriteDelegateKey(string, []byte) error
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)

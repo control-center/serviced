@@ -1,4 +1,4 @@
-package apimocks
+package mocks
 
 import "github.com/control-center/serviced/cli/api"
 import "github.com/stretchr/testify/mock"
@@ -10,7 +10,6 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicedefinition"
-
 import template "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/isvcs"
 import "github.com/control-center/serviced/metrics"
@@ -117,7 +116,7 @@ func (_m *API) GetHostMap() (map[string]host.Host, error) {
 
 	return r0, r1
 }
-func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, error) {
+func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, []byte, error) {
 	ret := _m.Called(_a0)
 
 	var r0 *host.Host
@@ -129,14 +128,23 @@ func (_m *API) AddHost(_a0 api.HostConfig) (*host.Host, error) {
 		}
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(api.HostConfig) error); ok {
+	var r1 []byte
+	if rf, ok := ret.Get(1).(func(api.HostConfig) []byte); ok {
 		r1 = rf(_a0)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]byte)
+		}
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(api.HostConfig) error); ok {
+		r2 = rf(_a0)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 func (_m *API) RemoveHost(_a0 string) error {
 	ret := _m.Called(_a0)
@@ -177,6 +185,63 @@ func (_m *API) SetHostMemory(_a0 api.HostUpdateConfig) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(api.HostUpdateConfig) error); ok {
 		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) GetHostPublicKey(_a0 string) ([]byte, error) {
+	ret := _m.Called(_a0)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(string) []byte); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) RegisterHost(_a0 []byte) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]byte) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) RegisterRemoteHost(_a0 *host.Host, _a1 []byte) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*host.Host, []byte) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *API) WriteDelegateKey(_a0 string, _a1 []byte) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, []byte) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -981,6 +1046,7 @@ func (_m *API) ScriptRun(a0 string, a1 *script.Config, stopChan chan struct{}) e
 
 	return r0
 }
+
 func (_m *API) GetVolumeStatus() (*volume.Statuses, error) {
 	ret := _m.Called()
 
@@ -1092,12 +1158,12 @@ func (_m *API) EnablePublicEndpointVHost(serviceid string, endpointName string, 
 
 	return r0
 }
-func (_m *API) GetServiceInstances(_a0 string) ([]service.Instance, error) {
-	ret := _m.Called(_a0)
+func (_m *API) GetServiceInstances(serviceID string) ([]service.Instance, error) {
+	ret := _m.Called(serviceID)
 
 	var r0 []service.Instance
 	if rf, ok := ret.Get(0).(func(string) []service.Instance); ok {
-		r0 = rf(_a0)
+		r0 = rf(serviceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.Instance)
@@ -1106,7 +1172,7 @@ func (_m *API) GetServiceInstances(_a0 string) ([]service.Instance, error) {
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(_a0)
+		r1 = rf(serviceID)
 	} else {
 		r1 = ret.Error(1)
 	}

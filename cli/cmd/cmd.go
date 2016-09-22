@@ -82,6 +82,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
 		cli.StringFlag{"isvcs-path", defaultOps.IsvcsPath, "path where internal application data is stored"},
 		cli.StringFlag{"backups-path", defaultOps.BackupsPath, "default path where backups are stored"},
+		cli.StringFlag{"etc-path", defaultOps.EtcPath, "default path for configuration files"},
 		cli.StringFlag{"keyfile", defaultOps.KeyPEMFile, "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", defaultOps.CertPEMFile, "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", convertToStringSlice(defaultOps.Zookeepers), "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
@@ -124,6 +125,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
+		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -156,6 +158,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.initScript()
 	c.initServer()
 	c.initVolume()
+	c.initKey()
 
 	return c
 }
@@ -224,6 +227,7 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 		VolumesPath:                ctx.GlobalString("volumes-path"),
 		IsvcsPath:                  ctx.GlobalString("isvcs-path"),
 		BackupsPath:                ctx.GlobalString("backups-path"),
+		EtcPath:                    ctx.GlobalString("etc-path"),
 		KeyPEMFile:                 ctx.GlobalString("keyfile"),
 		CertPEMFile:                ctx.GlobalString("certfile"),
 		Zookeepers:                 ctx.GlobalStringSlice("zk"),
@@ -270,6 +274,7 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 		UIPollFrequency:            ctx.GlobalInt("ui-poll-frequency"),
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
+		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs

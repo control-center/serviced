@@ -92,6 +92,8 @@ type HostAgent struct {
 	dockerLogConfig      map[string]string
 	pullreg              registry.Registry
 	zkSessionTimeout     int
+	delegateKeyFile      string
+	tokenFile            string
 }
 
 func getZkDSN(zookeepers []string, timeout int) string {
@@ -126,6 +128,8 @@ type AgentOptions struct {
 	DockerLogDriver      string
 	DockerLogConfig      map[string]string
 	ZKSessionTimeout     int
+	DelegateKeyFile      string
+	TokenFile            string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -149,6 +153,8 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.dockerLogDriver = options.DockerLogDriver
 	agent.dockerLogConfig = options.DockerLogConfig
 	agent.zkSessionTimeout = options.ZKSessionTimeout
+	agent.delegateKeyFile = options.DelegateKeyFile
+	agent.tokenFile = options.TokenFile
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
