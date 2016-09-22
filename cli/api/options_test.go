@@ -29,7 +29,7 @@ func (s *TestAPISuite) TestValidateCommonOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 
-	err := ValidateCommonOptions(testOptions)
+	err := config.ValidateCommonOptions(testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -39,7 +39,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCCertVerify(c 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCCertVerify = "foobar"
 
-	err := ValidateCommonOptions(testOptions)
+	err := config.ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error parsing rpc-cert-verify value")
 }
@@ -49,7 +49,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCDisableTLS(c 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCDisableTLS = "not a boolean string"
 
-	err := ValidateCommonOptions(testOptions)
+	err := config.ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error parsing rpc-disable-tls value")
 }
@@ -59,7 +59,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidUIAddress(c *C) 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.UIPort = "not a valid port string"
 
-	err := ValidateCommonOptions(testOptions)
+	err := config.ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error validating UI port")
 }
@@ -69,7 +69,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidVirtualAddressSu
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.VirtualAddressSubnet = "not a valid subnet"
 
-	err := ValidateCommonOptions(testOptions)
+	err := config.ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error validating virtual-address-subnet")
 }
@@ -81,7 +81,7 @@ func (s *TestAPISuite) TestValidateServerOptions(c *C) {
 	testOptions.FSType = volume.DriverTypeBtrFS
 	config.LoadOptions(testOptions)
 
-	err := ValidateServerOptions()
+	err := ValidateServerOptions(&testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -93,7 +93,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfNotMasterOrAgent(c *C) {
 	testOptions.Agent = false
 	config.LoadOptions(testOptions)
 
-	err := ValidateServerOptions()
+	err := ValidateServerOptions(&testOptions)
 
 	s.assertErrorContent(c, err, "no mode (master or agent) was specified")
 }
@@ -106,7 +106,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfStorageInvalid(c *C) {
 	testOptions.StorageArgs = []string{}
 	config.LoadOptions(testOptions)
 
-	err := ValidateServerOptions()
+	err := ValidateServerOptions(&testOptions)
 
 	s.assertErrorContent(c, err, "Use of devicemapper loop back device is not allowed")
 }
@@ -118,7 +118,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfAgentMissingEndpoint(c *C
 	testOptions.Endpoint = ""
 	config.LoadOptions(testOptions)
 
-	err := ValidateServerOptions()
+	err := ValidateServerOptions(&testOptions)
 
 	s.assertErrorContent(c, err, "No endpoint to master has been configured")
 }
@@ -131,7 +131,7 @@ func (s *TestAPISuite) TestValidateServerOptionsSetsEndpointIfMasterMissingEndpo
 	testOptions.Endpoint = ""
 	config.LoadOptions(testOptions)
 
-	err := ValidateServerOptions()
+	err := ValidateServerOptions(&testOptions)
 
 	c.Assert(err, IsNil)
 	c.Assert(len(options.Endpoint), Not(Equals), 0)
