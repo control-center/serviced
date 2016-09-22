@@ -11,14 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit
+// +build unit integration
 
-package service_test
+package service
 
 import (
 	. "gopkg.in/check.v1"
+	"testing"
 )
 
-var _ = Suite(&ServiceDomainUnitTestSuite{})
-
-type ServiceDomainUnitTestSuite struct{}
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
+}
