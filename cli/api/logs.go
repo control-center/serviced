@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
@@ -193,18 +194,18 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	return nil
 }
 
-func validateConfiguration(config *ExportLogsConfig) error {
-	if config.Driver == nil {
-		config.Driver = &elastigoLogDriver{}
+func validateConfiguration(cfg *ExportLogsConfig) error {
+	if cfg.Driver == nil {
+		cfg.Driver = &elastigoLogDriver{}
 	}
 
-	err := config.Driver.SetLogstashInfo(options.LogstashES)
+	err := cfg.Driver.SetLogstashInfo(config.GetOptions().LogstashES)
 	if err != nil {
 		return err
 	}
 
 	// make sure we can write to outfile
-	if config.OutFileName == "" {
+	if cfg.OutFileName == "" {
 		pwd, e := os.Getwd()
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
@@ -212,41 +213,41 @@ func validateConfiguration(config *ExportLogsConfig) error {
 		now := time.Now().UTC()
 		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
 		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		config.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
 	}
-	fp, e := filepath.Abs(config.OutFileName)
+	fp, e := filepath.Abs(cfg.OutFileName)
 	if e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.OutFileName, e)
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", cfg.OutFileName, e)
 	}
-	config.OutFileName = filepath.Clean(fp)
+	cfg.OutFileName = filepath.Clean(fp)
 
 	// Create the file in exclusive mode to avoid race with a concurrent invocation
 	// of the same command on the same node
-	config.outFile, e = os.OpenFile(config.OutFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
+	cfg.outFile, e = os.OpenFile(cfg.OutFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
 	if e != nil {
-		return fmt.Errorf("Could not create backup for %s: %s", config.OutFileName, e)
+		return fmt.Errorf("Could not create backup for %s: %s", cfg.OutFileName, e)
 	}
 
 	// Validate and normalize the date range filter attributes "from" and "to"
-	if config.FromDate == "" && config.ToDate == "" {
-		config.ToDate = time.Now().UTC().Format("2006.01.02")
-		config.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
+	if cfg.FromDate == "" && cfg.ToDate == "" {
+		cfg.ToDate = time.Now().UTC().Format("2006.01.02")
+		cfg.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
 	}
-	if config.FromDate != "" {
-		if config.FromDate, e = NormalizeYYYYMMDD(config.FromDate); e != nil {
+	if cfg.FromDate != "" {
+		if cfg.FromDate, e = NormalizeYYYYMMDD(cfg.FromDate); e != nil {
 			return e
 		}
 	}
-	if config.ToDate != "" {
-		if config.ToDate, e = NormalizeYYYYMMDD(config.ToDate); e != nil {
+	if cfg.ToDate != "" {
+		if cfg.ToDate, e = NormalizeYYYYMMDD(cfg.ToDate); e != nil {
 			return e
 		}
 	}
 
-	if config.Debug {
+	if cfg.Debug {
 		log.WithFields(logrus.Fields{
-			"from": config.FromDate,
-			"to":   config.ToDate,
+			"from": cfg.FromDate,
+			"to":   cfg.ToDate,
 		}).Info("Normalized date range")
 	}
 	return nil

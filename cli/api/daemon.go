@@ -18,6 +18,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -134,6 +135,7 @@ func (d *daemon) getEsClusterName(name string) string {
 		clusterName string
 		err         error
 	)
+	options := config.GetOptions()
 	filename := path.Join(options.IsvcsPath, name+".clustername")
 	data, _ := ioutil.ReadFile(filename)
 	clusterName = string(bytes.TrimSpace(data))
@@ -156,6 +158,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
+	options := config.GetOptions()
 	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	servicedClusterName := d.getEsClusterName("elasticsearch-serviced")
@@ -178,6 +181,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
+	options := config.GetOptions()
 	log := log.WithFields(logrus.Fields{"services": serviceNames})
 	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
@@ -196,6 +200,7 @@ func (d *daemon) stopISVCS() {
 }
 
 func (d *daemon) startRPC() {
+	options := config.GetOptions()
 	if options.DebugPort > 0 {
 		address := fmt.Sprintf("127.0.0.1:%d", options.DebugPort)
 		logger := log.WithFields(logrus.Fields{
@@ -255,6 +260,7 @@ func (d *daemon) startRPC() {
 }
 
 func (d *daemon) run() (err error) {
+	options := config.GetOptions()
 
 	// Get the ID of this host
 	if d.hostID, err = utils.HostID(); err != nil {
@@ -390,6 +396,7 @@ func (d *daemon) initContext() datastore.Context {
 }
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
+	options := config.GetOptions()
 	coordzk.RegisterZKLogger()
 	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
 	log.WithFields(logrus.Fields{
@@ -402,6 +409,7 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 
 func (d *daemon) startMaster() (err error) {
 	log.Debug("Starting serviced master")
+	options := config.GetOptions()
 	agentIP := options.OutboundIP
 	if agentIP == "" {
 		agentIP, err = utils.GetIPAddress()
@@ -510,6 +518,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 }
 
 func getTLSConfig(connectionType string) (*tls.Config, error) {
+	options := config.GetOptions()
 	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
@@ -531,6 +540,7 @@ func getTLSConfig(connectionType string) (*tls.Config, error) {
 }
 
 func createMuxListener() net.Listener {
+	options := config.GetOptions()
 	var (
 		listener net.Listener
 		err      error
@@ -562,6 +572,7 @@ func createMuxListener() net.Listener {
 }
 
 func (d *daemon) startAgent() error {
+	options := config.GetOptions()
 	muxListener := createMuxListener()
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
@@ -806,6 +817,7 @@ func (d *daemon) startAgent() error {
 
 func (d *daemon) registerMasterRPC() error {
 	log.Debug("Registering master RPC services")
+	options := config.GetOptions()
 
 	server := master.NewServer(d.facade)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
@@ -868,7 +880,7 @@ func initMetricsClient() *metrics.Client {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	log.Debug("Initializing facade")
+	options := config.GetOptions()
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
@@ -890,6 +902,7 @@ func (d *daemon) initFacade() *facade.Facade {
 
 // startLogstashPurger purges logstash based on days and size
 func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
+	options := config.GetOptions()
 	// Run the first time after 10 minutes
 	select {
 	case <-d.shutdown:
@@ -908,6 +921,8 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 
 // FIXME: The dao package is deprecated and should be removed.
 func (d *daemon) initDAO() dao.ControlPlane {
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
 		log.WithField("rpcPort", options.RPCPort).WithError(err).Fatal("RPC Port invalid")
@@ -925,6 +940,8 @@ func (d *daemon) initDAO() dao.ControlPlane {
 }
 
 func (d *daemon) initWeb() {
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	// TODO: Make bind port for web server optional?
 	log := log.WithFields(logrus.Fields{
 		"uiport": options.UIPort,
@@ -1004,6 +1021,8 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	log.Debug("Starting service scheduler")
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	for {
 		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL)
 		if err != nil {

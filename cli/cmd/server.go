@@ -19,6 +19,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
@@ -34,10 +35,13 @@ func (c *ServicedCli) initServer() {
 
 // serviced server
 func (c *ServicedCli) cmdServer(ctx *cli.Context) {
-	if err := api.ValidateServerOptions(); err != nil {
+	opts := config.GetOptions()
+	if err := api.ValidateServerOptions(&opts); err != nil {
 		fmt.Printf("Unable to validate server options: %s", err)
 		os.Exit(1)
 	}
+
+	config.LoadOptions(opts)
 
 	// Start server mode
 	rpcutils.RPC_CLIENT_SIZE = api.GetOptionsMaxRPCClients()
