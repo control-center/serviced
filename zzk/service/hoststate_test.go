@@ -259,7 +259,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRun(c *C) {
 	// attached, run, no change
 	ssdat := ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
@@ -328,7 +328,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachResume(c *C) {
 	// set up a paused running container
 	ssdat := &ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      true,
 		Started:     time.Now(),
 	}
@@ -437,7 +437,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 	// set up a running container
 	ssdat := &ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
@@ -474,7 +474,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachRestart(c *C) {
 
 	ssdat = &ServiceState{
 		ContainerID: ContainerId2,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
@@ -553,7 +553,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPause(c *C) {
 	// set up a running container
 	ssdat := &ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}
@@ -658,7 +658,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachPausePaused(c *C) {
 	// set up a paused running container
 	ssdat := &ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      true,
 		Started:     time.Now(),
 	}
@@ -787,7 +787,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 	// set up a running container
 	ssdat := &ServiceState{
 		ContainerID: containerId,
-		ImageID:     imageId,
+		ImageUUID:   imageId,
 		Paused:      false,
 		Started:     time.Now(),
 	}

@@ -21,9 +21,9 @@ import (
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
@@ -75,8 +75,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		"serviceid":   sn.ID,
 		"servicename": sn.Name,
 	})
-	s := &service.Service{ID: sn.ID, Name: sn.Name}
-	err := l.cpClient.GetService(sn.ID, s)
+	s, err := l.facade.GetService(datastore.Get(), sn.ID)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get service")
 		return "", err

@@ -32,7 +32,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	dockerclient "github.com/fsouza/go-dockerclient"
 
 	"github.com/zenoss/glog"
 
@@ -547,36 +546,6 @@ func waitForSsNodes(processing map[string]chan int, ssResultChan chan stateResul
 	}
 	glog.V(0).Info("All service state nodes are shut down")
 	return
-}
-
-func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID string, instanceID int) (*docker.Container, error) {
-	logger := plog.WithFields(log.Fields{
-		"serviceid":  svcID,
-		"instanceid": instanceID,
-	})
-
-	if hostConf == nil {
-		logger.Error("Host Config passed to createContainer is nil.")
-	}
-
-	// create the container
-	opts := dockerclient.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
-		Config:     conf,
-		HostConfig: hostConf,
-	}
-
-	if opts.HostConfig == nil {
-		logger.Error("Host Config in opts is nil.")
-	}
-
-	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
-	if err != nil {
-		logger.WithError(err).Error("Could not create container")
-		return nil, err
-	}
-	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
-	return ctr, nil
 }
 
 func addBindingToMap(bindsMap *map[string]string, cp, rp string) {

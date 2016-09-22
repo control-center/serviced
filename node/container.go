@@ -430,7 +430,6 @@ func dockerLogsToFile(containerid string, numlines int) {
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-//ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser, imageUUID)
 func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
 		"tenantID":    tenantID,
@@ -475,9 +474,9 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
 	state := &zkservice.ServiceState{
-		ImageID: imageUUID,
-		Paused:  false,
-		HostIP:  a.ipaddress,
+		ImageUUID: imageUUID,
+		Paused:    false,
+		HostIP:    a.ipaddress,
 	}
 
 	var assignedIP string
@@ -522,8 +521,6 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		}
 		state.AssignedIP = assignedIP
 		state.Static = static
-	} else {
-		log.Warn("svc.endpoints was nil.")
 	}
 
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
@@ -721,4 +718,34 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		},
 	}
 	return cfg, hcfg, state, nil
+}
+
+func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID string, instanceID int) (*docker.Container, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  svcID,
+		"instanceid": instanceID,
+	})
+
+	if hostConf == nil {
+		logger.Error("Host Config passed to createContainer is nil.")
+	}
+
+	// create the container
+	opts := dockerclient.CreateContainerOptions{
+		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
+		Config:     conf,
+		HostConfig: hostConf,
+	}
+
+	if opts.HostConfig == nil {
+		logger.Error("Host Config in opts is nil.")
+	}
+
+	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
+	if err != nil {
+		logger.WithError(err).Error("Could not create container")
+		return nil, err
+	}
+	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
+	return ctr, nil
 }

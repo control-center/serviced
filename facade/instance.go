@@ -222,7 +222,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		imgLogger.Debug("Loaded service image from registry")
 
 		return imageData.UUID == imageUUID, nil
-	}(svc.ImageID, state.ImageID)
+	}(svc.ImageID, state.ImageUUID)
 
 	if err != nil {
 		return nil, err
