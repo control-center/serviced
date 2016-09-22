@@ -54,7 +54,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 
 func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID":  request.ServiceID,
+		"serviceid":  request.ServiceID,
 		"instanceID": request.InstanceID,
 	})
 

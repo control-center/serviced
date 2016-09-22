@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2014-2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
@@ -26,8 +25,6 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/zenoss/glog"
 
@@ -608,7 +605,7 @@ func (c *Controller) Run() (err error) {
 		errc <- nil
 	}()
 
-	if err := c.handleControlCenterImports(rpcDead); err != nil {
+	if err := c.handleControlCenterImports(); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err
 	}
@@ -790,106 +787,16 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 	})
 }
 
-func (c *Controller) exportEndpoint(endpoint applicationendpoint.ApplicationEndpoint) {
-	bind := zkservice.ImportBinding{
-		Application:    endpoint.Application,
-		Purpose:        "import", // Punting on control center dynamic imports for now
-		PortNumber:     endpoint.ProxyPort,
-		VirtualAddress: endpoint.VirtualAddress,
-	}
-	exports := make([]registry.ExportDetails, 1)
-	exports[0] = registry.ExportDetails{
-		ExportBinding: zkservice.ExportBinding{
-			Application: endpoint.Application,
-			Protocol:    endpoint.Protocol,
-			PortNumber:  endpoint.ContainerPort,
-		},
-		PrivateIP:  endpoint.ContainerIP,
-		HostIP:     endpoint.HostIP,
-		InstanceID: 0,
-	}
-	c.endpoints.UpdateRemoteExports(bind, exports)
-	return
-}
-
-func (c *Controller) createControlplaneEndpoints() map[string][]applicationendpoint.ApplicationEndpoint {
-	master := os.Getenv("SERVICED_MASTER_IP")
-	hostip := strings.Split(master, ":")[0]
-	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint, 0)
-
-	//control center should always be reachable on port 443 in a container
-	cp_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane",
-		Application:   "controlplane",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 443,
-		ProxyPort:     443,
-		HostPort:      443,
-		HostIP:        hostip,
-		Protocol:      "tcp",
-	}
-	endpoints["tcp:443"] = []applicationendpoint.ApplicationEndpoint{cp_endpoint}
-
-	cpc_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_consumer",
-		Application:   "controlplane_consumer",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 8443,
-		ProxyPort:     8444,
-		HostPort:      8443,
-		HostIP:        hostip,
-		Protocol:      "tcp",
-	}
-	endpoints["tcp:8443"] = []applicationendpoint.ApplicationEndpoint{cpc_endpoint}
-
-	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_logstash_tcp",
-		Application:   "controlplane_logstash_tcp",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5042,
-		HostPort:      5042,
-		ProxyPort:     5042,
-		HostIP:        hostip,
-		Protocol:      "tcp",
-	}
-	endpoints["tcp:5042"] = []applicationendpoint.ApplicationEndpoint{tcp_endpoint}
-
-	filebeat_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_logstash_filebeat",
-		Application:   "controlplane_logstash_filebeat",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5043,
-		HostPort:      5043,
-		ProxyPort:     5043,
-		HostIP:        hostip,
-		Protocol:      "tcp",
-	}
-	endpoints["tcp:5043"] = []applicationendpoint.ApplicationEndpoint{filebeat_endpoint}
-
-	kibana_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_kibana_tcp",
-		Application:   "controlplane_kibana_tcp",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5601,
-		HostPort:      5601,
-		ProxyPort:     5601,
-		HostIP:        hostip,
-		Protocol:      "tcp",
-	}
-	endpoints["tcp:5601"] = []applicationendpoint.ApplicationEndpoint{kibana_endpoint}
-
-	return endpoints
-}
-
-func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
+func (c *Controller) handleControlCenterImports() error {
 	// this function is currently needed to handle special control center imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 	// get service endpoints
 
-	endpoints := c.createControlplaneEndpoints()
-	for _, ep := range endpoints {
-		c.exportEndpoint(ep[0])
-	}
+	c.endpoints.UpdateRemoteExports(cp_controlplane_bind, cp_controlplane_exports)
+	c.endpoints.UpdateRemoteExports(cp_consumer_bind, cp_consumer_exports)
+	c.endpoints.UpdateRemoteExports(cp_logstash_bind, cp_logstash_exports)
+	c.endpoints.UpdateRemoteExports(cp_filebeat_bind, cp_filebeat_exports)
+	c.endpoints.UpdateRemoteExports(cp_kibana_bind, cp_kibana_exports)
 
 	return nil
 }
