@@ -150,7 +150,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 		logger.WithError(err).Error("Failed to get the system user account")
 		return nil, nil, err
 	}
-	logger.WithField("systemUser", systemUser.Name).Debug("Got system user")
+	logger.WithField("systemuser", systemUser.Name).Debug("Got system user")
 
 	// get the container configs
 	ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser, imageUUID)
@@ -432,10 +432,10 @@ func dockerLogsToFile(containerid string, numlines int) {
 // the service, serviceState, and conn values that are passed into setupContainer.
 func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
-		"tenantID":    tenantID,
-		"serviceName": svc.Name,
-		"serviceID":   svc.ID,
-		"instanceID":  instanceID,
+		"tenantid":    tenantID,
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+		"instanceid":  instanceID,
 	})
 	cfg, hcfg, state, err := a.createContainerConfig(tenantID, svc, instanceID, systemUser, imageUUID)
 	if err != nil {
@@ -447,7 +447,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"image":      cfg.Image,
-			"instanceID": instanceID,
+			"instanceid": instanceID,
 		}).WithError(err).Error("Could not create container")
 		return nil, nil, err
 	}
@@ -458,10 +458,10 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 
 func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
-		"tenantID":    tenantID,
-		"serviceName": svc.Name,
-		"serviceID":   svc.ID,
-		"instanceID":  instanceID,
+		"tenantid":    tenantID,
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+		"instanceid":  instanceID,
 	})
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
@@ -583,9 +583,9 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 				containerPath = splitMount[2]
 			}
 			logger.WithFields(log.Fields{
-				"requestedImage": requestedImage,
-				"hostPath":       hostPath,
-				"containerPath":  containerPath,
+				"requestedimage": requestedImage,
+				"hostpath":       hostPath,
+				"containerpath":  containerPath,
 			}).Debug("Parsed out bind mount information")
 
 			// insert tenantId into requestedImage - see facade.DeployService
@@ -596,7 +596,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 				imageID, err := commons.ParseImageID(requestedImage)
 				if err != nil {
 					logger.WithError(err).
-						WithField("requestedImageID", requestedImage).
+						WithField("requestedimageid", requestedImage).
 						Error("Unable to parse requested ImageID")
 					continue
 				}
@@ -609,14 +609,14 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 			}
 
 			logger.WithFields(log.Fields{
-				"matchedRequestedImage": matchedRequestedImage,
+				"matchedrequestedimage": matchedRequestedImage,
 			}).Debug("Finished evaluation for matchedRequestedImage")
 
 			if matchedRequestedImage {
 				addBindingToMap(&bindsMap, containerPath, hostPath)
 			}
 		} else {
-			logger.WithField("bindMount", bindMountString).
+			logger.WithField("bindmount", bindMountString).
 				Warn("Could not bind mount the requested mount point")
 		}
 	}
