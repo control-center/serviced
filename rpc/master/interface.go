@@ -17,13 +17,13 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/applicationendpoint"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/volume"
 )
@@ -48,7 +48,7 @@ type ClientInterface interface {
 	GetActiveHostIDs() ([]string, error)
 
 	// AddHost adds a Host
-	AddHost(h host.Host) error
+	AddHost(h host.Host) ([]byte, error)
 
 	// UpdateHost updates a host
 	UpdateHost(h host.Host) error
@@ -58,6 +58,12 @@ type ClientInterface interface {
 
 	// FindHostsInPool returns all hosts in a pool
 	FindHostsInPool(poolID string) ([]host.Host, error)
+
+	// Authenticate a host and receive an identity token and expiration
+	AuthenticateHost(hostID string) (string, int64, error)
+
+	// Get hostID's public key
+	GetHostPublicKey(hostID string) ([]byte, error)
 
 	//--------------------------------------------------------------------------
 	// Pool Management Functions

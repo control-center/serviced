@@ -17,6 +17,7 @@ import (
 	"bytes"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/config"
 	coordclient "github.com/control-center/serviced/coordinator/client"
@@ -105,6 +106,7 @@ type daemon struct {
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
+	tokenExpiration  time.Duration
 
 	facade *facade.Facade
 	hcache *health.HealthStatusCache
@@ -118,7 +120,7 @@ func init() {
 	commonsdocker.StartKernel()
 }
 
-func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string, tokenExpiration time.Duration) (*daemon, error) {
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
@@ -126,6 +128,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
 		rpcServer:        rpc.NewServer(),
+		tokenExpiration:  tokenExpiration,
 	}
 	return d, nil
 }
@@ -431,6 +434,17 @@ func (d *daemon) startMaster() (err error) {
 		}).WithError(err).Fatal("Unable to register master as host")
 	}
 
+	// Load keys if they exist, else generate them
+	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	keylog := log.WithFields(logrus.Fields{
+		"keyfile": masterKeyFile,
+	})
+	if err = auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+		keylog.WithError(err).Fatal("Unable to load or create master keys")
+	}
+
+	keylog.Info("Loaded master keys from disk")
+
 	// This is storage related
 	storagelogger := log.WithFields(logrus.Fields{
 		"path":   options.VolumesPath,
@@ -615,6 +629,35 @@ func (d *daemon) startAgent() error {
 		"hostid": myHostID,
 	})
 
+	// Load delegate keys if they exist
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
+
+	// Start watching for delegate keys to be loaded
+	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
+
+	go func() {
+		// Wait for delegate keys to exist before trying to authenticate
+		auth.WaitForDelegateKeys()
+
+		// Authenticate against the master
+		getToken := func() (string, int64, error) {
+			masterClient, err := master.NewClient(d.servicedEndpoint)
+			if err != nil {
+				return "", 0, err
+			}
+			defer masterClient.Close()
+			token, expires, err := masterClient.AuthenticateHost(myHostID)
+			if err != nil {
+				return "", 0, err
+			}
+			return token, expires, nil
+		}
+
+		// Start authenticating
+		auth.TokenLoop(getToken, tokenFile, d.shutdown)
+	}()
+
 	// Flag so we only log that a host hasn't been added yet once
 	var loggedNoHost bool
 
@@ -750,6 +793,8 @@ func (d *daemon) startAgent() error {
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
 			ZKSessionTimeout:     options.ZKSessionTimeout,
+			DelegateKeyFile:      delegateKeyFile,
+			TokenFile:            tokenFile,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
@@ -819,7 +864,7 @@ func (d *daemon) registerMasterRPC() error {
 	log.Debug("Registering master RPC services")
 	options := config.GetOptions()
 
-	server := master.NewServer(d.facade)
+	server := master.NewServer(d.facade, d.tokenExpiration)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),

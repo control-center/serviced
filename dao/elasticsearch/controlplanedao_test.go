@@ -636,7 +636,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 	assignIPsHost.ID = HOSTID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
+	_, err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("Failure creating resource host %-v with error: %s", assignIPsHost, err)
 	}

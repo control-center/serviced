@@ -20,10 +20,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/zenoss/glog"
 )
 
 // initialize the logger
@@ -96,6 +98,11 @@ func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote ne
 	muxHeader, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
 	if err != nil {
 		return nil, err
+	}
+	muxHeader, err = auth.BuildMuxHeader(muxHeader)
+	if err != nil {
+		glog.Errorf("Error building authenticated mux header. %s", err)
+		return
 	}
 	remote.Write(muxHeader)
 
