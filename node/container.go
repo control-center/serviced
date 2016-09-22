@@ -119,8 +119,8 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 //         props we really need; e.g. ID & ImageID
 func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   partialSvc.ID,
-		"instanceid":  instanceID,
+		"serviceid":  partialSvc.ID,
+		"instanceid": instanceID,
 	})
 
 	// Establish a connection to the master
@@ -452,10 +452,10 @@ func dockerLogsToFile(containerid string, numlines int) {
 // the service, serviceState, and conn values that are passed into setupContainer.
 func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	logger := plog.WithFields(log.Fields{
-		"tenantID": tenantID,
+		"tenantID":    tenantID,
 		"serviceName": svc.Name,
-		"serviceID": svc.ID,
-		"instanceID": instanceID,
+		"serviceID":   svc.ID,
+		"instanceID":  instanceID,
 	})
 
 	cfg := &dockerclient.Config{}
@@ -526,6 +526,12 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 		logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Debug("Added logstash bindmount")
 	}
 
+	// Bind mount the keys we need
+	containerPath = "/etc/serviced"
+	resourcePath = filepath.Dir(a.delegateKeyFile)
+	bindsMap[containerPath] = resourcePath
+	logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Debug("Added etc bindmount")
+
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
 	for _, volume := range svc.Volumes {
@@ -554,8 +560,8 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 			}
 			logger.WithFields(log.Fields{
 				"requestedImage": requestedImage,
-				"hostPath": hostPath,
-				"containerPath": containerPath,
+				"hostPath":       hostPath,
+				"containerPath":  containerPath,
 			}).Debug("Parsed out bind mount information")
 
 			// insert tenantId into requestedImage - see facade.DeployService
@@ -566,8 +572,8 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 				imageID, err := commons.ParseImageID(requestedImage)
 				if err != nil {
 					logger.WithError(err).
-					WithField("requestedImageID", requestedImage).
-					Error("Unable to parse requested ImageID")
+						WithField("requestedImageID", requestedImage).
+						Error("Unable to parse requested ImageID")
 					continue
 				}
 				svcImageID, err := commons.ParseImageID(svc.ImageID)
@@ -589,7 +595,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 			}
 		} else {
 			logger.WithField("bindMount", bindMountString).
-			Warn("Could not bind mount the requested mount point")
+				Warn("Could not bind mount the requested mount point")
 		}
 	}
 

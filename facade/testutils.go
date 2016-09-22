@@ -16,6 +16,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
@@ -45,6 +46,7 @@ var _ = gocheck.Suite(&FacadeIntegrationTest{})
 
 //SetUpSuite sets up test suite
 func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
+
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
 	if ft.Mappings == nil {
@@ -67,6 +69,10 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockDFS()
+
+	// Create a master key pair
+	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
+	auth.LoadMasterKeysFromPEM(pub, priv)
 }
 
 func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {

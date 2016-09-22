@@ -13,9 +13,12 @@
 
 // +build unit
 
-package service
+package service_test
 
-import "testing"
+import (
+	"github.com/control-center/serviced/domain/service"
+	. "gopkg.in/check.v1"
+)
 
 type roundTest struct {
 	value    float64
@@ -32,11 +35,8 @@ var roundTests = []roundTest{
 	roundTest{-1.001, -1},
 }
 
-func TestRound(t *testing.T) {
+func (s *ServiceDomainUnitTestSuite) TestRound(c *C) {
 	for _, test := range roundTests {
-		if result := round(test.value); result != test.expected {
-			t.Logf("round(%f) = %d, expected %d", test.value, result, test.expected)
-			t.Fail()
-		}
+		c.Assert(service.Round(test.value), Equals, test.expected)
 	}
 }

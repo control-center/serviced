@@ -45,7 +45,8 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 			},
 		},
 	}
-	c.Assert(ft.Facade.AddHost(ft.CTX, h), IsNil)
+	_, err := ft.Facade.AddHost(ft.CTX, h)
+	c.Assert(err, IsNil)
 
 	// add a service with an address assignment
 	svcA := service.Service{

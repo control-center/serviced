@@ -217,6 +217,11 @@
                     momo.destroy();
                 });
 
+                // if any existing modals, remove backdrop
+                if(modals.length){
+                    $(".modal-backdrop").remove();
+                }
+
                 var modal = new Modal(template, model, config);
                 modal.show();
 

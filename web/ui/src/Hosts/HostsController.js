@@ -27,6 +27,7 @@
 
         $scope.modalAddHost = function() {
             areUIReady.lock();
+            $scope.resetNewHost();
             $modalService.create({
                 templateUrl: "add-host.html",
                 model: $scope,
@@ -34,13 +35,10 @@
                 actions: [
                     {
                         role: "cancel",
-                        action: function(){
-                            $scope.resetNewHost();
-                            this.close();
-                        }
                     },{
                         role: "ok",
-                        label: "add_host",
+                        label: "Next",
+                        icon: "glyphicon-chevron-right",
                         action: function(){
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
@@ -53,8 +51,7 @@
 
                                 resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
-                                        $notification.create("", data.Detail).success();
-                                        this.close();
+                                        $scope.modal_displayHostKeys(data.PrivateKey, $scope.newHost.host, data.Detail);
                                         update();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -79,6 +76,52 @@
                 },
                 onShow: () => {
                     areUIReady.unlock();
+                }
+            });
+        };
+
+        $scope.modal_displayHostKeys = function(keys, name, message) {
+            let model = $scope.$new(true);
+            model.keys = keys;
+            model.name = name;
+
+            $modalService.create({
+                templateUrl: "display-host-keys.html",
+                model: model,
+                title: "Host Keys",
+                actions: [
+                    {
+                        label: "Download Keys",
+                        action: function(){
+                            utils.downloadText(name + ".keys", keys);
+                        },
+                        icon: "glyphicon-download"
+                    },{
+                        role: "ok"
+                    }
+                ],
+                onShow: function(){
+                    if(message){
+                        this.createNotification("", message).success();
+                    }
+
+                    // TODO - dont touch the DOM!
+                    let keysWrapEl = this.$el.find(".keys-wrap"),
+                        keysEl = keysWrapEl.find(".keys");
+                    keysWrapEl.on("click", e => {
+                        // TODO - if already selected, this deselects
+                        keysEl.select();
+                        try {
+                            let success = document.execCommand('copy');
+                            if(success){
+                                this.createNotification("", "Keys copied to clipboard").info();
+                            } else {
+                                this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                            }
+                        } catch(err) {
+                            this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                        }
+                    });
                 }
             });
         };
