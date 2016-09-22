@@ -59,11 +59,12 @@ func (s *TestAuthSuite) TestExtractBadSignature(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
+	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
-	// build header
-	header, err := auth.BuildAuthRPCHeader(fakeToken)
+	// build header, signed by the delegate
+	header, err := auth.BuildAuthRPCHeader(fakeToken, false)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
@@ -74,4 +75,51 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
 	c.Assert(s.poolId, DeepEquals, ident.PoolID())
 	c.Assert(s.admin, Equals, ident.HasAdminAccess())
 	c.Assert(s.dfs, Equals, ident.HasDFSAccess())
+}
+
+func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
+	// Get a token with the master's public key
+	fakeToken, err := auth.MasterToken()
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+	// build header, signed by the master
+	header, err := auth.BuildAuthRPCHeader(fakeToken, true)
+	c.Assert(err, Equals, nil)
+	c.Assert(header, NotNil)
+	// extract header
+	ident, err := auth.ExtractRPCHeader(header)
+	c.Assert(err, IsNil)
+	// check the identity has been correctly extracted
+	c.Assert(ident.HostID(), DeepEquals, "")
+	c.Assert(ident.PoolID(), DeepEquals, "")
+	c.Assert(ident.HasAdminAccess(), Equals, true)
+	c.Assert(ident.HasDFSAccess(), Equals, true)
+}
+
+func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned_WrongKey(c *C) {
+	// Get a token with the delegate's public key
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+	// build header, signed by the master
+	header, err := auth.BuildAuthRPCHeader(fakeToken, true)
+	c.Assert(err, Equals, nil)
+	c.Assert(header, NotNil)
+	// extract header, should fail verification
+	_, err = auth.ExtractRPCHeader(header)
+	c.Assert(err, Equals, rsa.ErrVerification)
+}
+
+func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_DelegateSigned_WrongKey(c *C) {
+	// Get a token with the master's public key
+	fakeToken, err := auth.MasterToken()
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+	// build header, signed by the delegate
+	header, err := auth.BuildAuthRPCHeader(fakeToken, false)
+	c.Assert(err, Equals, nil)
+	c.Assert(header, NotNil)
+	// extract header, should fail verification
+	_, err = auth.ExtractRPCHeader(header)
+	c.Assert(err, Equals, rsa.ErrVerification)
 }

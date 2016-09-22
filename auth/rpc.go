@@ -32,17 +32,31 @@ var (
 )
 
 func BuildRPCHeader() ([]byte, error) {
-	// get current host token
-	token, err := AuthTokenNonBlocking()
+	var (
+		token        string
+		err          error
+		err2         error
+		signAsMaster bool
+	)
 
+	// get current host token
+	signAsMaster = false
+	token, err = AuthTokenNonBlocking()
 	if err != nil {
-		return nil, err
+		// We may be an un-added master
+		token, err2 = MasterToken()
+		if err2 != nil {
+			log.WithError(err2).Debug("Unable to retrieve master token")
+			// Return the original error message
+			return nil, err
+		}
+		signAsMaster = true
 	}
 
-	return BuildAuthRPCHeader(token)
+	return BuildAuthRPCHeader(token, signAsMaster)
 }
 
-func BuildAuthRPCHeader(token string) ([]byte, error) {
+func BuildAuthRPCHeader(token string, signAsMaster bool) ([]byte, error) {
 	headerBuf := new(bytes.Buffer)
 
 	// add token length
@@ -55,7 +69,12 @@ func BuildAuthRPCHeader(token string) ([]byte, error) {
 	headerBuf.Write([]byte(token))
 
 	// Sign what we have so far
-	signature, err := SignAsDelegate(headerBuf.Bytes())
+	signer := SignAsDelegate
+	if signAsMaster {
+		signer = SignAsMaster
+	}
+
+	signature, err := signer(headerBuf.Bytes())
 	if err != nil {
 		return nil, err
 	}
