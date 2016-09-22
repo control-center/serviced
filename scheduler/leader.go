@@ -70,12 +70,18 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 // service has an address assignment the host will already be selected. If not
 // the host with the least amount of memory committed to running containers will
 // be chosen.  Returns the hostid, hostip (if it has an address assignment).
-func (l *leader) SelectHost(s *service.Service) (string, error) {
+func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   s.ID,
-		"servicename": s.Name,
-		"poolid":      s.PoolID,
+		"serviceid":   sn.ID,
+		"servicename": sn.Name,
 	})
+	s := &service.Service{ID: sn.ID, Name: sn.Name}
+	err := l.cpClient.GetService(sn.ID, s)
+	if err != nil {
+		plog.WithError(err).Debug("Could not get service")
+		return "", err
+	}
+
 	plog.Debug("Looking for available hosts in resource pool")
 	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {

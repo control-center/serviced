@@ -25,7 +25,7 @@ import (
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
-	SelectHost(*service.Service) (string, error)
+	SelectHost(*ServiceNode) (string, error)
 }
 
 // ServiceListener is the listener for /services
@@ -127,7 +127,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 
 			// Synchronize the number of service states
-			if _, ok := l.Sync(sDat.Locked, sDat.AsService(), reqs); !ok {
+			if _, ok := l.Sync(sDat.Locked, sDat, reqs); !ok {
 				timer.Reset(time.Second)
 			}
 
@@ -195,7 +195,7 @@ func (l *ServiceListener) getStateRequests(logger *log.Entry, stateIDs []string)
 
 // Sync synchronizes the number of running service states and returns the delta
 // of added (>0) or deleted (<0) instances.
-func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []StateRequest) (int, bool) {
+func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequest) (int, bool) {
 	ok := true
 	count := len(reqs)
 
@@ -255,7 +255,7 @@ func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []State
 }
 
 // Start schedules a service instance
-func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
+func (l *ServiceListener) Start(svc *ServiceNode, instanceID int) bool {
 
 	logger := plog.WithFields(log.Fields{
 		"serviceid":   svc.ID,

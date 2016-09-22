@@ -36,7 +36,6 @@ func (err ServiceError) Error() string {
 
 // ServiceNode is the storage object for service data
 type ServiceNode struct {
-	//*service.Service
 	ID            string
 	Name          string
 	DesiredState  int
@@ -50,17 +49,6 @@ type ServiceNode struct {
 
 func NewServiceNodeFromService(s *service.Service) *ServiceNode {
 	return &ServiceNode{
-		ID:            s.ID,
-		Name:          s.Name,
-		DesiredState:  s.DesiredState,
-		Instances:     s.Instances,
-		RAMCommitment: s.RAMCommitment,
-		ChangeOptions: s.ChangeOptions,
-	}
-}
-
-func (s *ServiceNode) AsService() *service.Service {
-	return &service.Service{
 		ID:            s.ID,
 		Name:          s.Name,
 		DesiredState:  s.DesiredState,
