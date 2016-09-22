@@ -252,7 +252,7 @@ func (d *daemon) startRPC() {
 			if err != nil {
 				logger.WithError(err).Fatal("Error accepting RPC connection")
 			}
-			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+			go d.rpcServer.ServeCodec(rpcutils.NewAuthServerCodec(jsonrpc.NewServerCodec(conn)))
 		}
 	}()
 }
