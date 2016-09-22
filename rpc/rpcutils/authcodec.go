@@ -24,15 +24,16 @@ import (
 )
 
 var (
-	// RPC Calls that do not require authentication or who handle authentication separately
+	// RPC Calls that do not require authentication or who handle authentication separately:
 	NonAuthenticatingCalls = []string{"Master.AuthenticateHost"}
-	// TODO: When we implement admin, switch this to a list that does NOT require admin, and update requiresAdmin appropriately
-	AdminRequiredCalls = []string{} // RPC calls that require admin access
-	endian             = binary.BigEndian
+	// RPC calls that do not require admin access:
+	NonAdminRequiredCalls = []string{}
+	endian                = binary.BigEndian
 )
 
 var (
 	ErrReadingHeader = errors.New("Unable to parse header from RPC request")
+	ErrNoAdmin       = errors.New("Delegate does not have admin access")
 )
 
 // Checks the RPC method name to see if authentication is required.
@@ -50,12 +51,12 @@ func requiresAuthentication(callName string) bool {
 // Checks the RPC method name to see if admin-level permissions are required.
 //  If they are, it will also check the "admin" attribute on the identity after validating it.
 func requiresAdmin(callName string) bool {
-	for _, name := range AdminRequiredCalls {
+	for _, name := range NonAdminRequiredCalls {
 		if name == callName {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // Server Codec
@@ -123,14 +124,17 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 
 	// Now we can get the method name from r and authenticate if required
 	if requiresAuthentication(r.ServiceMethod) {
-		_, err := a.parseHeader(header)
+		ident, err := a.parseHeader(header)
 		if err != nil {
 			return err
 		}
 
-		//TODO:  Check Admin
+		if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
+			return ErrNoAdmin
+		}
 
-		//TODO: We need to get the identity into the request body or somehow check the pool ID
+		//TODO: save the identity so we can inject it into the request body later
+
 	}
 	return nil
 }

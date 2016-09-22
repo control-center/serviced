@@ -9,6 +9,7 @@ import (
 	"net/rpc"
 
 	"github.com/control-center/serviced/auth"
+	authmocks "github.com/control-center/serviced/auth/mocks"
 	"github.com/control-center/serviced/rpc/rpcutils/mocks"
 )
 
@@ -26,7 +27,7 @@ type AuthCodecTest struct {
 	headerPassed          []byte
 	headerToReturn        []byte
 	headerErrToReturn     error
-	identityToReturn      auth.Identity
+	identityToReturn      *authmocks.Identity
 	identityErrorToReturn error
 	buff                  *ByteBufferReadWriteCloser
 	wrappedClientCodec    *mocks.ClientCodec
@@ -39,11 +40,6 @@ func NewAuthCodecTest() *AuthCodecTest {
 
 	buff := &ByteBufferReadWriteCloser{}
 	test := AuthCodecTest{
-		headerPassed:          []byte{},
-		headerToReturn:        []byte{},
-		headerErrToReturn:     nil,
-		identityToReturn:      nil,
-		identityErrorToReturn: nil,
 		buff: buff,
 	}
 
@@ -65,7 +61,7 @@ func (a *AuthCodecTest) Reset() {
 	a.headerToReturn = []byte{}
 	a.headerErrToReturn = nil
 	a.headerPassed = []byte{}
-	a.identityToReturn = nil
+	a.identityToReturn = &authmocks.Identity{}
 	a.identityErrorToReturn = nil
 }
 
@@ -109,6 +105,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	c.Assert(err, Equals, ErrTestCodec)
 
 	// Test with an authentication required method
+	// Error from identity parser
 	act.Reset()
 	act.WriteHeaderToBuffer(header)
 
@@ -118,10 +115,20 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	c.Assert(err, Equals, ErrTestCodec)
 	c.Assert(act.headerPassed, DeepEquals, header)
 
+	// Error no admin access
+	act.Reset()
+	act.WriteHeaderToBuffer(header)
+	act.identityToReturn.On("HasAdminAccess").Return(false).Once()
+	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	err = act.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, Equals, ErrNoAdmin)
+	c.Assert(act.headerPassed, DeepEquals, header)
+
 	act.Reset()
 	act.WriteHeaderToBuffer(header)
 
 	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	act.identityToReturn.On("HasAdminAccess").Return(true).Once()
 	err = act.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 	c.Assert(act.headerPassed, DeepEquals, header)
@@ -135,6 +142,16 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	err = act.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 	c.Assert(act.headerPassed, DeepEquals, []byte{})
+
+	// Test with a non-admin required method
+	act.Reset()
+	act.WriteHeaderToBuffer(header)
+
+	req = &rpc.Request{ServiceMethod: "NonAdminRequiredCall"}
+	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	err = act.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, IsNil)
+	c.Assert(act.headerPassed, DeepEquals, header)
 
 }
 
@@ -247,6 +264,7 @@ func (s *MySuite) TestWriteAndRead(c *C) {
 
 	// Token is now on the buffer
 	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	act.identityToReturn.On("HasAdminAccess").Return(true).Once()
 	err = act.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 	c.Assert(act.headerPassed, DeepEquals, header)

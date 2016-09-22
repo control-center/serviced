@@ -64,6 +64,9 @@ func (s *MySuite) SetUpSuite(c *C) {
 		"RPCTestType.blam",
 		"Blam.blam",
 	}
+	NonAdminRequiredCalls = []string{
+		"NonAdminRequiredCall",
+	}
 	rtt = new(RPCTestType)
 	RegisterLocal("RPCTestType", rtt)
 	rpc.Register(rtt)
