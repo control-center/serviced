@@ -117,9 +117,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfAgentMissingEndpoint(c *C
 	testOptions.Agent = true
 	testOptions.Endpoint = ""
 	config.LoadOptions(testOptions)
-
 	err := ValidateServerOptions(&testOptions)
-
 	s.assertErrorContent(c, err, "No endpoint to master has been configured")
 }
 
@@ -129,12 +127,12 @@ func (s *TestAPISuite) TestValidateServerOptionsSetsEndpointIfMasterMissingEndpo
 	testOptions.Master = true
 	testOptions.FSType = volume.DriverTypeBtrFS
 	testOptions.Endpoint = ""
-	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions(&testOptions)
-
 	c.Assert(err, IsNil)
-	c.Assert(len(options.Endpoint), Not(Equals), 0)
+
+	config.LoadOptions(testOptions)
+	c.Assert(len(config.GetOptions().Endpoint), Not(Equals), 0)
 }
 
 func (s *TestAPISuite) assertErrorContent(c *C, err error, expectedContent string) {
