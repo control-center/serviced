@@ -137,6 +137,16 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		}
 	}()
 
+	// load the service state node
+	sspth := path.Join("/services", serviceID, stateID)
+	ssdat := &ServiceState{}
+	if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
+		return
+	} else if err != nil {
+		logger.WithError(err).Error("Could not load service state")
+		return
+	}
+
 	done := make(chan struct{})
 	defer func() {
 		close(done)
@@ -154,16 +164,6 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		} else if err != nil {
 
 			logger.WithError(err).Error("Could not watch host state")
-			return
-		}
-
-		// load the service state node
-		sspth := path.Join("/services", serviceID, stateID)
-		ssdat := &ServiceState{}
-		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
-			return
-		} else if err != nil {
-			logger.WithError(err).Error("Could not load service state")
 			return
 		}
 
@@ -213,6 +213,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				// set the service state in zookeeper
 				if err := UpdateState(l.conn, req, func(s *State) bool {
 					s.Paused = false
+					*ssdat = s.ServiceState
 					return true
 				}); err != nil {
 
@@ -236,6 +237,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				// set the service state in zookeeper
 				if err := UpdateState(l.conn, req, func(s *State) bool {
 					s.Paused = true
+					*ssdat = s.ServiceState
 					return true
 				}); err != nil {
 
@@ -262,9 +264,9 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			containerExit = nil
 			if err := UpdateState(l.conn, req, func(s *State) bool {
 				s.Terminated = time
+				*ssdat = s.ServiceState
 				return true
 			}); err != nil {
-
 				logger.WithError(err).Error("Could not update state for stopped container")
 				return
 			}

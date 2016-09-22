@@ -80,6 +80,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 		plog.WithError(err).Debug("Could not get service")
 		return "", err
 	}
+	73
 
 	plog.Debug("Looking for available hosts in resource pool")
 	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)

@@ -75,7 +75,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	defer func() { close(done) }()
 
 	for {
-
 		// set up a watch on the service
 		sDat := NewServiceNodeFromService(&service.Service{})
 		sEvt, err := l.conn.GetW(l.GetPath(serviceID), sDat, done)

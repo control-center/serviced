@@ -43,6 +43,25 @@ const (
 	containerId string = "containerid"
 )
 
+// TODO: break ZZKTest suite up into hoststate, init, service, etc. and move this into SetUpTest.
+func setUpServiceAndHostPaths(c *C) client.Connection {
+	// Pre-requisites
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// Basic set up
+	sdat := &ServiceNode{
+		ID:   serviceId,
+		Name: serviceName,
+	}
+	err = conn.Create(servicePath, sdat)
+	c.Assert(err, IsNil)
+	err = conn.CreateDir(hostPath)
+	c.Assert(err, IsNil)
+
+	return conn
+}
+
 // Test Case: Bad state id
 func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
 
@@ -825,22 +844,4 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 		c.Fatalf("Listener took too long")
 	}
 	handler.AssertExpectations(c)
-}
-
-func setUpServiceAndHostPaths(c *C) client.Connection {
-	// Pre-requisites
-	conn, err := zzk.GetLocalConnection("/")
-	c.Assert(err, IsNil)
-
-	// Basic set up
-	sdat := &ServiceNode{
-		ID:   serviceId,
-		Name: serviceName,
-	}
-	err = conn.Create(servicePath, sdat)
-	c.Assert(err, IsNil)
-	err = conn.CreateDir(hostPath)
-	c.Assert(err, IsNil)
-
-	return conn
 }
