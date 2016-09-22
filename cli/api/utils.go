@@ -17,12 +17,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
-)
-
-const (
-	minTimeout     = 30
-	defaultTimeout = 600
 )
 
 var (
@@ -32,6 +28,7 @@ var (
 
 // GetAgentIP returns the agent ip address
 func GetAgentIP(defaultRPCPort int) string {
+	options := config.GetOptions()
 	if options.Endpoint != "" {
 		return options.Endpoint
 	}
