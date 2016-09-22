@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/auth"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
@@ -161,7 +162,7 @@ func (a *api) GetHostPublicKey(id string) ([]byte, error) {
 
 // Write delegate keys to disk
 func (a *api) RegisterHost(keydata []byte) error {
-	keyfile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	keyfile := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
 	keydir := filepath.Dir(keyfile)
 	if err := os.MkdirAll(keydir, os.ModeDir|700); err != nil {
 		return err

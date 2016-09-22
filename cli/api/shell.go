@@ -99,7 +99,7 @@ func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) 
 	}
 
 	// add the etc path
-	mounts = append(mounts, fmt.Sprintf("%s,%s", options.EtcPath, "/etc/serviced"))
+	mounts = append(mounts, fmt.Sprintf("%s,%s", ccconfig.GetOptions().EtcPath, "/etc/serviced"))
 
 	return mounts, nil
 }
