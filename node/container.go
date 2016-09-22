@@ -155,7 +155,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	// get the container configs
 	ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser, imageUUID)
 	if err != nil {
-		logger.WithError(err).Debug("Unable to get service")
+		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
 	}
 
