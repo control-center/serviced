@@ -76,6 +76,12 @@ type PoolAPITest struct {
 	hostIPs []host.HostIPResource
 }
 
+func EmptyPoolAPI() PoolAPITest {
+	return PoolAPITest{
+		pools: &[]pool.ResourcePool{},
+	}
+}
+
 func DefaultPoolAPI() PoolAPITest {
 	test := PoolAPITest{
 		pools:   &[]pool.ResourcePool{},
@@ -122,6 +128,7 @@ func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool,
 		ID:          config.PoolID,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
+		Permissions: config.Permissions,
 	}
 
 	*t.pools = append(*t.pools, *p)
@@ -152,6 +159,16 @@ func (t PoolAPITest) GetPoolIPs(id string) (*pool.PoolIPs, error) {
 	}
 
 	return &pool.PoolIPs{PoolID: p.ID, HostIPs: t.hostIPs}, nil
+}
+
+func (t PoolAPITest) UpdateResourcePool(pool pool.ResourcePool) error {
+	for i, p := range *t.pools {
+		if p.ID == pool.ID {
+			(*t.pools)[i] = pool
+			return nil
+		}
+	}
+	return ErrInvalidPool
 }
 
 func TestServicedCLI_CmdPoolList_one(t *testing.T) {
@@ -257,6 +274,35 @@ func ExampleServicedCLI_CmdPoolAdd_err() {
 
 	// Output:
 	// received nil resource pool
+}
+
+func TestServicedCLI_CmdPoolAdd_perm(t *testing.T) {
+	test := EmptyPoolAPI()
+	assertPerm := func(poolID string, expected pool.Permission) {
+		if p, err := test.GetResourcePool(poolID); err != nil {
+			t.Fatalf("GetResourcePool(\"%s\"): %s", err.Error())
+		} else {
+			if p.Permissions != expected {
+				t.Fatalf("Unexpected Permission for %s: %d != %d", poolID, p.Permissions, expected)
+			}
+		}
+	}
+
+	poolID := "poolID"
+	RunCmd(test, "serviced", "pool", "add", poolID)
+	assertPerm(poolID, 0)
+
+	poolID = "pool_DFS"
+	RunCmd(test, "serviced", "pool", "add", "--dfs", poolID)
+	assertPerm(poolID, pool.DFSAccess)
+
+	poolID = "pool_Admin"
+	RunCmd(test, "serviced", "pool", "add", "--admin", poolID)
+	assertPerm(poolID, pool.AdminAccess)
+
+	poolID = "pool_Both"
+	RunCmd(test, "serviced", "pool", "add", "--dfs", "--admin", poolID)
+	assertPerm(poolID, pool.DFSAccess|pool.AdminAccess)
 }
 
 func ExampleServicedCLI_CmdPoolRemove() {
@@ -367,4 +413,37 @@ func ExampleServicedCLI_CmdPoolListIPs_err() {
 
 	// Output:
 	// no resource pool IPs found
+}
+
+func TestServicedCLI_CmdPoolSetPermission(t *testing.T) {
+	test := EmptyPoolAPI()
+	assertPerm := func(poolID string, expected pool.Permission) {
+		if p, err := test.GetResourcePool(poolID); err != nil {
+			t.Fatalf("GetResourcePool(\"%s\"): %s", err.Error())
+		} else {
+			if p.Permissions != expected {
+				t.Fatalf("Unexpected Permission for %s: %d != %d", poolID, p.Permissions, expected)
+			}
+		}
+	}
+
+	poolID := "poolID"
+	RunCmd(test, "serviced", "pool", "add", poolID)
+	assertPerm(poolID, 0)
+	RunCmd(test, "serviced", "pool", "set-permission", "--dfs", poolID)
+	assertPerm(poolID, pool.DFSAccess)
+	RunCmd(test, "serviced", "pool", "set-permission", "--admin", poolID)
+	assertPerm(poolID, pool.DFSAccess|pool.AdminAccess)
+	RunCmd(test, "serviced", "pool", "set-permission", "--dfs=false", poolID)
+	assertPerm(poolID, pool.AdminAccess)
+	RunCmd(test, "serviced", "pool", "set-permission", "--admin=false", poolID)
+	assertPerm(poolID, 0)
+
+	poolID = "poolID_mixed"
+	RunCmd(test, "serviced", "pool", "add", "--admin", poolID)
+	assertPerm(poolID, pool.AdminAccess)
+	RunCmd(test, "serviced", "pool", "set-permission", "--admin=false", "--dfs", poolID)
+	assertPerm(poolID, pool.DFSAccess)
+	RunCmd(test, "serviced", "pool", "set-permission", "--admin", "--dfs=false", poolID)
+	assertPerm(poolID, pool.AdminAccess)
 }
