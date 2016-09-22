@@ -22,7 +22,6 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	. "github.com/control-center/serviced/zzk/service"
 
@@ -43,11 +42,12 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	c.Assert(err, IsNil)
 
 	// set up a service
-	s := &service.Service{
+	s := &ServiceNode{
 		ID: "testservice",
 	}
 	spth := path.Join(ppth, "/services", s.ID)
-	err = conn.Create(spth, NewServiceNodeFromService(s))
+
+	err = conn.Create(spth, s)
 	c.Assert(err, IsNil)
 
 	// initialize the listener
