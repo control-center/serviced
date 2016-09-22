@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"sync"
 	"time"
 
@@ -42,7 +41,7 @@ func connectRPC(addr string) (*rpc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewAuthClient(jsonrpc.NewClientCodec(conn)), nil
+	return NewDefaultAuthClient(conn), nil
 }
 
 func connectRPCTLS(addr string) (*rpc.Client, error) {
@@ -57,7 +56,7 @@ func connectRPCTLS(addr string) (*rpc.Client, error) {
 	cipher := conn.ConnectionState().CipherSuite
 	glog.V(2).Infof("RPC client connected with TLS cipher=%s (%d)\n", utils.GetCipherName(cipher), cipher)
 
-	return NewAuthClient(jsonrpc.NewClientCodec(conn)), nil
+	return NewDefaultAuthClient(conn), nil
 }
 
 // newClient that will create at most max active rpc connections at any given time. discardClientTimeout timeout for
