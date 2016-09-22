@@ -18,6 +18,7 @@ package api
 import (
 	"strings"
 
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 
@@ -78,7 +79,7 @@ func (s *TestAPISuite) TestValidateServerOptions(c *C) {
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = true
 	testOptions.FSType = volume.DriverTypeBtrFS
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
 
@@ -90,7 +91,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfNotMasterOrAgent(c *C) {
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Master = false
 	testOptions.Agent = false
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
 
@@ -103,7 +104,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfStorageInvalid(c *C) {
 	testOptions.Master = true
 	testOptions.FSType = volume.DriverTypeDeviceMapper
 	testOptions.StorageArgs = []string{}
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
 
@@ -115,7 +116,7 @@ func (s *TestAPISuite) TestValidateServerOptionsFailsIfAgentMissingEndpoint(c *C
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.Agent = true
 	testOptions.Endpoint = ""
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
 
@@ -128,7 +129,7 @@ func (s *TestAPISuite) TestValidateServerOptionsSetsEndpointIfMasterMissingEndpo
 	testOptions.Master = true
 	testOptions.FSType = volume.DriverTypeBtrFS
 	testOptions.Endpoint = ""
-	LoadOptions(testOptions)
+	config.LoadOptions(testOptions)
 
 	err := ValidateServerOptions()
 
