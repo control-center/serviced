@@ -174,6 +174,8 @@ var serviceDetailsFields = []string{
 	"Description",
 	"PoolID",
 	"ParentServiceID",
+	"Instances",
 	"InstanceLimits",
+	"RAMCommitment",
 	"Startup",
 }
