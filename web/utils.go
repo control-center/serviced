@@ -88,7 +88,7 @@ func newNetDialer() dialerInterface {
 	return &netDialer{}
 }
 
-type tlsDialer struct{
+type tlsDialer struct {
 	config *tls.Config
 }
 
@@ -112,32 +112,36 @@ func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote ne
 	return getRemoteConnection(export, dialer)
 }
 
-func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface) (remote net.Conn, err error) {
-	isLocalAddress := IsLocalAddress(export.HostIP)
-	
-	if isLocalAddress {
-		// if the address is local return the connection
+func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface) (net.Conn, error) {
+	// If the exported endpoint is on this Host, we don't go through the mux.
+	if IsLocalAddress(export.HostIP) {
+		// if the address is local return a connection directly to the container
 		address := fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
 		return dialer.Dial("tcp4", address)
 	}
 
-	// set up the remote address
+	// Set up the remote address for the mux
 	remoteAddress := fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
-	remote, err = dialer.Dial("tcp4", remoteAddress)
+	remote, err := dialer.Dial("tcp4", remoteAddress)
 
 	// Prevent a panic if we couldn't connect to the mux.
 	if err != nil {
 		return nil, err
 	}
 
-	// set the muxHeader on the remote connection
+	// Set the muxHeader on the remote connection so it knows what service to
+	// proxy the connection to.
 	muxHeader, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
 	if err != nil {
 		return nil, err
 	}
-	remote.Write(muxHeader)
 
-	return
+	// Check for errors writing the mux header.
+	if _, err = remote.Write(muxHeader); err != nil {
+		return nil, err
+	}
+
+	return remote, nil
 }
 
 // TCPKeepAliveListener keeps a listener connection alive for the duration
