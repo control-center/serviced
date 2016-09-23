@@ -25,7 +25,7 @@ import (
 
 var (
 	// RPC Calls that do not require authentication or who handle authentication separately
-	NonAuthenticatingCalls = []string{"Master.AuthenticateHost", "Master.AddHost", "Agent.BuildHost", "Master.GetHost"}
+	NonAuthenticatingCalls = []string{"Master.AuthenticateHost"}
 	// TODO: When we implement admin, switch this to a list that does NOT require admin, and update requiresAdmin appropriately
 	AdminRequiredCalls = []string{} // RPC calls that require admin access
 	endian             = binary.BigEndian

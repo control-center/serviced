@@ -81,6 +81,27 @@ func AuthTokenNonBlocking() (string, error) {
 	return currentToken, nil
 }
 
+// MasterToken() generates a new token with an empty host and pool ID and the master's public key,
+//  signed by the master's private key.  This will return an error if there is no master private
+//  key available (i.e. if we are not the master)
+func MasterToken() (string, error) {
+	masterpublic, err := GetMasterPublicKey()
+	if err != nil {
+		return "", err
+	}
+	keypem, err := PEMFromRSAPublicKey(masterpublic, nil)
+	if err != nil {
+		return "", err
+	}
+
+	signed, _, err := CreateJWTIdentity("", "", true, true, keypem, time.Hour)
+	if err != nil {
+		return "", err
+	}
+
+	return signed, nil
+}
+
 // CurrentIdentity returns the identity represented by the currently-live token,
 // or nil if the token is not yet available
 func CurrentIdentity() Identity {

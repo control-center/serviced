@@ -210,7 +210,15 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 // This will authenticate the host once to get a valid token for any CLI commands
 //  that require it.
 func (c *ServicedCli) authenticateHost(options *api.Options) error {
-	// Load the keys
+	// If we are the master, load the master keys
+	if options.Master {
+		masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+		if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+			return err
+		}
+	}
+
+	// Load the delegate keys
 	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
 	if err := auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
 		return err
