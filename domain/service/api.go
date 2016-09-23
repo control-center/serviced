@@ -16,12 +16,10 @@ package service
 // AggregateService is a lighter service object for providing aggregate service
 // status information
 type AggregateService struct {
-	ServiceID     string
-	Instances     int
-	RAMCommitment int32
-	DesiredState  DesiredState
-	Status        []StatusInstance
-	NotFound      bool
+	ServiceID    string
+	DesiredState DesiredState
+	Status       []StatusInstance
+	NotFound     bool
 }
 
 // PublicEndpoint is a minimal service object that describes a public endpoint
@@ -47,4 +45,10 @@ type IPAssignment struct {
 	Type        string
 	IPAddress   string
 	Ports       []uint16
+}
+
+// Config displays the most basic information about a service config file
+type Config struct {
+	ID       string
+	Filename string
 }

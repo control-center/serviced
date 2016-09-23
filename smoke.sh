@@ -13,7 +13,10 @@ TEST_VAR_PATH=/tmp/serviced-smoke/var
 
 # Add a host
 add_host() {
-    HOST_ID=$(${SERVICED} host add "${IP}:4979" default)
+    KEY_FILE="${TEST_VAR_PATH}/smoke-hostkey"
+    HOST_ID=$(${SERVICED} host add "${IP}:4979" default -k "${KEY_FILE}")
+    sleep 1
+    sudo SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host register "${KEY_FILE}" || return 1
     sleep 1
     [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0

@@ -1936,3 +1936,7 @@ body.no-animation *:after {
     font-weight: normal;
     content: "\e031";
 }
+
+.instructions-block {
+    font-size: 1.1em;
+}

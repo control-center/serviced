@@ -192,3 +192,6 @@
 
 # Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
 # SERVICED_ZK_SESSION_TIMEOUT=15
+
+# Expiration time in seconds for delegate authentication tokens.  Defaults to 1 hour.
+# SERVICED_AUTH_TOKEN_EXPIRATION=3600

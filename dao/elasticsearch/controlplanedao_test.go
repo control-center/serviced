@@ -25,6 +25,7 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
@@ -103,6 +104,11 @@ type DaoTest struct {
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
+
+	config.LoadOptions(config.Options{
+		IsvcsPath: c.MkDir(),
+	})
+
 	dt.Port = 9202
 	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, "json-file", map[string]string{"max-file": "5", "max-size": "10m"}, nil)
 	isvcs.Mgr.SetVolumesDir(c.MkDir())
@@ -630,7 +636,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 	assignIPsHost.ID = HOSTID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
+	_, err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("Failure creating resource host %-v with error: %s", assignIPsHost, err)
 	}

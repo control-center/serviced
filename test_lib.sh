@@ -1,6 +1,14 @@
-
-# Use a directory unique to this test to avoid collisions with other kinds of tests
-TEST_VAR_PATH=/tmp/serviced-acceptance/var
+#!/bin/bash
+#######################################################
+#
+# test_lib.sh - Common library of test-related methods
+#
+# This script is used by smoke.sh, acceptance.sh and
+# any other bash-based test harness script which needs
+# to perform common actions like setting up and tearing
+# a Control Center storage.
+#
+#######################################################
 
 SERVICED=$(which serviced)
 if [ -z "${SERVICED}" ]; then
@@ -14,13 +22,15 @@ if [ -z "${SERVICED_STORAGE}" ]; then
     exit 1
 fi
 
-START_TIMEOUT=300
+export START_TIMEOUT=300
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED_VOLUMES_PATH=${TEST_VAR_PATH}/volumes
-SERVICED_ISVCS_PATH=${TEST_VAR_PATH}/isvcs
-SERVICED_BACKUPS_PATH=${TEST_VAR_PATH}/backups
 IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
 HOSTNAME=$(hostname)
+
+export SERVICED_ETC_PATH=${TEST_VAR_PATH}/etc
+export SERVICED_VOLUMES_PATH=${TEST_VAR_PATH}/volumes
+export SERVICED_ISVCS_PATH=${TEST_VAR_PATH}/isvcs
+export SERVICED_BACKUPS_PATH=${TEST_VAR_PATH}/backups
 
 print_env_info() {
     echo ==== ENV INFO =====
@@ -65,12 +75,19 @@ start_serviced() {
     #   all of to force the proper subdirectories to be created under TEST_VAR_PATH
     echo "Starting serviced ..."
     mkdir -p ${TEST_VAR_PATH}
+    mkdir -p ${SERVICED_ETC_PATH}
     mkdir -p ${SERVICED_VOLUMES_PATH}
     mkdir -p ${SERVICED_ISVCS_PATH}
     mkdir -p ${SERVICED_BACKUPS_PATH}
 
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}\
-    SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} SERVICED_MASTER=1 ${SERVICED} ${SERVICED_OPTS} --allow-loop-back=true --agent server &
+    sudo GOPATH=${GOPATH} PATH=${PATH} \
+        SERVICED_ETC_PATH=${SERVICED_ETC_PATH} \
+        SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} \
+        SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH} \
+        SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} \
+        SERVICED_MASTER=1 \
+        ${SERVICED} ${SERVICED_OPTS} \
+        --allow-loop-back=true --agent server &
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start ..."
     retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null

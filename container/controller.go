@@ -14,6 +14,7 @@
 package container
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
@@ -62,9 +63,14 @@ var (
 	ErrNoServiceEndpoints = errors.New("container: unable to retrieve service endpoints")
 )
 
-// containerEnvironmentFile writes out all the environment variables passed to the container so
-// that programs that switch users can access those environment strings
-const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+const (
+	// containerEnvironmentFile writes out all the environment variables passed to the container so
+	// that programs that switch users can access those environment strings
+	containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+	// ContainerKeysDir holds the delegate's private key and auth token
+	containerDelegateKeyFile = "/etc/serviced/delegate.keys"
+	containerTokenFile       = "/etc/serviced/auth.token"
+)
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
@@ -268,6 +274,20 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if len(options.ServicedEndpoint) <= 0 {
 		return nil, ErrInvalidEndpoint
 	}
+
+	// Load keys
+	keyshutdown := make(chan interface{})
+	go func() {
+		// This is a ridiculous shutdown pattern I'll follow for the sake of
+		// not destabilizing the controller this late in a release.
+		// TODO: Make this not stupid
+		errc := <-c.closing
+		close(keyshutdown)
+		errc <- nil
+	}()
+
+	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
+	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
 
 	// get service
 	instanceID, err := strconv.Atoi(options.Service.InstanceID)
