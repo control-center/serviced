@@ -119,13 +119,13 @@ func VerifyMasterSignature(message, signature []byte) error {
 func GetMasterPublicKey() (crypto.PublicKey, error) {
 	dKeyCond.L.Lock()
 	defer dKeyCond.L.Unlock()
-	if delegateKeys.masterPublic == nil {
-		if masterKeys.public == nil {
+	if masterKeys.public == nil {
+		if delegateKeys.masterPublic == nil {
 			return nil, ErrNoPublicKey
 		}
-		return masterKeys.public, nil
+		return delegateKeys.masterPublic, nil
 	}
-	return delegateKeys.masterPublic, nil
+	return masterKeys.public, nil
 }
 
 func getMasterPrivateKey() (crypto.PrivateKey, error) {
