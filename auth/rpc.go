@@ -16,31 +16,39 @@ package auth
 import (
 	"bytes"
 	"errors"
+
+	"net/rpc"
+	"time"
 )
 
 /*
    When sending an RPC request, if authentication is required, the client sends an authentication token as well
    as its signature. The token determines if the sender is authorized to make the RPC request
 
-   ----------------------------------------------------------------------------------------
-   | Auth Token length (4 bytes)  |     Auth Token (N bytes)  | Signature (256 bytes) |
-   ----------------------------------------------------------------------------------------
+   ----------------------------------------------------------------------------------------------------------------------------------------------
+   |Auth Token length (4 bytes)|Auth Token (N bytes)|Timestamp(8 bytes)|Signature of Auth Token + Timestamp + Request.ServiceMethod (256 bytes) |
+   ----------------------------------------------------------------------------------------------------------------------------------------------
 */
 
+const (
+	TIMESTAMP_BYTES = 8
+)
+
 var (
-	ErrBadRPCHeader = errors.New("Bad rpc header")
+	ErrBadRPCHeader   = errors.New("Bad rpc header")
+	ErrRequestExpired = errors.New("Expired rpc request")
 )
 
 type RPCHeaderParser interface {
-	ParseHeader([]byte) (Identity, error)
+	ParseHeader([]byte, *rpc.Request) (Identity, error)
 }
 type RPCHeaderBuilder interface {
-	BuildHeader() ([]byte, error)
+	BuildHeader(*rpc.Request) ([]byte, error)
 }
 
 type RPCHeaderHandler struct{}
 
-func (r *RPCHeaderHandler) BuildHeader() ([]byte, error) {
+func (r *RPCHeaderHandler) BuildHeader(req *rpc.Request) ([]byte, error) {
 	var (
 		token        string
 		err          error
@@ -63,10 +71,10 @@ func (r *RPCHeaderHandler) BuildHeader() ([]byte, error) {
 		signAsMaster = true
 	}
 
-	return r.BuildAuthRPCHeader(token, signAsMaster)
+	return r.BuildAuthRPCHeader(token, req, signAsMaster)
 }
 
-func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, signAsMaster bool) ([]byte, error) {
+func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req *rpc.Request, signAsMaster bool) ([]byte, error) {
 	headerBuf := new(bytes.Buffer)
 
 	// add token length
@@ -78,13 +86,29 @@ func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, signAsMaster bool) (
 	// add token
 	headerBuf.Write([]byte(token))
 
-	// Sign what we have so far
+	// add timestamp
+	var timestamp uint64 = uint64(time.Now().UTC().Unix())
+	timestampBuf := make([]byte, TIMESTAMP_BYTES)
+	endian.PutUint64(timestampBuf, timestamp)
+	headerBuf.Write(timestampBuf)
+
+	// Build the data we want to sign (token + timestamp + request)
+	// copy headerBuf into a new buffer
+	sigBuffer := bytes.NewBuffer([]byte(token))
+
+	// Add the timestamp
+	sigBuffer.Write(timestampBuf)
+
+	// add the request name (we can't use the whole request object, because req.Seq may change)
+	sigBuffer.Write([]byte(req.ServiceMethod))
+
+	// Sign sigBuffer
 	signer := SignAsDelegate
 	if signAsMaster {
 		signer = SignAsMaster
 	}
 
-	signature, err := signer(headerBuf.Bytes())
+	signature, err := signer(sigBuffer.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -95,9 +119,10 @@ func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, signAsMaster bool) (
 	return headerBuf.Bytes(), nil
 }
 
-func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte) (Identity, error) {
+// Extracts the token and signature from the header, and validates the signature against the token and request
+func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req *rpc.Request) (Identity, error) {
 
-	if len(rawHeader) <= TOKEN_LEN_BYTES {
+	if len(rawHeader) <= TOKEN_LEN_BYTES+TIMESTAMP_BYTES {
 		return nil, ErrBadRPCHeader
 	}
 
@@ -110,7 +135,7 @@ func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte) (Identity, error) {
 		return nil, ErrBadRPCHeader
 	}
 
-	// Next tokeLen bytes contain the token
+	// Next tokenLen bytes contain the token
 	token := string(rawHeader[offset : offset+tokenLen])
 	offset += tokenLen
 
@@ -123,18 +148,36 @@ func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte) (Identity, error) {
 		return nil, ErrBadToken
 	}
 
-	// get the part of the header that has been signed
-	signed_message := rawHeader[:offset]
+	// Next 8 bytes contains the timestamp
+	timestampBuf := rawHeader[offset : offset+TIMESTAMP_BYTES]
+	timestamp := endian.Uint64(timestampBuf)
+	offset += TIMESTAMP_BYTES
 
-	// Whatever is left is the signature
+	// Validate timestamp (should be no more than expirationDelta earlier than now)
+	timeDelta := uint64(expirationDelta / time.Second)
+	currentTime := uint64(time.Now().UTC().Unix())
+	if timestamp < currentTime-timeDelta {
+		return nil, ErrRequestExpired
+	}
+
+	// Grab the signature off the header
 	signature := rawHeader[offset:]
+
+	// Build the message that was signed (token + timestamp + req)
+	signed_message := bytes.NewBuffer([]byte(token))
+
+	// Add the timestamp
+	signed_message.Write(timestampBuf)
+
+	// add the request name (we can't use the whole request object, because req.Seq may change)
+	signed_message.Write([]byte(req.ServiceMethod))
 
 	// Verify the identity of the signed message
 	senderVerifier, err := senderIdentity.Verifier()
 	if err != nil {
 		return nil, err
 	}
-	err = senderVerifier.Verify(signed_message, signature)
+	err = senderVerifier.Verify(signed_message.Bytes(), signature)
 	if err != nil {
 		return nil, err
 	}

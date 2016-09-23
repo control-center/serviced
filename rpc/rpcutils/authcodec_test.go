@@ -97,20 +97,20 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 
 	// Test error from identity parser
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header).Return(ident, ErrTestCodec).Once()
+	codectest.headerParser.On("ParseHeader", header, req).Return(ident, ErrTestCodec).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, Equals, ErrTestCodec)
 
 	// Test error no admin access
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	codectest.headerParser.On("ParseHeader", header, req).Return(ident, nil).Once()
 	ident.On("HasAdminAccess").Return(false).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, Equals, ErrNoAdmin)
 
 	// Test success with admin access
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	codectest.headerParser.On("ParseHeader", header, req).Return(ident, nil).Once()
 	ident.On("HasAdminAccess").Return(true).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
@@ -124,7 +124,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	// Test success with a non-admin required method
 	req = &rpc.Request{ServiceMethod: "NonAdminRequiredCall"}
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	codectest.headerParser.On("ParseHeader", header, req).Return(ident, nil).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 }
@@ -167,7 +167,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	expectedHeaderLen := []byte{0, 0, 0, 7}
 
 	// Test error on BuildHeader
-	codectest.headerBuilder.On("BuildHeader").Return(nil, ErrTestCodec).Once()
+	codectest.headerBuilder.On("BuildHeader", req).Return(nil, ErrTestCodec).Once()
 	err := codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, Equals, ErrTestCodec)
 
@@ -175,7 +175,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	codectest.conn.On("Write", header).Return(7, nil).Once()
 
 	// Test error on wrapped codec
-	codectest.headerBuilder.On("BuildHeader").Return(header, nil).Once()
+	codectest.headerBuilder.On("BuildHeader", req).Return(header, nil).Once()
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(ErrTestCodec).Once()
 	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, Equals, ErrTestCodec)
@@ -183,7 +183,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	// Test success on authenticating call
 	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
 	codectest.conn.On("Write", header).Return(7, nil).Once()
-	codectest.headerBuilder.On("BuildHeader").Return(header, nil).Once()
+	codectest.headerBuilder.On("BuildHeader", req).Return(header, nil).Once()
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
 	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, IsNil)

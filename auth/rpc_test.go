@@ -18,6 +18,7 @@ package auth_test
 import (
 	"crypto/rsa"
 	"encoding/binary"
+	"net/rpc"
 	"time"
 
 	"github.com/control-center/serviced/auth"
@@ -30,46 +31,82 @@ var (
 )
 
 func (s *TestAuthSuite) TestExtractBadRPCHeader(c *C) {
+	request := &rpc.Request{}
 	mockHeader := []byte{0, 0, 0, 19, 109, 121, 32, 115, 117, 112, 101, 114, 32, 102}
-	_, err := rpcHeaderHandler.ParseHeader(mockHeader)
+	_, err := rpcHeaderHandler.ParseHeader(mockHeader, request)
 	c.Assert(err, Equals, auth.ErrBadRPCHeader)
 }
 
 func (s *TestAuthSuite) TestExtractBadToken(c *C) {
+	request := &rpc.Request{}
 	badToken := []byte("This is not a token")
 	tokenLength := len(badToken)
-	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.SIGNATURE_BYTES
+	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.TIMESTAMP_BYTES + auth.SIGNATURE_BYTES
 	mockHeader := make([]byte, mockHeaderLength)
+
+	// Add the token length
 	endian.PutUint32(mockHeader[:auth.TOKEN_LEN_BYTES], uint32(tokenLength))
+	// Add the bad token
 	_ = copy(mockHeader[auth.TOKEN_LEN_BYTES:auth.TOKEN_LEN_BYTES+tokenLength], badToken)
-	_, err := rpcHeaderHandler.ParseHeader(mockHeader)
+
+	_, err := rpcHeaderHandler.ParseHeader(mockHeader, request)
 	c.Assert(err, Equals, auth.ErrBadToken)
 }
 
+func (s *TestAuthSuite) TestExtractOldTimestamp(c *C) {
+	request := &rpc.Request{}
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	tokenLength := len(fakeToken)
+	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.TIMESTAMP_BYTES + auth.SIGNATURE_BYTES
+	mockHeader := make([]byte, mockHeaderLength)
+
+	// Add the token length
+	endian.PutUint32(mockHeader[:auth.TOKEN_LEN_BYTES], uint32(tokenLength))
+	// Add the bad token
+	_ = copy(mockHeader[auth.TOKEN_LEN_BYTES:auth.TOKEN_LEN_BYTES+tokenLength], fakeToken)
+	// Add an expired timestamp
+	var timestamp uint64 = uint64(time.Now().UTC().Unix() - 11)
+	endian.PutUint64(mockHeader[auth.TOKEN_LEN_BYTES+tokenLength:auth.TOKEN_LEN_BYTES+tokenLength+auth.TIMESTAMP_BYTES], timestamp)
+
+	_, err = rpcHeaderHandler.ParseHeader(mockHeader, request)
+	c.Assert(err, Equals, auth.ErrRequestExpired)
+}
+
 func (s *TestAuthSuite) TestExtractBadSignature(c *C) {
+	request := &rpc.Request{}
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	tokenLength := len(fakeToken)
 	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.SIGNATURE_BYTES
 	mockHeader := make([]byte, mockHeaderLength)
+
+	// Add the token length
 	endian.PutUint32(mockHeader[:auth.TOKEN_LEN_BYTES], uint32(tokenLength))
+	// Add the fake token
 	_ = copy(mockHeader[auth.TOKEN_LEN_BYTES:auth.TOKEN_LEN_BYTES+tokenLength], fakeToken)
-	_, err = rpcHeaderHandler.ParseHeader(mockHeader)
+	// Add a valid timestamp
+	var timestamp uint64 = uint64(time.Now().UTC().Unix())
+	endian.PutUint64(mockHeader[auth.TOKEN_LEN_BYTES+tokenLength:auth.TOKEN_LEN_BYTES+tokenLength+auth.TIMESTAMP_BYTES], timestamp)
+
+	_, err = rpcHeaderHandler.ParseHeader(mockHeader, request)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+	}
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the delegate
-	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, false)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, false)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
-	ident, err := rpcHeaderHandler.ParseHeader(header)
+	ident, err := rpcHeaderHandler.ParseHeader(header, request)
 	c.Assert(err, IsNil)
 	// check the identity has been correctly extracted
 	c.Assert(s.hostId, DeepEquals, ident.HostID())
@@ -78,17 +115,61 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
 	c.Assert(s.dfs, Equals, ident.HasDFSAccess())
 }
 
+func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_WrongRequest(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+	}
+	request2 := &rpc.Request{
+		ServiceMethod: "MyMethod2",
+	}
+	// Get a token with the delegate's public key
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+	// build header, signed by the delegate
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, false)
+	c.Assert(err, Equals, nil)
+	c.Assert(header, NotNil)
+	// extract header
+	_, err = rpcHeaderHandler.ParseHeader(header, request2)
+	c.Assert(err, Equals, rsa.ErrVerification)
+}
+
+func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_Expired(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+	}
+	// Get a token with the delegate's public key
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+	// build header, signed by the delegate
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, false)
+	c.Assert(err, Equals, nil)
+	c.Assert(header, NotNil)
+
+	// Sleep until the request expires
+	time.Sleep(11 * time.Second)
+
+	// extract header, should fail with expired request
+	_, err = rpcHeaderHandler.ParseHeader(header, request)
+	c.Assert(err, Equals, auth.ErrRequestExpired)
+}
+
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+	}
 	// Get a token with the master's public key
 	fakeToken, err := auth.MasterToken()
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the master
-	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, true)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, true)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header
-	ident, err := rpcHeaderHandler.ParseHeader(header)
+	ident, err := rpcHeaderHandler.ParseHeader(header, request)
 	c.Assert(err, IsNil)
 	// check the identity has been correctly extracted
 	c.Assert(ident.HostID(), DeepEquals, "")
@@ -98,29 +179,37 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned_WrongKey(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+		Seq:           1234,
+	}
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the master
-	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, true)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, true)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header, should fail verification
-	_, err = rpcHeaderHandler.ParseHeader(header)
+	_, err = rpcHeaderHandler.ParseHeader(header, request)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_DelegateSigned_WrongKey(c *C) {
+	request := &rpc.Request{
+		ServiceMethod: "MyMethod",
+		Seq:           1234,
+	}
 	// Get a token with the master's public key
 	fakeToken, err := auth.MasterToken()
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	// build header, signed by the delegate
-	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, false)
+	header, err := rpcHeaderHandler.BuildAuthRPCHeader(fakeToken, request, false)
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 	// extract header, should fail verification
-	_, err = rpcHeaderHandler.ParseHeader(header)
+	_, err = rpcHeaderHandler.ParseHeader(header, request)
 	c.Assert(err, Equals, rsa.ErrVerification)
 }

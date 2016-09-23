@@ -31,6 +31,7 @@ var (
 	endian                = binary.BigEndian
 
 	ErrReadingHeader = errors.New("Unable to parse header from RPC request")
+	ErrWritingHeader = errors.New("Unable to write RPC auth header")
 	ErrNoAdmin       = errors.New("Delegate does not have admin access")
 )
 
@@ -86,7 +87,6 @@ func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, pa
 //  lets the underlying codec read the rest.
 //  Finally, it validates the identity if necessary.
 func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
-
 	// Lock so we read both values back-to-back
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -125,7 +125,7 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 
 	// Now we can get the method name from r and authenticate if required
 	if requiresAuthentication(r.ServiceMethod) {
-		ident, err := a.parser.ParseHeader(header)
+		ident, err := a.parser.ParseHeader(header, r)
 		if err != nil {
 			return err
 		}
@@ -190,7 +190,7 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	)
 
 	if requiresAuthentication(r.ServiceMethod) {
-		header, err = a.headerBuilder.BuildHeader()
+		header, err = a.headerBuilder.BuildHeader(r)
 		if err != nil {
 			return err
 		}
@@ -205,8 +205,21 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	a.conn.Write(headerLenBuf)
-	a.conn.Write(header)
+	n, err := a.conn.Write(headerLenBuf)
+	if err != nil {
+		return err
+	}
+	if n != HEADER_LEN_BYTES {
+		return ErrWritingHeader
+	}
+
+	n, err = a.conn.Write(header)
+	if err != nil {
+		return err
+	}
+	if uint32(n) != headerLen {
+		return ErrWritingHeader
+	}
 
 	// let the underlying codec write the rest of the request
 	if err := a.wrappedcodec.WriteRequest(r, body); err != nil {
