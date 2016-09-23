@@ -90,7 +90,7 @@ func (d *daemon) startRPC() {
 			if err != nil {
 				glog.Fatalf("Error accepting connections: %s", err)
 			}
-			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+			go d.rpcServer.ServeCodec(rpcutils.NewDefaultAuthServerCodec(conn))
 		}
 	}()
 }
