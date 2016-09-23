@@ -51,7 +51,7 @@ type Instance struct {
 	DesiredState  DesiredState
 	CurrentState  CurrentState
 	HealthStatus  map[string]health.Status
-	RAMCommitment int32
+	RAMCommitment int64
 	MemoryUsage   Usage
 	Scheduled     time.Time
 	Started       time.Time

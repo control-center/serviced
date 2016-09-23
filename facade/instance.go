@@ -269,7 +269,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		DesiredState:  state.DesiredState,
 		CurrentState:  curState,
 		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),
-		RAMCommitment: int32(svc.RAMCommitment.Value),
+		RAMCommitment: int64(svc.RAMCommitment.Value),
 		Scheduled:     state.Scheduled,
 		Started:       state.Started,
 		Terminated:    state.Terminated,
