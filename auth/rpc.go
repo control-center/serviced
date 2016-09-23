@@ -52,6 +52,7 @@ func (r *RPCHeaderHandler) BuildHeader() ([]byte, error) {
 	signAsMaster = false
 	token, err = AuthTokenNonBlocking()
 	if err != nil {
+		log.WithError(err).Debug("Unable to retrieve delegate token")
 		// We may be an un-added master
 		token, err2 = MasterToken()
 		if err2 != nil {
@@ -115,11 +116,11 @@ func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte) (Identity, error) {
 
 	// Validate the token can be parsed
 	senderIdentity, err := ParseJWTIdentity(token)
-	if err != nil || senderIdentity == nil {
-		if err == nil || senderIdentity == nil {
-			err = ErrBadToken
-		}
+	if err != nil {
 		return nil, err
+	}
+	if senderIdentity == nil {
+		return nil, ErrBadToken
 	}
 
 	// get the part of the header that has been signed
