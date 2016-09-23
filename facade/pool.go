@@ -411,6 +411,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
 	entity.Description = "Default Pool"
+	entity.Permissions = pool.DFSAccess + pool.AdminAccess
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
 	}
@@ -509,6 +510,8 @@ func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 			MemoryCapacity:    pools[i].MemoryCapacity,
 			MemoryCommitment:  pools[i].MemoryCommitment,
 			ConnectionTimeout: pools[i].ConnectionTimeout,
+			DFSAccess:         pools[i].Permissions&pool.DFSAccess != 0,
+			AdminAccess:       pools[i].Permissions&pool.AdminAccess != 0,
 		})
 	}
 

@@ -114,6 +114,7 @@ func (ft *FacadeUnitTest) Test_GetReadPoolsShouldReturnCorrectValues(c *C) {
 		ConnectionTimeout: 10,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
+		Permissions:       pool.DFSAccess,
 	}
 
 	firstHost := host.Host{
@@ -164,4 +165,6 @@ func (ft *FacadeUnitTest) Test_GetReadPoolsShouldReturnCorrectValues(c *C) {
 	c.Assert(p.ConnectionTimeout, Equals, 10)
 	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
 	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
+	c.Assert(p.DFSAccess, Equals, resourcePool.Permissions&pool.DFSAccess != 0)
+	c.Assert(p.AdminAccess, Equals, resourcePool.Permissions&pool.AdminAccess != 0)
 }
