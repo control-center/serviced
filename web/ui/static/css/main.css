@@ -1039,7 +1039,7 @@ input.startup {
     position: absolute;
     top: 50px;
     width: 100%;
-    z-index: 999;
+    z-index: 999 !important;
 }
 
 #loginNotifications {

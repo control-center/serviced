@@ -26,4 +26,6 @@ type ReadPool struct {
 	ConnectionTimeout int       // Wait delay on service rescheduling when an outage is reported (milliseconds)
 	CreatedAt         time.Time // When the pool was created
 	UpdatedAt         time.Time // When the poool was last updated
+	DFSAccess         bool      // Whether members of the pool have access to the DFS
+	AdminAccess       bool      // Whether members of the pool have access to admin functions
 }

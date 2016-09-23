@@ -27,7 +27,7 @@ type EngNotation struct {
 	Value  uint64
 }
 
-func NewEngNotation(value int32) EngNotation {
+func NewEngNotation(value int64) EngNotation {
 	return EngNotation{source: fmt.Sprintf("%d", value), Value: uint64(value)}
 }
 
