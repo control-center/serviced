@@ -20,16 +20,10 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
-	"testing"
 	"time"
 
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
-
-// This plumbs gocheck into testing
-func Test(t *testing.T) {
-	TestingT(t)
-}
 
 var _ = Suite(&S{
 	ElasticTest: elastic.ElasticTest{
