@@ -14,8 +14,10 @@
 package api
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -168,4 +170,28 @@ func (a *api) RegisterHost(keydata []byte) error {
 		return err
 	}
 	return ioutil.WriteFile(keyfile, keydata, 0600)
+}
+
+func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte) error {
+	hostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+	if h.ID == hostID {
+		return a.RegisterHost(keyData)
+	} else {
+		remoteCmd := "serviced host register -"
+		cmd := exec.Command("/usr/bin/ssh", h.IPAddr, "--", remoteCmd)
+		cmd.Stdin = bytes.NewReader(keyData)
+		return cmd.Run()
+	}
+}
+
+// Output a delegate key file to a given location on disk
+func (a *api) WriteDelegateKey(filename string, data []byte) error {
+	filedir := filepath.Dir(filename)
+	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, data, 0600)
 }

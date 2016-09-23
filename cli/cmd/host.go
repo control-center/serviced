@@ -68,6 +68,10 @@ func (c *ServicedCli) initHost() {
 						Value: "",
 						Usage: "Name of the output host key file",
 					},
+					cli.BoolFlag{
+						Name:  "register, r",
+						Usage: "Register delegate keys on the host via ssh",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -238,20 +242,43 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		Memory:  ctx.String("memory"),
 	}
 
-	if host, privateKey, err := c.driver.AddHost(cfg); err != nil {
+	host, privateKey, err := c.driver.AddHost(cfg)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
+		return
+	}
+
+	writeKeyFile := false
+	if ctx.Bool("register") {
+		if err := c.driver.RegisterRemoteHost(host, privateKey); err != nil {
+			fmt.Fprintf(os.Stderr, "Error registering host: %s\n", err.Error())
+			writeKeyFile = true
+		} else {
+			fmt.Println("Registered host at", host.IPAddr)
+		}
 	} else {
-		keyfileName := ctx.String("key-file")
+		writeKeyFile = true
+	}
+
+	keyfileName := ctx.String("key-file")
+	if keyfileName != "" {
+		writeKeyFile = true
+	}
+
+	if writeKeyFile == true {
 		if keyfileName == "" {
 			keyfileName = fmt.Sprintf("IP-%s.delegate.key", strings.Replace(host.IPAddr, ".", "-", -1))
 		}
-		if err := ioutil.WriteFile(keyfileName, privateKey, 0440); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		if err := c.driver.WriteDelegateKey(keyfileName, privateKey); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing delegate key file \"%s\": %s\n", keyfileName, err.Error())
+		} else {
+			fmt.Println("Wrote delegate key file to", keyfileName)
 		}
-		fmt.Println(host.ID)
 	}
+	fmt.Println(host.ID)
 }
 
 // serviced host remove HOSTID ...
@@ -292,6 +319,7 @@ func (c *ServicedCli) cmdHostRegister(ctx *cli.Context) {
 	if len(args) != 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "register")
+		return
 	}
 
 	var (
