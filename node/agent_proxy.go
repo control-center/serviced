@@ -21,12 +21,10 @@ package node
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 )
@@ -54,21 +52,9 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
-	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
-
-	a.addControlPlaneEndpoint(myList)
-	a.addControlPlaneConsumerEndpoint(myList)
-	a.addLogstashEndpoint(myList)
-	a.addKibanaEndpoint(myList)
-
-	*response = myList
-	return nil
-}
-
 func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID": request.ServiceID,
+		"serviceid":  request.ServiceID,
 		"instanceID": request.InstanceID,
 	})
 
@@ -102,7 +88,6 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
 	masterClient, err := master.NewClient(a.master)
@@ -123,99 +108,6 @@ func (a *HostAgent) ReportInstanceDead(req master.ServiceInstanceRequest, unused
 	}
 	defer masterClient.Close()
 	return masterClient.ReportInstanceDead(req.ServiceID, req.InstanceID)
-}
-
-// addControlPlaneEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
-	key := "tcp" + a.uiport
-	endpoint := applicationendpoint.ApplicationEndpoint{}
-	endpoint.ServiceID = "controlplane"
-	endpoint.Application = "controlplane"
-	endpoint.ContainerIP = "127.0.0.1"
-	port, err := strconv.Atoi(a.uiport[1:])
-	if err != nil {
-		glog.Errorf("Unable to interpret ui port.")
-		return
-	}
-	endpoint.ContainerPort = uint16(port)
-	//control center should always be reachable on port 443 in a container
-	endpoint.ProxyPort = uint16(443)
-	endpoint.HostPort = uint16(port)
-	endpoint.HostIP = strings.Split(a.master, ":")[0]
-	endpoint.Protocol = "tcp"
-	a.addEndpoint(key, endpoint, endpoints)
-}
-
-// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
-	key := "tcp:8444"
-	endpoint := applicationendpoint.ApplicationEndpoint{}
-	endpoint.ServiceID = "controlplane_consumer"
-	endpoint.Application = "controlplane_consumer"
-	endpoint.ContainerIP = "127.0.0.1"
-	endpoint.ContainerPort = 8443
-	endpoint.ProxyPort = 8444
-	endpoint.HostPort = 8443
-	endpoint.HostIP = strings.Split(a.master, ":")[0]
-	endpoint.Protocol = "tcp"
-	a.addEndpoint(key, endpoint, endpoints)
-}
-
-// addLogstashEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
-	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_logstash_tcp",
-		Application:   "controlplane_logstash_tcp",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5042,
-		HostPort:      5042,
-		ProxyPort:     5042,
-		HostIP:        strings.Split(a.master, ":")[0],
-		Protocol:      "tcp",
-	}
-	a.addEndpoint("tcp:5042", tcp_endpoint, endpoints)
-
-	filebeat_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_logstash_filebeat",
-		Application:   "controlplane_logstash_filebeat",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5043,
-		HostPort:      5043,
-		ProxyPort:     5043,
-		HostIP:        strings.Split(a.master, ":")[0],
-		Protocol:      "tcp",
-	}
-	a.addEndpoint("tcp:5043", filebeat_endpoint, endpoints)
-}
-
-// addKibanaEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addKibanaEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
-	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
-		ServiceID:     "controlplane_kibana_tcp",
-		Application:   "controlplane_kibana_tcp",
-		ContainerIP:   "127.0.0.1",
-		ContainerPort: 5601,
-		HostPort:      5601,
-		ProxyPort:     5601,
-		HostIP:        strings.Split(a.master, ":")[0],
-		Protocol:      "tcp",
-	}
-	a.addEndpoint("tcp:5601", tcp_endpoint, endpoints)
-}
-
-// addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
-func (a *HostAgent) addEndpoint(key string, endpoint applicationendpoint.ApplicationEndpoint, endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
-	if _, ok := endpoints[key]; !ok {
-		endpoints[key] = make([]applicationendpoint.ApplicationEndpoint, 0)
-	} else {
-		if len(endpoints[key]) > 0 {
-			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
-			for _, ep := range endpoints[key] {
-				glog.Warningf(" %+v", ep)
-			}
-		}
-	}
-	endpoints[key] = append(endpoints[key], endpoint)
 }
 
 // GetHostID returns the agent's host id

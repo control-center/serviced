@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
 )
@@ -111,8 +110,6 @@ type EvaluateServiceResponse struct {
 type LoadBalancer interface {
 	// SendLogMessage allows the proxy to send messages/logs to the master (to be displayed on the serviced master)
 	SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error
-
-	GetServiceEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error
 
 	// GetProxySnapshotQuiece blocks until there is a snapshot request
 	GetProxySnapshotQuiece(serviceId string, snapshotId *string) error
