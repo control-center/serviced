@@ -7,246 +7,21 @@
     'use strict';
 
     // share angular services outside of angular context
-    var $q, resourcesFactory, utils;
-
-    // service types
-    var ISVC = "isvc",           // internal service
-        APP = "app",             // service with no parent
-        META = "meta",           // service with children but no startup command
-        DEPLOYING = "deploying"; // service whose parent is still being deployed
-
-    class Instance {
-
-        constructor(instance) {
-            this.name = instance.Name;
-            this.id = instance.ID;
-            this.model = Object.freeze(instance);
-
-            this.resources = {
-                RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
-            };
-
-            this.updateState({
-                Health: instance.HealthStatus,
-                MemoryUsage: instance.MemoryUsage
-            });
-        }
-
-        resourcesGood() {
-            return this.resources.RAMLast < this.resources.RAMCommitment;
-        }
-
-        updateState(status) {
-            this.resources.RAMAverage = Math.max(0, status.MemoryUsage.Avg);
-            this.resources.RAMLast = Math.max(0, status.MemoryUsage.Cur);
-            this.resources.RAMMax = Math.max(0, status.MemoryUsage.Max);
-
-            // var hc = {};
-            // for (var name in instance.HealthChecks) {
-            //     hc[name] = instance.HealthChecks[name].Status;
-            // }
-            // this.healthChecks = hc;
-        }
-
-    }
-
-    class Service {
-        constructor(service) {
-            // these properties are for convenience
-            this.name = service.Name;
-            this.id = service.ID;
-            // NOTE: desiredState is mutable to improve UX
-            this.desiredState = service.DesiredState;
-            this.children = [];
-            this.instances = [];
-
-            // make service immutable
-            this.model = Object.freeze(service);
-            this.evaluateServiceType();
-            this.touch();
-        }
-
-        evaluateServiceType() {
-            // infer service type
-            this.type = [];
-            if (this.model.ID.indexOf("isvc-") !== -1) {
-                this.type.push(ISVC);
-            }
-
-            if (!this.model.ParentServiceID) {
-                this.type.push(APP);
-            }
-
-            if (this.children.length && !this.model.Startup) {
-                this.type.push(META);
-            }
-
-            if (this.parent && this.parent.isDeploying()) {
-                this.type.push(DEPLOYING);
-            }
-        }
-
-        // fills out service object
-        fetchAll() {
-            this.fetchEndpoints();
-            this.fetchAddresses();
-            this.fetchConfigs();
-            this.fetchServiceChildren();
-        }
-
-        fetchAddresses(force) {
-            fetch.call(this, "getServiceIpAssignments", "addresses", force);
-        }
-
-        fetchConfigs(force) {
-            fetch.call(this, "getServiceConfigs", "configs", force);
-        }
-
-        fetchEndpoints(force) {
-            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force);
-        }
-
-        fetchInstances() {
-            let deferred = $q.defer();
-            resourcesFactory.v2.getServiceInstances(this.id)
-                .then(data => {
-                    console.log(`fetched ${data.length} instances from getServiceInstances for id ${this.id}`);
-                    this.instances = data.map(i => new Instance(i));
-                    this.touch();
-                    deferred.resolve();
-                },
-                error => {
-                    console.warn(error);
-                    deferred.reject();
-                });
-
-            return deferred.promise;
-        }
-
-        fetchServiceChildren(force) {
-            // fetch.call(this, "getServiceChildren", "subservices", force);
-            if (this.subservices) {
-                return;
-            }
-            resourcesFactory.v2.getServiceChildren(this.id)
-                .then(data => {
-                    console.log(`fetched ${data.length} children services from getServiceChildren for id ${this.id}`);
-                    this.subservices = data.map(s => new Service(s));
-                    this.touch();
-                },
-                error => {
-                    console.warn(error);
-                });
-        }
-
-        // fast-moving state for this service and its instances
-        // note: returns a promise that resolves with a single status object
-        getStatus() {
-            let deferred = $q.defer();
-
-            resourcesFactory.v2.getServiceStatus(this.id)
-                .then(results => {
-                    if (results.length && !results[0].NotFound) {
-                        deferred.resolve(results[0]);
-                    } else {
-                        deferred.reject(`Could not get service status for id ${this.id}`);
-                    }
-                }, error => {
-                    deferred.reject(error);
-                });
-            return deferred.promise;
-        }
-
-        hasInstances() {
-            return !!this.instances.length;
-        }
-
-        isIsvc() {
-            return !!~this.type.indexOf(ISVC);
-        }
-
-        hasChildren() {
-            return this.model.HasChildren;
-        }
-
-        // mark services updated to trigger render via $watch
-        touch() {
-            this.lastUpdate = new Date().getTime();
-        }
-
-        // kicks off request to update instances and service state
-        fetchAllStates() {
-            $q.all([this.fetchInstances(), this.getStatus()])
-                .then(results => {
-                    this.updateState(results[1]);
-                }, error => {
-                    console.log("Unable to update instance states");
-                    // TODO: Error
-                });
-        }
-
-        // updates service state and instances states        
-        updateState(status) {
-
-            // update service status
-            this.desiredState = status.DesiredState;
-
-            let statusMap = {};
-            status.Status.forEach(s => statusMap[s.InstanceID] = s);
-
-            // update instance status
-            this.instances.forEach(i => {
-                let s = statusMap[i.id];
-                // make sure status exists for instance
-                if (!s) {
-                    console.log(`Service instance ${i.id} has no status. Skipping status update.`);
-                    return;
-                }
-                i.updateState(s);
-            });
-
-            this.touch();
-        }
-
-    }
-
-    function fetch(methodName, propertyName, force) {
-        let deferred = $q.defer();
-
-        if (this[propertyName] && !force) {
-            deferred.resolve();
-            return deferred.promise;
-        }
-        // NOTE: V2 API only
-        // TODO: make sure methodName exists
-        // TODO: error callback
-        resourcesFactory.v2[methodName](this.id)
-            .then(data => {
-                console.log(`fetched ${data.length} ${propertyName} from ${methodName} for id ${this.id}`);
-                this[propertyName] = data;
-                this.touch();
-                deferred.resolve();
-            },
-            error => {
-                deferred.reject(error);
-                console.warn(error);
-            });
-
-        return deferred.promise;
-    }
-
+    let $notification, serviceHealth, $q, resourcesFactory, utils;
 
     controlplane.controller("ServiceDetailsController",
         ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
-            "$timeout", "miscUtils", "hostsFactory",
+            "$timeout", "miscUtils", "hostsFactory", "$serviceHealth", "Service",
             "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
-                authService, $modalService, $translate, $notification,
-                $timeout, _utils, hostsFactory,
+                authService, $modalService, $translate, _$notification,
+                $timeout, _utils, hostsFactory, _serviceHealth, Service,
                 poolsFactory, CCUIState, $cookies, areUIReady, LogSearch) {
 
                 // api access via angular context
+                $notification = _$notification;
+                serviceHealth = _serviceHealth;
                 $q = _$q;
                 resourcesFactory = _resourcesFactory;
                 utils = _utils;
@@ -277,8 +52,8 @@
                     resourcesFactory.routeToHost(id);
                 };
 
-
                 $scope.modalAddPublicEndpoint = function () {
+
                     areUIReady.lock();
                     $scope.protocols = [];
                     $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
@@ -289,7 +64,7 @@
                     // default public endpoint options
                     $scope.publicEndpoints.add = {
                         type: "port",
-                        app_ep: $scope.exportedServiceEndpoints.data[0],
+                        app_ep: $scope.currentService.exportedServiceEndpoints[0],
                         name: "",
                         host: $scope.defaultHostAlias,
                         port: "",
@@ -413,9 +188,9 @@
 
 
                 $scope.addPublicEndpoint = function (newPublicEndpoint) {
-                    var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                    var serviceName = newPublicEndpoint.app_ep.Application;
-                    var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
+                    var serviceId = newPublicEndpoint.app_ep.ServiceID;
+                    var serviceName = newPublicEndpoint.app_ep.ServiceName;
+                    var serviceEndpoint = newPublicEndpoint.app_ep.Application;
                     if (newPublicEndpoint.type === "vhost") {
                         var vhostName = newPublicEndpoint.name;
                         return resourcesFactory.addVHost(serviceId, serviceName, serviceEndpoint, vhostName);
@@ -429,21 +204,24 @@
 
                 // modalAssignIP opens a modal view to assign an ip address to a service
                 $scope.modalAssignIP = function (ip, poolID) {
-                    $scope.ips.assign = { 'ip': ip, 'value': null };
+                    let modalScope = $scope.$new(true);
+                    modalScope.assignments = { 'ip': ip, 'value': null };
                     resourcesFactory.getPoolIPs(poolID)
                         .success(function (data) {
-                            var options = [{ 'Value': 'Automatic', 'IPAddr': '' }];
-
-                            var i, IPAddr, value;
+                            let options = [{ 'Value': 'Automatic', 'IPAddr': '' }];
+                            let i, IPAddr, value;
                             //host ips
                             if (data && data.HostIPs) {
                                 for (i = 0; i < data.HostIPs.length; ++i) {
                                     IPAddr = data.HostIPs[i].IPAddress;
                                     value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
                                     options.push({ 'Value': value, 'IPAddr': IPAddr });
+                                    // TODO: look up associated endpoint name
+                                    //modalScope.assignments.ip.EndpointName = "Boogity";
+
                                     // set the default value to the currently assigned value
-                                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                                        $scope.ips.assign.value = options[options.length - 1];
+                                    if (modalScope.assignments.ip.IPAddress === IPAddr) {
+                                        modalScope.assignments.value = options[options.length - 1];
                                     }
                                 }
                             }
@@ -455,22 +233,22 @@
                                     value = "Virtual IP: " + IPAddr;
                                     options.push({ 'Value': value, 'IPAddr': IPAddr });
                                     // set the default value to the currently assigned value
-                                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                                        $scope.ips.assign.value = options[options.length - 1];
+                                    if (modalScope.assignments.ip.IPAddr === IPAddr) {
+                                        modalScope.assignments.value = options[options.length - 1];
                                     }
                                 }
                             }
 
-                            //default to automatic
-                            if (!$scope.ips.assign.value) {
-                                $scope.ips.assign.value = options[0];
+                            //default to automatic if necessary
+                            if (!modalScope.assignments.value) {
+                                modalScope.assignments.value = options[0];
 
                             }
-                            $scope.ips.assign.options = options;
+                            modalScope.assignments.options = options;
 
                             $modalService.create({
                                 templateUrl: "assign-ip.html",
-                                model: $scope,
+                                model: modalScope,
                                 title: "assign_ip",
                                 actions: [
                                     {
@@ -526,9 +304,7 @@
                     var IP = $scope.ips.assign.value.IPAddr;
                     return resourcesFactory.assignIP(serviceID, IP)
                         .success(function (data, status) {
-                            // HACK: update(true) forces a full update to
-                            // work around issue https://jira.zenoss.com/browse/CC-939
-                            // servicesFactory.update(true);
+                            update();
                         });
                 };
 
@@ -548,7 +324,7 @@
                 };
 
                 $scope.indent = function (depth) {
-                    return { 'padding-left': (15 * depth) + "px" };
+                    return { 'padding-left': (24 * depth) + "px" };
                 };
 
                 // sets a service to start, stop or restart state
@@ -556,6 +332,10 @@
                     service[state](skipChildren).error(function (data, status) {
                         $notification.create("Unable to " + state + " service", data.Detail).error();
                     });
+                };
+
+                $scope.getEndpointType = function (endpoint) {
+                    return endpoint.VHostName ? "vhost" : "port";
                 };
 
                 // filters to be used when counting how many descendent
@@ -586,7 +366,6 @@
                     } else {
                         $scope.setServiceState(service, state);
                     }
-                    // servicesFactory.updateHealth();
                 };
 
                 // verifies if use wants to start parent service, or parent
@@ -594,8 +373,8 @@
                 $scope.modal_confirmSetServiceState = function (service, state, childCount) {
                     $modalService.create({
                         template: ["<h4>" + $translate.instant("choose_services_" + state) + "</h4><ul>",
-                            "<li>" + $translate.instant(state + "_service_name", { name: "<strong>" + service.name + "</strong>" }) + "</li>",
-                            "<li>" + $translate.instant(state + "_service_name_and_children", { name: "<strong>" + service.name + "</strong>", count: "<strong>" + childCount + "</strong>" }) + "</li></ul>"
+                        "<li>" + $translate.instant(state + "_service_name", { name: "<strong>" + service.name + "</strong>" }) + "</li>",
+                        "<li>" + $translate.instant(state + "_service_name_and_children", { name: "<strong>" + service.name + "</strong>", count: "<strong>" + childCount + "</strong>" }) + "</li></ul>"
                         ].join(""),
                         model: $scope,
                         title: $translate.instant(state + "_service"),
@@ -654,51 +433,58 @@
                     }
                 };
 
-                $scope.clickEditContext = function () {
-                    //set editor options for context editing
-                    $scope.codemirrorOpts = {
-                        lineNumbers: true,
-                        mode: "properties"
-                    };
+                $scope.clickEditContext = function (contextFileId) {
+                    //edit variables (context) of current service
+                    let modalScope = $scope.$new(true);
 
-                    $scope.editableService = angular.copy($scope.services.current.model);
-                    $scope.editableContext = makeEditableContext($scope.editableService.Context);
+                    $scope.resourcesFactory.v2.getServiceContext(contextFileId)
+                        .then(function (data) {
 
-                    $modalService.create({
-                        templateUrl: "edit-context.html",
-                        model: $scope,
-                        title: $translate.instant("edit_context"),
-                        actions: [
-                            {
-                                role: "cancel"
-                            }, {
-                                role: "ok",
-                                label: $translate.instant("btn_save_changes"),
-                                action: function () {
-                                    // disable ok button, and store the re-enable function
-                                    var enableSubmit = this.disableSubmitButton();
+                            //set editor options for context editing
+                            modalScope.codemirrorOpts = {
+                                lineNumbers: true,
+                                mode: "properties"
+                            };
 
-                                    $scope.editableService.Context = makeStorableContext($scope.editableContext);
+                            // this is the text bound to the modal texarea
+                            modalScope.Context = makeEditableContext(data);
 
-                                    $scope.updateService($scope.editableService)
-                                        .success(function (data, status) {
-                                            $notification.create("Updated service", $scope.editableService.ID).success();
-                                            this.close();
-                                        }.bind(this))
-                                        .error(function (data, status) {
-                                            this.createNotification("Update service failed", data.Detail).error();
-                                            enableSubmit();
-                                        }.bind(this));
+                            // now that we have the text of the file, create modal dialog
+                            $modalService.create({
+                                templateUrl: "edit-context.html",
+                                model: modalScope,
+                                title: $translate.instant("edit_context"),
+                                actions: [
+                                    {
+                                        role: "cancel"
+                                    }, {
+                                        role: "ok",
+                                        label: $translate.instant("btn_save"),
+                                        action: function () {
+                                            // disable ok button, and store the re-enable function
+                                            let enableSubmit = this.disableSubmitButton();
+                                            let storableContext = makeStorableContext(modalScope.Context);
+
+                                            $scope.resourcesFactory.v2.updateServiceContext(contextFileId, storableContext)
+                                                .success(function (data, status) {
+                                                    $notification.create("Updated variables for", $scope.currentService.name).success();
+                                                    this.close();
+                                                }.bind(this))
+                                                .error(function (data, status) {
+                                                    this.createNotification("Update variables failed", data.Detail).error();
+                                                    enableSubmit();
+                                                }.bind(this));
+                                        }
+                                    }
+                                ],
+                                onShow: function () {
+                                    modalScope.codemirrorRefresh = true;
+                                },
+                                onHide: function () {
+                                    modalScope.codemirrorRefresh = false;
                                 }
-                            }
-                        ],
-                        onShow: function () {
-                            $scope.codemirrorRefresh = true;
-                        },
-                        onHide: function () {
-                            $scope.codemirrorRefresh = false;
-                        }
-                    });
+                            });
+                        });
                 };
 
                 function makeEditableContext(context) {
@@ -729,7 +515,7 @@
                         }
                     });
 
-                    return storable;
+                    return JSON.stringify(storable);
                 }
 
 
@@ -751,7 +537,7 @@
                                     if (publicEndpoint.type === "vhost") {
                                         resourcesFactory.removeVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                                             .success(() => {
-                                                // servicesFactory.update();
+                                                update();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.Name).success();
                                             })
                                             .error((data, status) => {
@@ -760,7 +546,7 @@
                                     } else if (publicEndpoint.type === "port") {
                                         resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                                             .success(() => {
-                                                // servicesFactory.update();
+                                                update();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
                                             })
                                             .error((data, status) => {
@@ -774,67 +560,77 @@
                     });
                 };
 
-                $scope.editConfig = function (config) {
-                    $scope.editableService = angular.copy($scope.services.current.model);
-                    $scope.selectedConfig = config;
+                $scope.editConfig = function (configFileId) {
+                    let modalScope = $scope.$new(true);
 
-                    //set editor options for context editing
-                    $scope.codemirrorOpts = {
-                        lineNumbers: true,
-                        mode: utils.getModeFromFilename($scope.selectedConfig)
-                    };
+                    // get the configfile 
+                    $scope.resourcesFactory.v2.getServiceConfig(configFileId)
+                        .then(function (data) {
 
-                    $modalService.create({
-                        templateUrl: "edit-config.html",
-                        model: $scope,
-                        title: $translate.instant("title_edit_config") + " - " + $scope.selectedConfig,
-                        bigModal: true,
-                        actions: [
-                            {
-                                role: "cancel"
-                            }, {
-                                role: "ok",
-                                label: "save",
-                                action: function () {
-                                    if (this.validate()) {
-                                        // disable ok button, and store the re-enable function
-                                        var enableSubmit = this.disableSubmitButton();
+                            //set editor options for context editing
+                            modalScope.codemirrorOpts = {
+                                lineNumbers: true,
+                                mode: utils.getModeFromFilename(data.Filename)
+                            };
 
-                                        $scope.updateService($scope.editableService)
-                                            .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.ID).success();
-                                                this.close();
-                                            }.bind(this))
-                                            .error(function (data, status) {
-                                                this.createNotification("Update service failed", data.Detail).error();
-                                                enableSubmit();
-                                            }.bind(this));
+                            // this is the text bound to the modal texarea
+                            angular.extend(modalScope, data);
+
+                            // now that we have the text of the file, create modal dialog
+                            $modalService.create({
+                                templateUrl: "edit-config.html",
+                                model: modalScope,
+                                title: $translate.instant("title_edit_config") + " - " + modalScope.Filename,
+                                bigModal: true,
+                                actions: [
+                                    {
+                                        role: "cancel"
+                                    }, {
+                                        role: "ok",
+                                        label: $translate.instant("btn_save"),
+                                        action: function () {
+                                            if (this.validate()) {
+                                                // disable ok button, and store the re-enable function
+                                                var enableSubmit = this.disableSubmitButton();
+
+                                                $scope.resourcesFactory.v2.updateServiceConfig(configFileId, modalScope)
+                                                    .success(function (data, status) {
+                                                        $notification.create("Updated configuation file", data.Filename).success();
+                                                        this.close();
+                                                    }.bind(this))
+                                                    .error(function (data, status) {
+                                                        this.createNotification("Update configuration failed", data.Detail).error();
+                                                        enableSubmit();
+                                                    }.bind(this));
+                                            }
+                                        }
                                     }
+                                ],
+                                validate: function () {
+                                    // TODO - actually validate
+                                    return true;
+                                },
+                                onShow: function () {
+                                    modalScope.codemirrorRefresh = true;
+                                },
+                                onHide: function () {
+                                    modalScope.codemirrorRefresh = false;
                                 }
-                            }
-                        ],
-                        validate: function () {
-                            // TODO - actually validate
-                            return true;
-                        },
-                        onShow: function () {
-                            $scope.codemirrorRefresh = true;
-                        },
-                        onHide: function () {
-                            $scope.codemirrorRefresh = false;
-                        }
-                    });
+                            });
+
+                        });
+
                 };
 
                 $scope.viewLog = function (instance) {
-                    $scope.editService = angular.copy(instance);
+                    let logScope = $scope.$new(true);
 
-                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.model.ID)
+                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                         .success(function (log) {
-                            $scope.editService.log = log.Detail;
+                            logScope.log = log.Detail;
                             $modalService.create({
                                 templateUrl: "view-log.html",
-                                model: $scope,
+                                model: logScope,
                                 title: "title_log",
                                 bigModal: true,
                                 actions: [
@@ -849,7 +645,7 @@
                                             var textarea = this.$el.find("textarea");
                                             resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                                                 .success(function (log) {
-                                                    $scope.editService.log = log.Detail;
+                                                    logScope.log = log.Detail;
                                                     textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                                 })
                                                 .error((data, status) => {
@@ -860,7 +656,7 @@
                                         classes: "btn-primary",
                                         label: "download",
                                         action: function () {
-                                            utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                            utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.id + '/logs/download');
                                         },
                                         icon: "glyphicon-download"
                                     }
@@ -877,8 +673,9 @@
                 };
 
                 $scope.validateService = function () {
+                    alert("Thought to be Unused validateService");
                     // TODO: Validate name and startup command
-                    var svc = $scope.services.current.model,
+                    var svc = $scope.currentService.model,
                         max = svc.InstanceLimits.Max,
                         min = svc.InstanceLimits.Min,
                         num = svc.Instances;
@@ -900,10 +697,11 @@
                 };
 
                 $scope.updateService = function (newService) {
+                    alert("Thought to be Unused updateService");
                     if ($scope.validateService()) {
-                        return resourcesFactory.updateService($scope.services.current.model.ID, newService)
+                        return resourcesFactory.updateService($scope.currentService.model.ID, newService)
                             .success((data, status) => {
-                                // servicesFactory.update();
+                                update();
                                 this.editableService = {};
                             });
                     }
@@ -938,6 +736,17 @@
                     return LogSearch.getURL(appConfig, globalConfig);
                 };
 
+                // $scope.cachedServiceStatuses = {};
+
+                // $scope.getServiceStatus = function (id) {
+                //     if (!(id in $scope.cachedServiceStatuses)) {
+                //         // returning object allows object property inspection
+                //         // without throwing a null reference error
+                //         $scope.cachedServiceStatuses[id] = {};
+                //     }
+                //     return $scope.cachedServiceStatuses[id];
+                // };
+
                 // grab default kibana search configs and adjust
                 // the query to look for this specific service instance
                 $scope.getInstanceLogURL = function (instance) {
@@ -956,6 +765,8 @@
 
                 };
 
+                // updates URL and current service ID
+                // which triggers UI update 
                 $scope.routeToService = function (id, e) {
                     // if an event is present, we may
                     // need to prevent it from performing
@@ -981,8 +792,6 @@
 
                     $location.update_path("/services/" + id, true);
                     $scope.params.serviceId = id;
-                    // $scope.services.current = servicesFactory.get($scope.params.serviceId);
-                    $scope.update();
                 };
 
                 // restart all running instances for this service
@@ -1027,36 +836,36 @@
                 //      ...
 
                 $scope.toggleChildren = function (service) {
-                    if (!$scope.services.current) {
+                    if (!$scope.currentService) {
                         console.warn("Cannot store toggle state: no current service");
                         return;
                     }
+                    // console.log(`TOGGLE ------------------`);
 
-                    // stored state for the current service's
-                    // service tree
-                    var treeState = $scope.services.currentTreeState;
+                    if ($scope.currentTreeState[service.id].collapsed) {
+                        $scope.currentTreeState[service.id].collapsed = false;
 
-                    // if this service is marked as collapsed in
-                    // this particular tree view, show its children
-                    if (treeState[service].collapsed) {
-                        treeState[service].collapsed = false;
-                        console.log("expand  " + service);
-                        // TODO: create Service object for [service]
-                        // TODO: call fetchServiceChildren() on it.
-
-                        // otherwise, hide its children
+                        if (service.subservices) {
+                            $scope.showChildren(service);
+                        } else {
+                            service.fetchServiceChildren().then(
+                                function () {
+                                    // console.log(`fetched children for ${service.name} and got ${service.subservices.length} children back`);
+                                    $scope.flattenServicesTree();
+                                });
+                        }
                     } else {
-                        treeState[service].collapsed = true;
-                        console.log("retract " + service);
+                        $scope.currentTreeState[service.id].collapsed = true;
+                        $scope.flattenServicesTree();
                         $scope.hideChildren(service);
                     }
+
                 };
 
                 $scope.getService = function (id) {
                     let deferred = $q.defer();
                     $scope.resourcesFactory.v2.getService(id)
                         .then(function (data) {
-                            console.log("got service id=" + id);
                             deferred.resolve(data);
                         },
                         function (error) {
@@ -1066,20 +875,11 @@
                     return deferred.promise;
                 };
 
-                // $scope.getServiceChildren = function(id) {
-                //     $scope.resourcesFactory.v2.getServiceChildren(id)
-                //         .success(function(data){
-                //             console.log(data.length + " children returned.");
-                //             $scope.services.current.children = data;
-                //             // $scope.insertTreeChildren(data.results);
-                //         });
-                // };
-
                 $scope.getServiceEndpoints = function (id) {
                     let deferred = $q.defer();
                     $scope.resourcesFactory.v2.getServiceEndpoints(id)
                         .then(function (response) {
-                            console.log("got service endpoints for id=" + id);
+                            console.log("got service endpoints for id " + id);
                             deferred.resolve(response.data);
                         },
                         function (response) {
@@ -1093,28 +893,15 @@
                     $scope.resourcesFactory.v2.getServices()
                         .success(function (data) {
                             console.log(data.length + " top level children.");
-                            // $scope.services.current = data.results;
                         });
-                };
-
-                $scope.insertTreeChildren = function (subservices) {
-                    var par = subservices[0].ParentServiceID;
-                    var index = $scope.services.data.findIndex(svc => svc.id === par);
-
-
-
-
-
-
-
                 };
 
                 $scope.hideChildren = function (service) {
                     // get the state of the current service's tree
-                    var treeState = $scope.services.currentTreeState;
+                    var treeState = $scope.currentTreeState;
 
-                    if (service.children) {
-                        service.children.forEach(function (child) {
+                    if (service.subservices) {
+                        service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = true;
                             $scope.hideChildren(child);
                         });
@@ -1122,10 +909,10 @@
                 };
 
                 $scope.showChildren = function (service) {
-                    var treeState = $scope.services.currentTreeState;
+                    var treeState = $scope.currentTreeState;
 
-                    if (service.children) {
-                        service.children.forEach(function (child) {
+                    if (service.subservices) {
+                        service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = false;
 
                             // if this child service is not marked
@@ -1147,13 +934,13 @@
                 };
 
                 $scope.hasCurrentInstances = function () {
-                    return $scope.services && $scope.services.current && $scope.services.current.hasInstances();
+                    return $scope.currentService && $scope.currentService.hasInstances();
                 };
 
                 $scope.editCurrentService = function () {
 
                     // clone service for editing
-                    $scope.editableService = angular.copy($scope.services.current.model);
+                    $scope.editableService = angular.copy($scope.currentService.model);
 
                     $modalService.create({
                         templateUrl: "edit-service.html",
@@ -1172,9 +959,10 @@
                                         var enableSubmit = this.disableSubmitButton();
 
                                         // update service with recently edited service
-                                        $scope.updateService($scope.editableService)
+                                        $scope.resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
                                             .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.ID).success();
+                                                $notification.create("Updated service", $scope.editableService.Name).success();
+                                                update();
                                                 this.close();
                                             }.bind(this))
                                             .error(function (data, status) {
@@ -1196,62 +984,104 @@
                 };
 
                 // TODO - clean up magic numbers
-                $scope.calculateIndent = function (service) {
-                    var indent = service.depth,
-                        offset = 1;
-
-                    if ($scope.services.current && $scope.services.current.parent) {
-                        offset = $scope.services.current.parent.depth + 2;
+                $scope.calculateIndent = function (depth) {
+                    let offset = 1;
+                    if ($scope.currentService && $scope.currentService.parent) {
+                        offset = $scope.currentService.parent.depth + 2;
                     }
-
-                    return $scope.indent(indent - offset);
+                    return $scope.indent(depth - offset);
                 };
 
-                $scope.update = function () {
-
-                    console.log("UPDATE --------------");
-
-                    if ($scope.services.current) {
-
-                        $scope.services.current.fetchAll();
-                        // setup breadcrumbs
-                        $scope.breadcrumbs = makeCrumbs($scope.services.current);
-
-                        // update serviceTreeState
-                        $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
-
-                        // update pools
-                        $scope.pools = poolsFactory.poolList;
-
-                        // create an entry in tree state for the
-                        // current service
-                        if (!($scope.services.current.id in $scope.serviceTreeState)) {
-                            $scope.serviceTreeState[$scope.services.current.id] = {};
-                        }
-                        var treeState = $scope.serviceTreeState[$scope.services.current.id];
-
-                        // initialize services as collapsed
-                        if ($scope.services.current.subservices) {
-                            $scope.services.current.subservices.forEach(svc => {
-                                if (!treeState[svc.ID]) {
-                                    console.log(`setting serviceTreeState[${svc.ID}] to collapsed`);
-                                    treeState[svc.ID] = {
-                                        hidden: false,
-                                        collapsed: true
-                                    };
-                                }
-                            });
-                        }
-
-                        // property for view to bind for tree state
-                        $scope.services.currentTreeState = $scope.serviceTreeState[$scope.services.current.id];
-
-                    }
-
+                $scope.setCurrentTreeState = function () {
+                    $scope.serviceTreeState[$scope.currentService.id] = {};
                 };
 
+                $scope.flattenServicesTree = function () {
+                    // flatten the current service's subservices tree.
+                    let rows = [];
+                    let treeState = $scope.currentTreeState;
+                    (function flatten(service, depth) {
+                        if (!treeState[service.id]) {
+                            treeState[service.id] = {
+                                collapsed: true,
+                                hidden: false
+                            };
+                        }
+                        let rowState = treeState[service.id];
+                        let rowItem = {
+                            service: service,
+                            depth: depth,
+                            collapsed: rowState.collapsed,
+                            hidden: rowState.hidden
+                        };
+                        rows.push(rowItem);
+                        // console.log(`${depth} : ${service.name} `);
+                        if (service.subservices) {
+                            service.subservices.forEach(svc => flatten(svc, depth + 1));
+                        }
+                    })($scope.currentService, 0);
+                    // remove top-level service
+                    $scope.currentDescendents = rows.slice(1);
+                };
+
+                $scope.fetchBreadcrumbs = function () {
+                    $scope.resourcesFactory.v2.getServiceAncestors($scope.currentService.id)
+                        .then(current => {
+                            $scope.breadcrumbs = makeCrumbs(current);
+                        },
+                        error => {
+                            console.warn(error);
+                        });
+                };
+
+                $scope.setCurrentService = function () {
+
+                    $scope.currentService = undefined;
+                    $scope.getService($scope.params.serviceId)
+                        .then(function (model) {
+                            console.log("SET CURRENT SERVICE --------------");
+
+                            $scope.currentService = new Service(model);
+
+                            $scope.currentDescendents = [];
+                            $scope.currentService.fetchServiceChildren()
+                                .then($scope.flattenServicesTree);
+
+                            // sets $scope.breadcrumbs
+                            $scope.fetchBreadcrumbs();
+
+                            // update serviceTreeState
+                            $scope.setCurrentTreeState();
+
+                            // property for view to bind for tree state NOTE: WHA????
+                            $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
+
+                            update();
+                        });
+                };
+
+                function update() {
+                    
+                    $scope.getService($scope.params.serviceId)
+                        .then(function (model) {
+                            console.log("SET CURRENT SERVICE --------------");
+
+                            $scope.currentService.update(model);
+                        });
+
+                    // fetchAll() will trigger update at completion
+                    $scope.currentService.fetchAll(true);
+
+                    // update fast-moving statuses
+                    $scope.currentService.fetchAllStates();
+
+
+                }
 
                 function init() {
+
+                    console.log("INIT -----------------------------");
+
                     $scope.name = "servicedetails";
                     $scope.params = $routeParams;
 
@@ -1301,97 +1131,83 @@
                         disablePagination: true
                     };
 
-                    // setup initial state
-                    $scope.services = {
-                        // data: servicesFactory.serviceTree,
-                        // mapped: servicesFactory.serviceMap,
-                        // current: servicesFactory.get($scope.params.serviceId)
-                    };
-
-                    // $scope.getServices();
-
                     $scope.ips = {};
-                    $scope.pools = [];
+
+                    // pools are needed for edit service dialog
+                    $scope.pools = poolsFactory.poolList;
 
                     // if the current service changes, update
                     // various service controller thingies
-
-
-                    // $scope.$watch(function() {
-                    //     // if no current service is set, try to set one
-                    //     if(!$scope.services.current) {
-                    //         // v2 call with id = $scope.params.serviceId
-                    //         $scope.getService($scope.params.serviceId)
-                    //             .then( function(model){
-                    //                 $scope.services.current = new Service(model);
-                    //             });
-                    //         // $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                    $scope.$watch("params.serviceId", $scope.setCurrentService);
+                    // $scope.$watch("currentService.lastUpdate", () => {
+                    //     if (!$scope.$$phase) {
+                    //         $scope.$apply();
                     //     }
-
-                    //     if($scope.services.current) {
-                    //         return $scope.services.current.isDirty();
-                    //     } else {
-                    //         // there is no current service
-                    //         console.warn("current service not yet available");
-                    //         return undefined;
-                    //     }
-                    // }, $scope.update);
-
-
-                    $scope.getService($scope.params.serviceId)
-                        .then(function (model) {
-                            $scope.services.current = new Service(model);
-                        });
-
-                    $scope.$watch("services.current.lastUpdate", $scope.update);
+                    // });
 
                     hostsFactory.activate();
                     hostsFactory.update();
 
-                    setInterval(function () {
-                        if ($scope.services.current) {
-                            $scope.services.current.fetchAllStates();
-                        }
-                    }, 5000);
+                    // TODO: use baseFactory update pattern
+                    // this will fetch health, instances, and memory stats
+                    let intervalVal = setInterval(function () {
+                        if ($scope.currentService) {
 
-                    // servicesFactory.activate();
-                    // servicesFactory.update();
+                            // make a list of IDs from scope.descendents (with err function of course)
+                            // add new resourcesfactory endpoint to get multiple states
+                            // send list of IDs to that new endpoint. 
+                            // when it comes back, iterate over the scope.descendents list again
+                            // and call each service's service.updateState(status) 
+                            // with the status that was returned for that service
+
+                            $scope.currentService.fetchAllStates();
+
+                            // fetchAllStates gathers status on instances
+                            // need to delay a bit to gather stats on services
+                            setTimeout(function () {
+                                $scope.currentService.updateDescendentStatuses()
+                                    .then( () => {
+                                    }, error => {
+                                        console.warn(`Unable to get stats for services`);
+                                    });
+
+                            }, 250);
+
+                        }
+                    }, 3000);
 
                     poolsFactory.activate();
                     poolsFactory.update();
 
                     $scope.$on("$destroy", function () {
+                        clearInterval(intervalVal);
                         // servicesFactory.deactivate();
                         hostsFactory.deactivate();
                         poolsFactory.deactivate();
                     });
-
-
-
                 }
 
                 // kick off controller
                 init();
 
-
-
                 function makeCrumbs(current) {
+
                     var crumbs = [{
-                        label: current.name,
+                        label: current.Name,
                         itemClass: "active",
-                        id: current.id
+                        id: current.ID
                     }];
 
                     (function recurse(service) {
                         if (service) {
                             crumbs.unshift({
-                                label: service.name,
-                                url: "/services/" + service.id,
-                                id: service.id
+                                label: service.Name,
+                                url: "/services/" + service.ID,
+                                id: service.ID
                             });
-                            recurse(service.parent);
+                            recurse(service.Parent);
                         }
-                    })(current.parent);
+                    })(current.Parent);
 
                     crumbs.unshift({
                         label: "Applications",
@@ -1400,5 +1216,7 @@
 
                     return crumbs;
                 }
+
             }]);
+
 })();

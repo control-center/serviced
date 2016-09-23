@@ -43,10 +43,12 @@
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
-                    service.model.DesiredState);
+                    service.desiredState);
 
                 // refresh list of instances
-                service.getServiceInstances();
+                if (service.fetchInstances) {
+                    service.fetchInstances();
+                }
 
                 // if this service has instances, evaluate their health
                 service.instances.forEach(instance => {
@@ -56,7 +58,7 @@
                     instanceStatus = new Status(
                         instanceUniqueId,
                         service.name +" "+ instance.id,
-                        service.model.DesiredState);
+                        service.desiredState);
 
                     // evalute instance healthchecks and roll em up
                     instanceStatus.evaluateHealthChecks(instance.healthChecks);

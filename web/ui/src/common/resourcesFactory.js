@@ -317,9 +317,32 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}`,
             },
+            updateService: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}`,
+                payload: (id, service) => service
+            },
+            getServiceAncestors: {
+                method: GET,
+                url: id => `/api/v2/services/${id}?ancestors`,
+            },
             getServiceChildren: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/services`,
+            },
+            getServiceConfig: {
+                method: GET,
+                url: id => `/api/v2/serviceconfigs/${id}`,
+            },
+            updateServiceConfig: {
+                method: PUT,
+                url: (id) => `/api/v2/serviceconfigs/${id}`,
+                payload: (id, cfg) => {return JSON.stringify({
+                    'Filename':    cfg.Filename, 
+                    'Owner':       cfg.Owner, 
+                    'Permissions': cfg.Permissions, 
+                    'Content':     cfg.Content
+                });}
             },
             getServiceConfigs: {
                 method: GET,
@@ -329,6 +352,11 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/context`,
             },
+            updateServiceContext: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}/context`,
+                payload: (id, ctx) => ctx
+            },
             getServiceInstances: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/instances`,
@@ -337,9 +365,17 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/ipassignments?includeChildren`,
             },
+            getServiceMonitoringProfile: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/monitoringprofile`,
+            },
             getServicePublicEndpoints: {
                 method: GET,
-                url: id => `/api/v2/services/${id}/publicendpoints`,
+                url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
+            },
+            getServiceExportEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/exportendpoints?includeChildren`,
             },
             getServices: {
                 method: GET,
@@ -348,6 +384,10 @@
             getServiceStatus: {
                 method: GET,
                 url: id => `/api/v2/statuses?serviceId=${id}`,
+            },
+            getServiceStatuses: {
+                method: GET,
+                url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
             }
         };
 
