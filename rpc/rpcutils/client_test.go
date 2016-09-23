@@ -54,7 +54,6 @@ func (rtt *RPCTestType) StructCall(arg TestArgs, reply *TestArgs) error {
 }
 
 func (s *MySuite) SetUpSuite(c *C) {
-	act.Reset()
 	NonAuthenticatingCalls = []string{
 		"NonAuthenticatingCall",
 		"RPCTestType.Sleep",

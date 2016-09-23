@@ -29,11 +29,13 @@ var (
 	// RPC calls that do not require admin access:
 	NonAdminRequiredCalls = []string{}
 	endian                = binary.BigEndian
-)
 
-var (
 	ErrReadingHeader = errors.New("Unable to parse header from RPC request")
 	ErrNoAdmin       = errors.New("Delegate does not have admin access")
+)
+
+const (
+	HEADER_LEN_BYTES = 4
 )
 
 // Checks the RPC method name to see if authentication is required.
@@ -60,23 +62,22 @@ func requiresAdmin(callName string) bool {
 }
 
 // Server Codec
-type HeaderParserFunc func([]byte) (auth.Identity, error)
 type AuthServerCodec struct {
 	conn         io.ReadWriteCloser
 	wrappedcodec rpc.ServerCodec
-	parseHeader  HeaderParserFunc
+	parser       auth.RPCHeaderParser
 	mutex        sync.Mutex // Makes sure we read in order
 }
 
 func NewDefaultAuthServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return NewAuthServerCodec(conn, jsonrpc.NewServerCodec(conn), auth.ExtractRPCHeader)
+	return NewAuthServerCodec(conn, jsonrpc.NewServerCodec(conn), &auth.RPCHeaderHandler{})
 }
 
-func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, parseHeader HeaderParserFunc) rpc.ServerCodec {
+func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, parser auth.RPCHeaderParser) rpc.ServerCodec {
 	return &AuthServerCodec{
 		conn:         conn,
 		wrappedcodec: codecToWrap,
-		parseHeader:  parseHeader,
+		parser:       parser,
 	}
 }
 
@@ -92,13 +93,13 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 
 	// Read the header
 
-	// Read the first 4 bytes to get the length of the header
-	headerLenBuf := make([]byte, 4)
+	// Read the first HEADER_LEN_BYTES bytes to get the length of the header
+	headerLenBuf := make([]byte, HEADER_LEN_BYTES)
 	n, err := a.conn.Read(headerLenBuf)
 	if err != nil {
 		return err
 	}
-	if n != 4 {
+	if n != HEADER_LEN_BYTES {
 		return ErrReadingHeader
 	}
 
@@ -124,7 +125,7 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 
 	// Now we can get the method name from r and authenticate if required
 	if requiresAuthentication(r.ServiceMethod) {
-		ident, err := a.parseHeader(header)
+		ident, err := a.parser.ParseHeader(header)
 		if err != nil {
 			return err
 		}
@@ -160,23 +161,22 @@ func (a *AuthServerCodec) Close() error {
 }
 
 // Client Codec
-type BuildHeaderFunc func() ([]byte, error)
 type AuthClientCodec struct {
-	conn         io.ReadWriteCloser
-	wrappedcodec rpc.ClientCodec
-	getHeader    BuildHeaderFunc
-	mutex        sync.Mutex
+	conn          io.ReadWriteCloser
+	wrappedcodec  rpc.ClientCodec
+	headerBuilder auth.RPCHeaderBuilder
+	mutex         sync.Mutex
 }
 
 func NewDefaultAuthClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return NewAuthClientCodec(conn, jsonrpc.NewClientCodec(conn), auth.BuildRPCHeader)
+	return NewAuthClientCodec(conn, jsonrpc.NewClientCodec(conn), &auth.RPCHeaderHandler{})
 }
 
-func NewAuthClientCodec(conn io.ReadWriteCloser, codecToWrap rpc.ClientCodec, getHeader BuildHeaderFunc) rpc.ClientCodec {
+func NewAuthClientCodec(conn io.ReadWriteCloser, codecToWrap rpc.ClientCodec, headerBuilder auth.RPCHeaderBuilder) rpc.ClientCodec {
 	return &AuthClientCodec{
-		conn:         conn,
-		wrappedcodec: codecToWrap,
-		getHeader:    getHeader,
+		conn:          conn,
+		wrappedcodec:  codecToWrap,
+		headerBuilder: headerBuilder,
 	}
 }
 
@@ -185,12 +185,12 @@ func NewAuthClientCodec(conn io.ReadWriteCloser, codecToWrap rpc.ClientCodec, ge
 //  before letting the underlying codec send the rest of the request.
 func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	var (
-		header []byte
+		header []byte = []byte{}
 		err    error
 	)
 
 	if requiresAuthentication(r.ServiceMethod) {
-		header, err = a.getHeader()
+		header, err = a.headerBuilder.BuildHeader()
 		if err != nil {
 			return err
 		}
@@ -198,7 +198,7 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 
 	// add header length
 	var headerLen uint32 = uint32(len(header))
-	headerLenBuf := make([]byte, 4)
+	headerLenBuf := make([]byte, HEADER_LEN_BYTES)
 	endian.PutUint32(headerLenBuf, headerLen)
 
 	// Lock to ensure we write the header and the rest of the request back-to-back
@@ -234,11 +234,7 @@ func (a *AuthClientCodec) Close() error {
 	return a.wrappedcodec.Close()
 }
 
-// NewClient returns a new rpc.Client that uses our client codec
-func NewAuthClient(conn io.ReadWriteCloser, codecToWrap rpc.ClientCodec) *rpc.Client {
-	return rpc.NewClientWithCodec(NewAuthClientCodec(conn, codecToWrap, auth.BuildRPCHeader))
-}
-
+// NewDefaultAuthClient returns a new rpc.Client that uses our default client codec
 func NewDefaultAuthClient(conn io.ReadWriteCloser) *rpc.Client {
 	return rpc.NewClientWithCodec(NewDefaultAuthClientCodec(conn))
 }

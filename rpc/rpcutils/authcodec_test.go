@@ -3,185 +3,159 @@
 package rpcutils
 
 import (
-	"bytes"
 	"errors"
+	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 	"net/rpc"
 
-	"github.com/control-center/serviced/auth"
 	authmocks "github.com/control-center/serviced/auth/mocks"
 	"github.com/control-center/serviced/rpc/rpcutils/mocks"
 )
 
-// AuthCodec Helpers
-// We need a ReadWriteCloser we can pass to our codecs
-type ByteBufferReadWriteCloser struct {
-	bytes.Buffer
-}
-
-func (b *ByteBufferReadWriteCloser) Close() error {
-	return nil
-}
-
 type AuthCodecTest struct {
-	headerPassed          []byte
-	headerToReturn        []byte
-	headerErrToReturn     error
-	identityToReturn      *authmocks.Identity
-	identityErrorToReturn error
-	buff                  *ByteBufferReadWriteCloser
-	wrappedClientCodec    *mocks.ClientCodec
-	wrappedServerCodec    *mocks.ServerCodec
-	authClientCodec       rpc.ClientCodec
-	authServerCodec       rpc.ServerCodec
+	headerParser       *authmocks.RPCHeaderParser
+	headerBuilder      *authmocks.RPCHeaderBuilder
+	conn               *mocks.ReadWriteCloser
+	wrappedClientCodec *mocks.ClientCodec
+	wrappedServerCodec *mocks.ServerCodec
+	authClientCodec    rpc.ClientCodec
+	authServerCodec    rpc.ServerCodec
 }
 
 func NewAuthCodecTest() *AuthCodecTest {
 
-	buff := &ByteBufferReadWriteCloser{}
-	test := AuthCodecTest{
-		buff: buff,
-	}
-
+	conn := &mocks.ReadWriteCloser{}
+	headerParser := &authmocks.RPCHeaderParser{}
+	headerBuilder := &authmocks.RPCHeaderBuilder{}
 	wrappedClientCodec := &mocks.ClientCodec{}
 	wrappedServerCodec := &mocks.ServerCodec{}
-	asc := NewAuthServerCodec(buff, wrappedServerCodec, test.ParseHeader)
-	acc := NewAuthClientCodec(buff, wrappedClientCodec, test.GetHeader)
+	asc := NewAuthServerCodec(conn, wrappedServerCodec, headerParser)
+	acc := NewAuthClientCodec(conn, wrappedClientCodec, headerBuilder)
 
-	test.wrappedClientCodec = wrappedClientCodec
-	test.wrappedServerCodec = wrappedServerCodec
-	test.authClientCodec = acc
-	test.authServerCodec = asc
+	test := AuthCodecTest{
+		conn:               conn,
+		headerParser:       headerParser,
+		headerBuilder:      headerBuilder,
+		wrappedClientCodec: wrappedClientCodec,
+		wrappedServerCodec: wrappedServerCodec,
+		authClientCodec:    acc,
+		authServerCodec:    asc,
+	}
 
 	return &test
 }
 
-func (a *AuthCodecTest) Reset() {
-	a.buff.Reset()
-	a.headerToReturn = []byte{}
-	a.headerErrToReturn = nil
-	a.headerPassed = []byte{}
-	a.identityToReturn = &authmocks.Identity{}
-	a.identityErrorToReturn = nil
-}
-
-// We need a header getter
-func (a *AuthCodecTest) GetHeader() ([]byte, error) {
-	return a.headerToReturn, a.headerErrToReturn
-}
-
-func (a *AuthCodecTest) ParseHeader(h []byte) (auth.Identity, error) {
-	a.headerPassed = h
-	return a.identityToReturn, a.identityErrorToReturn
-}
-
-func (a *AuthCodecTest) WriteHeaderToBuffer(h []byte) {
-	headerLength := uint32(len(h))
-	headerLenBuf := make([]byte, 4)
-	endian.PutUint32(headerLenBuf, headerLength)
-	a.buff.Write(headerLenBuf)
-	a.buff.Write(h)
-}
-
-func (a *AuthCodecTest) ReadHeaderFromBuffer(length int) []byte {
-	return a.buff.Bytes()[4 : length+4]
-}
-
 var (
 	ErrTestCodec = errors.New("Error calling codec method")
-	act          = NewAuthCodecTest()
+	codectest    = NewAuthCodecTest()
 )
 
 // AuthServerCodec Tests
 func (s *MySuite) TestReadRequestHeader(c *C) {
-
-	// Put a header onto the buffer
-	header := []byte("Header1")
-	act.WriteHeaderToBuffer(header)
-
+	// Set up some objects we'll need
 	req := &rpc.Request{ServiceMethod: "AuthenticatingCall"}
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(ErrTestCodec).Once()
-	err := act.authServerCodec.ReadRequestHeader(req)
+	ident := &authmocks.Identity{}
+	header := []byte("Header1")
+	headerLen := uint32(len(header))
+	emptyHeaderBuff := make([]byte, len(header))
+	emptyHeaderLenBuff := make([]byte, HEADER_LEN_BYTES)
+
+	// Test error reading header length
+	codectest.conn.On("Read", emptyHeaderLenBuff).Return(0, ErrTestCodec).Once()
+	err := codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, Equals, ErrTestCodec)
 
-	// Test with an authentication required method
-	// Error from identity parser
-	act.Reset()
-	act.WriteHeaderToBuffer(header)
+	codectest.conn.On("Read", emptyHeaderLenBuff).Return(0, nil).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, Equals, ErrReadingHeader)
 
-	act.identityErrorToReturn = ErrTestCodec
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
+	// Behavior for rest of this test:
+	codectest.conn.On("Read", emptyHeaderLenBuff).Return(HEADER_LEN_BYTES, nil).Run(func(args mock.Arguments) {
+		buffer := args[0].([]byte)
+		endian.PutUint32(buffer, headerLen)
+	})
+
+	// Test error reading header
+	codectest.conn.On("Read", emptyHeaderBuff).Return(0, ErrTestCodec).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, Equals, ErrTestCodec)
-	c.Assert(act.headerPassed, DeepEquals, header)
 
-	// Error no admin access
-	act.Reset()
-	act.WriteHeaderToBuffer(header)
-	act.identityToReturn.On("HasAdminAccess").Return(false).Once()
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
+	codectest.conn.On("Read", emptyHeaderBuff).Return(0, nil).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, Equals, ErrReadingHeader)
+
+	// Read behavior for rest of this test:
+	codectest.conn.On("Read", emptyHeaderBuff).Return(len(header), nil).Run(func(args mock.Arguments) {
+		buffer := args[0].([]byte)
+		_ = copy(header, buffer)
+	})
+
+	// Test wrapped Codec error
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(ErrTestCodec).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, Equals, ErrTestCodec)
+
+	// Test error from identity parser
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	codectest.headerParser.On("ParseHeader", header).Return(ident, ErrTestCodec).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
+	c.Assert(err, Equals, ErrTestCodec)
+
+	// Test error no admin access
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	ident.On("HasAdminAccess").Return(false).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, Equals, ErrNoAdmin)
-	c.Assert(act.headerPassed, DeepEquals, header)
 
-	act.Reset()
-	act.WriteHeaderToBuffer(header)
-
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	act.identityToReturn.On("HasAdminAccess").Return(true).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
+	// Test success with admin access
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	ident.On("HasAdminAccess").Return(true).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
-	c.Assert(act.headerPassed, DeepEquals, header)
 
-	// Test with a non-authentication required method
-	act.Reset()
-	act.WriteHeaderToBuffer(header)
-
+	// Test success with a non-authentication required method
 	req = &rpc.Request{ServiceMethod: "NonAuthenticatingCall"}
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
-	c.Assert(act.headerPassed, DeepEquals, []byte{})
 
-	// Test with a non-admin required method
-	act.Reset()
-	act.WriteHeaderToBuffer(header)
-
+	// Test success with a non-admin required method
 	req = &rpc.Request{ServiceMethod: "NonAdminRequiredCall"}
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
+	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
+	codectest.headerParser.On("ParseHeader", header).Return(ident, nil).Once()
+	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
-	c.Assert(act.headerPassed, DeepEquals, header)
-
 }
 
 func (s *MySuite) TestReadRequestBody(c *C) {
 	body := 0
-	act.wrappedServerCodec.On("ReadRequestBody", body).Return(ErrTestCodec).Once()
-	err := act.authServerCodec.ReadRequestBody(body)
+	codectest.wrappedServerCodec.On("ReadRequestBody", body).Return(ErrTestCodec).Once()
+	err := codectest.authServerCodec.ReadRequestBody(body)
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedServerCodec.On("ReadRequestBody", body).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestBody(body)
+	codectest.wrappedServerCodec.On("ReadRequestBody", body).Return(nil).Once()
+	err = codectest.authServerCodec.ReadRequestBody(body)
 	c.Assert(err, IsNil)
 }
 
 func (s *MySuite) TestWriteResponse(c *C) {
 	body := 0
 	resp := &rpc.Response{}
-	act.wrappedServerCodec.On("WriteResponse", resp, body).Return(ErrTestCodec).Once()
-	err := act.authServerCodec.WriteResponse(resp, body)
+	codectest.wrappedServerCodec.On("WriteResponse", resp, body).Return(ErrTestCodec).Once()
+	err := codectest.authServerCodec.WriteResponse(resp, body)
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedServerCodec.On("WriteResponse", resp, body).Return(nil).Once()
-	err = act.authServerCodec.WriteResponse(resp, body)
+	codectest.wrappedServerCodec.On("WriteResponse", resp, body).Return(nil).Once()
+	err = codectest.authServerCodec.WriteResponse(resp, body)
 	c.Assert(err, IsNil)
 }
 
 func (s *MySuite) TestCloseServerCodec(c *C) {
-	act.wrappedServerCodec.On("Close").Return(ErrTestCodec).Once()
-	err := act.authServerCodec.Close()
+	codectest.wrappedServerCodec.On("Close").Return(ErrTestCodec).Once()
+	err := codectest.authServerCodec.Close()
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedServerCodec.On("Close").Return(nil).Once()
-	err = act.authServerCodec.Close()
+	codectest.wrappedServerCodec.On("Close").Return(nil).Once()
+	err = codectest.authServerCodec.Close()
 	c.Assert(err, IsNil)
 }
 
@@ -189,97 +163,68 @@ func (s *MySuite) TestCloseServerCodec(c *C) {
 func (s *MySuite) TestWriteRequest(c *C) {
 	req := &rpc.Request{ServiceMethod: "AuthenticatingCall"}
 	body := 0
-
-	act.headerErrToReturn = ErrTestCodec
-	err := act.authClientCodec.WriteRequest(req, body)
-	c.Assert(err, Equals, ErrTestCodec)
-
-	act.headerErrToReturn = nil
-	act.wrappedClientCodec.On("WriteRequest", req, body).Return(ErrTestCodec).Once()
-	err = act.authClientCodec.WriteRequest(req, body)
-	c.Assert(err, Equals, ErrTestCodec)
-
-	act.Reset()
 	header := []byte("Header1")
-	act.headerToReturn = header
-	act.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
-	err = act.authClientCodec.WriteRequest(req, body)
+	expectedHeaderLen := []byte{0, 0, 0, 7}
+
+	// Test error on BuildHeader
+	codectest.headerBuilder.On("BuildHeader").Return(nil, ErrTestCodec).Once()
+	err := codectest.authClientCodec.WriteRequest(req, body)
+	c.Assert(err, Equals, ErrTestCodec)
+
+	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
+	codectest.conn.On("Write", header).Return(7, nil).Once()
+
+	// Test error on wrapped codec
+	codectest.headerBuilder.On("BuildHeader").Return(header, nil).Once()
+	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(ErrTestCodec).Once()
+	err = codectest.authClientCodec.WriteRequest(req, body)
+	c.Assert(err, Equals, ErrTestCodec)
+
+	// Test success on authenticating call
+	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
+	codectest.conn.On("Write", header).Return(7, nil).Once()
+	codectest.headerBuilder.On("BuildHeader").Return(header, nil).Once()
+	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
+	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, IsNil)
-	headerWritten := act.ReadHeaderFromBuffer(len(header))
-	c.Assert(headerWritten, DeepEquals, header)
 
 	// Try it with a non-authenticating call, and make sure the header is empty
-	act.Reset()
-	act.headerToReturn = header
+	expectedHeader := []byte{}
+	expectedHeaderLen = []byte{0, 0, 0, 0}
+	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
+	codectest.conn.On("Write", expectedHeader).Return(0, nil).Once()
 	req.ServiceMethod = "NonAuthenticatingCall"
-	act.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
-	err = act.authClientCodec.WriteRequest(req, body)
+	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
+	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, IsNil)
-	// First 4 bytes of buffer should be 0s
-	bts := act.buff.Bytes()
-	c.Assert(bts[:4], DeepEquals, []byte{0, 0, 0, 0})
 
 }
 
 func (s *MySuite) TestReadResponseHeader(c *C) {
 	resp := &rpc.Response{}
-	act.wrappedClientCodec.On("ReadResponseHeader", resp).Return(ErrTestCodec).Once()
-	err := act.authClientCodec.ReadResponseHeader(resp)
+	codectest.wrappedClientCodec.On("ReadResponseHeader", resp).Return(ErrTestCodec).Once()
+	err := codectest.authClientCodec.ReadResponseHeader(resp)
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedClientCodec.On("ReadResponseHeader", resp).Return(nil).Once()
-	err = act.authClientCodec.ReadResponseHeader(resp)
+	codectest.wrappedClientCodec.On("ReadResponseHeader", resp).Return(nil).Once()
+	err = codectest.authClientCodec.ReadResponseHeader(resp)
 	c.Assert(err, IsNil)
 }
 
 func (s *MySuite) TestReadResponseBody(c *C) {
 	body := 0
-	act.wrappedClientCodec.On("ReadResponseBody", body).Return(ErrTestCodec).Once()
-	err := act.authClientCodec.ReadResponseBody(body)
+	codectest.wrappedClientCodec.On("ReadResponseBody", body).Return(ErrTestCodec).Once()
+	err := codectest.authClientCodec.ReadResponseBody(body)
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedClientCodec.On("ReadResponseBody", body).Return(nil).Once()
-	err = act.authClientCodec.ReadResponseBody(body)
+	codectest.wrappedClientCodec.On("ReadResponseBody", body).Return(nil).Once()
+	err = codectest.authClientCodec.ReadResponseBody(body)
 	c.Assert(err, IsNil)
 }
 
 func (s *MySuite) TestCloseClientCodec(c *C) {
-	act.wrappedClientCodec.On("Close").Return(ErrTestCodec).Once()
-	err := act.authClientCodec.Close()
+	codectest.wrappedClientCodec.On("Close").Return(ErrTestCodec).Once()
+	err := codectest.authClientCodec.Close()
 	c.Assert(err, Equals, ErrTestCodec)
-	act.wrappedClientCodec.On("Close").Return(nil).Once()
-	err = act.authClientCodec.Close()
+	codectest.wrappedClientCodec.On("Close").Return(nil).Once()
+	err = codectest.authClientCodec.Close()
 	c.Assert(err, IsNil)
-}
-
-// Make sure that the header written by the client can be read
-//  by the server
-func (s *MySuite) TestWriteAndRead(c *C) {
-	// Test for an authenticating call
-	req := &rpc.Request{ServiceMethod: "AuthenticatingCall"}
-	body := 0
-	header := []byte("Header1")
-	act.headerToReturn = header
-	act.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
-	err := act.authClientCodec.WriteRequest(req, body)
-	c.Assert(err, IsNil)
-
-	// Token is now on the buffer
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	act.identityToReturn.On("HasAdminAccess").Return(true).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
-	c.Assert(err, IsNil)
-	c.Assert(act.headerPassed, DeepEquals, header)
-
-	// Test for a non-authenticating call
-	act.Reset()
-	act.headerToReturn = header
-	req.ServiceMethod = "NonAuthenticatingCall"
-	act.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
-	err = act.authClientCodec.WriteRequest(req, body)
-	c.Assert(err, IsNil)
-	// Token is now on the buffer
-	act.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	err = act.authServerCodec.ReadRequestHeader(req)
-	c.Assert(err, IsNil)
-	c.Assert(act.headerPassed, DeepEquals, []byte{})
-
 }
