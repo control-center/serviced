@@ -52,7 +52,7 @@ func RefreshToken(f TokenFunc, filename string) (int64, error) {
 		return 0, err
 	}
 	updateToken(token, time.Unix(expires, 0), filename)
-	log.WithField("expiration", expires).Info("Received new authentication token")
+	log.WithField("expiration", expires).Debug("Received new authentication token")
 	return expires, err
 }
 
