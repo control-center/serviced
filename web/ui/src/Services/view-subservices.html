@@ -188,12 +188,11 @@
     </div>
 
     <!-- This table has running instances -->
-    <div ng-show="hasCurrentInstances() && !services.current.isIsvc()">
+    <div ng-show="hasCurrentInstances() && !services.current.isIsvc()"> 
         <h3 translate>running_tbl_instances</h3>
         <table jelly-table data-data="services.current.instances" data-config="instancesTable" class="table">
             <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
-                <td data-title="'running_tbl_instance_id'|translate" sortable="'model.InstanceID'">{{instance.model.InstanceID}}</td>
-                <td data-title="'label_service_name'|translate" sortable="'name'">{{instance.name}}</td>
+                <td data-title="'running_tbl_instance_id'|translate" sortable="'instance.model.InstanceID'">{{instance.model.InstanceID}}</td>
                 <td data-title="'label_service_status'|translate" sortable="'status.status'" style="text-align:center;">
                     <health-icon data-status="instance.status"></health-icon>
                 </td>
@@ -206,7 +205,7 @@
                     <span ng-show="instance.resources.RAMCommitment!==0" ng-class="{'bad': !instance.resourcesGood()}" class="overcomText">{{instance.resources.RAMLast|toMB:true}} / {{instance.resources.RAMMax|toMB:true}} / {{instance.resources.RAMAverage|toMB:true}} MB</span>
                 </td>
                 <td data-title="'host'|translate" sortable="'getHostName(instance.model.HostID)'" ng-click="click_host(instance.model.HostID)" class="link">{{getHostName(instance.model.HostID)}}</td>
-                <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{instance.model.DockerID|cut:false:12:"..."}}</td>
+                <td data-title="'running_tbl_docker_id'|translate" sortable="'instance.model.ContainerID'">{{instance.model.ContainerID|cut:false:12:"..."}}</td>
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="viewLog(instance)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>
@@ -216,7 +215,7 @@
                         <i class="glyphicon glyphicon-list-alt"></i>
                         <span translate>action_view_instance_log</span>
                     </a>
-                    <button ng-click="instance.stop()" class="btn btn-link action">
+                    <button ng-click="services.current.stopInstance(instance)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>

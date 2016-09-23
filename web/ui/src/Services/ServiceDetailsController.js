@@ -7,7 +7,7 @@
     'use strict';
 
     // share angular services outside of angular context
-    var $q, resourcesFactory, utils;
+    var $notification, $q, resourcesFactory, utils;
 
     // service types
     var ISVC = "isvc",           // internal service
@@ -19,8 +19,8 @@
 
         constructor(instance) {
             this.name = instance.Name;
-            this.id = instance.ID;
             this.model = Object.freeze(instance);
+            this.id = buildStateId(this.model.HostID, this.model.ServiceID, this.model.InstanceID);
 
             this.resources = {
                 RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
@@ -49,6 +49,11 @@
         }
 
     }
+
+    function buildStateId(hostid, serviceid, instanceid) {
+        return `${hostid}-${serviceid}-${instanceid}`;
+    }
+
 
     class Service {
         constructor(service) {
@@ -169,6 +174,18 @@
             return this.model.HasChildren;
         }
 
+        stopInstance(instance) {
+            resourcesFactory.killRunning(instance.model.HostID, instance.id)
+                .success(() => {
+                    this.touch();
+                })
+                .error((data, status) => {
+                    $notification.create("Stop Instance failed", data.Detail).error();
+                });
+            
+        }
+
+
         // mark services updated to trigger render via $watch
         touch() {
             this.lastUpdate = new Date().getTime();
@@ -242,11 +259,12 @@
             "$timeout", "miscUtils", "hostsFactory",
             "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
-                authService, $modalService, $translate, $notification,
+                authService, $modalService, $translate, _$notification,
                 $timeout, _utils, hostsFactory,
                 poolsFactory, CCUIState, $cookies, areUIReady, LogSearch) {
 
                 // api access via angular context
+                $notification = _$notification;
                 $q = _$q;
                 resourcesFactory = _resourcesFactory;
                 utils = _utils;
@@ -827,14 +845,14 @@
                 };
 
                 $scope.viewLog = function (instance) {
-                    $scope.editService = angular.copy(instance);
+                    let logScope = $scope.$new(true);
 
-                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.model.ID)
+                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                         .success(function (log) {
-                            $scope.editService.log = log.Detail;
+                            logScope.log = log.Detail;
                             $modalService.create({
                                 templateUrl: "view-log.html",
-                                model: $scope,
+                                model: logScope,
                                 title: "title_log",
                                 bigModal: true,
                                 actions: [
@@ -849,7 +867,7 @@
                                             var textarea = this.$el.find("textarea");
                                             resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                                                 .success(function (log) {
-                                                    $scope.editService.log = log.Detail;
+                                                    logScope.log = log.Detail;
                                                     textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                                 })
                                                 .error((data, status) => {
@@ -860,7 +878,7 @@
                                         classes: "btn-primary",
                                         label: "download",
                                         action: function () {
-                                            utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                            utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.id + '/logs/download');
                                         },
                                         icon: "glyphicon-download"
                                     }
