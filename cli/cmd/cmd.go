@@ -209,7 +209,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 // This will authenticate the host once to get a valid token for any CLI commands
 //  that require it.
-func (c *ServicedCli) authenticateHost(options *api.Options) error {
+func (c *ServicedCli) authenticateHost(options *config.Options) error {
 	// If we are the master, load the master keys
 	if options.Master {
 		masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
