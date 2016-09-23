@@ -131,6 +131,9 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	if err != nil {
 		return err
 	}
+	if host == nil {
+		return errors.New("Host does not exist")
+	}
 	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, s.expiration)
 	if err != nil {
 		return err

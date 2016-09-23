@@ -28,6 +28,10 @@ type TestAuthSuite struct {
 	masterPrivPEM   []byte
 	delegatePubPEM  []byte
 	delegatePrivPEM []byte
+	hostId          string
+	poolId          string
+	admin           bool
+	dfs             bool
 }
 
 var (
@@ -49,6 +53,11 @@ func (s *TestAuthSuite) SetUpTest(c *C) {
 
 	auth.LoadMasterKeysFromPEM(mPub, mPriv)
 	auth.LoadDelegateKeysFromPEM(mPub, dPriv)
+
+	s.hostId = "MyHost"
+	s.poolId = "MyPool"
+	s.admin = false
+	s.dfs = true
 }
 
 func (s *TestAuthSuite) TearDownTest(c *C) {

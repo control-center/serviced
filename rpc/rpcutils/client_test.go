@@ -5,7 +5,6 @@ package rpcutils
 import (
 	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"sync"
 	"testing"
 	"time"
@@ -55,6 +54,18 @@ func (rtt *RPCTestType) StructCall(arg TestArgs, reply *TestArgs) error {
 }
 
 func (s *MySuite) SetUpSuite(c *C) {
+	NonAuthenticatingCalls = []string{
+		"NonAuthenticatingCall",
+		"RPCTestType.Sleep",
+		"RPCTestType.NilReply",
+		"RPCTestType.Echo",
+		"RPCTestType.StructCall",
+		"RPCTestType.blam",
+		"Blam.blam",
+	}
+	NonAdminRequiredCalls = []string{
+		"NonAdminRequiredCall",
+	}
 	rtt = new(RPCTestType)
 	RegisterLocal("RPCTestType", rtt)
 	rpc.Register(rtt)
@@ -70,7 +81,7 @@ func (s *MySuite) SetUpSuite(c *C) {
 			if err != nil {
 				c.Errorf("Error accepting connections: %s", err)
 			}
-			go rpc.ServeCodec(jsonrpc.NewServerCodec(conn))
+			go rpc.ServeCodec(NewDefaultAuthServerCodec(conn))
 		}
 	}()
 
@@ -105,7 +116,7 @@ func (s *MySuite) TestTimeout(c *C) {
 
 	client, err := newClient("localhost:32111", 1, 10*time.Millisecond, connectRPC)
 
-	sleepTime := 100 * time.Millisecond
+	sleepTime := 1000 * time.Millisecond
 
 	var reply time.Duration
 
@@ -169,5 +180,5 @@ func (s *MySuite) TestInvalidAddress(c *C) {
 	}()
 	client, _ := newClient("1.2.3.4:1234", 1, 1, connectRPC)
 	// CC-1570: Client is lazy, so have to make a call to cause a panic
-	client.Call("whatever", nil, nil, 1)
+	client.Call("NonAuthenticatingCall", nil, nil, 1)
 }

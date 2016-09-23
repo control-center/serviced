@@ -67,7 +67,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"os"
 	"os/signal"
 	"path"
@@ -257,7 +256,7 @@ func (d *daemon) startRPC() {
 			if err != nil {
 				logger.WithError(err).Fatal("Error accepting RPC connection")
 			}
-			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+			go d.rpcServer.ServeCodec(rpcutils.NewDefaultAuthServerCodec(conn))
 		}
 	}()
 }
