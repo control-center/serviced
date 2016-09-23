@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	ADDRESS_BYTES   = 6
 	TOKEN_LEN_BYTES = 4
 	SIGNATURE_BYTES = 256
 )
