@@ -50,7 +50,18 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 		return nil, err
 	}
 
+	logger = logger.WithFields(log.Fields{
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+		"imageid":     svc.ImageID,
+	})
 	logger.Debug("Loaded service")
+
+	// get the hash of the service image
+	imageUUID, err := f.getImageUUID(ctx, svc.ImageID)
+	if err != nil {
+		return nil, err
+	}
 
 	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
 	if err != nil {
@@ -79,7 +90,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 			hostMap[state.HostID] = hst
 		}
 
-		inst, err := f.getInstance(ctx, hst, *svc, state)
+		inst, err := f.getInstance(ctx, hst, *svc, imageUUID, state)
 		if err != nil {
 			return nil, err
 		}
@@ -118,6 +129,9 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 	// keep track of the services previously looked up
 	svcMap := make(map[string]service.Service)
 
+	// keep track of the images previously looked up
+	imgMap := make(map[string]string)
+
 	var hst host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
 	if err != nil {
@@ -145,23 +159,32 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 
+		st8log := logger.WithFields(log.Fields{
+			"serviceid":  state.ServiceID,
+			"instanceid": state.InstanceID,
+		})
+
 		svc, ok := svcMap[state.ServiceID]
 		if !ok {
 			s, err := f.serviceStore.Get(ctx, state.ServiceID)
 			if err != nil {
-
-				logger.WithFields(log.Fields{
-					"serviceid":  state.ServiceID,
-					"instanceid": state.InstanceID,
-				}).WithError(err).Debug("Could not look up service for instance")
-
+				st8log.WithError(err).Debug("Could not look up service for instance")
 				return nil, err
 			}
 			svc = *s
 			svcMap[state.ServiceID] = svc
 		}
 
-		inst, err := f.getInstance(ctx, hst, svc, state)
+		imageUUID, ok := imgMap[svc.ImageID]
+		if !ok {
+			imageUUID, err = f.getImageUUID(ctx, svc.ImageID)
+			if err != nil {
+				return nil, err
+			}
+			imgMap[svc.ImageID] = imageUUID
+		}
+
+		inst, err := f.getInstance(ctx, hst, svc, imageUUID, state)
 		if err != nil {
 			return nil, err
 		}
@@ -191,42 +214,12 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 }
 
 // getInstance calculates the fields of the service instance object.
-func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, state zkservice.State) (*service.Instance, error) {
+func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, imageUUID string, state zkservice.State) (*service.Instance, error) {
 	logger := plog.WithFields(log.Fields{
 		"hostid":     state.HostID,
 		"serviceid":  state.ServiceID,
 		"instanceid": state.InstanceID,
 	})
-
-	// check the image
-	imageSynced, err := func(imageName, imageUUID string) (bool, error) {
-		imgLogger := logger.WithField("imagename", imageName)
-
-		imageID, err := commons.ParseImageID(imageName)
-		if err != nil {
-
-			imgLogger.WithError(err).Debug("Could not parse service image")
-			return false, err
-		}
-		imgLogger.Debug("Parsed service image")
-
-		imageID.Tag = docker.Latest
-		imageData, err := f.registryStore.Get(ctx, imageID.String())
-		if err != nil {
-
-			imgLogger.WithError(err).Debug("Could not look up service image in registry")
-
-			// TODO: expecting wrapped error here
-			return false, err
-		}
-		imgLogger.Debug("Loaded service image from registry")
-
-		return imageData.UUID == imageUUID, nil
-	}(svc.ImageID, state.ImageID)
-
-	if err != nil {
-		return nil, err
-	}
 
 	// get the current state
 	var curState service.CurrentState
@@ -265,7 +258,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		ServiceID:     svc.ID,
 		ServiceName:   svc.Name,
 		ContainerID:   state.ContainerID,
-		ImageSynced:   imageSynced,
+		ImageSynced:   imageUUID == state.ImageID,
 		DesiredState:  state.DesiredState,
 		CurrentState:  curState,
 		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),
@@ -277,6 +270,34 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	logger.Debug("Loaded service instance")
 
 	return inst, nil
+}
+
+// getImageUUID returns the hash of the latest image given the name
+func (f *Facade) getImageUUID(ctx datastore.Context, imageName string) (string, error) {
+	logger := plog.WithField("imagename", imageName)
+
+	if imageName == "" {
+		logger.Debug("Image name not specified")
+		return "", nil
+	}
+
+	imageID, err := commons.ParseImageID(imageName)
+	if err != nil {
+		logger.WithError(err).Debug("Could not parse service image")
+		return "", err
+	}
+	imageID.Tag = docker.Latest
+	logger = logger.WithField("imagename", imageID.String())
+	logger.Debug("Parsed service image")
+
+	imageData, err := f.registryStore.Get(ctx, imageID.String())
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up service image in image registry")
+		return "", err
+	}
+
+	logger.WithField("imageuuid", imageData.UUID).Debug("Loaded image uuid")
+	return imageData.UUID, nil
 }
 
 // GetAggregateServices returns the aggregated states of a bulk of services
