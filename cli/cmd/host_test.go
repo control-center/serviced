@@ -377,3 +377,21 @@ func ExampleServicedCLI_CmdHostRemove_complete() {
 	// test-host-id-1
 	// test-host-id-3
 }
+
+func ExampleServicedCLI_CmdHostRegister_usage() {
+	InitHostAPITest("serviced", "host", "register")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    register - Set the authentication keys to use for this host. When KEYSFILE is -, read from stdin.
+
+	// USAGE:
+	//    command register [command options] [arguments...]
+
+	// DESCRIPTION:
+	//    serviced host register KEYSFILE
+
+	// OPTIONS:
+}
