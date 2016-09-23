@@ -319,6 +319,7 @@ func (c *ServicedCli) cmdHostRegister(ctx *cli.Context) {
 	if len(args) != 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "register")
+		return
 	}
 
 	var (
