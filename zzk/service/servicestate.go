@@ -198,21 +198,21 @@ func (l *ServiceListener) getStateRequests(logger *log.Entry, stateIDs []string)
 
 // Sync synchronizes the number of running service states and returns the delta
 // of added (>0) or deleted (<0) instances.
-func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequest) (int, bool) {
+func (l *ServiceListener) Sync(isLocked bool, sn *ServiceNode, reqs []StateRequest) (int, bool) {
 	ok := true
 	count := len(reqs)
 
 	// If the service has a change option for restart all on changed, stop all
 	// instances and wait for the nodes to stop.  Once all service instances
 	// have been stopped (deleted), then go ahead and start the instances.
-	if utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
-		if count != 0 && count != svc.Instances {
-			svc.Instances = 0 // NOTE: this will not update the node in zk or elastic
+	if utils.StringInSlice("restartAllOnInstanceChanged", sn.ChangeOptions) {
+		if count != 0 && count != sn.Instances {
+			sn.Instances = 0 // NOTE: this will not update the node in zk or elastic
 		}
 	}
 
 	// Do not create instances if service is locked
-	if isLocked && count < svc.Instances {
+	if isLocked && count < sn.Instances {
 		return 0, ok
 	}
 
@@ -222,7 +222,7 @@ func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequ
 	// Start instances if there is a deficit
 	delta := 0
 	i := -1
-	for ; count < svc.Instances; count++ {
+	for ; count < sn.Instances; count++ {
 		// Assuming that instanceIDs are gte 0 and that all instance IDs are
 		// unique for a service, find the first index that does not match the
 		// instanceID value.
@@ -234,7 +234,7 @@ func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequ
 		}
 
 		// Create the instance if the service is not locked
-		if !l.Start(svc, i) {
+		if !l.Start(sn, i) {
 			return delta, false
 		}
 		delta++
@@ -249,8 +249,8 @@ func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequ
 	}
 
 	// Stop instances if there is a surplus
-	if count > svc.Instances {
-		delta, pass := l.Stop(reqs[svc.Instances:])
+	if count > sn.Instances {
+		delta, pass := l.Stop(reqs[sn.Instances:])
 		return -delta, ok && pass
 	}
 
@@ -258,16 +258,18 @@ func (l *ServiceListener) Sync(isLocked bool, svc *ServiceNode, reqs []StateRequ
 }
 
 // Start schedules a service instance
-func (l *ServiceListener) Start(svc *ServiceNode, instanceID int) bool {
+func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
 
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"instanceid":  instanceID,
+		"serviceid":                   sn.ID,
+		"servicename":                 sn.Name,
+		"shouldhaveaddressassignment": sn.ShouldHaveAddressAssignment,
+		"addressassignment":           sn.AddressAssignment,
+		"instanceid":                  instanceID,
 	})
 
 	// pick a host
-	hostID, err := l.handler.SelectHost(svc)
+	hostID, err := l.handler.SelectHost(sn)
 	if err != nil {
 
 		logger.WithError(err).Warn("Could not select host")
@@ -278,7 +280,7 @@ func (l *ServiceListener) Start(svc *ServiceNode, instanceID int) bool {
 	req := StateRequest{
 		PoolID:     l.poolid,
 		HostID:     hostID,
-		ServiceID:  svc.ID,
+		ServiceID:  sn.ID,
 		InstanceID: instanceID,
 	}
 

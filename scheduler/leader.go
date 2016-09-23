@@ -88,6 +88,10 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	}
 
 	assignment := sn.AddressAssignment
+	if sn.ShouldHaveAddressAssignment && assignment.IPAddr == "" {
+		plog.WithField("endpoint", sn.Name).Debug("Service is missing an address assignment")
+		return "", errors.New("service is missing an address assignment")
+	}
 
 	if assignment.IPAddr != "" {
 		logger = logger.WithFields(log.Fields{

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"path"
 
-	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -39,15 +38,16 @@ func (err ServiceError) Error() string {
 
 // ServiceNode is the storage object for service data
 type ServiceNode struct {
-	ID                string
-	Name              string
-	DesiredState      int
-	HostPolicy        servicedefinition.HostPolicy
-	Instances         int
-	RAMCommitment     utils.EngNotation
-	CPUCommitment     uint64
-	ChangeOptions     []string
-	AddressAssignment addressassignment.AddressAssignment
+	ID                          string
+	Name                        string
+	DesiredState                int
+	HostPolicy                  servicedefinition.HostPolicy
+	Instances                   int
+	RAMCommitment               utils.EngNotation
+	CPUCommitment               uint64
+	ChangeOptions               []string
+	AddressAssignment           addressassignment.AddressAssignment
+	ShouldHaveAddressAssignment bool
 	//non-service fields
 	Locked  bool
 	version interface{}
@@ -62,14 +62,13 @@ func NewServiceNodeFromService(s *service.Service) (*ServiceNode, error) {
 		RAMCommitment: s.RAMCommitment,
 		ChangeOptions: s.ChangeOptions,
 	}
-	// make sure all of the applicable endpoints have address assignments
-	for _, ep := range s.Endpoints {
-		if ep.IsConfigurable() {
-			if ep.AddressAssignment.IPAddr != "" {
+
+	// Copy address assignment if it exists. Note whether assignment is expected, so the scheduler can verify it later.
+	if s.Endpoints != nil {
+		for _, ep := range s.Endpoints {
+			if ep.IsConfigurable() {
+				sn.ShouldHaveAddressAssignment = true
 				sn.AddressAssignment = ep.AddressAssignment
-			} else {
-				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
-				return nil, errors.New("service is missing an address assignment")
 			}
 		}
 	}
@@ -99,7 +98,7 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 
 	// create the /services path if it doesn't exist
 	if err := conn.CreateIfExists("/services", &client.Dir{}); err != nil && err != client.ErrNodeExists {
-		logger.WithError(err).Debug("Could not initialize services path in zookeeper")
+		logger.WithError(err).Error("Could not initialize services path in zookeeper")
 		return &ServiceError{
 			Action:    "update",
 			ServiceID: svc.ID,
@@ -111,7 +110,7 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 	// setLockOnCreate sets the lock as the node is created
 	sn, err := NewServiceNodeFromService(&svc)
 	if err != nil {
-		logger.WithError(err).Debug("Could not create service node from service")
+		logger.WithError(err).Error("Could not create service node from service")
 		return &ServiceError{
 			Action:    "update",
 			ServiceID: svc.ID,
@@ -125,8 +124,7 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 		// the node exists so get it and update it
 		node := &ServiceNode{}
 		if err := conn.Get(pth, node); err != nil && err != client.ErrEmptyNode {
-
-			logger.WithError(err).Debug("Could not get service entry from zookeeper")
+			logger.WithError(err).Error("Could not get service entry from zookeeper")
 			return &ServiceError{
 				Action:    "update",
 				ServiceID: svc.ID,
@@ -141,8 +139,7 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 		}
 		sn.SetVersion(node.Version())
 		if err := conn.Set(pth, sn); err != nil {
-
-			logger.WithError(err).Debug("Could not update service entry in zookeeper")
+			logger.WithError(err).Error("Could not update service entry in zookeeper")
 			return &ServiceError{
 				Action:    "update",
 				ServiceID: svc.ID,
@@ -153,8 +150,7 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 		logger.Debug("Updated entry for service in zookeeper")
 		return nil
 	} else if err != nil {
-
-		logger.WithError(err).Debug("Could not create service entry in zookeeper")
+		logger.WithError(err).Error("Could not create service entry in zookeeper")
 		return &ServiceError{
 			Action:    "update",
 			ServiceID: svc.ID,
@@ -164,33 +160,6 @@ func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate,
 
 	logger.Debug("Created entry for service in zookeeper")
 	return nil
-}
-
-// getLiteService prepares a service object as it is written into zookeeper
-func getLiteService(svc service.Service) *service.Service {
-	return &service.Service{
-		ID:              svc.ID,
-		Name:            svc.Name,
-		Startup:         svc.Startup,
-		Environment:     svc.Environment,
-		Instances:       svc.Instances,
-		ChangeOptions:   svc.ChangeOptions,
-		ImageID:         svc.ImageID,
-		LogConfigs:      svc.LogConfigs,
-		DesiredState:    svc.DesiredState,
-		HostPolicy:      svc.HostPolicy,
-		Privileged:      svc.Privileged,
-		Endpoints:       svc.Endpoints,
-		Volumes:         svc.Volumes,
-		Snapshot:        svc.Snapshot,
-		RAMCommitment:   svc.RAMCommitment,
-		CPUCommitment:   svc.CPUCommitment,
-		HealthChecks:    svc.HealthChecks,
-		MemoryLimit:     svc.MemoryLimit,
-		CPUShares:       svc.CPUShares,
-		ParentServiceID: svc.ParentServiceID,
-		Hostname:        svc.Hostname,
-	}
 }
 
 // RemoveService deletes a service if the service has no running states
