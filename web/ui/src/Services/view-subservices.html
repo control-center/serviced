@@ -64,7 +64,7 @@
           </span>
       </div>
 
-      <table jelly-table data-data="publicEndpoints.data" data-config="publicEndpointsTable" class="table">
+      <table jelly-table data-data="services.current.publicEndpoints" data-config="publicEndpointsTable" class="table">
           <tr ng-repeat="publicEndpoint in $data">
               <td data-title="'vhost_application'|translate" sortable="'Application'">
                   <a href="#/services/{{publicEndpoint.ApplicationId}}" class="link" ng-click="routeToService(publicEndpoint.ApplicationId, $event)">{{publicEndpoint.Application}}</a>
@@ -96,7 +96,7 @@
     <!-- IP Assignments -->
     <div ng-show="!services.current.isIsvc()">
         <h3 class="pull-left" translate>label_ip_assignments</h3>
-        <table jelly-table data-data="ips.data" data-config="ipsTable" class="table">
+        <table jelly-table data-data="services.current.addresses" data-config="ipsTable" class="table">
             <tr ng-repeat="ip in $data">
                 <td data-title="'tbl_virtual_ip_service'|translate" sortable="'ServiceName'">
                     <a href="#/services/{{ip.ServiceID}}" class="link" ng-click="routeToService(ip.ServiceID, $event)">{{ip.ServiceName}}</a>
@@ -118,8 +118,8 @@
     <!-- Config Files -->
     <div ng-show="!services.current.isIsvc()">
         <h3 class="pull-left" translate>title_config_files</h3>
-        <table jelly-table data-data="services.current.model.ConfigFiles" data-config="configTable" class="table">
-            <tr ng-repeat="configFile in services.current.model.ConfigFiles">
+        <table jelly-table data-data="services.current.configs" data-config="configTable" class="table">
+            <tr ng-repeat="configFile in services.current.configs">
                 <td data-title="'path'|translate" sortable="'Filename'">{{ configFile.Filename }}</td>
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="editConfig(configFile.Filename)" class="btn btn-link action">
@@ -132,9 +132,9 @@
     </div>
 
     <!-- SERVICES -->
-    <div ng-show="services.subservices.length">
+    <div ng-show="services.current.subservices.length">
         <h3 translate>title_services</h3>
-        <table jelly-table data-data="services.subservices" data-config="servicesTable" class="table">
+        <table jelly-table data-data="services.current.subservices" data-config="servicesTable" class="table">
             <thead>
                 <tr>
                   <th style="width: 200px;" translate>label_service</th>
@@ -143,24 +143,24 @@
                   <th style="width: 210px;" ng-if="!services.current.isIsvc()" translate>running_tbl_actions</th>
                 </tr>
             </thead>
-            <tr ng-repeat="app in $data" data-id="{{app.model.ID}}" ng-hide="services.currentTreeState[app.id].hidden">
+            <tr ng-repeat="app in $data" data-id="{{app.id}}" ng-hide="services.currentTreeState[app.id].hidden">
               <td data-title="'label_service'|translate" style="overflow: hidden; white-space: nowrap;">
                 <span ng-style="calculateIndent(app)"></span>
-                <span ng-if="app.children.length" ng-click="toggleChildren(app)" class="table-collapse glyphicon" ng-class="services.currentTreeState[app.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
-                <span ng-if="!app.children.length" ng-style="indent(1)"></span>
-                <a href="#/services/{{app.model.ID}}" ng-click="routeToService(app.model.ID, $event)" class="link">
-                    {{app.model.Name}}
+                <span ng-if="app.hasChildren()" ng-click="toggleChildren(app.id)" class="table-collapse glyphicon" ng-class="services.currentTreeState[app.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
+                <span ng-if="!app.hasChildren()" ng-style="indent(1)"></span>
+                <a href="#/services/{{app.id}}" ng-click="routeToService(app.id, $event)" class="link">
+                    {{app.name}}
                     <div class="overcomIndicator" ng-class="{'bad': !app.resourcesGood() && !app.isIsvc()}" title="An instance is oversubscribed."></div>
                     <span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span>
                 </a>
               </td>
               <td data-title="'Instances'" style="text-align:center;">
-                <div ng-if="!app.children.length">
+                <div ng-if="!app.hasChildren()">
                     <health-icon data-status="app.status"></health-icon>
                 </div>
               </td>
               <td data-title="'deployed_tbl_description'|translate">
-                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.model.Description}}">
+                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Description}}">
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!services.current.isIsvc()">
                 <div ng-if="!app.isIsvc()">
@@ -190,33 +190,33 @@
     <!-- This table has running instances -->
     <div ng-show="hasCurrentInstances() && !services.current.isIsvc()">
         <h3 translate>running_tbl_instances</h3>
-        <table jelly-table data-data="services.current.getServiceInstances()" data-config="instancesTable" class="table">
-            <tr ng-repeat="app in $data" data-id="{{app.id}}.{{app.model.InstanceID}}">
-                <td data-title="'running_tbl_instance_id'|translate" sortable="'model.InstanceID'">{{app.model.InstanceID}}</td>
-                <td data-title="'label_service_name'|translate" sortable="'name'">{{app.name}}</td>
+        <table jelly-table data-data="services.current.instances" data-config="instancesTable" class="table">
+            <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
+                <td data-title="'running_tbl_instance_id'|translate" sortable="'model.InstanceID'">{{instance.model.InstanceID}}</td>
+                <td data-title="'label_service_name'|translate" sortable="'name'">{{instance.name}}</td>
                 <td data-title="'label_service_status'|translate" sortable="'status.status'" style="text-align:center;">
-                    <health-icon data-status="app.status"></health-icon>
+                    <health-icon data-status="instance.status"></health-icon>
                 </td>
                 <td data-title="'RAM Commitment'" style="text-align:left;">
-                    <span ng-show="app.resources.RAMCommitment===0">N/A</span>
-                    <span ng-show="app.resources.RAMCommitment!==0" ng-class="{'bad': !app.resourcesGood()}" class="overcomText">{{app.resources.RAMCommitment|toMB}}</span>
+                    <span ng-show="instance.resources.RAMCommitment===0">N/A</span>
+                    <span ng-show="instance.resources.RAMCommitment!==0" ng-class="{'bad': !instance.resourcesGood()}" class="overcomText">{{instance.resources.RAMCommitment|toMB}}</span>
                 </td>
                 <td data-title="'RAM Cur/Max/Avg'" style="text-align:left;">
-                    <span ng-show="app.resources.RAMCommitment===0">N/A</span>
-                    <span ng-show="app.resources.RAMCommitment!==0" ng-class="{'bad': !app.resourcesGood()}" class="overcomText">{{app.resources.RAMLast|toMB:true}} / {{app.resources.RAMMax|toMB:true}} / {{app.resources.RAMAverage|toMB:true}} MB</span>
+                    <span ng-show="instance.resources.RAMCommitment===0">N/A</span>
+                    <span ng-show="instance.resources.RAMCommitment!==0" ng-class="{'bad': !instance.resourcesGood()}" class="overcomText">{{instance.resources.RAMLast|toMB:true}} / {{instance.resources.RAMMax|toMB:true}} / {{instance.resources.RAMAverage|toMB:true}} MB</span>
                 </td>
-                <td data-title="'host'|translate" sortable="'getHostName(app.model.HostID)'" ng-click="click_host(app.model.HostID)" class="link">{{getHostName(app.model.HostID)}}</td>
-                <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{app.model.DockerID|cut:false:12:"..."}}</td>
+                <td data-title="'host'|translate" sortable="'getHostName(instance.model.HostID)'" ng-click="click_host(instance.model.HostID)" class="link">{{getHostName(instance.model.HostID)}}</td>
+                <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{instance.model.DockerID|cut:false:12:"..."}}</td>
                 <td data-title="'running_tbl_actions'|translate">
-                    <button ng-click="viewLog(app)" class="btn btn-link action">
+                    <button ng-click="viewLog(instance)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>
                         <span translate>action_view_container_log</span>
                     </button>
-                    <a target="_blank" ng-href="{{getInstanceLogURL(app)}}" class="btn btn-link action">
+                    <a target="_blank" ng-href="{{getInstanceLogURL(instance)}}" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>
                         <span translate>action_view_instance_log</span>
                     </a>
-                    <button ng-click="app.stop()" class="btn btn-link action">
+                    <button ng-click="instance.stop()" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>

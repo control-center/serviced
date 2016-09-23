@@ -312,6 +312,45 @@
             }
         };
 
+        var v2MethodConfigs = {
+            getService: {
+                method: GET,
+                url: id => `/api/v2/services/${id}`,
+            },
+            getServiceChildren: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/services`,
+            },
+            getServiceConfigs: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/serviceconfigs`,
+            },
+            getServiceContext: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/context`,
+            },
+            getServiceInstances: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/instances`,
+            },
+            getServiceIpAssignments: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/ipassignments?includeChildren`,
+            },
+            getServicePublicEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/publicendpoints`,
+            },
+            getServices: {
+                method: GET,
+                url: since => `/api/v2/services${ since ? "?since="+ since : ""}`,
+            },
+            getServiceStatus: {
+                method: GET,
+                url: id => `/api/v2/statuses?serviceId=${id}`,
+            }
+        };
+
         // adds success and error functions
         // to regular promise ala $http
         function httpify(deferred){
@@ -457,6 +496,13 @@
         // to interface
         for(var name in methodConfigs){
             resourcesFactoryInterface[name] = generateMethod(methodConfigs[name]);
+        }
+
+        // generate Version 2 API methods and attach
+        // to interface
+        resourcesFactoryInterface.v2 = {};
+        for(var name in v2MethodConfigs){
+            resourcesFactoryInterface.v2[name] = generateMethod(v2MethodConfigs[name]);
         }
 
         return resourcesFactoryInterface;
