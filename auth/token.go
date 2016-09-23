@@ -67,6 +67,20 @@ func AuthToken() string {
 	return currentToken
 }
 
+// A non-blocking call to get an unexpired auth token.  Returns an error
+//  If no token exists or if the token is expired
+func AuthTokenNonBlocking() (string, error) {
+	if currentToken == "" {
+		return "", ErrNotAuthenticated
+	}
+
+	if expired() {
+		return "", ErrIdentityTokenExpired
+	}
+
+	return currentToken, nil
+}
+
 // CurrentIdentity returns the identity represented by the currently-live token,
 // or nil if the token is not yet available
 func CurrentIdentity() Identity {
