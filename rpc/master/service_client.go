@@ -56,7 +56,7 @@ func (c *Client) GetService(serviceID string) (*service.Service, error) {
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (c *Client) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
 	request := EvaluateServiceRequest{
-		ServiceID: serviceID,
+		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
 	response := EvaluateServiceResponse{}

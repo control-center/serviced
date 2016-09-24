@@ -90,7 +90,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -132,7 +132,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -177,7 +177,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -278,7 +278,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_ServiceNotFound(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -314,7 +314,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -386,7 +386,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -413,7 +413,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",

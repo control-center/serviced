@@ -19,10 +19,10 @@ import (
 
 // Defines a request to get a list of endpoints for one or more services
 type EndpointRequest struct {
-	ServiceIDs []string
+	ServiceIDs    []string
 	ReportImports bool
 	ReportExports bool
-	Validate   bool
+	Validate      bool
 }
 
 // Get the endpoints for one or more services

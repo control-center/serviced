@@ -115,11 +115,9 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 // StartContainer creates a new container and starts.  It returns info about
 // the container, and an event monitor to track the running state of the
 // service.
-// FIXME - when integrated with changes for CC-2590, the partialSvc parameter should be replaced with the handful of
-//         props we really need; e.g. ID & ImageID
-func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *service.Service, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
+func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, instanceID int) (*zkservice.ServiceState, <-chan time.Time, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":  partialSvc.ID,
+		"serviceid":  serviceID,
 		"instanceid": instanceID,
 	})
 
@@ -131,7 +129,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 	}
 	defer masterClient.Close()
 
-	evaluatedService, tenantID, err := masterClient.GetEvaluatedService(partialSvc.ID, instanceID)
+	evaluatedService, tenantID, err := masterClient.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
@@ -152,29 +150,14 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 		logger.WithError(err).Error("Failed to get the system user account")
 		return nil, nil, err
 	}
-	logger.WithField("systemUser", systemUser.Name).Debug("Got system user")
+	logger.WithField("systemuser", systemUser.Name).Debug("Got system user")
 
 	// get the container configs
-	conf, hostConf, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser)
+	ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser, imageUUID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
 	}
-
-	// create the container
-	opts := dockerclient.CreateContainerOptions{
-		Name:       fmt.Sprintf("%s-%d", evaluatedService.ID, instanceID),
-		Config:     conf,
-		HostConfig: hostConf,
-	}
-
-	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
-	if err != nil {
-		logger.WithError(err).Debug("Could not create container")
-		return nil, nil, err
-	}
-	logger = logger.WithField("containerid", ctr.ID)
-	logger.Debug("Created a new container")
 
 	// start the container
 	ev := a.monitorContainer(logger, ctr)
@@ -193,58 +176,27 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, partialSvc *servic
 		return nil, nil, err
 	}
 
-	state := &zkservice.ServiceState{
-		ContainerID: ctr.ID,
-		ImageID:     imageUUID,
-		Paused:      false,
-		PrivateIP:   ctr.NetworkSettings.IPAddress,
-		HostIP:      a.ipaddress,
-		Started:     dctr.State.StartedAt,
-	}
-
-	var assignedIP string
-	var static bool
-	for _, ep := range evaluatedService.Endpoints {
-		if ep.Purpose == "export" {
-			var assignedPortNumber uint16
-			if a := ep.GetAssignment(); a != nil {
-				assignedIP = ep.AddressAssignment.IPAddr
-				static = ep.AddressAssignment.AssignmentType == commons.STATIC
-				assignedPortNumber = a.Port
-			}
-
-			// set the export data
-			state.Exports = append(state.Exports, zkservice.ExportBinding{
-				Application:        ep.Application,
-				Protocol:           ep.Protocol,
-				PortNumber:         ep.PortNumber,
-				AssignedPortNumber: assignedPortNumber,
-			})
-		} else {
-			state.Imports = append(state.Imports, zkservice.ImportBinding{
-				Application:    ep.Application,
-				Purpose:        ep.Purpose,
-				PortNumber:     ep.PortNumber,
-				PortTemplate:   ep.PortTemplate,
-				VirtualAddress: ep.VirtualAddress,
-			})
-		}
-	}
-	state.AssignedIP = assignedIP
-	state.Static = static
+	state.HostIP = a.ipaddress
+	state.PrivateIP = ctr.NetworkSettings.IPAddress
+	state.Started = dctr.State.StartedAt
 
 	go a.exposeAssignedIPs(state, ctr)
 	return state, ev, nil
 }
 
 // ResumeContainer resumes a paused container
-func (a *HostAgent) ResumeContainer(svc *service.Service, instanceID int) error {
+func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":     svc.ID,
-		"servicename":   svc.Name,
-		"resumecommand": svc.Snapshot.Resume,
-		"instanceid":    instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
+
+	svc, err := a.getService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Unable to retrieve service")
+		return nil
+	}
+
 	ctrName := fmt.Sprintf("%s-%d", svc.ID, instanceID)
 
 	// check to see if the container exists and is running
@@ -271,14 +223,12 @@ func (a *HostAgent) ResumeContainer(svc *service.Service, instanceID int) error 
 }
 
 // PauseContainer pauses a running container
-func (a *HostAgent) PauseContainer(svc *service.Service, instanceID int) error {
+func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":    svc.ID,
-		"servicename":  svc.Name,
-		"pausecommand": svc.Snapshot.Pause,
-		"instanceid":   instanceID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
 	})
-	ctrName := fmt.Sprintf("%s-%d", svc.ID, instanceID)
+	ctrName := fmt.Sprintf("%s-%d", serviceID, instanceID)
 
 	// check to see if the container exists and is running
 	ctr, err := docker.FindContainer(ctrName)
@@ -290,6 +240,13 @@ func (a *HostAgent) PauseContainer(svc *service.Service, instanceID int) error {
 	if !ctr.IsRunning() {
 		// container has stopped and the event monitor should catch this
 		logger.Debug("Container stopped")
+		return nil
+	}
+
+	// Get the service from the client
+	svc, err := a.getService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Unable to get service")
 		return nil
 	}
 
@@ -421,6 +378,29 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 	}
 }
 
+func (a *HostAgent) getService(serviceID string) (*service.Service, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid": serviceID,
+	})
+
+	// Establish a connection to the master
+	masterClient, err := master.NewClient(a.master)
+	if err != nil {
+		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
+		return nil, err
+	}
+	defer masterClient.Close()
+
+	// Get the service from the master
+	svc, err := masterClient.GetService(serviceID)
+	if err != nil {
+		logger.WithError(err).Debug("Unable to get the service")
+		return nil, err
+	}
+
+	return svc, nil
+}
+
 // dockerLogsToFile dumps container logs to file
 func dockerLogsToFile(containerid string, numlines int) {
 	// TODO: need to get logs from api
@@ -450,14 +430,39 @@ func dockerLogsToFile(containerid string, numlines int) {
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User) (*dockerclient.Config, *dockerclient.HostConfig, error) {
+func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
-		"tenantID":    tenantID,
-		"serviceName": svc.Name,
-		"serviceID":   svc.ID,
-		"instanceID":  instanceID,
+		"tenantid":    tenantID,
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+		"instanceid":  instanceID,
 	})
+	cfg, hcfg, state, err := a.createContainerConfig(tenantID, svc, instanceID, systemUser, imageUUID)
+	if err != nil {
+		logger.WithError(err).Error("Unable to create container configuration")
+		return nil, nil, err
+	}
 
+	ctr, err := a.createContainer(cfg, hcfg, svc.ID, instanceID)
+	if err != nil {
+		logger.WithFields(log.Fields{
+			"image":      cfg.Image,
+			"instanceid": instanceID,
+		}).WithError(err).Error("Could not create container")
+		return nil, nil, err
+	}
+	state.ContainerID = ctr.ID
+
+	return ctr, state, nil
+}
+
+func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
+	logger := plog.WithFields(log.Fields{
+		"tenantid":    tenantID,
+		"servicename": svc.Name,
+		"serviceid":   svc.ID,
+		"instanceid":  instanceID,
+	})
 	cfg := &dockerclient.Config{}
 	hcfg := &dockerclient.HostConfig{}
 
@@ -468,7 +473,14 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
 	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
+	state := &zkservice.ServiceState{
+		ImageUUID: imageUUID,
+		Paused:    false,
+		HostIP:    a.ipaddress,
+	}
 
+	var assignedIP string
+	var static bool
 	if svc.Endpoints != nil {
 		logger.WithField("endpoints", svc.Endpoints).Debug("Endpoints for service")
 		for _, endpoint := range svc.Endpoints {
@@ -482,8 +494,33 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 				}
 				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
 				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
+
+				var assignedPortNumber uint16
+				if a := endpoint.GetAssignment(); a != nil {
+					assignedIP = endpoint.AddressAssignment.IPAddr
+					static = endpoint.AddressAssignment.AssignmentType == commons.STATIC
+					assignedPortNumber = a.Port
+				}
+
+				// set the export data
+				state.Exports = append(state.Exports, zkservice.ExportBinding{
+					Application:        endpoint.Application,
+					Protocol:           endpoint.Protocol,
+					PortNumber:         endpoint.PortNumber,
+					AssignedPortNumber: assignedPortNumber,
+				})
+			} else {
+				state.Imports = append(state.Imports, zkservice.ImportBinding{
+					Application:    endpoint.Application,
+					Purpose:        endpoint.Purpose,
+					PortNumber:     endpoint.PortNumber,
+					PortTemplate:   endpoint.PortTemplate,
+					VirtualAddress: endpoint.VirtualAddress,
+				})
 			}
 		}
+		state.AssignedIP = assignedIP
+		state.Static = static
 	}
 
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
@@ -496,41 +533,31 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 
 		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
-		resourcePath = strings.TrimSpace(resourcePath)
-		containerPath := strings.TrimSpace(volume.ContainerPath)
-		bindsMap[containerPath] = resourcePath
+		addBindingToMap(bindsMap, volume.ContainerPath, resourcePath)
 	}
 
 	// mount serviced path
 	dir, _, err := ExecPath()
 	if err != nil {
 		logger.WithError(err).Error("Error getting the path to the serviced executable")
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	dir, binary := filepath.Split(a.controllerBinary)
-	resourcePath := strings.TrimSpace(dir)
-	containerPath := strings.TrimSpace("/serviced")
-	bindsMap[containerPath] = resourcePath
+	addBindingToMap(bindsMap, "/serviced", dir)
 
 	// bind mount everything we need for filebeat
 	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
-		resourcePath := strings.TrimSpace(logstashPath)
-		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		bindsMap[containerPath] = resourcePath
-		logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Debug("Added logstash bindmount")
+		addBindingToMap(bindsMap, LOGSTASH_CONTAINER_DIRECTORY, logstashPath)
 	}
 
 	// Bind mount the keys we need
-	containerPath = "/etc/serviced"
-	resourcePath = filepath.Dir(a.delegateKeyFile)
-	bindsMap[containerPath] = resourcePath
-	logger.WithField("bindmount", fmt.Sprintf("%s:%s", resourcePath, containerPath)).Debug("Added etc bindmount")
+	addBindingToMap(bindsMap, "/etc/serviced", filepath.Dir(a.delegateKeyFile))
 
 	// specify temporary volume paths for docker to create
 	tmpVolumes := []string{"/tmp"}
@@ -559,9 +586,9 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 				containerPath = splitMount[2]
 			}
 			logger.WithFields(log.Fields{
-				"requestedImage": requestedImage,
-				"hostPath":       hostPath,
-				"containerPath":  containerPath,
+				"requestedimage": requestedImage,
+				"hostpath":       hostPath,
+				"containerpath":  containerPath,
 			}).Debug("Parsed out bind mount information")
 
 			// insert tenantId into requestedImage - see facade.DeployService
@@ -572,7 +599,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 				imageID, err := commons.ParseImageID(requestedImage)
 				if err != nil {
 					logger.WithError(err).
-						WithField("requestedImageID", requestedImage).
+						WithField("requestedimageid", requestedImage).
 						Error("Unable to parse requested ImageID")
 					continue
 				}
@@ -585,16 +612,14 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 			}
 
 			logger.WithFields(log.Fields{
-				"matchedRequestedImage": matchedRequestedImage,
+				"matchedrequestedimage": matchedRequestedImage,
 			}).Debug("Finished evaluation for matchedRequestedImage")
 
 			if matchedRequestedImage {
-				hostPath = strings.TrimSpace(hostPath)
-				containerPath = strings.TrimSpace(containerPath)
-				bindsMap[containerPath] = hostPath
+				addBindingToMap(bindsMap, containerPath, hostPath)
 			}
 		} else {
-			logger.WithField("bindMount", bindMountString).
+			logger.WithField("bindmount", bindMountString).
 				Warn("Could not bind mount the requested mount point")
 		}
 	}
@@ -610,7 +635,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	ips, err := utils.GetIPv4Addresses()
 	if err != nil {
 		logger.WithError(err).Error("Unable to get host IP addresses")
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
@@ -695,5 +720,38 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 			Hard: 0,
 		},
 	}
-	return cfg, hcfg, nil
+	return cfg, hcfg, state, nil
+}
+
+func (a *HostAgent) createContainer(conf *dockerclient.Config, hostConf *dockerclient.HostConfig, svcID string, instanceID int) (*docker.Container, error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  svcID,
+		"instanceid": instanceID,
+	})
+
+	// create the container
+	opts := dockerclient.CreateContainerOptions{
+		Name:       fmt.Sprintf("%s-%d", svcID, instanceID),
+		Config:     conf,
+		HostConfig: hostConf,
+	}
+
+	ctr, err := docker.NewContainer(&opts, false, 10*time.Second, nil, nil)
+	if err != nil {
+		logger.WithError(err).Error("Could not create container")
+		return nil, err
+	}
+	logger.WithField("containerid", ctr.ID).Debug("Created a new container")
+	return ctr, nil
+}
+
+func addBindingToMap(bindsMap map[string]string, cp, rp string) {
+	rp = strings.TrimSpace(rp)
+	cp = strings.TrimSpace(cp)
+	if len(rp) > 0 && len(cp) > 0 {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Debug("Adding path to bindsMap")
+		bindsMap[cp] = rp
+	} else {
+		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
+	}
 }

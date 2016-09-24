@@ -40,8 +40,8 @@ type EvaluateServiceRequest struct {
 }
 
 type EvaluateServiceResponse struct {
-	Service   service.Service
-	TenantID  string
+	Service  service.Service
+	TenantID string
 }
 
 // Use a new image for a given service - this will pull the image and tag it
