@@ -1,5 +1,8 @@
 
-When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |method, url|
+When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |method, path|
+
+  host = ENV["APPLICATION_URL"]
+  url = %$https://#{host}#{path}$
   request_url = URI.encode resolve(url)
   if 'GET' == %/#{method}/ and $cache.has_key? %/#{request_url}/
     @response = $cache[%/#{request_url}/]
