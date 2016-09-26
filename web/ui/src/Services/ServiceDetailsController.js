@@ -190,7 +190,7 @@
             this.lastUpdate = new Date().getTime();
         }
 
-        // kicks off request to update instances and service state
+        // kicks off request to update fast-moving instances and service state
         fetchAllStates() {
             return $q.all([this.fetchInstances(), this.getStatus()])
                 .then(results => {
@@ -220,6 +220,7 @@
                 }
                 i.updateState(s);
             });
+            this.touch();
         }
 
     }
@@ -971,6 +972,8 @@
 
                 };
 
+                // updates URL and current service ID
+                // which triggers UI update 
                 $scope.routeToService = function (id, e) {
                     // if an event is present, we may
                     // need to prevent it from performing
@@ -996,8 +999,6 @@
 
                     $location.update_path("/services/" + id, true);
                     $scope.params.serviceId = id;
-                    // $scope.currentService = servicesFactory.get($scope.params.serviceId);
-                    $scope.update();
                 };
 
                 // restart all running instances for this service
@@ -1162,7 +1163,7 @@
                 };
 
                 $scope.hasCurrentInstances = function () {
-                    return $scope.services && $scope.currentService && $scope.currentService.hasInstances();
+                    return $scope.currentService && $scope.currentService.hasInstances();
                 };
 
                 $scope.editCurrentService = function () {
@@ -1222,60 +1223,51 @@
                     return $scope.indent(indent - offset);
                 };
 
+                $scope.setCurrentTreeState = function () {
+                    // create an entry in tree state for the current service
+                    if (!($scope.currentService.id in $scope.serviceTreeState)) {
+                        $scope.serviceTreeState[$scope.currentService.id] = {};
+                    }
+                    var treeState = $scope.serviceTreeState[$scope.currentService.id];
 
-                $scope.setCurrentService = function() {
+                    // initialize services as collapsed
+                    if ($scope.currentService.subservices) {
+                        $scope.currentService.subservices.forEach(svc => {
+                            if (!treeState[svc.id]) {
+                                console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
+                                treeState[svc.id] = {
+                                    hidden: false,
+                                    collapsed: true
+                                };
+                            }
+                        });
+                    }
+                }
+
+                $scope.setCurrentService = function () {
 
                     $scope.currentService = undefined;
                     $scope.getService($scope.params.serviceId)
                         .then(function (model) {
+                            console.log("SET CURRENT SERVICE --------------");
+
                             $scope.currentService = new Service(model);
                             // fetchAll() will trigger update at completion
                             $scope.currentService.fetchAll();
+
+                            // setup breadcrumbs
+                            $scope.breadcrumbs = makeCrumbs($scope.currentService);
+
+                            // update serviceTreeState
+                            $scope.setCurrentTreeState();
+
+                            // property for view to bind for tree state
+                            $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
+
+                            // update fast-moving statuses
+                            $scope.currentService.fetchAllStates();
                         });
                 };
-
-                $scope.update = function () {
-
-                    console.log("UPDATE --------------");
-
-                    if ($scope.currentService) {
-
-                        // setup breadcrumbs
-                        $scope.breadcrumbs = makeCrumbs($scope.currentService);
-
-                        // update serviceTreeState
-                        $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
-
-                        // update pools
-                        $scope.pools = poolsFactory.poolList;
-
-                        // create an entry in tree state for the
-                        // current service
-                        if (!($scope.currentService.id in $scope.serviceTreeState)) {
-                            $scope.serviceTreeState[$scope.currentService.id] = {};
-                        }
-                        var treeState = $scope.serviceTreeState[$scope.currentService.id];
-
-                        // initialize services as collapsed
-                        if ($scope.currentService.subservices) {
-                            $scope.currentService.subservices.forEach(svc => {
-                                if (!treeState[svc.id]) {
-                                    console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
-                                    treeState[svc.id] = {
-                                        hidden: false,
-                                        collapsed: true
-                                    };
-                                }
-                            });
-                        }
-
-                        // property for view to bind for tree state
-                        $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
-
-                    }
-
-                };
-
 
                 function init() {
 
@@ -1330,45 +1322,19 @@
                         disablePagination: true
                     };
 
-                    // setup initial state
-                    $scope.services = {
-                        // data: servicesFactory.serviceTree,
-                        // mapped: servicesFactory.serviceMap,
-                        // current: servicesFactory.get($scope.params.serviceId)
-                    };
-
-                    // $scope.getServices();
-
                     $scope.ips = {};
-                    $scope.pools = [];
+
+                    // pools are needed for edit service dialog
+                    $scope.pools = poolsFactory.poolList;
 
                     // if the current service changes, update
                     // various service controller thingies
-
-
-                    // $scope.$watch(function() {
-                    //     // if no current service is set, try to set one
-                    //     if(!$scope.currentService) {
-                    //         // v2 call with id = $scope.params.serviceId
-                    //         $scope.getService($scope.params.serviceId)
-                    //             .then( function(model){
-                    //                 $scope.currentService = new Service(model);
-                    //             });
-                    //         // $scope.currentService = servicesFactory.get($scope.params.serviceId);
-                    //     }
-
-                    //     if($scope.currentService) {
-                    //         return $scope.currentService.isDirty();
-                    //     } else {
-                    //         // there is no current service
-                    //         console.warn("current service not yet available");
-                    //         return undefined;
-                    //     }
-                    // }, $scope.update);
-
-
                     $scope.$watch("params.serviceId", $scope.setCurrentService);
-                    $scope.$watch("services.current.lastUpdate", $scope.update);
+                    // $scope.$watch("currentService.lastUpdate", () => {
+                    //     if (!$scope.$$phase) {
+                    //         $scope.$apply();
+                    //     }
+                    // });
 
                     hostsFactory.activate();
                     hostsFactory.update();
