@@ -148,12 +148,13 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_Expired(c *C) {
 	c.Assert(err, Equals, nil)
 	c.Assert(header, NotNil)
 
-	// Sleep until the request expires
-	time.Sleep(11 * time.Second)
-
-	// extract header, should fail with expired request
-	_, err = rpcHeaderHandler.ParseHeader(header, request)
-	c.Assert(err, Equals, auth.ErrRequestExpired)
+	// Extract the header after the request has expired
+	fakenow := time.Now().UTC().Add(11 * time.Second)
+	auth.At(fakenow, func() {
+		// extract header, should fail with expired request
+		_, err = rpcHeaderHandler.ParseHeader(header, request)
+		c.Assert(err, Equals, auth.ErrRequestExpired)
+	})
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {

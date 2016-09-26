@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"errors"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"net/rpc"
 	"time"
 )
@@ -153,10 +154,10 @@ func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req *rpc.Request) (Iden
 	timestamp := endian.Uint64(timestampBuf)
 	offset += TIMESTAMP_BYTES
 
-	// Validate timestamp (should be no more than expirationDelta earlier than now)
-	timeDelta := uint64(expirationDelta / time.Second)
-	currentTime := uint64(time.Now().UTC().Unix())
-	if timestamp < currentTime-timeDelta {
+	// Validate timestamp (should be no earlier than current time - expirationDelta)
+	requestTime := time.Unix(int64(timestamp), 0)
+	cutoffTime := jwt.TimeFunc().UTC().Add(-expirationDelta)
+	if requestTime.Before(cutoffTime) {
 		return nil, ErrRequestExpired
 	}
 

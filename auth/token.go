@@ -168,6 +168,13 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	return nil
 }
 
+// ClearToken wipes the current state
+func ClearToken() {
+	currentToken = ""
+	currentIdentity = nil
+	expiration = zerotime
+}
+
 func now() time.Time {
 	return time.Now().UTC()
 }

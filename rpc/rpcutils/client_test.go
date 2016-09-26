@@ -3,12 +3,14 @@
 package rpcutils
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/commons/pool"
 	. "gopkg.in/check.v1"
 )
@@ -53,18 +55,17 @@ func (rtt *RPCTestType) StructCall(arg TestArgs, reply *TestArgs) error {
 	return nil
 }
 
+func (rtt *RPCTestType) NonAuthenticatingCall(arg string, reply *string) error {
+	*reply = arg
+	return nil
+}
+
 func (s *MySuite) SetUpSuite(c *C) {
 	NonAuthenticatingCalls = []string{
-		"NonAuthenticatingCall",
-		"RPCTestType.Sleep",
-		"RPCTestType.NilReply",
-		"RPCTestType.Echo",
-		"RPCTestType.StructCall",
-		"RPCTestType.blam",
-		"Blam.blam",
+		"RPCTestType.NonAuthenticatingCall",
 	}
 	NonAdminRequiredCalls = []string{
-		"NonAdminRequiredCall",
+		"RPCTestType.NonAdminRequiredCall",
 	}
 	rtt = new(RPCTestType)
 	RegisterLocal("RPCTestType", rtt)
@@ -87,6 +88,17 @@ func (s *MySuite) SetUpSuite(c *C) {
 
 	rpcClient, _ = newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	bareRpcClient, _ = connectRPC("localhost:32111")
+}
+
+func (s *MySuite) SetUpTest(c *C) {
+	auth.ClearKeys()
+	auth.ClearToken()
+	// Load master keys so we can authenticate:
+	tmpDir := c.MkDir()
+	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
+	if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+		c.Errorf("Error getting master keys: %s", err)
+	}
 }
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {
@@ -180,5 +192,134 @@ func (s *MySuite) TestInvalidAddress(c *C) {
 	}()
 	client, _ := newClient("1.2.3.4:1234", 1, 1, connectRPC)
 	// CC-1570: Client is lazy, so have to make a call to cause a panic
-	client.Call("NonAuthenticatingCall", nil, nil, 1)
+	client.Call("RPCTestType.NonAuthenticatingCall", nil, nil, 1)
+}
+
+func (s *MySuite) TestNonAuthenticatingCall(c *C) {
+	auth.ClearKeys()
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	c.Assert(err, IsNil)
+	var p, r string
+	p = "Expected"
+	err = client.Call("RPCTestType.NonAuthenticatingCall", p, &r, 10*time.Second)
+	c.Assert(err, IsNil)
+	c.Assert(p, Equals, r)
+}
+
+func (s *MySuite) TestUnauthenticatedClient(c *C) {
+	auth.ClearKeys()
+	// Attempt an RPC call without a token
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	c.Assert(err, IsNil)
+	var p, r string
+	p = "Expected"
+	err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
+	c.Assert(err, Equals, auth.ErrNotAuthenticated)
+}
+
+func (s *MySuite) TestBadToken(c *C) {
+	// Create and load a set of keys for this client
+	_, dPriv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+	mPub, err := auth.GetMasterPublicKey()
+	c.Assert(err, IsNil)
+	mPubPEM, err := auth.PEMFromRSAPublicKey(mPub, nil)
+	c.Assert(err, IsNil)
+	err = auth.LoadDelegateKeysFromPEM(mPubPEM, dPriv)
+
+	// Create and load a bad token
+	fakeToken := "This is not a token"
+	expiration := time.Now().Add(time.Hour).UTC().Unix()
+	getToken := func() (string, int64, error) {
+		return fakeToken, expiration, nil
+	}
+	tmpDir := c.MkDir()
+	tokenFile := fmt.Sprintf("%s/token", tmpDir)
+	_, err = auth.RefreshToken(getToken, tokenFile)
+	c.Assert(err, IsNil)
+
+	// Attempt RPC call with bad token
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	c.Assert(err, IsNil)
+	var p, r string
+	p = "Expected"
+	err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
+	c.Assert(err, Equals, rpc.ServerError(auth.ErrBadToken.Error()))
+
+}
+
+func (s *MySuite) TestExpiredToken(c *C) {
+	// Create and load a set of keys for this client
+	dPub, dPriv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+	mPub, err := auth.GetMasterPublicKey()
+	c.Assert(err, IsNil)
+	mPubPEM, err := auth.PEMFromRSAPublicKey(mPub, nil)
+	c.Assert(err, IsNil)
+	err = auth.LoadDelegateKeysFromPEM(mPubPEM, dPriv)
+
+	// Create a token that expires in 1 s
+	fakeToken, _, err := auth.CreateJWTIdentity("fakehost", "default", true, true, dPub, time.Second)
+	// Trick the client into thinking the token doesn't expire for another hour
+	expiration := time.Now().Add(time.Hour).UTC().Unix()
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+
+	// Token getter will return the expired token with a non-expired expiration
+	getToken := func() (string, int64, error) {
+		return fakeToken, expiration, nil
+	}
+
+	// Load the token
+	tmpDir := c.MkDir()
+	tokenFile := fmt.Sprintf("%s/token", tmpDir)
+	_, err = auth.RefreshToken(getToken, tokenFile)
+	c.Assert(err, IsNil)
+
+	// Make RPC call after token has expired
+	fakenow := time.Now().UTC().Add(1 * time.Second)
+	auth.At(fakenow, func() {
+		// Attempt RPC call with expired token
+		client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+		c.Assert(err, IsNil)
+		var p, r string
+		p = "Expected"
+		err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
+		c.Assert(err, Equals, rpc.ServerError(auth.ErrIdentityTokenExpired.Error()))
+	})
+}
+
+func (s *MySuite) TestNotAdmin(c *C) {
+	// Create and load a set of keys for this client
+	dPub, dPriv, err := auth.GenerateRSAKeyPairPEM(nil)
+	c.Assert(err, IsNil)
+	mPub, err := auth.GetMasterPublicKey()
+	c.Assert(err, IsNil)
+	mPubPEM, err := auth.PEMFromRSAPublicKey(mPub, nil)
+	c.Assert(err, IsNil)
+	err = auth.LoadDelegateKeysFromPEM(mPubPEM, dPriv)
+
+	// Create a token that does not have admin prvileges
+	fakeToken, expiration, err := auth.CreateJWTIdentity("fakehost", "default", false, true, dPub, time.Hour)
+	c.Assert(err, IsNil)
+	c.Assert(fakeToken, NotNil)
+
+	// Token getter will return the non-admin token
+	getToken := func() (string, int64, error) {
+		return fakeToken, expiration, nil
+	}
+
+	// Load the token
+	tmpDir := c.MkDir()
+	tokenFile := fmt.Sprintf("%s/token", tmpDir)
+	_, err = auth.RefreshToken(getToken, tokenFile)
+	c.Assert(err, IsNil)
+
+	// Attempt RPC call that requires admin
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	c.Assert(err, IsNil)
+	var p, r string
+	p = "Expected"
+	err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
+	c.Assert(err, Equals, rpc.ServerError(ErrNoAdmin.Error()))
 }

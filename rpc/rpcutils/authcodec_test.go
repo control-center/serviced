@@ -116,13 +116,13 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	c.Assert(err, IsNil)
 
 	// Test success with a non-authentication required method
-	req = &rpc.Request{ServiceMethod: "NonAuthenticatingCall"}
+	req = &rpc.Request{ServiceMethod: "RPCTestType.NonAuthenticatingCall"}
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 
 	// Test success with a non-admin required method
-	req = &rpc.Request{ServiceMethod: "NonAdminRequiredCall"}
+	req = &rpc.Request{ServiceMethod: "RPCTestType.NonAdminRequiredCall"}
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
 	codectest.headerParser.On("ParseHeader", header, req).Return(ident, nil).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
@@ -193,7 +193,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	expectedHeaderLen = []byte{0, 0, 0, 0}
 	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
 	codectest.conn.On("Write", expectedHeader).Return(0, nil).Once()
-	req.ServiceMethod = "NonAuthenticatingCall"
+	req.ServiceMethod = "RPCTestType.NonAuthenticatingCall"
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Once()
 	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, IsNil)
