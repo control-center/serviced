@@ -18,15 +18,16 @@ import (
 
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/hostkey"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/domain/user"
 )
 
 type MetricsClient interface {
@@ -43,6 +44,7 @@ var _ FacadeInterface = &Facade{}
 func New() *Facade {
 	return &Facade{
 		hostStore:     host.NewStore(),
+		hostkeyStore:  hostkey.NewStore(),
 		registryStore: registry.NewStore(),
 		poolStore:     pool.NewStore(),
 		serviceStore:  service.NewStore(),
@@ -55,6 +57,7 @@ func New() *Facade {
 // Facade is an entrypoint to available controlplane methods
 type Facade struct {
 	hostStore     host.Store
+	hostkeyStore  hostkey.Store
 	registryStore registry.ImageRegistryStore
 	poolStore     pool.Store
 	templateStore servicetemplate.Store

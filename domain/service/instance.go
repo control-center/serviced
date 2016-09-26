@@ -51,7 +51,7 @@ type Instance struct {
 	DesiredState  DesiredState
 	CurrentState  CurrentState
 	HealthStatus  map[string]health.Status
-	RAMCommitment int32
+	RAMCommitment int64
 	MemoryUsage   Usage
 	Scheduled     time.Time
 	Started       time.Time
@@ -78,7 +78,7 @@ type LocationInstance struct {
 // StatusInstance is an abbreviated version of the above instance data,
 // designed to be polled at a high frequency and attached to a service
 type StatusInstance struct {
-	InstanceID  int
-	Health      map[string]health.Status
-	MemoryUsage Usage
+	InstanceID   int
+	HealthStatus map[string]health.Status
+	MemoryUsage  Usage
 }

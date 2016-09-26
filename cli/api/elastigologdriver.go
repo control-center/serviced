@@ -19,18 +19,19 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/control-center/serviced/config"
 	elastigo "github.com/zenoss/elastigo/api"
 	elastigocore "github.com/zenoss/elastigo/core"
 )
 
 const (
-	esLogStashIndexPrefix   = "logstash-"  // Prefix of the logstash index names in Elasticsearch
-	esLogstashScrollTimeout = "1m"         // tells ES how log to keep a scroll request 'alive'
+	esLogStashIndexPrefix   = "logstash-" // Prefix of the logstash index names in Elasticsearch
+	esLogstashScrollTimeout = "1m"        // tells ES how log to keep a scroll request 'alive'
 )
 
 type elastigoLogDriver struct {
-	Domain    string        // hostname/ip of the Logstash ES instance
-	Port      string        // port number of the Logstash ES instance
+	Domain string // hostname/ip of the Logstash ES instance
+	Port   string // port number of the Logstash ES instance
 }
 
 // Verify that the elastigoLogDriver implements the interface
@@ -40,7 +41,7 @@ var _ ExportLogDriver = &elastigoLogDriver{}
 func (driver *elastigoLogDriver) SetLogstashInfo(logstashES string) error {
 	parts := strings.Split(logstashES, ":")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid logstash-es host:port %s", options.LogstashES)
+		return fmt.Errorf("invalid logstash-es host:port %s", config.GetOptions().LogstashES)
 	}
 	elastigo.Domain = parts[0]
 	elastigo.Port = parts[1]
@@ -92,4 +93,3 @@ func (driver *elastigoLogDriver) ScrollSearch(scrollID string) (elastigocore.Sea
 	prettyPrint := false
 	return elastigocore.Scroll(prettyPrint, scrollID, esLogstashScrollTimeout)
 }
-

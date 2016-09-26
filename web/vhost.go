@@ -154,7 +154,7 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 	// Set up the X-Forwarded-Proto header so that downstream servers know
 	// the request originated as HTTPS.
 	if _, found := r.Header["X-Forwarded-Proto"]; !found {
-		r.Header.Set("X-Forwarded-Proto", "tcp")
+		r.Header.Set("X-Forwarded-Proto", "https")
 	}
 
 	rp.ServeHTTP(w, r)

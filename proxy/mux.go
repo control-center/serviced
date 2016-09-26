@@ -15,6 +15,7 @@ package proxy
 
 import (
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
@@ -141,13 +142,16 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 	// make sure that we don't block indefinitely
 	conn.SetReadDeadline(time.Now().Add(time.Second * 5))
 
-	// Read in the mux header (a 6-byte representation of a TCP address)
-	muxHeader := make([]byte, 6)
-	if _, err := conn.Read(muxHeader); err != nil {
+	// Read in the authenticated mux header
+	authMuxHeader, err := auth.ReadMuxHeader(conn)
+	if err != nil {
 		log.WithError(err).Warn("Unable to read valid mux header. Closing connection")
 		conn.Close()
 		return
 	}
+	// TODO retrieve and validate the identity of the sender
+	muxHeader, _, err := auth.ExtractMuxHeader(authMuxHeader)
+
 	address := utils.UnpackTCPAddressToString(muxHeader)
 
 	// Restore the read deadline

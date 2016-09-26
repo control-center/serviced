@@ -20,6 +20,7 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
 
@@ -67,6 +68,97 @@ var serviceDetailsTestData = struct {
 		},
 		Startup: "secondservice -start",
 	},
+}
+
+func (s *TestWebSuite) TestRestPutServiceDetailsShouldReturnStatusOK(c *C) {
+	body := `
+	{
+		"Name": "Zenoss.core",
+		"Description": "Zenoss Core",
+		"PoolID": "default",
+		"Instances": 1,
+		"RAMCommitment": "128M",
+		"Startup": "redis-server /etc/redis.conf"
+	}`
+
+	request := s.buildRequest("PUT", "http://www.example.com/services/1a2b3c", body)
+	request.PathParams["serviceId"] = "1a2b3c"
+
+	s.mockFacade.
+		On("GetService", s.ctx.getDatastoreContext(), "1a2b3c").
+		Return(&service.Service{Name: "Service"}, nil)
+
+	s.mockFacade.
+		On("UpdateService", s.ctx.getDatastoreContext(), mock.AnythingOfType("service.Service")).
+		Return(nil)
+
+	putServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusOK)
+}
+
+func (s *TestWebSuite) TestRestPutServiceDetailsShouldReturnBadRequestForInvalidMessageBody(c *C) {
+	body := `
+	{
+		"Description": "Zenoss Core",
+		"PoolID": "default",
+		"Instances": 1,
+		"RAMCommitment": "128M",
+		"Startup": "redis-server /etc/redis.conf"
+	}`
+
+	request := s.buildRequest("PUT", "http://www.example.com/services/1a2b3c", body)
+	request.PathParams["serviceId"] = "1a2b3c"
+
+	s.mockFacade.
+		On("GetService", s.ctx.getDatastoreContext(), "1a2b3c").
+		Return(&service.Service{Name: "Service"}, nil)
+
+	s.mockFacade.
+		On("UpdateService", s.ctx.getDatastoreContext(), mock.AnythingOfType("service.Service")).
+		Return(nil)
+
+	putServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(s.recorder.Code, Equals, http.StatusBadRequest)
+}
+
+func (s *TestWebSuite) TestRestPutServiceDetailsShouldSetValuesCorrectly(c *C) {
+	body := `
+	{
+		"Name": "Zenoss.core",
+		"Description": "Zenoss Core",
+		"PoolID": "default",
+		"Instances": 1,
+		"RAMCommitment": "1000000",
+		"Startup": "redis-server /etc/redis.conf"
+	}`
+
+	request := s.buildRequest("PUT", "http://www.example.com/services/1a2b3c", body)
+	request.PathParams["serviceId"] = "1a2b3c"
+
+	s.mockFacade.
+		On("GetService", s.ctx.getDatastoreContext(), "1a2b3c").
+		Return(&service.Service{ID: "1a2b3c"}, nil)
+
+	var calledService service.Service
+
+	s.mockFacade.
+		On("UpdateService", s.ctx.getDatastoreContext(), mock.AnythingOfType("service.Service")).
+		Return(nil).
+		Run(func(a mock.Arguments) {
+			calledService = a.Get(1).(service.Service)
+		})
+
+	putServiceDetails(&(s.writer), &request, s.ctx)
+
+	c.Assert(calledService.ID, Equals, "1a2b3c")
+	c.Assert(calledService.Name, Equals, "Zenoss.core")
+	c.Assert(calledService.Description, Equals, "Zenoss Core")
+	c.Assert(calledService.PoolID, Equals, "default")
+	c.Assert(calledService.Instances, Equals, 1)
+	c.Assert(calledService.RAMCommitment.Value, Equals, uint64(1000000))
+	c.Assert(calledService.Startup, Equals, "redis-server /etc/redis.conf")
 }
 
 func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnStatusOK(c *C) {

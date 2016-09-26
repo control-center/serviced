@@ -1,3 +1,4 @@
+#!/bin/bash
 #######################################################
 #
 # Control Center Smoke Test
@@ -6,117 +7,16 @@
 #
 #######################################################
 
-START_TIMEOUT=300
-DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED=$(which serviced)
-if [ -z "${SERVICED}" ]; then
-    echo "ERROR: Can not find a serviced binary"
-    exit 1
-fi
-
-SERVICED_STORAGE=$(which serviced-storage)
-if [ -z "${SERVICED_STORAGE}" ]; then
-    echo "ERROR: Can not find a serviced-storage binary"
-    exit 1
-fi
-
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-SMOKE_VAR_PATH=/tmp/serviced-smoke/var
-SERVICED_VOLUMES_PATH=${SMOKE_VAR_PATH}/volumes
-SERVICED_ISVCS_PATH=${SMOKE_VAR_PATH}/isvcs
-SERVICED_BACKUPS_PATH=${SMOKE_VAR_PATH}/backups
-
-IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
-HOSTNAME=$(hostname)
-
-succeed() {
-    echo ===== SUCCESS =====
-    echo $@
-    echo ===================
-}
-
-fail() {
-    echo ====== FAIL ======
-    echo $@
-    echo ==================
-    exit 1
-}
-
-# install prereqs
-install_prereqs() {
-    local wget_image="zenoss/ubuntu:wget"
-    if ! docker inspect "${wget_image}" >/dev/null; then
-        docker pull "${wget_image}"
-       if ! docker inspect "${wget_image}" >/dev/null; then
-            fail "ERROR: docker inspect "${wget_image}" is not available - wget tests will fail"
-       fi
-    fi
-}
-
-# Add the vhost to /etc/hosts so we can resolve it for the test
-add_to_etc_hosts() {
-    if [ -z "$(grep -e "^${IP} websvc.${HOSTNAME}" /etc/hosts)" ]; then
-        sudo /bin/bash -c "echo ${IP} websvc.${HOSTNAME} >> /etc/hosts"
-    fi
-}
-
-cleanup() {
-    # remove the service to free up the disk space allocated in the devicemapper pool
-    echo "Removing testsvc (if any) ..."
-    sudo ${SERVICED} service remove testsvc
-
-    echo "Stopping serviced ..."
-    sudo pkill -9 serviced
-
-    echo "Removing all docker containers ..."
-    docker ps -qa | xargs --no-run-if-empty docker rm -fv
-
-    # Get a list of mounted volumes before 'set -e' because the grep exits with 1
-    # in scenarios where nothing is mounted.
-    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VOLUMES_PATH} 2>/dev/null`
-
-    # By default, exit on the first error
-    if [ "$1" != "--ignore-errors" ]; then
-        set -e
-    fi
-
-    # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    if [ ! -z "${MOUNTED_VOLUMES}" ]; then
-        echo "Unmounting ${SERVICED_VOLUMES_PATH}/* ..."
-        sudo umount -f ${SERVICED_VOLUMES_PATH}/* 2>/dev/null
-    fi
-
-    # Disable the DM device so that the space for the loopback device is really freed
-    # when we remove SERVICED_VOLUMES_PATH
-    echo "Cleaning up serviced storage ..."
-    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VOLUMES_PATH}
-
-    echo "Removing up ${SMOKE_VAR_PATH} ..."
-    sudo rm -rf ${SMOKE_VAR_PATH}
-}
-trap cleanup EXIT
-
-
-start_serviced() {
-    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
-    #   all of to force the proper subdirectories to be created under SMOKE_VAR_PATH
-    echo "Starting serviced..."
-    mkdir -p ${SMOKE_VAR_PATH}
-    mkdir -p ${SERVICED_VOLUMES_PATH}
-    mkdir -p ${SERVICED_ISVCS_PATH}
-    mkdir -p ${SERVICED_BACKUPS_PATH}
-
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}\
-    SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
-
-    echo "Waiting $START_TIMEOUT seconds for serviced to start..."
-    retry $START_TIMEOUT wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
-    return $?
-}
+TEST_VAR_PATH=/tmp/serviced-smoke/var
+. test_lib.sh
 
 # Add a host
 add_host() {
-    HOST_ID=$(${SERVICED} host add "${IP}:4979" default)
+    KEY_FILE="${TEST_VAR_PATH}/smoke-hostkey"
+    HOST_ID=$(${SERVICED} host add "${IP}:4979" default -k "${KEY_FILE}")
+    sleep 1
+    sudo SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host register "${KEY_FILE}" || return 1
     sleep 1
     [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0
@@ -160,14 +60,15 @@ test_started() {
 }
 
 test_vhost() {
-    wget --no-check-certificate -qO- https://websvc.${HOSTNAME} &>/dev/null || return 1
+    echo "Testing vhost"
+    wget --no-check-certificate --content-on-error -O- https://websvc.${HOSTNAME} || return 1
     return 0
 }
 
 test_service_port() {
 
     # make sure it is accessible
-    wget -qO- http://${HOSTNAME}:1234 || return 1
+    wget --content-on-error -O- http://${HOSTNAME}:1234 || return 1
 
     # make sure it is accessible via ipv6
     # wget --no-check-certificate -qO- http://[${IP6}]:1234 || return 1
@@ -314,19 +215,13 @@ test_service_run_command() {
     set +x
 }
 
-retry() {
-    TIMEOUT=$1
-    shift
-    COMMAND="$@"
-    DURATION=0
-    until [ ${DURATION} -ge ${TIMEOUT} ]; do
-        TRY_COUNTDOWN=$[${TIMEOUT} - ${DURATION}]
-        ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
-        DURATION=$[$DURATION+1]
-        sleep 1
-    done
-    return ${RESULT}
-}
+###############################################################################
+###############################################################################
+#
+# Test execution starts here
+#
+trap cleanup EXIT
+print_env_info
 
 # Force a clean environment
 echo "Starting Pre-test cleanup ..."

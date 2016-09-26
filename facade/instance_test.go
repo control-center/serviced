@@ -56,6 +56,13 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_StatesError(c *C) {
 		DesiredState: int(service.SVCRun),
 	}
 
+	img := &registry.Image{
+		Library: "testtenant",
+		Repo:    "image",
+		Tag:     "latest",
+		UUID:    "someimageuuid",
+	}
+	ft.registryStore.On("Get", ft.ctx, "testtenant/image:latest").Return(img, nil)
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(svc, nil)
 	ft.zzk.On("GetServiceStates", "default", "testservice").Return(nil, ErrTestZK)
 	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
@@ -83,7 +90,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -92,6 +99,13 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 	}
 	ft.zzk.On("GetServiceStates", "default", "testservice").Return(states, nil)
 
+	img := &registry.Image{
+		Library: "testtenant",
+		Repo:    "image",
+		Tag:     "latest",
+		UUID:    "someimageuuid",
+	}
+	ft.registryStore.On("Get", ft.ctx, "testtenant/image:latest").Return(img, nil)
 	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost"), mock.AnythingOfType("*host.Host")).Return(ErrTestHostStore)
 	inst, err := ft.Facade.GetServiceInstances(ft.ctx, testStartTime, "testservice")
 	c.Assert(err, Equals, ErrTestHostStore)
@@ -118,7 +132,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_BadImage(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -163,7 +177,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -264,7 +278,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_ServiceNotFound(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -300,7 +314,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -372,7 +386,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",
@@ -399,7 +413,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 				Scheduled:    time.Now(),
 			},
 			ServiceState: zkservice.ServiceState{
-				ImageID:     "someimageuuid",
+				ImageUUID:   "someimageuuid",
 				Started:     time.Now(),
 				Paused:      false,
 				ContainerID: "somecontainerid",

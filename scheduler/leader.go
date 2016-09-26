@@ -22,8 +22,6 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/ttl"
-	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
@@ -70,12 +68,12 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 // service has an address assignment the host will already be selected. If not
 // the host with the least amount of memory committed to running containers will
 // be chosen.  Returns the hostid, hostip (if it has an address assignment).
-func (l *leader) SelectHost(s *service.Service) (string, error) {
+func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   s.ID,
-		"servicename": s.Name,
-		"poolid":      s.PoolID,
+		"serviceid":   sn.ID,
+		"servicename": sn.Name,
 	})
+
 	plog.Debug("Looking for available hosts in resource pool")
 	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {
@@ -89,17 +87,10 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 		return "", errors.New("scheduler is shutting down")
 	}
 
-	// make sure all of the applicable endpoints have address assignments
-	var assignment addressassignment.AddressAssignment
-	for _, ep := range s.Endpoints {
-		if ep.IsConfigurable() {
-			if ep.AddressAssignment.IPAddr != "" {
-				assignment = ep.AddressAssignment
-			} else {
-				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
-				return "", errors.New("service is missing an address assignment")
-			}
-		}
+	assignment := sn.AddressAssignment
+	if sn.ShouldHaveAddressAssignment && assignment.IPAddr == "" {
+		plog.WithField("endpoint", sn.Name).Debug("Service is missing an address assignment")
+		return "", errors.New("service is missing an address assignment")
 	}
 
 	if assignment.IPAddr != "" {
@@ -130,7 +121,7 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 		return "", errors.New("assigned ip is not available")
 	}
 
-	hp := s.HostPolicy
+	hp := sn.HostPolicy
 	if hp == "" {
 		hp = servicedefinition.Balance
 	}
@@ -139,5 +130,5 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 		return "", err
 	}
 
-	return StrategySelectHost(s, hosts, strat, l.facade)
+	return StrategySelectHost(sn, hosts, strat, l.facade)
 }

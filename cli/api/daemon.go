@@ -17,7 +17,9 @@ import (
 	"bytes"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -104,6 +106,7 @@ type daemon struct {
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
+	tokenExpiration  time.Duration
 
 	facade *facade.Facade
 	hcache *health.HealthStatusCache
@@ -117,7 +120,7 @@ func init() {
 	commonsdocker.StartKernel()
 }
 
-func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
+func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string, tokenExpiration time.Duration) (*daemon, error) {
 	d := &daemon{
 		servicedEndpoint: servicedEndpoint,
 		staticIPs:        staticIPs,
@@ -125,6 +128,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
 		rpcServer:        rpc.NewServer(),
+		tokenExpiration:  tokenExpiration,
 	}
 	return d, nil
 }
@@ -134,6 +138,7 @@ func (d *daemon) getEsClusterName(name string) string {
 		clusterName string
 		err         error
 	)
+	options := config.GetOptions()
 	filename := path.Join(options.IsvcsPath, name+".clustername")
 	data, _ := ioutil.ReadFile(filename)
 	clusterName = string(bytes.TrimSpace(data))
@@ -156,6 +161,7 @@ func (d *daemon) getEsClusterName(name string) string {
 }
 
 func (d *daemon) startISVCS() {
+	options := config.GetOptions()
 	isvcs.Init(options.ESStartupTimeout, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	servicedClusterName := d.getEsClusterName("elasticsearch-serviced")
@@ -178,6 +184,7 @@ func (d *daemon) startISVCS() {
 }
 
 func (d *daemon) startAgentISVCS(serviceNames []string) {
+	options := config.GetOptions()
 	log := log.WithFields(logrus.Fields{"services": serviceNames})
 	isvcs.InitServices(serviceNames, options.DockerLogDriver, convertStringSliceToMap(options.DockerLogConfigList), d.docker)
 	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
@@ -196,6 +203,7 @@ func (d *daemon) stopISVCS() {
 }
 
 func (d *daemon) startRPC() {
+	options := config.GetOptions()
 	if options.DebugPort > 0 {
 		address := fmt.Sprintf("127.0.0.1:%d", options.DebugPort)
 		logger := log.WithFields(logrus.Fields{
@@ -255,6 +263,7 @@ func (d *daemon) startRPC() {
 }
 
 func (d *daemon) run() (err error) {
+	options := config.GetOptions()
 
 	// Get the ID of this host
 	if d.hostID, err = utils.HostID(); err != nil {
@@ -390,6 +399,7 @@ func (d *daemon) initContext() datastore.Context {
 }
 
 func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
+	options := config.GetOptions()
 	coordzk.RegisterZKLogger()
 	dsn := coordzk.NewDSN(zks, time.Duration(options.ZKSessionTimeout)*time.Second).String()
 	log.WithFields(logrus.Fields{
@@ -402,6 +412,7 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 
 func (d *daemon) startMaster() (err error) {
 	log.Debug("Starting serviced master")
+	options := config.GetOptions()
 	agentIP := options.OutboundIP
 	if agentIP == "" {
 		agentIP, err = utils.GetIPAddress()
@@ -422,6 +433,17 @@ func (d *daemon) startMaster() (err error) {
 			"rpcport": rpcPort,
 		}).WithError(err).Fatal("Unable to register master as host")
 	}
+
+	// Load keys if they exist, else generate them
+	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	keylog := log.WithFields(logrus.Fields{
+		"keyfile": masterKeyFile,
+	})
+	if err = auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+		keylog.WithError(err).Fatal("Unable to load or create master keys")
+	}
+
+	keylog.Info("Loaded master keys from disk")
 
 	// This is storage related
 	storagelogger := log.WithFields(logrus.Fields{
@@ -510,6 +532,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 }
 
 func getTLSConfig(connectionType string) (*tls.Config, error) {
+	options := config.GetOptions()
 	proxyCertPEM, proxyKeyPEM, err := getKeyPairs(options.CertPEMFile, options.KeyPEMFile)
 	if err != nil {
 		return nil, err
@@ -531,6 +554,7 @@ func getTLSConfig(connectionType string) (*tls.Config, error) {
 }
 
 func createMuxListener() net.Listener {
+	options := config.GetOptions()
 	var (
 		listener net.Listener
 		err      error
@@ -562,6 +586,7 @@ func createMuxListener() net.Listener {
 }
 
 func (d *daemon) startAgent() error {
+	options := config.GetOptions()
 	muxListener := createMuxListener()
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
@@ -603,6 +628,35 @@ func (d *daemon) startAgent() error {
 		"master": d.servicedEndpoint,
 		"hostid": myHostID,
 	})
+
+	// Load delegate keys if they exist
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
+
+	// Start watching for delegate keys to be loaded
+	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
+
+	go func() {
+		// Wait for delegate keys to exist before trying to authenticate
+		auth.WaitForDelegateKeys()
+
+		// Authenticate against the master
+		getToken := func() (string, int64, error) {
+			masterClient, err := master.NewClient(d.servicedEndpoint)
+			if err != nil {
+				return "", 0, err
+			}
+			defer masterClient.Close()
+			token, expires, err := masterClient.AuthenticateHost(myHostID)
+			if err != nil {
+				return "", 0, err
+			}
+			return token, expires, nil
+		}
+
+		// Start authenticating
+		auth.TokenLoop(getToken, tokenFile, d.shutdown)
+	}()
 
 	// Flag so we only log that a host hasn't been added yet once
 	var loggedNoHost bool
@@ -739,6 +793,8 @@ func (d *daemon) startAgent() error {
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
 			ZKSessionTimeout:     options.ZKSessionTimeout,
+			DelegateKeyFile:      delegateKeyFile,
+			TokenFile:            tokenFile,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.reg)
@@ -806,8 +862,9 @@ func (d *daemon) startAgent() error {
 
 func (d *daemon) registerMasterRPC() error {
 	log.Debug("Registering master RPC services")
+	options := config.GetOptions()
 
-	server := master.NewServer(d.facade)
+	server := master.NewServer(d.facade, d.tokenExpiration)
 	disableLocal := os.Getenv("DISABLE_RPC_BYPASS")
 	if disableLocal == "" {
 		rpcutils.RegisterLocalAddress(options.Endpoint, fmt.Sprintf("localhost:%s", options.RPCPort),
@@ -868,7 +925,7 @@ func initMetricsClient() *metrics.Client {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	log.Debug("Initializing facade")
+	options := config.GetOptions()
 	f := facade.New()
 	zzk := facade.GetFacadeZZK(f)
 	f.SetZZK(zzk)
@@ -890,6 +947,7 @@ func (d *daemon) initFacade() *facade.Facade {
 
 // startLogstashPurger purges logstash based on days and size
 func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
+	options := config.GetOptions()
 	// Run the first time after 10 minutes
 	select {
 	case <-d.shutdown:
@@ -908,6 +966,8 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 
 // FIXME: The dao package is deprecated and should be removed.
 func (d *daemon) initDAO() dao.ControlPlane {
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
 		log.WithField("rpcPort", options.RPCPort).WithError(err).Fatal("RPC Port invalid")
@@ -917,7 +977,7 @@ func (d *daemon) initDAO() dao.ControlPlane {
 			"backupspath": options.BackupsPath,
 		}).WithError(err).Fatal("Unable to create backup path")
 	}
-	cp, err := elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt);
+	cp, err := elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
 	if err != nil {
 		log.WithError(err).Fatal("Unable to initialize DAO layer")
 	}
@@ -925,6 +985,8 @@ func (d *daemon) initDAO() dao.ControlPlane {
 }
 
 func (d *daemon) initWeb() {
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	// TODO: Make bind port for web server optional?
 	log := log.WithFields(logrus.Fields{
 		"uiport": options.UIPort,
@@ -1004,6 +1066,8 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	log.Debug("Starting service scheduler")
+	options := config.GetOptions()
+	// Run the first time after 10 minutes
 	for {
 		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.reg, options.SnapshotTTL)
 		if err != nil {

@@ -20,10 +20,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/zenoss/glog"
 )
 
 // initialize the logger
@@ -135,6 +137,13 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 	if err != nil {
 		return nil, err
 	}
+
+	muxHeader, err = auth.BuildMuxHeader(muxHeader)
+	if err != nil {
+		glog.Errorf("Error building authenticated mux header. %s", err)
+		return
+	}
+	remote.Write(muxHeader)
 
 	// Check for errors writing the mux header.
 	if _, err = remote.Write(muxHeader); err != nil {

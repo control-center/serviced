@@ -47,7 +47,7 @@ var ErrInvalidStateID = errors.New("invalid state id")
 // ServiceState provides information of a service state
 type ServiceState struct {
 	ContainerID string
-	ImageID     string
+	ImageUUID   string
 	Paused      bool
 	PrivateIP   string
 	HostIP      string

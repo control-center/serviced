@@ -738,7 +738,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (f *Facade) GetEvaluatedService(ctx datastore.Context, serviceID string, instanceID int) (*service.Service, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID": serviceID,
+		"serviceID":  serviceID,
 		"instanceID": instanceID,
 	})
 	logger.Debug("Started Facade.GetEvaluatedService")
@@ -780,7 +780,6 @@ func (f *Facade) evaluateService(ctx datastore.Context, svc *service.Service, in
 
 	return svc.Evaluate(getService, getServiceChild, instanceID)
 }
-
 
 // GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {

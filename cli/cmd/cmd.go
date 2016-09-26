@@ -23,6 +23,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/logging"
@@ -81,6 +82,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
 		cli.StringFlag{"isvcs-path", defaultOps.IsvcsPath, "path where internal application data is stored"},
 		cli.StringFlag{"backups-path", defaultOps.BackupsPath, "default path where backups are stored"},
+		cli.StringFlag{"etc-path", defaultOps.EtcPath, "default path for configuration files"},
 		cli.StringFlag{"keyfile", defaultOps.KeyPEMFile, "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", defaultOps.CertPEMFile, "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", convertToStringSlice(defaultOps.Zookeepers), "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
@@ -123,6 +125,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
+		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -155,6 +158,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.initScript()
 	c.initServer()
 	c.initVolume()
+	c.initKey()
 
 	return c
 }
@@ -174,11 +178,11 @@ func (c *ServicedCli) Run(args []string) {
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-	if err := api.ValidateCommonOptions(options); err != nil {
+	if err := config.ValidateCommonOptions(options); err != nil {
 		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
 	}
-	api.LoadOptions(options)
+	config.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
@@ -204,8 +208,8 @@ func (c *ServicedCli) exit(code int) error {
 
 // Get all runtime options as a combination of default values, environment variable settings and
 // command line overrides.
-func getRuntimeOptions(ctx *cli.Context) api.Options {
-	options := api.Options{
+func getRuntimeOptions(ctx *cli.Context) config.Options {
+	options := config.Options{
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),
@@ -223,6 +227,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		VolumesPath:                ctx.GlobalString("volumes-path"),
 		IsvcsPath:                  ctx.GlobalString("isvcs-path"),
 		BackupsPath:                ctx.GlobalString("backups-path"),
+		EtcPath:                    ctx.GlobalString("etc-path"),
 		KeyPEMFile:                 ctx.GlobalString("keyfile"),
 		CertPEMFile:                ctx.GlobalString("certfile"),
 		Zookeepers:                 ctx.GlobalStringSlice("zk"),
@@ -269,6 +274,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		UIPollFrequency:            ctx.GlobalInt("ui-poll-frequency"),
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
+		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
@@ -304,7 +310,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 //
 // TODO: This method is eerily similar to logic in api.ValidateServerOptions(). The two should be reconciled
 //       at some point to avoid duplicate/inconsistent code
-func getEndpoint(options api.Options) string {
+func getEndpoint(options config.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {

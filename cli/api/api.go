@@ -18,8 +18,10 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/rpc/agent"
@@ -49,6 +51,7 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
+	options := config.GetOptions()
 	configureLoggingForLogstash(options.LogstashURL)
 	log := log.WithFields(logrus.Fields{
 		"staticips": options.StaticIPs,
@@ -108,7 +111,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID)
+	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID, time.Duration(options.TokenExpiration)*time.Second)
 	if err != nil {
 		return err
 	}
@@ -128,7 +131,7 @@ func configureLoggingForLogstash(logstashURL string) {
 func (a *api) connectMaster() (master.ClientInterface, error) {
 	if a.master == nil {
 		var err error
-		a.master, err = master.NewClient(options.Endpoint)
+		a.master, err = master.NewClient(config.GetOptions().Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the master: %s", err)
 		}
@@ -164,7 +167,7 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 func (a *api) connectDAO() (dao.ControlPlane, error) {
 	if a.dao == nil {
 		var err error
-		a.dao, err = client.NewControlClient(options.Endpoint)
+		a.dao, err = client.NewControlClient(config.GetOptions().Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}
