@@ -117,7 +117,6 @@
                 .then(data => {
                     console.log(`fetched ${data.length} instances from getServiceInstances for id ${this.id}`);
                     this.instances = data.map(i => new Instance(i));
-                    this.touch();
                     deferred.resolve();
                 },
                 error => {
@@ -182,7 +181,7 @@
                 .error((data, status) => {
                     $notification.create("Stop Instance failed", data.Detail).error();
                 });
-            
+
         }
 
 
@@ -193,7 +192,7 @@
 
         // kicks off request to update instances and service state
         fetchAllStates() {
-            $q.all([this.fetchInstances(), this.getStatus()])
+            return $q.all([this.fetchInstances(), this.getStatus()])
                 .then(results => {
                     this.updateState(results[1]);
                 }, error => {
@@ -213,16 +212,14 @@
 
             // update instance status
             this.instances.forEach(i => {
-                let s = statusMap[i.id];
+                let s = statusMap[i.model.InstanceID];
                 // make sure status exists for instance
                 if (!s) {
-                    console.log(`Service instance ${i.id} has no status. Skipping status update.`);
+                    console.log(`Service instance ${i.model.InstanceID} has no status. Skipping status update.`);
                     return;
                 }
                 i.updateState(s);
             });
-
-            this.touch();
         }
 
     }
@@ -1225,13 +1222,24 @@
                     return $scope.indent(indent - offset);
                 };
 
+
+                $scope.setCurrentService = function() {
+
+                    $scope.services.current = undefined;
+                    $scope.getService($scope.params.serviceId)
+                        .then(function (model) {
+                            $scope.services.current = new Service(model);
+                            // fetchAll() will trigger update at completion
+                            $scope.services.current.fetchAll();
+                        });
+                };
+
                 $scope.update = function () {
 
                     console.log("UPDATE --------------");
 
                     if ($scope.services.current) {
 
-                        $scope.services.current.fetchAll();
                         // setup breadcrumbs
                         $scope.breadcrumbs = makeCrumbs($scope.services.current);
 
@@ -1251,9 +1259,9 @@
                         // initialize services as collapsed
                         if ($scope.services.current.subservices) {
                             $scope.services.current.subservices.forEach(svc => {
-                                if (!treeState[svc.ID]) {
-                                    console.log(`setting serviceTreeState[${svc.ID}] to collapsed`);
-                                    treeState[svc.ID] = {
+                                if (!treeState[svc.id]) {
+                                    console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
+                                    treeState[svc.id] = {
                                         hidden: false,
                                         collapsed: true
                                     };
@@ -1270,6 +1278,9 @@
 
 
                 function init() {
+
+                    console.log("INIT ----------------");
+
                     $scope.name = "servicedetails";
                     $scope.params = $routeParams;
 
@@ -1356,21 +1367,18 @@
                     // }, $scope.update);
 
 
-                    $scope.getService($scope.params.serviceId)
-                        .then(function (model) {
-                            $scope.services.current = new Service(model);
-                        });
-
+                    $scope.$watch("params.serviceId", $scope.setCurrentService);
                     $scope.$watch("services.current.lastUpdate", $scope.update);
 
                     hostsFactory.activate();
                     hostsFactory.update();
 
-                    setInterval(function () {
+                    // TODO: use baseFactory update pattern
+                    let intervalVal = setInterval(function () {
                         if ($scope.services.current) {
                             $scope.services.current.fetchAllStates();
                         }
-                    }, 5000);
+                    }, 3000);
 
                     // servicesFactory.activate();
                     // servicesFactory.update();
@@ -1379,6 +1387,7 @@
                     poolsFactory.update();
 
                     $scope.$on("$destroy", function () {
+                        clearInterval(intervalVal);
                         // servicesFactory.deactivate();
                         hostsFactory.deactivate();
                         poolsFactory.deactivate();
