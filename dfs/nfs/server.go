@@ -29,6 +29,7 @@ import (
 	"syscall"
 
 	"github.com/control-center/serviced/commons/atomicfile"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -60,6 +61,8 @@ var (
 	ErrBasePathNotDir = errors.New("nfs server: base path not a directory")
 	// ErrInvalidNetwork is returned when the network specifier does not parse in CIDR format
 	ErrInvalidNetwork = errors.New("nfs server: the network value is not CIDR")
+
+	log = logging.PackageLogger()
 )
 
 var (
@@ -165,7 +168,7 @@ func (c *Server) filterHostsWithoutDfsPerms(clients []string) []string {
 		if c.clientValidator.ValidateClient(client) {
 			filteredClients = append(filteredClients, client)
 		} else {
-			glog.Infof("Filtered NFS client with ip %s", client)
+			log.Debug("Filtered NFS client with ip %s", client)
 		}
 	}
 	return filteredClients

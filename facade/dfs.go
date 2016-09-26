@@ -664,12 +664,12 @@ func NewDfsClientValidator(fac *Facade, ctx datastore.Context) DfsClientValidato
 func (val *clientValidator) ValidateClient(hostIP string) bool {
 	host, err := val.facade.GetHostByIP(val.context, hostIP)
 	if err != nil || host == nil {
-		glog.Errorf("Unable to load host with ip %s", hostIP)
+		glog.Warningf("Unable to load host with ip %s", hostIP)
 		return false
 	}
 	pool, err := val.facade.GetResourcePool(val.context, host.PoolID)
 	if err != nil || pool == nil {
-		glog.Errorf("Unable to load pool %s", host.PoolID)
+		glog.Warningf("Unable to load pool %s", host.PoolID)
 		return false
 	}
 	return pool.HasDfsAccess()
