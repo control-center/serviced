@@ -46,6 +46,7 @@ func (s *DriverSuite) MockInit(rootDir string, _ []string) (Driver, error) {
 }
 
 func (s *DriverSuite) SetUpTest(c *C) {
+	rand.Seed(time.Now().UnixNano())
 	s.dir = c.MkDir()
 	s.drv = &mocks.Driver{}
 	s.vol = &mocks.Volume{}
@@ -55,6 +56,7 @@ func (s *DriverSuite) SetUpTest(c *C) {
 func (s *DriverSuite) TearDownTest(c *C) {
 	s.drv.On("DriverType").Return(drvName)
 	Unregister(drvName)
+	os.RemoveAll(s.dir)
 }
 
 func (s *DriverSuite) TestNilRegistration(c *C) {

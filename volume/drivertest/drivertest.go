@@ -44,6 +44,7 @@ type Driver struct {
 func newDriver(c *C, name volume.DriverType, root string, args []string) *Driver {
 	var err error
 	if root == "" {
+		rand.Seed(time.Now().UnixNano())
 		root = c.MkDir()
 	}
 	if err := volume.InitDriver(name, root, args); err != nil {

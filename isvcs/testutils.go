@@ -37,12 +37,17 @@ type IServiceTest interface {
 type ManagerTestSuite struct {
 	manager      *Manager
 	testservices []IServiceTest
+	isvcsPath    string
 }
 
 func (t *ManagerTestSuite) SetUpSuite(c *C) {
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
+	t.isvcsPath = c.MkDir()
+
 	docker.StartKernel()
 	config.LoadOptions(config.Options{
-		IsvcsPath: c.MkDir(),
+		IsvcsPath: t.isvcsPath,
 	})
 	t.manager = NewManager(utils.LocalDir("images"), "/tmp/serviced-test", defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 	for _, testservice := range t.testservices {
@@ -71,6 +76,7 @@ func (t *ManagerTestSuite) TearDownSuite(c *C) {
 		testservice.Destroy(c)
 	}
 	t.manager.Stop()
+	os.RemoveAll(t.isvcsPath)
 }
 
 func (t *ManagerTestSuite) AddTestService(svc IServiceTest) {

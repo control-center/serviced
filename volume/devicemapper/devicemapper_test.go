@@ -131,10 +131,17 @@ func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
 
 	basesize1, err := units.RAMInBytes("10M")
 
-	exportdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
+	// seed rand for c.MkDir
+	rand.Seed(time.Now().UnixNano())
+
+	exportTmp := c.MkDir()
+	defer os.RemoveAll(exportTmp)
+	exportdrv, err := Init(exportTmp, []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
 	c.Assert(err, IsNil)
 	defer exportdrv.Cleanup()
 
+	importTmp := c.MkDir()
+	defer os.RemoveAll(importTmp)
 	importdrv, err := Init(c.MkDir(), []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
 	c.Assert(err, IsNil)
 	defer importdrv.Cleanup()
@@ -184,8 +191,12 @@ func (s *DeviceMapperSuite) TestDeviceMapperExcludeDirs(c *C) {
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
+
 	// Set up export volume with larger volume base size
 	root1 := c.MkDir()
+	defer os.RemoveAll(root1)
 	basesize1, err := units.RAMInBytes("15M")
 	c.Assert(err, IsNil)
 	drv1, err := Init(root1, []string{fmt.Sprintf("dm.basesize=%d", basesize1)})
@@ -212,6 +223,7 @@ func (s *DeviceMapperSuite) TestDeviceMapperImportBasesize(c *C) {
 
 	// Set up import volume with smaller volume base size
 	root2 := c.MkDir()
+	defer os.RemoveAll(root2)
 	basesize2, err := units.RAMInBytes("10M")
 	c.Assert(err, IsNil)
 	drv2, err := Init(root2, []string{fmt.Sprintf("dm.basesize=%d", basesize2)})
