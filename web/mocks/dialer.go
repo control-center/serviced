@@ -14,7 +14,6 @@
 package mocks
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/stretchr/testify/mock"
@@ -26,8 +25,6 @@ type Dialer struct {
 
 func (_m *Dialer) Dial(network, address string) (net.Conn, error) {
 	ret := _m.Called(network, address)
-
-	fmt.Printf("Dial(%s, %s)\n", network, address)
 
 	var r0 net.Conn
 	if rf, ok := ret.Get(0).(func(string, string) net.Conn); ok {
@@ -45,6 +42,5 @@ func (_m *Dialer) Dial(network, address string) (net.Conn, error) {
 		r1 = ret.Error(1)
 	}
 
-	fmt.Printf("r0=%v, r1=%v\n", r0, r1)
 	return r0, r1
 }

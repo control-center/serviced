@@ -49,9 +49,6 @@ func (s *TestWebSuite) TestDoNotMuxLocalConnections(c *C) {
 
 	dialer.On("Dial", "tcp4", serviceAddress).Return(unusedConnection, nil)
 
-	fmt.Printf("dialer=%T\n", dialer)
-	fmt.Printf("dialer=%v\n", dialer)
-
 	_, err := getRemoteConnection(&export, dialer)
 
 	c.Assert(err, IsNil)
@@ -68,9 +65,6 @@ func (s *TestWebSuite) TestMuxRemoteConnections(c *C) {
 	
 	dialer.On("Dial", "tcp4", muxAddress).Return(conn, nil)
 	conn.On("Write", muxHeader).Return(0, nil)
-
-	fmt.Printf("dialer=%T\n", dialer)
-	fmt.Printf("dialer=%v\n", dialer)
 
 	_, err := getRemoteConnection(&export, dialer)
 
