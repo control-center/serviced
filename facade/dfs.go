@@ -646,3 +646,31 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
 	return f.dfs.Override(newImageName, oldImageName)
 }
+
+// Interface to allow filtering DFS clients
+type DfsClientValidator interface {
+	ValidateClient(string) bool
+}
+
+type clientValidator struct {
+	context datastore.Context
+	facade  *Facade
+}
+
+func NewDfsClientValidator(fac *Facade, ctx datastore.Context) DfsClientValidator {
+	return &clientValidator{ctx, fac}
+}
+
+func (val *clientValidator) ValidateClient(hostIP string) bool {
+	host, err := val.facade.GetHostByIP(val.context, hostIP)
+	if err != nil || host == nil {
+		glog.Errorf("Unable to load host with ip %s", hostIP)
+		return false
+	}
+	pool, err := val.facade.GetResourcePool(val.context, host.PoolID)
+	if err != nil || pool == nil {
+		glog.Errorf("Unable to load pool %s", host.PoolID)
+		return false
+	}
+	return pool.HasDfsAccess()
+}

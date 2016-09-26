@@ -502,6 +502,11 @@ func (d *daemon) startMaster() (err error) {
 		log.WithError(err).Fatal("Unable to register RPC services")
 	}
 
+	nfsServer, ok := d.net.(*nfs.Server)
+	if ok {
+		nfsServer.SetClientValidator(facade.NewDfsClientValidator(d.facade, d.dsContext))
+	}
+
 	d.initWeb()
 	d.addTemplates()
 	d.startScheduler()
@@ -583,6 +588,15 @@ func createMuxListener() net.Listener {
 	}
 	log.Debug("Created TCP multiplexer")
 	return listener
+}
+
+// Check if the pool the agent belongs to is allowed to access the DFS
+func delegateHasDFSAccess() bool {
+	identity := auth.CurrentIdentity()
+	if identity == nil {
+		return false
+	}
+	return identity.HasDFSAccess()
 }
 
 func (d *daemon) startAgent() error {
@@ -727,7 +741,11 @@ func (d *daemon) startAgent() error {
 			"zkpath": poolPath,
 		}).Info("Established pool-based connection to ZooKeeper")
 
-		if options.NFSClient != "0" {
+		if delegateHasDFSAccess() {
+			log.Info("Did not mount the distributed filesystem. Delegate does not have DFS permissions")
+		} else if options.NFSClient == "0" {
+			log.Info("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
+		} else {
 			log := log.WithFields(logrus.Fields{
 				"path": options.VolumesPath,
 			})
@@ -768,8 +786,6 @@ func (d *daemon) startAgent() error {
 					continue
 				}
 			}
-		} else {
-			log.Info("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
 		}
 
 		agentOptions := node.AgentOptions{
