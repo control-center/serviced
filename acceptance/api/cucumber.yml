@@ -1,0 +1,17 @@
+#
+# Availble profiles:
+#
+# default - writes results to stdout and to JSON (there are many formatters that can consume the JSON)
+#
+# default-html - same as default, but produces the default HTML report instead of JSON
+#
+# NOTES:
+# 1. The value of --out should start with the value of OUTPUT_DIR. If not, then screenshots
+#    will be written to a different directory when an error occurs.
+#
+# 2. One of the reporters that converts the JSON report to a pretty HTML report is available
+#    as a Jenkins plugin. See https://github.com/masterthought/cucumber-reporting
+#
+default: DATASET_DIR=./features/data OUTPUT_DIR=./output --format pretty --format json --out ./output/report.json
+
+default-html: DATASET_DIR=./features/data OUTPUT_DIR=./output --format pretty --format html --out ./output/features_report.html
