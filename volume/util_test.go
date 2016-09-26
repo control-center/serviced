@@ -55,6 +55,7 @@ func (s *UtilsSuite) TestIsDir(c *C) {
 
 func (s *UtilsSuite) TestFileInfoSlice(c *C) {
 	root := c.MkDir()
+	defer os.RemoveAll(root)
 
 	var (
 		slice    FileInfoSlice

@@ -26,6 +26,8 @@ import (
 func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
+	defer os.RemoveAll(tmpDir)
+
 	hostKeyFile := fmt.Sprintf("%s/host", tmpDir)
 	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
 
@@ -79,6 +81,8 @@ func (s *TestAuthSuite) TestCreateMasterKeys(c *C) {
 	auth.ClearKeys()
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
+	defer os.RemoveAll(tmpDir)
+
 	masterKeyFile := fmt.Sprintf("%s/.keys/master", tmpDir)
 	// hostKeyFile := fmt.Sprintf("%s/delegate", tmpDir)
 
