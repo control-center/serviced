@@ -258,7 +258,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		ServiceID:     svc.ID,
 		ServiceName:   svc.Name,
 		ContainerID:   state.ContainerID,
-		ImageSynced:   imageUUID == state.ImageID,
+		ImageSynced:   imageUUID == state.ImageUUID,
 		DesiredState:  state.DesiredState,
 		CurrentState:  curState,
 		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),

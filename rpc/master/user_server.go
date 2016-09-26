@@ -17,7 +17,6 @@ import (
 	"github.com/control-center/serviced/domain/user"
 )
 
-
 // Get the system user
 func (s *Server) GetSystemUser(unused struct{}, systemUser *user.User) error {
 	result, err := s.f.GetSystemUser(s.context())

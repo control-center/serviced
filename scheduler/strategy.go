@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
@@ -40,12 +41,12 @@ type StrategyRunningService struct {
 }
 
 type StrategyService struct {
-	svc *service.Service
+	svc *zkservice.ServiceNode
 }
 
-func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.Strategy, facade *facade.Facade) (string, error) {
+func StrategySelectHost(sn *zkservice.ServiceNode, hosts []host.Host, strat strategy.Strategy, facade *facade.Facade) (string, error) {
 
-	glog.V(2).Infof("Applying %s strategy for service %s", strat.Name(), svc.ID)
+	glog.V(2).Infof("Applying %s strategy for service %s", strat.Name(), sn.ID)
 
 	hostmap := map[string]*StrategyHost{}
 	hostids := []string{}
@@ -74,11 +75,11 @@ func StrategySelectHost(svc *service.Service, hosts []host.Host, strat strategy.
 		glog.V(2).Infof("Host %s is running %d service instances", h.HostID(), len(h.services))
 		shosts = append(shosts, h)
 	}
-	if result, err := strat.SelectHost(&StrategyService{svc}, shosts); result == nil || err != nil {
+	if result, err := strat.SelectHost(&StrategyService{sn}, shosts); result == nil || err != nil {
 		return "", err
 	} else {
 		h := result.(*StrategyHost).host
-		glog.V(2).Infof("Deploying service %s to host %s", svc.ID, h.ID)
+		glog.V(2).Infof("Deploying service %s to host %s", sn.ID, h.ID)
 		return h.ID, nil
 	}
 }

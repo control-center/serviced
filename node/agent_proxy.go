@@ -68,7 +68,7 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 
 func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID": request.ServiceID,
+		"serviceID":  request.ServiceID,
 		"instanceID": request.InstanceID,
 	})
 
@@ -101,7 +101,6 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	glog.Errorf("AckProxySnapshotQuiece() Unimplemented")
 	return errors.New("unimplemented")
 }
-
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {

@@ -35,17 +35,17 @@ func (ft *FacadeIntegrationTest) TestUser_UserOperations(t *C) {
 	if err != nil {
 		t.Fatalf("Failure getting user %s", err)
 	}
-	
+
 	// make sure they are the same user
 	if newUser.Name != user.Name {
 		t.Fatalf("Retrieved an unexpected user %v", newUser)
 	}
-	
+
 	// make sure the password was hashed
 	if newUser.Password == "Pepe" {
 		t.Fatalf("Did not hash the password %+v", user)
 	}
-	
+
 	err = ft.Facade.RemoveUser(ft.CTX, "Pepe")
 	if err != nil {
 		t.Fatalf("Failure removing user %s", err)
@@ -67,20 +67,20 @@ func (ft *FacadeIntegrationTest) TestUser_ValidateCredentials(t *C) {
 		Password: "Pepe",
 	}
 	isValid, err = ft.Facade.ValidateCredentials(ft.CTX, attemptUser)
-	
+
 	if err != nil {
 		t.Fatalf("Failure authenticating credentials %s", err)
 	}
-	
+
 	if !isValid {
 		t.Fatalf("Unable to authenticate user credentials")
 	}
-	
+
 	err = ft.Facade.RemoveUser(ft.CTX, "Pepe")
 	if err != nil {
 		t.Fatalf("Failure removing user %s", err)
 	}
-	
+
 	// update the user
 	user.Password = "pepe2"
 	err = ft.Facade.UpdateUser(ft.CTX, user)
@@ -90,9 +90,8 @@ func (ft *FacadeIntegrationTest) TestUser_ValidateCredentials(t *C) {
 	attemptUser.Password = "Pepe2"
 	// make sure we can validate against the updated credentials
 	isValid, err = ft.Facade.ValidateCredentials(ft.CTX, attemptUser)
-	
+
 	if err != nil {
 		t.Fatalf("Failure authenticating credentials %s", err)
 	}
 }
-

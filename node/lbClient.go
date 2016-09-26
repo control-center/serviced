@@ -65,7 +65,6 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 	return a.rpcClient.Call("ControlCenterAgent.GetServiceEndpoints", serviceId, endpoints, 0)
 }
 
-
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (a *LBClient) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error {
 	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
@@ -84,7 +83,6 @@ func (a *LBClient) AckProxySnapshotQuiece(snapshotId string, unused *interface{}
 	glog.V(4).Infof("ControlCenterAgent.AckProxySnapshotQuiece()")
 	return a.rpcClient.Call("ControlCenterAgent.AckProxySnapshotQuiece", snapshotId, unused, 0)
 }
-
 
 // ReportHealthStatus stores a health check result.
 func (a *LBClient) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {

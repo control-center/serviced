@@ -32,8 +32,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/user"
 	worker "github.com/control-center/serviced/rpc/agent"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/utils"
 )
 
 var empty interface{}

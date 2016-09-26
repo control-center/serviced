@@ -53,12 +53,15 @@ func (l ServiceLockNode) Path() string {
 func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := ServiceNode{Service: &service.Service{}}
-		if err := conn.Get(svc.Path(), &node); err != nil {
+		node, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			return err
+		}
+		if err := conn.Get(svc.Path(), node); err != nil {
 			return err
 		}
 		node.Locked = true
-		tx.Set(svc.Path(), &node)
+		tx.Set(svc.Path(), node)
 	}
 	return tx.Commit()
 }
@@ -67,13 +70,16 @@ func LockServices(conn client.Connection, svcs []ServiceLockNode) error {
 func UnlockServices(conn client.Connection, svcs []ServiceLockNode) error {
 	tx := conn.NewTransaction()
 	for _, svc := range svcs {
-		node := ServiceNode{Service: &service.Service{}}
-		if err := conn.Get(svc.Path(), &node); err != nil && err != client.ErrNoNode {
+		node, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			return err
+		}
+		if err := conn.Get(svc.Path(), node); err != nil && err != client.ErrNoNode {
 			return err
 		}
 		if node.Locked {
 			node.Locked = false
-			tx.Set(svc.Path(), &node)
+			tx.Set(svc.Path(), node)
 		}
 	}
 	return tx.Commit()

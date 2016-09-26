@@ -16,10 +16,10 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
-	"encoding/json"
 
 	"github.com/control-center/serviced/cli/api/mocks"
 	"github.com/control-center/serviced/domain/host"
@@ -75,7 +75,7 @@ func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		c.Fatalf("GetServices called when it should not have been")
@@ -90,7 +90,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
 
 // If the DB has no services, we will at least query for the specified serviceID (e.g. could be logs from a deleted service)
 func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
@@ -104,7 +104,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 	serviceID := "someServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{serviceID}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{serviceID}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{{ID: serviceID}}, nil
@@ -118,7 +118,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 	parentServiceID := "parentServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -136,7 +136,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -154,7 +154,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		services := []service.Service{
@@ -173,7 +173,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 
 func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 	expectedError := fmt.Errorf("GetServices failed")
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return nil, expectedError
@@ -186,7 +186,7 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_InvalidServiceIDs(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
@@ -204,7 +204,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 	fromDate := "2015.01.01"
 	toDate := "2015.01.01"
 	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -224,7 +224,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -245,7 +245,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -265,7 +265,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -275,9 +275,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -310,7 +310,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 //     more than one call to ScrollSearch()
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -320,9 +320,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -356,7 +356,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -366,9 +366,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -383,8 +383,8 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		ScrollId: "lastSearch",
 		Hits: core.Hits{
 			Total: 1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`), },
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`)},
 			},
 		},
 	}
@@ -417,7 +417,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -427,9 +427,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -466,7 +466,7 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 	getServices := func() ([]service.Service, error) {
 		return []service.Service{}, nil
 	}
-	getHostMap := func()(map[string]host.Host, error) {
+	getHostMap := func() (map[string]host.Host, error) {
 		return make(map[string]host.Host), nil
 	}
 

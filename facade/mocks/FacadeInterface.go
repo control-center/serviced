@@ -944,6 +944,7 @@ func (_m *FacadeInterface) GetServicePublicEndpoints(ctx datastore.Context, serv
 
 	return r0, r1
 }
+
 func (_m *FacadeInterface) GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
 	ret := _m.Called(ctx, serviceID, children)
 
@@ -965,6 +966,8 @@ func (_m *FacadeInterface) GetServiceAddressAssignmentDetails(ctx datastore.Cont
 
 	return r0, r1
 }
+
+// AddUser provides a mock function with given fields: ctx, newUser
 func (_m *FacadeInterface) AddUser(ctx datastore.Context, newUser user.User) error {
 	ret := _m.Called(ctx, newUser)
 

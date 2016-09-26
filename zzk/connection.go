@@ -94,9 +94,9 @@ func InitializeLocalClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
 	manager[local] = &zclient{
-		client: client,
+		client:          client,
 		connectionsLock: sync.RWMutex{},
-		connections: make(map[string]*zconn),
+		connections:     make(map[string]*zconn),
 	}
 }
 
@@ -116,9 +116,9 @@ func InitializeRemoteClient(client *client.Client) {
 	managerLock.Lock()
 	defer managerLock.Unlock()
 	manager[remote] = &zclient{
-		client: client,
+		client:          client,
 		connectionsLock: sync.RWMutex{},
-		connections: make(map[string]*zconn),
+		connections:     make(map[string]*zconn),
 	}
 }
 

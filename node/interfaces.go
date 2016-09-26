@@ -103,8 +103,8 @@ type EvaluateServiceRequest struct {
 }
 
 type EvaluateServiceResponse struct {
-	Service   service.Service
-	TenantID  string
+	Service  service.Service
+	TenantID string
 }
 
 // The API for a service proxy.
