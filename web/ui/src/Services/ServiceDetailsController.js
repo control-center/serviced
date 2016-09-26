@@ -676,7 +676,7 @@
                         mode: "properties"
                     };
 
-                    $scope.editableService = angular.copy($scope.services.current.model);
+                    $scope.editableService = angular.copy($scope.currentService.model);
                     $scope.editableContext = makeEditableContext($scope.editableService.Context);
 
                     $modalService.create({
@@ -790,7 +790,7 @@
                 };
 
                 $scope.editConfig = function (config) {
-                    $scope.editableService = angular.copy($scope.services.current.model);
+                    $scope.editableService = angular.copy($scope.currentService.model);
                     $scope.selectedConfig = config;
 
                     //set editor options for context editing
@@ -893,7 +893,7 @@
 
                 $scope.validateService = function () {
                     // TODO: Validate name and startup command
-                    var svc = $scope.services.current.model,
+                    var svc = $scope.currentService.model,
                         max = svc.InstanceLimits.Max,
                         min = svc.InstanceLimits.Min,
                         num = svc.Instances;
@@ -916,7 +916,7 @@
 
                 $scope.updateService = function (newService) {
                     if ($scope.validateService()) {
-                        return resourcesFactory.updateService($scope.services.current.model.ID, newService)
+                        return resourcesFactory.updateService($scope.currentService.model.ID, newService)
                             .success((data, status) => {
                                 // servicesFactory.update();
                                 this.editableService = {};
@@ -996,7 +996,7 @@
 
                     $location.update_path("/services/" + id, true);
                     $scope.params.serviceId = id;
-                    // $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                    // $scope.currentService = servicesFactory.get($scope.params.serviceId);
                     $scope.update();
                 };
 
@@ -1042,14 +1042,14 @@
                 //      ...
 
                 $scope.toggleChildren = function (service) {
-                    if (!$scope.services.current) {
+                    if (!$scope.currentService) {
                         console.warn("Cannot store toggle state: no current service");
                         return;
                     }
 
                     // stored state for the current service's
                     // service tree
-                    var treeState = $scope.services.currentTreeState;
+                    var treeState = $scope.currentTreeState;
 
                     // if this service is marked as collapsed in
                     // this particular tree view, show its children
@@ -1085,7 +1085,7 @@
                 //     $scope.resourcesFactory.v2.getServiceChildren(id)
                 //         .success(function(data){
                 //             console.log(data.length + " children returned.");
-                //             $scope.services.current.children = data;
+                //             $scope.currentService.children = data;
                 //             // $scope.insertTreeChildren(data.results);
                 //         });
                 // };
@@ -1108,7 +1108,7 @@
                     $scope.resourcesFactory.v2.getServices()
                         .success(function (data) {
                             console.log(data.length + " top level children.");
-                            // $scope.services.current = data.results;
+                            // $scope.currentService = data.results;
                         });
                 };
 
@@ -1126,7 +1126,7 @@
 
                 $scope.hideChildren = function (service) {
                     // get the state of the current service's tree
-                    var treeState = $scope.services.currentTreeState;
+                    var treeState = $scope.currentTreeState;
 
                     if (service.children) {
                         service.children.forEach(function (child) {
@@ -1137,7 +1137,7 @@
                 };
 
                 $scope.showChildren = function (service) {
-                    var treeState = $scope.services.currentTreeState;
+                    var treeState = $scope.currentTreeState;
 
                     if (service.children) {
                         service.children.forEach(function (child) {
@@ -1162,13 +1162,13 @@
                 };
 
                 $scope.hasCurrentInstances = function () {
-                    return $scope.services && $scope.services.current && $scope.services.current.hasInstances();
+                    return $scope.services && $scope.currentService && $scope.currentService.hasInstances();
                 };
 
                 $scope.editCurrentService = function () {
 
                     // clone service for editing
-                    $scope.editableService = angular.copy($scope.services.current.model);
+                    $scope.editableService = angular.copy($scope.currentService.model);
 
                     $modalService.create({
                         templateUrl: "edit-service.html",
@@ -1215,8 +1215,8 @@
                     var indent = service.depth,
                         offset = 1;
 
-                    if ($scope.services.current && $scope.services.current.parent) {
-                        offset = $scope.services.current.parent.depth + 2;
+                    if ($scope.currentService && $scope.currentService.parent) {
+                        offset = $scope.currentService.parent.depth + 2;
                     }
 
                     return $scope.indent(indent - offset);
@@ -1225,12 +1225,12 @@
 
                 $scope.setCurrentService = function() {
 
-                    $scope.services.current = undefined;
+                    $scope.currentService = undefined;
                     $scope.getService($scope.params.serviceId)
                         .then(function (model) {
-                            $scope.services.current = new Service(model);
+                            $scope.currentService = new Service(model);
                             // fetchAll() will trigger update at completion
-                            $scope.services.current.fetchAll();
+                            $scope.currentService.fetchAll();
                         });
                 };
 
@@ -1238,10 +1238,10 @@
 
                     console.log("UPDATE --------------");
 
-                    if ($scope.services.current) {
+                    if ($scope.currentService) {
 
                         // setup breadcrumbs
-                        $scope.breadcrumbs = makeCrumbs($scope.services.current);
+                        $scope.breadcrumbs = makeCrumbs($scope.currentService);
 
                         // update serviceTreeState
                         $scope.serviceTreeState = CCUIState.get($cookies.get("ZUsername"), "serviceTreeState");
@@ -1251,14 +1251,14 @@
 
                         // create an entry in tree state for the
                         // current service
-                        if (!($scope.services.current.id in $scope.serviceTreeState)) {
-                            $scope.serviceTreeState[$scope.services.current.id] = {};
+                        if (!($scope.currentService.id in $scope.serviceTreeState)) {
+                            $scope.serviceTreeState[$scope.currentService.id] = {};
                         }
-                        var treeState = $scope.serviceTreeState[$scope.services.current.id];
+                        var treeState = $scope.serviceTreeState[$scope.currentService.id];
 
                         // initialize services as collapsed
-                        if ($scope.services.current.subservices) {
-                            $scope.services.current.subservices.forEach(svc => {
+                        if ($scope.currentService.subservices) {
+                            $scope.currentService.subservices.forEach(svc => {
                                 if (!treeState[svc.id]) {
                                     console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
                                     treeState[svc.id] = {
@@ -1270,7 +1270,7 @@
                         }
 
                         // property for view to bind for tree state
-                        $scope.services.currentTreeState = $scope.serviceTreeState[$scope.services.current.id];
+                        $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
 
                     }
 
@@ -1348,17 +1348,17 @@
 
                     // $scope.$watch(function() {
                     //     // if no current service is set, try to set one
-                    //     if(!$scope.services.current) {
+                    //     if(!$scope.currentService) {
                     //         // v2 call with id = $scope.params.serviceId
                     //         $scope.getService($scope.params.serviceId)
                     //             .then( function(model){
-                    //                 $scope.services.current = new Service(model);
+                    //                 $scope.currentService = new Service(model);
                     //             });
-                    //         // $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                    //         // $scope.currentService = servicesFactory.get($scope.params.serviceId);
                     //     }
 
-                    //     if($scope.services.current) {
-                    //         return $scope.services.current.isDirty();
+                    //     if($scope.currentService) {
+                    //         return $scope.currentService.isDirty();
                     //     } else {
                     //         // there is no current service
                     //         console.warn("current service not yet available");
@@ -1375,8 +1375,8 @@
 
                     // TODO: use baseFactory update pattern
                     let intervalVal = setInterval(function () {
-                        if ($scope.services.current) {
-                            $scope.services.current.fetchAllStates();
+                        if ($scope.currentService) {
+                            $scope.currentService.fetchAllStates();
                         }
                     }, 3000);
 
