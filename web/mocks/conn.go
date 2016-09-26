@@ -14,146 +14,146 @@
 package mocks
 
 import (
-    "net"
-    "time"
-    
-    "github.com/stretchr/testify/mock"	
+	"net"
+	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type Conn struct {
-    mock.Mock
+	mock.Mock
 }
 
 func (_m *Conn) Read(b []byte) (int, error) {
-    ret := _m.Called(b)
+	ret := _m.Called(b)
 
-    var r0 int
-    if rf, ok := ret.Get(0).(func([]byte) int); ok {
-        r0 = rf(b)
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Get(0).(int)
-        }
-    }
+	var r0 int
+	if rf, ok := ret.Get(0).(func([]byte) int); ok {
+		r0 = rf(b)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(int)
+		}
+	}
 
-    var r1 error
-    if rf, ok := ret.Get(1).(func([]byte) error); ok {
-        r1 = rf(b)
-    } else {
-        r1 = ret.Error(1)
-    }
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+		r1 = rf(b)
+	} else {
+		r1 = ret.Error(1)
+	}
 
-    return r0, r1
+	return r0, r1
 }
 
 func (_m *Conn) Write(b []byte) (int, error) {
-    ret := _m.Called(b)
+	ret := _m.Called(b)
 
-    var r0 int
-    if rf, ok := ret.Get(0).(func([]byte) int); ok {
-        r0 = rf(b)
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Get(0).(int)
-        }
-    }
+	var r0 int
+	if rf, ok := ret.Get(0).(func([]byte) int); ok {
+		r0 = rf(b)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(int)
+		}
+	}
 
-    var r1 error
-    if rf, ok := ret.Get(1).(func([]byte) error); ok {
-        r1 = rf(b)
-    } else {
-        r1 = ret.Error(1)
-    }
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+		r1 = rf(b)
+	} else {
+		r1 = ret.Error(1)
+	}
 
-    return r0, r1
+	return r0, r1
 }
 
 func (_m *Conn) Close() error {
-    ret := _m.Called()
+	ret := _m.Called()
 
-    var r0 error
-    if rf, ok := ret.Get(0).(func() error); ok {
-        r0 = rf()
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Error(0)
-        }
-    }
+	var r0 error
+	if rf, ok := ret.Get(0).(func() error); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Error(0)
+		}
+	}
 
-    return r0
+	return r0
 }
 
 func (_m *Conn) LocalAddr() net.Addr {
-    ret := _m.Called()
+	ret := _m.Called()
 
-    var r0 net.Addr
-    if rf, ok := ret.Get(0).(func() net.Addr); ok {
-        r0 = rf()
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Get(0).(net.Addr)
-        }
-    }
+	var r0 net.Addr
+	if rf, ok := ret.Get(0).(func() net.Addr); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(net.Addr)
+		}
+	}
 
-    return r0
+	return r0
 }
 
 func (_m *Conn) RemoteAddr() net.Addr {
-    ret := _m.Called()
+	ret := _m.Called()
 
-    var r0 net.Addr
-    if rf, ok := ret.Get(0).(func() net.Addr); ok {
-        r0 = rf()
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Get(0).(net.Addr)
-        }
-    }
+	var r0 net.Addr
+	if rf, ok := ret.Get(0).(func() net.Addr); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(net.Addr)
+		}
+	}
 
-    return r0
+	return r0
 }
 
 func (_m *Conn) SetDeadline(t time.Time) error {
-    ret := _m.Called(t)
+	ret := _m.Called(t)
 
-    var r0 error
-    if rf, ok := ret.Get(0).(func(time.Time) error); ok {
-        r0 = rf(t)
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Error(0)
-        }
-    }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(time.Time) error); ok {
+		r0 = rf(t)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Error(0)
+		}
+	}
 
-    return r0
+	return r0
 }
 
 func (_m *Conn) SetReadDeadline(t time.Time) error {
-    ret := _m.Called(t)
+	ret := _m.Called(t)
 
-    var r0 error
-    if rf, ok := ret.Get(0).(func(time.Time) error); ok {
-        r0 = rf(t)
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Error(0)
-        }
-    }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(time.Time) error); ok {
+		r0 = rf(t)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Error(0)
+		}
+	}
 
-    return r0
+	return r0
 }
 
 func (_m *Conn) SetWriteDeadline(t time.Time) error {
-    ret := _m.Called(t)
+	ret := _m.Called(t)
 
-    var r0 error
-    if rf, ok := ret.Get(0).(func(time.Time) error); ok {
-        r0 = rf(t)
-    } else {
-        if ret.Get(0) != nil {
-            r0 = ret.Error(0)
-        }
-    }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(time.Time) error); ok {
+		r0 = rf(t)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Error(0)
+		}
+	}
 
-    return r0
+	return r0
 }

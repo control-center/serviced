@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk/registry"
-	"github.com/zenoss/glog"
 )
 
 // initialize the logger
@@ -140,8 +139,8 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 
 	muxHeader, err = auth.BuildMuxHeader(muxHeader)
 	if err != nil {
-		glog.Errorf("Error building authenticated mux header. %s", err)
-		return
+		plog.WithError(err).Error("Error building authenticated mux header.")
+		return nil, err
 	}
 	remote.Write(muxHeader)
 
