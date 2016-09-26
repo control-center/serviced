@@ -7,7 +7,7 @@
     'use strict';
 
     // share angular services outside of angular context
-    var $notification, $q, resourcesFactory, utils;
+    var $notification, serviceHealth, $q, resourcesFactory, utils;
 
     // service types
     var ISVC = "isvc",           // internal service
@@ -18,16 +18,16 @@
     class Instance {
 
         constructor(instance) {
-            this.name = instance.Name;
             this.model = Object.freeze(instance);
             this.id = buildStateId(this.model.HostID, this.model.ServiceID, this.model.InstanceID);
 
             this.resources = {
                 RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
             };
+            console.log(`Health constructor`);
 
             this.updateState({
-                Health: instance.HealthStatus,
+                HealthStatus: instance.HealthStatus,
                 MemoryUsage: instance.MemoryUsage
             });
         }
@@ -40,12 +40,8 @@
             this.resources.RAMAverage = Math.max(0, status.MemoryUsage.Avg);
             this.resources.RAMLast = Math.max(0, status.MemoryUsage.Cur);
             this.resources.RAMMax = Math.max(0, status.MemoryUsage.Max);
-
-            // var hc = {};
-            // for (var name in instance.HealthChecks) {
-            //     hc[name] = instance.HealthChecks[name].Status;
-            // }
-            // this.healthChecks = hc;
+            console.log(`Health setting Health property from status object`);
+            this.healthChecks = status.HealthStatus;
         }
 
     }
@@ -54,6 +50,10 @@
         return `${hostid}-${serviceid}-${instanceid}`;
     }
 
+    // DesiredState enum
+    var START = 1,
+        STOP = 0,
+        RESTART = -1;
 
     class Service {
         constructor(service) {
@@ -70,6 +70,8 @@
             this.evaluateServiceType();
             this.touch();
         }
+
+
 
         evaluateServiceType() {
             // infer service type
@@ -173,6 +175,46 @@
             return this.model.HasChildren;
         }
 
+        // start, stop, or restart this service
+        start(skipChildren){
+            var promise = resourcesFactory.startService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
+            this.desiredState = START;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
+        }
+
+        stop(skipChildren){
+            var promise = resourcesFactory.stopService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
+            this.desiredState = STOP;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
+        }
+
+        restart(skipChildren){
+            var promise = resourcesFactory.restartService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
+            this.desiredState = RESTART;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
+        }
+
         stopInstance(instance) {
             resourcesFactory.killRunning(instance.model.HostID, instance.id)
                 .success(() => {
@@ -220,6 +262,17 @@
                 }
                 i.updateState(s);
             });
+
+            // TODO: pass myself into health status and get my health status back
+            // update my health icon
+
+            console.log(`Health updateState`);
+
+            serviceHealth.update({ [this.id]: this });
+            this.status = serviceHealth.get(this.id);
+
+
+
             this.touch();
         }
 
@@ -254,15 +307,16 @@
     controlplane.controller("ServiceDetailsController",
         ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
-            "$timeout", "miscUtils", "hostsFactory",
+            "$timeout", "miscUtils", "hostsFactory", "$serviceHealth",
             "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
-                $timeout, _utils, hostsFactory,
+                $timeout, _utils, hostsFactory, _serviceHealth,
                 poolsFactory, CCUIState, $cookies, areUIReady, LogSearch) {
 
                 // api access via angular context
                 $notification = _$notification;
+                serviceHealth = _serviceHealth;
                 $q = _$q;
                 resourcesFactory = _resourcesFactory;
                 utils = _utils;
@@ -1271,7 +1325,7 @@
 
                 function init() {
 
-                    console.log("INIT ----------------");
+                    console.log("INIT -----------------------------");
 
                     $scope.name = "servicedetails";
                     $scope.params = $routeParams;
