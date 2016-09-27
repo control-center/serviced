@@ -16,11 +16,12 @@ package rpcutils
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/control-center/serviced/auth"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"sync"
+
+	"github.com/control-center/serviced/auth"
 )
 
 var (
@@ -68,6 +69,7 @@ type AuthServerCodec struct {
 	wrappedcodec rpc.ServerCodec
 	parser       auth.RPCHeaderParser
 	mutex        sync.Mutex // Makes sure we read in order
+	lastError    error
 }
 
 func NewDefaultAuthServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
@@ -87,6 +89,9 @@ func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, pa
 //  lets the underlying codec read the rest.
 //  Finally, it validates the identity if necessary.
 func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
+	// Reset state
+	a.lastError = nil
+
 	// Lock so we read both values back-to-back
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
@@ -124,14 +129,16 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	}
 
 	// Now we can get the method name from r and authenticate if required
+	//  If this fails, save the error to return later
+	//  If we return an error now, the server will simply close the connection
+	//  This is safe because go's rpc server always calls ReadRequestHeader and ReadRequestBody back-to-back
+	//   (unless ReadRequestHeader returns an error)
 	if requiresAuthentication(r.ServiceMethod) {
 		ident, err := a.parser.ParseHeader(header, r)
 		if err != nil {
-			return err
-		}
-
-		if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
-			return ErrNoAdmin
+			a.lastError = err
+		} else if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
+			a.lastError = ErrNoAdmin
 		}
 
 		//TODO: save the identity so we can inject it into the request body later
@@ -144,6 +151,9 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 //  We don't change anything here, just let the underlying codec handle it.
 //  This always gets called after ReadRequestHeader
 func (a *AuthServerCodec) ReadRequestBody(body interface{}) error {
+	if a.lastError != nil {
+		return a.lastError
+	}
 	// TODO: Use reflection and add the identity to the body if necessary
 	return a.wrappedcodec.ReadRequestBody(body)
 }

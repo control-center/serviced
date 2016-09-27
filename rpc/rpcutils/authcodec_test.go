@@ -99,6 +99,10 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
 	codectest.headerParser.On("ParseHeader", header, req).Return(ident, ErrTestCodec).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
+	// Error won't come through until we call ReadRequestBody
+	c.Assert(err, IsNil)
+	b := struct{}{}
+	err = codectest.authServerCodec.ReadRequestBody(&b)
 	c.Assert(err, Equals, ErrTestCodec)
 
 	// Test error no admin access
@@ -106,6 +110,9 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.headerParser.On("ParseHeader", header, req).Return(ident, nil).Once()
 	ident.On("HasAdminAccess").Return(false).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
+	// Error won't come through until we call ReadRequestBody
+	c.Assert(err, IsNil)
+	err = codectest.authServerCodec.ReadRequestBody(&b)
 	c.Assert(err, Equals, ErrNoAdmin)
 
 	// Test success with admin access
