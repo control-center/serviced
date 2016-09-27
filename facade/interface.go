@@ -129,7 +129,7 @@ type FacadeInterface interface {
 
 	GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error)
 
-	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+	GetServiceDetails(ctx datastore.Context, serviceID string, ancestors bool) (*service.ServiceDetails, error)
 
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 

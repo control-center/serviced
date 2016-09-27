@@ -1888,8 +1888,21 @@ func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceD
 }
 
 // Get the details of the services for the given id
-func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
-	return f.serviceStore.GetServiceDetails(ctx, serviceID)
+func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string, ancestors bool) (*service.ServiceDetails, error) {
+	s, err := f.serviceStore.GetServiceDetails(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if ancestors && s.ParentServiceID != "" {
+		ps, err := f.GetServiceDetails(ctx, s.ParentServiceID, ancestors)
+		if err != nil {
+			return nil, err
+		}
+		s.Parent = ps
+	}
+
+	return s, nil
 }
 
 // Get the details of the child services for the given parent

@@ -29,6 +29,7 @@ type ServiceDetails struct {
 	Description     string
 	PoolID          string
 	ParentServiceID string
+	Parent          *ServiceDetails `json:",omitempty"`
 	Instances       int
 	InstanceLimits  domain.MinMax
 	RAMCommitment   utils.EngNotation

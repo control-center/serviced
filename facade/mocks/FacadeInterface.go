@@ -345,7 +345,9 @@ func (_m *FacadeInterface) AddHost(ctx datastore.Context, entity *host.Host) ([]
 	if rf, ok := ret.Get(0).(func(datastore.Context, *host.Host) []byte); ok {
 		r0 = rf(ctx, entity)
 	} else {
-		r0 = ret.Get(0).([]byte)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
 	}
 
 	var r1 error
@@ -406,7 +408,9 @@ func (_m *FacadeInterface) GetHostKey(ctx datastore.Context, hostID string) ([]b
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) []byte); ok {
 		r0 = rf(ctx, hostID)
 	} else {
-		r0 = ret.Get(0).([]byte)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
 	}
 
 	var r1 error
@@ -860,12 +864,12 @@ func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context) ([]servic
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
-	ret := _m.Called(ctx, serviceID)
+func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID string, ancestors bool) (*service.ServiceDetails, error) {
+	ret := _m.Called(ctx, serviceID, ancestors)
 
 	var r0 *service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceDetails); ok {
-		r0 = rf(ctx, serviceID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) *service.ServiceDetails); ok {
+		r0 = rf(ctx, serviceID, ancestors)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*service.ServiceDetails)
@@ -873,8 +877,8 @@ func (_m *FacadeInterface) GetServiceDetails(ctx datastore.Context, serviceID st
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool) error); ok {
+		r1 = rf(ctx, serviceID, ancestors)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -944,7 +948,6 @@ func (_m *FacadeInterface) GetServicePublicEndpoints(ctx datastore.Context, serv
 
 	return r0, r1
 }
-
 func (_m *FacadeInterface) GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
 	ret := _m.Called(ctx, serviceID, children)
 
@@ -966,8 +969,6 @@ func (_m *FacadeInterface) GetServiceAddressAssignmentDetails(ctx datastore.Cont
 
 	return r0, r1
 }
-
-// AddUser provides a mock function with given fields: ctx, newUser
 func (_m *FacadeInterface) AddUser(ctx datastore.Context, newUser user.User) error {
 	ret := _m.Called(ctx, newUser)
 

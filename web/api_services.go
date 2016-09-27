@@ -52,9 +52,11 @@ func getServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 		return
 	}
 
+	_, ancestors := r.URL.Query()["ancestors"]
+
 	ctx := c.getDatastoreContext()
 
-	details, err := c.getFacade().GetServiceDetails(ctx, serviceID)
+	details, err := c.getFacade().GetServiceDetails(ctx, serviceID, ancestors)
 	if err != nil {
 		restServerError(w, err)
 		return
