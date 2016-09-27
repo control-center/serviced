@@ -33,6 +33,10 @@ const (
 	esVersion = "0.90.13"
 )
 
+var (
+	tmpDir string
+)
+
 // ElasticTest for running tests that need elasticsearch. Type is to be used a a gocheck Suite. When writing a test,
 // embed ElasticTest to create a test suite that will automatically start and stop elasticsearch. See gocheck
 // documentation for more infomration about writing gocheck tests.
@@ -77,9 +81,9 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 		log.Printf("ElasticTest SetUpSuite: starting new cluster.\n")
 
 		//Seeding because mkdir uses rand and it was returning the same directory
-		rand.Seed(time.Now().Unix())
+		rand.Seed(time.Now().UnixNano())
 		//Create unique tmp dir that will be deleted when suite ends.
-		tmpDir := c.MkDir()
+		tmpDir = c.MkDir()
 		//download elastic jar if needed
 		elasticDir := ensureElasticJar(tmpDir)
 		//start elastic
@@ -119,6 +123,8 @@ func (et *ElasticTest) TearDownSuite(c *gocheck.C) {
 	log.Print("ElasticTest TearDownSuite called")
 
 	et.stop()
+
+	os.RemoveAll(tmpDir)
 }
 
 func (et *ElasticTest) SetUpTest(c *gocheck.C) {

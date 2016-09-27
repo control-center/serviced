@@ -17,6 +17,7 @@ package elasticsearch
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -50,13 +51,18 @@ const (
 	HOSTID = "deadbeef"
 )
 
-var unused int
-var unusedStr string
-var id string
-var addresses []string
-var version datastore.VersionedEntity
+var (
+	unused    int
+	unusedStr string
+	id        string
+	addresses []string
+	version   datastore.VersionedEntity
+	err       error
 
-var err error
+	isvsPath    string
+	volumesDir  string
+	rsyncTmpDir string
+)
 
 // MockStorageDriver is an interface that mock the storage subsystem
 type MockStorageDriver struct {
@@ -104,14 +110,17 @@ type DaoTest struct {
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
+	rand.Seed(time.Now().UnixNano())
+	isvsPath = c.MkDir()
+	volumesDir = c.MkDir()
 
 	config.LoadOptions(config.Options{
-		IsvcsPath: c.MkDir(),
+		IsvcsPath: isvsPath,
 	})
 
 	dt.Port = 9202
 	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, "json-file", map[string]string{"max-file": "5", "max-size": "10m"}, nil)
-	isvcs.Mgr.SetVolumesDir(c.MkDir())
+	isvcs.Mgr.SetVolumesDir(volumesDir)
 	esServicedClusterName, _ := utils.NewUUID36()
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", esServicedClusterName); err != nil {
 		c.Fatalf("Could not set elasticsearch-serviced clustername: %s", err)
@@ -140,8 +149,9 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("could not get zk connection %v", err)
 	}
 
-	tmpdir := c.MkDir()
-	err = volume.InitDriver(volume.DriverTypeRsync, tmpdir, []string{})
+	rsyncTmpDir := c.MkDir()
+
+	err = volume.InitDriver(volume.DriverTypeRsync, rsyncTmpDir, []string{})
 	c.Assert(err, IsNil)
 
 	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "", 4979)
@@ -179,6 +189,11 @@ func (dt *DaoTest) SetUpTest(c *C) {
 func (dt *DaoTest) TearDownSuite(c *C) {
 	isvcs.Mgr.Stop()
 	dt.FacadeIntegrationTest.TearDownSuite(c)
+
+	// Clean up the c.MkDir() folders
+	os.RemoveAll(isvsPath)
+	os.RemoveAll(volumesDir)
+	os.RemoveAll(rsyncTmpDir)
 }
 
 func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {

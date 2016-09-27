@@ -18,14 +18,19 @@ package auth_test
 import (
 	"fmt"
 	"os"
+	"math/rand"
+	"time"
 
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
 )
 
 func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
+	defer os.RemoveAll(tmpDir)
 	hostKeyFile := fmt.Sprintf("%s/host", tmpDir)
 	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
 
@@ -77,8 +82,11 @@ func (s *TestAuthSuite) TestDumpLoadKeys(c *C) {
 
 func (s *TestAuthSuite) TestCreateMasterKeys(c *C) {
 	auth.ClearKeys()
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
 	// We'll need a temp dir:
 	tmpDir := c.MkDir()
+	defer os.RemoveAll(tmpDir)
 	masterKeyFile := fmt.Sprintf("%s/.keys/master", tmpDir)
 	// hostKeyFile := fmt.Sprintf("%s/delegate", tmpDir)
 

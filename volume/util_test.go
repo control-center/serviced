@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -33,7 +34,9 @@ type UtilsSuite struct{}
 var _ = Suite(&UtilsSuite{})
 
 func (s *UtilsSuite) TestIsDir(c *C) {
+	rand.Seed(time.Now().UnixNano())
 	root := c.MkDir()
+	defer os.RemoveAll(root)
 
 	// Test a directory
 	ok, err := IsDir(root)
@@ -54,7 +57,9 @@ func (s *UtilsSuite) TestIsDir(c *C) {
 }
 
 func (s *UtilsSuite) TestFileInfoSlice(c *C) {
+	rand.Seed(time.Now().UnixNano())
 	root := c.MkDir()
+	defer os.RemoveAll(root)
 
 	var (
 		slice    FileInfoSlice

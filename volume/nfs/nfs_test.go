@@ -17,9 +17,11 @@ package nfs_test
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/control-center/serviced/volume"
 	. "github.com/control-center/serviced/volume/nfs"
@@ -41,7 +43,11 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 		driver *NFSDriver
 	)
 
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
 	root = c.MkDir()
+	defer os.RemoveAll(root)
+
 	d, err := Init(root, []string{NetworkDisabled})
 	c.Assert(err, IsNil)
 	driver = d.(*NFSDriver)

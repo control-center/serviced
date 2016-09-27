@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"os/exec"
 	"time"
 
@@ -50,7 +52,10 @@ var i int
 func (s *DFSTestSuite) BenchmarkBackup(c *C) {
 	//1012318498
 	// Create a file to play with
+	rand.Seed(time.Now().UnixNano())
 	dir := c.MkDir()
+	defer os.RemoveAll(dir)
+
 	i += 1
 	c.Logf("Creating 100M file of random data: %d", i)
 	random := fmt.Sprintf("%s/rand.file", dir)

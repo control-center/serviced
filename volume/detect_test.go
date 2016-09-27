@@ -31,12 +31,18 @@ var (
 	_ = Suite(&AutodetectSuite{})
 )
 
+func (s *AutodetectSuite) SetUpSuite(c *C) {
+	// seed rand for c.MkDir()
+	rand.Seed(time.Now().UnixNano())
+}
+
 func (s *AutodetectSuite) SetUpTest(c *C) {
 	s.dir = c.MkDir()
 }
 
 func (s *AutodetectSuite) TearDownTest(c *C) {
 	ShutdownAll()
+	os.RemoveAll(s.dir)
 }
 
 func (s *AutodetectSuite) TestPreexistingBtrfs(c *C) {
@@ -68,6 +74,7 @@ func (s *AutodetectSuite) TestPreexistingBtrfs(c *C) {
 
 func (s *AutodetectSuite) TestPreexistingDeviceMapper(c *C) {
 	root := c.MkDir()
+	defer os.RemoveAll(root)
 
 	// Initialize the driver and create a btrfs volume
 	err := InitDriver(DriverTypeDeviceMapper, root, []string{})
@@ -94,6 +101,7 @@ func (s *AutodetectSuite) TestPreexistingDeviceMapper(c *C) {
 
 func (s *AutodetectSuite) TestPreexistingRsync(c *C) {
 	root := c.MkDir()
+	defer os.RemoveAll(root)
 
 	// Initialize the driver and create a btrfs volume
 	err := InitDriver(DriverTypeRsync, root, []string{})
