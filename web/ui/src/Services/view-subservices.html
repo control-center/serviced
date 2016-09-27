@@ -227,4 +227,9 @@
     <br>
 
     <!-- Graphs -->
-    <graph-panel ng-if="currentService.model.MonitoringProfile.GraphConfigs.length > 0" data-service-id="currentService.model.ID" data-graph-configs="currentService.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
+    <graph-panel 
+        ng-if="currentService.monitoringProfile.GraphConfigs.length > 0" 
+        data-service-id="currentService.id" 
+        data-graph-configs="currentService.monitoringProfile.GraphConfigs" 
+        class="infoWrapper graphPanel">
+    </graph-panel>

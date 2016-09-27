@@ -337,6 +337,10 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/ipassignments?includeChildren`,
             },
+            getServiceMonitoringProfile: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/monitoringprofile`,
+            },
             getServicePublicEndpoints: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/publicendpoints`,

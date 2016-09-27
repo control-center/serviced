@@ -99,6 +99,7 @@
             this.fetchAddresses();
             this.fetchConfigs();
             this.fetchServiceChildren();
+            this.fetchMonitoringProfile();
         }
 
         fetchAddresses(force) {
@@ -113,11 +114,15 @@
             fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force);
         }
 
+        fetchMonitoringProfile(force) {
+            fetch.call(this, "getServiceMonitoringProfile", "monitoringProfile", force);
+        }
+
         fetchInstances() {
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
                 .then(data => {
-                    console.log(`fetched ${data.length} instances from getServiceInstances for id ${this.id}`);
+                    console.log(`fetched ${data.length} instances from getServiceInstances (updateState) for id ${this.id}`);
                     this.instances = data.map(i => new Instance(i));
                     deferred.resolve();
                 },
@@ -175,6 +180,15 @@
             return this.model.HasChildren;
         }
 
+        resourcesGood() {
+            for (var i = 0; i < this.instances.length; i++) {
+                if (!this.instances[i].resourcesGood()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // start, stop, or restart this service
         start(skipChildren){
             var promise = resourcesFactory.startService(this.id, skipChildren),
@@ -223,7 +237,6 @@
                 .error((data, status) => {
                     $notification.create("Stop Instance failed", data.Detail).error();
                 });
-
         }
 
 
@@ -266,13 +279,8 @@
             // TODO: pass myself into health status and get my health status back
             // update my health icon
 
-            console.log(`Health updateState`);
-
             serviceHealth.update({ [this.id]: this });
             this.status = serviceHealth.get(this.id);
-
-
-
             this.touch();
         }
 
@@ -1285,8 +1293,8 @@
                     var treeState = $scope.serviceTreeState[$scope.currentService.id];
 
                     // initialize services as collapsed
-                    if ($scope.currentService.subservices) {
-                        $scope.currentService.subservices.forEach(svc => {
+                    if ($scope.subservices) {
+                        $scope.subservices.forEach(svc => {
                             if (!treeState[svc.id]) {
                                 console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
                                 treeState[svc.id] = {
@@ -1296,7 +1304,8 @@
                             }
                         });
                     }
-                }
+                    $scope.serviceTreeState[$scope.currentService.id] = treeState;
+                };
 
                 $scope.setCurrentService = function () {
 
