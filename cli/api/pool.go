@@ -27,6 +27,7 @@ type PoolConfig struct {
 	Realm       string
 	CoreLimit   int
 	MemoryLimit uint64
+	Permissions pool.Permission
 }
 
 // Returns a list of all pools
@@ -61,6 +62,7 @@ func (a *api) AddResourcePool(config PoolConfig) (*pool.ResourcePool, error) {
 		Realm:       config.Realm,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
+		Permissions: config.Permissions,
 	}
 
 	if err := client.AddResourcePool(p); err != nil {

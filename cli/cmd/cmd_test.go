@@ -46,6 +46,13 @@ func pipe(f func(...string), args ...string) []byte {
 	return <-output
 }
 
+func pipeAPI(f func(api.API, ...string), test api.API, args ...string) []byte {
+	p := func(args ...string) {
+		f(test, args...)
+	}
+	return pipe(p, args...)
+}
+
 func pipeStderr(f func(...string), args ...string) {
 	r, w, _ := os.Pipe()
 	stderr := os.Stderr
@@ -62,6 +69,13 @@ func pipeStderr(f func(...string), args ...string) {
 	w.Close()
 	os.Stderr = stderr
 	fmt.Printf("%s", <-output)
+}
+
+func pipeAPIStderr(f func(api.API, ...string), test api.API, args ...string) {
+	p := func(args ...string) {
+		f(test, args...)
+	}
+	pipeStderr(p, args...)
 }
 
 // Trims leading and trailing whitespace from each line of a multi-line string
