@@ -1893,14 +1893,14 @@ func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*se
 }
 
 // GetServiceDetailsAncestry returns a service and its ancestors
-func (f *Facadce) GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+func (f *Facade) GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
 	s, err := f.serviceStore.GetServiceDetails(ctx, serviceID)
 	if err != nil {
 		return nil, err
 	}
 
 	if s.ParentServiceID != "" {
-		ps, err := f.GetServiceDetails(ctx, s.ParentServiceID, ancestors)
+		ps, err := f.GetServiceDetailsAncestry(ctx, s.ParentServiceID)
 		if err != nil {
 			return nil, err
 		}
