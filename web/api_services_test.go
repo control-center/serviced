@@ -179,7 +179,7 @@ func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusOK(c *C) {
 	request.PathParams["serviceId"] = "firstservice"
 
 	s.mockFacade.
-		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
+		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice", false).
 		Return(&serviceDetailsTestData.firstService, nil)
 
 	getServiceDetails(&(s.writer), &request, s.ctx)
@@ -192,7 +192,7 @@ func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusNotFoundIfNoSe
 	request.PathParams["serviceId"] = "firstservice"
 
 	s.mockFacade.
-		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
+		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice", false).
 		Return(nil, nil)
 
 	getServiceDetails(&(s.writer), &request, s.ctx)
