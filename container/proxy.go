@@ -85,11 +85,10 @@ type proxy struct {
 	closing          chan chan error     // internal shutdown signal
 	newAddresses     chan []addressTuple // a stream of updates to the addresses
 	listener         net.Listener        // handle on the listening socket
-	allowDirectConn  bool                // allow container to container connections
 }
 
 // Newproxy create a new proxy object. It starts listening on the prxy port asynchronously.
-func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, listener net.Listener, allowDirectConn bool) (p *proxy, err error) {
+func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, listener net.Listener) (p *proxy, err error) {
 	if len(name) == 0 {
 		return nil, fmt.Errorf("prxy: name can not be empty")
 	}
@@ -100,7 +99,6 @@ func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, lis
 		tcpMuxPort:       tcpMuxPort,
 		useTLS:           useTLS,
 		listener:         listener,
-		allowDirectConn:  allowDirectConn,
 	}
 	p.newAddresses = make(chan []addressTuple, 2)
 	go p.listenAndproxy()
@@ -204,26 +202,24 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	glog.V(2).Infof("Setting up proxy for %#v", address)
 	isLocalContainer := false
 	localAddr := address.containerAddr
-	if p.allowDirectConn {
-		//check if the host for the container is running on the same host
-		isLocalContainer = isLocalAddress(address.host)
-		glog.V(4).Infof("Checking is local for %s %s in %#v", address.host, isLocalContainer, hostIPs)
-		// don't proxy localhost addresses, we'll end up in a loop
-		if isLocalContainer {
-			switch {
-			case strings.HasPrefix(address.host, "127"):
+	//check if the host for the container is running on the same host
+	isLocalContainer = isLocalAddress(address.host)
+	glog.V(4).Infof("Checking is local for %s %s in %#v", address.host, isLocalContainer, hostIPs)
+	// don't proxy localhost addresses, we'll end up in a loop
+	if isLocalContainer {
+		switch {
+		case strings.HasPrefix(address.host, "127"):
+			isLocalContainer = false
+		case address.host == "localhost":
+			isLocalContainer = false
+		case strings.HasPrefix(address.containerAddr, "127") || strings.HasPrefix(address.containerAddr, "localhost:"):
+			//if the host is local and the container has a local style addr
+			//then container is exposing port directly on host; go to host and use container port
+			if containerPort, err := getPort(address.containerAddr); err != nil {
+				glog.Warningf("could not get port %v", err)
 				isLocalContainer = false
-			case address.host == "localhost":
-				isLocalContainer = false
-			case strings.HasPrefix(address.containerAddr, "127") || strings.HasPrefix(address.containerAddr, "localhost:"):
-				//if the host is local and the container has a local style addr
-				//then container is exposing port directly on host; go to host and use container port
-				if containerPort, err := getPort(address.containerAddr); err != nil {
-					glog.Warningf("could not get port %v", err)
-					isLocalContainer = false
-				} else {
-					localAddr = fmt.Sprintf("%s:%d", address.host, containerPort)
-				}
+			} else {
+				localAddr = fmt.Sprintf("%s:%d", address.host, containerPort)
 			}
 		}
 	}

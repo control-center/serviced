@@ -60,13 +60,12 @@ func NewContainerEndpoints(svc *service.Service, opts ContainerEndpointsOptions)
 	}
 
 	// load the state object
-	allowDirect, err := ce.loadState(svc)
-	if err != nil {
+	if err := ce.loadState(svc); err != nil {
 		return nil, err
 	}
 
 	// set up the proxy cache
-	ce.cache = newProxyCache(opts.TenantID, opts.TCPMuxPort, opts.UseTLS, allowDirect)
+	ce.cache = newProxyCache(opts.TenantID, opts.TCPMuxPort, opts.UseTLS)
 
 	// set up virtual interface registry
 	if err := ce.vifs.SetSubnet(opts.VirtualAddressSubnet); err != nil {
@@ -77,7 +76,7 @@ func NewContainerEndpoints(svc *service.Service, opts ContainerEndpointsOptions)
 }
 
 // loadState loads state information for the container
-func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
+func (ce *ContainerEndpoints) loadState(svc *service.Service) error {
 	logger := plog.WithFields(log.Fields{
 		"hostid":      ce.opts.HostID,
 		"serviceid":   svc.ID,
@@ -85,14 +84,12 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		"instanceid":  ce.opts.InstanceID,
 	})
 
-	allowDirect := true
-
 	if ce.opts.IsShell {
 		// get the hostname
 		hostname, err := os.Hostname()
 		if err != nil {
 			logger.WithError(err).Debug("Could not get the hostname to check the docker id")
-			return false, err
+			return err
 		}
 
 		// this is not a running instance so load whatever data is
@@ -110,9 +107,6 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		binds := []zkservice.ImportBinding{}
 		for _, ep := range svc.Endpoints {
 			if ep.Purpose != "export" {
-				if ep.Purpose == "import_all" {
-					allowDirect = false
-				}
 				binds = append(binds, zkservice.ImportBinding{
 					Application:    ep.Application,
 					Purpose:        ep.Purpose,
@@ -131,7 +125,7 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		conn, err := zzk.GetLocalConnection("/")
 		if err != nil {
 			logger.WithError(err).Debug("Cannot connect to the coordination server")
-			return false, err
+			return err
 		}
 
 		logger.Debug("Connected to the coordination server")
@@ -161,26 +155,19 @@ func (ce *ContainerEndpoints) loadState(svc *service.Service) (bool, error) {
 		case err := <-errc:
 			if err != nil {
 				logger.WithError(err).Debug("Could not load state")
-				return false, err
+				return err
 			}
 		case <-timer.C:
 			close(cancel)
 			<-errc
 			logger.Debug("Timeout waiting for state")
-			return false, errors.New("timeout waiting for state")
-		}
-
-		for _, bind := range ce.state.Imports {
-			if bind.Purpose == "import_all" {
-				allowDirect = false
-				break
-			}
+			return errors.New("timeout waiting for state")
 		}
 
 		logger.Debug("Loaded state for service instance")
 	}
 
-	return allowDirect, nil
+	return nil
 }
 
 // Run manages the container endpoints
@@ -472,20 +459,18 @@ type proxyCache struct {
 	mu    *sync.Mutex
 	cache map[proxyKey]*proxy
 
-	tenantID    string
-	tcpMuxPort  uint16
-	useTLS      bool
-	allowDirect bool
+	tenantID   string
+	tcpMuxPort uint16
+	useTLS     bool
 }
 
-func newProxyCache(tenantID string, tcpMuxPort uint16, useTLS, allowDirect bool) *proxyCache {
+func newProxyCache(tenantID string, tcpMuxPort uint16, useTLS bool) *proxyCache {
 	return &proxyCache{
-		mu:          &sync.Mutex{},
-		cache:       make(map[proxyKey]*proxy),
-		tenantID:    tenantID,
-		tcpMuxPort:  tcpMuxPort,
-		useTLS:      useTLS,
-		allowDirect: allowDirect,
+		mu:         &sync.Mutex{},
+		cache:      make(map[proxyKey]*proxy),
+		tenantID:   tenantID,
+		tcpMuxPort: tcpMuxPort,
+		useTLS:     useTLS,
 	}
 }
 
@@ -526,7 +511,6 @@ func (c *proxyCache) Set(application string, portNumber uint16, exports ...regis
 			c.tcpMuxPort,
 			c.useTLS,
 			listener,
-			c.allowDirect,
 		)
 		if err != nil {
 			logger.WithError(err).Debug("Could not start proxy")
