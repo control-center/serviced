@@ -67,7 +67,7 @@ func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (a *LBClient) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error {
-	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
+	glog.V(4).Infof("ControlCenterAgent.GetEvaluatedService()")
 	return a.rpcClient.Call("ControlCenterAgent.GetEvaluatedService", request, response, 0)
 }
 
