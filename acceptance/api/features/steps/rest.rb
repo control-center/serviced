@@ -1,4 +1,3 @@
-
 When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |method, path|
 
   host = ENV["APPLICATION_URL"]
@@ -13,19 +12,19 @@ When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |meth
   end
 
   @headers = {} if @headers.nil?
-  bodyJson = @body.nil? ?  "" : @body.to_json
+  bodyJson = @body.nil? ? "" : @body.to_json
   begin
     case method
-    when 'GET'
-      response = RestClient::Request.execute(:method => :get, :url => request_url, :headers => @headers, :verify_ssl => false , :cookies => @cookies)  
-    when 'POST'
-      response = RestClient::Request.execute(:method => :post, :url => request_url, :headers => @headers, :payload => bodyJson, :verify_ssl => false, :cookies => @cookies)  
-    when 'PATCH'
-      response = RestClient.patch request_url, @body, @headers
-    when 'PUT'
-      response = RestClient.put request_url, @body, @headers
-    else
-      response = RestClient.delete request_url, @headers
+      when 'GET'
+        response = RestClient::Request.execute(:method => :get, :url => request_url, :headers => @headers, :verify_ssl => false, :cookies => @cookies)
+      when 'POST'
+        response = RestClient::Request.execute(:method => :post, :url => request_url, :headers => @headers, :payload => bodyJson, :verify_ssl => false, :cookies => @cookies)
+      when 'PATCH'
+        response = RestClient.patch request_url, @body, @headers
+      when 'PUT'
+        response = RestClient.put request_url, @body, @headers
+      else
+        response = RestClient.delete request_url, @headers
     end
   rescue RestClient::Exception => e
     response = e.response
@@ -36,4 +35,12 @@ When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |meth
   @body = nil
   @grabbed = nil
   $cache[%/#{request_url}/] = @response if 'GET' == %/#{method}/
+end
+
+# find a value in the response
+Then(/^the JSON response body should have value "(.*?)" at jsonpath "(.*?)"$/) do |value, jsonpath|
+  data = @response.get jsonpath
+  if data == nil or data != value
+    raise "Could not find #{value} at the specified path #{jsonpath}"
+  end
 end
