@@ -45,7 +45,7 @@ func newCtx(driver Driver) Context {
 
 type context struct {
 	driver  Driver
-	metrics metrics.Metrics
+	metrics *metrics.Metrics
 }
 
 func (c *context) Connection() (Connection, error) {
@@ -53,5 +53,5 @@ func (c *context) Connection() (Connection, error) {
 }
 
 func (c *context) Metrics() *metrics.Metrics {
-	return &c.metrics
+	return c.metrics
 }
