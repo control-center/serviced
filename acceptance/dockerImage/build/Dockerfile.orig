@@ -1,4 +1,4 @@
-FROM ubuntu:xenial
+FROM ubuntu:trusty
 MAINTAINER Zenoss, Inc <dev@zenoss.com>
 
 # Get the basic set of dev tools
@@ -7,7 +7,7 @@ RUN	apt-get update -qq && apt-get install -y -q build-essential wget curl unzip 
 #
 # Install native prerequisites for the ruby gems we need (e.g.nokogiri)
 #
-RUN apt-get update -qq && apt-get install -y -q zlib1g-dev=1:1.2.8.dfsg-2ubuntu4 libxml2-dev=2.9.3+dfsg1-1ubuntu0.1 libxml2 libxslt1-dev
+RUN apt-get update -qq && apt-get install -y -q zlib1g-dev=1:1.2.8.dfsg-1ubuntu1 libxml2-dev=2.9.1+dfsg1-3ubuntu4.7 libxml2 libxslt1-dev
 
 # Prerequesites for capybara-webkit
 RUN apt-get install -y -q qt5-default libqt5webkit5-dev gstreamer1.0-plugins-base gstreamer1.0-tools gstreamer1.0-x
@@ -44,7 +44,7 @@ RUN apt-get update -qq && apt-get install -y -q xvfb
 RUN apt-get update -qq && apt-get install -y -q build-essential chrpath libssl-dev libxft-dev
 RUN apt-get update -qq && apt-get install -y -q libfreetype6 libfreetype6-dev
 RUN apt-get update -qq && apt-get install -y -q libfontconfig1 libfontconfig1-dev
-RUN wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 -P /usr/local/share --trust-server-names --content-disposition
+RUN wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 -P /usr/local/share
 RUN cd /usr/local/share && tar xvjf phantomjs-2.1.1-linux-x86_64.tar.bz2
 RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/share/phantomjs
 RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin/phantomjs
@@ -79,7 +79,7 @@ RUN rm /tmp/chromedriver_linux64.zip
 # Info about differnet Chrome versions: http://www.ubuntuupdates.org/package/google_chrome/stable/main/base/google-chrome-stable
 #
 RUN apt-get update -qq && apt-get install -y -q libxss1 libappindicator1 libindicator7
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
 RUN echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list
 #
 # Tried a specific version like 41.0.2272.76-1, but specifying on the command line doesn't always work :-(
@@ -88,9 +88,6 @@ RUN apt-get update -qq && apt-get install -y -q --force-yes google-chrome-stable
 #
 # Add the Java app that generates a nice HTML report
 #
-# need software-properties-common for add-apt-repositry command
-RUN apt-get install software-properties-common -yq
-RUN add-apt-repository ppa:openjdk-r/ppa
 RUN apt-get update -qq && apt-get install -y -q openjdk-7-jre-headless
 RUN mkdir -p /usr/share/reporter
 ADD reporter.jar /usr/share/reporter/reporter.jar

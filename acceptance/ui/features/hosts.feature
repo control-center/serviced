@@ -41,7 +41,7 @@ Feature: Host Management
       And I fill in the Port field with "bogusport"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "Invalid port number"
       And the Port field should be flagged as invalid
@@ -54,7 +54,7 @@ Feature: Host Management
       And I fill in the Port field with "4979"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "Please enter a valid host name"
       And I should see an empty Hosts page
@@ -67,7 +67,7 @@ Feature: Host Management
       And I fill in the Port field with "9999"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "Bad Request: dial tcp4 172.17.42.1:9999"
       And I should see an empty Hosts page
@@ -80,7 +80,7 @@ Feature: Host Management
       And I fill in the Port field with "75000"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "The port number must be between 1 and 65535"
       And I click "Cancel"
@@ -94,7 +94,7 @@ Feature: Host Management
       And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "invalidentry"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "Invalid RAM Limit value"
       And I should see an empty Hosts page
@@ -120,7 +120,7 @@ Feature: Host Management
       And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Success"
       And I should see "table://hosts/defaultHost/name" in the "Name" column
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
@@ -138,7 +138,7 @@ Feature: Host Management
       And I fill in the Port field with "table://hosts/host2/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/host2/pool"
       And I fill in the RAM Limit field with "table://hosts/host2/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Success"
       And I should see an entry for "table://hosts/host2/name" in the table
       And I should see "table://hosts/defaultHost/name" in the "Name" column
@@ -161,7 +161,7 @@ Feature: Host Management
       And I fill in the Port field with "table://hosts/host3/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/host3/pool"
       And I fill in the RAM Limit field with "table://hosts/host3/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Success"
       And I should see an entry for "table://hosts/host3/name" in the table
       And I should see "table://hosts/host3/name" in the "Name" column
@@ -181,7 +181,7 @@ Feature: Host Management
       And I fill in the Port field with "table://hosts/defaultHost/rpcPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
-      And I click "Add Host"
+      And I click "Next"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
     When I close the dialog
