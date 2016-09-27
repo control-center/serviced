@@ -141,3 +141,11 @@ func New(id string) *ResourcePool {
 
 	return pool
 }
+
+func (a *ResourcePool) HasDfsAccess() bool {
+	return a.Permissions&DFSAccess != 0
+}
+
+func (a *ResourcePool) HasAdminAccess() bool {
+	return a.Permissions&AdminAccess != 0
+}
