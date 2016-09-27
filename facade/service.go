@@ -1887,15 +1887,19 @@ func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceD
 	return f.serviceStore.GetAllServiceDetails(ctx)
 }
 
-// Get the details of the services for the given id. Ancestors is optional and
-// only used in the context of this call.
-func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string, ancestors bool) (*service.ServiceDetails, error) {
+// GetServiceDetails returns the details of a particular service
+func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
+	return f.serviceStore.GetServiceDetails(ctx, serviceID)
+}
+
+// GetServiceDetailsAncestry returns a service and its ancestors
+func (f *Facadce) GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error) {
 	s, err := f.serviceStore.GetServiceDetails(ctx, serviceID)
 	if err != nil {
 		return nil, err
 	}
 
-	if ancestors && s.ParentServiceID != "" {
+	if s.ParentServiceID != "" {
 		ps, err := f.GetServiceDetails(ctx, s.ParentServiceID, ancestors)
 		if err != nil {
 			return nil, err
