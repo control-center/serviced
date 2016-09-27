@@ -1887,7 +1887,8 @@ func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceD
 	return f.serviceStore.GetAllServiceDetails(ctx)
 }
 
-// Get the details of the services for the given id
+// Get the details of the services for the given id. Ancestors is optional and
+// only used in the context of this call.
 func (f *Facade) GetServiceDetails(ctx datastore.Context, serviceID string, ancestors bool) (*service.ServiceDetails, error) {
 	s, err := f.serviceStore.GetServiceDetails(ctx, serviceID)
 	if err != nil {

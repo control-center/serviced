@@ -29,7 +29,7 @@ type ServiceDetails struct {
 	Description     string
 	PoolID          string
 	ParentServiceID string
-	Parent          *ServiceDetails `json:",omitempty"`
+	Parent          *ServiceDetails `json:",omitempty"` // optional, only needed when looking up service ancestry
 	Instances       int
 	InstanceLimits  domain.MinMax
 	RAMCommitment   utils.EngNotation
