@@ -148,3 +148,10 @@ func (s *Server) GetHostPublicKey(hostID string, key *[]byte) error {
 	*key = publicKey
 	return err
 }
+
+// Reset and return host's private key
+func (s *Server) ResetHostKey(hostID string, key *[]byte) error {
+	publicKey, err := s.f.ResetHostKey(s.context(), hostID)
+	*key = publicKey
+	return err
+}

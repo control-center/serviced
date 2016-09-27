@@ -162,6 +162,15 @@ func (a *api) GetHostPublicKey(id string) ([]byte, error) {
 	return client.GetHostPublicKey(id)
 }
 
+// Reset a host's key
+func (a *api) ResetHostKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.ResetHostKey(id)
+}
+
 // Write delegate keys to disk
 func (a *api) RegisterHost(keydata []byte) error {
 	keyfile := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)

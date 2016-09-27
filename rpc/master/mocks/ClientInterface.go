@@ -206,6 +206,27 @@ func (_m *ClientInterface) GetHostPublicKey(hostID string) ([]byte, error) {
 
 	return r0, r1
 }
+func (_m *ClientInterface) ResetHostKey(hostID string) ([]byte, error) {
+	ret := _m.Called(hostID)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(string) []byte); ok {
+		r0 = rf(hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *ClientInterface) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	ret := _m.Called(poolID)
 
