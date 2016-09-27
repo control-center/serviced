@@ -131,6 +131,8 @@ type FacadeInterface interface {
 
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
+	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
