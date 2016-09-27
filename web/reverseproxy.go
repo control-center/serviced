@@ -74,6 +74,7 @@ func GetReverseProxy(useTLS bool, export *registry.ExportDetails) *httputil.Reve
 	// Set the remote address based on whether the container is running on this
 	// host.
 	if IsLocalAddress(export.HostIP) {
+		useTLS = false
 		remoteAddress = fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
 	} else {
 		remoteAddress = fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
