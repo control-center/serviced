@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -22,13 +23,14 @@ var (
  * running logs use the go-metrics Log() method, passing in the Metrics.Registy object.
  */
 type Metrics struct {
+	sync.Mutex
 	Enabled  bool
 	Registry gometrics.Registry
 	Timers   map[string]gometrics.Timer
 }
 
-func NewMetrics() Metrics {
-	return Metrics{
+func NewMetrics() *Metrics {
+	return &Metrics{
 		Registry: gometrics.NewRegistry(), // Keep these metrics separate from others in the app
 		Timers:   make(map[string]gometrics.Timer),
 	}
@@ -46,6 +48,9 @@ func (m *Metrics) Start(name string) *MetricTimer {
 	if !m.Enabled {
 		return nil
 	}
+	m.Lock()
+	defer m.Unlock()
+
 	timer, found := m.Timers[name]
 	if !found {
 		timer = gometrics.NewTimer()
@@ -74,6 +79,9 @@ func padUnits(width int, value float64, precision int, units string) string {
 // the metric data. Note that if we want a running tally we can
 // use the go-metric log method directly, providing our registry.
 func (m *Metrics) Log() {
+	m.Lock()
+	defer m.Unlock()
+
 	log.Debug("Logging all timers")
 
 	scale := time.Second
