@@ -85,26 +85,7 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	}
 
 	// Generate and store an RSA key for the host
-	delegateHeaders := map[string]string{
-		"purpose": "delegate",
-		"host_ip": entity.IPAddr,
-		"host_id": entity.ID}
-	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(delegateHeaders)
-	if err != nil {
-		return nil, err
-	}
-	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
-	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
-	if err != nil {
-		return nil, err
-	}
-
-	masterHeaders := map[string]string{"purpose": "master"}
-	masterPublicKey, err := auth.GetMasterPublicKey()
-	if err != nil {
-		return nil, err
-	}
-	masterPEM, err := auth.PEMFromRSAPublicKey(masterPublicKey, masterHeaders)
+	delegatePEMBlock, err := f.generateDelegateKey(ctx, entity)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +99,42 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	}
 	err = f.zzk.AddHost(entity)
 
-	PEMBlocks := append(privatePEM, masterPEM...)
-	return PEMBlocks, nil
+	return delegatePEMBlock, nil
+}
+
+// Generate and store an RSA key for the host
+func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+	// Generate new key
+	delegateHeaders := map[string]string{
+		"purpose": "delegate",
+		"host_ip": entity.IPAddr,
+		"host_id": entity.ID}
+	publicPEM, privatePEM, err := auth.GenerateRSAKeyPairPEM(delegateHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the master public key
+	masterHeaders := map[string]string{"purpose": "master"}
+	masterPublicKey, err := auth.GetMasterPublicKey()
+	if err != nil {
+		return nil, err
+	}
+	masterPEM, err := auth.PEMFromRSAPublicKey(masterPublicKey, masterHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the key
+	hostkeyEntity := hostkey.HostKey{PEM: string(publicPEM[:])}
+	err = f.hostkeyStore.Put(ctx, entity.ID, &hostkeyEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	// Concatenate and return keys
+	delegatePEMBlock := append(privatePEM, masterPEM...)
+	return delegatePEMBlock, nil
 }
 
 // UpdateHost information for a registered host
@@ -247,6 +262,17 @@ func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error
 	} else {
 		return []byte(key.PEM), nil
 	}
+}
+
+// ResetHostKey generates and returns a host key by id. Returns nil if host not found
+func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
+	glog.V(2).Infof("Facade.ResetHostKey: id=%s", hostID)
+
+	var value host.Host
+	if err := f.hostStore.Get(ctx, host.HostKey(hostID), &value); err != nil {
+		return nil, err
+	}
+	return f.generateDelegateKey(ctx, &value)
 }
 
 // GetHosts returns a list of all registered hosts

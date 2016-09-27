@@ -422,6 +422,27 @@ func (_m *FacadeInterface) GetHostKey(ctx datastore.Context, hostID string) ([]b
 
 	return r0, r1
 }
+func (_m *FacadeInterface) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
+	ret := _m.Called(ctx, hostID)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []byte); ok {
+		r0 = rf(ctx, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	ret := _m.Called(ctx)
 
