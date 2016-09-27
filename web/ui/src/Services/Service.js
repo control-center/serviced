@@ -122,19 +122,23 @@
         }
 
         fetchServiceChildren(force) {
+            let deferred = $q.defer();
             // fetch.call(this, "getServiceChildren", "subservices", force);
-            if (this.subservices) {
-                return;
+            if (this.subservices && !force) {
+                deferred.resolve();
             }
             resourcesFactory.v2.getServiceChildren(this.id)
                 .then(data => {
                     console.log(`fetched ${data.length} children services from getServiceChildren for id ${this.id}`);
                     this.subservices = data.map(s => new Service(s));
                     this.touch();
+                    deferred.resolve();
                 },
                 error => {
                     console.warn(error);
+                    deferred.reject();
                 });
+            return deferred.promise;
         }
 
         // fast-moving state for this service and its instances

@@ -131,10 +131,10 @@
         </table>
     </div>
 
-    <!-- SERVICES -->
-    <div ng-show="currentService.subservices.length">
+    <!-- Services -->
+    <div ng-show="currentDescendents.length">
         <h3 translate>title_services</h3>
-        <table jelly-table data-data="currentService.subservices" data-config="servicesTable" class="table">
+        <table jelly-table data-data="currentDescendents" data-config="servicesTable" class="table">
             <thead>
                 <tr>
                   <th style="width: 200px;" translate>label_service</th>
@@ -146,7 +146,7 @@
             <tr ng-repeat="app in $data" data-id="{{app.id}}" ng-hide="currentTreeState[app.id].hidden">
               <td data-title="'label_service'|translate" style="overflow: hidden; white-space: nowrap;">
                 <span ng-style="calculateIndent(app)"></span>
-                <span ng-if="app.hasChildren()" ng-click="toggleChildren(app.id)" class="table-collapse glyphicon" ng-class="currentTreeState[app.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
+                <span ng-if="app.hasChildren()" ng-click="toggleChildren(app)" class="table-collapse glyphicon" ng-class="currentTreeState[app.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
                 <span ng-if="!app.hasChildren()" ng-style="indent(1)"></span>
                 <a href="#/services/{{app.id}}" ng-click="routeToService(app.id, $event)" class="link">
                     {{app.name}}
@@ -187,7 +187,7 @@
         </table>
     </div>
 
-    <!-- INSTANCES -->
+    <!-- Instances -->
     <div ng-show="hasCurrentInstances() && !currentService.isIsvc()"> 
         <h3 translate>running_tbl_instances</h3>
         <table jelly-table data-data="currentService.instances" data-config="instancesTable" class="table">
