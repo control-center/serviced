@@ -1423,7 +1423,7 @@ input[type=file] {
 
 .table-collapse {
     font-size: 8px;
-    padding: 4px 8px 10px;
+    padding: 4px 7px 9px 16px;
     vertical-align: middle;
     cursor: pointer;
 }

@@ -323,7 +323,7 @@
                 };
 
                 $scope.indent = function (depth) {
-                    return { 'padding-left': (15 * depth) + "px" };
+                    return { 'padding-left': (17 * depth) + "px" };
                 };
 
                 // sets a service to start, stop or restart state
