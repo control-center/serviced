@@ -142,7 +142,6 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 		plog.WithError(err).Error("Error building authenticated mux header.")
 		return nil, err
 	}
-	remote.Write(muxHeader)
 
 	// Check for errors writing the mux header.
 	if _, err = remote.Write(muxHeader); err != nil {
