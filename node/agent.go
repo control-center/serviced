@@ -92,6 +92,7 @@ type HostAgent struct {
 	zkSessionTimeout     int
 	delegateKeyFile      string
 	tokenFile            string
+	serviceCache         *ServiceCache
 }
 
 func getZkDSN(zookeepers []string, timeout int) string {
@@ -153,6 +154,7 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.zkSessionTimeout = options.ZKSessionTimeout
 	agent.delegateKeyFile = options.DelegateKeyFile
 	agent.tokenFile = options.TokenFile
+	agent.serviceCache = NewServiceCache(options.Master)
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
