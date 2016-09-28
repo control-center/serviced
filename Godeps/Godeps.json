@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
-	"GoVersion": "go1.6",
+	"GoVersion": "go1.7.1",
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",

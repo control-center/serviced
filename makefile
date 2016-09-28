@@ -86,7 +86,7 @@ IN_DOCKER = 0
 GO        = go
 
 # Verify that we are running with the right go version
-MIN_GO_VERSION ?= go1.6
+MIN_GO_VERSION ?= go1.7
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
