@@ -238,23 +238,28 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	case isLocalContainer:
 		glog.V(2).Infof("dialing local addr=> %s", localAddr)
 		remote, err = net.Dial("tcp4", localAddr)
+		if err != nil {
+			glog.Errorf("Error Local (net.Dial): %s", err)
+			return
+		}
 	case p.useTLS:
 		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
-		var tlsConn *tls.Conn
-		tlsConn, err = tls.Dial("tcp4", muxAddr, &config)
-		remote = tlsConn
-
+		tlsConn, err := tls.Dial("tcp4", muxAddr, &config)
+		if err != nil {
+			glog.Errorf("Error TLS (net.Dial): %s", err)
+			return
+		}
+		remote = tlsConn // cast it to the net.Conn interface
 		cipher := tlsConn.ConnectionState().CipherSuite
 		glog.V(2).Infof("Proxy connected to mux with TLS cipher=%s (%d)", utils.GetCipherName(cipher), cipher)
-
 	default:
 		glog.V(2).Infof("dialing remote => %s", muxAddr)
 		remote, err = net.Dial("tcp4", muxAddr)
-	}
-	if err != nil {
-		glog.Error("Error (net.Dial): ", err)
-		return
+		if err != nil {
+			glog.Errorf("Error Remote (net.Dial): %s", err)
+			return
+		}
 	}
 
 	if !isLocalContainer {
