@@ -79,6 +79,8 @@ func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
 
 func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
 
+func (f *Facade) SetHostkeyStore(store hostkey.Store) { f.hostkeyStore = store }
+
 func (f *Facade) SetRegistryStore(store registry.ImageRegistryStore) { f.registryStore = store }
 
 func (f *Facade) SetPoolStore(store pool.Store) { f.poolStore = store }
