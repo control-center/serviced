@@ -166,10 +166,10 @@ func (a *api) GetHostPublicKey(id string) ([]byte, error) {
 func (a *api) RegisterHost(keydata []byte) error {
 	keyfile := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
 	keydir := filepath.Dir(keyfile)
-	if err := os.MkdirAll(keydir, os.ModeDir|700); err != nil {
+	if err := os.MkdirAll(keydir, os.ModeDir|744); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(keyfile, keydata, 0600)
+	return ioutil.WriteFile(keyfile, keydata, 0644)
 }
 
 func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte) error {
@@ -193,5 +193,5 @@ func (a *api) WriteDelegateKey(filename string, data []byte) error {
 	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filename, data, 0600)
+	return ioutil.WriteFile(filename, data, 0644)
 }
