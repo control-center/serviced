@@ -168,6 +168,7 @@ deb: stage_deb
 		-d logrotate \
 		-d rsync \
 		-d lvm2 \
+		-d cronie \
 		-t deb \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -203,6 +204,7 @@ rpm: stage_rpm
 		-d logrotate \
 		-d rsync \
 		-d lvm2 \
+		-d cronie \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
