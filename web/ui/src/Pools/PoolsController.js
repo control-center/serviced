@@ -10,27 +10,36 @@
 
     // Pool object constructor takes a pool object (backend pool object)
     // and wraps it with extra functionality and info
-    function Pool(pool){
-        this.id = pool.ID;
-        this.model = Object.freeze(pool);
+    class Pool{
+    
+        constructor(pool){
+            this.id = pool.ID;
+            this.model = Object.freeze(pool);
+            this.calculatePermissions();
+        }
 
-        // build a list of permissions
-        // this pool has
-        this.permissions = [];
-        POOL_PERMISSIONS.forEach(perm => {
-            if(this.model[perm.field]){
-                this.permissions.push(perm);
-            }
-        });
+        calculatePermissions(){
+            // build a list of permissions
+            // this pool has
+            // NOTE: permissions include description
+            // and friendly label for the UI to display
+            let val = this.model.Permissions;
+            this.permissions = [];
+            POOL_PERMISSIONS.forEach(perm => {
+                if((val & perm.position) !== 0){
+                    this.permissions.push(perm);
+                }
+            });
+        }
     }
 
     controlplane.controller("PoolsController", ["$scope", "$routeParams",
     "resourcesFactory", "authService", "$modalService", "$translate",
     "$notification", "areUIReady", "$interval", "servicedConfig", "log",
-    "POOL_PERMISSIONS",
+    "POOL_PERMISSIONS", "miscUtils",
     function($scope, $routeParams, resourcesFactory, authService, $modalService,
     $translate, $notification, areUIReady, $interval, servicedConfig, log,
-    _POOL_PERMISSIONS){
+    _POOL_PERMISSIONS, utils){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -83,7 +92,9 @@
         // Function for opening add pool modal
         $scope.modalAddPool = function() {
             areUIReady.lock();
-            $scope.newPool = {};
+            $scope.newPool = {
+                permissions: new utils.NgBitset(POOL_PERMISSIONS.length, 3)
+            };
             $modalService.create({
                 templateUrl: "add-pool.html",
                 model: $scope,
@@ -92,7 +103,6 @@
                     {
                         role: "cancel",
                         action: function(){
-                            $scope.newPool = {};
                             this.close();
                         }
                     },{
@@ -103,14 +113,14 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
+                                // add the Permissions field and remove the NgBitset field
+                                $scope.newPool.Permissions = $scope.newPool.permissions.val;
+                                delete $scope.newPool.permissions;
+
                                 resourcesFactory.addPool($scope.newPool)
                                     .success(function(data, status){
                                         $notification.create("Added new Pool", data.Detail).success();
                                         updatePools();
-
-                                        // Reset for another add
-                                        $scope.newPool = {};
-
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -180,7 +190,6 @@
         function init(){
             $scope.name = "pools";
             $scope.params = $routeParams;
-            $scope.newPool = {};
 
             $scope.breadcrumbs = [
                 { label: 'breadcrumb_pools', itemClass: 'active' }
