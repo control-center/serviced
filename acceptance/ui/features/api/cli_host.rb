@@ -31,7 +31,8 @@ module CCApi
             poolValue =  getTableValue(pool)
             commitmentValue =  getTableValue(commitment)
 
-            result = CC.CLI.execute("%{serviced} host add '#{nameValue}:#{portValue}' '#{poolValue}' --memory '#{commitmentValue}' --register")
+            result = CC.CLI.execute("%{serviced} host add '#{nameValue}:#{portValue}' '#{poolValue}' --memory '#{commitmentValue}' -k /dev/null")
+            result = result.split("\n")[-1]
 
             hostIDValue =  getTableValue(hostID)
             expect(result.strip).to eq(hostIDValue.to_s)

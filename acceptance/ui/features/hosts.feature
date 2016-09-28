@@ -20,7 +20,6 @@ Feature: Host Management
       And I should see an empty Hosts page
 
   Scenario: View Add Host dialog
-    Given PENDING
     When I am on the hosts page
       And I click the add Host button
     Then I should see the Add Host dialog
@@ -34,7 +33,7 @@ Feature: Host Management
       And I should see the RAM Limit field
 
   Scenario: Add an invalid host with an invalid port
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "host"
@@ -48,7 +47,7 @@ Feature: Host Management
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an empty host
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Port field with "4979"
@@ -60,7 +59,7 @@ Feature: Host Management
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid host name
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "172.17.42.1"
@@ -73,7 +72,7 @@ Feature: Host Management
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with a port out of range
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "172.17.42.1"
@@ -87,7 +86,7 @@ Feature: Host Management
     And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid RAM Limit field
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/defaultHost/hostName"
@@ -100,7 +99,7 @@ Feature: Host Management
       And I should see an empty Hosts page
 
   Scenario: Fill in the hosts dialog and cancel
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/defaultHost/hostName"
@@ -113,7 +112,7 @@ Feature: Host Management
 
   @clean_hosts
   Scenario: Add a valid host
-    Given PENDING there are no hosts added
+    Given there are no hosts added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/defaultHost/hostName"
@@ -131,7 +130,7 @@ Feature: Host Management
 
   @clean_hosts
   Scenario: Add another valid host
-    Given PENDING only the default host is added
+    Given only the default host is added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/host2/hostName"
@@ -154,7 +153,7 @@ Feature: Host Management
 
   @clean_hosts @clean_pools
   Scenario: Add a valid host in a non-default Resource Pool
-    Given PENDING that the "table://hosts/host3/pool" pool is added
+    Given that the "table://hosts/host3/pool" pool is added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/host3/hostName"
@@ -174,7 +173,7 @@ Feature: Host Management
 
   @clean_hosts
   Scenario: Add a duplicate host
-    Given PENDING only the default host is added
+    Given only the default host is added
     When I am on the hosts page
       And I click the add Host button
       And I fill in the Host field with "table://hosts/defaultHost/hostName"
