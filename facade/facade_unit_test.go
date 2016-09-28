@@ -18,9 +18,11 @@ package facade_test
 import (
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
+	keymocks "github.com/control-center/serviced/domain/hostkey/mocks"
 	poolmocks "github.com/control-center/serviced/domain/pool/mocks"
 	registrymocks "github.com/control-center/serviced/domain/registry/mocks"
 	servicemocks "github.com/control-center/serviced/domain/service/mocks"
@@ -41,6 +43,7 @@ type FacadeUnitTest struct {
 	dfs           *dfsmocks.DFS
 	hostStore     *hostmocks.Store
 	poolStore     *poolmocks.Store
+	hostkeyStore  *keymocks.Store
 	registryStore *registrymocks.ImageRegistryStore
 	serviceStore  *servicemocks.Store
 	configStore   *configmocks.Store
@@ -50,6 +53,10 @@ type FacadeUnitTest struct {
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
 	ft.Facade = facade.New()
+
+	// Create a master key pair
+	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
+	auth.LoadMasterKeysFromPEM(pub, priv)
 }
 
 func (ft *FacadeUnitTest) SetUpTest(c *C) {
@@ -60,6 +67,9 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.hostStore = &hostmocks.Store{}
 	ft.Facade.SetHostStore(ft.hostStore)
+
+	ft.hostkeyStore = &keymocks.Store{}
+	ft.Facade.SetHostkeyStore(ft.hostkeyStore)
 
 	ft.poolStore = &poolmocks.Store{}
 	ft.Facade.SetPoolStore(ft.poolStore)

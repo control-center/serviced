@@ -18,8 +18,11 @@ package facade_test
 import (
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/hostkey"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -122,9 +125,71 @@ func (ft *FacadeUnitTest) Test_FindReadHostsInPoolShouldReturnCorrectValues(c *C
 	c.Assert(h.UpdatedAt, TimeEqual, expectedHost.UpdatedAt)
 }
 
+func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(datastore.ErrNoSuchEntity{})
+	ft.poolStore.On("Get", ft.ctx, pool.Key(h.PoolID), mock.AnythingOfType("*pool.ResourcePool")).Return(nil).Run(
+		func(args mock.Arguments) {
+			args.Get(2).(*pool.ResourcePool).ID = h.PoolID
+		})
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, h.PoolID).Return(nil, nil)
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+		func(args mock.Arguments) {
+			// The hostkey PEM is an RSA public key
+			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
+			c.Assert(err, IsNil)
+		})
+	ft.hostStore.On("Put", ft.ctx, host.HostKey(h.ID), &h).Return(nil)
+	ft.zzk.On("AddHost", &h).Return(nil)
+
+	result, err := ft.Facade.AddHost(ft.ctx, &h)
+
+	c.Assert(err, IsNil)
+	c.Assert(result, Not(IsNil))
+	ft.hostStore.AssertExpectations(c)
+	ft.poolStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+	ft.zzk.AssertExpectations(c)
+	ft.dfs.AssertExpectations(c)
+
+	// The return value is a public/private key package
+	_, _, err = auth.LoadRSAKeyPairPackage(result)
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+		func(args mock.Arguments) {
+			*args.Get(2).(*host.Host) = h
+		})
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+		func(args mock.Arguments) {
+			// The hostkey PEM is an RSA public key
+			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
+			c.Assert(err, IsNil)
+		})
+
+	result, err := ft.Facade.ResetHostKey(ft.ctx, h.ID)
+
+	c.Assert(err, IsNil)
+	c.Assert(result, Not(IsNil))
+	ft.hostStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+
+	// The return value is a public/private key package
+	_, _, err = auth.LoadRSAKeyPairPackage(result)
+	c.Assert(err, IsNil)
+}
+
 func getTestHost() host.Host {
 	return host.Host{
 		ID:            "expectedHost",
+		IPAddr:        "123.45.67.89",
 		Name:          "ExpectedHost",
 		PoolID:        "Pool",
 		Cores:         12,
