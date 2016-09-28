@@ -155,12 +155,12 @@
                 </a>
               </td>
               <td data-title="'Instances'" style="text-align:center;">
-                <div ng-if="!row.service.hasChildren()">
+                <div ng-if="!row.service.model.HasChildren">
                     <health-icon data-status="row.service.status"></health-icon>
                 </div>
               </td>
               <td data-title="'deployed_tbl_description'|translate">
-                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.Description}}">
+                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.model.Description}}">
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc()">
                 <div ng-if="!row.service.isIsvc()">
