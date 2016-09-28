@@ -143,42 +143,42 @@
                   <th style="width: 210px;" ng-if="!currentService.isIsvc()" translate>running_tbl_actions</th>
                 </tr>
             </thead>
-            <tr ng-repeat="app in $data" data-id="{{app.id}}" ng-hide="currentTreeState[app.id].hidden">
+            <tr ng-repeat="row in $data" data-id="{{row.service.id}}" ng-hide="currentTreeState[row.service.id].hidden">
               <td data-title="'label_service'|translate" style="overflow: hidden; white-space: nowrap;">
-                <span ng-style="calculateIndent(app)"></span>
-                <span ng-if="app.hasChildren()" ng-click="toggleChildren(app)" class="table-collapse glyphicon" ng-class="currentTreeState[app.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
-                <span ng-if="!app.hasChildren()" ng-style="indent(1)"></span>
-                <a href="#/services/{{app.id}}" ng-click="routeToService(app.id, $event)" class="link">
-                    {{app.name}}
-                    <div class="overcomIndicator" ng-class="{'bad': !app.resourcesGood() && !app.isIsvc()}" title="An instance is oversubscribed."></div>
-                    <span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span>
+                <span ng-style="calculateIndent(row.depth)"></span>
+                <span ng-if="row.service.model.HasChildren" ng-click="toggleChildren(row.service)" class="table-collapse glyphicon" ng-class="row.collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
+                <span ng-if="!row.service.model.HasChildren" ng-style="indent(1)"></span>
+                <a href="#/services/{{row.service.id}}" ng-click="routeToService(row.service.id, $event)" class="link">
+                    {{row.service.name}}
+                    <div class="overcomIndicator" ng-class="{'bad': !row.service.resourcesGood() && !row.service.isIsvc()}" title="An instance is oversubscribed."></div>
+                    <span class="version" ng-show="row.service.model.Version"> (v{{row.service.model.Version}})</span>
                 </a>
               </td>
               <td data-title="'Instances'" style="text-align:center;">
-                <div ng-if="!app.hasChildren()">
-                    <health-icon data-status="app.status"></health-icon>
+                <div ng-if="!row.service.hasChildren()">
+                    <health-icon data-status="row.service.status"></health-icon>
                 </div>
               </td>
               <td data-title="'deployed_tbl_description'|translate">
-                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Description}}">
+                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.Description}}">
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc()">
-                <div ng-if="!app.isIsvc()">
-                  <div ng-if="app.desiredState !== 2">
-                    <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start')" class="btn btn-link action">
+                <div ng-if="!row.service.isIsvc()">
+                  <div ng-if="row.service.desiredState !== 2">
+                    <button ng-class="{disabled: row.service.desiredState === 1}" ng-click="clickRunning(row.service, 'start')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-play"></i>
                         <span translate>start</span>
                     </button>
-                    <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop')" class="btn btn-link action">
+                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'stop')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-stop"></i>
                         <span translate>stop</span>
                     </button>
-                    <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'restart')" class="btn btn-link action">
+                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'restart')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>
                   </div>
-                  <div ng-if="app.desiredState === 2">
+                  <div ng-if="row.service.desiredState === 2">
                     <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
                   </div>
                 </div>

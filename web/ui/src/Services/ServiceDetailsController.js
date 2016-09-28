@@ -806,34 +806,26 @@
                         console.warn("Cannot store toggle state: no current service");
                         return;
                     }
-                    console.log("toggle  " + service);
+                    // console.log(`TOGGLE ------------------`);
 
-                    service.fetchServiceChildren().then(
-                        function () {
-                            console.log(`fetched children for ${service.name} and got ${service.subservices.length} children back`);
-                            $scope.flattenServicesTree();
-                        });
+                    if ($scope.currentTreeState[service.id].collapsed) {
+                        $scope.currentTreeState[service.id].collapsed = false;
 
+                        if (service.subservices) {
+                            $scope.showChildren(service);
+                        } else {
+                            service.fetchServiceChildren().then(
+                                function () {
+                                    // console.log(`fetched children for ${service.name} and got ${service.subservices.length} children back`);
+                                    $scope.flattenServicesTree();
+                                });
+                        }
+                    } else {
+                        $scope.currentTreeState[service.id].collapsed = true;
+                        $scope.flattenServicesTree();
+                        $scope.hideChildren(service);
+                    }
 
-
-                    // // stored state for the current service's
-                    // // service tree
-                    // let treeState = $scope.currentTreeState;
-
-                    // // if this service is marked as collapsed in
-                    // // this particular tree view, show its children
-                    // if (treeState[service].collapsed) {
-                    //     treeState[service].collapsed = false;
-                    //     console.log("expand  " + service);
-                    //     // TODO: create Service object for [service]
-                    //     // TODO: call fetchServiceChildren() on it.
-
-                    //     // otherwise, hide its children
-                    // } else {
-                    //     treeState[service].collapsed = true;
-                    //     console.log("retract " + service);
-                    //     $scope.hideChildren(service);
-                    // }
                 };
 
                 $scope.getService = function (id) {
@@ -876,8 +868,8 @@
                     // get the state of the current service's tree
                     var treeState = $scope.currentTreeState;
 
-                    if (service.children) {
-                        service.children.forEach(function (child) {
+                    if (service.subservices) {
+                        service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = true;
                             $scope.hideChildren(child);
                         });
@@ -887,8 +879,8 @@
                 $scope.showChildren = function (service) {
                     var treeState = $scope.currentTreeState;
 
-                    if (service.children) {
-                        service.children.forEach(function (child) {
+                    if (service.subservices) {
+                        service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = false;
 
                             // if this child service is not marked
@@ -959,15 +951,12 @@
                 };
 
                 // TODO - clean up magic numbers
-                $scope.calculateIndent = function (service) {
-                    var indent = service.depth,
-                        offset = 1;
-
+                $scope.calculateIndent = function (depth) {
+                    let offset = 1;
                     if ($scope.currentService && $scope.currentService.parent) {
                         offset = $scope.currentService.parent.depth + 2;
                     }
-
-                    return $scope.indent(indent - offset);
+                    return $scope.indent(depth - offset);
                 };
 
                 $scope.setCurrentTreeState = function () {
@@ -994,16 +983,30 @@
 
                 $scope.flattenServicesTree = function () {
                     // flatten the current service's subservices tree.
-                    console.log(`FLATTEN -----------------`);
-                    let desc = [];
+                    let rows = [];
+                    let treeState = $scope.currentTreeState;
                     (function flatten(service, depth) {
-                        desc.push(service);
-                        console.log(`${depth} : ${service.name} `);
+                        if (!treeState[service.id]) {
+                            treeState[service.id] = {
+                                collapsed: true,
+                                hidden: false
+                            };
+                        }
+                        let rowState = treeState[service.id];
+                        let rowItem = {
+                            service: service,
+                            depth: depth,
+                            collapsed: rowState.collapsed,
+                            hidden: rowState.hidden
+                        };
+                        rows.push(rowItem);
+                        // console.log(`${depth} : ${service.name} `);
                         if (service.subservices) {
                             service.subservices.forEach(svc => flatten(svc, depth + 1));
                         }
                     })($scope.currentService, 0);
-                    $scope.currentDescendents = desc.slice(1);
+                    // remove top-level service
+                    $scope.currentDescendents = rows.slice(1);
                 };
 
                 $scope.setCurrentService = function () {
