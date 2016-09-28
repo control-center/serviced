@@ -33,7 +33,7 @@ const (
 var (
 	delegateKeys HostKeys
 	masterKeys   MasterKeys
-	mKeyLock     sync.Mutex
+	mKeyLock     sync.RWMutex
 	dKeyCond     = &sync.Cond{L: &sync.Mutex{}}
 )
 
@@ -93,8 +93,8 @@ func SignAsDelegate(message []byte) ([]byte, error) {
 // SignAsMaster signs the given message with the master's private key
 // will return an error if the delegate running this process is not the master
 func SignAsMaster(message []byte) ([]byte, error) {
-	mKeyLock.Lock()
-	defer mKeyLock.Unlock()
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -117,8 +117,8 @@ func VerifyMasterSignature(message, signature []byte) error {
 }
 
 func verifyMasterSignatureAsMaster(message, signature []byte) error {
-	mKeyLock.Lock()
-	defer mKeyLock.Unlock()
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.public == nil {
 		return ErrNoPublicKey
 	}
@@ -144,8 +144,8 @@ func GetMasterPublicKey() (crypto.PublicKey, error) {
 }
 
 func getMasterPublicKeyAsMaster() (crypto.PublicKey, error) {
-	mKeyLock.Lock()
-	defer mKeyLock.Unlock()
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.public == nil {
 		return nil, ErrNoPublicKey
 	}
@@ -153,8 +153,8 @@ func getMasterPublicKeyAsMaster() (crypto.PublicKey, error) {
 }
 
 func getMasterPrivateKey() (crypto.PrivateKey, error) {
-	mKeyLock.Lock()
-	defer mKeyLock.Unlock()
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
