@@ -549,9 +549,10 @@
                     });
                 };
 
-                $scope.editConfig = function (config) {
+                $scope.editConfig = function (configFileId) {
+
                     $scope.editableService = angular.copy($scope.currentService.model);
-                    $scope.selectedConfig = config;
+                    $scope.selectedConfig = configFileId;
 
                     //set editor options for context editing
                     $scope.codemirrorOpts = {
@@ -559,46 +560,57 @@
                         mode: utils.getModeFromFilename($scope.selectedConfig)
                     };
 
-                    $modalService.create({
-                        templateUrl: "edit-config.html",
-                        model: $scope,
-                        title: $translate.instant("title_edit_config") + " - " + $scope.selectedConfig,
-                        bigModal: true,
-                        actions: [
-                            {
-                                role: "cancel"
-                            }, {
-                                role: "ok",
-                                label: "save",
-                                action: function () {
-                                    if (this.validate()) {
-                                        // disable ok button, and store the re-enable function
-                                        var enableSubmit = this.disableSubmitButton();
+                    // get the configfile 
+                    $scope.resourcesFactory.v2.getServiceConfig(configFileId)
+                        .then(function (data) {
 
-                                        $scope.updateService($scope.editableService)
-                                            .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.ID).success();
-                                                this.close();
-                                            }.bind(this))
-                                            .error(function (data, status) {
-                                                this.createNotification("Update service failed", data.Detail).error();
-                                                enableSubmit();
-                                            }.bind(this));
+                            // this is the text bound to the modal texarea
+                            $scope.editableService.Content = data.Content;
+
+                            // now that we have the text of the file, create modal dialog
+                            $modalService.create({
+                                templateUrl: "edit-config.html",
+                                model: $scope,
+                                title: $translate.instant("title_edit_config") + " - " + data.Filename,
+                                bigModal: true,
+                                actions: [
+                                    {
+                                        role: "cancel"
+                                    }, {
+                                        role: "ok",
+                                        label: "save",
+                                        action: function () {
+                                            if (this.validate()) {
+                                                // disable ok button, and store the re-enable function
+                                                var enableSubmit = this.disableSubmitButton();
+
+                                                $scope.resourcesFactory.v2.updateServiceConfig(configFileId, data)
+                                                    .success(function (data, status) {
+                                                        $notification.create("Updated configuation file", data.Filename).success();
+                                                        this.close();
+                                                    }.bind(this))
+                                                    .error(function (data, status) {
+                                                        this.createNotification("Update configuration failed", data.Detail).error();
+                                                        enableSubmit();
+                                                    }.bind(this));
+                                            }
+                                        }
                                     }
+                                ],
+                                validate: function () {
+                                    // TODO - actually validate
+                                    return true;
+                                },
+                                onShow: function () {
+                                    $scope.codemirrorRefresh = true;
+                                },
+                                onHide: function () {
+                                    $scope.codemirrorRefresh = false;
                                 }
-                            }
-                        ],
-                        validate: function () {
-                            // TODO - actually validate
-                            return true;
-                        },
-                        onShow: function () {
-                            $scope.codemirrorRefresh = true;
-                        },
-                        onHide: function () {
-                            $scope.codemirrorRefresh = false;
-                        }
-                    });
+                            });
+
+                        });
+
                 };
 
                 $scope.viewLog = function (instance) {

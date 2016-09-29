@@ -326,6 +326,15 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/services`,
             },
+            getServiceConfig: {
+                method: GET,
+                url: id => `/api/v2/serviceconfigs/${id}`,
+            },
+            updateServiceConfig: {
+                method: PUT,
+                url: (id) => `/api/v2/serviceconfigs/${id}`,
+                payload: (id, cfg) => cfg
+            },
             getServiceConfigs: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/serviceconfigs`,

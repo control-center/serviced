@@ -1592,6 +1592,14 @@ input[type=file] {
     height: 500px;
 }
 
+.modal .CodeMirror {
+    background: transparent;
+}
+
+.modal-mckracken {
+  margin-bottom: -50%;
+}
+
 /* sticky service controls */
 .serviceDetails {
     height: 93px;
