@@ -30,6 +30,7 @@ import (
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	"github.com/control-center/serviced/facade"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/metrics"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
