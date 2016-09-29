@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -237,11 +236,17 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 		return err
 	}
 	glog.Infof("Updated service %s (%s)", svc.Name, svc.ID)
+
+	// If the service has been reparented, we need to clear it from the cache
+	f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
+
+	// FIXME - Do we really need to updateServiceConfigs everytime? can we skip this when called from schedulService?
 	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
 		glog.Warningf("Could not set configurations to service %s (%s): %s", svc.Name, svc.ID, err)
 	}
 	glog.Infof("Set configuration information for service %s (%s)", svc.Name, svc.ID)
+
 	// remove the service from coordinator if the pool has changed
 	if cursvc.PoolID != svc.PoolID {
 		if err := f.zzk.RemoveService(cursvc.PoolID, cursvc.ID); err != nil {
@@ -251,6 +256,10 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 			f.zzk.UpdateService(tenantID, cursvc, false, false)
 		}
 	}
+
+	// FIXME - If the current svc object has all of the data we need, then we can skip
+	//         the GetService() call in syncService
+
 	// sync the service with the coordinator
 	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
@@ -645,6 +654,8 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
+
+		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
 		return nil
 	})
 }
@@ -920,7 +931,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
-	return getTenantID(serviceID, gs)
+	return f.serviceCache.GetTenantID(serviceID, gs)
 }
 
 // Get the exported endpoints for a service
@@ -1778,53 +1789,6 @@ func (f *Facade) getExcludedVolumes(ctx datastore.Context, serviceID string) []s
 func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
 	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
 }
-
-func lookUpTenant(svcID string) (string, bool) {
-	tenanIDMutex.RLock()
-	defer tenanIDMutex.RUnlock()
-	tID, found := tenantIDs[svcID]
-	return tID, found
-}
-
-func updateTenants(tenantID string, svcIDs ...string) {
-	tenanIDMutex.Lock()
-	defer tenanIDMutex.Unlock()
-	for _, id := range svcIDs {
-		tenantIDs[id] = tenantID
-	}
-}
-
-// getTenantID calls its GetService function to get the tenantID
-func getTenantID(svcID string, gs service.GetService) (string, error) {
-	if tID, found := lookUpTenant(svcID); found {
-		return tID, nil
-	}
-
-	svc, err := gs(svcID)
-	if err != nil {
-		return "", err
-	}
-	visitedIDs := make([]string, 0)
-	visitedIDs = append(visitedIDs, svc.ID)
-	for svc.ParentServiceID != "" {
-		if tID, found := lookUpTenant(svc.ParentServiceID); found {
-			return tID, nil
-		}
-		svc, err = gs(svc.ParentServiceID)
-		if err != nil {
-			return "", err
-		}
-		visitedIDs = append(visitedIDs, svc.ID)
-	}
-
-	updateTenants(svc.ID, visitedIDs...)
-	return svc.ID, nil
-}
-
-var (
-	tenantIDs    = make(map[string]string)
-	tenanIDMutex = sync.RWMutex{}
-)
 
 // Get all the service details
 func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
