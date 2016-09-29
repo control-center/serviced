@@ -1,7 +1,6 @@
 (function() {
     'use strict';
     // access permissions that apply to pools
-    // TODO - translations
     controlplane.constant("POOL_PERMISSIONS", [
         {
             label: "Admin",

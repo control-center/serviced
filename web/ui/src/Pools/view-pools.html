@@ -16,7 +16,7 @@
     <td data-title="'pools_tbl_id'|translate" sortable="'id'" ng-click="click_pool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
     <td data-title="'core_capacity'|translate" sortable="'model.CoreCapacity'">{{pool.model.CoreCapacity}}</td>
     <td data-title="'memory_usage'|translate" sortable="'model.MemoryCommitment'"><span ng-class="{error: pool.model.MemoryCommitment>pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}</td>
-    <td data-title="'Access'|translate">
+    <td data-title="'Permissions'|translate">
         <span ng-repeat="permission in pool.permissions" class="permission-tag" title="{{permission.description}}">
             {{permission.label}}
         </span>

@@ -45,12 +45,13 @@
             });
         }
 
-        // TODO - implement this instead of using hostsFactory
         fetchHosts(force){
             let deferred = $q.defer();
             if (this.hosts && !force) {
                 deferred.resolve();
             }
+            // TODO - this is actually a v2 endpoint
+            // and should be on resourcesFactory.v2
             resourcesFactory.getPoolHosts(this.id)
                 .then(data => {
                     this.hosts = data.map(h => new Host(h));
