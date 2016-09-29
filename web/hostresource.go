@@ -532,6 +532,30 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
 }
 
+// restResetHostKey generates and returns a new  host-key for a given host-id
+func restResetHostKey(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for DELETE"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	key, err := facade.ResetHostKey(dataCtx, hostID)
+	if err != nil {
+		glog.Errorf("Could not reset key for host %s: %v", hostID, err)
+		restServerError(w, err)
+		return
+	}
+	glog.V(0).Info("Reset host key for ", hostID)
+	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
+	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:])})
+}
+
 func buildHostMonitoringProfile(host *host.Host) error {
 	tags := map[string][]string{"controlplane_host_id": []string{host.ID}}
 	profile, err := hostPoolProfile.ReBuild("1h-ago", tags)
