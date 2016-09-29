@@ -14,6 +14,7 @@
 package web
 
 import (
+	"github.com/control-center/serviced/auth"
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
@@ -101,7 +102,7 @@ func purgeOldsessionTs() {
 /*
  * This function should be called by any secure REST resource
  */
-func loginOK(r *rest.Request) bool {
+func loginWithBasicAuthOK(r *rest.Request) bool {
 	cookie, err := r.Request.Cookie(sessionCookie)
 	if err != nil {
 		glog.V(1).Info("Error getting cookie ", err)
@@ -123,6 +124,34 @@ func loginOK(r *rest.Request) bool {
 	session.access = time.Now()
 	glog.V(2).Infof("sessionT %s used", session.ID)
 	return true
+}
+
+func loginWithTokenOK(r *rest.Request, token string) bool {
+	validToken, err := auth.ValidateRestToken(token)
+	if err != nil {
+		msg := "Unable to parse auth token"
+		plog.WithError(err).Info(msg)
+		return false
+	} else if !validToken {
+		msg := "Could not login with auth token. Expired token or source host without permissions."
+		plog.WithError(err).Info(msg)
+		return false
+	} else { // We have a valid token
+		return true
+	}
+}
+
+func loginOK(r *rest.Request) bool {
+	token, tErr := auth.ExtractRestTokenFromHeaders(r.Header)
+	if tErr != nil { // There is a token in the header but we could not extract it
+		msg := "Unable to extract auth token from header"
+		plog.WithError(tErr).Info(msg)
+		return false
+	} else if token != "" {
+		return loginWithTokenOK(r, token)
+	} else {
+		return loginWithBasicAuthOK(r)
+	}
 }
 
 /*
@@ -149,10 +178,7 @@ func restLogout(w *rest.ResponseWriter, r *rest.Request) {
 	w.WriteJson(&simpleResponse{"Logged out", loginLink()})
 }
 
-/*
- * Perform login, return JSON
- */
-func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	creds := login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
@@ -205,6 +231,26 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 	} else {
 		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
+	}
+}
+
+/*
+ * Perform login, return JSON
+ */
+func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	token, tErr := auth.ExtractRestTokenFromHeaders(r.Header)
+	if tErr != nil { // There is a token in the header but we could not extract it
+		msg := "Unable to extract auth token from header"
+		plog.WithError(tErr).Warning(msg)
+		writeJSON(w, &simpleResponse{msg, loginLink()}, http.StatusUnauthorized)
+	} else if token != "" {
+		if loginWithTokenOK(r, token) {
+			w.WriteJson(&simpleResponse{"Accepted", homeLink()})
+		} else {
+			writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
+		}
+	} else {
+		restLoginWithBasicAuth(w, r, ctx)
 	}
 }
 
