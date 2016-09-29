@@ -121,8 +121,8 @@ func (m *Metrics) Log() {
 //   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("METHOD NAME OR TAG"))
 // It is not necessary to reset Metrics().Enabled to false, as it is done at the end of the Log() method.
 func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
+	m.Stop(ssTimer)
 	if m.Enabled {
-		m.Stop(ssTimer)
 		metricsLogger := logri.GetLogger("metrics")
 		metricsLogger.SetLevel(logrus.DebugLevel, true)
 		m.Log()

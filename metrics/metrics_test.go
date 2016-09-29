@@ -44,15 +44,13 @@ func BenchmarkLoggingOffCallingFunctionWithoutLogging(b *testing.B) {
 	}
 }
 
-func testFunction(loggingEnabled bool, f func(m *Metrics) bool ) {
+func testFunction(loggingEnabled bool, f func(m *Metrics) bool) {
 	m := NewMetrics()
 	defer m.Stop(m.Start("BenchmarkLogging"))
 	m.Enabled = loggingEnabled
 	defer m.LogAndCleanUp(m.Start("BenchmarkLogging"))
-	r := f(m)
-	//r := functionWithLogging(m)
-	//r := functionWithoutLogging(m)
-	rr = r
+	r := f(m) // record result to prevent compiler optimization of call to f. (See https://goo.gl/caaEOU)
+	rr = r    // Assign result to package level variable to prevent compiler optimizing this function away (See https://goo.gl/caaEOU)
 }
 
 func functionWithLogging(m *Metrics) bool {
