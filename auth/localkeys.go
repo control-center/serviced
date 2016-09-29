@@ -33,8 +33,8 @@ const (
 var (
 	delegateKeys HostKeys
 	masterKeys   MasterKeys
-
-	dKeyCond = &sync.Cond{L: &sync.Mutex{}}
+	mKeyLock     sync.RWMutex
+	dKeyCond     = &sync.Cond{L: &sync.Mutex{}}
 )
 
 type HostKeys struct {
@@ -93,6 +93,8 @@ func SignAsDelegate(message []byte) ([]byte, error) {
 // SignAsMaster signs the given message with the master's private key
 // will return an error if the delegate running this process is not the master
 func SignAsMaster(message []byte) ([]byte, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -102,33 +104,57 @@ func SignAsMaster(message []byte) ([]byte, error) {
 // VerifyMasterSignature verifies that a given message was signed by the master
 // whose public key we have.
 func VerifyMasterSignature(message, signature []byte) error {
+	if err := verifyMasterSignatureAsMaster(message, signature); err != ErrNoPublicKey {
+		return err
+	}
+
 	dKeyCond.L.Lock()
 	defer dKeyCond.L.Unlock()
 	if delegateKeys.masterPublic == nil {
-		if masterKeys.public == nil {
-			return ErrNoPublicKey
-		}
-		return masterKeys.Verify(message, signature)
+		return ErrNoPublicKey
 	}
 	return delegateKeys.Verify(message, signature)
 }
 
+func verifyMasterSignatureAsMaster(message, signature []byte) error {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
+	if masterKeys.public == nil {
+		return ErrNoPublicKey
+	}
+	return masterKeys.Verify(message, signature)
+
+}
+
 // GetMasterPublicKey() returns the public key of the master
-//  If the host keys have not been loaded yet, it checks to see if
-//  master keys have been loaded.  If neither exists, returns ErrNoPublicKey
+//  It first checks to see if we have a set of master keys (i.e. we are the master)
+//  It then checks the delegate keys.  If neither exists, returns ErrNoPublicKey
 func GetMasterPublicKey() (crypto.PublicKey, error) {
+	// check the master keys first
+	if key, err := getMasterPublicKeyAsMaster(); err == nil {
+		return key, err
+	}
+
 	dKeyCond.L.Lock()
 	defer dKeyCond.L.Unlock()
 	if delegateKeys.masterPublic == nil {
-		if masterKeys.public == nil {
-			return nil, ErrNoPublicKey
-		}
-		return masterKeys.public, nil
+		return nil, ErrNoPublicKey
 	}
 	return delegateKeys.masterPublic, nil
 }
 
+func getMasterPublicKeyAsMaster() (crypto.PublicKey, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
+	if masterKeys.public == nil {
+		return nil, ErrNoPublicKey
+	}
+	return masterKeys.public, nil
+}
+
 func getMasterPrivateKey() (crypto.PrivateKey, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -147,6 +173,8 @@ func LoadDelegateKeysFromFile(filename string) error {
 
 // LoadMasterKeys sets the current master key pair to the one specified
 func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
+	mKeyLock.Lock()
+	defer mKeyLock.Unlock()
 	masterKeys = MasterKeys{public, private}
 }
 
@@ -221,13 +249,17 @@ func LoadMasterKeysFromPEM(public, private []byte) error {
 		return err
 	}
 
+	mKeyLock.Lock()
+	defer mKeyLock.Unlock()
 	masterKeys = MasterKeys{pub, priv}
 	return nil
 }
 
 // ClearKeys wipes the current state
 func ClearKeys() {
+	mKeyLock.Lock()
 	masterKeys = MasterKeys{}
+	mKeyLock.Unlock()
 	updateDelegateKeys(nil, nil)
 }
 

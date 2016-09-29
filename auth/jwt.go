@@ -25,6 +25,18 @@ var (
 	_ jwt.Claims = &jwtIdentity{}
 )
 
+func At(t time.Time, f func()) {
+	defer func() {
+		jwt.TimeFunc = time.Now
+	}()
+
+	jwt.TimeFunc = func() time.Time {
+		return t
+	}
+
+	f()
+}
+
 // jwtIdentity is an implementation of the Identity interface based on a JSON
 // web token.
 type jwtIdentity struct {

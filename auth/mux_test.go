@@ -22,15 +22,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-var (
-	hostId = "MyHost"
-	poolId = "MyPool"
-	admin  = false
-	dfs    = true
-)
-
 func (s *TestAuthSuite) TestBuildHeaderBadAddr(c *C) {
-	fakeToken, _, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	addr := "this is more than 6 bytes"
@@ -45,7 +38,7 @@ func (s *TestAuthSuite) TestExtractBadHeader(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
-	fakeToken, _, err := auth.CreateJWTIdentity(hostId, poolId, admin, dfs, s.delegatePubPEM, time.Hour)
+	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
 	addr := "zenoss"
@@ -59,8 +52,8 @@ func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(string(extractedAddr), DeepEquals, addr)
 	// check the identity has been correctly extracted
-	c.Assert(hostId, DeepEquals, ident.HostID())
-	c.Assert(poolId, DeepEquals, ident.PoolID())
-	c.Assert(admin, Equals, ident.HasAdminAccess())
-	c.Assert(dfs, Equals, ident.HasDFSAccess())
+	c.Assert(s.hostId, DeepEquals, ident.HostID())
+	c.Assert(s.poolId, DeepEquals, ident.PoolID())
+	c.Assert(s.admin, Equals, ident.HasAdminAccess())
+	c.Assert(s.dfs, Equals, ident.HasDFSAccess())
 }

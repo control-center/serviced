@@ -48,6 +48,7 @@ type API interface {
 	RegisterHost([]byte) error
 	RegisterRemoteHost(*host.Host, []byte) error
 	WriteDelegateKey(string, []byte) error
+	AuthenticateHost(string) (string, int64, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)

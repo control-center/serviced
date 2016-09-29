@@ -17,11 +17,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
@@ -29,6 +31,7 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
 	"github.com/zenoss/glog"
@@ -184,6 +187,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 	config.LoadOptions(options)
 
+	// Try to authenticate this host
+	if err := c.authenticateHost(&options); err != nil {
+		// Not all commands require authentication
+		log.WithError(err).Debug("Unable to authenticate host")
+	}
+
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
 		fmt.Printf("Unable to set logging options: %s\n", err)
@@ -195,6 +204,44 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Printf("Unable to set isvcs options: %s\n", err)
 		return err
 	}
+	return nil
+}
+
+// This will authenticate the host once to get a valid token for any CLI commands
+//  that require it.
+func (c *ServicedCli) authenticateHost(options *config.Options) error {
+	// If we are the master, load the master keys
+	if options.Master {
+		masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+		if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
+			return err
+		}
+	}
+
+	// Load the delegate keys
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	if err := auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
+		return err
+	}
+
+	// Get our host ID
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	} else if err := validation.ValidHostID(myHostID); err != nil {
+		return err
+	}
+
+	// Load an auth token once
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
+	getToken := func() (string, int64, error) {
+		return c.driver.AuthenticateHost(myHostID)
+	}
+
+	if _, err := auth.RefreshToken(getToken, tokenFile); err != nil {
+		return err
+	}
+
 	return nil
 }
 
