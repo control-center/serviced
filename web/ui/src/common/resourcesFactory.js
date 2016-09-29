@@ -333,7 +333,12 @@
             updateServiceConfig: {
                 method: PUT,
                 url: (id) => `/api/v2/serviceconfigs/${id}`,
-                payload: (id, cfg) => cfg
+                payload: (id, cfg) => {return JSON.stringify({
+                    'Filename':    cfg.Filename, 
+                    'Owner':       cfg.Owner, 
+                    'Permissions': cfg.Permissions, 
+                    'Content':     cfg.Content
+                });}
             },
             getServiceConfigs: {
                 method: GET,

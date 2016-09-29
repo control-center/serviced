@@ -550,28 +550,26 @@
                 };
 
                 $scope.editConfig = function (configFileId) {
-
-                    $scope.editableService = angular.copy($scope.currentService.model);
-                    $scope.selectedConfig = configFileId;
-
-                    //set editor options for context editing
-                    $scope.codemirrorOpts = {
-                        lineNumbers: true,
-                        mode: utils.getModeFromFilename($scope.selectedConfig)
-                    };
+                    let modalScope = $scope.$new(true);
 
                     // get the configfile 
                     $scope.resourcesFactory.v2.getServiceConfig(configFileId)
                         .then(function (data) {
 
+                            //set editor options for context editing
+                            modalScope.codemirrorOpts = {
+                                lineNumbers: true,
+                                mode: utils.getModeFromFilename(data.Filename)
+                            };
+
                             // this is the text bound to the modal texarea
-                            $scope.editableService.Content = data.Content;
+                            angular.extend(modalScope, data);
 
                             // now that we have the text of the file, create modal dialog
                             $modalService.create({
                                 templateUrl: "edit-config.html",
-                                model: $scope,
-                                title: $translate.instant("title_edit_config") + " - " + data.Filename,
+                                model: modalScope,
+                                title: $translate.instant("title_edit_config") + " - " + modalScope.Filename,
                                 bigModal: true,
                                 actions: [
                                     {
@@ -584,7 +582,7 @@
                                                 // disable ok button, and store the re-enable function
                                                 var enableSubmit = this.disableSubmitButton();
 
-                                                $scope.resourcesFactory.v2.updateServiceConfig(configFileId, data)
+                                                $scope.resourcesFactory.v2.updateServiceConfig(configFileId, modalScope)
                                                     .success(function (data, status) {
                                                         $notification.create("Updated configuation file", data.Filename).success();
                                                         this.close();
@@ -602,10 +600,10 @@
                                     return true;
                                 },
                                 onShow: function () {
-                                    $scope.codemirrorRefresh = true;
+                                    modalScope.codemirrorRefresh = false;
                                 },
                                 onHide: function () {
-                                    $scope.codemirrorRefresh = false;
+                                    modalScope.codemirrorRefresh = false;
                                 }
                             });
 
