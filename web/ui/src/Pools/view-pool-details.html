@@ -28,6 +28,15 @@
         </div>
 
         <div class="vertical-info">
+          <label for="pool_data_permissions" translate>Permissions</label>
+          <div id="pool_data_permissionsid">
+            <span ng-repeat="permission in currentPool.permissions" class="permission-tag" title="{{permission.description}}">
+              {{permission.label}}
+            </span>
+          </div>
+        </div>
+
+        <div class="vertical-info">
           <label for="pool_data_created_at" translate>label_pool_created_at</label>
           <div id="pool_data_created_at">{{currentPool.model.CreatedAt | date : 'medium'}}</div>
         </div>
