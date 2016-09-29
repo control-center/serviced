@@ -26,14 +26,14 @@ import (
 
 // ZZKServer
 type ZZKServer struct {
-	Port     int
-	dc       *dockerclient.Client
-	zkCtrID  string
+	Port    int
+	dc      *dockerclient.Client
+	zkCtrID string
 }
 
 const (
 	DEFAULT_PORT = 2181
-	zzkVersion = "3.4.5"
+	zzkVersion   = "3.4.5"
 )
 
 // Start will start an instance of Zookeeper using a docker container.
@@ -46,7 +46,7 @@ func (s *ZZKServer) Start() error {
 	}
 
 	// Make sure we start with a fresh instance
-	containerName :=  "zktestserver"
+	containerName := "zktestserver"
 	if ctr, err := s.dc.InspectContainer(containerName); err == nil {
 		fmt.Printf("ZZKServer.Start(): Killing container %s ...\n", ctr.ID)
 		err = s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
@@ -82,26 +82,26 @@ func (s *ZZKServer) Start() error {
 	// Start zookeeper
 	opts := dockerclient.CreateContainerOptions{Name: containerName}
 	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("jplock/zookeeper:%s", zzkVersion)}
-	ctr, err := s.dc.CreateContainer(opts)
-	if err != nil {
-		return fmt.Errorf("Could not initialize zookeeper: %s", err)
-	}
 
 	if s.Port == 0 {
 		s.Port = DEFAULT_PORT
 	}
-
-	// Start the container
-	s.zkCtrID = ctr.ID
 	dockerPort := dockerclient.Port(fmt.Sprintf("%d/tcp", s.Port))
-	hconf := &dockerclient.HostConfig{
+	opts.HostConfig = &dockerclient.HostConfig{
 		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
 			dockerPort: []dockerclient.PortBinding{
 				{HostIP: "localhost", HostPort: strconv.Itoa(s.Port)},
 			},
 		},
 	}
-	if err := s.dc.StartContainer(ctr.ID, hconf); err != nil {
+	ctr, err := s.dc.CreateContainer(opts)
+	if err != nil {
+		return fmt.Errorf("Could not initialize zookeeper: %s", err)
+	}
+
+	// Start the container
+	s.zkCtrID = ctr.ID
+	if err := s.dc.StartContainer(ctr.ID, nil); err != nil {
 		return fmt.Errorf("Could not start zookeeper: %s", err)
 	}
 
