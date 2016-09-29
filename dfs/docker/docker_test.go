@@ -17,6 +17,7 @@ package docker
 
 import (
 	"bytes"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -110,7 +111,7 @@ func (s *DockerSuite) TestSaveImages(c *C) {
 	buffer := bytes.NewBufferString("")
 	err := s.docker.SaveImages([]string{"busybox"}, buffer)
 	c.Assert(err, IsNil)
-	err = s.dc.RemoveImage("busybox")
+	err = exec.Command("docker", "rmi", "-f", "busybox").Run()
 	c.Assert(err, IsNil)
 	err = s.dc.LoadImage(dockerclient.LoadImageOptions{InputStream: buffer})
 	c.Assert(err, IsNil)
@@ -122,7 +123,7 @@ func (s *DockerSuite) TestLoadImage(c *C) {
 	buffer := bytes.NewBufferString("")
 	err := s.dc.ExportImages(dockerclient.ExportImagesOptions{Names: []string{"busybox"}, OutputStream: buffer})
 	c.Assert(err, IsNil)
-	err = s.dc.RemoveImage("busybox")
+	err = exec.Command("docker", "rmi", "-f", "busybox").Run()
 	c.Assert(err, IsNil)
 	err = s.docker.LoadImage(buffer)
 	c.Assert(err, IsNil)
@@ -250,11 +251,35 @@ func (s *DockerSuite) TestGetContainerStats(c *C) {
 }
 
 func (s *DockerSuite) TestFindImageByHash(c *C) {
-	_, err := s.docker.FindImageByHash("non_existant_hash", false)
-	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
-	expectedhash, err := s.docker.GetImageHash("busybox")
+	// create 2 new layers on top of busybox
+	defer s.dc.RemoveImage("localhost:5000/busybox:commit")
+	opts := dockerclient.CreateContainerOptions{}
+	opts.Config = &dockerclient.Config{Image: "busybox"}
+	ctr, err := s.dc.CreateContainer(opts)
 	c.Assert(err, IsNil)
-	actual, err := s.docker.FindImageByHash(expectedhash, false)
+	defer s.dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: ctr.ID, RemoveVolumes: true, Force: true})
+	expected, err := s.docker.CommitContainer(ctr.ID, "localhost:5000/busybox:commit")
+	c.Assert(err, IsNil)
+	actual, err := s.dc.InspectImage("localhost:5000/busybox:commit")
+	c.Assert(err, IsNil)
+	c.Assert(actual.ID, DeepEquals, expected.ID)
+
+	opts.Config.Image = "localhost:5000/busybox:commit"
+	ctr, err = s.dc.CreateContainer(opts)
+	c.Assert(err, IsNil)
+	defer s.dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: ctr.ID, RemoveVolumes: true, Force: true})
+	expected, err = s.docker.CommitContainer(ctr.ID, "localhost:5000/busybox:commit")
+	c.Assert(err, IsNil)
+	actual, err = s.dc.InspectImage("localhost:5000/busybox:commit")
+	c.Assert(err, IsNil)
+	c.Assert(actual.ID, DeepEquals, expected.ID)
+
+	// test the image hash
+	_, err = s.docker.FindImageByHash("non_existant_hash", false)
+	c.Assert(err, Equals, dockerclient.ErrNoSuchImage)
+	expectedhash, err := s.docker.GetImageHash("localhost:5000/busybox:commit")
+	c.Assert(err, IsNil)
+	actual, err = s.docker.FindImageByHash(expectedhash, false)
 	c.Assert(err, IsNil)
 	// have to compare hashes, IDs may not match
 	actualhash, err := s.docker.GetImageHash(actual.ID)
@@ -263,11 +288,12 @@ func (s *DockerSuite) TestFindImageByHash(c *C) {
 
 	// Test "allLayers"
 	// find a lower layer of busybox
-	historyList, err := s.dc.ImageHistory("busybox")
+	historyList, err := s.dc.ImageHistory("localhost:5000/busybox:commit")
 	c.Assert(err, IsNil)
 	c.Assert(len(historyList) > 1, Equals, true)
 	lowerLayer := historyList[1]
 
+	c.Logf("Checking layer %+v", lowerLayer)
 	lowerLayerHash, err := s.docker.GetImageHash(lowerLayer.ID)
 	c.Assert(err, IsNil)
 
