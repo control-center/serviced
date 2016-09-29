@@ -54,7 +54,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetISvcEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
