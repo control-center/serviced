@@ -6,47 +6,16 @@
 (function() {
     'use strict';
 
-    let POOL_PERMISSIONS;
-
-    // Pool object constructor takes a pool object (backend pool object)
-    // and wraps it with extra functionality and info
-    class Pool{
-    
-        constructor(pool){
-            this.id = pool.ID;
-            this.model = Object.freeze(pool);
-            this.calculatePermissions();
-        }
-
-        calculatePermissions(){
-            // build a list of permissions
-            // this pool has
-            // NOTE: permissions include description
-            // and friendly label for the UI to display
-            let val = this.model.Permissions;
-            this.permissions = [];
-            POOL_PERMISSIONS.forEach(perm => {
-                if((val & perm.position) !== 0){
-                    this.permissions.push(perm);
-                }
-            });
-        }
-    }
-
     controlplane.controller("PoolsController", ["$scope", "$routeParams",
     "resourcesFactory", "authService", "$modalService", "$translate",
     "$notification", "areUIReady", "$interval", "servicedConfig", "log",
-    "POOL_PERMISSIONS", "miscUtils",
+    "POOL_PERMISSIONS", "miscUtils", "Pool",
     function($scope, $routeParams, resourcesFactory, authService, $modalService,
     $translate, $notification, areUIReady, $interval, servicedConfig, log,
-    _POOL_PERMISSIONS, utils){
+    POOL_PERMISSIONS, utils, Pool){
 
         // Ensure logged in
         authService.checkLogin($scope);
-
-        // share POOL_PERMISSIONS outside of
-        // this function context
-        POOL_PERMISSIONS = _POOL_PERMISSIONS;
 
         // allow templates to get the list
         // of permissions

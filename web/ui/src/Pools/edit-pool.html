@@ -22,8 +22,12 @@
 
     <!-- add checkbox for each available permission -->
     <div ng-repeat="permission in permissions">
-        <input type="checkbox" name="edit_pool_{{permission.field}}" id="edit_pool_{{permission.field}}" ng-model="editablePool[permission.field]"/>
-        <label style="font-weight: normal;" for="edit_pool_{{permission.field}}" title="{{permission.description}}">{{permission.label}}</label><br>
+        <input type="checkbox"
+            name="new_pool_permission_{{permission.position}}" 
+            id="new_pool_permission_{{permission.position}}" 
+            ng-model="editablePool.permissions[permission.position]" 
+            ng-model-options="{getterSetter: true}"/>
+        <label style="font-weight: normal;" for="new_pool_permission_{{permission.position}}" title="{{permission.description}}">{{permission.label}}</label><br>
     </div>
 </div>
 
