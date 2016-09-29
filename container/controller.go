@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2014-2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -812,7 +812,7 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// this function is currently needed to handle special control center imports
-	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
+	// from GetISvcEndpoints() that do not exist in endpoints from getServiceState
 	// get service endpoints
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -820,24 +820,20 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		return err
 	}
 	defer client.Close()
-	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
-	//       that returns only special "controlplane" imported endpoints
-	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
-	//		We should rename it and clean up the filtering code below.
 
 	epchan := make(chan map[string][]applicationendpoint.ApplicationEndpoint)
 	timeout := make(chan struct{})
 
 	go func(c *node.LBClient, svcid string, epc chan map[string][]applicationendpoint.ApplicationEndpoint, timeout chan struct{}) {
 		var endpoints map[string][]applicationendpoint.ApplicationEndpoint
-	RetryGetServiceEndpoints:
+	RetryGetISvcEndpoints:
 		for {
-			err = c.GetServiceEndpoints(svcid, &endpoints)
+			err = c.GetISvcEndpoints(svcid, &endpoints)
 			if err != nil {
 				select {
 				case <-time.After(1 * time.Second):
 					glog.V(3).Info("Couldn't retrieve service endpoints, trying again")
-					continue RetryGetServiceEndpoints
+					continue RetryGetISvcEndpoints
 				case <-timeout:
 					glog.V(3).Info("Timed out trying to retrieve service endpoints")
 					return
@@ -847,7 +843,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 
 		// deal with the race between the one minute timeout in handleControlCenterImports() and the
-		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
+		// call to GetISvcEndpoints() - the timeout may happen between GetISvcEndpoints() completing
 		// and sending the result via the epc channel.
 		select {
 		case _, ok := <-epc:
@@ -876,14 +872,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
-	for key, eps := range endpoints {
-		if len(endpoints) == 0 {
-			glog.Warningf("ignoring key: %s with empty endpointList", key)
-			continue
-		} else if !strings.HasPrefix(eps[0].Application, "controlplane") {
-			// ignore endpoints that are not special controlplane imports
-			continue
-		}
+	for _, eps := range endpoints {
 		bind := zkservice.ImportBinding{
 			Application:    eps[0].Application,
 			Purpose:        "import", // Punting on control center dynamic imports for now
