@@ -237,9 +237,6 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 	}
 	glog.Infof("Updated service %s (%s)", svc.Name, svc.ID)
 
-	// If the service has been reparented, we need to clear it from the cache
-	f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
-
 	// FIXME - Do we really need to updateServiceConfigs everytime? can we skip this when called from schedulService?
 	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
@@ -290,6 +287,9 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 			glog.Errorf("Could not validate service name for updated service %s: %s", svc.ID, err)
 			return nil, err
 		}
+
+		// If the service has been reparented, we need to clear it from the cache
+		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
 	}
 
 	// disallow enabling ports and vhosts that are already enabled by a different
