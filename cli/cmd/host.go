@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/codegangsta/cli"
@@ -272,11 +273,15 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		if keyfileName == "" {
 			keyfileName = fmt.Sprintf("IP-%s.delegate.key", strings.Replace(host.IPAddr, ".", "-", -1))
 		}
+		if keyfileName, err = filepath.Abs(keyfileName); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing delegate key file \"%s\": %s\n", keyfileName, err.Error())
+			return
+		}
 		if err := c.driver.WriteDelegateKey(keyfileName, privateKey); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing delegate key file \"%s\": %s\n", keyfileName, err.Error())
-		} else {
-			fmt.Println("Wrote delegate key file to", keyfileName)
+			return
 		}
+		fmt.Fprintln(os.Stderr, "Wrote delegate key file to", keyfileName)
 	}
 	fmt.Println(host.ID)
 }
