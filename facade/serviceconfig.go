@@ -28,6 +28,7 @@ import (
 
 // GetServiceConfigs returns the config files for a service
 func (f *Facade) GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceConfigs"))
 	logger := plog.WithField("serviceid", serviceID)
 
 	tenantID, servicePath, err := f.getServicePath(ctx, serviceID)
@@ -61,6 +62,7 @@ func (f *Facade) GetServiceConfigs(ctx datastore.Context, serviceID string) ([]s
 
 // GetServiceConfig returns a config file
 func (f *Facade) GetServiceConfig(ctx datastore.Context, fileID string) (*servicedefinition.ConfigFile, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceConfig"))
 	logger := plog.WithField("fileid", fileID)
 
 	file := &serviceconfigfile.SvcConfigFile{}
@@ -74,6 +76,7 @@ func (f *Facade) GetServiceConfig(ctx datastore.Context, fileID string) (*servic
 
 // AddServiceConfig creates a config file for a service
 func (f *Facade) AddServiceConfig(ctx datastore.Context, serviceID string, conf servicedefinition.ConfigFile) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddServiceConfig"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid": serviceID,
 		"filename":  conf.Filename,
@@ -121,6 +124,7 @@ func (f *Facade) AddServiceConfig(ctx datastore.Context, serviceID string, conf 
 
 // UpdateServiceConfig updates an existing service config file
 func (f *Facade) UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpdateServiceConfig"))
 	logger := plog.WithFields(log.Fields{
 		"fileid":   fileID,
 		"filename": conf.Filename,
@@ -147,6 +151,7 @@ func (f *Facade) UpdateServiceConfig(ctx datastore.Context, fileID string, conf 
 
 // DeleteServiceConfig deletes a service config file
 func (f *Facade) DeleteServiceConfig(ctx datastore.Context, fileID string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeleteServiceConfig"))
 	logger := plog.WithField("fileid", fileID)
 
 	if err := f.configStore.Delete(ctx, serviceconfigfile.Key(fileID)); err != nil {

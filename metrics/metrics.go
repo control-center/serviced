@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
 	gometrics "github.com/rcrowley/go-metrics"
+	"github.com/zenoss/logri"
 )
 
 var (
@@ -112,4 +113,19 @@ func (m *Metrics) Log() {
 	m.Enabled = false
 	r.UnregisterAll()
 	m.Timers = make(map[string]gometrics.Timer)
+}
+
+// This function is intended to be used in a defer call on methods for which logging is desired.
+// To log calls for a method invocation, add the following at the top of the method:
+//   ctx.Metrics().Enabled = true
+//   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("METHOD NAME OR TAG"))
+// It is not necessary to reset Metrics().Enabled to false, as it is done at the end of the Log() method.
+func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
+	if m.Enabled {
+		m.Stop(ssTimer)
+		metricsLogger := logri.GetLogger("metrics")
+		metricsLogger.SetLevel(logrus.DebugLevel, true)
+		m.Log()
+		metricsLogger.SetLevel(logrus.DebugLevel, false)
+	}
 }

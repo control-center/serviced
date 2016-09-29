@@ -91,6 +91,8 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.metricsClient = &zzkmocks.MetricsClient{}
 	ft.Facade.SetMetricsClient(ft.metricsClient)
+
+	ft.ctx.On("Metrics").Return(metrics.NewMetrics())
 }
 
 // Mock all DFS locking operations into no-ops

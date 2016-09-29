@@ -43,6 +43,14 @@ func (_m *Context) Connection() (datastore.Connection, error) {
 	return r0, r1
 }
 
-func (m *Context) Metrics() *metrics.Metrics {
-	return nil
+func (_m *Context) Metrics() *metrics.Metrics {
+	ret := _m.Called()
+
+	var r0 *metrics.Metrics
+	if rf, ok := ret.Get(0).(func() *metrics.Metrics); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(*metrics.Metrics)
+	}
+	return r0
 }
