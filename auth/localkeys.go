@@ -320,6 +320,8 @@ func delegateKeysChanged() <-chan interface{} {
 	ch := make(chan interface{})
 	go func() {
 		defer close(ch)
+		dKeyCond.L.Lock()
+		defer dKeyCond.L.Unlock()
 		dKeyCond.Wait()
 	}()
 	return ch
