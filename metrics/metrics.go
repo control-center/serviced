@@ -115,11 +115,14 @@ func (m *Metrics) Log() {
 	m.Timers = make(map[string]gometrics.Timer)
 }
 
-// This function is intended to be used in a defer call on methods for which logging is desired.
-// To log calls for a method invocation, add the following at the top of the method:
+// This function is intended to be used in a defer call on methods for which metric logging is desired.
+// To write metrics for a method invocation to the log, add the following at the top of the method:
 //   ctx.Metrics().Enabled = true
-//   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("METHOD NAME OR TAG"))
-// It is not necessary to reset Metrics().Enabled to false, as it is done at the end of the Log() method.
+//   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("methodname"))
+// if Enabled is true, the metrics will be gathered and written at the end of the method.
+// if Enabled is false, this will gather metrics for the method, but only report them if the method is called
+//   by another method with metrics enabled. I.E. it should behave similarly to 'defer <metrics>.Stop(<metrics>.Start("methodname"))'
+// It is not necessary to reset Metrics().Enabled to false, as the Log() method does so before exiting.
 func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
 	m.Stop(ssTimer)
 	if m.Enabled {
