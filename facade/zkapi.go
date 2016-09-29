@@ -44,17 +44,17 @@ type zkf struct {
 }
 
 func getLocalConnection(ctx datastore.Context, path string) (client.Connection, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk_getLocalConnection")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.getLocalConnection"))
 	return zzk.GetLocalConnection(path)
 }
 
 func syncServiceRegistry(ctx datastore.Context, conn client.Connection, serviceID string, pubs map[zkr.PublicPortKey]zkr.PublicPort, vhosts map[zkr.VHostKey]zkr.VHost) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zkr_syncServiceRegistry")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkr.syncServiceRegistry"))
 	return zkr.SyncServiceRegistry(conn, serviceID, pubs, vhosts)
 }
 
 func updateService(ctx datastore.Context, conn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zks_updateService")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateService"))
 	return zks.UpdateService(conn, svc, setLockOnCreate, setLockOnUpdate)
 }
 
@@ -62,7 +62,7 @@ func updateService(ctx datastore.Context, conn client.Connection, svc service.Se
 // are synced in zookeeper.
 // TODO: we may want to combine these calls into a single transaction
 func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk_UpdateService")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkf.UpdateService"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,
@@ -617,7 +617,7 @@ func (zk *zkf) StopServiceInstance(poolID, serviceID string, instanceID int) err
 
 // StopServiceInstances stops all instances for a service
 func (zk *zkf) StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk_StopServiceInstances")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkf.StopServiceInstances"))
 	logger := plog.WithFields(log.Fields{
 		"poolid":    poolID,
 		"serviceid": serviceID,

@@ -1111,7 +1111,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		return nil
 	}
 
-	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "schedulService")
+	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
 	return affected, err
 }
 
