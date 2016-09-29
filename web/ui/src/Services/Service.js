@@ -98,7 +98,26 @@
         }
 
         fetchEndpoints(force) {
-            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force);
+            // populate publicEndpoints property
+            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force)
+                // populate exportedServiceEndpoints property
+                .then(() => {
+                    // if Endpoints, iterate Endpoints
+                    if (this.publicEndpoints) {
+                        this.exportedServiceEndpoints = this.publicEndpoints.reduce((acc, endpoint) => {
+                            // if this exports tcp, add it to our list.
+                            if (endpoint.Purpose === "export" && endpoint.Protocol === "tcp") {
+                                acc.push({
+                                    Application: this.name,
+                                    ServiceEndpoint: endpoint.Application,
+                                    ApplicationId: this.id,
+                                    Value: this.name + " - " + endpoint.Application,
+                                });
+                            }
+                            return acc;
+                        }, []);
+                    }
+                });
         }
 
         fetchMonitoringProfile(force) {
@@ -130,6 +149,7 @@
             resourcesFactory.v2.getServiceChildren(this.id)
                 .then(data => {
                     console.log(`fetched ${data.length} children services from getServiceChildren for id ${this.id}`);
+                    $notification.create(`API call returned ${data.length} sub-service${data.length === 1 ? "" : "s"} for ${this.name}`).success();
                     this.subservices = data.map(s => new Service(s));
                     this.touch();
                     deferred.resolve();

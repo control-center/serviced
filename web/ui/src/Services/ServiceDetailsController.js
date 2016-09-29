@@ -64,7 +64,7 @@
                     // default public endpoint options
                     $scope.publicEndpoints.add = {
                         type: "port",
-                        app_ep: $scope.exportedServiceEndpoints.data[0],
+                        app_ep: $scope.currentService.exportedServiceEndpoints,
                         name: "",
                         host: $scope.defaultHostAlias,
                         port: "",
@@ -927,7 +927,7 @@
                                         var enableSubmit = this.disableSubmitButton();
 
                                         // update service with recently edited service
-                                        $scope.updateService($scope.editableService)
+                                        $scope.resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
                                             .success(function (data, status) {
                                                 $notification.create("Updated service", $scope.editableService.ID).success();
                                                 this.close();
