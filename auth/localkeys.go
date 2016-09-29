@@ -200,6 +200,13 @@ func CreateOrLoadMasterKeys(filename string) error {
 		return err
 	}
 
+	return LoadMasterKeyFile(filename)	
+}
+
+// LoadMasterKeyFile will load the master keys from disk if 
+//  the file exists.  If the file does not exist, it will
+//  return an error
+func LoadMasterKeyFile(filename string) error {
 	publicKey, privateKey, err := LoadKeyPairFromFile(filename)
 	if err != nil {
 		return err
