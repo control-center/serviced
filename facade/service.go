@@ -1623,59 +1623,6 @@ func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse 
 	return service.Walk(serviceID, visitFn, getService, getChildren)
 }
 
-// walkTree returns a list of ids for all services in a hierarchy rooted by node
-func walkTree(node *treenode) []string {
-	if len(node.children) == 0 {
-		return []string{node.id}
-	}
-	relatedServiceIDs := make([]string, 0)
-	for _, childNode := range node.children {
-		for _, childId := range walkTree(childNode) {
-			relatedServiceIDs = append(relatedServiceIDs, childId)
-		}
-	}
-	return append(relatedServiceIDs, node.id)
-}
-
-type treenode struct {
-	id       string
-	parent   string
-	children []*treenode
-}
-
-// getServiceTree creates the service hierarchy tree containing serviceId, serviceList is used to create the tree.
-// Returns a pointer the root of the service hierarchy
-func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Service) *treenode {
-	glog.V(2).Infof(" getServiceTree = %s", serviceId)
-	servicesMap := make(map[string]*treenode)
-	for _, svc := range *servicesList {
-		servicesMap[svc.ID] = &treenode{
-			svc.ID,
-			svc.ParentServiceID,
-			[]*treenode{},
-		}
-	}
-
-	// second time through builds our tree
-	root := treenode{"root", "", []*treenode{}}
-	for _, svc := range *servicesList {
-		node := servicesMap[svc.ID]
-		parent, found := servicesMap[svc.ParentServiceID]
-		// no parent means f node belongs to root
-		if !found {
-			parent = &root
-		}
-		parent.children = append(parent.children, node)
-	}
-
-	// now walk up the tree, then back down capturing all siblings for f service ID
-	topService := servicesMap[serviceId]
-	for len(topService.parent) != 0 {
-		topService = servicesMap[topService.parent]
-	}
-	return topService
-}
-
 func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) error {
 	if err := f.fillServiceAddr(ctx, svc); err != nil {
 		return err
