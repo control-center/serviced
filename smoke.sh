@@ -13,7 +13,7 @@ TEST_VAR_PATH=/tmp/serviced-smoke/var
 
 # Add a host
 add_host() {
-    HOST_ID=$(sudo SERVICED_MASTER=1 SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH} SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
+    HOST_ID=$(sudo SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH} SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
     sleep 1
     [ -z "$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0
