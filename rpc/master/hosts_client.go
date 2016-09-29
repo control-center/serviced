@@ -98,3 +98,9 @@ func (c *Client) GetHostPublicKey(hostID string) ([]byte, error) {
 	err := c.call("GetHostPublicKey", hostID, &response)
 	return response, err
 }
+
+func (c *Client) ResetHostKey(hostID string) ([]byte, error) {
+	response := []byte{}
+	err := c.call("ResetHostKey", hostID, &response)
+	return response, err
+}
