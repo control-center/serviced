@@ -6,18 +6,21 @@ import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import zkservice "github.com/control-center/serviced/zzk/service"
+import (
+	"github.com/control-center/serviced/datastore"
+	zkservice "github.com/control-center/serviced/zzk/service"
+)
 
 type ZZK struct {
 	mock.Mock
 }
 
-func (_m *ZZK) UpdateService(tenantID string, svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
-	ret := _m.Called(tenantID, svc, setLockOnCreate, setLockOnUpdate)
+func (_m *ZZK) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
+	ret := _m.Called(ctx, tenantID, svc, setLockOnCreate, setLockOnUpdate)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *service.Service, bool, bool) error); ok {
-		r0 = rf(tenantID, svc, setLockOnCreate, setLockOnUpdate)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, *service.Service, bool, bool) error); ok {
+		r0 = rf(ctx, tenantID, svc, setLockOnCreate, setLockOnUpdate)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -395,12 +398,12 @@ func (_m *ZZK) StopServiceInstance(poolID string, serviceID string, instanceID i
 
 	return r0
 }
-func (_m *ZZK) StopServiceInstances(poolID string, serviceID string) error {
-	ret := _m.Called(poolID, serviceID)
+func (_m *ZZK) StopServiceInstances(ctx datastore.Context, poolID string, serviceID string) error {
+	ret := _m.Called(ctx, poolID, serviceID)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(poolID, serviceID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) error); ok {
+		r0 = rf(ctx, poolID, serviceID)
 	} else {
 		r0 = ret.Error(0)
 	}
