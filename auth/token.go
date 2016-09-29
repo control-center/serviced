@@ -115,6 +115,7 @@ func CurrentIdentity() Identity {
 // setting the result as the current live token, until the done channel is
 // closed.
 func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
+
 	for {
 		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
@@ -133,6 +134,7 @@ func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
 		case <-done:
 			return
 		case <-time.After(refresh):
+		case <-delegateKeysChanged():
 		}
 	}
 }

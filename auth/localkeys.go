@@ -315,3 +315,12 @@ func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {
 	dKeyCond.L.Unlock()
 	dKeyCond.Broadcast()
 }
+
+func delegateKeysChanged() <-chan interface{} {
+	ch := make(chan interface{})
+	go func() {
+		defer close(ch)
+		dKeyCond.Wait()
+	}()
+	return ch
+}
