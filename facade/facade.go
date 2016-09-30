@@ -51,6 +51,7 @@ func New() *Facade {
 		configStore:   serviceconfigfile.NewStore(),
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
+		serviceCache:  NewServiceCache(),
 	}
 }
 
@@ -69,6 +70,7 @@ type Facade struct {
 	dfs           dfs.DFS
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
+	serviceCache  *serviceCache
 
 	isvcsPath string
 }
