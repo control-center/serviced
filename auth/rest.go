@@ -23,7 +23,7 @@ var (
 	ErrBadRestToken = errors.New("Could not extract auth token from REST request header")
 )
 
-func BuildRestToken() string {
+func BuildRestToken(req *http.Request) string {
 	return AuthToken()
 }
 

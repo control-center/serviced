@@ -42,7 +42,7 @@ func newServicedApiProxy() *servicedApiProxy {
 	director := func(req *http.Request) {
 		req.URL.Scheme = "https"
 		req.URL.Host = "localhost:" + strconv.Itoa(ccApiPort)
-		token := auth.BuildRestToken()
+		token := auth.BuildRestToken(req)
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
