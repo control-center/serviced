@@ -552,7 +552,6 @@ func restResetHostKey(w *rest.ResponseWriter, r *rest.Request, ctx *requestConte
 		return
 	}
 	glog.V(0).Info("Reset host key for ", hostID)
-	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
 	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:])})
 }
 

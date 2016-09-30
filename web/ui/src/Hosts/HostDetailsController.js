@@ -119,6 +119,46 @@
             });
         };
 
+        $scope.resetKeys = function() {
+            $scope.modal_confirmResetKeys();
+        };
+
+        $scope.modal_confirmResetKeys = function(){
+            let scope = $scope.$new(true);
+            scope.host = $scope.currentHost;
+
+            $modalService.create({
+                template: "Resetting host keys will require you to blah blah blah. Are you sure?",
+                model: scope,
+                title: $translate.instant("Reset Host Keys"),
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        classes: "submit btn-primary",
+                        label: "Reset Keys",
+                        action: function(){
+                            // disable ok button, and store the re-enable function
+                            let enableSubmit = this.disableSubmitButton();
+
+                            resourcesFactory.resetHostKeys($scope.currentHost.id)
+                                .success((data, status) => {
+                                    $modalService.modals.displayHostKeys(data.PrivateKey, $scope.currentHost.host);
+                                })
+                                .error((data, status) => {
+                                    // TODO - form error highlighting
+                                    this.createNotification("", data.Detail).error();
+                                    // reenable button
+                                    enableSubmit();
+                                });
+                        }
+                    }
+                ]
+            });
+        };
+
+
         init();
 
         function init(){
