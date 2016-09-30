@@ -237,8 +237,6 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 	}
 	glog.Infof("Updated service %s (%s)", svc.Name, svc.ID)
 
-	// FIXME - Do we really need to updateServiceConfigs everytime? can we skip this when called from schedulService?
-	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
 		glog.Warningf("Could not set configurations to service %s (%s): %s", svc.Name, svc.ID, err)
 	}
@@ -253,9 +251,6 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 			f.zzk.UpdateService(tenantID, cursvc, false, false)
 		}
 	}
-
-	// FIXME - If the current svc object has all of the data we need, then we can skip
-	//         the GetService() call in syncService
 
 	// sync the service with the coordinator
 	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
@@ -1061,7 +1056,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			return 0, fmt.Errorf("desired state unknown")
 		}
 		if err := f.validateServiceSchedule(ctx, serviceID, autoLaunch); err != nil {
-			glog.Errorf("Could not validate service schedule for service %s: %s", serviceID, err)
+			glog.Errorf("Facade.scheduleService: Could not validate service schedule for service %s: %s", serviceID, err)
 			return 0, err
 		}
 	}
@@ -1074,26 +1069,62 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			return nil
 		}
 
-		switch desiredState {
-		case service.SVCRestart:
-			// shutdown all service instances
-			if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
-				return err
-			}
-			svc.DesiredState = int(service.SVCRun)
-		default:
-			svc.DesiredState = int(desiredState)
-		}
-		if err := f.updateService(ctx, tenantID, *svc, false, false); err != nil {
-			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
+		err := f.scheduleOneService(ctx, tenantID, svc, desiredState)
+		if err != nil {
 			return err
 		}
+
 		affected++
 		return nil
 	}
 
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor)
 	return affected, err
+}
+
+func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
+	switch desiredState {
+	case service.SVCRestart:
+		// shutdown all service instances
+		if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
+			return err
+		}
+		svc.DesiredState = int(service.SVCRun)
+	default:
+		svc.DesiredState = int(desiredState)
+	}
+
+	cursvc, err := f.validateServiceUpdate(ctx, svc)
+	if err != nil {
+		glog.Errorf("Facade.scheduleService: Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
+		return err
+	}
+
+	// write the service into the database
+	svc.UpdatedAt = time.Now()
+	if err := f.serviceStore.Put(ctx, svc); err != nil {
+		glog.Errorf("Facade.scheduleService: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	glog.Infof("Scheduled service %s (%s) to %s", svc.Name, svc.ID, service.DesiredState(svc.DesiredState).String())
+
+	// remove the service from coordinator if the pool has changed
+	if cursvc.PoolID != svc.PoolID {
+		if err := f.zzk.RemoveService(cursvc.PoolID, cursvc.ID); err != nil {
+			// synchronizer will eventually clean this service up
+			glog.Warningf("Facade.scheduleService: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
+			cursvc.DesiredState = int(service.SVCStop)
+			f.zzk.UpdateService(tenantID, cursvc, false, false)
+		}
+	}
+	if err := f.fillServiceAddr(ctx, svc); err != nil {
+		return err
+	}
+	if err := f.zzk.UpdateService(tenantID, svc, false, false); err != nil {
+		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
+		return err
+	}
+	return nil
 }
 
 // validateServiceSchedule verifies whether a service can be scheduled to start.
