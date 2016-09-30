@@ -106,6 +106,8 @@ RUN chmod a+x /etc/init.d/xvfb
 #
 ADD runCucumber.sh /usr/sbin/runCucumber.sh
 RUN chmod a+x /usr/sbin/runCucumber.sh
+ADD runApiCucumber.sh /usr/sbin/runApiCucumber.sh
+RUN chmod a+x /usr/sbin/runApiCucumber.sh
 
 #
 # Setup a default timezone that matches CST since the default TZ in the ubuntu

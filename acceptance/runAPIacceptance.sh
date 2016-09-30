@@ -118,7 +118,7 @@ elif [ `uname -s` == "Darwin" ]; then
     echo "ERROR: not supported on Mac OS X"
     exit 1
 else
-    CMD="runCucumber.sh ${CUCUMBER_OPTS}"
+    CMD="runApiCucumber.sh ${CUCUMBER_OPTS}"
 fi
 
 parse_host() {

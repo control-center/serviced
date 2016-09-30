@@ -1,12 +1,5 @@
 #!/bin/bash
 
-#
-# Make sure that Xvfb is started in case we're using Chrome or Firefox
-# (Xvfb is not used by poltergeist/phantomjs)
-if [ "${CAPYBARA_DRIVER}" != "poltergeist" ]; then
-    /etc/init.d/xvfb start
-fi
-
 source /usr/local/rvm/scripts/rvm
 CUCUMBER_CMD="cd /capybara; cucumber $*"
 
