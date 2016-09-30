@@ -27,6 +27,7 @@ import (
 // GetServiceAddressAssignmentDetails provides details about address assignments
 // for the specified service id as is presented to the front-end.
 func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceAddressAssignmentDetails"))
 	// get the service
 	svc, err := f.serviceStore.Get(ctx, serviceID)
 	if err != nil {
@@ -123,28 +124,33 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc s
 
 // GetServiceAddressAssignments fills in all address assignments for the specified service id.
 func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]addressassignment.AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceAddressAssignments"))
 	store := addressassignment.NewStore()
 	return store.GetServiceAddressAssignments(ctx, serviceID)
 }
 
 func (f *Facade) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port uint16) ([]addressassignment.AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceAddressAssignmentsByPort"))
 	store := addressassignment.NewStore()
 	return store.GetServiceAddressAssignmentsByPort(ctx, port)
 }
 
 // GetAddressAssignmentsByEndpoint returns the address assignment by serviceID and endpoint name
 func (f *Facade) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*addressassignment.AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("FindAssignmentByServiceEndpoint"))
 	store := addressassignment.NewStore()
 	return store.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName)
 }
 
 func (f *Facade) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, port uint16) (*addressassignment.AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("FindAssignmentByHostPort"))
 	store := addressassignment.NewStore()
 	return store.FindAssignmentByHostPort(ctx, ipAddr, port)
 }
 
 // RemoveAddressAssignment Removes an AddressAssignment by id
 func (f *Facade) RemoveAddressAssignment(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("RemoveAddressAssignment"))
 	store := addressassignment.NewStore()
 	key := addressassignment.Key(id)
 

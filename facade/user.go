@@ -45,6 +45,7 @@ func hashPassword(password string) string {
 
 // AddUser adds a new user record
 func (f *Facade) AddUser(ctx datastore.Context, newUser userdomain.User) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddUser"))
 	var err error
 	logger := plog.WithFields(log.Fields{
 		"newUserName": newUser.Name,
@@ -66,6 +67,7 @@ func (f *Facade) AddUser(ctx datastore.Context, newUser userdomain.User) error {
 // UpdateUser updates the user record. NOTE: It is assumed the pasword
 // is NOT hashed when updating the user record
 func (f *Facade) UpdateUser(ctx datastore.Context, user userdomain.User) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpdateUser"))
 	var err error
 	logger := plog.WithField("userName", user.Name)
 	logger.Debug("Started Facade.UpdateUser")
@@ -84,6 +86,7 @@ func (f *Facade) UpdateUser(ctx datastore.Context, user userdomain.User) error {
 }
 
 func (f *Facade) GetUser(ctx datastore.Context, userName string) (userdomain.User, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetUser"))
 	var err error
 	logger := plog.WithField("userName", userName)
 	logger.Debug("Started Facade.GetUser")
@@ -96,6 +99,7 @@ func (f *Facade) GetUser(ctx datastore.Context, userName string) (userdomain.Use
 
 // RemoveUser removes the user specified by the userName string
 func (f *Facade) RemoveUser(ctx datastore.Context, userName string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("RemoveUser"))
 	var err error
 	logger := plog.WithField("userName", userName)
 	logger.Debug("Started Facade.RemoveUser")
@@ -107,6 +111,7 @@ func (f *Facade) RemoveUser(ctx datastore.Context, userName string) error {
 
 // ValidateCredentials takes a user name and password and validates them against a stored user
 func (f *Facade) ValidateCredentials(ctx datastore.Context, user userdomain.User) (bool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ValidateCredentials"))
 	var err error
 	logger := plog.WithField("userName", user.Name)
 	logger.Debug("Started Facade.ValidateCredentials")
@@ -132,6 +137,7 @@ func (f *Facade) ValidateCredentials(ctx datastore.Context, user userdomain.User
 
 // GetSystemUser returns the system user's credentials.
 func (f *Facade) GetSystemUser(ctx datastore.Context) (userdomain.User, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetSystemUser"))
 	plog.Debug("Started Facade.GetSystemUser")
 	defer plog.Debug("Finished Facade.GetSystemUser")
 
@@ -144,6 +150,7 @@ func (f *Facade) GetSystemUser(ctx datastore.Context) (userdomain.User, error) {
 
 // createSystemUser updates the running instance password as well as the user record in elastic
 func (f *Facade) CreateSystemUser(ctx datastore.Context) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("CreateSystemUser"))
 	user, err := f.GetUser(ctx, SYSTEM_USER_NAME)
 	if err != nil {
 		plog.WithError(err).Warning("Default user not found; creating one.")

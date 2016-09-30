@@ -30,6 +30,7 @@ import (
 	templatemocks "github.com/control-center/serviced/domain/servicetemplate/mocks"
 	"github.com/control-center/serviced/facade"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/metrics"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -91,6 +92,8 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.metricsClient = &zzkmocks.MetricsClient{}
 	ft.Facade.SetMetricsClient(ft.metricsClient)
+
+	ft.ctx.On("Metrics").Return(metrics.NewMetrics())
 }
 
 // Mock all DFS locking operations into no-ops

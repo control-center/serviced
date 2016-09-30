@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
 	gometrics "github.com/rcrowley/go-metrics"
+	"github.com/zenoss/logri"
 )
 
 var (
@@ -24,9 +25,10 @@ var (
  */
 type Metrics struct {
 	sync.Mutex
-	Enabled  bool
-	Registry gometrics.Registry
-	Timers   map[string]gometrics.Timer
+	Enabled   bool
+	Registry  gometrics.Registry
+	Timers    map[string]gometrics.Timer
+	GroupName string
 }
 
 func NewMetrics() *Metrics {
@@ -75,7 +77,7 @@ func padUnits(width int, value float64, precision int, units string) string {
 	return fmt.Sprintf(format1, fmt.Sprintf(format2, value, units))
 }
 
-// Log the current timers.  Turns off metric loggina and clears
+// Log the current timers.  Turns off metric logging and clears
 // the metric data. Note that if we want a running tally we can
 // use the go-metric log method directly, providing our registry.
 func (m *Metrics) Log() {
@@ -97,13 +99,15 @@ func (m *Metrics) Log() {
 			t := metric.Snapshot()
 			ps := t.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 			log.WithFields(logrus.Fields{
-				"count":  t.Count(),
-				"sum":    padUnits(14, float64(t.Sum())/du, 2, units),
-				"min":    padUnits(14, float64(t.Min())/du, 2, units),
-				"max":    padUnits(14, float64(t.Max())/du, 2, units),
-				"mean":   padUnits(14, t.Mean()/du, 4, units),
-				"stddev": padUnits(14, t.StdDev()/du, 2, units),
-				"median": padUnits(14, ps[0]/du, 4, units),
+				"count":     t.Count(),
+				"sum":       fmt.Sprintf("%.4f", float64(t.Sum())/du),
+				"min":       fmt.Sprintf("%.4f", float64(t.Min())/du),
+				"max":       fmt.Sprintf("%.4f", float64(t.Max())/du),
+				"mean":      fmt.Sprintf("%.4f", t.Mean()/du),
+				"stddev":    fmt.Sprintf("%.4f", t.StdDev()/du),
+				"median":    fmt.Sprintf("%.4f", ps[0]/du),
+				"units":     units,
+				"groupname": m.GroupName,
 			}).Debug(name)
 		}
 	})
@@ -112,4 +116,23 @@ func (m *Metrics) Log() {
 	m.Enabled = false
 	r.UnregisterAll()
 	m.Timers = make(map[string]gometrics.Timer)
+}
+
+// This function is intended to be used in a defer call on methods for which metric logging is desired.
+// To write metrics for a method invocation to the log, add the following at the top of the method:
+//   ctx.Metrics().Enabled = true
+//   defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("methodname"))
+// if Enabled is true, the metrics will be gathered and written at the end of the method.
+// if Enabled is false, this will gather metrics for the method, but only report them if the method is called
+//   by another method with metrics enabled. I.E. it should behave similarly to 'defer <metrics>.Stop(<metrics>.Start("methodname"))'
+// It is not necessary to reset Metrics().Enabled to false, as the Log() method does so before exiting.
+func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
+	m.Stop(ssTimer)
+	if m.Enabled {
+		metricsLogger := logri.GetLogger("metrics")
+		saveLevel := metricsLogger.GetEffectiveLevel()  // FIXME: this is temporary - remove once log level configuration is available via logger
+		metricsLogger.SetLevel(logrus.DebugLevel, true) // FIXME: this is temporary - remove once log level configuration is available via logger
+		m.Log()
+		metricsLogger.SetLevel(saveLevel, false) // FIXME: this is temporary - remove once log level configuration is available via logger
+	}
 }

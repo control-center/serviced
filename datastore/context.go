@@ -26,14 +26,24 @@ type Context interface {
 	Metrics() *metrics.Metrics
 }
 
+var savedDriver Driver
+
 //Register a driver to use for the context
 func Register(driver Driver) {
+	savedDriver = driver
 	ctx = newCtx(driver)
 }
 
 //Get returns the global Context
 func Get() Context {
 	return ctx
+}
+
+// GetNew() returns a new global context.
+// This function is not intended for production use, but is for the purpose
+// of getting fresh contexts for performance testing with metrics for troubleshooting.
+func GetNew() Context {
+	return newCtx(savedDriver)
 }
 
 var ctx Context
