@@ -25,9 +25,10 @@ var (
  */
 type Metrics struct {
 	sync.Mutex
-	Enabled  bool
-	Registry gometrics.Registry
-	Timers   map[string]gometrics.Timer
+	Enabled   bool
+	Registry  gometrics.Registry
+	Timers    map[string]gometrics.Timer
+	GroupName string
 }
 
 func NewMetrics() *Metrics {
@@ -76,7 +77,7 @@ func padUnits(width int, value float64, precision int, units string) string {
 	return fmt.Sprintf(format1, fmt.Sprintf(format2, value, units))
 }
 
-// Log the current timers.  Turns off metric loggina and clears
+// Log the current timers.  Turns off metric logging and clears
 // the metric data. Note that if we want a running tally we can
 // use the go-metric log method directly, providing our registry.
 func (m *Metrics) Log() {
@@ -98,13 +99,15 @@ func (m *Metrics) Log() {
 			t := metric.Snapshot()
 			ps := t.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 			log.WithFields(logrus.Fields{
-				"count":  t.Count(),
-				"sum":    padUnits(14, float64(t.Sum())/du, 2, units),
-				"min":    padUnits(14, float64(t.Min())/du, 2, units),
-				"max":    padUnits(14, float64(t.Max())/du, 2, units),
-				"mean":   padUnits(14, t.Mean()/du, 4, units),
-				"stddev": padUnits(14, t.StdDev()/du, 2, units),
-				"median": padUnits(14, ps[0]/du, 4, units),
+				"count":     t.Count(),
+				"sum":       fmt.Sprintf("%.4f", float64(t.Sum())/du),
+				"min":       fmt.Sprintf("%.4f", float64(t.Min())/du),
+				"max":       fmt.Sprintf("%.4f", float64(t.Max())/du),
+				"mean":      fmt.Sprintf("%.4f", t.Mean()/du),
+				"stddev":    fmt.Sprintf("%.4f", t.StdDev()/du),
+				"median":    fmt.Sprintf("%.4f", ps[0]/du),
+				"units":     units,
+				"groupname": m.GroupName,
 			}).Debug(name)
 		}
 	})
