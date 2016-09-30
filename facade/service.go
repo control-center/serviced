@@ -858,8 +858,13 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]serv
 		glog.Error("Facade.GetServicesByPool: err=", err)
 		return results, err
 	}
-	if err = f.fillOutServices(ctx, results); err != nil {
-		return results, err
+
+	// For performance optimizations, do not retrieve config files, but we do need to fill out
+	//    the address assignments.
+	for i, _ := range results {
+		if err = f.fillServiceAddr(ctx, &results[i]); err != nil {
+			return results, err
+		}
 	}
 	return results, nil
 }
