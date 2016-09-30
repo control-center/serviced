@@ -23,6 +23,10 @@ var (
 	ErrBadRestToken = errors.New("Could not extract auth token from REST request header")
 )
 
+func BuildRestToken() string {
+	return AuthToken()
+}
+
 func ExtractRestToken(header string) (string, error) {
 	// The expected header value is "Bearer JWT_ToKen"
 	header = strings.TrimSpace(header)
