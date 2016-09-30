@@ -1596,6 +1596,10 @@ input[type=file] {
     background: transparent;
 }
 
+.modal-context {
+    margin-top: 2rem;
+}
+
 .modal-mckracken {
   margin-bottom: -50%;
 }

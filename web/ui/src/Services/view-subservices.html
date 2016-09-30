@@ -18,7 +18,7 @@
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
                 <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> <span translate>title_edit_service</span></button>
-                <button ng-click="clickEditContext()" class="btn btn-link action">
+                <button ng-click="clickEditContext(currentService.id.toString())" class="btn btn-link action">
                     <i class="glyphicon glyphicon-edit"></i>
                     <span translate>edit_context</span>
                 </button>

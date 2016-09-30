@@ -348,6 +348,11 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/context`,
             },
+            updateServiceContext: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}/context`,
+                payload: (id, ctx) => ctx
+            },
             getServiceInstances: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/instances`,

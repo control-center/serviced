@@ -429,51 +429,58 @@
                     }
                 };
 
-                $scope.clickEditContext = function () {
-                    //set editor options for context editing
-                    $scope.codemirrorOpts = {
-                        lineNumbers: true,
-                        mode: "properties"
-                    };
+                $scope.clickEditContext = function (contextFileId) {
+                    //edit variables (context) of current service
+                    let modalScope = $scope.$new(true);
 
-                    $scope.editableService = angular.copy($scope.currentService.model);
-                    $scope.editableContext = makeEditableContext($scope.editableService.Context);
+                    $scope.resourcesFactory.v2.getServiceContext(contextFileId)
+                        .then(function (data) {
 
-                    $modalService.create({
-                        templateUrl: "edit-context.html",
-                        model: $scope,
-                        title: $translate.instant("edit_context"),
-                        actions: [
-                            {
-                                role: "cancel"
-                            }, {
-                                role: "ok",
-                                label: $translate.instant("btn_save_changes"),
-                                action: function () {
-                                    // disable ok button, and store the re-enable function
-                                    var enableSubmit = this.disableSubmitButton();
+                            //set editor options for context editing
+                            modalScope.codemirrorOpts = {
+                                lineNumbers: true,
+                                mode: "properties"
+                            };
 
-                                    $scope.editableService.Context = makeStorableContext($scope.editableContext);
+                            // this is the text bound to the modal texarea
+                            modalScope.Context = makeEditableContext(data);
 
-                                    $scope.updateService($scope.editableService)
-                                        .success(function (data, status) {
-                                            $notification.create("Updated service", $scope.editableService.ID).success();
-                                            this.close();
-                                        }.bind(this))
-                                        .error(function (data, status) {
-                                            this.createNotification("Update service failed", data.Detail).error();
-                                            enableSubmit();
-                                        }.bind(this));
+                           // now that we have the text of the file, create modal dialog
+                           $modalService.create({
+                                templateUrl: "edit-context.html",
+                                model: modalScope,
+                                title: $translate.instant("edit_context"),
+                                actions: [
+                                    {
+                                        role: "cancel"
+                                    }, {
+                                        role: "ok",
+                                        label: $translate.instant("btn_save"),
+                                        action: function () {
+                                            // disable ok button, and store the re-enable function
+                                            let enableSubmit = this.disableSubmitButton();
+                                            let storableContext = makeStorableContext(modalScope.Context);
+
+                                            $scope.resourcesFactory.v2.updateServiceContext(contextFileId, storableContext)
+                                                .success(function (data, status) {
+                                                    $notification.create("Updated variables for", $scope.currentService.name).success();
+                                                    this.close();
+                                                }.bind(this))
+                                                .error(function (data, status) {
+                                                    this.createNotification("Update variables failed", data.Detail).error();
+                                                    enableSubmit();
+                                                }.bind(this));
+                                        }
+                                    }
+                                ],
+                                onShow: function () {
+                                    modalScope.codemirrorRefresh = true;
+                                },
+                                onHide: function () {
+                                    modalScope.codemirrorRefresh = false;
                                 }
-                            }
-                        ],
-                        onShow: function () {
-                            $scope.codemirrorRefresh = true;
-                        },
-                        onHide: function () {
-                            $scope.codemirrorRefresh = false;
-                        }
-                    });
+                            });
+                        });
                 };
 
                 function makeEditableContext(context) {
@@ -504,7 +511,7 @@
                         }
                     });
 
-                    return storable;
+                    return JSON.stringify(storable);
                 }
 
 
@@ -576,7 +583,7 @@
                                         role: "cancel"
                                     }, {
                                         role: "ok",
-                                        label: "save",
+                                        label: $translate.instant("btn_save"),
                                         action: function () {
                                             if (this.validate()) {
                                                 // disable ok button, and store the re-enable function
@@ -600,7 +607,7 @@
                                     return true;
                                 },
                                 onShow: function () {
-                                    modalScope.codemirrorRefresh = false;
+                                    modalScope.codemirrorRefresh = true;
                                 },
                                 onHide: function () {
                                     modalScope.codemirrorRefresh = false;
@@ -939,7 +946,7 @@
                                         // update service with recently edited service
                                         $scope.resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
                                             .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.ID).success();
+                                                $notification.create("Updated service", $scope.editableService.Name).success();
                                                 this.close();
                                             }.bind(this))
                                             .error(function (data, status) {
