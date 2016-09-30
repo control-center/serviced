@@ -130,8 +130,9 @@ func (m *Metrics) LogAndCleanUp(ssTimer *MetricTimer) {
 	m.Stop(ssTimer)
 	if m.Enabled {
 		metricsLogger := logri.GetLogger("metrics")
-		metricsLogger.SetLevel(logrus.DebugLevel, true)
+		saveLevel := metricsLogger.GetEffectiveLevel()  // FIXME: this is temporary - remove once log level configuration is available via logger
+		metricsLogger.SetLevel(logrus.DebugLevel, true) // FIXME: this is temporary - remove once log level configuration is available via logger
 		m.Log()
-		metricsLogger.SetLevel(logrus.DebugLevel, false)
+		metricsLogger.SetLevel(saveLevel, false) // FIXME: this is temporary - remove once log level configuration is available via logger
 	}
 }

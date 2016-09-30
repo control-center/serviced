@@ -1208,26 +1208,22 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 }
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	//ctx.Metrics().Enabled = true   // uncomment to log metrics for StartService
-	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("StartService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	//ctx.Metrics().Enabled = true    // uncomment to log metrics for RestartService
-	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("RestartService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("RestartService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRestart)
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	//ctx.Metrics().Enabled = true    // uncomment to log metrics for PauseService
-	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("PauseService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("PauseService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCPause)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	//ctx.Metrics().Enabled = true    // uncomment to log metrics for StopService
-	ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("StopService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
 }
 
