@@ -12,8 +12,6 @@ Feature: Resource Pool Management
     Then I should see "Resource Pools"
       And I should see the add Resource Pool button
       And I should see "Memory Usage"
-      And I should see "Created"
-      And I should see "Last Modified"
 
   Scenario: View Add Resource Pool dialog
     When I am on the resource pool page

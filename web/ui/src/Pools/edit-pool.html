@@ -14,3 +14,25 @@
     <p><i translate>field_description_connection_timeout</i></p>
   </div>
 </div>
+
+<div class="form-group">
+    <label for="edit_pool_description">
+        <span translate>Permissions</span>:
+        <span class="warningMessage">*</span>
+    </label><br>
+
+    <!-- add checkbox for each available permission -->
+    <div ng-repeat="permission in permissions">
+        <input type="checkbox"
+            name="new_pool_permission_{{permission.position}}" 
+            id="new_pool_permission_{{permission.position}}" 
+            ng-model="editablePool.permissions[permission.position]" 
+            ng-model-options="{getterSetter: true}"/>
+        <label style="font-weight: normal;" for="new_pool_permission_{{permission.position}}" title="{{permission.description}}">
+            {{permission.label}}
+        </label>
+        <br>
+    </div>
+</div>
+
+<div class="warningMessage"><span translate>* Adding permissions requires restart of delegate to take effect</span></div>

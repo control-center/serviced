@@ -510,8 +510,7 @@ func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 			MemoryCapacity:    pools[i].MemoryCapacity,
 			MemoryCommitment:  pools[i].MemoryCommitment,
 			ConnectionTimeout: pools[i].ConnectionTimeout,
-			DFSAccess:         pools[i].Permissions&pool.DFSAccess != 0,
-			AdminAccess:       pools[i].Permissions&pool.AdminAccess != 0,
+			Permissions:       pools[i].Permissions,
 		})
 	}
 

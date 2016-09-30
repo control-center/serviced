@@ -51,6 +51,10 @@
                 method: GET,
                 url: "/pools",
             },
+            getPool: {
+                method: GET,
+                url: id => `/pools/${id}`
+            },
 			getV2Pools: {
                 method: GET,
                 url: "/api/v2/pools",
@@ -58,6 +62,12 @@
             getPoolIPs: {
                 method: GET,
                 url: id => `/pools/${id}/ips`
+            },
+            // TODO - MOVE THIS WHEN THE V2 API
+            // OBJECT IS IN!
+            getPoolHosts: {
+                method: GET,
+                url: id => `/api/v2/pools/${id}/hosts`
             },
             addVHost: {
                 method: PUT,
