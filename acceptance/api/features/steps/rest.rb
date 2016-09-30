@@ -1,8 +1,9 @@
-When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |method, path|
+When(/^I send a (GET|POST|PATCH|PUT|DELETE) payload request to CC at "(.*?)" with body "(.*?)"$/) do |method, path, body|
 
   host = ENV["APPLICATION_URL"]
   url = %$https://#{host}#{path}$
   request_url = URI.encode resolve(url)
+  @body = body
   if 'GET' == %/#{method}/ and $cache.has_key? %/#{request_url}/
     @response = $cache[%/#{request_url}/]
     @headers = nil
@@ -22,9 +23,9 @@ When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |meth
       when 'PATCH'
         response = RestClient.patch request_url, @body, @headers
       when 'PUT'
-        response = RestClient.put request_url, @body, @headers
+        response = RestClient.Request.execute(:method => :put, :url => request_url, :headers => @headers, :payload => bodyJson, :verify_ssl => false, :cookies => @cookies)
       else
-        response = RestClient.delete request_url, @headers
+        response = RestClient.Request.execute(:method => :delete, :url => request_url, :headers => @headers, :payload => bodyJson, :verify_ssl => false, :cookies => @cookies)
     end
   rescue RestClient::Exception => e
     response = e.response
@@ -37,6 +38,14 @@ When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |meth
   $cache[%/#{request_url}/] = @response if 'GET' == %/#{method}/
 end
 
+When(/^I send a (GET|POST|PATCH|PUT|DELETE) request to CC at "(.*?)"$/) do |method, path|
+  b = nil
+  steps %Q{
+    When I send a #{method} payload request to CC at "#{path}" with body "#{b}"
+  }
+end
+
+
 # find a value in the response
 Then(/^the JSON response body should have value "(.*?)" at jsonpath "(.*?)"$/) do |value, jsonpath|
   data = @response.get jsonpath
@@ -44,3 +53,4 @@ Then(/^the JSON response body should have value "(.*?)" at jsonpath "(.*?)"$/) d
     raise "Could not find #{value} at the specified path #{jsonpath}"
   end
 end
+
