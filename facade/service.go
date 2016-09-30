@@ -1099,7 +1099,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 		svc.DesiredState = int(desiredState)
 	}
 
-	cursvc, err := f.validateServiceUpdate(ctx, svc)
+	err := f.validateServiceStart(ctx, svc)
 	if err != nil {
 		glog.Errorf("Facade.scheduleService: Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
 		return err
@@ -1113,15 +1113,6 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 	}
 	glog.Infof("Scheduled service %s (%s) to %s", svc.Name, svc.ID, service.DesiredState(svc.DesiredState).String())
 
-	// remove the service from coordinator if the pool has changed
-	if cursvc.PoolID != svc.PoolID {
-		if err := f.zzk.RemoveService(cursvc.PoolID, cursvc.ID); err != nil {
-			// synchronizer will eventually clean this service up
-			glog.Warningf("Facade.scheduleService: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
-			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(tenantID, cursvc, false, false)
-		}
-	}
 	if err := f.fillServiceAddr(ctx, svc); err != nil {
 		return err
 	}
