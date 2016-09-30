@@ -65,6 +65,9 @@ type ClientInterface interface {
 	// Get hostID's public key
 	GetHostPublicKey(hostID string) ([]byte, error)
 
+	// Reset hostID's private key
+	ResetHostKey(hostID string) ([]byte, error)
+
 	//--------------------------------------------------------------------------
 	// Pool Management Functions
 

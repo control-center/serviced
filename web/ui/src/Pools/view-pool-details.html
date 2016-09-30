@@ -28,6 +28,15 @@
         </div>
 
         <div class="vertical-info">
+          <label for="pool_data_permissions" translate>Permissions</label>
+          <div id="pool_data_permissionsid">
+            <span ng-repeat="permission in currentPool.permissions" class="permission-tag" title="{{permission.description}}">
+              {{permission.label}}
+            </span>
+          </div>
+        </div>
+
+        <div class="vertical-info">
           <label for="pool_data_created_at" translate>label_pool_created_at</label>
           <div id="pool_data_created_at">{{currentPool.model.CreatedAt | date : 'medium'}}</div>
         </div>
@@ -67,7 +76,7 @@
 </table>
 
 <h3 class="pull-left" translate>hosts</h3>
-<table jelly-table data-data="hosts" data-config="hostsTable" class="table side-flush">
+<table jelly-table data-data="currentPool.hosts" data-config="hostsTable" class="table side-flush">
   <tbody>
     <tr ng-repeat="host in $data">
       <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">{{host.name}}</td>

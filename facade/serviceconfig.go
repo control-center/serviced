@@ -15,7 +15,6 @@ package facade
 
 import (
 	"errors"
-	"path"
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
@@ -166,20 +165,10 @@ func (f *Facade) DeleteServiceConfig(ctx datastore.Context, fileID string) error
 // getServicePath returns the tenantID and the full path of the service
 // TODO: update function to include deploymentID in the service path
 func (f *Facade) getServicePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error) {
-	store := f.serviceStore
-	svc, err := store.Get(ctx, serviceID)
-	if err != nil {
-		glog.Errorf("Could not look up service %s: %s", serviceID, err)
-		return "", "", err
+	gs := func(id string) (service.Service, error) {
+		return f.getService(ctx, id)
 	}
-	if svc.ParentServiceID == "" {
-		return serviceID, "/" + serviceID, nil
-	}
-	tenantID, servicePath, err = f.getServicePath(ctx, svc.ParentServiceID)
-	if err != nil {
-		return "", "", err
-	}
-	return tenantID, path.Join(servicePath, serviceID), nil
+	return f.serviceCache.GetServicePath(serviceID, gs)
 }
 
 // updateServiceConfigs adds or updates configuration files.  If forceDelete is

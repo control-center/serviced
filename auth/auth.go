@@ -14,9 +14,15 @@
 package auth
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/control-center/serviced/logging"
+)
+
+const (
+	TOKEN_LEN_BYTES = 4
+	SIGNATURE_BYTES = 256
 )
 
 var (
@@ -46,8 +52,11 @@ var (
 	ErrBadKeysFile = errors.New("Unable to read security keys file")
 	// ErrNotAuthenticated is thrown when there's no authentication token
 	ErrNotAuthenticated = errors.New("No authentication token available")
+	// ErrBadToken is thrown when there is a problem extracting a token from a data stream (e.g. mux, rpc, etc)
+	ErrBadToken = errors.New("Could not extract token")
 
-	log = logging.PackageLogger()
+	log    = logging.PackageLogger()
+	endian = binary.BigEndian
 )
 
 // Signer is used to sign a message

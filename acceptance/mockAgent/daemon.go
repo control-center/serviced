@@ -16,7 +16,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 	"os"
 	"os/signal"
 	"strings"
@@ -24,6 +23,7 @@ import (
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -90,7 +90,7 @@ func (d *daemon) startRPC() {
 			if err != nil {
 				glog.Fatalf("Error accepting connections: %s", err)
 			}
-			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+			go d.rpcServer.ServeCodec(rpcutils.NewDefaultAuthServerCodec(conn))
 		}
 	}()
 }

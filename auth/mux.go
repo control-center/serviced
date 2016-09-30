@@ -15,7 +15,6 @@ package auth
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"net"
 )
@@ -30,17 +29,13 @@ import (
    ---------------------------------------------------------------------------------------------------------
 */
 
-var (
-	endian           = binary.BigEndian
-	ErrBadMuxAddress = errors.New("Bad mux address")
-	ErrBadMuxHeader  = errors.New("Bad mux header")
-	ErrBadToken      = errors.New("Could not extract token")
+const (
+	ADDRESS_BYTES = 6
 )
 
-const (
-	ADDRESS_BYTES   = 6
-	TOKEN_LEN_BYTES = 4
-	SIGNATURE_BYTES = 256
+var (
+	ErrBadMuxAddress = errors.New("Bad mux address")
+	ErrBadMuxHeader  = errors.New("Bad mux header")
 )
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
@@ -101,11 +96,11 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 
 	// Validate the token can be parsed
 	senderIdentity, err := ParseJWTIdentity(token)
-	if err != nil || senderIdentity == nil {
-		if err == nil || senderIdentity == nil {
-			err = ErrBadToken
-		}
+	if err != nil {
 		return errorExtractingHeader(err)
+	}
+	if senderIdentity == nil {
+		return errorExtractingHeader(ErrBadToken)
 	}
 
 	// Next six bytes is going to be the address

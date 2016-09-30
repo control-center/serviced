@@ -251,34 +251,9 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		return
 	}
 
-	writeKeyFile := false
-	if ctx.Bool("register") {
-		if err := c.driver.RegisterRemoteHost(host, privateKey); err != nil {
-			fmt.Fprintf(os.Stderr, "Error registering host: %s\n", err.Error())
-			writeKeyFile = true
-		} else {
-			fmt.Println("Registered host at", host.IPAddr)
-		}
-	} else {
-		writeKeyFile = true
-	}
-
 	keyfileName := ctx.String("key-file")
-	if keyfileName != "" {
-		writeKeyFile = true
-	}
-
-	if writeKeyFile == true {
-		if keyfileName == "" {
-			keyfileName = fmt.Sprintf("IP-%s.delegate.key", strings.Replace(host.IPAddr, ".", "-", -1))
-		}
-		if err := c.driver.WriteDelegateKey(keyfileName, privateKey); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing delegate key file \"%s\": %s\n", keyfileName, err.Error())
-		} else {
-			fmt.Println("Wrote delegate key file to", keyfileName)
-		}
-	}
-	fmt.Println(host.ID)
+	registerHost := ctx.Bool("register")
+	c.outputDelegateKey(host, privateKey, keyfileName, registerHost)
 }
 
 // serviced host remove HOSTID ...

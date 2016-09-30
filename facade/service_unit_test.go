@@ -40,13 +40,14 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootApp(c *C) {
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForNoSuchEntity(c *C) {
 	serviceID := getRandomServiceID(c)
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, datastore.ErrNoSuchEntity{})
+	expectedError := fmt.Errorf("mock DB error")
+	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, expectedError)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
 
 	c.Assert(len(result), Equals, 0)
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, Equals, datastore.ErrNoSuchEntity{})
+	c.Assert(err.Error(), Equals, expectedError.Error())
 }
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForOtherDBError(c *C) {
