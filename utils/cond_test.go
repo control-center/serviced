@@ -15,14 +15,11 @@ package utils_test
 
 import (
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/control-center/serviced/utils"
 	. "gopkg.in/check.v1"
 )
-
-func TestChannelCond(t *testing.T) { TestingT(t) }
 
 type ChannelCondSuite struct{}
 

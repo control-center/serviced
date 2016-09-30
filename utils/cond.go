@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build unit
+
 package utils
 
 import "sync"
@@ -19,28 +21,28 @@ import "sync"
 // channels instead of a mutex, allowing it to support timeouts and
 // cancellation.
 type ChannelCond struct {
-	c  chan struct{}
-	mu *sync.RWMutex
+	sync.RWMutex
+	c chan struct{}
 }
 
 // Broadcast notifies all waiting goroutines that this condition has been
 // satisfied
 func (c *ChannelCond) Broadcast() {
 	var old chan struct{}
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	c.c, old = make(chan struct{}), c.c
 	close(old)
 }
 
 // Wait returns a channel that will close when the condition is satisfied.
 func (c *ChannelCond) Wait() <-chan struct{} {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.RLock()
+	defer c.RUnlock()
 	return c.c
 }
 
 // NewChannelCond returns a new ChannelCond
 func NewChannelCond() *ChannelCond {
-	return &ChannelCond{make(chan struct{}), &sync.RWMutex{}}
+	return &ChannelCond{c: make(chan struct{})}
 }
