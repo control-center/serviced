@@ -20,8 +20,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/datastore"
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -43,26 +41,10 @@ type zkf struct {
 	f *Facade
 }
 
-func getLocalConnection(ctx datastore.Context, path string) (client.Connection, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.getLocalConnection"))
-	return zzk.GetLocalConnection(path)
-}
-
-func syncServiceRegistry(ctx datastore.Context, conn client.Connection, serviceID string, pubs map[zkr.PublicPortKey]zkr.PublicPort, vhosts map[zkr.VHostKey]zkr.VHost) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkr.syncServiceRegistry"))
-	return zkr.SyncServiceRegistry(conn, serviceID, pubs, vhosts)
-}
-
-func updateService(ctx datastore.Context, conn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateService"))
-	return zks.UpdateService(conn, svc, setLockOnCreate, setLockOnUpdate)
-}
-
 // UpdateService updates the service object and exposed public endpoints that
 // are synced in zookeeper.
 // TODO: we may want to combine these calls into a single transaction
-func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkf.UpdateService"))
+func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,
@@ -71,7 +53,7 @@ func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *servic
 	})
 
 	// get the root-based connection to update the service's endpoints
-	rootconn, err := getLocalConnection(ctx, "/")
+	rootconn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
 		return err
@@ -118,20 +100,20 @@ func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *servic
 	}
 
 	// sync the registry
-	if err := syncServiceRegistry(ctx, rootconn, svc.ID, pubmap, vhmap); err != nil {
+	if err := zkr.SyncServiceRegistry(rootconn, svc.ID, pubmap, vhmap); err != nil {
 		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
 		return err
 	}
 	logger.Debug("Updated the service's public endpoints in zookeeper")
 
 	// get the pool-based connection to update the service
-	poolconn, err := getLocalConnection(ctx, path.Join("/pools", svc.PoolID))
+	poolconn, err := zzk.GetLocalConnection(path.Join("/pools", svc.PoolID))
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
 		return err
 	}
 
-	if err := updateService(ctx, poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := zks.UpdateService(poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		logger.WithError(err).Debug("Could not update the service in zookeeper")
 		return err
 	}
@@ -616,15 +598,14 @@ func (zk *zkf) StopServiceInstance(poolID, serviceID string, instanceID int) err
 }
 
 // StopServiceInstances stops all instances for a service
-func (zk *zkf) StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkf.StopServiceInstances"))
+func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
 	logger := plog.WithFields(log.Fields{
 		"poolid":    poolID,
 		"serviceid": serviceID,
 	})
 
 	// get the root-based connection to stop the service instance
-	conn, err := getLocalConnection(ctx, "/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire root-based connection")
 		return err

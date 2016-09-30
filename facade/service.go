@@ -252,7 +252,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(ctx, tenantID, cursvc, false, false)
+			f.zzk.UpdateService(tenantID, cursvc, false, false)
 		}
 	}
 	// sync the service with the coordinator
@@ -408,7 +408,7 @@ func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, 
 		glog.Errorf("Could not get service %s to sync: %s", serviceID, err)
 		return err
 	}
-	if err := f.zzk.UpdateService(ctx, tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := f.zzk.UpdateService(tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s to the coordinator: %s", serviceID, err)
 		return err
 	}
@@ -1093,7 +1093,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		switch desiredState {
 		case service.SVCRestart:
 			// shutdown all service instances
-			if err := f.zzk.StopServiceInstances(ctx, svc.PoolID, svc.ID); err != nil {
+			if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
 				return err
 			}
 			svc.DesiredState = int(service.SVCRun)
