@@ -14,7 +14,7 @@
 package utils_test
 
 import (
-	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,21 +30,64 @@ var (
 	_ = Suite(&ChannelCondSuite{})
 )
 
+func assertClosedWithinTimeout(c *C, timeout time.Duration, chans ...<-chan struct{}) {
+	for _, ch := range chans {
+		select {
+		case <-ch:
+		case <-time.After(timeout):
+			c.Fatalf("A channel was not closed within the timeout")
+			return
+		}
+	}
+}
+
+func assertAllOpen(c *C, chans ...<-chan struct{}) {
+	var wg sync.WaitGroup
+	for _, ch := range chans {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case <-ch:
+				c.Fatalf("A channel was closed")
+			case <-time.After(5 * time.Millisecond):
+
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func (s *ChannelCondSuite) TestChannelCond(c *C) {
 	cond := utils.NewChannelCond()
-	x := make([]bool, 1)
 
-	ch := cond.Wait()
+	// A function to create a bunch of channels that will close when the
+	// channel returned by cond.Wait() closes, which we can use to verify
+	// broadcast
+	makechans := func(n int) []<-chan struct{} {
+		donechans := make([]<-chan struct{}, n)
+		for i := 0; i < n; i++ {
+			done := make(chan struct{})
+			ch := cond.Wait()
+			go func(ch <-chan struct{}, done chan struct{}) {
+				<-ch
+				close(done)
+			}(ch, done)
+			donechans[i] = done
+		}
+		return donechans
+	}
 
-	go func() {
-		<-ch
-		fmt.Println("HJIHIHI")
-		x[0] = true
-	}()
-
-	time.Sleep(1 * time.Second)
-	c.Assert(x[0], Equals, false)
+	// Basic test with 5 listeners
+	donechans := makechans(5)
+	assertAllOpen(c, donechans...)
 	cond.Broadcast()
-	time.Sleep(1 * time.Second)
-	c.Assert(x[0], Equals, true)
+	assertClosedWithinTimeout(c, time.Second, donechans...)
+
+	// Test another 5 listeners with another broadcast, to verify subsequent
+	// conditions
+	donechans2 := makechans(5)
+	assertAllOpen(c, donechans2...)
+	cond.Broadcast()
+	assertClosedWithinTimeout(c, time.Second, donechans2...)
 }
