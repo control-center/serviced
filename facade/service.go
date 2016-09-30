@@ -1061,7 +1061,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			return 0, fmt.Errorf("desired state unknown")
 		}
 		if err := f.validateServiceSchedule(ctx, serviceID, autoLaunch); err != nil {
-			glog.Errorf("Facade.scheduleService: Could not validate service schedule for service %s: %s", serviceID, err)
+			glog.Errorf("Could not validate service schedule for service %s: %s", serviceID, err)
 			return 0, err
 		}
 	}
