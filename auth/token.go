@@ -115,7 +115,6 @@ func CurrentIdentity() Identity {
 // setting the result as the current live token, until the done channel is
 // closed.
 func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
-
 	for {
 		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
@@ -134,7 +133,7 @@ func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
 		case <-done:
 			return
 		case <-time.After(refresh):
-		case <-delegateKeysChanged():
+		case <-NotifyOnKeyChange():
 		}
 	}
 }
@@ -172,9 +171,12 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 
 // ClearToken wipes the current state
 func ClearToken() {
+	cond.L.Lock()
 	currentToken = ""
 	currentIdentity = nil
 	expiration = zerotime
+	cond.L.Unlock()
+	cond.Broadcast()
 }
 
 func now() time.Time {
@@ -196,13 +198,18 @@ func expired() bool {
 }
 
 func updateToken(token string, expires time.Time, filename string) {
-	WaitForDelegateKeys()
+	select {
+	case <-WaitForDelegateKeys(nil):
+	case <-time.After(1 * time.Second):
+		log.WithField("timeout", "1s").Error("No delegate keys were available to parse the token within the timeout")
+		return
+	}
 	cond.L.Lock()
 	currentToken = token
 	currentIdentity = getIdentityFromToken(token)
 	expiration = expires
 	if filename != "" {
-		ioutil.WriteFile(filename, []byte(token), 0600)
+		ioutil.WriteFile(filename, []byte(token), 0660)
 	}
 	cond.L.Unlock()
 	cond.Broadcast()
