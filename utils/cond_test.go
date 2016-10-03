@@ -44,7 +44,7 @@ func assertAllOpen(c *C, chans ...<-chan struct{}) {
 	var wg sync.WaitGroup
 	for _, ch := range chans {
 		wg.Add(1)
-		go func() {
+		go func(ch <-chan struct{}) {
 			defer wg.Done()
 			select {
 			case <-ch:
@@ -52,7 +52,7 @@ func assertAllOpen(c *C, chans ...<-chan struct{}) {
 			case <-time.After(5 * time.Millisecond):
 
 			}
-		}()
+		}(ch)
 	}
 	wg.Wait()
 }
