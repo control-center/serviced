@@ -105,13 +105,40 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	t.assertRegistryContents(c, conn, pubs2, vhosts2)
 
 	// test update
+	pub2Key = PublicPortKey{HostID: "master", PortAddress: ":22181"}
+	pub2 = PublicPort{
+		TenantID:    "tenantid",
+		Application: "app2",
+		ServiceID:   "serviceid2",
+		Protocol:    "",
+		UseTLS:      true,
+	}
+	pubs2 = map[PublicPortKey]PublicPort{pub2Key: pub2}
+
+	vhost2Key = VHostKey{HostID: "master", Subdomain: "test2"}
+	vhost2 = VHost{
+		TenantID:    "tenantid",
+		Application: "app1a",
+		ServiceID:   "serviceid2",
+	}
+	vhosts2 = map[VHostKey]VHost{vhost2Key: vhost2}
+
+	c.Logf("Update selected registry entries")
+	err = SyncServiceRegistry(conn, "serviceid2", copyPublicPortMap(pubs2), copyVHostMap(vhosts2))
+	c.Assert(err, IsNil)
+
+	t.assertRegistryContents(c, conn, pubs1, vhosts1)
+	t.assertRegistryContents(c, conn, pubs2, vhosts2)
+
+	// test delete some things for one service but changing "serviceid1" to only have the "1a" entries
+	c.Logf("Delete some registry entries")
 	pub1aKey = PublicPortKey{HostID: "master", PortAddress: ":2181"}
 	pub1a = PublicPort{
 		TenantID:    "tenantid",
-		Application: "app1",
+		Application: "app1a",
 		ServiceID:   "serviceid1",
-		Protocol:    "",
-		UseTLS:      true,
+		Protocol:    "http",
+		UseTLS:      false,
 	}
 	pubs1 = map[PublicPortKey]PublicPort{pub1aKey: pub1a}
 
@@ -123,15 +150,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	}
 	vhosts1 = map[VHostKey]VHost{vhost1aKey: vhost1a}
 
-	c.Logf("Update selected registry entries")
-	err = SyncServiceRegistry(conn, "serviceid1", copyPublicPortMap(pubs1), copyVHostMap(vhosts1))
-	c.Assert(err, IsNil)
-
-	t.assertRegistryContents(c, conn, pubs1, vhosts1)
-	t.assertRegistryContents(c, conn, pubs2, vhosts2)
-
-	// test delete some things for one service
-	c.Logf("Delete some registry entries")
 	err = SyncServiceRegistry(conn, "serviceid1", copyPublicPortMap(pubs1), copyVHostMap(vhosts1))
 	c.Assert(err, IsNil)
 
@@ -147,7 +165,6 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	c.Assert(err, IsNil)
 	c.Check(ok, Equals, false)
 
-
 	// test delete everything for one service
 	c.Logf("Delete all registry entries")
 	err = SyncServiceRegistry(conn, "serviceid2", make(map[PublicPortKey]PublicPort), make(map[VHostKey]VHost))
@@ -162,6 +179,12 @@ func (t *ZZKTest) TestSyncRegistry(c *C) {
 	ok, err = conn.Exists(path.Join("/net/vhost", vhost2Key.HostID, vhost2Key.Subdomain))
 	c.Assert(err, IsNil)
 	c.Check(ok, Equals, false)
+
+	// test syncing with a service that has no public ports or vhosts
+	c.Logf("Delete some registry entries")
+	err = SyncServiceRegistry(conn, "serviceid3", make(map[PublicPortKey]PublicPort), make(map[VHostKey]VHost))
+	c.Assert(err, IsNil)
+	t.assertRegistryContents(c, conn, pubs1, vhosts1)
 }
 
 func (t *ZZKTest) assertRegistryContents(c *C, conn client.Connection, pubs map[PublicPortKey]PublicPort, vhosts map[VHostKey]VHost) {
