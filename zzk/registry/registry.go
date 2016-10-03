@@ -423,6 +423,7 @@ func buildVhostCache(conn client.Connection, tx client.Transaction) error {
 				ServiceID: vhost.ServiceID,
 			}
 			vhostCache[entry.ServiceID] = append(vhostCache[entry.ServiceID], entry)
+			addrLogger.Debug("Creating virtual address subdomain")
 		}
 	}
 
@@ -496,6 +497,7 @@ func buildPublicPortCache(conn client.Connection, tx client.Transaction) error {
 				ServiceID: pub.ServiceID,
 			}
 			publicPortCache[entry.ServiceID] = append(publicPortCache[entry.ServiceID], entry)
+			addrLogger.Debug("Creating public port address")
 		}
 	}
 
