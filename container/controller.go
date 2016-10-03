@@ -601,7 +601,11 @@ func (c *Controller) Run() (err error) {
 	go c.reapZombies(rpcDead)
 	healthExit := make(chan struct{})
 	defer close(healthExit)
-	c.kickOffHealthChecks(healthExit)
+
+	if os.Getenv("SERVICED_IS_SERVICE_SHELL") != "true" {
+		c.kickOffHealthChecks(healthExit)
+	}
+
 	doRegisterEndpoints := true
 	exited := false
 
