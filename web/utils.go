@@ -137,7 +137,19 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 		return nil, err
 	}
 
-	muxHeader, err = auth.BuildMuxHeader(muxHeader)
+	var (
+		token        string
+		tokenTimeout = 30 * time.Second
+	)
+
+	select {
+	case token = <-auth.AuthToken(nil):
+	case <-time.After(tokenTimeout):
+		plog.WithField("timeout", "30s").Error("Unable to retrieve authentication token within the timeout")
+		return nil, err
+	}
+
+	muxHeader, err = auth.BuildAuthMuxHeader(muxHeader, token)
 	if err != nil {
 		plog.WithError(err).Error("Error building authenticated mux header.")
 		return nil, err
