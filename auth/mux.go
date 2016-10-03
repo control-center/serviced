@@ -40,7 +40,8 @@ var (
 
 func BuildMuxHeader(address []byte) ([]byte, error) {
 	// get current host token
-	return BuildAuthMuxHeader(address, AuthToken())
+	token := <-AuthToken(nil)
+	return BuildAuthMuxHeader(address, token)
 }
 
 func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {

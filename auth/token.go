@@ -15,10 +15,10 @@ package auth
 
 import (
 	"io/ioutil"
-	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -37,7 +37,7 @@ var (
 	currentIdentity Identity
 	zerotime        time.Time
 	expiration      time.Time
-	cond            = &sync.Cond{L: &sync.Mutex{}}
+	cond            = utils.NewChannelCond()
 )
 
 // TokenFunc is a function that can return an authentication token and its
@@ -58,18 +58,27 @@ func RefreshToken(f TokenFunc, filename string) (int64, error) {
 
 // AuthToken returns an unexpired auth token, blocking if necessary until
 // authenticated
-func AuthToken() string {
-	cond.L.Lock()
-	defer cond.L.Unlock()
-	for expired() {
-		cond.Wait()
-	}
-	return currentToken
+func AuthToken(cancel <-chan interface{}) <-chan string {
+	ch := make(chan string)
+	go func() {
+		defer close(ch)
+		for expired() {
+			select {
+			case <-cond.Wait():
+			case <-cancel:
+				return
+			}
+		}
+		ch <- currentToken
+	}()
+	return ch
 }
 
 // A non-blocking call to get an unexpired auth token.  Returns an error
 //  If no token exists or if the token is expired
 func AuthTokenNonBlocking() (string, error) {
+	cond.RLock()
+	defer cond.RUnlock()
 	if currentToken == "" {
 		return "", ErrNotAuthenticated
 	}
@@ -105,8 +114,8 @@ func MasterToken() (string, error) {
 // CurrentIdentity returns the identity represented by the currently-live token,
 // or nil if the token is not yet available
 func CurrentIdentity() Identity {
-	cond.L.Lock()
-	defer cond.L.Unlock()
+	cond.RLock()
+	defer cond.RUnlock()
 	return currentIdentity
 }
 
@@ -171,11 +180,11 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 
 // ClearToken wipes the current state
 func ClearToken() {
-	cond.L.Lock()
+	cond.Lock()
 	currentToken = ""
 	currentIdentity = nil
 	expiration = zerotime
-	cond.L.Unlock()
+	cond.Unlock()
 	cond.Broadcast()
 }
 
@@ -204,14 +213,14 @@ func updateToken(token string, expires time.Time, filename string) {
 		log.WithField("timeout", "1s").Error("No delegate keys were available to parse the token within the timeout")
 		return
 	}
-	cond.L.Lock()
+	cond.Lock()
 	currentToken = token
 	currentIdentity = getIdentityFromToken(token)
 	expiration = expires
 	if filename != "" {
 		ioutil.WriteFile(filename, []byte(token), 0660)
 	}
-	cond.L.Unlock()
+	cond.Unlock()
 	cond.Broadcast()
 }
 
