@@ -128,7 +128,7 @@
             scope.host = $scope.currentHost;
 
             $modalService.create({
-                template: "Resetting host keys will require you to blah blah blah. Are you sure?",
+                template: `<p>Do you want to immediately invalidate ${$scope.currentHost.name}'s authentication keys and generate a new key pair? Services running on the host will not be able to create authenticated connections until the new keys are registered on ${$scope.currentHost.name} using <span class="inline-code">serviced host register</span>.</p>`,
                 model: scope,
                 title: $translate.instant("Reset Host Keys"),
                 actions: [
