@@ -108,7 +108,6 @@ func loginWithBasicAuthOK(r *rest.Request) bool {
 		glog.V(1).Info("Error getting cookie ", err)
 		return false
 	}
-
 	sessionsLock.Lock()
 	defer sessionsLock.Unlock()
 	value, err := url.QueryUnescape(strings.Replace(cookie.Value, "+", url.QueryEscape("+"), -1))
@@ -127,7 +126,7 @@ func loginWithBasicAuthOK(r *rest.Request) bool {
 }
 
 func loginWithTokenOK(r *rest.Request, token string) bool {
-	validToken, err := auth.ValidateRestToken(token)
+	validToken, err := auth.ValidateRestToken(r.Request, token)
 	if err != nil {
 		msg := "Unable to parse auth token"
 		plog.WithError(err).Info(msg)
@@ -142,7 +141,7 @@ func loginWithTokenOK(r *rest.Request, token string) bool {
 }
 
 func loginOK(r *rest.Request) bool {
-	token, tErr := auth.ExtractRestTokenFromHeaders(r.Header)
+	token, tErr := auth.ExtractRestToken(r.Request)
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).Info(msg)
@@ -238,7 +237,7 @@ func restLoginWithBasicAuth(w *rest.ResponseWriter, r *rest.Request, ctx *reques
  * Perform login, return JSON
  */
 func restLogin(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	token, tErr := auth.ExtractRestTokenFromHeaders(r.Header)
+	token, tErr := auth.ExtractRestToken(r.Request)
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
 		plog.WithError(tErr).Warning(msg)

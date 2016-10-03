@@ -23,37 +23,34 @@ var (
 	ErrBadRestToken = errors.New("Could not extract auth token from REST request header")
 )
 
-func BuildRestToken(req *http.Request) string {
+func BuildRestToken(r *http.Request) string {
 	return AuthToken()
 }
 
-func ExtractRestToken(header string) (string, error) {
-	// The expected header value is "Bearer JWT_ToKen"
-	header = strings.TrimSpace(header)
-	splitted := strings.Split(header, " ")
-	if len(splitted) >= 2 {
-		bearer := splitted[0]
-		token := splitted[len(splitted)-1]
-		if strings.ToLower(bearer) == "bearer" && len(token) > 0 {
-			return token, nil
-		}
-	}
-	return "", ErrBadRestToken
-}
-
-func ExtractRestTokenFromHeaders(h http.Header) (string, error) {
-	rawHeader := h.Get("Authorization")
-	if rawHeader != "" {
-		return ExtractRestToken(rawHeader)
-	}
-	return rawHeader, nil //Token not present
-}
-
-func ValidateRestToken(token string) (bool, error) {
+func ValidateRestToken(r *http.Request, token string) (bool, error) {
 	identity, err := ParseJWTIdentity(token)
 	if err != nil {
 		return false, err
 	}
 	valid := !identity.Expired() && identity.HasAdminAccess()
 	return valid, nil
+}
+
+func ExtractRestToken(r *http.Request) (string, error) {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return "", nil //Token not present
+	} else {
+		// The expected header value is "Bearer JWT_ToKen"
+		header = strings.TrimSpace(header)
+		splitted := strings.Split(header, " ")
+		if len(splitted) >= 2 {
+			bearer := splitted[0]
+			token := splitted[len(splitted)-1]
+			if strings.ToLower(bearer) == "bearer" && len(token) > 0 {
+				return token, nil
+			}
+		}
+		return "", ErrBadRestToken
+	}
 }
