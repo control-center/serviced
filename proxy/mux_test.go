@@ -142,7 +142,11 @@ func TestTCPMux(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	header, err = auth.BuildMuxHeader(header)
+	token, err := auth.AuthTokenNonBlocking()
+	if err != nil {
+		t.Fail()
+	}
+	header, err = auth.BuildAuthMuxHeader(header, token)
 	if err != nil {
 		t.Fail()
 	}

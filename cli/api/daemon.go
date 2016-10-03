@@ -651,7 +651,11 @@ func (d *daemon) startAgent() error {
 
 	go func() {
 		// Wait for delegate keys to exist before trying to authenticate
-		auth.WaitForDelegateKeys()
+		select {
+		case <-auth.WaitForDelegateKeys(d.shutdown):
+		case <-d.shutdown:
+			return
+		}
 
 		// Authenticate against the master
 		getToken := func() (string, int64, error) {

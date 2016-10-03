@@ -38,11 +38,6 @@ var (
 	ErrBadMuxHeader  = errors.New("Bad mux header")
 )
 
-func BuildMuxHeader(address []byte) ([]byte, error) {
-	// get current host token
-	return BuildAuthMuxHeader(address, AuthToken())
-}
-
 func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {
 	if len(address) != ADDRESS_BYTES {
 		return nil, ErrBadMuxAddress

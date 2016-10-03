@@ -238,16 +238,27 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	// Build the authentication header before dialing the connection, so the
 	// connection isn't sitting open waiting for an authentication token to be
 	// loaded.
-	var muxAuthHeader []byte
+	var (
+		muxAuthHeader []byte
+		tokenTimeout  = 30 * time.Second
+	)
+
 	if !isLocalContainer {
 		muxHeader, err := utils.PackTCPAddressString(address.containerAddr)
 		if err != nil {
 			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
 			return
 		}
-		muxAuthHeader, err = auth.BuildMuxHeader(muxHeader)
+		var token string
+		select {
+		case token = <-auth.AuthToken(nil):
+		case <-time.After(tokenTimeout):
+			glog.Error("Unable to retrieve authentication token with 30 seconds")
+			return
+		}
+		muxAuthHeader, err = auth.BuildAuthMuxHeader(muxHeader, token)
 		if err != nil {
-			glog.Errorf("Error building authenticaetd mux header. %s", err)
+			glog.Errorf("Error building authenticated mux header. %s", err)
 			return
 		}
 	}
