@@ -205,6 +205,10 @@
                 url: id => `/hosts/${id}`,
                 payload: (id, host) => host
             },
+            resetHostKeys: {
+                method: POST,
+                url: id => `/hosts/${id}/key`
+            },
             removeHost: {
                 method: DELETE,
                 url: id => `/hosts/${id}`
