@@ -19,6 +19,7 @@ import (
 
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/facade"
 
 	"errors"
 )
@@ -34,7 +35,7 @@ func (s *Server) GetHost(hostID string, reply *host.Host) error {
 		return err
 	}
 	if response == nil {
-		return errors.New("hosts_server.go host not found")
+		return facade.ErrHostDoesNotExist
 	}
 	*reply = *response
 	return nil
@@ -132,7 +133,7 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 		return err
 	}
 	if host == nil {
-		return errors.New("Host does not exist")
+		return facade.ErrHostDoesNotExist
 	}
 	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, s.expiration)
 	if err != nil {

@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,6 +34,10 @@ const (
 	afterHostAdd     = afterEvent("AfterHostAdd")
 	beforeHostDelete = beforeEvent("BeforeHostDelete")
 	afterHostDelete  = afterEvent("AfterHostDelete")
+)
+
+var (
+	ErrHostDoesNotExist = errors.New("facade: host does not exist")
 )
 
 //---------------------------------------------------------------------------
