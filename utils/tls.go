@@ -36,10 +36,10 @@ var cipherLookup map[string]uint16
 
 // TODO: Add options to separate certs and keys by connection type?
 type configInfo struct {
-	name		string
-	minTLSVersion	uint16
-	cipherSuite     []uint16
-	defaultCiphers	[]string
+	name           string
+	minTLSVersion  uint16
+	cipherSuite    []uint16
+	defaultCiphers []string
 }
 
 var configMap map[string]*configInfo
@@ -105,13 +105,16 @@ func init() {
 	configMap = make(map[string]*configInfo, 0)
 	for _, connectionType := range []string{"http", "rpc", "mux"} {
 		config := &configInfo{
-			name: connectionType,
+			name:          connectionType,
 			minTLSVersion: tlsVersion,
 		}
 		switch connectionType {
-		case "http": config.defaultCiphers = httpDefaultCiphers
-		case "rpc": config.defaultCiphers = rpcDefaultCiphers
-		case "mux": config.defaultCiphers = muxDefaultCiphers
+		case "http":
+			config.defaultCiphers = httpDefaultCiphers
+		case "rpc":
+			config.defaultCiphers = rpcDefaultCiphers
+		case "mux":
+			config.defaultCiphers = muxDefaultCiphers
 		}
 
 		configMap[config.name] = config
@@ -170,10 +173,14 @@ func SetMinTLS(connectionType string, version string) error {
 func tlsVersionStringToUint(version string) (uint16, error) {
 	upperTLS := strings.ToUpper(strings.TrimSpace(version))
 	switch upperTLS {
-	case "VERSIONTLS10": return tls.VersionTLS10, nil
-	case "VERSIONTLS11": return tls.VersionTLS11, nil
-	case "VERSIONTLS12": return tls.VersionTLS12, nil
-	default: return 0, fmt.Errorf("Invalid TLS version %s", version)
+	case "VERSIONTLS10":
+		return tls.VersionTLS10, nil
+	case "VERSIONTLS11":
+		return tls.VersionTLS11, nil
+	case "VERSIONTLS12":
+		return tls.VersionTLS12, nil
+	default:
+		return 0, fmt.Errorf("Invalid TLS version %s", version)
 	}
 }
 
@@ -197,7 +204,7 @@ func CipherSuites(connectionType string) []uint16 {
 
 func CipherSuitesByName(c *tls.Config) []string {
 	suiteList := make([]string, 0)
-	for _, cipher := range(c.CipherSuites) {
+	for _, cipher := range c.CipherSuites {
 		suiteList = append(suiteList, fmt.Sprintf("%s (%d)", GetCipherName(cipher), cipher))
 	}
 	return suiteList
@@ -205,7 +212,7 @@ func CipherSuitesByName(c *tls.Config) []string {
 
 // Get the name of the cipher
 func GetCipherName(cipher uint16) string {
-	for key, value := range(cipherLookup) {
+	for key, value := range cipherLookup {
 		if cipher == value {
 			return key
 		}
