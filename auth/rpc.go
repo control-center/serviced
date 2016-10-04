@@ -18,7 +18,6 @@ import (
 	"errors"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"net/rpc"
 	"time"
 )
 
@@ -26,9 +25,9 @@ import (
    When sending an RPC request, if authentication is required, the client sends an authentication token as well
    as its signature. The token determines if the sender is authorized to make the RPC request
 
-   ----------------------------------------------------------------------------------------------------------------------------------------------
-   |Auth Token length (4 bytes)|Auth Token (N bytes)|Timestamp(8 bytes)|Signature of Auth Token + Timestamp + Request.ServiceMethod (256 bytes) |
-   ----------------------------------------------------------------------------------------------------------------------------------------------
+   -------------------------------------------------------------------------------------------------------------------------------
+   |Auth Token length (4 bytes)|Auth Token (N bytes)|Timestamp(8 bytes)|Signature of Auth Token + Timestamp + Request(256 bytes) |
+   -------------------------------------------------------------------------------------------------------------------------------
 */
 
 const (
@@ -41,15 +40,15 @@ var (
 )
 
 type RPCHeaderParser interface {
-	ParseHeader([]byte, *rpc.Request) (Identity, error)
+	ParseHeader(header []byte, request []byte) (Identity, error)
 }
 type RPCHeaderBuilder interface {
-	BuildHeader(*rpc.Request) ([]byte, error)
+	BuildHeader([]byte) ([]byte, error)
 }
 
 type RPCHeaderHandler struct{}
 
-func (r *RPCHeaderHandler) BuildHeader(req *rpc.Request) ([]byte, error) {
+func (r *RPCHeaderHandler) BuildHeader(req []byte) ([]byte, error) {
 	var (
 		token        string
 		err          error
@@ -75,7 +74,7 @@ func (r *RPCHeaderHandler) BuildHeader(req *rpc.Request) ([]byte, error) {
 	return r.BuildAuthRPCHeader(token, req, signAsMaster)
 }
 
-func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req *rpc.Request, signAsMaster bool) ([]byte, error) {
+func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req []byte, signAsMaster bool) ([]byte, error) {
 	headerBuf := new(bytes.Buffer)
 
 	// add token length
@@ -100,8 +99,8 @@ func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req *rpc.Request, si
 	// Add the timestamp
 	sigBuffer.Write(timestampBuf)
 
-	// add the request name (we can't use the whole request object, because req.Seq may change)
-	sigBuffer.Write([]byte(req.ServiceMethod))
+	// add the request
+	sigBuffer.Write(req)
 
 	// Sign sigBuffer
 	signer := SignAsDelegate
@@ -121,7 +120,7 @@ func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req *rpc.Request, si
 }
 
 // Extracts the token and signature from the header, and validates the signature against the token and request
-func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req *rpc.Request) (Identity, error) {
+func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req []byte) (Identity, error) {
 
 	if len(rawHeader) <= TOKEN_LEN_BYTES+TIMESTAMP_BYTES {
 		return nil, ErrBadRPCHeader
@@ -170,8 +169,8 @@ func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req *rpc.Request) (Iden
 	// Add the timestamp
 	signed_message.Write(timestampBuf)
 
-	// add the request name (we can't use the whole request object, because req.Seq may change)
-	signed_message.Write([]byte(req.ServiceMethod))
+	// add the request
+	signed_message.Write(req)
 
 	// Verify the identity of the signed message
 	senderVerifier, err := senderIdentity.Verifier()
