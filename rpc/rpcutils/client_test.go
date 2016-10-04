@@ -335,13 +335,13 @@ func (s *MySuite) TestConcurrentClientCalls(c *C) {
 	wg := sync.WaitGroup{}
 	for _, s := range echoStrings {
 		wg.Add(1)
-		go func() {
+		go func(param string) {
 			defer wg.Done()
 			var reply string
-			err := client.Call("RPCTestType.Echo", s, &reply)
+			err := client.Call("RPCTestType.Echo", param, &reply)
 			c.Assert(err, IsNil)
-			c.Assert(reply, Equals, s)
-		}()
+			c.Assert(reply, Equals, param)
+		}(s)
 	}
 
 	// Don't wait more than 10 seconds for these to complete
