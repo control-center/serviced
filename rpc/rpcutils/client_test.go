@@ -93,6 +93,7 @@ func (s *MySuite) SetUpSuite(c *C) {
 func (s *MySuite) SetUpTest(c *C) {
 	auth.ClearKeys()
 	auth.ClearToken()
+	codectest.Reset()
 	// Load master keys so we can authenticate:
 	tmpDir := c.MkDir()
 	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
@@ -322,4 +323,40 @@ func (s *MySuite) TestNotAdmin(c *C) {
 	p = "Expected"
 	err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
 	c.Assert(err, Equals, rpc.ServerError(ErrNoAdmin.Error()))
+}
+
+// Test multiple calls on the same client to shake out race conditions
+func (s *MySuite) TestConcurrentClientCalls(c *C) {
+	client, err := connectRPC("localhost:32111")
+	c.Assert(err, IsNil)
+
+	echoStrings := []string{"peanut", "butter", "jelly", "time"}
+
+	wg := sync.WaitGroup{}
+	for _, s := range echoStrings {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var reply string
+			err := client.Call("RPCTestType.Echo", s, &reply)
+			c.Assert(err, IsNil)
+			c.Assert(reply, Equals, s)
+		}()
+	}
+
+	// Don't wait more than 10 seconds for these to complete
+	doneChan := make(chan int)
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
+
+	timeout := 10 * time.Second
+	timeoutChan := time.After(timeout)
+	select {
+	case <-doneChan:
+		break
+	case <-timeoutChan:
+		c.Fatalf("Timeout waiting for concurrent RPC calls to complete after %d seconds\n", timeout/time.Second)
+	}
 }
