@@ -8,52 +8,55 @@
 
     angular.module('publicEndpointLink', [])
     .directive("publicEndpointLink", ["$compile", "$location",
-        "servicesFactory", "$translate",
-    function($compile, $location, servicesFactory, $translate){
+        "servicesFactory", "$translate","resourcesFactory",
+    function($compile, $location, servicesFactory, $translate, resourcesFactory){
         return {
             restrict: "E",
             scope: {
                 publicEndpoint: "=",
                 state: "@",
                 hostAlias: "=",
+                getServiceStatus: "=",
             },
             link: function ($scope, element, attrs){
-                var publicEndpoint = $scope.publicEndpoint;
+                let publicEndpoint = $scope.publicEndpoint;
+                let getServiceStatus = $scope.getServiceStatus;
 
                 // A method to return the displayed URL for an endpoint.
                 var getUrl = function(publicEndpoint){
                     // Form the url based on the endpoint properties.
                     var url = "";
-                    if ("Name" in publicEndpoint){
+                    if ("ServiceName" in publicEndpoint){
                         var port = $location.port() === "" || +$location.port() === 443 ? "" : ":" + $location.port();
-                        var host = publicEndpoint.Name.indexOf('.') === -1 ?
-                            publicEndpoint.Name + ".{{hostAlias}}" : publicEndpoint.Name;
+                        var host = publicEndpoint.ServiceName.indexOf('.') === -1 ?
+                            publicEndpoint.ServiceName + ".{{hostAlias}}" : publicEndpoint.ServiceName;
                         url = $location.protocol() + "://" + host + port;
-                    } else if ("PortAddr" in publicEndpoint){
+                    } else if ("PortAddress" in publicEndpoint){
                         // Port public endpoint
-                        var portAddr = publicEndpoint.PortAddr;
+                        var portAddress = publicEndpoint.PortAddress;
                         var protocol = publicEndpoint.Protocol.toLowerCase();
-                        if(portAddr.startsWith(":")){
-                            portAddr = "{{hostAlias}}" + portAddr;
+                        if(portAddress.startsWith(":")){
+                            portAddress = "{{hostAlias}}" + portAddress;
                         }
                         // Remove the port for standard http/https ports.
                         if(protocol !== "") {
-                            var parts = portAddr.split(":");
+                            var parts = portAddress.split(":");
                             if (protocol === "http" && parts[1] === "80") {
-                                portAddr = parts[0];
+                                portAddress = parts[0];
                             } else if (protocol === "https" && parts[1] === "443") {
-                                portAddr = parts[0];
+                                portAddress = parts[0];
                             }
-                            url = protocol + "://" + portAddr;
+                            url = protocol + "://" + portAddress;
                         } else {
-                            url = portAddr;
+                            url = portAddress;
                         }                
                     }
                     return url;
                 };
                                                                                 
                 var isServiceRunning = function(id){
-                    var service = servicesFactory.get(id);
+                    var service = getServiceStatus(id);
+                    // if not found, empty service object returned
                     return service.desiredState === 1;
                 };
                 
@@ -70,11 +73,11 @@
                 var url = getUrl(publicEndpoint);
                 var html = "";
                 var popover = false;
-                
+
                 // If we have an appid, this is a subservice.
-                if ("ApplicationId" in publicEndpoint){
+                if ("ServiceID" in publicEndpoint){
                     // Check the service and endpoint and..
-                    if (!isServiceRunning(publicEndpoint.ApplicationId) || !publicEndpoint.Enabled) {
+                    if (!isServiceRunning(publicEndpoint.ServiceID) || !publicEndpoint.Enabled) {
                         // .. show the url as a url label (not clickable) with a bootstrap popover..
                         html = '<span><b>' + url + '</b></span>';
                         popover = true;

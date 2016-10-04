@@ -376,6 +376,10 @@
             getServiceStatus: {
                 method: GET,
                 url: id => `/api/v2/statuses?serviceId=${id}`,
+            },
+            getServiceStatuses: {
+                method: GET,
+                url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
             }
         };
 

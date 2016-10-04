@@ -67,13 +67,17 @@
       <table jelly-table data-data="currentService.publicEndpoints" data-config="publicEndpointsTable" class="table">
           <tr ng-repeat="publicEndpoint in $data">
               <td data-title="'vhost_application'|translate" sortable="'Application'">
-                  <a href="#/services/{{publicEndpoint.ApplicationId}}" class="link" ng-click="routeToService(publicEndpoint.ApplicationId, $event)">{{publicEndpoint.Application}}</a>
+                  <a href="#/services/{{publicEndpoint.ServiceID}}" class="link" ng-click="routeToService(publicEndpoint.ServiceID, $event)">{{publicEndpoint.ServiceName}}</a>
               </td>
-              <td data-title="'endpoint'|translate" sortable="'ServiceEndpoint'">{{publicEndpoint.ServiceEndpoint}}</td>
-              <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{publicEndpoint.type}}</td>
-              <td data-title="'public_endpoint_protocol'|translate">{{publicEndpointProtocol(publicEndpoint)}}</td>
+              <td data-title="'endpoint'|translate" sortable="'ServiceEndpoint'">{{publicEndpoint.Application}}</td>
+              <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{publicEndpoint.VHostName}}{{publicEndpoint.PortAddress}}</td>
+              <td data-title="'public_endpoint_protocol'|translate">{{publicEndpoint.Protocol}}</td>
               <td data-title="'public_endpoint_url'|translate">
-                  <public-endpoint-link data-public-endpoint="publicEndpoint" data-host-alias="defaultHostAlias"></public-endpoint-link>
+                  <public-endpoint-link 
+                    data-public-endpoint="publicEndpoint" 
+                    data-host-alias="defaultHostAlias"
+                    data-get-service-status="getServiceStatus"
+                  ></public-endpoint-link>
               </td>
               <td data-title="'actions'|translate">
                   <button ng-class="{disabled: publicEndpoint.Enabled }" ng-click="clickEndpointEnable(publicEndpoint)" class="btn btn-link action">
@@ -101,10 +105,10 @@
                 <td data-title="'tbl_virtual_ip_service'|translate" sortable="'ServiceName'">
                     <a href="#/services/{{ip.ServiceID}}" class="link" ng-click="routeToService(ip.ServiceID, $event)">{{ip.ServiceName}}</a>
                 </td>
-                <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.AssignmentType}}</td>
+                <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.Type}}</td>
                 <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="click_host(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
                 <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
-                <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddr}}:{{ip.Port}}</td>
+                <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddress}}:{{ip.Ports[0]}}</td>
                 <td data-title="'actions'|translate">
                     <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-link"></i>

@@ -445,8 +445,8 @@
                             // this is the text bound to the modal texarea
                             modalScope.Context = makeEditableContext(data);
 
-                           // now that we have the text of the file, create modal dialog
-                           $modalService.create({
+                            // now that we have the text of the file, create modal dialog
+                            $modalService.create({
                                 templateUrl: "edit-context.html",
                                 model: modalScope,
                                 title: $translate.instant("edit_context"),
@@ -730,6 +730,17 @@
                     return LogSearch.getURL(appConfig, globalConfig);
                 };
 
+                $scope.cachedServiceStatuses = {};
+
+                $scope.getServiceStatus = function (id) {
+                    if (!(id in $scope.cachedServiceStatuses)) {
+                        // returning object allows object property inspection
+                        // without throwing a null reference error
+                        $scope.cachedServiceStatuses[id] = {};
+                    }
+                    return $scope.cachedServiceStatuses[id];
+                };
+
                 // grab default kibana search configs and adjust
                 // the query to look for this specific service instance
                 $scope.getInstanceLogURL = function (instance) {
@@ -849,7 +860,7 @@
                     let deferred = $q.defer();
                     $scope.resourcesFactory.v2.getService(id)
                         .then(function (data) {
-                            console.log("got service id=" + id);
+                            console.log("got service id " + data.id);
                             deferred.resolve(data);
                         },
                         function (error) {
@@ -863,7 +874,7 @@
                     let deferred = $q.defer();
                     $scope.resourcesFactory.v2.getServiceEndpoints(id)
                         .then(function (response) {
-                            console.log("got service endpoints for id=" + id);
+                            console.log("got service endpoints for id " + id);
                             deferred.resolve(response.data);
                         },
                         function (response) {
@@ -877,7 +888,6 @@
                     $scope.resourcesFactory.v2.getServices()
                         .success(function (data) {
                             console.log(data.length + " top level children.");
-                            // $scope.currentService = data.results;
                         });
                 };
 
@@ -1131,7 +1141,7 @@
                     // this will fetch health, instances, and memory stats
                     let intervalVal = setInterval(function () {
                         if ($scope.currentService) {
-                            // IN here. TODO 
+
                             // make a list of IDs from scope.descendents (with err function of course)
                             // add new resourcesfactory endpoint to get multiple states
                             // send list of IDs to that new endpoint. 
@@ -1140,6 +1150,14 @@
                             // with the status that was returned for that service
 
                             $scope.currentService.fetchAllStates();
+
+                            $scope.resourcesFactory.v2.getServiceStatuses(Object.keys($scope.cachedServiceStatuses))
+                                .then(response => {
+                                    response.forEach(svc => {
+                                        $scope.cachedServiceStatuses[svc.ServiceID] = svc;
+                                    });
+                                });
+
                         }
                     }, 3000);
 
