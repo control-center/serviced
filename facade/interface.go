@@ -45,6 +45,8 @@ type FacadeInterface interface {
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
+	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error
+
 	MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error
 
 	RemoveService(ctx datastore.Context, id string) error
