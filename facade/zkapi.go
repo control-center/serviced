@@ -597,14 +597,16 @@ func (zk *zkf) StopServiceInstance(poolID, serviceID string, instanceID int) err
 }
 
 // StopServiceInstances stops all instances for a service
-func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
+func (zk *zkf) StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.StopServiceInstances")))
 	logger := plog.WithFields(log.Fields{
 		"poolid":    poolID,
 		"serviceid": serviceID,
 	})
 
 	// get the root-based connection to stop the service instance
-	conn, err := zzk.GetLocalConnection("/")
+	//conn, err := zzk.GetLocalConnection("/")
+	conn, err := getLocalConnection(ctx, "/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire root-based connection")
 		return err

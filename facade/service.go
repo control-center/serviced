@@ -1133,7 +1133,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances
-		if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
+		if err := f.zzk.StopServiceInstances(ctx, svc.PoolID, svc.ID); err != nil {
 			return err
 		}
 		svc.DesiredState = int(service.SVCRun)
