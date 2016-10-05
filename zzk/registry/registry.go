@@ -353,7 +353,7 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, reque
 			pubValue.SetVersion(existingPub.Version())
 			tx.Set(addrpth, &pubValue)
 			addrLogger.Debug("Updated public port address")
-		} else {
+		} else if err != nil {
 			addrLogger.WithError(err).Debug("skipped public port address because of an unexpected error")
 			return &RegistryError{
 				Action:  "sync",
@@ -414,7 +414,7 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, request Se
 			vhost.SetVersion(existingVHost.Version())
 			tx.Set(addrpth, &vhost)
 			addrLogger.Debug("Updated virtual host")
-		} else {
+		} else if err != nil {
 			addrLogger.WithError(err).Debug("skipped virtual host because of an unexpected error")
 			return &RegistryError{
 				Action:  "sync",
