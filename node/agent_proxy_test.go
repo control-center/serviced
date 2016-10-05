@@ -24,6 +24,7 @@ package node
 import (
 	"github.com/control-center/serviced/domain/applicationendpoint"
 
+	"fmt"
 	"testing"
 )
 
@@ -33,7 +34,7 @@ var _ LoadBalancer = &HostAgent{}
 func TestAddControlPlaneEndpoints(t *testing.T) {
 	agent := &HostAgent{}
 	agent.master = "127.0.0.1:0"
-	agent.uiport = ":443"
+	agent.uiport = fmt.Sprintf(":%d", SERVICED_UI_ENDPOINT)
 	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	consumer_endpoint := applicationendpoint.ApplicationEndpoint{}
@@ -50,9 +51,9 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	controlplane_endpoint.ServiceID = "controlplane"
 	controlplane_endpoint.Application = "controlplane"
 	controlplane_endpoint.ContainerIP = "127.0.0.1"
-	controlplane_endpoint.ContainerPort = 443
-	controlplane_endpoint.ProxyPort = 443
-	controlplane_endpoint.HostPort = 443
+	controlplane_endpoint.ContainerPort = SERVICED_UI_ENDPOINT
+	controlplane_endpoint.ProxyPort = SERVICED_UI_ENDPOINT
+	controlplane_endpoint.HostPort = SERVICED_UI_ENDPOINT
 	controlplane_endpoint.HostIP = "127.0.0.1"
 	controlplane_endpoint.Protocol = "tcp"
 
@@ -63,23 +64,24 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 		t.Fatalf(" mapping failed missing key[\"tcp:8444\"]")
 	}
 
-	if _, ok := endpoints["tcp:443"]; !ok {
-		t.Fatalf(" mapping failed missing key[\"tcp:443\"]")
+	ccuiport := fmt.Sprintf("tcp%s", agent.uiport)
+	if _, ok := endpoints[ccuiport]; !ok {
+		t.Fatalf(" mapping failed missing key[\"%s\"]", ccuiport)
 	}
 
 	if len(endpoints["tcp:8444"]) != 1 {
 		t.Fatalf(" mapping failed len(\"tcp:8444\"])=%d expected 1", len(endpoints["tcp:8444"]))
 	}
 
-	if len(endpoints["tcp:443"]) != 1 {
-		t.Fatalf(" mapping failed len(\"tcp:443\"])=%d expected 1", len(endpoints["tcp:443"]))
+	if len(endpoints[ccuiport]) != 1 {
+		t.Fatalf(" mapping failed len(\"%s\"])=%d expected 1", ccuiport, len(endpoints[ccuiport]))
 	}
 
 	if endpoints["tcp:8444"][0] != consumer_endpoint {
 		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:8444"][0], consumer_endpoint)
 	}
 
-	if endpoints["tcp:443"][0] != controlplane_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:443"][0], controlplane_endpoint)
+	if endpoints[ccuiport][0] != controlplane_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", endpoints[ccuiport][0], controlplane_endpoint)
 	}
 }
