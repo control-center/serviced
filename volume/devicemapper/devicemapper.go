@@ -1095,16 +1095,9 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
-	// Remove the snapshot info from the volume metadata
-	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
-		glog.Errorf("Error removing snapshot: %v", err)
-		return volume.ErrRemovingSnapshot
-	}
-	// Remove the snapshot-specific metadata directory
-	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), rawLabel)); err != nil {
-		return err
-	}
-	// Delete the device itself
+
+	// Delete the device itself first, so we retain our internal snapshot entry
+	// (metadata.json) in the event of a failure on this step
 	glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 	v.driver.DeviceSet.Lock()
 	if err := v.driver.deactivateDevice(deviceHash); err != nil {
@@ -1114,6 +1107,16 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	if err := v.driver.deleteDevice(deviceHash, false); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
+	}
+
+	// Remove the snapshot info from the volume metadata
+	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
+		glog.Errorf("Error removing snapshot: %v", err)
+		return volume.ErrRemovingSnapshot
+	}
+	// Remove the snapshot-specific metadata directory
+	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), rawLabel)); err != nil {
+		return err
 	}
 	return nil
 }
