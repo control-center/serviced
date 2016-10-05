@@ -104,23 +104,24 @@ func (s *MySuite) SetUpTest(c *C) {
 	serveCodec = rpc.ServeCodec
 }
 
+// Test Methods Start Here
+
 func (s *MySuite) TestConcurrentTimeout(c *C) {
 
 	sleepTime := 500 * time.Millisecond
 	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	c.Assert(err, IsNil)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
 	go func() {
 		var reply time.Duration
-		wg.Done()
 		// Sleep, timeout after two. Shouldn't error.
 		err := client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*sleepTime)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, sleepTime)
 	}()
-	wg.Wait()
+	// Sleep for a short time to make sure the above call gets started first
+	time.Sleep(sleepTime / 2)
+
 	var reply time.Duration
 	// should time out wating for client
 	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, sleepTime/2)
