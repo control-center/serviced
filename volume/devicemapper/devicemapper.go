@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/go-units"
 	"github.com/zenoss/glog"
 )
 
