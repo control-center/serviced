@@ -151,7 +151,6 @@ type AuthServerCodec struct {
 	buff         *ByteBufferReadWriteCloser
 	wrappedcodec rpc.ServerCodec
 	parser       auth.RPCHeaderParser
-	rBuffMutex   sync.Mutex // Makes sure we buffer a whole request before starting the next one
 	wBuffMutex   sync.Mutex // Make sure we buffer one response at a time
 	lastError    error
 }
@@ -175,9 +174,9 @@ func NewAuthServerCodec(conn io.ReadWriteCloser, createCodec ServerCodecCreator,
 //  lets the underlying codec read the rest.
 //  Finally, it validates the identity if necessary.
 func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
-	// Lock so we read both values back-to-back
-	a.rBuffMutex.Lock()
-	defer a.rBuffMutex.Unlock()
+
+	// There is no need for synchronization here, since go's RPC server
+	//  ensures that requests are read one-at-a-time
 
 	// Reset state
 	a.lastError = nil
@@ -249,6 +248,8 @@ func (a *AuthServerCodec) ReadRequestBody(body interface{}) error {
 //  Encodes the response before sending it back down to the client.
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthServerCodec) WriteResponse(r *rpc.Response, body interface{}) error {
+	// We do need a lock here, because the ServerCodec interface specifies
+	//  that WriteResponse must be safe for concurrent use by multiple goroutines
 	a.wBuffMutex.Lock()
 	defer a.wBuffMutex.Unlock()
 
@@ -292,7 +293,6 @@ type AuthClientCodec struct {
 	buff          *ByteBufferReadWriteCloser
 	wrappedcodec  rpc.ClientCodec
 	headerBuilder auth.RPCHeaderBuilder
-	rBuffMutex    sync.Mutex // Make sure we buffer one response at a time
 	wBuffMutex    sync.Mutex // Make sure we buffer a whole request before starting the next one
 }
 
@@ -320,6 +320,7 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	)
 
 	// Lock to ensure we write the header and the rest of the request back-to-back
+	//  This method may be called by multiple goroutines concurrently
 	a.wBuffMutex.Lock()
 	defer a.wBuffMutex.Unlock()
 	a.buff.WriteBuff.Reset()
@@ -358,8 +359,10 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 // Decodes the response and reads the header, building the rpc.Response object
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
-	a.rBuffMutex.Lock()
-	defer a.rBuffMutex.Unlock()
+
+	// No need for synchronization here, Go's RPC Client makes sure only
+	//  One response is read at a time.
+
 	a.buff.ReadBuff.Reset()
 
 	// Read the response from the connection
