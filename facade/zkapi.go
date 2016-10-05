@@ -21,6 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -33,12 +34,12 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func getZZK(f *Facade) ZZK {
-	return &zkf{f}
+func getZZK() ZZK {
+	return &zkf{NewServiceRegistryCache()}
 }
 
 type zkf struct {
-	f *Facade
+	svcRegistry  *serviceRegistryCache
 }
 
 // UpdateService updates the service object and exposed public endpoints that
@@ -52,59 +53,10 @@ func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 		"poolid":      svc.PoolID,
 	})
 
-	// get the root-based connection to update the service's endpoints
-	rootconn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
+	if err := zk.SyncServiceRegistry(tenantID, svc); err != nil {
+		logger.WithError(err).Debug("Could not sync public endpoints in zookeeper")
 		return err
 	}
-
-	// map all the public endpoints on the service
-	pubmap := make(map[zkr.PublicPortKey]zkr.PublicPort)
-	vhmap := make(map[zkr.VHostKey]zkr.VHost)
-
-	for _, ep := range svc.Endpoints {
-		// map the public ports
-		for _, p := range ep.PortList {
-			if p.Enabled {
-				key := zkr.PublicPortKey{
-					HostID:      "master",
-					PortAddress: p.PortAddr,
-				}
-				pub := zkr.PublicPort{
-					TenantID:    tenantID,
-					Application: ep.Application,
-					ServiceID:   svc.ID,
-					Protocol:    p.Protocol,
-					UseTLS:      p.UseTLS,
-				}
-				pubmap[key] = pub
-			}
-		}
-
-		// map the vhosts
-		for _, v := range ep.VHostList {
-			if v.Enabled {
-				key := zkr.VHostKey{
-					HostID:    "master",
-					Subdomain: v.Name,
-				}
-				vh := zkr.VHost{
-					TenantID:    tenantID,
-					Application: ep.Application,
-					ServiceID:   svc.ID,
-				}
-				vhmap[key] = vh
-			}
-		}
-	}
-
-	// sync the registry
-	if err := zkr.SyncServiceRegistry(rootconn, svc.ID, pubmap, vhmap); err != nil {
-		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
-		return err
-	}
-	logger.Debug("Updated the service's public endpoints in zookeeper")
 
 	// get the pool-based connection to update the service
 	poolconn, err := zzk.GetLocalConnection(path.Join("/pools", svc.PoolID))
@@ -155,14 +107,41 @@ func (zk *zkf) RemoveServiceEndpoints(serviceID string) error {
 		return err
 	}
 
-	// delete the public endpoints for this service
-	pubs := make(map[zkr.PublicPortKey]zkr.PublicPort)
-	vhosts := make(map[zkr.VHostKey]zkr.VHost)
+	zk.svcRegistry.Lock()
+	defer zk.svcRegistry.Unlock()
+	if zk.svcRegistry.registry == nil {
+		err = zk.buildServiceRegistryCache(rootconn)
+		if err != nil {
+			logger.WithError(err).Debug("Could not build cache of the service registry")
+			return err
+		}
+	}
 
-	if err := zkr.SyncServiceRegistry(rootconn, serviceID, pubs, vhosts); err != nil {
+	// delete the public endpoints for this service
+	syncRequest := zkr.ServiceRegistrySyncRequest{
+		ServiceID:       serviceID,
+		PortsToPublish:  make(map[zkr.PublicPortKey]zkr.PublicPort),
+		PortsToDelete:   []zkr.PublicPortKey{},
+		VHostsToPublish: make(map[zkr.VHostKey]zkr.VHost),
+		VHostsToDelete:  []zkr.VHostKey{},
+	}
+
+	serviceRegistry := zk.svcRegistry.GetRegistryForService(serviceID)
+	for key, _ := range serviceRegistry.PublicPorts {
+		syncRequest.PortsToDelete = append(syncRequest.PortsToDelete, key)
+	}
+	for key, _ := range serviceRegistry.VHosts {
+		syncRequest.VHostsToDelete = append(syncRequest.VHostsToDelete, key)
+	}
+
+	// sync the registry
+	if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
 		logger.WithError(err).Debug("Could not delete the service's public endpoints in zookeeper")
 		return err
 	}
+
+	// Update our local cache now that we know that ZK was updated successfully
+	zk.svcRegistry.UpdateRegistry(serviceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
 	logger.Debug("Deleted the service's public endpoints in zookeeper")
 	return nil
 }
@@ -719,4 +698,57 @@ func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest,
 	}
 
 	return zks.GetServiceStateIDs(conn, poolID, serviceID)
+}
+
+func (zk *zkf) SyncServiceRegistry(tenantID string, svc *service.Service) error {
+	logger := plog.WithFields(log.Fields{
+		"tenantid":    tenantID,
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+	})
+
+	// get the root-based connection to update the service's endpoints
+	rootconn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
+		return err
+	}
+
+	zk.svcRegistry.Lock()
+	defer zk.svcRegistry.Unlock()
+	if zk.svcRegistry == nil {
+		err = zk.buildServiceRegistryCache(rootconn)
+		if err != nil {
+			logger.WithError(err).Debug("Could not build cache of the service registry")
+			return err
+		}
+	}
+
+	// sync the registry
+	syncRequest := zk.svcRegistry.BuildSyncRequest(tenantID, svc)
+	if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
+		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
+		return err
+	}
+
+	// Update our local cache now that we know that ZK was updated successfully
+	 zk.svcRegistry.UpdateRegistry(syncRequest.ServiceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
+
+	logger.Debug("Updated the service's public endpoints in zookeeper")
+	return nil
+}
+
+// buildServiceRegistryCache builds the cache of public endpoints based on data in zookeeper
+func (zk *zkf) buildServiceRegistryCache(conn client.Connection) error {
+	publicPorts, err := zkr.GetPublicPorts(conn)
+	if err != nil {
+		return err
+	}
+	vhosts, err := zkr.GetVHosts(conn)
+	if err != nil {
+		return err
+	}
+	zk.svcRegistry.BuildCache(publicPorts, vhosts)
+	return nil
 }

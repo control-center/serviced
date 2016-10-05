@@ -119,6 +119,46 @@
             });
         };
 
+        $scope.resetKeys = function() {
+            $scope.modal_confirmResetKeys();
+        };
+
+        $scope.modal_confirmResetKeys = function(){
+            let scope = $scope.$new(true);
+            scope.host = $scope.currentHost;
+
+            $modalService.create({
+                template: `<p>Do you want to immediately invalidate ${$scope.currentHost.name}'s authentication keys and generate a new key pair? Services running on the host will not be able to create authenticated connections until the new keys are registered on ${$scope.currentHost.name} using <span class="inline-code">serviced host register</span>.</p>`,
+                model: scope,
+                title: $translate.instant("Reset Host Keys"),
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        classes: "submit btn-primary",
+                        label: "Reset Keys",
+                        action: function(){
+                            // disable ok button, and store the re-enable function
+                            let enableSubmit = this.disableSubmitButton();
+
+                            resourcesFactory.resetHostKeys($scope.currentHost.id)
+                                .success((data, status) => {
+                                    $modalService.modals.displayHostKeys(data.PrivateKey, $scope.currentHost.host);
+                                })
+                                .error((data, status) => {
+                                    // TODO - form error highlighting
+                                    this.createNotification("", data.Detail).error();
+                                    // reenable button
+                                    enableSubmit();
+                                });
+                        }
+                    }
+                ]
+            });
+        };
+
+
         init();
 
         function init(){

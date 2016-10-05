@@ -985,6 +985,11 @@ input.startup {
     position: relative;
 }
 
+/* lock icon ends up being a butterfly without this :/ */
+.glyphicon-lock:before {
+    content: "\1f512" !important;
+}
+
 /* force stuff to stay 1140px or wider */
 .table,
 .details,

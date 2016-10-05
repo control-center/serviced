@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -34,7 +35,7 @@ var (
 	delegateKeys HostKeys
 	masterKeys   MasterKeys
 	mKeyLock     sync.RWMutex
-	dKeyCond     = &sync.Cond{L: &sync.Mutex{}}
+	dKeyCond     = utils.NewChannelCond()
 )
 
 type HostKeys struct {
@@ -82,8 +83,8 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 // SignAsDelegate signs the given message with the private key local
 // to the delegate running this process.
 func SignAsDelegate(message []byte) ([]byte, error) {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.localPrivate == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -108,8 +109,8 @@ func VerifyMasterSignature(message, signature []byte) error {
 		return err
 	}
 
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.masterPublic == nil {
 		return ErrNoPublicKey
 	}
@@ -135,8 +136,8 @@ func GetMasterPublicKey() (crypto.PublicKey, error) {
 		return key, err
 	}
 
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.masterPublic == nil {
 		return nil, ErrNoPublicKey
 	}
@@ -200,10 +201,10 @@ func CreateOrLoadMasterKeys(filename string) error {
 		return err
 	}
 
-	return LoadMasterKeyFile(filename)	
+	return LoadMasterKeyFile(filename)
 }
 
-// LoadMasterKeyFile will load the master keys from disk if 
+// LoadMasterKeyFile will load the master keys from disk if
 //  the file exists.  If the file does not exist, it will
 //  return an error
 func LoadMasterKeyFile(filename string) error {
@@ -271,17 +272,27 @@ func ClearKeys() {
 }
 
 // WaitForDelegateKeys blocks until delegate keys are defined.
-func WaitForDelegateKeys() {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
-	for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
-		dKeyCond.Wait()
-	}
+func WaitForDelegateKeys(cancel <-chan interface{}) <-chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
+			select {
+			case <-dKeyCond.Wait():
+			case <-cancel: // Receive from nil channel never returns, so this is fine
+			}
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+func NotifyOnKeyChange() <-chan struct{} {
+	return dKeyCond.Wait()
 }
 
 // WatchDelegateKeyFile watches the delegate key file on the filesystem and
 // updates the internal delegate keys when changes are detected.
-func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
+func WatchDelegateKeyFile(filename string, cancel <-chan interface{}) error {
 	filename = filepath.Clean(filename)
 
 	log := log.WithFields(logrus.Fields{
@@ -310,8 +321,8 @@ func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
 }
 
 func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {
-	dKeyCond.L.Lock()
+	dKeyCond.Lock()
 	delegateKeys = HostKeys{pub, priv}
-	dKeyCond.L.Unlock()
+	dKeyCond.Unlock()
 	dKeyCond.Broadcast()
 }

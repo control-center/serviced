@@ -23,6 +23,7 @@ import (
 
 type ZZK interface {
 	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	SyncServiceRegistry(tenantID string, svc *service.Service) error
 	RemoveService(poolID, serviceID string) error
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
@@ -51,8 +52,4 @@ type ZZK interface {
 	StopServiceInstances(poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
-}
-
-func GetFacadeZZK(f *Facade) ZZK {
-	return &zkf{f: f}
 }

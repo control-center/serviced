@@ -24,6 +24,18 @@ func (_m *ZZK) UpdateService(tenantID string, svc *service.Service, setLockOnCre
 
 	return r0
 }
+func (_m *ZZK) SyncServiceRegistry(tenantID string, svc *service.Service) error {
+	ret := _m.Called(tenantID, svc)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *service.Service) error); ok {
+		r0 = rf(tenantID, svc)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ZZK) RemoveService(poolID string, serviceID string) error {
 	ret := _m.Called(poolID, serviceID)
 
