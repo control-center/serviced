@@ -54,8 +54,8 @@ func (s *TestAuthSuite) TestBuildAndExtractRestToken(c *C) {
 	authToken, _, err := auth.CreateJWTIdentity(cfg.hostID, cfg.poolID, cfg.admin, cfg.dfs, s.delegatePubPEM, cfg.exp)
 	// Create requests
 	req, _ := http.NewRequest(cfg.method, cfg.uri, nil)
-	auth.AuthTokenGetter = func() string {
-		return authToken
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
 	}
 	expectedReqHash := auth.GetRequestHash(req)
 	// Create Rest Token
@@ -93,8 +93,8 @@ func (s *TestAuthSuite) TestExpiredRestToken(c *C) {
 	authToken, _, err := auth.CreateJWTIdentity(cfg.hostID, cfg.poolID, cfg.admin, cfg.dfs, s.delegatePubPEM, cfg.exp)
 	// Create requests
 	req, _ := http.NewRequest(cfg.method, cfg.uri, nil)
-	auth.AuthTokenGetter = func() string {
-		return authToken
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
 	}
 	auth.RestTokenExpiration = -1 * time.Hour
 	// Create Rest Token
@@ -118,8 +118,8 @@ func (s *TestAuthSuite) TestTamperedRestToken(c *C) {
 	authToken, _, err := auth.CreateJWTIdentity(cfg.hostID, cfg.poolID, cfg.admin, cfg.dfs, s.delegatePubPEM, cfg.exp)
 	// Create requests
 	req, _ := http.NewRequest(cfg.method, cfg.uri, nil)
-	auth.AuthTokenGetter = func() string {
-		return authToken
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
 	}
 	// Create Rest Token
 	restToken, err := auth.BuildRestToken(req)
@@ -168,8 +168,8 @@ func (s *TestAuthSuite) TestExpiredAuthToken(c *C) {
 	authToken, _, err := auth.CreateJWTIdentity(cfg.hostID, cfg.poolID, cfg.admin, cfg.dfs, s.delegatePubPEM, cfg.exp)
 	// Create requests
 	req, _ := http.NewRequest(cfg.method, cfg.uri, nil)
-	auth.AuthTokenGetter = func() string {
-		return authToken
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
 	}
 	// Create Rest Token
 	restToken, err := auth.BuildRestToken(req)
@@ -193,8 +193,8 @@ func (s *TestAuthSuite) TestTamperedAuthToken(c *C) {
 	authToken = authToken[:40] + "HOLA" + authToken[44:]
 	// Create requests
 	req, _ := http.NewRequest(cfg.method, cfg.uri, nil)
-	auth.AuthTokenGetter = func() string {
-		return authToken
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
 	}
 	// Create Rest Token
 	restToken, err := auth.BuildRestToken(req)

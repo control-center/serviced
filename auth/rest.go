@@ -23,12 +23,12 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-type AuthTokenRetriever func() string
+type AuthTokenRetriever func() (string, error)
 
 var (
 	RequestDelimiter                       = " "
 	RestTokenExpiration                    = 10 * time.Second
-	AuthTokenGetter     AuthTokenRetriever = AuthToken
+	AuthTokenGetter     AuthTokenRetriever = AuthTokenNonBlocking
 )
 
 type RestToken interface {
@@ -93,7 +93,11 @@ func BuildRestToken(r *http.Request) (string, error) {
 	requestHash := GetRequestHash(r)
 	iat := now.Unix()
 	exp := now.Add(RestTokenExpiration).Unix()
-	claims := &jwtRestClaims{iat, exp, AuthTokenGetter(), requestHash}
+	authToken, err := AuthTokenGetter()
+	if err != nil {
+		return "", err
+	}
+	claims := &jwtRestClaims{iat, exp, authToken, requestHash}
 	restToken := jwt.NewWithClaims(jwt.SigningMethodPS256, claims)
 	delegatePrivKey, err := getDelegatePrivateKey()
 	if err != nil {
