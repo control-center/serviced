@@ -1098,35 +1098,49 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade_scheduleService"))
 	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
+
+	// Build a list of services to be scheduled
+	svcs := []service.Service{}
+	visitor := func(svc *service.Service) error {
+		svcs = append(svcs, *svc)
+		return nil
+	}
+	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
+	if err != nil {
+		glog.Errorf("Could not retrieve service(s) for scheduling %s: %s", serviceID, err)
+		return 0, err
+	}
+
 	if desiredState != service.SVCStop {
+		// Verify that all of the services are ready to be started
 		if desiredState.String() == "unknown" {
 			return 0, fmt.Errorf("desired state unknown")
 		}
-		if err := f.validateServiceSchedule(ctx, serviceID, autoLaunch); err != nil {
-			glog.Errorf("Could not validate service schedule for service %s: %s", serviceID, err)
-			return 0, err
+		for _, svc := range svcs {
+			if err := f.validateServiceStart(ctx, &svc); err != nil {
+				glog.Errorf("Service %s (%s) failed validation for start: %s", svc.Name, svc.ID, err)
+				return 0, err
+			}
 		}
 	}
-	// calculate the number of affected services
+
+	// Schedule the services, calculating the number of affected services as we go
 	affected := 0
-	visitor := func(svc *service.Service) error {
+	for _, svc := range svcs {
 		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
-			return nil
+			continue
 		} else if svc.DesiredState == int(desiredState) {
-			return nil
+			continue
 		}
 
-		err := f.scheduleOneService(ctx, tenantID, svc, desiredState)
+		err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
 		if err != nil {
-			return err
+			return affected, err
 		}
 
 		affected++
-		return nil
 	}
-
-	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
-	return affected, err
+	return affected, nil
 }
 
 func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
