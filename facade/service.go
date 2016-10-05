@@ -534,6 +534,21 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 	return nil
 }
 
+func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("SyncServiceRegistry"))
+	tenantID, err := f.GetTenantID(datastore.Get(), svc.ID)
+	if err != nil {
+		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	err = f.zzk.SyncServiceRegistry(tenantID, svc)
+	if err != nil {
+		glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
+}
+
 // validateServiceDeployment returns the services that will be deployed
 func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID string, sd *servicedefinition.ServiceDefinition) ([]service.Service, error) {
 	store := f.serviceStore

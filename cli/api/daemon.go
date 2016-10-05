@@ -946,8 +946,6 @@ func initMetricsClient() *metrics.Client {
 func (d *daemon) initFacade() *facade.Facade {
 	options := config.GetOptions()
 	f := facade.New()
-	zzk := facade.GetFacadeZZK(f)
-	f.SetZZK(zzk)
 	index := registry.NewRegistryIndexClient(f)
 	dfs := dfs.NewDistributedFilesystem(d.docker, index, d.reg, d.disk, d.net, time.Duration(options.MaxDFSTimeout)*time.Second)
 	dfs.SetTmp(os.Getenv("TMP"))
