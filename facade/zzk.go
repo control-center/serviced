@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -22,7 +23,7 @@ import (
 )
 
 type ZZK interface {
-	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
 	SyncServiceRegistry(tenantID string, svc *service.Service) error
 	RemoveService(poolID, serviceID string) error
 	RemoveServiceEndpoints(serviceID string) error

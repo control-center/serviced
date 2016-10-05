@@ -252,7 +252,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(tenantID, cursvc, false, false)
+			f.zzk.UpdateService(ctx, tenantID, cursvc, false, false)
 		}
 	}
 
@@ -412,7 +412,7 @@ func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, 
 		glog.Errorf("Could not get service %s to sync: %s", serviceID, err)
 		return err
 	}
-	if err := f.zzk.UpdateService(tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := f.zzk.UpdateService(ctx, tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s to the coordinator: %s", serviceID, err)
 		return err
 	}
@@ -1158,7 +1158,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 	if err := f.fillServiceAddr(ctx, svc); err != nil {
 		return err
 	}
-	if err := f.zzk.UpdateService(tenantID, svc, false, false); err != nil {
+	if err := f.zzk.UpdateService(ctx, tenantID, svc, false, false); err != nil {
 		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
 		return err
 	}
@@ -1258,22 +1258,34 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 }
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
+	ctx = datastore.GetNew()
+	ctx.Metrics().Enabled = true
+	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("StartService"))
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start("StartService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RestartService"))
+	ctx = datastore.GetNew()
+	ctx.Metrics().Enabled = true
+	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("RestartService"))
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start("RestartService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRestart)
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("PauseService"))
+	ctx = datastore.GetNew()
+	ctx.Metrics().Enabled = true
+	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("PauseService"))
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start("PauseService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCPause)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
+	ctx = datastore.GetNew()
+	ctx.Metrics().Enabled = true
+	defer ctx.Metrics().LogAndCleanUp(ctx.Metrics().Start("StopService"))
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
 }
 
