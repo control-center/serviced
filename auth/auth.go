@@ -54,6 +54,12 @@ var (
 	ErrNotAuthenticated = errors.New("No authentication token available")
 	// ErrBadToken is thrown when there is a problem extracting a token from a data stream (e.g. mux, rpc, etc)
 	ErrBadToken = errors.New("Could not extract token")
+	// ErrRestTokenExpired is thrown when an rest token is expired
+	ErrRestTokenExpired = errors.New("Rest token expired")
+	// ErrBadRestToken is throwbn when the rest token cant be extracted or parsed
+	ErrBadRestToken = errors.New("Invalid rest token")
+	// ErrRestTokenBadSig is thrown when a rest token has a bad signature
+	ErrRestTokenBadSig = errors.New("Rest token signature cannot be verified")
 
 	log    = logging.PackageLogger()
 	endian = binary.BigEndian

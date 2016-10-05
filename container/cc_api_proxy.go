@@ -21,7 +21,6 @@ package container
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -42,8 +41,11 @@ func newServicedApiProxy() *servicedApiProxy {
 	director := func(req *http.Request) {
 		req.URL.Scheme = "https"
 		req.URL.Host = "localhost:" + strconv.Itoa(ccApiPort)
-		token := auth.BuildRestToken(req)
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+		token, err := auth.BuildRestToken(req)
+		if err != nil {
+			plog.WithError(err).Info("Error building rest token")
+		}
+		auth.AddRestTokenToRequest(req, token)
 	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	transport := &http.Transport{TLSClientConfig: tlsConfig}

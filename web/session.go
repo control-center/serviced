@@ -126,16 +126,17 @@ func loginWithBasicAuthOK(r *rest.Request) bool {
 }
 
 func loginWithTokenOK(r *rest.Request, token string) bool {
-	validToken, err := auth.ValidateRestToken(r.Request, token)
+	restToken, err := auth.ParseRestToken(token)
+	//validToken, err := auth.ValidateRestToken(r.Request, token)
 	if err != nil {
-		msg := "Unable to parse auth token"
+		msg := "Unable to parse rest token"
 		plog.WithError(err).Info(msg)
 		return false
-	} else if !validToken {
-		msg := "Could not login with auth token. Expired token or source host without permissions."
-		plog.WithError(err).Info(msg)
+	} else if !restToken.HasAdminAccess() {
+		msg := "Could not login with rest token. Insufficient permissions."
+		plog.Info(msg)
 		return false
-	} else { // We have a valid token
+	} else {
 		return true
 	}
 }
