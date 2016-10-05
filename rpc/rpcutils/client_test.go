@@ -24,6 +24,7 @@ var (
 	rtt           *RPCTestType
 	rpcClient     Client
 	bareRpcClient *rpc.Client
+	serveCodec    = rpc.ServeCodec
 )
 
 type RPCTestType int
@@ -82,7 +83,7 @@ func (s *MySuite) SetUpSuite(c *C) {
 			if err != nil {
 				c.Errorf("Error accepting connections: %s", err)
 			}
-			go rpc.ServeCodec(NewDefaultAuthServerCodec(conn))
+			go serveCodec(NewDefaultAuthServerCodec(conn))
 		}
 	}()
 
@@ -100,6 +101,7 @@ func (s *MySuite) SetUpTest(c *C) {
 	if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
 		c.Errorf("Error getting master keys: %s", err)
 	}
+	serveCodec = rpc.ServeCodec
 }
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {
@@ -327,11 +329,22 @@ func (s *MySuite) TestNotAdmin(c *C) {
 
 // Test multiple calls on the same client to shake out race conditions
 func (s *MySuite) TestConcurrentClientCalls(c *C) {
+	// Replace rpc.ServeCodec with one that will insert a delay
+	serveCodec = func(c rpc.ServerCodec) {
+		time.Sleep(200 * time.Millisecond)
+		rpc.ServeCodec(c)
+	}
+
 	client, err := connectRPC("localhost:32111")
 	c.Assert(err, IsNil)
 
-	echoStrings := []string{"peanut", "butter", "jelly", "time"}
+	// We delay the server and then make 20 simultaneous calls on the same client
+	numCalls := 20
+	echoStrings := make([]string, numCalls)
 
+	for i := 0; i < numCalls; i++ {
+		echoStrings[i] = fmt.Sprintf("String%s", i)
+	}
 	wg := sync.WaitGroup{}
 	for _, s := range echoStrings {
 		wg.Add(1)
@@ -344,19 +357,5 @@ func (s *MySuite) TestConcurrentClientCalls(c *C) {
 		}(s)
 	}
 
-	// Don't wait more than 10 seconds for these to complete
-	doneChan := make(chan int)
-	go func() {
-		wg.Wait()
-		close(doneChan)
-	}()
-
-	timeout := 10 * time.Second
-	timeoutChan := time.After(timeout)
-	select {
-	case <-doneChan:
-		break
-	case <-timeoutChan:
-		c.Fatalf("Timeout waiting for concurrent RPC calls to complete after %d seconds\n", timeout/time.Second)
-	}
+	wg.Wait()
 }
