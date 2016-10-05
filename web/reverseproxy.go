@@ -33,7 +33,8 @@ var rpcache = &ReverseProxyCache{
 
 // ReverseProxyKey is the hash key to identify an instantiated reverse proxy
 type ReverseProxyKey struct {
-	Address string
+	HostAddress string
+	PrivateAddress string
 	UseTLS  bool
 }
 
@@ -44,11 +45,12 @@ type ReverseProxyCache struct {
 }
 
 // Get retrieves a reverse proxy from the cache
-func (cache *ReverseProxyCache) Get(address string, useTLS bool) (*httputil.ReverseProxy, bool) {
+func (cache *ReverseProxyCache) Get(hostAddress, privateAddress string, useTLS bool) (*httputil.ReverseProxy, bool) {
 	cache.mu.RLock()
 	defer cache.mu.RUnlock()
 	key := ReverseProxyKey{
-		Address: address,
+		HostAddress: hostAddress,
+		PrivateAddress: privateAddress,
 		UseTLS:  useTLS,
 	}
 	rp, ok := cache.data[key]
@@ -56,11 +58,12 @@ func (cache *ReverseProxyCache) Get(address string, useTLS bool) (*httputil.Reve
 }
 
 // Set sets an instantiated reverse proxy
-func (cache *ReverseProxyCache) Set(address string, useTLS bool, rp *httputil.ReverseProxy) {
+func (cache *ReverseProxyCache) Set(hostAddress, privateAddress string, useTLS bool, rp *httputil.ReverseProxy) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	key := ReverseProxyKey{
-		Address: address,
+		HostAddress: hostAddress,
+		PrivateAddress: privateAddress,
 		UseTLS:  useTLS,
 	}
 	cache.data[key] = rp
@@ -70,18 +73,20 @@ func (cache *ReverseProxyCache) Set(address string, useTLS bool, rp *httputil.Re
 // creates it if it is not found.
 func GetReverseProxy(useTLS bool, export *registry.ExportDetails) *httputil.ReverseProxy {
 	remoteAddress := ""
+	hostAddress := fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
+	privateAddress := fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
 
 	// Set the remote address based on whether the container is running on this
 	// host.
 	if IsLocalAddress(export.HostIP) {
 		useTLS = false
-		remoteAddress = fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
+		remoteAddress = privateAddress
 	} else {
-		remoteAddress = fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
+		remoteAddress = hostAddress
 	}
 
 	// Look up the reverse proxy in the cache and return it if it exists.
-	rp, ok := rpcache.Get(remoteAddress, useTLS)
+	rp, ok := rpcache.Get(hostAddress, privateAddress, useTLS)
 	if ok {
 		return rp
 	}
@@ -95,6 +100,6 @@ func GetReverseProxy(useTLS bool, export *registry.ExportDetails) *httputil.Reve
 	rp = httputil.NewSingleHostReverseProxy(&rpurl)
 	rp.Transport = transport
 	rp.FlushInterval = time.Millisecond * 10
-	rpcache.Set(remoteAddress, useTLS, rp)
+	rpcache.Set(hostAddress, privateAddress, useTLS, rp)
 	return rp
 }
