@@ -24,19 +24,17 @@ func (dfs *DistributedFilesystem) Delete(snapshotID string) error {
 		return err
 	}
 
-	// Delete the snapshot on the volume first, so we retain our internal
-	// snapshot entry (metadata.json) in the event of a failure on this step
-	if err := vol.RemoveSnapshot(snapshotID); err != nil {
-		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
-		return err
-	}
-
 	if info, err := vol.SnapshotInfo(snapshotID); err != volume.ErrInvalidSnapshot {
 		if err != nil {
 			return err
 		} else if err := dfs.deleteImages(info.TenantID, info.Label); err != nil {
 			return err
 		}
+	}
+
+	if err := vol.RemoveSnapshot(snapshotID); err != nil {
+		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
+		return err
 	}
 
 	return nil
