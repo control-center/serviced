@@ -47,6 +47,16 @@ type IPAssignment struct {
 	Ports       []uint16
 }
 
+// ExportedEndpoint is a minimal service object that describes exported
+// endpoints for a service.
+// NOTE: Could add booleans for ip assignment, vhost, and ports
+type ExportedEndpoint struct {
+	ServiceID   string
+	ServiceName string
+	Application string
+	Protocol    string
+}
+
 // Config displays the most basic information about a service config file
 type Config struct {
 	ID       string
