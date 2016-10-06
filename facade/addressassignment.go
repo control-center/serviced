@@ -94,14 +94,11 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc s
 				}
 			}
 
-			// Append the port
-			addr.Ports = append(addr.Ports, ep.AddressConfig.Port)
+			// Append a new record for the port
+			addr.Port = ep.AddressConfig.Port
+			addrs = append(addrs, addr)
 			logger.WithField("port", ep.AddressConfig.Port).Debug("Added port")
 		}
-	}
-
-	if len(addr.Ports) > 0 {
-		addrs = append(addrs, addr)
 	}
 
 	if children {

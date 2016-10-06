@@ -29,8 +29,8 @@ type PublicEndpoint struct {
 	ServiceName string
 	Application string
 	Protocol    string
-	VHostName   string
-	PortAddress string
+	VHostName   string `json:",omitempty"`
+	PortAddress string `json:",omitempty"`
 	Enabled     bool
 }
 
@@ -44,7 +44,17 @@ type IPAssignment struct {
 	HostName    string
 	Type        string
 	IPAddress   string
-	Ports       []uint16
+	Port        uint16
+}
+
+// ExportedEndpoint is a minimal service object that describes exported
+// endpoints for a service.
+// NOTE: Could add booleans for ip assignment, vhost, and ports
+type ExportedEndpoint struct {
+	ServiceID   string
+	ServiceName string
+	Application string
+	Protocol    string
 }
 
 // Config displays the most basic information about a service config file
