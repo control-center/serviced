@@ -14,6 +14,7 @@
 package rpcutils
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -22,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/control-center/serviced/auth"
+	"github.com/control-center/serviced/logging"
 )
 
 var (
@@ -47,13 +49,17 @@ var (
 	}
 	endian = binary.BigEndian
 
-	ErrReadingHeader = errors.New("Unable to parse header from RPC request")
-	ErrWritingHeader = errors.New("Unable to write RPC auth header")
+	ErrWritingLength = errors.New("Wrote too few bytes for message length")
+	ErrWritingBody   = errors.New("Wrote too few bytes for message body")
+	ErrReadingLength = errors.New("Read too few bytes for message length")
+	ErrReadingBody   = errors.New("Read too few bytes for message body")
 	ErrNoAdmin       = errors.New("Delegate does not have admin access")
+
+	log = logging.PackageLogger()
 )
 
 const (
-	HEADER_LEN_BYTES = 4
+	LEN_BYTES = 4
 )
 
 // Checks the RPC method name to see if authentication is required.
@@ -75,23 +81,102 @@ func requiresAdmin(callName string) bool {
 	return !ok
 }
 
+// Convenience methods for Reading/Writing data in the format [LENGTH|DATA]
+func WriteLengthAndBytes(b []byte, writer io.Writer) error {
+	// write length
+	var bLen uint32 = uint32(len(b))
+	bLenBuf := make([]byte, LEN_BYTES)
+	endian.PutUint32(bLenBuf, bLen)
+
+	n, err := writer.Write(bLenBuf)
+	if err != nil {
+		return err
+	}
+	if n != LEN_BYTES {
+		return ErrWritingLength
+	}
+
+	n, err = writer.Write(b)
+	if err != nil {
+		return err
+	}
+	if uint32(n) != bLen {
+		return ErrWritingBody
+	}
+
+	return nil
+}
+
+func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
+	// Read the length of the data
+	bLenBuf := make([]byte, LEN_BYTES)
+	n, err := io.ReadFull(reader, bLenBuf)
+	if err != nil {
+		return nil, err
+	}
+	if n != LEN_BYTES {
+		return nil, ErrReadingLength
+	}
+
+	bLength := endian.Uint32(bLenBuf)
+
+	// Now read the data
+	var b []byte
+	if bLength > 0 {
+		b = make([]byte, bLength)
+		n, err = io.ReadFull(reader, b)
+		if err != nil {
+			return nil, err
+		}
+		if uint32(n) != bLength {
+			return nil, ErrReadingBody
+		}
+	}
+
+	return b, nil
+}
+
+// We nead a ReadWriteCloser that we can pass to the underlying codec and use
+//  To buffer requests and responses from the actual connection
+type ByteBufferReadWriteCloser struct {
+	ReadBuff  bytes.Buffer // Reads will happen from this buffer
+	WriteBuff bytes.Buffer // Writes will happen to this buffer
+}
+
+func (b *ByteBufferReadWriteCloser) Read(p []byte) (int, error) {
+	return b.ReadBuff.Read(p)
+}
+
+func (b *ByteBufferReadWriteCloser) Write(p []byte) (int, error) {
+	return b.WriteBuff.Write(p)
+}
+
+func (b *ByteBufferReadWriteCloser) Close() error {
+	return nil
+}
+
+type ServerCodecCreator func(io.ReadWriteCloser) rpc.ServerCodec
+
 // Server Codec
 type AuthServerCodec struct {
 	conn         io.ReadWriteCloser
+	buff         *ByteBufferReadWriteCloser
 	wrappedcodec rpc.ServerCodec
 	parser       auth.RPCHeaderParser
-	mutex        sync.Mutex // Makes sure we read in order
+	wBuffMutex   sync.Mutex // Make sure we buffer one response at a time
 	lastError    error
 }
 
 func NewDefaultAuthServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return NewAuthServerCodec(conn, jsonrpc.NewServerCodec(conn), &auth.RPCHeaderHandler{})
+	return NewAuthServerCodec(conn, jsonrpc.NewServerCodec, &auth.RPCHeaderHandler{})
 }
 
-func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, parser auth.RPCHeaderParser) rpc.ServerCodec {
+func NewAuthServerCodec(conn io.ReadWriteCloser, createCodec ServerCodecCreator, parser auth.RPCHeaderParser) rpc.ServerCodec {
+	buff := &ByteBufferReadWriteCloser{}
 	return &AuthServerCodec{
 		conn:         conn,
-		wrappedcodec: codecToWrap,
+		buff:         buff,
+		wrappedcodec: createCodec(buff),
 		parser:       parser,
 	}
 }
@@ -101,44 +186,43 @@ func NewAuthServerCodec(conn io.ReadWriteCloser, codecToWrap rpc.ServerCodec, pa
 //  lets the underlying codec read the rest.
 //  Finally, it validates the identity if necessary.
 func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
+
+	// There is no need for synchronization here, since go's RPC server
+	//  ensures that requests are read one-at-a-time
+
 	// Reset state
 	a.lastError = nil
-
-	// Lock so we read both values back-to-back
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
+	a.buff.ReadBuff.Reset()
 
 	// Read the header
-
-	// Read the first HEADER_LEN_BYTES bytes to get the length of the header
-	headerLenBuf := make([]byte, HEADER_LEN_BYTES)
-	n, err := a.conn.Read(headerLenBuf)
+	header, err := ReadLengthAndBytes(a.conn)
 	if err != nil {
+		if err != io.EOF {
+			log.WithError(err).Errorf("Error reading authentication header")
+		}
 		return err
 	}
-	if n != HEADER_LEN_BYTES {
-		return ErrReadingHeader
+
+	// Read the rest of the request
+	body, err := ReadLengthAndBytes(a.conn)
+	if err != nil {
+		log.WithError(err).Errorf("Error reading RPC request")
+		return err
 	}
 
-	headerLength := endian.Uint32(headerLenBuf)
-
-	// Now read the header
-	var header []byte
-	if headerLength > 0 {
-		header = make([]byte, headerLength)
-		n, err = a.conn.Read(header)
-		if err != nil {
-			return err
-		}
-		if uint32(n) != headerLength {
-			return ErrReadingHeader
-		}
+	// Now write the actual request to the buffer
+	if _, err = a.buff.ReadBuff.Write(body); err != nil {
+		log.WithError(err).Errorf("Error buffering RPC request")
+		return err
 	}
 
-	// Now let the underlying codec read the rest
+	// Let the underlying codec read the request from the buffer and parse it
 	if err := a.wrappedcodec.ReadRequestHeader(r); err != nil {
+		log.WithError(err).Errorf("Error parsing RPC request")
 		return err
 	}
+
+	log.WithField("ServiceMethod", r.ServiceMethod).Debugf("Received RPC request")
 
 	// Now we can get the method name from r and authenticate if required
 	//  If this fails, save the error to return later
@@ -146,10 +230,12 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	//  This is safe because go's rpc server always calls ReadRequestHeader and ReadRequestBody back-to-back
 	//   (unless ReadRequestHeader returns an error)
 	if requiresAuthentication(r.ServiceMethod) {
-		ident, err := a.parser.ParseHeader(header, r)
+		ident, err := a.parser.ParseHeader(header, body)
 		if err != nil {
+			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Could not authenticate RPC request")
 			a.lastError = err
 		} else if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
+			log.WithField("ServiceMethod", r.ServiceMethod).Errorf("Received unauthorized RPC request")
 			a.lastError = ErrNoAdmin
 		}
 
@@ -164,6 +250,7 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 //  This always gets called after ReadRequestHeader
 func (a *AuthServerCodec) ReadRequestBody(body interface{}) error {
 	if a.lastError != nil {
+		log.WithError(a.lastError).Errorf("Rejecting RPC request due to authentication error")
 		return a.lastError
 	}
 	// TODO: Use reflection and add the identity to the body if necessary
@@ -173,31 +260,64 @@ func (a *AuthServerCodec) ReadRequestBody(body interface{}) error {
 //  Encodes the response before sending it back down to the client.
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthServerCodec) WriteResponse(r *rpc.Response, body interface{}) error {
-	return a.wrappedcodec.WriteResponse(r, body)
+	// We do need a lock here, because the ServerCodec interface specifies
+	//  that WriteResponse must be safe for concurrent use by multiple goroutines
+	a.wBuffMutex.Lock()
+	defer a.wBuffMutex.Unlock()
+
+	a.buff.WriteBuff.Reset()
+
+	// Let the underlying codec write the response to the buffer
+	if err := a.wrappedcodec.WriteResponse(r, body); err != nil {
+		log.WithError(err).Errorf("Error encoding RPC response")
+		return err
+	}
+
+	// Get the response from the buffer and write it to the actual connection
+	response := a.buff.WriteBuff.Bytes()
+	if err := WriteLengthAndBytes(response, a.conn); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending RPC response")
+		return err
+	}
+
+	return nil
 }
 
 // Closes the connection on the server side
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthServerCodec) Close() error {
-	return a.wrappedcodec.Close()
+	var err error
+	if err = a.wrappedcodec.Close(); err != nil {
+		log.WithError(err).Errorf("Error closing wrapped RPC client codec")
+	}
+	if ourErr := a.conn.Close(); ourErr != nil {
+		log.WithError(ourErr).Errorf("Error closing RPC client connection")
+		// This error is probably more important
+		err = ourErr
+	}
+	return err
 }
 
 // Client Codec
+type ClientCodecCreator func(io.ReadWriteCloser) rpc.ClientCodec
 type AuthClientCodec struct {
 	conn          io.ReadWriteCloser
+	buff          *ByteBufferReadWriteCloser
 	wrappedcodec  rpc.ClientCodec
 	headerBuilder auth.RPCHeaderBuilder
-	mutex         sync.Mutex
+	wBuffMutex    sync.Mutex // Make sure we buffer a whole request before starting the next one
 }
 
 func NewDefaultAuthClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
-	return NewAuthClientCodec(conn, jsonrpc.NewClientCodec(conn), &auth.RPCHeaderHandler{})
+	return NewAuthClientCodec(conn, jsonrpc.NewClientCodec, &auth.RPCHeaderHandler{})
 }
 
-func NewAuthClientCodec(conn io.ReadWriteCloser, codecToWrap rpc.ClientCodec, headerBuilder auth.RPCHeaderBuilder) rpc.ClientCodec {
+func NewAuthClientCodec(conn io.ReadWriteCloser, createCodec ClientCodecCreator, headerBuilder auth.RPCHeaderBuilder) rpc.ClientCodec {
+	buff := &ByteBufferReadWriteCloser{}
 	return &AuthClientCodec{
 		conn:          conn,
-		wrappedcodec:  codecToWrap,
+		buff:          buff,
+		wrappedcodec:  createCodec(buff),
 		headerBuilder: headerBuilder,
 	}
 }
@@ -211,40 +331,37 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 		err    error
 	)
 
+	// Lock to ensure we write the header and the rest of the request back-to-back
+	//  This method may be called by multiple goroutines concurrently
+	a.wBuffMutex.Lock()
+	defer a.wBuffMutex.Unlock()
+	a.buff.WriteBuff.Reset()
+
+	// Let the underlying codec write the request to the buffer
+	if err := a.wrappedcodec.WriteRequest(r, body); err != nil {
+		return err
+	}
+
+	// Get the request off the buffer
+	request := a.buff.WriteBuff.Bytes()
+
 	if requiresAuthentication(r.ServiceMethod) {
-		header, err = a.headerBuilder.BuildHeader(r)
+		header, err = a.headerBuilder.BuildHeader(request)
 		if err != nil {
+			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error building authentication header")
 			return err
 		}
 	}
 
-	// add header length
-	var headerLen uint32 = uint32(len(header))
-	headerLenBuf := make([]byte, HEADER_LEN_BYTES)
-	endian.PutUint32(headerLenBuf, headerLen)
-
-	// Lock to ensure we write the header and the rest of the request back-to-back
-	a.mutex.Lock()
-	defer a.mutex.Unlock()
-
-	n, err := a.conn.Write(headerLenBuf)
-	if err != nil {
+	// Write the header (may be empty)
+	if err = WriteLengthAndBytes(header, a.conn); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending authentication header")
 		return err
 	}
-	if n != HEADER_LEN_BYTES {
-		return ErrWritingHeader
-	}
 
-	n, err = a.conn.Write(header)
-	if err != nil {
-		return err
-	}
-	if uint32(n) != headerLen {
-		return ErrWritingHeader
-	}
-
-	// let the underlying codec write the rest of the request
-	if err := a.wrappedcodec.WriteRequest(r, body); err != nil {
+	// Write the rest of the request
+	if err = WriteLengthAndBytes(request, a.conn); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending rpc request")
 		return err
 	}
 
@@ -254,6 +371,26 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 // Decodes the response and reads the header, building the rpc.Response object
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
+
+	// No need for synchronization here, Go's RPC Client makes sure only
+	//  One response is read at a time.
+
+	a.buff.ReadBuff.Reset()
+
+	// Read the response from the connection
+	response, err := ReadLengthAndBytes(a.conn)
+	if err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error reading RPC response")
+		return err
+	}
+
+	// Write the response to the buffer
+	if _, err = a.buff.ReadBuff.Write(response); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error buffering RPC response")
+		return err
+	}
+
+	// Let the underlying codec read and parse the response from the buffer
 	return a.wrappedcodec.ReadResponseHeader(r)
 }
 
@@ -266,7 +403,16 @@ func (a *AuthClientCodec) ReadResponseBody(body interface{}) error {
 // Closes the connection on the client side
 //  We don't change anything here, just let the underlying codec handle it.
 func (a *AuthClientCodec) Close() error {
-	return a.wrappedcodec.Close()
+	var err error
+	if err = a.wrappedcodec.Close(); err != nil {
+		log.WithError(err).Errorf("Error closing wrapped RPC client codec")
+	}
+	if ourErr := a.conn.Close(); ourErr != nil {
+		log.WithError(ourErr).Errorf("Error closing RPC client connection")
+		// This error is more important
+		err = ourErr
+	}
+	return err
 }
 
 // NewDefaultAuthClient returns a new rpc.Client that uses our default client codec
