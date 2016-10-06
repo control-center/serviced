@@ -1908,6 +1908,59 @@ func (f *Facade) GetServiceMonitoringProfile(ctx datastore.Context, serviceID st
 	return &svc.MonitoringProfile, nil
 }
 
+// GetServiceExportedEndpoints returns all the exported endpoints for a service
+// and its children if enabled.
+func (f *Facade) GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceExportedEndpoints"))
+	svc, err := f.serviceStore.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	eps := f.getServiceExportedEndpoints(*svc)
+
+	if children {
+		var set func(serviceID string) error
+
+		set = func(serviceID string) error {
+			svcs, err := f.serviceStore.GetChildServices(ctx, serviceID)
+			if err != nil {
+				return err
+			}
+
+			for _, svc := range svcs {
+				eps = append(eps, f.getServiceExportedEndpoints(svc)...)
+				if err := set(svc.ID); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		if err := set(serviceID); err != nil {
+			return nil, err
+		}
+	}
+
+	return eps, nil
+}
+
+func (f *Facade) getServiceExportedEndpoints(svc service.Service) []service.ExportedEndpoint {
+	eps := []service.ExportedEndpoint{}
+
+	for _, ep := range svc.Endpoints {
+		if ep.Purpose == "export" {
+			eps = append(eps, service.ExportedEndpoint{
+				ServiceID:   svc.ID,
+				ServiceName: svc.Name,
+				Application: ep.Application,
+				Protocol:    ep.Protocol,
+			})
+		}
+	}
+
+	return eps
+}
+
 // GetServicePublicEndpoints returns all the endpoints for a service and its
 // children if enabled.
 func (f *Facade) GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error) {
