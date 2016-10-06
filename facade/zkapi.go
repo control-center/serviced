@@ -723,6 +723,17 @@ func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest,
 	return zks.GetServiceStateIDs(conn, poolID, serviceID)
 }
 
+func (ck *zkf) GetServiceNodes() ([]zks.ServiceNode, error) {
+	// get the root-based connection to look up the service nodes
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		plog.WithError(err).Debug("Could not acquire root-based connection")
+		return nil, err
+	}
+
+	return zks.GetServiceNodes(conn)
+}
+
 func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zk.SyncServiceRegistry")))
 	logger := plog.WithFields(log.Fields{
