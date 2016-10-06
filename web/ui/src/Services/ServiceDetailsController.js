@@ -991,25 +991,7 @@
                 };
 
                 $scope.setCurrentTreeState = function () {
-                    // create an entry in tree state for the current service
-                    if (!($scope.currentService.id in $scope.serviceTreeState)) {
                         $scope.serviceTreeState[$scope.currentService.id] = {};
-                    }
-                    var treeState = $scope.serviceTreeState[$scope.currentService.id];
-
-                    // initialize services as collapsed
-                    if ($scope.subservices) {
-                        $scope.subservices.forEach(svc => {
-                            if (!treeState[svc.id]) {
-                                console.log(`setting serviceTreeState[${svc.id}] to collapsed`);
-                                treeState[svc.id] = {
-                                    hidden: false,
-                                    collapsed: true
-                                };
-                            }
-                        });
-                    }
-                    $scope.serviceTreeState[$scope.currentService.id] = treeState;
                 };
 
                 $scope.flattenServicesTree = function () {

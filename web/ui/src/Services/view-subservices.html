@@ -149,7 +149,7 @@
             <tr ng-repeat="row in $data" data-id="{{row.service.id}}" ng-hide="currentTreeState[row.service.id].hidden">
               <td data-title="'label_service'|translate" style="overflow: hidden; white-space: nowrap;">
                 <span ng-style="calculateIndent(row.depth)"></span>
-                <span ng-if="row.service.model.HasChildren" ng-click="toggleChildren(row.service)" class="table-collapse glyphicon" ng-class="row.collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
+                <span ng-if="row.service.model.HasChildren" ng-click="toggleChildren(row.service)" class="table-collapse glyphicon" ng-class="currentTreeState[row.service.id].collapsed ? 'glyphicon-chevron-right' : 'glyphicon-chevron-down'"></span>
                 <span ng-if="!row.service.model.HasChildren" ng-style="indent(1)"></span>
                 <a href="#/services/{{row.service.id}}" ng-click="routeToService(row.service.id, $event)" class="link">
                     {{row.service.name}}
