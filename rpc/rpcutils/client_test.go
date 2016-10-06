@@ -64,8 +64,8 @@ func (s *MySuite) SetUpSuite(c *C) {
 	NonAuthenticatingCalls = []string{
 		"RPCTestType.NonAuthenticatingCall",
 	}
-	NonAdminRequiredCalls = []string{
-		"RPCTestType.NonAdminRequiredCall",
+	NonAdminRequiredCalls = map[string]struct{}{
+		"RPCTestType.NonAdminRequiredCall": struct{}{},
 	}
 	rtt = new(RPCTestType)
 	RegisterLocal("RPCTestType", rtt)
