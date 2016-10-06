@@ -541,7 +541,7 @@ func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service
 		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-	err = f.zzk.SyncServiceRegistry(tenantID, svc)
+	err = f.zzk.SyncServiceRegistry(ctx, tenantID, svc)
 	if err != nil {
 		glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
@@ -1144,7 +1144,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 }
 
 func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("validateServiceStart"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("scheduleOneService"))
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances

@@ -49,8 +49,8 @@ func getLocalConnection(ctx datastore.Context, path string) (client.Connection, 
 }
 
 func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zk.syncServiceRegistry")))
-	return zk.SyncServiceRegistry(tenantID, svc)
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.syncServiceRegistry")))
+	return zk.SyncServiceRegistry(ctx, tenantID, svc)
 }
 
 func updateService(ctx datastore.Context, poolconn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
@@ -58,11 +58,16 @@ func updateService(ctx datastore.Context, poolconn client.Connection, svc servic
 	return zks.UpdateService(poolconn, svc, setLockOnCreate, setLockOnUpdate)
 }
 
+func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request ServiceRegistrySyncRequest) error{
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zkr.SyncServiceRegistry")))
+	return zkr.SyncServiceRegistry(conn, request);
+}
+
 // UpdateService updates the service object and exposed public endpoints that
 // are synced in zookeeper.
 // TODO: we may want to combine these calls into a single transaction
 func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk_UpdateService")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.UpdateService")))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,
@@ -722,7 +727,8 @@ func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest,
 	return zks.GetServiceStateIDs(conn, poolID, serviceID)
 }
 
-func (zk *zkf) SyncServiceRegistry(tenantID string, svc *service.Service) error {
+func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zk.SyncServiceRegistry")))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,
@@ -731,7 +737,7 @@ func (zk *zkf) SyncServiceRegistry(tenantID string, svc *service.Service) error 
 	})
 
 	// get the root-based connection to update the service's endpoints
-	rootconn, err := zzk.GetLocalConnection("/")
+	rootconn, err := getLocalConnection(ctx, "/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
 		return err
@@ -749,7 +755,8 @@ func (zk *zkf) SyncServiceRegistry(tenantID string, svc *service.Service) error 
 
 	// sync the registry
 	syncRequest := zk.svcRegistry.BuildSyncRequest(tenantID, svc)
-	if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
+	//if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
+	if err := zkr_SyncServiceRegistry(ctx, rootconn, syncRequest); err != nil {
 		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
 		return err
 	}
