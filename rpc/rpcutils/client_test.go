@@ -20,16 +20,27 @@ func Test(t *testing.T) { TestingT(t) }
 type MySuite struct{}
 
 var (
-	_             = Suite(&MySuite{})
-	rtt           *RPCTestType
-	rpcClient     Client
-	bareRpcClient *rpc.Client
-	serveCodec    = rpc.ServeCodec
+	_                   = Suite(&MySuite{})
+	rtt                 *RPCTestType
+	rpcClient           Client
+	bareRpcClient       *rpc.Client
+	serveCodec          = rpc.ServeCodec
+	serveCodecMutex     sync.RWMutex
+	unlockingSleepMutex sync.Mutex
 )
 
 type RPCTestType int
 
 func (rtt *RPCTestType) Sleep(sleep time.Duration, reply *time.Duration) error {
+	time.Sleep(sleep)
+	*reply = sleep
+	return nil
+}
+
+// Unlocks the unlockingSleepMutex at the start of the method, be sure you have
+//  Locked it before calling this one
+func (rtt *RPCTestType) UnlockingSleep(sleep time.Duration, reply *time.Duration) error {
+	unlockingSleepMutex.Unlock()
 	time.Sleep(sleep)
 	*reply = sleep
 	return nil
@@ -83,7 +94,9 @@ func (s *MySuite) SetUpSuite(c *C) {
 			if err != nil {
 				c.Errorf("Error accepting connections: %s", err)
 			}
+			serveCodecMutex.RLock()
 			go serveCodec(NewDefaultAuthServerCodec(conn))
+			serveCodecMutex.RUnlock()
 		}
 	}()
 
@@ -101,6 +114,8 @@ func (s *MySuite) SetUpTest(c *C) {
 	if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
 		c.Errorf("Error getting master keys: %s", err)
 	}
+	serveCodecMutex.Lock()
+	defer serveCodecMutex.Unlock()
 	serveCodec = rpc.ServeCodec
 }
 
@@ -112,19 +127,20 @@ func (s *MySuite) TestConcurrentTimeout(c *C) {
 	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	c.Assert(err, IsNil)
 
+	unlockingSleepMutex.Lock()
 	go func() {
 		var reply time.Duration
 		// Sleep, timeout after two. Shouldn't error.
-		err := client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*sleepTime)
+		err := client.Call("RPCTestType.UnlockingSleep", sleepTime, &reply, 2*sleepTime)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, sleepTime)
 	}()
-	// Sleep for a short time to make sure the above call gets started first
-	time.Sleep(sleepTime / 2)
+	// Wait until previous RPC call has started
+	unlockingSleepMutex.Lock()
 
 	var reply time.Duration
 	// should time out wating for client
-	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, sleepTime/2)
+	err = client.Call("RPCTestType.UnlockingSleep", sleepTime, &reply, sleepTime/2)
 	c.Assert(err, Equals, pool.ErrItemUnavailable)
 }
 
@@ -331,10 +347,12 @@ func (s *MySuite) TestNotAdmin(c *C) {
 // Test multiple calls on the same client to shake out race conditions
 func (s *MySuite) TestConcurrentClientCalls(c *C) {
 	// Replace rpc.ServeCodec with one that will insert a delay
+	serveCodecMutex.Lock()
 	serveCodec = func(c rpc.ServerCodec) {
 		time.Sleep(200 * time.Millisecond)
 		rpc.ServeCodec(c)
 	}
+	serveCodecMutex.Unlock()
 
 	client, err := connectRPC("localhost:32111")
 	c.Assert(err, IsNil)
