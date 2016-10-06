@@ -54,7 +54,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetISvcEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
@@ -72,14 +72,7 @@ func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response
 		"instanceID": request.InstanceID,
 	})
 
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		logger.WithField("master", a.master).WithError(err).Error("Could not connect to the master")
-		return err
-	}
-	defer masterClient.Close()
-
-	svc, tenantID, err := masterClient.GetEvaluatedService(request.ServiceID, request.InstanceID)
+	svc, tenantID, err := a.serviceCache.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return err

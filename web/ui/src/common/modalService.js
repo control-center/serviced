@@ -5,7 +5,9 @@
     angular.module('modalService', []).
     factory("$modalService", [
         "$rootScope", "$templateCache", "$http", "$interpolate", "$compile", "$translate", "$notification",
-        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification){
+        "miscUtils",
+        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
+        utils){
 
             var defaultModalTemplate = '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">\
                 <div class="modal-dialog {{bigModal}}">\
@@ -242,8 +244,54 @@
 
             }
 
+            let displayHostKeys = function(keys, name) {
+                let model = $rootScope.$new(true);
+                model.keys = keys;
+                model.name = name;
+
+                create({
+                    templateUrl: "display-host-keys.html",
+                    model: model,
+                    title: "Host Keys",
+                    actions: [
+                        {
+                            label: "Download Keys",
+                            action: function(){
+                                utils.downloadText(name + ".keys", keys);
+                            },
+                            icon: "glyphicon-download"
+                        },{
+                            role: "ok"
+                        }
+                    ],
+                    onShow: function(){
+                        // TODO - dont touch the DOM!
+                        let keysWrapEl = this.$el.find(".keys-wrap"),
+                            keysEl = keysWrapEl.find(".keys");
+                        keysWrapEl.on("click", e => {
+                            // TODO - if already selected, this deselects
+                            keysEl.select();
+                            try {
+                                let success = document.execCommand('copy');
+                                if(success){
+                                    this.createNotification("", "Keys copied to clipboard").info();
+                                } else {
+                                    this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                                }
+                            } catch(err) {
+                                this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                            }
+                        });
+                    }
+                });
+            };
+
             return {
-                create: create
+                create: create,
+                // some shared modals that anyone can enjoy!
+                modals: {
+                    displayHostKeys     
+                }
             };
 
         }

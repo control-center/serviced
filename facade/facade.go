@@ -51,6 +51,7 @@ func New() *Facade {
 		configStore:   serviceconfigfile.NewStore(),
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
+		serviceCache:  NewServiceCache(),
 	}
 }
 
@@ -69,6 +70,7 @@ type Facade struct {
 	dfs           dfs.DFS
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
+	serviceCache  *serviceCache
 
 	isvcsPath string
 }
@@ -78,6 +80,8 @@ func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
 
 func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
+
+func (f *Facade) SetHostkeyStore(store hostkey.Store) { f.hostkeyStore = store }
 
 func (f *Facade) SetRegistryStore(store registry.ImageRegistryStore) { f.registryStore = store }
 

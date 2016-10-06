@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -33,8 +34,8 @@ const (
 var (
 	delegateKeys HostKeys
 	masterKeys   MasterKeys
-
-	dKeyCond = &sync.Cond{L: &sync.Mutex{}}
+	mKeyLock     sync.RWMutex
+	dKeyCond     = utils.NewChannelCond()
 )
 
 type HostKeys struct {
@@ -82,8 +83,8 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 // SignAsDelegate signs the given message with the private key local
 // to the delegate running this process.
 func SignAsDelegate(message []byte) ([]byte, error) {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.localPrivate == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -93,6 +94,8 @@ func SignAsDelegate(message []byte) ([]byte, error) {
 // SignAsMaster signs the given message with the master's private key
 // will return an error if the delegate running this process is not the master
 func SignAsMaster(message []byte) ([]byte, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -102,33 +105,57 @@ func SignAsMaster(message []byte) ([]byte, error) {
 // VerifyMasterSignature verifies that a given message was signed by the master
 // whose public key we have.
 func VerifyMasterSignature(message, signature []byte) error {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	if err := verifyMasterSignatureAsMaster(message, signature); err != ErrNoPublicKey {
+		return err
+	}
+
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.masterPublic == nil {
-		if masterKeys.public == nil {
-			return ErrNoPublicKey
-		}
-		return masterKeys.Verify(message, signature)
+		return ErrNoPublicKey
 	}
 	return delegateKeys.Verify(message, signature)
 }
 
+func verifyMasterSignatureAsMaster(message, signature []byte) error {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
+	if masterKeys.public == nil {
+		return ErrNoPublicKey
+	}
+	return masterKeys.Verify(message, signature)
+
+}
+
 // GetMasterPublicKey() returns the public key of the master
-//  If the host keys have not been loaded yet, it checks to see if
-//  master keys have been loaded.  If neither exists, returns ErrNoPublicKey
+//  It first checks to see if we have a set of master keys (i.e. we are the master)
+//  It then checks the delegate keys.  If neither exists, returns ErrNoPublicKey
 func GetMasterPublicKey() (crypto.PublicKey, error) {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
+	// check the master keys first
+	if key, err := getMasterPublicKeyAsMaster(); err == nil {
+		return key, err
+	}
+
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.masterPublic == nil {
-		if masterKeys.public == nil {
-			return nil, ErrNoPublicKey
-		}
-		return masterKeys.public, nil
+		return nil, ErrNoPublicKey
 	}
 	return delegateKeys.masterPublic, nil
 }
 
+func getMasterPublicKeyAsMaster() (crypto.PublicKey, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
+	if masterKeys.public == nil {
+		return nil, ErrNoPublicKey
+	}
+	return masterKeys.public, nil
+}
+
 func getMasterPrivateKey() (crypto.PrivateKey, error) {
+	mKeyLock.RLock()
+	defer mKeyLock.RUnlock()
 	if masterKeys.private == nil {
 		return nil, ErrNoPrivateKey
 	}
@@ -147,6 +174,8 @@ func LoadDelegateKeysFromFile(filename string) error {
 
 // LoadMasterKeys sets the current master key pair to the one specified
 func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
+	mKeyLock.Lock()
+	defer mKeyLock.Unlock()
 	masterKeys = MasterKeys{public, private}
 }
 
@@ -172,6 +201,13 @@ func CreateOrLoadMasterKeys(filename string) error {
 		return err
 	}
 
+	return LoadMasterKeyFile(filename)
+}
+
+// LoadMasterKeyFile will load the master keys from disk if
+//  the file exists.  If the file does not exist, it will
+//  return an error
+func LoadMasterKeyFile(filename string) error {
 	publicKey, privateKey, err := LoadKeyPairFromFile(filename)
 	if err != nil {
 		return err
@@ -221,28 +257,42 @@ func LoadMasterKeysFromPEM(public, private []byte) error {
 		return err
 	}
 
+	mKeyLock.Lock()
+	defer mKeyLock.Unlock()
 	masterKeys = MasterKeys{pub, priv}
 	return nil
 }
 
 // ClearKeys wipes the current state
 func ClearKeys() {
+	mKeyLock.Lock()
 	masterKeys = MasterKeys{}
+	mKeyLock.Unlock()
 	updateDelegateKeys(nil, nil)
 }
 
 // WaitForDelegateKeys blocks until delegate keys are defined.
-func WaitForDelegateKeys() {
-	dKeyCond.L.Lock()
-	defer dKeyCond.L.Unlock()
-	for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
-		dKeyCond.Wait()
-	}
+func WaitForDelegateKeys(cancel <-chan interface{}) <-chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		for delegateKeys.localPrivate == nil || delegateKeys.masterPublic == nil {
+			select {
+			case <-dKeyCond.Wait():
+			case <-cancel: // Receive from nil channel never returns, so this is fine
+			}
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+func NotifyOnKeyChange() <-chan struct{} {
+	return dKeyCond.Wait()
 }
 
 // WatchDelegateKeyFile watches the delegate key file on the filesystem and
 // updates the internal delegate keys when changes are detected.
-func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
+func WatchDelegateKeyFile(filename string, cancel <-chan interface{}) error {
 	filename = filepath.Clean(filename)
 
 	log := log.WithFields(logrus.Fields{
@@ -271,8 +321,8 @@ func WatchDelegateKeyFile(filename string, cancel chan interface{}) error {
 }
 
 func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {
-	dKeyCond.L.Lock()
+	dKeyCond.Lock()
 	delegateKeys = HostKeys{pub, priv}
-	dKeyCond.L.Unlock()
+	dKeyCond.Unlock()
 	dKeyCond.Broadcast()
 }

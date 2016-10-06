@@ -132,6 +132,7 @@ def addHostUI(name, port, pool, commitment)
     fillInPort(port)
     fillInResourcePool(pool)
     fillInRAMLimit(commitment)
-    click_link_or_button("Add Host")
+    click_link_or_button("Next")
+    click_link_or_button("OK")
 end
 

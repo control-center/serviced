@@ -131,6 +131,9 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	if err != nil {
 		return err
 	}
+	if host == nil {
+		return errors.New("Host does not exist")
+	}
 	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, true, true, keypem, s.expiration)
 	if err != nil {
 		return err
@@ -142,6 +145,13 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 // Return host's public key
 func (s *Server) GetHostPublicKey(hostID string, key *[]byte) error {
 	publicKey, err := s.f.GetHostKey(s.context(), hostID)
+	*key = publicKey
+	return err
+}
+
+// Reset and return host's private key
+func (s *Server) ResetHostKey(hostID string, key *[]byte) error {
+	publicKey, err := s.f.ResetHostKey(s.context(), hostID)
 	*key = publicKey
 	return err
 }

@@ -15,8 +15,8 @@ package auth
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
+	"io"
 	"net"
 )
 
@@ -30,23 +30,14 @@ import (
    ---------------------------------------------------------------------------------------------------------
 */
 
+const (
+	ADDRESS_BYTES = 6
+)
+
 var (
-	endian           = binary.BigEndian
 	ErrBadMuxAddress = errors.New("Bad mux address")
 	ErrBadMuxHeader  = errors.New("Bad mux header")
-	ErrBadToken      = errors.New("Could not extract token")
 )
-
-const (
-	ADDRESS_BYTES   = 6
-	TOKEN_LEN_BYTES = 4
-	SIGNATURE_BYTES = 256
-)
-
-func BuildMuxHeader(address []byte) ([]byte, error) {
-	// get current host token
-	return BuildAuthMuxHeader(address, AuthToken())
-}
 
 func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {
 	if len(address) != ADDRESS_BYTES {
@@ -101,11 +92,11 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 
 	// Validate the token can be parsed
 	senderIdentity, err := ParseJWTIdentity(token)
-	if err != nil || senderIdentity == nil {
-		if err == nil || senderIdentity == nil {
-			err = ErrBadToken
-		}
+	if err != nil {
 		return errorExtractingHeader(err)
+	}
+	if senderIdentity == nil {
+		return errorExtractingHeader(ErrBadToken)
 	}
 
 	// Next six bytes is going to be the address
@@ -134,14 +125,14 @@ func ExtractMuxHeader(rawHeader []byte) ([]byte, Identity, error) {
 func ReadMuxHeader(conn net.Conn) ([]byte, error) {
 	// Read token Length
 	tokenLenBuff := make([]byte, TOKEN_LEN_BYTES)
-	_, err := conn.Read(tokenLenBuff)
+	_, err := io.ReadFull(conn, tokenLenBuff)
 	if err != nil {
 		return nil, err
 	}
 	tokenLen := endian.Uint32(tokenLenBuff)
 	// Read rest of the header
 	remainderBuff := make([]byte, tokenLen+ADDRESS_BYTES+SIGNATURE_BYTES)
-	_, err = conn.Read(remainderBuff)
+	_, err = io.ReadFull(conn, remainderBuff)
 	if err != nil {
 		return nil, err
 	}

@@ -121,15 +121,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 		"instanceid": instanceID,
 	})
 
-	// Establish a connection to the master
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
-		return nil, nil, err
-	}
-	defer masterClient.Close()
-
-	evaluatedService, tenantID, err := masterClient.GetEvaluatedService(serviceID, instanceID)
+	evaluatedService, tenantID, err := a.serviceCache.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return nil, nil, err
@@ -143,6 +135,14 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	}
 	// Update the service with the complete image name
 	evaluatedService.ImageID = imageName
+
+       // Establish a connection to the master
+       masterClient, err := master.NewClient(a.master)
+       if err != nil {
+               logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
+               return nil, nil, err
+       }
+       defer masterClient.Close()
 
 	// get the system user
 	systemUser, err := masterClient.GetSystemUser()

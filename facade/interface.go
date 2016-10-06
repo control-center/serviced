@@ -79,6 +79,8 @@ type FacadeInterface interface {
 
 	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
+	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
 	UpdateHost(ctx datastore.Context, entity *host.Host) error
@@ -130,6 +132,8 @@ type FacadeInterface interface {
 	GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error)
 
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
+	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 

@@ -15,10 +15,10 @@ package auth
 
 import (
 	"io/ioutil"
-	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -37,7 +37,7 @@ var (
 	currentIdentity Identity
 	zerotime        time.Time
 	expiration      time.Time
-	cond            = &sync.Cond{L: &sync.Mutex{}}
+	cond            = utils.NewChannelCond()
 )
 
 // TokenFunc is a function that can return an authentication token and its
@@ -58,20 +58,64 @@ func RefreshToken(f TokenFunc, filename string) (int64, error) {
 
 // AuthToken returns an unexpired auth token, blocking if necessary until
 // authenticated
-func AuthToken() string {
-	cond.L.Lock()
-	defer cond.L.Unlock()
-	for expired() {
-		cond.Wait()
+func AuthToken(cancel <-chan interface{}) <-chan string {
+	ch := make(chan string)
+	go func() {
+		defer close(ch)
+		for expired() {
+			select {
+			case <-cond.Wait():
+			case <-cancel:
+				return
+			}
+		}
+		ch <- currentToken
+	}()
+	return ch
+}
+
+// A non-blocking call to get an unexpired auth token.  Returns an error
+//  If no token exists or if the token is expired
+func AuthTokenNonBlocking() (string, error) {
+	cond.RLock()
+	defer cond.RUnlock()
+	if currentToken == "" {
+		return "", ErrNotAuthenticated
 	}
-	return currentToken
+
+	if expired() {
+		return "", ErrIdentityTokenExpired
+	}
+
+	return currentToken, nil
+}
+
+// MasterToken() generates a new token with an empty host and pool ID and the master's public key,
+//  signed by the master's private key.  This will return an error if there is no master private
+//  key available (i.e. if we are not the master)
+func MasterToken() (string, error) {
+	masterpublic, err := GetMasterPublicKey()
+	if err != nil {
+		return "", err
+	}
+	keypem, err := PEMFromRSAPublicKey(masterpublic, nil)
+	if err != nil {
+		return "", err
+	}
+
+	signed, _, err := CreateJWTIdentity("", "", true, true, keypem, time.Hour)
+	if err != nil {
+		return "", err
+	}
+
+	return signed, nil
 }
 
 // CurrentIdentity returns the identity represented by the currently-live token,
 // or nil if the token is not yet available
 func CurrentIdentity() Identity {
-	cond.L.Lock()
-	defer cond.L.Unlock()
+	cond.RLock()
+	defer cond.RUnlock()
 	return currentIdentity
 }
 
@@ -98,6 +142,7 @@ func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
 		case <-done:
 			return
 		case <-time.After(refresh):
+		case <-NotifyOnKeyChange():
 		}
 	}
 }
@@ -133,6 +178,16 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	return nil
 }
 
+// ClearToken wipes the current state
+func ClearToken() {
+	cond.Lock()
+	currentToken = ""
+	currentIdentity = nil
+	expiration = zerotime
+	cond.Unlock()
+	cond.Broadcast()
+}
+
 func now() time.Time {
 	return time.Now().UTC()
 }
@@ -152,15 +207,20 @@ func expired() bool {
 }
 
 func updateToken(token string, expires time.Time, filename string) {
-	WaitForDelegateKeys()
-	cond.L.Lock()
+	select {
+	case <-WaitForDelegateKeys(nil):
+	case <-time.After(1 * time.Second):
+		log.WithField("timeout", "1s").Error("No delegate keys were available to parse the token within the timeout")
+		return
+	}
+	cond.Lock()
 	currentToken = token
 	currentIdentity = getIdentityFromToken(token)
 	expiration = expires
 	if filename != "" {
-		ioutil.WriteFile(filename, []byte(token), 0600)
+		ioutil.WriteFile(filename, []byte(token), 0660)
 	}
-	cond.L.Unlock()
+	cond.Unlock()
 	cond.Broadcast()
 }
 

@@ -19,21 +19,8 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/auth"
-	jwt "github.com/dgrijalva/jwt-go"
 	. "gopkg.in/check.v1"
 )
-
-func at(t time.Time, f func()) {
-	defer func() {
-		jwt.TimeFunc = time.Now
-	}()
-
-	jwt.TimeFunc = func() time.Time {
-		return t
-	}
-
-	f()
-}
 
 func (s *TestAuthSuite) TestIdentityHappyPath(c *C) {
 	token, _, err := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
@@ -64,7 +51,7 @@ func (s *TestAuthSuite) TestExpiredToken(c *C) {
 	token, _, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	fakenow := time.Now().UTC().Add(time.Hour)
-	at(fakenow, func() {
+	auth.At(fakenow, func() {
 		_, err := auth.ParseJWTIdentity(token)
 		c.Assert(err, Equals, auth.ErrIdentityTokenExpired)
 	})
@@ -74,7 +61,7 @@ func (s *TestAuthSuite) TestEarlyToken(c *C) {
 	token, _, _ := auth.CreateJWTIdentity("host", "pool", true, false, s.delegatePubPEM, time.Minute)
 
 	fakenow := time.Unix(0, 0)
-	at(fakenow, func() {
+	auth.At(fakenow, func() {
 		_, err := auth.ParseJWTIdentity(token)
 		c.Assert(err, Equals, auth.ErrIdentityTokenNotValidYet)
 	})

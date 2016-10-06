@@ -59,15 +59,15 @@ func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) er
 	return a.rpcClient.Call("ControlCenterAgent.SendLogMessage", serviceLogInfo, nil, 0)
 }
 
-// GetServiceEndpoints returns a list of endpoints for the given service endpoint request.
-func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error {
-	glog.V(4).Infof("ControlCenterAgent.GetServiceEndpoints()")
-	return a.rpcClient.Call("ControlCenterAgent.GetServiceEndpoints", serviceId, endpoints, 0)
+// GetISvcEndpoints returns a list of controlplane endpoints for the given service endpoint request.
+func (a *LBClient) GetISvcEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error {
+	glog.V(4).Infof("ControlCenterAgent.GetISvcEndpoints()")
+	return a.rpcClient.Call("ControlCenterAgent.GetISvcEndpoints", serviceId, endpoints, 0)
 }
 
 // GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
 func (a *LBClient) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error {
-	glog.V(4).Infof("ControlCenterAgent.GetProxySnapshotQuiece()")
+	glog.V(4).Infof("ControlCenterAgent.GetEvaluatedService()")
 	return a.rpcClient.Call("ControlCenterAgent.GetEvaluatedService", request, response, 0)
 }
 
