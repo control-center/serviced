@@ -104,14 +104,15 @@
                 .then(() => {
                     // if Endpoints, iterate Endpoints
                     if (this.publicEndpoints) {
+//TODO: New call coming to get just exported endpoints
                         this.exportedServiceEndpoints = this.publicEndpoints.reduce((acc, endpoint) => {
                             // if this exports tcp, add it to our list.
                             if (endpoint.Purpose === "export" && endpoint.Protocol === "tcp") {
                                 acc.push({
-                                    Application: this.name,
+                                    Application: endpoint.ServiceName,
                                     ServiceEndpoint: endpoint.Application,
-                                    ApplicationId: this.id,
-                                    Value: this.name + " - " + endpoint.Application,
+                                    ApplicationId: endpoint.ServiceID,
+                                    Value: endpoint.ServiceName + " - " + endpoint.Application,
                                 });
                             }
                             return acc;
@@ -273,6 +274,16 @@
             // update service status
             this.desiredState = status.DesiredState;
 
+            // update public endpoints
+            if (this.publicEndpoints) {
+                this.publicEndpoints.forEach(ept => {
+                    if (ept.ServiceID === this.id) {
+                        ept.desiredState = this.desiredState;
+                    } else {
+                        console.log("Whose kid is this? Not mine!");
+                    }
+                });
+            }
             let statusMap = {};
             status.Status.forEach(s => statusMap[s.InstanceID] = s);
 

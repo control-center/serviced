@@ -323,7 +323,7 @@
                 };
 
                 $scope.indent = function (depth) {
-                    return { 'padding-left': (17 * depth) + "px" };
+                    return { 'padding-left': (34 * depth) + "px" };
                 };
 
                 // sets a service to start, stop or restart state
@@ -331,6 +331,10 @@
                     service[state](skipChildren).error(function (data, status) {
                         $notification.create("Unable to " + state + " service", data.Detail).error();
                     });
+                };
+
+                $scope.getEndpointType = function (endpoint) {
+                    return endpoint.VHostName ? "vhost" : "port";
                 };
 
                 // filters to be used when counting how many descendent
@@ -730,16 +734,16 @@
                     return LogSearch.getURL(appConfig, globalConfig);
                 };
 
-                $scope.cachedServiceStatuses = {};
+                // $scope.cachedServiceStatuses = {};
 
-                $scope.getServiceStatus = function (id) {
-                    if (!(id in $scope.cachedServiceStatuses)) {
-                        // returning object allows object property inspection
-                        // without throwing a null reference error
-                        $scope.cachedServiceStatuses[id] = {};
-                    }
-                    return $scope.cachedServiceStatuses[id];
-                };
+                // $scope.getServiceStatus = function (id) {
+                //     if (!(id in $scope.cachedServiceStatuses)) {
+                //         // returning object allows object property inspection
+                //         // without throwing a null reference error
+                //         $scope.cachedServiceStatuses[id] = {};
+                //     }
+                //     return $scope.cachedServiceStatuses[id];
+                // };
 
                 // grab default kibana search configs and adjust
                 // the query to look for this specific service instance
@@ -1151,12 +1155,12 @@
 
                             $scope.currentService.fetchAllStates();
 
-                            $scope.resourcesFactory.v2.getServiceStatuses(Object.keys($scope.cachedServiceStatuses))
-                                .then(response => {
-                                    response.forEach(svc => {
-                                        $scope.cachedServiceStatuses[svc.ServiceID] = svc;
-                                    });
-                                });
+                            // $scope.resourcesFactory.v2.getServiceStatuses(Object.keys($scope.cachedServiceStatuses))
+                            //     .then(response => {
+                            //         response.forEach(svc => {
+                            //             $scope.cachedServiceStatuses[svc.ServiceID] = svc;
+                            //         });
+                            //     });
 
                         }
                     }, 3000);

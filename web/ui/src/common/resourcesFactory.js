@@ -367,7 +367,7 @@
             },
             getServicePublicEndpoints: {
                 method: GET,
-                url: id => `/api/v2/services/${id}/publicendpoints`,
+                url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
             },
             getServices: {
                 method: GET,

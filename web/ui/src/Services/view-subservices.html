@@ -70,13 +70,12 @@
                   <a href="#/services/{{publicEndpoint.ServiceID}}" class="link" ng-click="routeToService(publicEndpoint.ServiceID, $event)">{{publicEndpoint.ServiceName}}</a>
               </td>
               <td data-title="'endpoint'|translate" sortable="'ServiceEndpoint'">{{publicEndpoint.Application}}</td>
-              <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{publicEndpoint.VHostName}}{{publicEndpoint.PortAddress}}</td>
+              <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{getEndpointType(publicEndpoint)}}</td>
               <td data-title="'public_endpoint_protocol'|translate">{{publicEndpoint.Protocol}}</td>
               <td data-title="'public_endpoint_url'|translate">
                   <public-endpoint-link 
                     data-public-endpoint="publicEndpoint" 
                     data-host-alias="defaultHostAlias"
-                    data-get-service-status="getServiceStatus"
                   ></public-endpoint-link>
               </td>
               <td data-title="'actions'|translate">

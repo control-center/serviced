@@ -15,21 +15,19 @@
             scope: {
                 publicEndpoint: "=",
                 state: "@",
-                hostAlias: "=",
-                getServiceStatus: "=",
+                hostAlias: "="
             },
             link: function ($scope, element, attrs){
                 let publicEndpoint = $scope.publicEndpoint;
-                let getServiceStatus = $scope.getServiceStatus;
 
                 // A method to return the displayed URL for an endpoint.
                 var getUrl = function(publicEndpoint){
                     // Form the url based on the endpoint properties.
                     var url = "";
-                    if ("ServiceName" in publicEndpoint){
+                    if ("VHostName" in publicEndpoint){
                         var port = $location.port() === "" || +$location.port() === 443 ? "" : ":" + $location.port();
-                        var host = publicEndpoint.ServiceName.indexOf('.') === -1 ?
-                            publicEndpoint.ServiceName + ".{{hostAlias}}" : publicEndpoint.ServiceName;
+                        var host = publicEndpoint.VHostName.indexOf('.') === -1 ?
+                            publicEndpoint.VHostName + ".{{hostAlias}}" : publicEndpoint.VHostName;
                         url = $location.protocol() + "://" + host + port;
                     } else if ("PortAddress" in publicEndpoint){
                         // Port public endpoint
@@ -55,9 +53,9 @@
                 };
                                                                                 
                 var isServiceRunning = function(id){
-                    var service = getServiceStatus(id);
                     // if not found, empty service object returned
-                    return service.desiredState === 1;
+                    // Service (Service.js) class adds its own desired state into the endpoint object
+                    return publicEndpoint.desiredState === 1;
                 };
                 
                 var addPopover = function(element, translation){
@@ -74,7 +72,7 @@
                 var html = "";
                 var popover = false;
 
-                // If we have an appid, this is a subservice.
+                // If we have a ServiceID, this is a subservice.
                 if ("ServiceID" in publicEndpoint){
                     // Check the service and endpoint and..
                     if (!isServiceRunning(publicEndpoint.ServiceID) || !publicEndpoint.Enabled) {
