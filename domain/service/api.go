@@ -29,8 +29,8 @@ type PublicEndpoint struct {
 	ServiceName string
 	Application string
 	Protocol    string
-	VHostName   string
-	PortAddress string
+	VHostName   string `json:",omitempty"`
+	PortAddress string `json:",omitempty"`
 	Enabled     bool
 }
 
