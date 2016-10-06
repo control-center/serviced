@@ -235,3 +235,10 @@ func (s *MySuite) TestCloseClientCodec(c *C) {
 	err = codectest.authClientCodec.Close()
 	c.Assert(err, IsNil)
 }
+
+func (s *MySuite) TestRequiresAdmin(c *C) {
+	result := requiresAdmin("RPCTestType.NonAdminRequiredCall")
+	c.Assert(result, Equals, false)
+	result = requiresAdmin("RPCTestType.AdminRequiredCall")
+	c.Assert(result, Equals, true)
+}

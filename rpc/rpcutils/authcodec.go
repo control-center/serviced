@@ -28,8 +28,24 @@ var (
 	// RPC Calls that do not require authentication or who handle authentication separately:
 	NonAuthenticatingCalls = []string{"Master.AuthenticateHost", "Agent.BuildHost"}
 	// RPC calls that do not require admin access:
-	NonAdminRequiredCalls = []string{}
-	endian                = binary.BigEndian
+	NonAdminRequiredCalls = map[string]struct{}{
+		"Master.GetHost":                         struct{}{},
+		"Master.GetHosts":                        struct{}{},
+		"Master.GetEvaluatedService":             struct{}{},
+		"Master.GetSystemUser":                   struct{}{},
+		"Master.ReportHealthStatus":              struct{}{},
+		"Master.ReportInstanceDead":              struct{}{},
+		"ControlCenter.GetServices":              struct{}{},
+		"ControlCenterAgent.GetEvaluatedService": struct{}{},
+		"ControlCenterAgent.GetHostID":           struct{}{},
+		"ControlCenterAgent.GetZkInfo":           struct{}{},
+		"ControlCenterAgent.Ping":                struct{}{},
+		"ControlCenterAgent.GetISvcEndpoints":    struct{}{},
+		"ControlCenterAgent.ReportHealthStatus":  struct{}{},
+		"ControlCenterAgent.ReportInstanceDead":  struct{}{},
+		"ControlCenterAgent.SendLogMessage":      struct{}{},
+	}
+	endian = binary.BigEndian
 
 	ErrReadingHeader = errors.New("Unable to parse header from RPC request")
 	ErrWritingHeader = errors.New("Unable to write RPC auth header")
@@ -55,12 +71,8 @@ func requiresAuthentication(callName string) bool {
 // Checks the RPC method name to see if admin-level permissions are required.
 //  If they are, it will also check the "admin" attribute on the identity after validating it.
 func requiresAdmin(callName string) bool {
-	for _, name := range NonAdminRequiredCalls {
-		if name == callName {
-			return false
-		}
-	}
-	return true
+	_, ok := NonAdminRequiredCalls[callName]
+	return !ok
 }
 
 // Server Codec
