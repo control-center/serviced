@@ -1144,6 +1144,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 }
 
 func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("validateServiceStart"))
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances
@@ -1153,12 +1154,6 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 		svc.DesiredState = int(service.SVCRun)
 	default:
 		svc.DesiredState = int(desiredState)
-	}
-
-	err := f.validateServiceStart(ctx, svc)
-	if err != nil {
-		glog.Errorf("Facade.scheduleService: Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
-		return err
 	}
 
 	// write the service into the database
@@ -1174,26 +1169,6 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 	}
 	if err := f.zzk.UpdateService(tenantID, svc, false, false); err != nil {
 		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
-		return err
-	}
-	return nil
-}
-
-// validateServiceSchedule verifies whether a service can be scheduled to start.
-func (f *Facade) validateServiceSchedule(ctx datastore.Context, serviceID string, autoLaunch bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("validateServiceSchedule"))
-	// TODO: create map of IPs to ports and ensure that an IP does not have > 1
-	// processes listening on the same port
-	visitor := func(svc *service.Service) error {
-		// ensure that the service is ready to start
-		if err := f.validateServiceStart(ctx, svc); err != nil {
-			glog.Errorf("Services failed validation start: %s", err)
-			return err
-		}
-		return nil
-	}
-	if err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "validateServiceSchedule"); err != nil {
-		glog.Errorf("Unable to walk services for service %s: %s", serviceID, err)
 		return err
 	}
 	return nil
