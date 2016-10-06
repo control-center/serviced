@@ -58,9 +58,9 @@ func updateService(ctx datastore.Context, poolconn client.Connection, svc servic
 	return zks.UpdateService(poolconn, svc, setLockOnCreate, setLockOnUpdate)
 }
 
-func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request ServiceRegistrySyncRequest) error{
+func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request ServiceRegistrySyncRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zkr.SyncServiceRegistry")))
-	return zkr.SyncServiceRegistry(conn, request);
+	return zkr.SyncServiceRegistry(conn, request)
 }
 
 // UpdateService updates the service object and exposed public endpoints that
@@ -75,21 +75,18 @@ func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *servic
 		"poolid":      svc.PoolID,
 	})
 
-	//if err := zk.SyncServiceRegistry(tenantID, svc); err != nil {
 	if err := zk.syncServiceRegistry(ctx, tenantID, svc); err != nil {
 		logger.WithError(err).Debug("Could not sync public endpoints in zookeeper")
 		return err
 	}
 
 	// get the pool-based connection to update the service
-	//poolconn, err := zzk.GetLocalConnection(path.Join("/pools", svc.PoolID))
 	poolconn, err := getLocalConnection(ctx, path.Join("/pools", svc.PoolID))
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
 		return err
 	}
 
-	//if err := zks.UpdateService(poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
 	if err := updateService(ctx, poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		logger.WithError(err).Debug("Could not update the service in zookeeper")
 		return err
@@ -610,7 +607,6 @@ func (zk *zkf) StopServiceInstances(ctx datastore.Context, poolID, serviceID str
 	})
 
 	// get the root-based connection to stop the service instance
-	//conn, err := zzk.GetLocalConnection("/")
 	conn, err := getLocalConnection(ctx, "/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire root-based connection")
@@ -755,7 +751,6 @@ func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *
 
 	// sync the registry
 	syncRequest := zk.svcRegistry.BuildSyncRequest(tenantID, svc)
-	//if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
 	if err := zkr_SyncServiceRegistry(ctx, rootconn, syncRequest); err != nil {
 		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
 		return err
