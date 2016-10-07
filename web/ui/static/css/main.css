@@ -1421,9 +1421,14 @@ input[type=file] {
     height: auto;
 }
 
+/* give tree-expansion cells more room for their expansion buttons */
+.jelly-treetable tbody tr > td:first-child {
+    padding: 0 0 0 8px;
+}
+
 .table-collapse {
     font-size: 8px;
-    padding: 4px 7px 9px 16px;
+    padding: 6px 13px 12px 0;
     vertical-align: middle;
     cursor: pointer;
 }
