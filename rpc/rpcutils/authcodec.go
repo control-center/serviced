@@ -339,6 +339,7 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 
 	// Let the underlying codec write the request to the buffer
 	if err := a.wrappedcodec.WriteRequest(r, body); err != nil {
+		log.WithError(err).Errorf("Error encoding request")
 		return err
 	}
 
@@ -365,6 +366,8 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 		return err
 	}
 
+	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Successfully sent RPC request")
+
 	return nil
 }
 
@@ -380,18 +383,26 @@ func (a *AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
 	// Read the response from the connection
 	response, err := ReadLengthAndBytes(a.conn)
 	if err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error reading RPC response")
+		// It is common to get harmless errors here whenever the client is closed
+		log.WithError(err).Debug("Error reading RPC response")
 		return err
 	}
 
 	// Write the response to the buffer
 	if _, err = a.buff.ReadBuff.Write(response); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error buffering RPC response")
+		log.WithError(err).Error("Error buffering RPC response")
 		return err
 	}
 
 	// Let the underlying codec read and parse the response from the buffer
-	return a.wrappedcodec.ReadResponseHeader(r)
+	if err = a.wrappedcodec.ReadResponseHeader(r); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Error("Error reading RPC response from buffer")
+		return err
+	}
+
+	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Successfully read RPC response")
+
+	return nil
 }
 
 // Decodes the body of the response and builds the body object.
