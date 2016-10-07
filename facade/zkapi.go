@@ -58,7 +58,7 @@ func updateService(ctx datastore.Context, poolconn client.Connection, svc servic
 	return zks.UpdateService(poolconn, svc, setLockOnCreate, setLockOnUpdate)
 }
 
-func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request ServiceRegistrySyncRequest) error {
+func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request zkr.ServiceRegistrySyncRequest) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zkr.SyncServiceRegistry")))
 	return zkr.SyncServiceRegistry(conn, request)
 }
