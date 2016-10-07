@@ -34,6 +34,7 @@ import (
 
 var storageStatsUpdateInterval time.Duration = 300
 
+// SetStorageStatsUpdateInterval sets the interval to update storage stats at
 func SetStorageStatsUpdateInterval(interval int) {
 	storageStatsUpdateInterval = time.Duration(interval)
 }
@@ -207,147 +208,6 @@ func getDeviceSize(dev string) (uint64, error) {
 	return size, nil
 }
 
-// Uses dumpe2fs to find filesystem information.
-// We get a lot of info from dumpe2fs to calculate the usable space on the
-// filesystem, as this is what df shows, and we want consistancy since
-// df is used when the disk is mounted.
-func getUnmountedFilesystemStats(dev string) (uint64, uint64, error) {
-	var fs struct {
-		DevicePath     string
-		BlocksTotal    uint64
-		BlockSize      uint64
-		FreeBlocks     uint64
-		UnusableBlocks uint64
-		Superblocks    uint64
-		GroupsTotal    uint64
-		JournalLength  uint64
-	}
-	// Custom bufio.Split() function to split tokens by either comma or new line
-	atCommaOrNewLine := func(data []byte, atEOF bool) (int, []byte, error) {
-		advance := 0
-		var token []byte
-
-		for _, b := range data {
-			// consume the comma or newline by advancing passed it
-			if string(b) == "," || string(b) == "\n" {
-				advance++
-				return advance, token, nil
-			}
-			token = append(token, b)
-			advance++
-		}
-		return 0, nil, nil
-	}
-
-	var malformedRangeErr = errors.New("Malformed range.  Expected form: \"x-y\"")
-	// Gets the inclusive difference of a range
-	// e.g. rangeDiffIncl("1-15") == 15
-	rangeDiffIncl := func(rangeStr string) (uint64, error) {
-		splitRange := strings.Split(rangeStr, "-")
-		if len(splitRange) != 2 {
-			return 0, malformedRangeErr
-		}
-		uLeft, err := strconv.ParseUint(splitRange[0], 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		uRight, err := strconv.ParseUint(splitRange[1], 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return uRight - uLeft + 1, nil
-	}
-
-	// Returns number of blocks consumed from string that contains block locations
-	getBlocksConsumed := func(blockString string) (uint64, error) {
-		// If it's a range, get the span, otherwise it only takes up one block
-		if strings.Contains(blockString, "-") {
-			return rangeDiffIncl(blockString)
-		}
-		_, err := strconv.ParseUint(blockString, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return 1, nil
-	}
-
-	fs.DevicePath = dev
-	cmd := exec.Command("dumpe2fs", fs.DevicePath)
-	defer cmd.Wait()
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		return 0, 0, err
-	}
-	defer out.Close()
-
-	if err = cmd.Start(); err != nil {
-		return 0, 0, err
-	}
-	scanner := bufio.NewScanner(out)
-	scanner.Split(atCommaOrNewLine)
-
-	var superblockSize uint64
-	var groupDescSize uint64
-	var bitmapSize uint64
-	var inodeBitmapSize uint64
-	var inodeTableSize uint64
-
-	for scanner.Scan() {
-		t := strings.TrimSpace(scanner.Text())
-		// We need to count the groups and superblocks, so we know how much
-		// usable space the fs has (this will keep size consistant with df results)
-		// We're counting the groups by the Checksum prefix because 'Group' is used
-		// in other places and it's cheaper than a regexp
-		if strings.HasPrefix(t, "Checksum") {
-			fs.GroupsTotal++
-		} else if strings.Contains(t, "superblock") {
-			fs.Superblocks++
-		}
-
-		// These are described by dumpe2fs like:
-		// "Block bitmap at x" or "Group descriptors at x-y"
-		if s := strings.Split(t, " at "); len(s) == 2 {
-			loc := strings.Split(s[1], " ")[0]
-			if superblockSize == 0 && s[0] == "Primary superblock" {
-				superblockSize, err = getBlocksConsumed(loc)
-			} else if groupDescSize == 0 && s[0] == "Group descriptors" {
-				groupDescSize, err = getBlocksConsumed(loc)
-			} else if bitmapSize == 0 && s[0] == "Block bitmap" {
-				bitmapSize, err = getBlocksConsumed(loc)
-			} else if inodeBitmapSize == 0 && s[0] == "Inode bitmap" {
-				inodeBitmapSize, err = getBlocksConsumed(loc)
-			} else if inodeTableSize == 0 && s[0] == "Inode table" {
-				inodeTableSize, err = getBlocksConsumed(loc)
-			}
-		} else {
-			f := strings.Fields(t)
-			if fs.BlocksTotal == 0 && strings.HasPrefix(t, "Block count:") {
-				fs.BlocksTotal, err = strconv.ParseUint(f[2], 10, 64)
-			} else if fs.FreeBlocks == 0 && strings.HasPrefix(t, "Free blocks:") {
-				fs.FreeBlocks, err = strconv.ParseUint(f[2], 10, 64)
-			} else if fs.BlockSize == 0 && strings.HasPrefix(t, "Block size:") {
-				fs.BlockSize, err = strconv.ParseUint(f[2], 10, 64)
-			} else if fs.JournalLength == 0 && strings.HasPrefix(t, "Journal length:") {
-				fs.JournalLength, err = strconv.ParseUint(f[2], 10, 64)
-			}
-		}
-		if err != nil {
-			return 0, 0, err
-		}
-	}
-	sizePerSuperblockGroup := superblockSize + groupDescSize + bitmapSize +
-		inodeBitmapSize + inodeTableSize
-	sizePerNormalGroup := bitmapSize + inodeBitmapSize + inodeTableSize
-	// fs.BlocksTotal - fs.UnusableBlocks should be the size shown by df
-	fs.UnusableBlocks = (sizePerSuperblockGroup * fs.Superblocks) +
-		(sizePerNormalGroup * (fs.GroupsTotal - fs.Superblocks)) +
-		fs.JournalLength
-
-	return (fs.BlocksTotal - fs.UnusableBlocks) * fs.BlockSize,
-		fs.FreeBlocks * fs.BlockSize,
-		nil
-}
-
 // getFilesystemStats calls df to retrieve filesystem statistics.  If the
 // filesystem is not mounted, it calls getUnmountedFilesystemStats
 func getFilesystemStats(dev string) (uint64, uint64, error) {
@@ -385,6 +245,160 @@ func getFilesystemStats(dev string) (uint64, uint64, error) {
 		totalBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
 	}
 	return totalBlocks, freeBlocks, err
+}
+
+// filesystemStats contains stats for a filesystem
+type filesystemStats struct {
+	BlocksTotal     uint64
+	BlockSize       uint64
+	FreeBlocks      uint64
+	UnusableBlocks  uint64
+	Superblocks     uint64
+	GroupsTotal     uint64
+	JournalLength   uint64
+	SuperblockSize  uint64
+	GroupDescSize   uint64
+	BitmapSize      uint64
+	InodeBitmapSize uint64
+	InodeTableSize  uint64
+}
+
+// getUnmountedFilesystemStats uses a dumpe2fs parser to find filesystem information.
+// We get a lot of info from dumpe2fs to calculate the usable space on the
+// filesystem, as this is what df shows, and we want consistancy since
+// df is used when the disk is mounted (df is more up-to-date).
+func getUnmountedFilesystemStats(dev string) (uint64, uint64, error) {
+	cmd := exec.Command("dumpe2fs", dev)
+	defer cmd.Wait()
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return 0, 0, err
+	}
+	defer out.Close()
+
+	if err = cmd.Start(); err != nil {
+		return 0, 0, err
+	}
+
+	fs, err := parseDumpe2fsOutput(out)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return (fs.BlocksTotal - fs.UnusableBlocks) * fs.BlockSize,
+		fs.FreeBlocks * fs.BlockSize,
+		nil
+}
+
+// parseDumpe2fsOutput reads output from a dumpe2fs call to
+// create a filesystemStats object
+func parseDumpe2fsOutput(r io.Reader) (*filesystemStats, error) {
+	// Custom bufio.Split() function to split tokens by either comma or new line
+	atCommaOrNewLine := func(data []byte, atEOF bool) (int, []byte, error) {
+		advance := 0
+		var token []byte
+
+		for _, b := range data {
+			// consume the comma or newline by advancing passed it
+			if string(b) == "," || string(b) == "\n" {
+				advance++
+				return advance, token, nil
+			}
+			token = append(token, b)
+			advance++
+		}
+		return 0, nil, nil
+	}
+
+	malformedRangeErr := errors.New("Malformed range.  Expected form: \"x-y\"")
+
+	// Gets the inclusive difference of a range
+	// e.g. rangeDiffIncl("1-15") == 15
+	rangeDiffIncl := func(rangeStr string) (uint64, error) {
+		splitRange := strings.Split(rangeStr, "-")
+		if len(splitRange) != 2 {
+			return 0, malformedRangeErr
+		}
+		uLeft, err := strconv.ParseUint(splitRange[0], 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		uRight, err := strconv.ParseUint(splitRange[1], 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return uRight - uLeft + 1, nil
+	}
+
+	// Returns number of blocks consumed from string that contains block locations
+	getBlocksConsumed := func(blockString string) (uint64, error) {
+		// If it's a range, get the span, otherwise it only takes up one block
+		if strings.Contains(blockString, "-") {
+			return rangeDiffIncl(blockString)
+		}
+		_, err := strconv.ParseUint(blockString, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return 1, nil
+	}
+
+	var err error
+	fs := &filesystemStats{}
+	scanner := bufio.NewScanner(r)
+	scanner.Split(atCommaOrNewLine)
+
+	for scanner.Scan() {
+		t := strings.TrimSpace(scanner.Text())
+		// We need to count the groups and superblocks, so we know how much
+		// usable space the fs has (this will keep size consistant with df results)
+		// We're counting the groups by the Checksum prefix because 'Group' is used
+		// in other places and it's cheaper than a regexp
+		if strings.HasPrefix(t, "Checksum") {
+			fs.GroupsTotal++
+		} else if strings.Contains(t, "superblock") {
+			fs.Superblocks++
+		}
+
+		// These are described by dumpe2fs like:
+		// "Block bitmap at x" or "Group descriptors at x-y"
+		if s := strings.Split(t, " at "); len(s) == 2 {
+			loc := strings.Split(s[1], " ")[0]
+			if fs.SuperblockSize == 0 && s[0] == "Primary superblock" {
+				fs.SuperblockSize, err = getBlocksConsumed(loc)
+			} else if fs.GroupDescSize == 0 && s[0] == "Group descriptors" {
+				fs.GroupDescSize, err = getBlocksConsumed(loc)
+			} else if fs.BitmapSize == 0 && s[0] == "Block bitmap" {
+				fs.BitmapSize, err = getBlocksConsumed(loc)
+			} else if fs.InodeBitmapSize == 0 && s[0] == "Inode bitmap" {
+				fs.InodeBitmapSize, err = getBlocksConsumed(loc)
+			} else if fs.InodeTableSize == 0 && s[0] == "Inode table" {
+				fs.InodeTableSize, err = getBlocksConsumed(loc)
+			}
+		} else {
+			f := strings.Fields(t)
+			if fs.BlocksTotal == 0 && strings.HasPrefix(t, "Block count:") {
+				fs.BlocksTotal, err = strconv.ParseUint(f[2], 10, 64)
+			} else if fs.FreeBlocks == 0 && strings.HasPrefix(t, "Free blocks:") {
+				fs.FreeBlocks, err = strconv.ParseUint(f[2], 10, 64)
+			} else if fs.BlockSize == 0 && strings.HasPrefix(t, "Block size:") {
+				fs.BlockSize, err = strconv.ParseUint(f[2], 10, 64)
+			} else if fs.JournalLength == 0 && strings.HasPrefix(t, "Journal length:") {
+				fs.JournalLength, err = strconv.ParseUint(f[2], 10, 64)
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	sizePerSuperblockGroup := fs.SuperblockSize + fs.GroupDescSize + fs.BitmapSize +
+		fs.InodeBitmapSize + fs.InodeTableSize
+	sizePerNormalGroup := fs.BitmapSize + fs.InodeBitmapSize + fs.InodeTableSize
+	// fs.BlocksTotal - fs.UnusableBlocks should be the size shown by df
+	fs.UnusableBlocks = (sizePerSuperblockGroup * fs.Superblocks) +
+		(sizePerNormalGroup * (fs.GroupsTotal - fs.Superblocks)) +
+		fs.JournalLength
+	return fs, nil
 }
 
 var statscache = statCache{make(map[string]*cachedStat), utils.NewMutexMap()}
