@@ -130,11 +130,11 @@ func loginWithTokenOK(r *rest.Request, token string) bool {
 	//validToken, err := auth.ValidateRestToken(r.Request, token)
 	if err != nil {
 		msg := "Unable to parse rest token"
-		plog.WithError(err).Info(msg)
+		plog.WithError(err).WithField("url", r.URL.String()).Debug(msg)
 		return false
 	} else if !restToken.HasAdminAccess() {
 		msg := "Could not login with rest token. Insufficient permissions."
-		plog.Info(msg)
+		plog.WithField("url", r.URL.String()).Debug(msg)
 		return false
 	} else {
 		return true
@@ -145,7 +145,7 @@ func loginOK(r *rest.Request) bool {
 	token, tErr := auth.ExtractRestToken(r.Request)
 	if tErr != nil { // There is a token in the header but we could not extract it
 		msg := "Unable to extract auth token from header"
-		plog.WithError(tErr).Info(msg)
+		plog.WithError(tErr).WithField("url", r.URL.String()).Debug(msg)
 		return false
 	} else if token != "" {
 		return loginWithTokenOK(r, token)

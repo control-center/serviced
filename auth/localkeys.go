@@ -81,6 +81,8 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 }
 
 func getDelegatePrivateKey() (crypto.PrivateKey, error) {
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
 	if delegateKeys.localPrivate == nil {
 		return nil, ErrNoPrivateKey
 	}

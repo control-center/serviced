@@ -626,7 +626,7 @@ func (c *Controller) Run() (err error) {
 	c.endpoints.Run(endpointExit)
 
 	// Start CC Rest API Proxy
-	go c.ccApiProxy.run() // TODO how to control shutdown?
+	go c.ccApiProxy.run()
 
 	// HACK: I guess this is how it used to work?  This code is horrible.
 	go func() {

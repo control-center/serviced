@@ -14,8 +14,10 @@
 package auth
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -81,9 +83,24 @@ func (t *jwtRestToken) RestToken() string {
 	return t.restToken
 }
 
+func getRequestBody(r *http.Request) string {
+	// Body is an io.ReadCloser when we read from it, the content is gone
+	// Read the content
+	if r.Body == nil {
+		return ""
+	}
+	bodyBytes, _ := ioutil.ReadAll(r.Body)
+	// Restore the io.ReadCloser to its original state
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	return string(bodyBytes)
+}
+
 func GetRequestHash(r *http.Request) []byte {
-	// Simplified request hash for now
-	req := strings.ToUpper(r.Method) + RequestDelimiter + strings.ToLower(r.RequestURI)
+	req := strings.ToUpper(r.Method) + RequestDelimiter + strings.ToLower(r.URL.String())
+	body := getRequestBody(r)
+	if len(body) > 0 {
+		req = req + RequestDelimiter + body
+	}
 	hashedReq := sha256.Sum256([]byte(req))
 	return hashedReq[:]
 }
