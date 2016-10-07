@@ -20,7 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 var (
@@ -57,7 +58,7 @@ func (reg *HostExpirationRegistry) Expired(hostid string) (bool, error) {
 		// if it doesnt exist, I guess it's expired
 		return true, ErrMissingHost
 	}
-	now := time.Now().Unix()
+	now := jwt.TimeFunc().Unix()
 	return now >= expiration, nil
 }
 
