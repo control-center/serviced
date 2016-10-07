@@ -149,6 +149,7 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	if err != nil {
 		return err
 	}
+	auth.SetHostExpiration(host.ID, expires)
 	*resp = HostAuthenticationResponse{signed, expires}
 	return nil
 }
