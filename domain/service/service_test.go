@@ -70,7 +70,7 @@ func (s *S) TestAddVirtualHost(t *C) {
 	if _, err = svc.AddVirtualHost("server", "name2", false); err != nil {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
-	
+
 	if svc.Endpoints[0].VHostList[1].Enabled != false {
 		t.Errorf("Virtualhost %s should be disabled", svc.Endpoints[0].VHostList[1].Name)
 	}

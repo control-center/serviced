@@ -49,7 +49,7 @@ type Store interface {
 	// Delete removes the a Service if it exists
 	Delete(ctx datastore.Context, id string) error
 
-	// Update the DesiredState for the service
+	// Update the DesiredState in volatile memory for the service
 	UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error
 
 	// GetServices returns all services
@@ -107,7 +107,7 @@ func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 
 	err := s.ds.Put(ctx, Key(svc.ID), svc)
 	if err == nil {
-		s.updateVolatileInfo(svc.ID, svc.DesiredState, svc.UpdatedAt) // Mutex Lock
+		s.updateVolatileInfo(svc.ID, svc.DesiredState, svc.UpdatedAt) // Uses Mutex Lock
 	}
 	return err
 }
@@ -148,7 +148,7 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Delete"))
 	err := s.ds.Delete(ctx, Key(id))
 	if err == nil {
-		s.removeVolatileInfo(id)
+		s.removeVolatileInfo(id) // Uses Mutex RLock
 	}
 	return err
 }
@@ -323,10 +323,15 @@ func (s *storeImpl) fillAdditionalInfo(svc *Service) {
 		"serviceName": svc.Name,
 	}).Debug("Adding additional info to Elastic result")
 	s.fillConfig(svc)
-	s.fillVolatileInfo(svc) // Uses RLock
+
+	// Update the service from volatile cached data.
+	cacheEntry, ok := s.getVolatileInfo(svc.ID) // Uses Mutex RLock
+	if ok {
+		s.updateServiceFromVolatileService(svc, cacheEntry)
+	}
 }
 
-// fillConfig fills in the ConfgiFiles values
+// fillConfig fills in the ConfigFiles values
 func (s *storeImpl) fillConfig(svc *Service) {
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 	for key, val := range svc.OriginalConfigs {
@@ -368,7 +373,9 @@ func (s *storeImpl) addUpdatedServicesFromCache(ctx datastore.Context, svcs []Se
 		// Don't add services already in the list.
 		if _, ok := svcMap[cacheEntry.ID]; !ok {
 			// Query the service from elastic.  We already have the cached
-			// data, so we save making a mutex lock here for every service.
+			// data, so we save making a mutex lock here for every service
+			// by called s.get() and updating the service without needing
+			// additional mutex locks.
 			if svc, err := s.get(ctx, cacheEntry.ID); err != nil {
 				return svcs, err
 			} else {
@@ -382,16 +389,6 @@ func (s *storeImpl) addUpdatedServicesFromCache(ctx datastore.Context, svcs []Se
 		}
 	}
 	return svcs, nil
-}
-
-// fillVolatileInfo fills volatile information into the service. This
-// uses a mutex to get the cached data from volatile memory.
-func (s *storeImpl) fillVolatileInfo(svc *Service) bool {
-	cacheEntry, ok := s.getVolatileInfo(svc.ID) // Mutex RLock
-	if ok {
-		s.updateServiceFromVolatileService(svc, cacheEntry)
-	}
-	return ok
 }
 
 // Update all properties of the service with data from our volatile structure. No

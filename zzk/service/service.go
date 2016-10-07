@@ -98,7 +98,7 @@ func GetServiceNodes(conn client.Connection) ([]ServiceNode, error) {
 		return nil, err
 	}
 
-	log.Infof("Found %d resource pools", len(poolids))
+	log.Debugf("Found %d resource pools", len(poolids))
 
 	// Get the ServiceNode for each service in each pool.
 	for _, poolid := range poolids {
@@ -110,21 +110,20 @@ func GetServiceNodes(conn client.Connection) ([]ServiceNode, error) {
 			continue
 		}
 
-		log.Infof("Found %d child nodes under %s", len(children), poolPath)
+		log.Debugf("Found %d child nodes under %s", len(children), poolPath)
 
 		for _, child := range children {
 			serviceNodePath := path.Join(poolPath, child)
-			log.Infof("ServiceNode path: %s", serviceNodePath)
 			node := &ServiceNode{}
 			if err := conn.Get(serviceNodePath, node); err != nil {
-				log.Infof("Error getting ServiceNode: %s", err)
+				log.Warningf("Error getting ServiceNode: %s", err)
 				continue
 			}
 			svcNodes = append(svcNodes, *node)
 		}
 	}
 
-	log.Infof("Returning %d ServiceNodes", len(svcNodes))
+	log.Debugf("Returning %d ServiceNodes", len(svcNodes))
 	return svcNodes, nil
 }
 
