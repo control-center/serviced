@@ -87,6 +87,7 @@
             this.fetchConfigs();
             this.fetchServiceChildren();
             this.fetchMonitoringProfile();
+            this.fetchExportEndpoints();
         }
 
         fetchAddresses(force) {
@@ -100,25 +101,25 @@
         fetchEndpoints(force) {
             // populate publicEndpoints property
             fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force)
-                // populate exportedServiceEndpoints property
-                .then(() => {
-                    // if Endpoints, iterate Endpoints
-                    if (this.publicEndpoints) {
-//TODO: New call coming to get just exported endpoints
-                        this.exportedServiceEndpoints = this.publicEndpoints.reduce((acc, endpoint) => {
-                            // if this exports tcp, add it to our list.
-                            if (endpoint.Purpose === "export" && endpoint.Protocol === "tcp") {
-                                acc.push({
-                                    Application: endpoint.ServiceName,
-                                    ServiceEndpoint: endpoint.Application,
-                                    ApplicationId: endpoint.ServiceID,
-                                    Value: endpoint.ServiceName + " - " + endpoint.Application,
-                                });
-                            }
-                            return acc;
-                        }, []);
-                    }
+        }
+
+        fetchExportEndpoints(force) {
+            // fetch.call(this, "getServiceExportEndpoints", "exportedServiceEndpoints", force);
+            let deferred = $q.defer();
+            resourcesFactory.v2.getServiceExportEndpoints(this.id)
+                .then(response => {
+                    console.log(`fetched ${response.length} exportEndpoints for id ${this.id}`);
+                    let tcpEndpoints = response.filter(function(ept) { return ept.Protocol === "tcp"; });
+                    tcpEndpoints.forEach(ept => ept.Value = ept.ServiceName + " - " + ept.Application);
+                    this.exportedServiceEndpoints = tcpEndpoints;
+                    deferred.resolve();
+                },
+                error => {
+                    console.warn(error);
+                    deferred.reject();
                 });
+
+            return deferred.promise;
         }
 
         fetchMonitoringProfile(force) {

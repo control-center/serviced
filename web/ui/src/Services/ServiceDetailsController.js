@@ -52,8 +52,8 @@
                     resourcesFactory.routeToHost(id);
                 };
 
-
                 $scope.modalAddPublicEndpoint = function () {
+
                     areUIReady.lock();
                     $scope.protocols = [];
                     $scope.protocols.push({ Label: "HTTPS", UseTLS: true, Protocol: "https" });
@@ -64,7 +64,7 @@
                     // default public endpoint options
                     $scope.publicEndpoints.add = {
                         type: "port",
-                        app_ep: $scope.currentService.exportedServiceEndpoints,
+                        app_ep: $scope.currentService.exportedServiceEndpoints[0],
                         name: "",
                         host: $scope.defaultHostAlias,
                         port: "",
@@ -188,9 +188,9 @@
 
 
                 $scope.addPublicEndpoint = function (newPublicEndpoint) {
-                    var serviceId = newPublicEndpoint.app_ep.ApplicationId;
-                    var serviceName = newPublicEndpoint.app_ep.Application;
-                    var serviceEndpoint = newPublicEndpoint.app_ep.ServiceEndpoint;
+                    var serviceId = newPublicEndpoint.app_ep.ServiceID;
+                    var serviceName = newPublicEndpoint.app_ep.ServiceName;
+                    var serviceEndpoint = newPublicEndpoint.app_ep.Application;
                     if (newPublicEndpoint.type === "vhost") {
                         var vhostName = newPublicEndpoint.name;
                         return resourcesFactory.addVHost(serviceId, serviceName, serviceEndpoint, vhostName);
@@ -991,7 +991,7 @@
                 };
 
                 $scope.setCurrentTreeState = function () {
-                        $scope.serviceTreeState[$scope.currentService.id] = {};
+                    $scope.serviceTreeState[$scope.currentService.id] = {};
                 };
 
                 $scope.flattenServicesTree = function () {

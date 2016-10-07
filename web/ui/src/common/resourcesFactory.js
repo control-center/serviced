@@ -369,6 +369,10 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
             },
+            getServiceExportEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/exportendpoints?includeChildren`,
+            },
             getServices: {
                 method: GET,
                 url: since => `/api/v2/services${ since ? "?since="+ since : ""}`,
