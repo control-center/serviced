@@ -213,6 +213,11 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		return err
 	}
 
+	// remove host from hostkey datastore
+	if err = f.hostkeyStore.Delete(ctx, _host.ID); err != nil {
+		return err
+	}
+
 	//remove host from datastore
 	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
 		return err
