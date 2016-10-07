@@ -35,6 +35,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/logri"
 )
 
 var (
@@ -187,15 +188,15 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 	config.LoadOptions(options)
 
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Printf("Unable to set logging options: %s\n", err)
+	}
+
 	// Try to authenticate this host
 	if err := c.authenticateHost(&options); err != nil {
 		// Not all commands require authentication
 		log.WithError(err).Debug("Unable to authenticate host")
-	}
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Printf("Unable to set logging options: %s\n", err)
 	}
 
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
@@ -374,6 +375,10 @@ func getEndpoint(options config.Options) string {
 }
 
 func setLogging(ctx *cli.Context) error {
+	if ctx.Args().First() != "server" {
+		logrus.SetLevel(logrus.WarnLevel)
+		logri.SetLevel(logrus.WarnLevel)
+	}
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
