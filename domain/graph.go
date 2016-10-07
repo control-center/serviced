@@ -16,7 +16,9 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"strings"
 )
 
 //DataPointRateOptions define the rate options for a data point
@@ -124,4 +126,12 @@ type GraphConfig struct {
 // Equals returns if graph equals that graph
 func (graph *GraphConfig) Equals(that *GraphConfig) bool {
 	return reflect.DeepEqual(graph, that)
+}
+
+// ValidEntity ensures that no graph configs have an id with prefix "internal"
+func (graph GraphConfig) ValidEntity() error {
+	if strings.HasPrefix(graph.ID, "internal") {
+		return fmt.Errorf("graph id cannot have prefix 'internal'")
+	}
+	return nil
 }
