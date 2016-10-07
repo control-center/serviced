@@ -145,6 +145,16 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 		return
 	}
 
+	// load the internal monitoring data
+	config, err := getInternalMetrics()
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
+		return
+	}
+	mp.MetricConfigs = append(mp.MetricConfigs, *config)
+	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+
 	glog.V(4).Infof("restGetServiceMonitoringProfile: id %s, monitoring profile %#v", serviceID, mp)
 	w.WriteJson(&mp)
 }

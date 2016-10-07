@@ -62,6 +62,9 @@ func (s *Service) ValidEntity() error {
 		}
 	}
 
+	// validate the monitoring profile
+	vErr.Add(s.MonitoringProfile.ValidEntity())
+
 	if vErr.HasError() {
 		return vErr
 	}
