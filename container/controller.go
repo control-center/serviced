@@ -121,6 +121,7 @@ type Controller struct {
 	exitStatus         int
 	endpoints          *ContainerEndpoints
 	healthChecks       map[string]health.HealthCheck
+	ccApiProxy         *servicedApiProxy
 }
 
 // Close shuts down the controller
@@ -422,6 +423,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, err
 	}
 
+	// CC Rest API proxy
+	c.ccApiProxy = newServicedApiProxy()
+
 	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
 	if len(options.Service.Command) < 1 {
@@ -620,6 +624,9 @@ func (c *Controller) Run() (err error) {
 	serviceExited := make(chan error, 1)
 	endpointExit := make(chan struct{})
 	c.endpoints.Run(endpointExit)
+
+	// Start CC Rest API Proxy
+	go c.ccApiProxy.run()
 
 	// HACK: I guess this is how it used to work?  This code is horrible.
 	go func() {
