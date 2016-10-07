@@ -197,32 +197,28 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	// Read the header
 	header, err := ReadLengthAndBytes(a.conn)
 	if err != nil {
-		if err != io.EOF {
-			log.WithError(err).Errorf("Error reading authentication header")
-		}
+		log.WithError(err).Debug("Error reading authentication header")
 		return err
 	}
 
 	// Read the rest of the request
 	body, err := ReadLengthAndBytes(a.conn)
 	if err != nil {
-		log.WithError(err).Errorf("Error reading RPC request")
+		log.WithError(err).Debug("Error reading RPC request")
 		return err
 	}
 
 	// Now write the actual request to the buffer
 	if _, err = a.buff.ReadBuff.Write(body); err != nil {
-		log.WithError(err).Errorf("Error buffering RPC request")
 		return err
 	}
 
 	// Let the underlying codec read the request from the buffer and parse it
 	if err := a.wrappedcodec.ReadRequestHeader(r); err != nil {
-		log.WithError(err).Errorf("Error parsing RPC request")
 		return err
 	}
 
-	log.WithField("ServiceMethod", r.ServiceMethod).Debugf("Received RPC request")
+	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received RPC request")
 
 	// Now we can get the method name from r and authenticate if required
 	//  If this fails, save the error to return later
@@ -232,10 +228,10 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	if requiresAuthentication(r.ServiceMethod) {
 		ident, err := a.parser.ParseHeader(header, body)
 		if err != nil {
-			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Could not authenticate RPC request")
+			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Could not authenticate RPC request")
 			a.lastError = err
 		} else if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
-			log.WithField("ServiceMethod", r.ServiceMethod).Errorf("Received unauthorized RPC request")
+			log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received unauthorized RPC request")
 			a.lastError = ErrNoAdmin
 		}
 
@@ -250,7 +246,6 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 //  This always gets called after ReadRequestHeader
 func (a *AuthServerCodec) ReadRequestBody(body interface{}) error {
 	if a.lastError != nil {
-		log.WithError(a.lastError).Errorf("Rejecting RPC request due to authentication error")
 		return a.lastError
 	}
 	// TODO: Use reflection and add the identity to the body if necessary
@@ -269,14 +264,12 @@ func (a *AuthServerCodec) WriteResponse(r *rpc.Response, body interface{}) error
 
 	// Let the underlying codec write the response to the buffer
 	if err := a.wrappedcodec.WriteResponse(r, body); err != nil {
-		log.WithError(err).Errorf("Error encoding RPC response")
 		return err
 	}
 
 	// Get the response from the buffer and write it to the actual connection
 	response := a.buff.WriteBuff.Bytes()
 	if err := WriteLengthAndBytes(response, a.conn); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending RPC response")
 		return err
 	}
 
@@ -288,10 +281,10 @@ func (a *AuthServerCodec) WriteResponse(r *rpc.Response, body interface{}) error
 func (a *AuthServerCodec) Close() error {
 	var err error
 	if err = a.wrappedcodec.Close(); err != nil {
-		log.WithError(err).Errorf("Error closing wrapped RPC client codec")
+		log.WithError(err).Debug("Error closing wrapped RPC client codec")
 	}
 	if ourErr := a.conn.Close(); ourErr != nil {
-		log.WithError(ourErr).Errorf("Error closing RPC client connection")
+		log.WithError(ourErr).Debug("Error closing RPC client connection")
 		// This error is probably more important
 		err = ourErr
 	}
@@ -339,7 +332,6 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 
 	// Let the underlying codec write the request to the buffer
 	if err := a.wrappedcodec.WriteRequest(r, body); err != nil {
-		log.WithError(err).Errorf("Error encoding request")
 		return err
 	}
 
@@ -349,20 +341,19 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	if requiresAuthentication(r.ServiceMethod) {
 		header, err = a.headerBuilder.BuildHeader(request)
 		if err != nil {
-			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error building authentication header")
 			return err
 		}
 	}
 
 	// Write the header (may be empty)
 	if err = WriteLengthAndBytes(header, a.conn); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending authentication header")
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Error sending authentication header")
 		return err
 	}
 
 	// Write the rest of the request
 	if err = WriteLengthAndBytes(request, a.conn); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Errorf("Error sending rpc request")
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Error sending rpc request")
 		return err
 	}
 
@@ -384,19 +375,16 @@ func (a *AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
 	response, err := ReadLengthAndBytes(a.conn)
 	if err != nil {
 		// It is common to get harmless errors here whenever the client is closed
-		log.WithError(err).Debug("Error reading RPC response")
 		return err
 	}
 
 	// Write the response to the buffer
 	if _, err = a.buff.ReadBuff.Write(response); err != nil {
-		log.WithError(err).Error("Error buffering RPC response")
 		return err
 	}
 
 	// Let the underlying codec read and parse the response from the buffer
 	if err = a.wrappedcodec.ReadResponseHeader(r); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Error("Error reading RPC response from buffer")
 		return err
 	}
 
@@ -416,10 +404,10 @@ func (a *AuthClientCodec) ReadResponseBody(body interface{}) error {
 func (a *AuthClientCodec) Close() error {
 	var err error
 	if err = a.wrappedcodec.Close(); err != nil {
-		log.WithError(err).Errorf("Error closing wrapped RPC client codec")
+		log.WithError(err).Debug("Error closing wrapped RPC client codec")
 	}
 	if ourErr := a.conn.Close(); ourErr != nil {
-		log.WithError(ourErr).Errorf("Error closing RPC client connection")
+		log.WithError(ourErr).Debug("Error closing RPC client connection")
 		// This error is more important
 		err = ourErr
 	}
