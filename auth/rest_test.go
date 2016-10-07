@@ -57,7 +57,6 @@ func (s *TestAuthSuite) TestBuildAndExtractRestToken(c *C) {
 	auth.AuthTokenGetter = func() (string, error) {
 		return authToken, nil
 	}
-	expectedReqHash := auth.GetRequestHash(req)
 	// Create Rest Token
 	restToken, err := auth.BuildRestToken(req)
 	c.Assert(err, IsNil)
@@ -82,7 +81,7 @@ func (s *TestAuthSuite) TestBuildAndExtractRestToken(c *C) {
 	c.Assert(parsedToken.HasAdminAccess(), Equals, cfg.admin)
 	c.Assert(parsedToken.Expired(), Equals, false)
 	c.Assert(parsedToken.Valid(), IsNil)
-	c.Assert(parsedToken.RequestHash(), DeepEquals, expectedReqHash)
+	c.Assert(parsedToken.ValidateRequestHash(req), Equals, true)
 
 	restTestCleanup()
 }
@@ -157,6 +156,29 @@ func (s *TestAuthSuite) TestInvalidRestToken(c *C) {
 	token, err := auth.ParseRestToken(extractedToken)
 	c.Assert(err, Equals, auth.ErrBadRestToken)
 	c.Assert(token, IsNil)
+
+	restTestCleanup()
+}
+
+func (s *TestAuthSuite) TestValidateRequestHash(c *C) {
+	cfg := newTestConfig()
+	// Create auth token
+	authToken, _, err := auth.CreateJWTIdentity(cfg.hostID, cfg.poolID, cfg.admin, cfg.dfs, s.delegatePubPEM, cfg.exp)
+	// Create requests
+	req, _ := http.NewRequest("GET", cfg.uri, nil)
+	auth.AuthTokenGetter = func() (string, error) {
+		return authToken, nil
+	}
+	// Create Rest Token
+	restToken, err := auth.BuildRestToken(req)
+	auth.AddRestTokenToRequest(req, restToken)
+	extractedToken, err := auth.ExtractRestToken(req)
+	c.Assert(err, IsNil)
+	token, err := auth.ParseRestToken(extractedToken)
+	c.Assert(err, IsNil)
+	c.Assert(token.ValidateRequestHash(req), Equals, true)
+	req.Method = "POST"
+	c.Assert(token.ValidateRequestHash(req), Equals, false)
 
 	restTestCleanup()
 }

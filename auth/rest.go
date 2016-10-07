@@ -38,7 +38,7 @@ type RestToken interface {
 	Expired() bool
 	AuthToken() string
 	RestToken() string
-	RequestHash() []byte
+	ValidateRequestHash(r *http.Request) bool
 	HasAdminAccess() bool
 }
 
@@ -71,8 +71,9 @@ func (t *jwtRestToken) AuthToken() string {
 	return t.DelegateToken
 }
 
-func (t *jwtRestToken) RequestHash() []byte {
-	return t.ReqHash
+func (t *jwtRestToken) ValidateRequestHash(r *http.Request) bool {
+	hash := GetRequestHash(r)
+	return bytes.Equal(t.ReqHash, hash)
 }
 
 func (t *jwtRestToken) HasAdminAccess() bool {
@@ -96,7 +97,7 @@ func getRequestBody(r *http.Request) string {
 }
 
 func GetRequestHash(r *http.Request) []byte {
-	req := strings.ToUpper(r.Method) + RequestDelimiter + strings.ToLower(r.URL.String())
+	req := strings.ToUpper(r.Method) + RequestDelimiter + strings.ToLower(r.RequestURI)
 	body := getRequestBody(r)
 	if len(body) > 0 {
 		req = req + RequestDelimiter + body

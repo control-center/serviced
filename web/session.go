@@ -127,17 +127,22 @@ func loginWithBasicAuthOK(r *rest.Request) bool {
 
 func loginWithTokenOK(r *rest.Request, token string) bool {
 	restToken, err := auth.ParseRestToken(token)
-	//validToken, err := auth.ValidateRestToken(r.Request, token)
 	if err != nil {
 		msg := "Unable to parse rest token"
 		plog.WithError(err).WithField("url", r.URL.String()).Debug(msg)
 		return false
-	} else if !restToken.HasAdminAccess() {
-		msg := "Could not login with rest token. Insufficient permissions."
-		plog.WithField("url", r.URL.String()).Debug(msg)
-		return false
 	} else {
-		return true
+		if !restToken.ValidateRequestHash(r.Request) {
+			msg := "Could not login with rest token. Request signature does not match token."
+			plog.WithField("url", r.URL.String()).Debug(msg)
+			return false
+		} else if !restToken.HasAdminAccess() {
+			msg := "Could not login with rest token. Insufficient permissions."
+			plog.WithField("url", r.URL.String()).Debug(msg)
+			return false
+		} else {
+			return true
+		}
 	}
 }
 
