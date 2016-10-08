@@ -351,6 +351,43 @@ func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]ho
 	return toReadHosts(hosts), nil
 }
 
+// GetHostStatuses returns the memory usage and whether or not a host is active
+func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error) {
+	if hostIDs == nil {
+		return []host.HostStatus{}, nil
+	}
+
+	statuses := []host.HostStatus{}
+	for _, id := range hostIDs {
+		h, err := f.GetHost(ctx, id)
+		if err != nil {
+			continue
+		}
+
+		status := host.HostStatus{HostID: id, MemoryUsage: service.Usage{}}
+		active, err := f.zzk.IsHostActive(h.PoolID, h.ID)
+		if err != nil {
+			continue
+		}
+		status.Active = active
+
+		instances, err := f.GetHostInstances(ctx, since, id)
+		if err != nil {
+			continue
+		}
+
+		for _, i := range instances {
+			status.MemoryUsage.Cur += i.MemoryUsage.Cur
+			status.MemoryUsage.Max += i.MemoryUsage.Max
+			status.MemoryUsage.Avg += i.MemoryUsage.Avg
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
+}
+
 func toReadHosts(hosts []host.Host) []host.ReadHost {
 	readHosts := []host.ReadHost{}
 	for _, h := range hosts {

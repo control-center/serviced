@@ -20,8 +20,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/coordinator/client"
+	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -39,7 +39,7 @@ func getZZK() ZZK {
 }
 
 type zkf struct {
-	svcRegistry  *serviceRegistryCache
+	svcRegistry *serviceRegistryCache
 }
 
 // UpdateService updates the service object and exposed public endpoints that
@@ -342,6 +342,14 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	}
 	*hosts, err = zks.GetCurrentHosts(conn, poolID)
 	return err
+}
+
+func (z *zkf) IsHostActive(poolID string, hostID string) (bool, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return false, err
+	}
+	return zks.IsHostOnline(conn, poolID, hostID)
 }
 
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
@@ -733,7 +741,7 @@ func (zk *zkf) SyncServiceRegistry(tenantID string, svc *service.Service) error 
 	}
 
 	// Update our local cache now that we know that ZK was updated successfully
-	 zk.svcRegistry.UpdateRegistry(syncRequest.ServiceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
+	zk.svcRegistry.UpdateRegistry(syncRequest.ServiceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
 
 	logger.Debug("Updated the service's public endpoints in zookeeper")
 	return nil

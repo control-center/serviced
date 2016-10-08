@@ -1242,3 +1242,24 @@ func (_m *FacadeInterface) DeleteServiceConfig(ctx datastore.Context, fileID str
 
 	return r0
 }
+func (_m *FacadeInterface) GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error) {
+	ret := _m.Called(ctx, hostIDs, since)
+
+	var r0 []host.HostStatus
+	if rf, ok := ret.Get(0).(func(datastore.Context, []string, time.Time) []host.HostStatus); ok {
+		r0 = rf(ctx, hostIDs, since)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]host.HostStatus)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, []string, time.Time) error); ok {
+		r1 = rf(ctx, hostIDs, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
