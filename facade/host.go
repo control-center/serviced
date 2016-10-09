@@ -291,6 +291,13 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 	return f.generateDelegateKey(ctx, &value)
 }
 
+// SetHostExpiration sets a host's auth token
+// expiration time in the HostExpirationRegistry
+func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
+	//defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
+	f.hostRegistry.Set(hostid, expiration)
+}
+
 // GetHosts returns a list of all registered hosts
 func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
@@ -370,6 +377,9 @@ func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since 
 			continue
 		}
 		status.Active = active
+
+		authed, _ := f.hostRegistry.IsExpired(h.ID)
+		status.Authenticated = !authed
 
 		instances, err := f.GetHostInstances(ctx, since, id)
 		if err != nil {

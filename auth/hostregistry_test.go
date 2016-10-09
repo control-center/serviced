@@ -23,22 +23,24 @@ import (
 )
 
 func (s *TestAuthSuite) TestHostExpired(c *C) {
+	reg := auth.NewHostExpirationRegistry()
 	hostid := "fakehost"
 	expires := jwt.TimeFunc().Add(time.Minute).Unix()
-	auth.SetHostExpiration(hostid, expires)
+	reg.Set(hostid, expires)
 
-	hasExpired := auth.HostExpired(hostid)
+	hasExpired, _ := reg.IsExpired(hostid)
 	c.Assert(hasExpired, Equals, false)
 }
 
 func (s *TestAuthSuite) TestHostExpiredExpires(c *C) {
+	reg := auth.NewHostExpirationRegistry()
 	hostid := "fakehost"
 	expires := jwt.TimeFunc().Add(time.Second).Unix()
-	auth.SetHostExpiration(hostid, expires)
+	reg.Set(hostid, expires)
 
 	fakenow := jwt.TimeFunc().Add(time.Minute)
 	auth.At(fakenow, func() {
-		hasExpired := auth.HostExpired(hostid)
+		hasExpired, _ := reg.IsExpired(hostid)
 		c.Assert(hasExpired, Equals, true)
 	})
 }

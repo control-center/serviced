@@ -18,14 +18,12 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
 var (
-	hostExpirationRegistry = &HostExpirationRegistry{registry: make(map[string]int64)}
 	// ErrMissingHost indicates if a host does not
 	// exist in the host expiration registry
 	ErrMissingHost = errors.New("Host is not present in host expiration registry")
@@ -47,10 +45,10 @@ func (reg *HostExpirationRegistry) Set(hostid string, expires int64) {
 	reg.registry[hostid] = expires
 }
 
-// Expired checks if a give host's auth has expired
+// IsExpired checks if a give host's auth has expired
 // and returns a bool or an error if the host isn't
 // in the registry
-func (reg *HostExpirationRegistry) Expired(hostid string) (bool, error) {
+func (reg *HostExpirationRegistry) IsExpired(hostid string) (bool, error) {
 	reg.Lock()
 	defer reg.Unlock()
 	expiration, ok := reg.registry[hostid]
@@ -62,16 +60,9 @@ func (reg *HostExpirationRegistry) Expired(hostid string) (bool, error) {
 	return now >= expiration, nil
 }
 
-// SetHostExpiration adds a host and its auth expiration
-// time to the host expiration registry
-func SetHostExpiration(id string, expires int64) {
-	fmt.Printf("settin host expiry for %s to %d", id, expires)
-	hostExpirationRegistry.Set(id, expires)
-}
-
-// HostExpired checks if a host's auth has expired
-func HostExpired(id string) bool {
-	expired, _ := hostExpirationRegistry.Expired(id)
-	fmt.Printf("host %s expired is %t", id, expired)
-	return expired
+// NewHostExpirationRegistry creates a new HostExpirationRegistry
+func NewHostExpirationRegistry() *HostExpirationRegistry {
+	return &HostExpirationRegistry{
+		registry: make(map[string]int64),
+	}
 }
