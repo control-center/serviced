@@ -14,13 +14,9 @@
 package isvcs
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"os"
-	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/elastigo/cluster"
 
 	"encoding/json"
@@ -163,36 +159,7 @@ func initElasticSearch() {
 }
 
 func recoverES(path string) error {
-	log := log.WithFields(logrus.Fields{
-		"path": path,
-	})
-	if err := func() error {
-		file, err := os.Create(path + "-backup.tgz")
-		if err != nil {
-			log.WithError(err).Debug("Unable to create backup")
-			return err
-		}
-		defer file.Close()
-		gz := gzip.NewWriter(file)
-		defer gz.Close()
-		tarfile := tar.NewWriter(gz)
-		defer tarfile.Close()
-		if err := volume.ExportDirectory(tarfile, path, filepath.Base(path)); err != nil {
-			log.WithError(err).Debug("Unable to back up")
-			return err
-		}
-		if err := volume.ExportFile(tarfile, path+".clustername", filepath.Base(path)+".clustername"); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return err
-	}
-	if err := os.RemoveAll(path); err != nil {
-		log.WithError(err).Debug("Unable to remove backup")
-		return err
-	}
-	return nil
+	return os.Rename(path, path+"-backup")
 }
 
 type esres struct {
