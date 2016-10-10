@@ -252,7 +252,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 			// synchronizer will eventually clean this service up
 			glog.Warningf("COORD: Could not delete service %s from pool %s: %s", cursvc.ID, cursvc.PoolID, err)
 			cursvc.DesiredState = int(service.SVCStop)
-			f.zzk.UpdateService(tenantID, cursvc, false, false)
+			f.zzk.UpdateService(ctx, tenantID, cursvc, false, false)
 		}
 	}
 
@@ -412,7 +412,7 @@ func (f *Facade) syncService(ctx datastore.Context, tenantID, serviceID string, 
 		glog.Errorf("Could not get service %s to sync: %s", serviceID, err)
 		return err
 	}
-	if err := f.zzk.UpdateService(tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
+	if err := f.zzk.UpdateService(ctx, tenantID, svc, setLockOnCreate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s to the coordinator: %s", serviceID, err)
 		return err
 	}
@@ -541,7 +541,7 @@ func (f *Facade) SyncServiceRegistry(ctx datastore.Context, svc *service.Service
 		glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-	err = f.zzk.SyncServiceRegistry(tenantID, svc)
+	err = f.zzk.SyncServiceRegistry(ctx, tenantID, svc)
 	if err != nil {
 		glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
@@ -1144,11 +1144,11 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 }
 
 func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("validateServiceStart"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("scheduleOneService"))
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances
-		if err := f.zzk.StopServiceInstances(svc.PoolID, svc.ID); err != nil {
+		if err := f.zzk.StopServiceInstances(ctx, svc.PoolID, svc.ID); err != nil {
 			return err
 		}
 		svc.DesiredState = int(service.SVCRun)
@@ -1167,7 +1167,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 	if err := f.fillServiceAddr(ctx, svc); err != nil {
 		return err
 	}
-	if err := f.zzk.UpdateService(tenantID, svc, false, false); err != nil {
+	if err := f.zzk.UpdateService(ctx, tenantID, svc, false, false); err != nil {
 		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
 		return err
 	}
@@ -1247,7 +1247,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 }
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("StartService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
 }
 
