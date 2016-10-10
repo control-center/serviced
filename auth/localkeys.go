@@ -193,7 +193,7 @@ func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
 //  write them to disk.
 func CreateOrLoadMasterKeys(filename string) error {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		if err = os.MkdirAll(path.Dir(filename), os.ModeDir|0700); err != nil {
+		if err = os.MkdirAll(path.Dir(filename), os.ModeDir|0755); err != nil {
 			return err
 		}
 
