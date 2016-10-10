@@ -294,8 +294,13 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 // SetHostExpiration sets a host's auth token
 // expiration time in the HostExpirationRegistry
 func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
-	//defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
 	f.hostRegistry.Set(hostid, expiration)
+}
+
+// RemoveHostExpiration removes a host from the
+// HostExpirationRegistry
+func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
+	f.hostRegistry.Remove(hostid)
 }
 
 // GetHosts returns a list of all registered hosts

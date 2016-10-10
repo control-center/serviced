@@ -32,6 +32,22 @@ func (s *TestAuthSuite) TestHostExpired(c *C) {
 	c.Assert(hasExpired, Equals, false)
 }
 
+func (s *TestAuthSuite) TestHostRemove(c *C) {
+	reg := auth.NewHostExpirationRegistry()
+	hostid := "fakehost"
+	expires := jwt.TimeFunc().Add(time.Minute).Unix()
+	reg.Set(hostid, expires)
+
+	hasExpired, _ := reg.IsExpired(hostid)
+	c.Assert(hasExpired, Equals, false)
+
+	reg.Remove(hostid)
+	hasExpired, err := reg.IsExpired(hostid)
+
+	c.Assert(err, Equals, auth.ErrMissingHost)
+	c.Assert(hasExpired, Equals, true)
+}
+
 func (s *TestAuthSuite) TestHostExpiredExpires(c *C) {
 	reg := auth.NewHostExpirationRegistry()
 	hostid := "fakehost"

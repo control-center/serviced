@@ -45,6 +45,13 @@ func (reg *HostExpirationRegistry) Set(hostid string, expires int64) {
 	reg.registry[hostid] = expires
 }
 
+// Remove removes a host from the expiration registry
+func (reg *HostExpirationRegistry) Remove(hostid string) {
+	reg.Lock()
+	defer reg.Unlock()
+	delete(reg.registry, hostid)
+}
+
 // IsExpired checks if a give host's auth has expired
 // and returns a bool or an error if the host isn't
 // in the registry

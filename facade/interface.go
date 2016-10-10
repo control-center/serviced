@@ -85,6 +85,8 @@ type FacadeInterface interface {
 
 	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
 
+	RemoveHostExpiration(ctx datastore.Context, hostID string)
+
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
 	UpdateHost(ctx datastore.Context, entity *host.Host) error
