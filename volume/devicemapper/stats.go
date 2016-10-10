@@ -210,24 +210,24 @@ func getDeviceSize(dev string) (uint64, error) {
 
 // dfStats contains stats reported by df
 type dfStats struct {
-	BlockSize uint64
-	FilesystemPath string
-	BlocksTotal uint64
-	BlocksUsed uint64
+	BlockSize       uint64
+	FilesystemPath  string
+	BlocksTotal     uint64
+	BlocksUsed      uint64
 	BlocksAvailable uint64
-	MountPoint string
+	MountPoint      string
 }
 
-// filesystemNotMountedErr is the error raised when a filesystem is not mounted
-var filesystemNotMountedErr = errors.New("Filesystem not mounted.")
+// errFilesystemNotMounted is the error raised when a filesystem is not mounted
+var errFilesystemNotMounted = errors.New("Filesystem not mounted.")
 
 // getFilesystemStats calls df to see if the filesystem is mounted and
 // gets the parsed info for it if it is.
 // If it is not mounted, it calls getUnmountedFilesystemStats for the info.
 func getFilesystemStats(dev string) (uint64, uint64, error) {
 	totalBlocks, freeBlocks, err := getMountedFilesystemStats(dev)
-	// Catch the filesystemNotMountedErr and try getUnmountedFilesystemStats
-	if err == filesystemNotMountedErr {
+	// Catch the errFilesystemNotMounted and try getUnmountedFilesystemStats
+	if err == errFilesystemNotMounted {
 		totalBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
 		if err != nil {
 			return 0, 0, err
@@ -267,7 +267,7 @@ func getMountedFilesystemStats(dev string) (uint64, uint64, error) {
 		}
 	}
 	if !mounted {
-		return 0, 0, filesystemNotMountedErr
+		return 0, 0, errFilesystemNotMounted
 	}
 
 	return totalBlocks, freeBlocks, err
@@ -300,7 +300,7 @@ func parseDfOutput(r io.Reader) ([]*dfStats, error) {
 			b, err = strconv.ParseUint(strings.TrimSuffix(blockStr, "T"), 10, 64)
 			bytes = b * base * base * base * base
 		} else {
-			bytes, err =  strconv.ParseUint(blockStr, 10, 64)
+			bytes, err = strconv.ParseUint(blockStr, 10, 64)
 		}
 
 		return bytes, err
@@ -335,12 +335,12 @@ func parseDfOutput(r io.Reader) ([]*dfStats, error) {
 			}
 			mountPoint := f[5]
 			statsSlice = append(statsSlice, &dfStats{
-				BlockSize: blockSize,
-				FilesystemPath: filesystemPath,
-				BlocksTotal: totalBlocks,
-				BlocksUsed: usedBlocks,
+				BlockSize:       blockSize,
+				FilesystemPath:  filesystemPath,
+				BlocksTotal:     totalBlocks,
+				BlocksUsed:      usedBlocks,
 				BlocksAvailable: availableBlocks,
-				MountPoint: mountPoint,
+				MountPoint:      mountPoint,
 			})
 		}
 	}
@@ -410,14 +410,14 @@ func parseDumpe2fsOutput(r io.Reader) (*filesystemStats, error) {
 		return 0, nil, nil
 	}
 
-	malformedRangeErr := errors.New("Malformed range.  Expected form: \"x-y\"")
+	errMalformedRange := errors.New("Malformed range.  Expected form: \"x-y\"")
 
 	// Gets the inclusive difference of a range
 	// e.g. rangeDiffIncl("1-15") == 15
 	rangeDiffIncl := func(rangeStr string) (uint64, error) {
 		splitRange := strings.Split(rangeStr, "-")
 		if len(splitRange) != 2 {
-			return 0, malformedRangeErr
+			return 0, errMalformedRange
 		}
 		uLeft, err := strconv.ParseUint(splitRange[0], 10, 64)
 		if err != nil {

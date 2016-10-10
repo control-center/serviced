@@ -16,9 +16,9 @@
 package devicemapper
 
 import (
-  "os"
-  "testing"
 	. "gopkg.in/check.v1"
+	"os"
+	"testing"
 )
 
 func TestStats(t *testing.T) { TestingT(t) }
@@ -39,26 +39,26 @@ func (s *StatsSuite) TestParseDumpe2fsOutput(c *C) {
 		panic(err)
 	}
 
-  // Compare to hand picked values
+	// Compare to hand picked values
 	c.Check(fs, DeepEquals, &filesystemStats{
-		BlocksTotal: 26214400,
+		BlocksTotal:     26214400,
 		BlockSize:       4096,
 		FreeBlocks:      25755051,
-		UnusableBlocks: 444088,
-		Superblocks: 15,
-		GroupsTotal: 800,
-		JournalLength: 32768,
-		SuperblockSize: 1,
-		GroupDescSize: 7,
-		BitmapSize: 1,
+		UnusableBlocks:  444088,
+		Superblocks:     15,
+		GroupsTotal:     800,
+		JournalLength:   32768,
+		SuperblockSize:  1,
+		GroupDescSize:   7,
+		BitmapSize:      1,
 		InodeBitmapSize: 1,
-		InodeTableSize: 512,
+		InodeTableSize:  512,
 	})
 }
 
 // TestParseDfOutput tests that sample df output parses correctly
 func (s *StatsSuite) TestParseDfOutput(c *C) {
-  r, err := os.Open("testdata/df.out.data")
+	r, err := os.Open("testdata/df.out.data")
 	if err != nil {
 		panic(err)
 	}
@@ -68,15 +68,15 @@ func (s *StatsSuite) TestParseDfOutput(c *C) {
 		panic(err)
 	}
 
-  // Our test data only has 1 element, compare to hand picked values
+	// Our test data only has 1 element, compare to hand picked values
 	c.Check(dfSlice[0], DeepEquals, &dfStats{
-    BlockSize: 1024,
-    FilesystemPath: "/dev/mapper/docker-8:1-12852375-1VbuL3AP0QC0ETsvpys9su",
-    BlocksTotal: 103081248,
-    BlocksUsed: 537608,
-    BlocksAvailable: 97284376,
-    MountPoint: "/exports/serviced_volumes_v2/e0fqzrnmnwgiytbznlqi0fy08",
-  })
+		BlockSize:       1024,
+		FilesystemPath:  "/dev/mapper/docker-8:1-12852375-1VbuL3AP0QC0ETsvpys9su",
+		BlocksTotal:     103081248,
+		BlocksUsed:      537608,
+		BlocksAvailable: 97284376,
+		MountPoint:      "/exports/serviced_volumes_v2/e0fqzrnmnwgiytbznlqi0fy08",
+	})
 }
 
 // TestConsistantStats tests that parseDumpe2fsOutput and parseDfOutput
