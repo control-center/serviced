@@ -208,9 +208,38 @@ func getDeviceSize(dev string) (uint64, error) {
 	return size, nil
 }
 
-// getFilesystemStats calls df to retrieve filesystem statistics.  If the
-// filesystem is not mounted, it calls getUnmountedFilesystemStats
+// dfStats contains stats reported by df
+type dfStats struct {
+	BlockSize uint64
+	FilesystemPath string
+	BlocksTotal uint64
+	BlocksUsed uint64
+	BlocksAvailable uint64
+	MountPoint string
+}
+
+// filesystemNotMountedErr is the error raised when a filesystem is not mounted
+var filesystemNotMountedErr = errors.New("Filesystem not mounted.")
+
+// getFilesystemStats calls df to see if the filesystem is mounted and
+// gets the parsed info for it if it is.
+// If it is not mounted, it calls getUnmountedFilesystemStats for the info.
 func getFilesystemStats(dev string) (uint64, uint64, error) {
+	totalBlocks, freeBlocks, err := getMountedFilesystemStats(dev)
+	// Catch the filesystemNotMountedErr and try getUnmountedFilesystemStats
+	if err == filesystemNotMountedErr {
+		totalBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
+		if err != nil {
+			return 0, 0, err
+		}
+	} else if err != nil {
+		return 0, 0, err
+	}
+	return totalBlocks, freeBlocks, err
+}
+
+// getMountedFilesystemStats calls df to get filesystem stats for a mounted dev
+func getMountedFilesystemStats(dev string) (uint64, uint64, error) {
 	// Specify 1 byte "blocks" for ease
 	cmd := exec.Command("df", "-B 1")
 	defer cmd.Wait()
@@ -222,29 +251,100 @@ func getFilesystemStats(dev string) (uint64, uint64, error) {
 	if err = cmd.Start(); err != nil {
 		return 0, 0, err
 	}
-	scanner := bufio.NewScanner(out)
-	var totalBlocks, freeBlocks uint64
 	mounted := false
-	for !mounted && scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, dev) {
+	var totalBlocks uint64
+	var freeBlocks uint64
+	dfStatsSlice, err := parseDfOutput(out)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, stats := range dfStatsSlice {
+		if stats.FilesystemPath == dev {
 			mounted = true
-			f := strings.Fields(line)
-			totalBlocks, err = strconv.ParseUint(f[1], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
-			freeBlocks, err = strconv.ParseUint(f[3], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
+			totalBlocks = stats.BlocksTotal
+			freeBlocks = stats.BlocksAvailable
+			break
 		}
 	}
-
 	if !mounted {
-		totalBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
+		return 0, 0, filesystemNotMountedErr
 	}
+
 	return totalBlocks, freeBlocks, err
+}
+
+// parseDfOutput attempts to parse output from a df call.  It supports multiple
+// options for block sizes.  Returns a dfStats object for each mounted device
+// in the df ouput
+func parseDfOutput(r io.Reader) ([]*dfStats, error) {
+	getBytes := func(blockStr string) (uint64, error) {
+		base := uint64(1024)
+		bytes := uint64(0)
+		b := uint64(0)
+		var err error
+		// in df output, kB, MB, etc are powers of 1000, K, M, etc are powers of 1024
+		if strings.HasSuffix(blockStr, "B") {
+			base = 1000
+		}
+		blockStr = strings.TrimSuffix(blockStr, "B")
+		if strings.HasSuffix(blockStr, "K") {
+			b, err = strconv.ParseUint(strings.TrimSuffix(blockStr, "K"), 10, 64)
+			bytes = b * base
+		} else if strings.HasSuffix(blockStr, "M") {
+			b, err = strconv.ParseUint(strings.TrimSuffix(blockStr, "M"), 10, 64)
+			bytes = b * base * base
+		} else if strings.HasSuffix(blockStr, "G") {
+			b, err = strconv.ParseUint(strings.TrimSuffix(blockStr, "G"), 10, 64)
+			bytes = b * base * base * base
+		} else if strings.HasSuffix(blockStr, "T") {
+			b, err = strconv.ParseUint(strings.TrimSuffix(blockStr, "T"), 10, 64)
+			bytes = b * base * base * base * base
+		} else {
+			bytes, err =  strconv.ParseUint(blockStr, 10, 64)
+		}
+
+		return bytes, err
+	}
+	scanner := bufio.NewScanner(r)
+	statsSlice := make([]*dfStats, 0, 3)
+	var err error
+	var blockSize uint64
+	for scanner.Scan() {
+		line := scanner.Text()
+		f := strings.Fields(line)
+		// Read block size from output header
+		if strings.HasPrefix(f[0], "Filesystem") {
+			blockSizeStr := strings.Split(f[1], "-")[0]
+			blockSize, err = getBytes(blockSizeStr)
+			if err != nil {
+				return statsSlice, err
+			}
+		} else {
+			filesystemPath := f[0]
+			totalBlocks, err := strconv.ParseUint(f[1], 10, 64)
+			if err != nil {
+				return statsSlice, err
+			}
+			usedBlocks, err := strconv.ParseUint(f[2], 10, 64)
+			if err != nil {
+				return statsSlice, err
+			}
+			availableBlocks, err := strconv.ParseUint(f[3], 10, 64)
+			if err != nil {
+				return statsSlice, err
+			}
+			mountPoint := f[5]
+			statsSlice = append(statsSlice, &dfStats{
+				BlockSize: blockSize,
+				FilesystemPath: filesystemPath,
+				BlocksTotal: totalBlocks,
+				BlocksUsed: usedBlocks,
+				BlocksAvailable: availableBlocks,
+				MountPoint: mountPoint,
+			})
+		}
+	}
+	return statsSlice, nil
 }
 
 // filesystemStats contains stats for a filesystem
