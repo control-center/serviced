@@ -3,6 +3,11 @@
 source /usr/local/rvm/scripts/rvm
 CUCUMBER_CMD="cd /capybara; cucumber $*"
 
+COMMON='/capybara/features/common'
+if [ ! -L ${COMMON} ]; then
+    ln -s /common ${COMMON}
+fi
+
 #
 # Run cucumber with the default profile (which generates a JSON report) and convert the JSON report to
 # a nice HTML format

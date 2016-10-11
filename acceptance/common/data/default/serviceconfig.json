@@ -1,0 +1,6 @@
+{
+  "Filename": "fakeservicedotconf",
+  "Permissions": "644",
+  "Owner": "zenoss:zenoss",
+  "Content": "some proper acceptance testing content"
+}

@@ -118,7 +118,7 @@ elif [ `uname -s` == "Darwin" ]; then
     echo "ERROR: not supported on Mac OS X"
     exit 1
 else
-    CMD="runApiCucumber.sh ${CUCUMBER_OPTS}"
+    CMD="runAPICucumber.sh ${CUCUMBER_OPTS}"
 fi
 
 parse_host() {
@@ -184,8 +184,7 @@ if [ -z "$JOB_NAME" ]; then
     JOB_NAME="serviced-acceptance"
 fi
 
-cp -u `pwd`/../serviced `pwd`/ui
-
+cp -u `pwd`/../serviced `pwd`/api
 trap 'docker rm -f api_acceptance' INT
 
 docker run --rm --name api_acceptance \
@@ -193,6 +192,7 @@ docker run --rm --name api_acceptance \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/api:/capybara:rw \
+    -v `pwd`/common:/common:rw \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \

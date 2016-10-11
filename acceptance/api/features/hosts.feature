@@ -1,6 +1,12 @@
 @login-required
 Feature: V2 Hosts tests
 
+  Background:
+    Given that the test template is added
+    And that the default resource pool is added
+    And that the "testsvc" application with the "XYZZY" Deployment ID is added
+    And that the "testsvc" application is started
+
   @hosts
   Scenario: GET all hosts
     Given I send and accept JSON

@@ -1,6 +1,10 @@
 @login-required
 Feature: V2 Pools tests
 
+  Background:
+    Given that the test template is added
+    And that the default resource pool is added
+
   @pools
   Scenario: I can GET all pools
     Given I send and accept JSON
