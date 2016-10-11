@@ -174,4 +174,7 @@ type FacadeInterface interface {
 	UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error
 
 	DeleteServiceConfig(ctx datastore.Context, fileID string) error
+
+	UpdateServiceCache(ctx datastore.Context) error
+
 }

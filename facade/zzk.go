@@ -53,4 +53,5 @@ type ZZK interface {
 	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
+	GetServiceNodes() ([]zkservice.ServiceNode, error)
 }

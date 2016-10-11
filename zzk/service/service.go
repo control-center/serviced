@@ -85,6 +85,48 @@ func (s *ServiceNode) SetVersion(version interface{}) {
 	s.version = version
 }
 
+func GetServiceNodes(conn client.Connection) ([]ServiceNode, error) {
+	svcNodes := []ServiceNode{}
+
+	// Get the resource pool ids.
+	poolsPath := "/pools"
+	poolids, err := conn.Children(poolsPath)
+	if err == client.ErrNoNode {
+		return svcNodes, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("Found %d resource pools", len(poolids))
+
+	// Get the ServiceNode for each service in each pool.
+	for _, poolid := range poolids {
+		poolPath := path.Join(poolsPath, poolid, "services")
+
+		// if the service has any children, do not delete
+		children, err := conn.Children(poolPath)
+		if err != nil {
+			continue
+		}
+
+		log.Debugf("Found %d child nodes under %s", len(children), poolPath)
+
+		for _, child := range children {
+			serviceNodePath := path.Join(poolPath, child)
+			node := &ServiceNode{}
+			if err := conn.Get(serviceNodePath, node); err != nil {
+				log.Warningf("Error getting ServiceNode: %s", err)
+				continue
+			}
+			svcNodes = append(svcNodes, *node)
+		}
+	}
+
+	log.Debugf("Returning %d ServiceNodes", len(svcNodes))
+	return svcNodes, nil
+}
+
 // UpdateService creates the service if it doesn't exist or updates it if it
 // does exist. (uses a pool-based connection)
 func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
