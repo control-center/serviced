@@ -144,7 +144,7 @@
 
                             resourcesFactory.resetHostKeys($scope.currentHost.id)
                                 .success((data, status) => {
-                                    $modalService.modals.displayHostKeys(data.PrivateKey, $scope.currentHost.host);
+                                    $modalService.modals.displayHostKeys(data.PrivateKey, $scope.currentHost.name);
                                 })
                                 .error((data, status) => {
                                     // TODO - form error highlighting
