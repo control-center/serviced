@@ -29,8 +29,8 @@ import (
 	"github.com/control-center/serviced/commons/iptables"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -136,24 +136,8 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	// Update the service with the complete image name
 	evaluatedService.ImageID = imageName
 
-       // Establish a connection to the master
-       masterClient, err := master.NewClient(a.master)
-       if err != nil {
-               logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
-               return nil, nil, err
-       }
-       defer masterClient.Close()
-
-	// get the system user
-	systemUser, err := masterClient.GetSystemUser()
-	if err != nil {
-		logger.WithError(err).Error("Failed to get the system user account")
-		return nil, nil, err
-	}
-	logger.WithField("systemuser", systemUser.Name).Debug("Got system user")
-
 	// get the container configs
-	ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, systemUser, imageUUID)
+	ctr, state, err := a.setupContainer(tenantID, evaluatedService, instanceID, imageUUID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not setup container")
 		return nil, nil, err
@@ -430,14 +414,14 @@ func dockerLogsToFile(containerid string, numlines int) {
 // setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
+func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instanceID int, imageUUID string) (*docker.Container, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"servicename": svc.Name,
 		"serviceid":   svc.ID,
 		"instanceid":  instanceID,
 	})
-	cfg, hcfg, state, err := a.createContainerConfig(tenantID, svc, instanceID, systemUser, imageUUID)
+	cfg, hcfg, state, err := a.createContainerConfig(tenantID, svc, instanceID, imageUUID)
 	if err != nil {
 		logger.WithError(err).Error("Unable to create container configuration")
 		return nil, nil, err
@@ -456,7 +440,7 @@ func (a *HostAgent) setupContainer(tenantID string, svc *service.Service, instan
 	return ctr, state, nil
 }
 
-func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, systemUser user.User, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
+func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service, instanceID int, imageUUID string) (*dockerclient.Config, *dockerclient.HostConfig, *zkservice.ServiceState, error) {
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"servicename": svc.Name,
@@ -648,8 +632,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 
 	// add arguments for environment variables
 	cfg.Env = append(svc.Environment,
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
+		fmt.Sprintf("SERVICED_VERSION='%s'", servicedversion.Version),
 		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", a.virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
