@@ -20,7 +20,7 @@ func initKibana() {
 	command := "exec /opt/kibana/bin/kibana-start.sh"
 
 	webserverPortBinding := portBinding{
-		HostIp:         "0.0.0.0",
+		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_KIBANA_PORT_5601_HOSTIP",
 		HostPort:       5601,
 	}
