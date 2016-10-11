@@ -214,6 +214,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 		glog.Errorf("Could not validate service %s (%s) for update: %s", svc.Name, svc.ID, err)
 		return err
 	}
+
 	// set service configurations
 	if migrate {
 		if svc.OriginalConfigs == nil || len(svc.OriginalConfigs) == 0 {
@@ -233,6 +234,7 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 		}
 		svc.ConfigFiles = nil
 	}
+
 	// write the service into the database
 	svc.UpdatedAt = time.Now()
 	if err := store.Put(ctx, &svc); err != nil {
@@ -328,6 +330,33 @@ func (f *Facade) validateServiceUpdate(ctx datastore.Context, svc *service.Servi
 	// set read-only fields
 	svc.CreatedAt = cursvc.CreatedAt
 	svc.DeploymentID = cursvc.DeploymentID
+
+	// remove any BuiltIn enabled monitoring configs
+	metricConfigs := []domain.MetricConfig{}
+	for _, mc := range svc.MonitoringProfile.MetricConfigs {
+		if mc.ID == "metrics" {
+			continue
+		}
+
+		metrics := []domain.Metric{}
+		for _, m := range mc.Metrics {
+			if !m.BuiltIn {
+				metrics = append(metrics, m)
+			}
+		}
+		mc.Metrics = metrics
+		metricConfigs = append(metricConfigs, mc)
+	}
+	svc.MonitoringProfile.MetricConfigs = metricConfigs
+
+	graphs := []domain.GraphConfig{}
+	for _, g := range svc.MonitoringProfile.GraphConfigs {
+		if !g.BuiltIn {
+			graphs = append(graphs, g)
+		}
+	}
+	svc.MonitoringProfile.GraphConfigs = graphs
+
 	// verify the desired state of the service
 	if svc.DesiredState != int(service.SVCStop) {
 		if err := f.validateServiceStart(ctx, svc); err != nil {
