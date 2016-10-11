@@ -159,6 +159,25 @@ func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
 	c.Assert(err, IsNil)
 }
 
+func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+		func(args mock.Arguments) {
+			*args.Get(2).(*host.Host) = h
+		})
+	ft.zzk.On("RemoveHost", &h).Return(nil)
+	ft.hostkeyStore.On("Delete", ft.ctx, h.ID).Return(nil)
+	ft.hostStore.On("Delete", ft.ctx, host.HostKey(h.ID)).Return(nil)
+
+	err := ft.Facade.RemoveHost(ft.ctx, h.ID)
+
+	c.Assert(err, IsNil)
+	ft.hostStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+	ft.zzk.AssertExpectations(c)
+}
+
 func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
 	h := getTestHost()
 

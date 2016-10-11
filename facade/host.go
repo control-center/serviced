@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,6 +34,10 @@ const (
 	afterHostAdd     = afterEvent("AfterHostAdd")
 	beforeHostDelete = beforeEvent("BeforeHostDelete")
 	afterHostDelete  = afterEvent("AfterHostDelete")
+)
+
+var (
+	ErrHostDoesNotExist = errors.New("facade: host does not exist")
 )
 
 //---------------------------------------------------------------------------
@@ -205,6 +210,11 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 
 	//remove host from zookeeper
 	if err = f.zzk.RemoveHost(_host); err != nil {
+		return err
+	}
+
+	// remove host from hostkey datastore
+	if err = f.hostkeyStore.Delete(ctx, _host.ID); err != nil {
 		return err
 	}
 

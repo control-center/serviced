@@ -20,15 +20,27 @@ func Test(t *testing.T) { TestingT(t) }
 type MySuite struct{}
 
 var (
-	_             = Suite(&MySuite{})
-	rtt           *RPCTestType
-	rpcClient     Client
-	bareRpcClient *rpc.Client
+	_                   = Suite(&MySuite{})
+	rtt                 *RPCTestType
+	rpcClient           Client
+	bareRpcClient       *rpc.Client
+	serveCodec          = rpc.ServeCodec
+	serveCodecMutex     sync.RWMutex
+	unlockingSleepMutex sync.Mutex
 )
 
 type RPCTestType int
 
 func (rtt *RPCTestType) Sleep(sleep time.Duration, reply *time.Duration) error {
+	time.Sleep(sleep)
+	*reply = sleep
+	return nil
+}
+
+// Unlocks the unlockingSleepMutex at the start of the method, be sure you have
+//  Locked it before calling this one
+func (rtt *RPCTestType) UnlockingSleep(sleep time.Duration, reply *time.Duration) error {
+	unlockingSleepMutex.Unlock()
 	time.Sleep(sleep)
 	*reply = sleep
 	return nil
@@ -64,8 +76,8 @@ func (s *MySuite) SetUpSuite(c *C) {
 	NonAuthenticatingCalls = []string{
 		"RPCTestType.NonAuthenticatingCall",
 	}
-	NonAdminRequiredCalls = []string{
-		"RPCTestType.NonAdminRequiredCall",
+	NonAdminRequiredCalls = map[string]struct{}{
+		"RPCTestType.NonAdminRequiredCall": struct{}{},
 	}
 	rtt = new(RPCTestType)
 	RegisterLocal("RPCTestType", rtt)
@@ -82,7 +94,9 @@ func (s *MySuite) SetUpSuite(c *C) {
 			if err != nil {
 				c.Errorf("Error accepting connections: %s", err)
 			}
-			go rpc.ServeCodec(NewDefaultAuthServerCodec(conn))
+			serveCodecMutex.RLock()
+			go serveCodec(NewDefaultAuthServerCodec(conn))
+			serveCodecMutex.RUnlock()
 		}
 	}()
 
@@ -93,13 +107,19 @@ func (s *MySuite) SetUpSuite(c *C) {
 func (s *MySuite) SetUpTest(c *C) {
 	auth.ClearKeys()
 	auth.ClearToken()
+	codectest.Reset()
 	// Load master keys so we can authenticate:
 	tmpDir := c.MkDir()
 	masterKeyFile := fmt.Sprintf("%s/master", tmpDir)
 	if err := auth.CreateOrLoadMasterKeys(masterKeyFile); err != nil {
 		c.Errorf("Error getting master keys: %s", err)
 	}
+	serveCodecMutex.Lock()
+	defer serveCodecMutex.Unlock()
+	serveCodec = rpc.ServeCodec
 }
+
+// Test Methods Start Here
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {
 
@@ -107,20 +127,20 @@ func (s *MySuite) TestConcurrentTimeout(c *C) {
 	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	c.Assert(err, IsNil)
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	unlockingSleepMutex.Lock()
 	go func() {
 		var reply time.Duration
-		wg.Done()
 		// Sleep, timeout after two. Shouldn't error.
-		err := client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*sleepTime)
+		err := client.Call("RPCTestType.UnlockingSleep", sleepTime, &reply, 2*sleepTime)
 		c.Assert(err, IsNil)
 		c.Assert(reply, Equals, sleepTime)
 	}()
-	wg.Wait()
+	// Wait until previous RPC call has started
+	unlockingSleepMutex.Lock()
+
 	var reply time.Duration
 	// should time out wating for client
-	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, sleepTime/2)
+	err = client.Call("RPCTestType.UnlockingSleep", sleepTime, &reply, sleepTime/2)
 	c.Assert(err, Equals, pool.ErrItemUnavailable)
 }
 
@@ -322,4 +342,39 @@ func (s *MySuite) TestNotAdmin(c *C) {
 	p = "Expected"
 	err = client.Call("RPCTestType.Echo", p, &r, 10*time.Second)
 	c.Assert(err, Equals, rpc.ServerError(ErrNoAdmin.Error()))
+}
+
+// Test multiple calls on the same client to shake out race conditions
+func (s *MySuite) TestConcurrentClientCalls(c *C) {
+	// Replace rpc.ServeCodec with one that will insert a delay
+	serveCodecMutex.Lock()
+	serveCodec = func(c rpc.ServerCodec) {
+		time.Sleep(200 * time.Millisecond)
+		rpc.ServeCodec(c)
+	}
+	serveCodecMutex.Unlock()
+
+	client, err := connectRPC("localhost:32111")
+	c.Assert(err, IsNil)
+
+	// We delay the server and then make 20 simultaneous calls on the same client
+	numCalls := 20
+	echoStrings := make([]string, numCalls)
+
+	for i := 0; i < numCalls; i++ {
+		echoStrings[i] = fmt.Sprintf("String%s", i)
+	}
+	wg := sync.WaitGroup{}
+	for _, s := range echoStrings {
+		wg.Add(1)
+		go func(param string) {
+			defer wg.Done()
+			var reply string
+			err := client.Call("RPCTestType.Echo", param, &reply)
+			c.Assert(err, IsNil)
+			c.Assert(reply, Equals, param)
+		}(s)
+	}
+
+	wg.Wait()
 }

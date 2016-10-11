@@ -145,6 +145,16 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 		return
 	}
 
+	// load the internal monitoring data
+	config, err := getInternalMetrics()
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
+		return
+	}
+	mp.MetricConfigs = append(mp.MetricConfigs, *config)
+	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+
 	glog.V(4).Infof("restGetServiceMonitoringProfile: id %s, monitoring profile %#v", serviceID, mp)
 	w.WriteJson(&mp)
 }
@@ -316,6 +326,32 @@ func restGetServiceIPAssignments(w *rest.ResponseWriter, r *rest.Request, ctx *r
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 	addrs, err := facade.GetServiceAddressAssignmentDetails(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up address assignments: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceAddressAssignments: id %s, addressAssignmentsL %#v", serviceID, addrs)
+	w.WriteJson(&addrs)
+}
+
+func restGetServiceExportedEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	addrs, err := facade.GetServiceExportedEndpoints(dataCtx, serviceID, includeChildren)
 	if err != nil {
 		glog.Errorf("Could not look up address assignments: %s", err)
 		restServerError(w, err)

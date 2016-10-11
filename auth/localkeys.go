@@ -80,6 +80,15 @@ func (m *MasterKeys) Verify(message, signature []byte) error {
 	return verifier.Verify(message, signature)
 }
 
+func getDelegatePrivateKey() (crypto.PrivateKey, error) {
+	dKeyCond.RLock()
+	defer dKeyCond.RUnlock()
+	if delegateKeys.localPrivate == nil {
+		return nil, ErrNoPrivateKey
+	}
+	return delegateKeys.localPrivate, nil
+}
+
 // SignAsDelegate signs the given message with the private key local
 // to the delegate running this process.
 func SignAsDelegate(message []byte) ([]byte, error) {
@@ -184,7 +193,7 @@ func LoadMasterKeys(public crypto.PublicKey, private crypto.PrivateKey) {
 //  write them to disk.
 func CreateOrLoadMasterKeys(filename string) error {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		if err = os.MkdirAll(path.Dir(filename), os.ModeDir|0700); err != nil {
+		if err = os.MkdirAll(path.Dir(filename), os.ModeDir|0755); err != nil {
 			return err
 		}
 

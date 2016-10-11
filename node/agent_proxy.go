@@ -31,6 +31,11 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const (
+	SERVICED_UI_ENDPOINT       = 5443
+	SERVICED_UI_ENDPOINT_PROXY = 443
+)
+
 // assert that the HostAgent implements the LoadBalancer interface
 var _ LoadBalancer = &HostAgent{}
 
@@ -130,8 +135,10 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationen
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
-	//control center should always be reachable on port 443 in a container
-	endpoint.ProxyPort = uint16(443)
+	// control center should always be reachable in a container on
+	// port SERVICED_UI_ENDPOINT_PROXY via http. SERVICED_UI_ENDPOINT_PROXY
+	// proxies to SERVICED_UI_ENDPOINT via https
+	endpoint.ProxyPort = uint16(SERVICED_UI_ENDPOINT)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"

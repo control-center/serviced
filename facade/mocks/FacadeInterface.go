@@ -134,6 +134,18 @@ func (_m *FacadeInterface) GetTenantID(ctx datastore.Context, serviceID string) 
 
 	return r0, r1
 }
+func (_m *FacadeInterface) SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error {
+	ret := _m.Called(ctx, svc)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, *service.Service) error); ok {
+		r0 = rf(ctx, svc)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *FacadeInterface) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
 	ret := _m.Called(ctx, request)
 
@@ -999,6 +1011,27 @@ func (_m *FacadeInterface) GetServiceAddressAssignmentDetails(ctx datastore.Cont
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.IPAssignment)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool) error); ok {
+		r1 = rf(ctx, serviceID, children)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error) {
+	ret := _m.Called(ctx, serviceID, children)
+
+	var r0 []service.ExportedEndpoint
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) []service.ExportedEndpoint); ok {
+		r0 = rf(ctx, serviceID, children)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ExportedEndpoint)
 		}
 	}
 

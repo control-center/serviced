@@ -45,6 +45,8 @@ type FacadeInterface interface {
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
+	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error
+
 	MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error
 
 	RemoveService(ctx datastore.Context, id string) error
@@ -142,6 +144,8 @@ type FacadeInterface interface {
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 
 	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
+
+	GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error)
 
 	AddUser(ctx datastore.Context, newUser user.User) error
 

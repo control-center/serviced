@@ -52,6 +52,7 @@ func New() *Facade {
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
 		serviceCache:  NewServiceCache(),
+		zzk:           getZZK(),
 	}
 }
 

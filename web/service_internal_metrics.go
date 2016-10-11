@@ -13,46 +13,7 @@
 
 package web
 
-import (
-	"strings"
-
-	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/zenoss/glog"
-)
-
-// fillBuiltinMetrics adds internal metrics to the monitoring profile
-func fillBuiltinMetrics(svc *service.Service) {
-	if strings.HasPrefix(svc.ID, "isvc-") {
-		return
-	}
-
-	if svc.MonitoringProfile.MetricConfigs == nil {
-		builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-		if err != nil {
-			glog.Errorf("Could not create builder to add internal metrics: %s", err)
-			return
-		}
-		config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
-		if err != nil {
-			glog.Errorf("could not create metric config for internal metrics: %s", err)
-		}
-		svc.MonitoringProfile.MetricConfigs = []domain.MetricConfig{*config}
-	}
-	index, found := findInternalMetricConfig(svc)
-	if !found {
-		glog.Errorf("should have been able to find internal metrics config")
-		return
-	}
-	config := &svc.MonitoringProfile.MetricConfigs[index]
-	removeInternalMetrics(config)
-	removeInternalGraphConfigs(svc)
-
-	if len(svc.Startup) > 2 {
-		addInternalMetrics(config)
-		addInternalGraphConfigs(svc)
-	}
-}
+import "github.com/control-center/serviced/domain"
 
 var internalCounterStats = []string{
 	"net.collisions", "net.multicast", "net.rx_bytes", "net.rx_compressed",
@@ -69,30 +30,52 @@ var internalGaugeStats = []string{
 	"net.open_connections.raw",
 }
 
-func removeInternalGraphConfigs(svc *service.Service) {
-	var configs []domain.GraphConfig
-	for _, config := range svc.MonitoringProfile.GraphConfigs {
-		if config.BuiltIn {
-			continue
-		}
-		configs = append(configs, config)
+func getInternalMetrics() (*domain.MetricConfig, error) {
+	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return nil, err
 	}
-	svc.MonitoringProfile.GraphConfigs = configs
+	config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, metricName := range internalCounterStats {
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      metricName,
+				Name:    metricName,
+				Counter: true,
+				BuiltIn: true,
+			})
+
+	}
+	for _, metricName := range internalGaugeStats {
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      metricName,
+				Name:    metricName,
+				Counter: false,
+				BuiltIn: true,
+			})
+
+	}
+	return config, nil
 }
 
-func addInternalGraphConfigs(svc *service.Service) {
-
-	tags := make(map[string][]string)
-	tags["controlplane_service_id"] = []string{svc.ID}
-
+func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
+	tags := map[string][]string{
+		"controlplane_service_id": []string{serviceID},
+	}
 	tRange := domain.GraphConfigRange{
 		Start: "1h-ago",
 		End:   "0s-ago",
 	}
 	zero := 0
-	svc.MonitoringProfile.GraphConfigs = append(
-		svc.MonitoringProfile.GraphConfigs,
-		domain.GraphConfig{
+
+	return []domain.GraphConfig{
+		{
+			// cpu usage graph
 			ID:          "internalusage",
 			Name:        "CPU Usage",
 			BuiltIn:     true,
@@ -129,13 +112,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Type:         "area",
 				},
 			},
-		},
-	)
-
-	// memory graph
-	svc.MonitoringProfile.GraphConfigs = append(
-		svc.MonitoringProfile.GraphConfigs,
-		domain.GraphConfig{
+		}, {
+			// memory usage graph
 			ID:          "internalMemoryUsage",
 			Name:        "Memory Usage",
 			BuiltIn:     true,
@@ -175,13 +153,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Type:         "area",
 				},
 			},
-		},
-	)
-
-	// open conns graph
-	svc.MonitoringProfile.GraphConfigs = append(
-		svc.MonitoringProfile.GraphConfigs,
-		domain.GraphConfig{
+		}, {
+			// open conns graph
 			ID:          "internalOpenConnections",
 			Name:        "Open Connections",
 			BuiltIn:     true,
@@ -233,13 +206,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Type:         "area",
 				},
 			},
-		},
-	)
-
-	// network usage graph
-	svc.MonitoringProfile.GraphConfigs = append(
-		svc.MonitoringProfile.GraphConfigs,
-		domain.GraphConfig{
+		}, {
+			// network usage graph
 			ID:          "internalNetworkUsage",
 			Name:        "Network Usage",
 			BuiltIn:     true,
@@ -288,67 +256,5 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 			},
 		},
-	)
-}
-
-// addInternalMetrics adds internal metrics to the config. It assumes that
-// the current config does not container any internal metrics
-func addInternalMetrics(config *domain.MetricConfig) {
-
-	for _, metricName := range internalCounterStats {
-		config.Metrics = append(config.Metrics,
-			domain.Metric{
-				ID:      metricName,
-				Name:    metricName,
-				Counter: true,
-				BuiltIn: true,
-			})
-
 	}
-	for _, metricName := range internalGaugeStats {
-		config.Metrics = append(config.Metrics,
-			domain.Metric{
-				ID:      metricName,
-				Name:    metricName,
-				Counter: false,
-				BuiltIn: true,
-			})
-
-	}
-}
-
-func removeInternalMetrics(config *domain.MetricConfig) {
-	// create an empty list of metrics
-	var metrics []domain.Metric
-	for _, metric := range config.Metrics {
-		// and copy metrics, except built in ones
-		if metric.BuiltIn {
-			continue
-		}
-		metrics = append(metrics, metric)
-	}
-	config.Metrics = metrics
-}
-
-func findInternalMetricConfig(svc *service.Service) (index int, found bool) {
-	// find the metric config
-	for i := range svc.MonitoringProfile.MetricConfigs {
-		if svc.MonitoringProfile.MetricConfigs[i].ID == "metrics" {
-			return i, true
-		}
-	}
-	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-	if err != nil {
-		glog.Errorf("Could not create builder to add internal metrics: %s", err)
-		return
-	}
-	config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
-	if err != nil {
-		glog.Errorf("could not create metric config for internal metrics: %s", err)
-	}
-	svc.MonitoringProfile.MetricConfigs = append(
-		svc.MonitoringProfile.MetricConfigs,
-		*config)
-
-	return len(svc.MonitoringProfile.MetricConfigs) - 1, true
 }

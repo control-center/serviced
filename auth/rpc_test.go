@@ -18,7 +18,6 @@ package auth_test
 import (
 	"crypto/rsa"
 	"encoding/binary"
-	"net/rpc"
 	"time"
 
 	"github.com/control-center/serviced/auth"
@@ -31,14 +30,14 @@ var (
 )
 
 func (s *TestAuthSuite) TestExtractBadRPCHeader(c *C) {
-	request := &rpc.Request{}
+	request := []byte{0}
 	mockHeader := []byte{0, 0, 0, 19, 109, 121, 32, 115, 117, 112, 101, 114, 32, 102}
 	_, err := rpcHeaderHandler.ParseHeader(mockHeader, request)
 	c.Assert(err, Equals, auth.ErrBadRPCHeader)
 }
 
 func (s *TestAuthSuite) TestExtractBadToken(c *C) {
-	request := &rpc.Request{}
+	request := []byte("request body")
 	badToken := []byte("This is not a token")
 	tokenLength := len(badToken)
 	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.TIMESTAMP_BYTES + auth.SIGNATURE_BYTES
@@ -54,7 +53,7 @@ func (s *TestAuthSuite) TestExtractBadToken(c *C) {
 }
 
 func (s *TestAuthSuite) TestExtractOldTimestamp(c *C) {
-	request := &rpc.Request{}
+	request := []byte("request body")
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	tokenLength := len(fakeToken)
 	mockHeaderLength := auth.TOKEN_LEN_BYTES + tokenLength + auth.TIMESTAMP_BYTES + auth.SIGNATURE_BYTES
@@ -73,7 +72,7 @@ func (s *TestAuthSuite) TestExtractOldTimestamp(c *C) {
 }
 
 func (s *TestAuthSuite) TestExtractBadSignature(c *C) {
-	request := &rpc.Request{}
+	request := []byte("request body")
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
 	c.Assert(fakeToken, NotNil)
@@ -94,9 +93,7 @@ func (s *TestAuthSuite) TestExtractBadSignature(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-	}
+	request := []byte("request body")
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
@@ -116,12 +113,9 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_WrongRequest(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-	}
-	request2 := &rpc.Request{
-		ServiceMethod: "MyMethod2",
-	}
+	request := []byte("request body")
+	request2 := []byte("different request body")
+
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
@@ -136,9 +130,7 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_WrongRequest(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_Expired(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-	}
+	request := []byte("request body")
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
@@ -158,9 +150,7 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_Expired(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-	}
+	request := []byte("request body")
 	// Get a token with the master's public key
 	fakeToken, err := auth.MasterToken()
 	c.Assert(err, IsNil)
@@ -180,10 +170,7 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned(c *C) {
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned_WrongKey(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-		Seq:           1234,
-	}
+	request := []byte("request body")
 	// Get a token with the delegate's public key
 	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	c.Assert(err, IsNil)
@@ -198,10 +185,7 @@ func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_MasterSigned_WrongKey(c *C)
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractRPCHeader_DelegateSigned_WrongKey(c *C) {
-	request := &rpc.Request{
-		ServiceMethod: "MyMethod",
-		Seq:           1234,
-	}
+	request := []byte("request body")
 	// Get a token with the master's public key
 	fakeToken, err := auth.MasterToken()
 	c.Assert(err, IsNil)
