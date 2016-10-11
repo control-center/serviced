@@ -11,7 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION := $(shell cat ./VERSION)
+BUILD_IMAGE := zenoss/build-tools:0.0.5
+VERSION     := $(shell cat ./VERSION)
+PWD         := $(shell pwd)
 
 .PHONY: default
 default: dockerBuild
@@ -22,10 +24,14 @@ dockerBuild: reporterJar
 reporterJar: build/reporter.jar
 
 build/reporter.jar: reporter/target/reporter.jar
+	cp $< $@
 
 reporter/target/reporter.jar:
-	cd reporter && mvn -s ./settings.xml package
-	cp reporter/target/reporter.jar build/reporter.jar
+	docker run --rm \
+		-v "$(PWD):/mnt/pwd" \
+		-w /mnt/pwd/reporter \
+		$(BUILD_IMAGE) \
+		mvn -s ./settings.xml package
 
 dockerPush:
 	docker push zenoss/capybara:$(VERSION)
