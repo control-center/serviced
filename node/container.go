@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -136,13 +137,13 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	// Update the service with the complete image name
 	evaluatedService.ImageID = imageName
 
-       // Establish a connection to the master
-       masterClient, err := master.NewClient(a.master)
-       if err != nil {
-               logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
-               return nil, nil, err
-       }
-       defer masterClient.Close()
+	// Establish a connection to the master
+	masterClient, err := master.NewClient(a.master)
+	if err != nil {
+		logger.WithField("master", a.master).WithError(err).Debug("Could not connect to the master")
+		return nil, nil, err
+	}
+	defer masterClient.Close()
 
 	// get the system user
 	systemUser, err := masterClient.GetSystemUser()
@@ -648,8 +649,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 
 	// add arguments for environment variables
 	cfg.Env = append(svc.Environment,
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
+		fmt.Sprintf("SERVICED_VERSION='%s'", servicedversion.Version),
 		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", a.virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
