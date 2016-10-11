@@ -204,6 +204,8 @@ docker run --rm --name ui_acceptance \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
+    -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
+    -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \

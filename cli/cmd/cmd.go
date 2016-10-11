@@ -213,7 +213,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 func (c *ServicedCli) authenticateHost(options *config.Options) error {
 	// Try to load the master keys, fail silently if they don't exist
 	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
-	auth.LoadMasterKeyFile(masterKeyFile)
+	if err := auth.LoadMasterKeyFile(masterKeyFile); err != nil {
+		log.WithError(err).Debug("Unable to load master keys")
+	}
 
 	// Load the delegate keys
 	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
