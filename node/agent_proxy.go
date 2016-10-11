@@ -27,9 +27,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/applicationendpoint"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
+)
+
+const (
+	SERVICED_UI_ENDPOINT       = 5443
+	SERVICED_UI_ENDPOINT_PROXY = 443
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -55,7 +59,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetISvcEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
@@ -67,45 +71,19 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) (err error) {
+func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceID": request.ServiceID,
+		"serviceID":  request.ServiceID,
 		"instanceID": request.InstanceID,
 	})
 
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		logger.WithField("master", a.master).WithError(err).Error("Could not connect to the master")
-		return err
-	}
-	defer masterClient.Close()
-
-	var svc *service.Service
-	svc, err = masterClient.GetEvaluatedService(request.ServiceID, request.InstanceID)
+	svc, tenantID, err := a.serviceCache.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
 		return err
 	}
-	*response = *svc
-	return nil
-}
-
-// Call the master's to retrieve its tenant id
-func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		plog.WithFields(log.Fields{
-			"master": a.master,
-			"serviceID": serviceId,
-		}).WithError(err).Error("Could not connect to the master")
-		return err
-	}
-	defer masterClient.Close()
-	result, err := masterClient.GetTenantID(serviceId)
-	if err != nil {
-		return err
-	}
-	*tenantId = result
+	response.Service = *svc
+	response.TenantID = tenantID
 	return nil
 }
 
@@ -121,7 +99,6 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	glog.Errorf("AckProxySnapshotQuiece() Unimplemented")
 	return errors.New("unimplemented")
 }
-
 
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
 func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
@@ -158,8 +135,10 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationen
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
-	//control center should always be reachable on port 443 in a container
-	endpoint.ProxyPort = uint16(443)
+	// control center should always be reachable in a container on
+	// port SERVICED_UI_ENDPOINT_PROXY via http. SERVICED_UI_ENDPOINT_PROXY
+	// proxies to SERVICED_UI_ENDPOINT via https
+	endpoint.ProxyPort = uint16(SERVICED_UI_ENDPOINT)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
@@ -259,16 +238,12 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 	glog.V(4).Infof("ControlCenterAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 	*bindmounts = make(map[string]string, 0)
 
-	var tenantID string
-	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
+	var evaluatedServiceResponse EvaluateServiceResponse
+	if err := a.GetEvaluatedService(EvaluateServiceRequest{ServiceID: serviceID, InstanceID: 0}, &evaluatedServiceResponse); err != nil {
 		return err
 	}
-
-	var service service.Service
-
-	if err := a.GetEvaluatedService(ServiceInstanceRequest{ServiceID: serviceID, InstanceID: 0}, &service); err != nil {
-		return err
-	}
+	service := evaluatedServiceResponse.Service
+	tenantID := evaluatedServiceResponse.TenantID
 
 	response := map[string]string{}
 	for _, volume := range service.Volumes {

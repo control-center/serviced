@@ -24,6 +24,7 @@ import (
 // docker registry index.
 // e.g. GetRegistryImage(ctx, "library/reponame:tagname")
 func (f *Facade) GetRegistryImage(ctx datastore.Context, image string) (*registry.Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetRegistryImage"))
 	rImage, err := f.registryStore.Get(ctx, image)
 	if err != nil {
 		return nil, err
@@ -33,6 +34,7 @@ func (f *Facade) GetRegistryImage(ctx datastore.Context, image string) (*registr
 
 // SetRegistryImage creates/updates an image in the docker registry index.
 func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("SetRegistryImage"))
 	if err := f.registryStore.Put(ctx, rImage); err != nil {
 		return err
 	}
@@ -46,6 +48,7 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 // DeleteRegistryImage removes an image from the docker registry index.
 // e.g. DeleteRegistryImage(ctx, "library/reponame:tagname")
 func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeleteRegistryImage"))
 	if err := f.registryStore.Delete(ctx, image); err != nil {
 		return err
 	}
@@ -58,6 +61,7 @@ func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error 
 // GetRegistryImages returns all the image that are in the docker registry
 // index.
 func (f *Facade) GetRegistryImages(ctx datastore.Context) ([]registry.Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetRegistryImages"))
 	rImages, err := f.registryStore.GetImages(ctx)
 	if err != nil {
 		return nil, err
@@ -69,6 +73,7 @@ func (f *Facade) GetRegistryImages(ctx datastore.Context) ([]registry.Image, err
 // particular library and tag.
 // e.g. library/reponame:tagname => SearchRegistryLibrary("library", "tagname")
 func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagname string) ([]registry.Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("SearchRegistryLibraryByTag"))
 	rImages, err := f.registryStore.SearchLibraryByTag(ctx, library, tagname)
 	if err != nil {
 		return nil, err
@@ -79,6 +84,7 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 // SyncRegistryImages makes sure images on es are in sync with zk.  If force is
 // enabled, all images are reset.
 func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("SyncRegistryImages"))
 	if err := f.DFSLock(ctx).LockWithTimeout("sync registry images", userLockTimeout); err != nil {
 		glog.Warningf("Cannot sync registry images: %s", err)
 		return err

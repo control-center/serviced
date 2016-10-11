@@ -40,13 +40,14 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootApp(c *C) {
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForNoSuchEntity(c *C) {
 	serviceID := getRandomServiceID(c)
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, datastore.ErrNoSuchEntity{})
+	expectedError := fmt.Errorf("mock DB error")
+	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, expectedError)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
 
 	c.Assert(len(result), Equals, 0)
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, Equals, datastore.ErrNoSuchEntity{})
+	c.Assert(err.Error(), Equals, expectedError.Error())
 }
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForOtherDBError(c *C) {
@@ -201,8 +202,8 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceUsesParent(c *C) {
 	parentID := "parentServiceID"
 	parentName := "parentServiceName"
 	parentSvc := service.Service{
-		ID:      parentID,
-		Name:    parentName,
+		ID:   parentID,
+		Name: parentName,
 	}
 	childID := "childServiceID"
 	childName := "childServiceName"
@@ -210,7 +211,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceUsesParent(c *C) {
 		ID:              childID,
 		Name:            childName,
 		ParentServiceID: parentID,
-		Actions: map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
+		Actions:         map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
 	}
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parentSvc, nil)
 	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
@@ -283,8 +284,8 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 	parentID := "parentServiceID"
 	parentName := "parentServiceName"
 	parentSvc := service.Service{
-		ID:      parentID,
-		Name:    parentName,
+		ID:   parentID,
+		Name: parentName,
 	}
 	childID := "childServiceID"
 	childName := "childServiceName"
@@ -292,7 +293,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 		ID:              childID,
 		Name:            childName,
 		ParentServiceID: parentID,
-		Actions: map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
+		Actions:         map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
 	}
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
@@ -327,7 +328,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 
 	c.Assert(result, IsNil)
 	c.Assert(err, Not(IsNil))
-	c.Assert(strings.Contains(err.Error(),expectedError.Error()), Equals, true)
+	c.Assert(strings.Contains(err.Error(), expectedError.Error()), Equals, true)
 }
 
 // Test that the 'getServiceChild' function defined by facade.evaluateService() works properly on failure
@@ -365,7 +366,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetChildFails(c *C) {
 
 	c.Assert(result, IsNil)
 	c.Assert(err, Not(IsNil))
-	c.Assert(strings.Contains(err.Error(),expectedError.Error()), Equals, true)
+	c.Assert(strings.Contains(err.Error(), expectedError.Error()), Equals, true)
 }
 
 // Since the facade is optimized to cache serviceIDs, we need to generate a unique serviceID for each test
@@ -376,6 +377,7 @@ func getRandomServiceID(c *C) string {
 	}
 	return serviceID
 }
+
 //service store returned not-found
 //service store returned other error
 //service store return err=nil and svc=nil

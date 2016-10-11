@@ -985,6 +985,11 @@ input.startup {
     position: relative;
 }
 
+/* lock icon ends up being a butterfly without this :/ */
+.glyphicon-lock:before {
+    content: "\1f512" !important;
+}
+
 /* force stuff to stay 1140px or wider */
 .table,
 .details,
@@ -1039,7 +1044,7 @@ input.startup {
     position: absolute;
     top: 50px;
     width: 100%;
-    z-index: 999;
+    z-index: 999 !important;
 }
 
 #loginNotifications {
@@ -1935,4 +1940,20 @@ body.no-animation *:after {
     font-style: normal;
     font-weight: normal;
     content: "\e031";
+}
+
+.instructions-block {
+    font-size: 1.1em;
+}
+
+.permission-tag {
+    cursor: default;
+}
+.permission-tag::after {
+    content: ",";
+    padding-right: 2px;
+}
+.permission-tag:last-of-type::after {
+    content: "";
+    padding-right: 0;
 }

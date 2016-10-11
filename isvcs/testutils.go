@@ -17,6 +17,7 @@ package isvcs
 
 import (
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	. "gopkg.in/check.v1"
 )
@@ -40,6 +41,9 @@ type ManagerTestSuite struct {
 
 func (t *ManagerTestSuite) SetUpSuite(c *C) {
 	docker.StartKernel()
+	config.LoadOptions(config.Options{
+		IsvcsPath: c.MkDir(),
+	})
 	t.manager = NewManager(utils.LocalDir("images"), "/tmp/serviced-test", defaultTestDockerLogDriver, defaultTestDockerLogOptions)
 	for _, testservice := range t.testservices {
 		svc := testservice.GetService(c)

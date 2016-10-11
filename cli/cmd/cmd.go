@@ -17,20 +17,25 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/logri"
 )
 
 var (
@@ -73,7 +78,6 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"listen", config.IntVal("RPC_PORT", api.DefaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", api.DefaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", convertToStringSlice(defaultOps.DockerDNS), "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
-		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
 		cli.BoolFlag{"mux-disable-tls", "disable TLS for mux connections"},
 		cli.StringSliceFlag{"mux-tls-ciphers", convertToStringSlice(defaultOps.MUXTLSCiphers), "list of supported TLS ciphers for MUX"},
@@ -81,6 +85,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
 		cli.StringFlag{"isvcs-path", defaultOps.IsvcsPath, "path where internal application data is stored"},
 		cli.StringFlag{"backups-path", defaultOps.BackupsPath, "default path where backups are stored"},
+		cli.StringFlag{"etc-path", defaultOps.EtcPath, "default path for configuration files"},
 		cli.StringFlag{"keyfile", defaultOps.KeyPEMFile, "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", defaultOps.CertPEMFile, "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", convertToStringSlice(defaultOps.Zookeepers), "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
@@ -123,6 +128,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
+		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -155,6 +161,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	c.initScript()
 	c.initServer()
 	c.initVolume()
+	c.initKey()
 
 	return c
 }
@@ -174,15 +181,21 @@ func (c *ServicedCli) Run(args []string) {
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-	if err := api.ValidateCommonOptions(options); err != nil {
+	if err := config.ValidateCommonOptions(options); err != nil {
 		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
 	}
-	api.LoadOptions(options)
+	config.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
 		fmt.Printf("Unable to set logging options: %s\n", err)
+	}
+
+	// Try to authenticate this host
+	if err := c.authenticateHost(&options); err != nil {
+		// Not all commands require authentication
+		log.WithError(err).Debug("Unable to authenticate host")
 	}
 
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
@@ -191,6 +204,40 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Printf("Unable to set isvcs options: %s\n", err)
 		return err
 	}
+	return nil
+}
+
+// This will authenticate the host once to get a valid token for any CLI commands
+//  that require it.
+func (c *ServicedCli) authenticateHost(options *config.Options) error {
+	// Try to load the master keys, fail silently if they don't exist
+	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	auth.LoadMasterKeyFile(masterKeyFile)
+
+	// Load the delegate keys
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	if err := auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
+		return err
+	}
+
+	// Get our host ID
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	} else if err := validation.ValidHostID(myHostID); err != nil {
+		return err
+	}
+
+	// Load an auth token once
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
+	getToken := func() (string, int64, error) {
+		return c.driver.AuthenticateHost(myHostID)
+	}
+
+	if _, err := auth.RefreshToken(getToken, tokenFile); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -204,8 +251,8 @@ func (c *ServicedCli) exit(code int) error {
 
 // Get all runtime options as a combination of default values, environment variable settings and
 // command line overrides.
-func getRuntimeOptions(ctx *cli.Context) api.Options {
-	options := api.Options{
+func getRuntimeOptions(ctx *cli.Context) config.Options {
+	options := config.Options{
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
 		Endpoint:                   ctx.GlobalString("endpoint"),
@@ -223,6 +270,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		VolumesPath:                ctx.GlobalString("volumes-path"),
 		IsvcsPath:                  ctx.GlobalString("isvcs-path"),
 		BackupsPath:                ctx.GlobalString("backups-path"),
+		EtcPath:                    ctx.GlobalString("etc-path"),
 		KeyPEMFile:                 ctx.GlobalString("keyfile"),
 		CertPEMFile:                ctx.GlobalString("certfile"),
 		Zookeepers:                 ctx.GlobalStringSlice("zk"),
@@ -269,6 +317,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 		UIPollFrequency:            ctx.GlobalInt("ui-poll-frequency"),
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
+		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
@@ -277,9 +326,10 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
 	}
-	if os.Getenv("SERVICED_AGENT") == "1" {
-		options.Agent = true
-	}
+
+	// We are always an agent
+	options.Agent = true
+
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
@@ -304,7 +354,7 @@ func getRuntimeOptions(ctx *cli.Context) api.Options {
 //
 // TODO: This method is eerily similar to logic in api.ValidateServerOptions(). The two should be reconciled
 //       at some point to avoid duplicate/inconsistent code
-func getEndpoint(options api.Options) string {
+func getEndpoint(options config.Options) string {
 	// Not printing anything in here because it shows up in help, version, etc.
 	endpoint := options.Endpoint
 	if len(endpoint) == 0 {
@@ -325,6 +375,10 @@ func getEndpoint(options api.Options) string {
 }
 
 func setLogging(ctx *cli.Context) error {
+	if ctx.Args().First() != "server" {
+		logrus.SetLevel(logrus.WarnLevel)
+		logri.SetLevel(logrus.WarnLevel)
+	}
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}

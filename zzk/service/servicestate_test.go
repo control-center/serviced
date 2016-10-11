@@ -39,21 +39,21 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:           "serviceid",
 		Name:         "serviceA",
 		DesiredState: int(service.SVCStop),
 		Instances:    1,
 	}
 	spth := "/pools/poolid/services/serviceid"
-	sdat := &ServiceNode{Service: svc}
+	sdat := sn
 	err = conn.Create(spth, sdat)
 	c.Assert(err, IsNil)
 
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", mock.AnythingOfType("*service.Service")).Return("hostid", nil)
+	handler.On("SelectHost", mock.AnythingOfType("*service.ServiceNode")).Return("hostid", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
@@ -72,7 +72,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(ch, HasLen, 0)
 
-	sdat = &ServiceNode{Service: &service.Service{}}
+	sdat = &ServiceNode{}
 	err = conn.Get(spth, sdat)
 	c.Assert(err, IsNil)
 	sdat.DesiredState = int(service.SVCRun)
@@ -101,7 +101,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(hsdat.DesiredState, Equals, service.SVCRun)
 
-	sdat = &ServiceNode{Service: &service.Service{}}
+	sdat = &ServiceNode{}
 	err = conn.Get(spth, sdat)
 	c.Assert(err, IsNil)
 	sdat.DesiredState = int(service.SVCPause)
@@ -123,7 +123,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	}
 
 	// resume
-	sdat = &ServiceNode{Service: &service.Service{}}
+	sdat = &ServiceNode{}
 	err = conn.Get(spth, sdat)
 	c.Assert(err, IsNil)
 	sdat.DesiredState = int(service.SVCRun)
@@ -145,7 +145,7 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	}
 
 	// stop
-	sdat = &ServiceNode{Service: &service.Service{}}
+	sdat = &ServiceNode{}
 	err = conn.Get(spth, sdat)
 	c.Assert(err, IsNil)
 	sdat.DesiredState = int(service.SVCStop)
@@ -201,34 +201,33 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 }
 
 func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
 
 	// start
-	svc.Instances = 10
+	sn.Instances = 10
 	reqs := []StateRequest{}
 
-	delta, ok := listener.Sync(false, svc, reqs)
+	delta, ok := listener.Sync(false, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, 10)
 
@@ -262,7 +261,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 		}
 	}
 
-	delta, ok = listener.Sync(false, svc, reqs)
+	delta, ok = listener.Sync(false, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, 5)
 
@@ -279,7 +278,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 	}
 
 	// stop
-	svc.Instances = 5
+	sn.Instances = 5
 	reqs = make([]StateRequest, 10)
 	for i := range reqs {
 		req := StateRequest{
@@ -290,7 +289,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 		}
 		reqs[i] = req
 	}
-	delta, ok = listener.Sync(false, svc, reqs)
+	delta, ok = listener.Sync(false, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, -5)
 
@@ -307,7 +306,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 	}
 
 	// stop again
-	delta, ok = listener.Sync(false, svc, reqs)
+	delta, ok = listener.Sync(false, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, -5)
 
@@ -341,7 +340,7 @@ func (t *ZZKTest) TestServiceListener_Sync_Unlocked(c *C) {
 		}
 	}
 
-	delta, ok = listener.Sync(false, svc, reqs)
+	delta, ok = listener.Sync(false, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, 0)
 }
@@ -353,32 +352,33 @@ func (t *ZZKTest) TestServiceListener_Sync_Locked(c *C) {
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
 
 	// start 5 instances
-	svc.Instances = 5
+	sn.Instances = 5
 	reqs := []StateRequest{}
 
-	delta, ok := listener.Sync(false, svc, reqs)
+	delta, ok := listener.Sync(false, sn, reqs)
 	c.Assert(ok, Equals, true)
 	c.Assert(delta, Equals, 5)
 
 	// start 10 instances
-	svc.Instances = 10
+	sn.Instances = 10
 
 	reqs = make([]StateRequest, 5)
 	for i := 0; i < 5; i++ {
@@ -394,13 +394,13 @@ func (t *ZZKTest) TestServiceListener_Sync_Locked(c *C) {
 		reqs[i] = req
 	}
 
-	delta, ok = listener.Sync(true, svc, reqs)
+	delta, ok = listener.Sync(true, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, 0)
 
 	// stop 2 instances
-	svc.Instances = 3
-	delta, ok = listener.Sync(true, svc, reqs)
+	sn.Instances = 3
+	delta, ok = listener.Sync(true, sn, reqs)
 	c.Check(ok, Equals, true)
 	c.Check(delta, Equals, -2)
 }
@@ -412,28 +412,28 @@ func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceChanged(c *C) {
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:            "serviceid",
 		Name:          "serviceA",
 		Instances:     1,
 		ChangeOptions: []string{"restartAllOnInstanceChanged"},
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 
 	// an online host
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/online/online")
 	c.Assert(err, IsNil)
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
 
 	listener := NewServiceListener("poolid", handler)
 	listener.SetConnection(conn)
 
 	// start 5 instances
-	svc.Instances = 5
+	sn.Instances = 5
 	reqs := []StateRequest{}
 
-	delta, ok := listener.Sync(false, svc, reqs)
+	delta, ok := listener.Sync(false, sn, reqs)
 	c.Assert(ok, Equals, true)
 	c.Assert(delta, Equals, 5)
 
@@ -455,25 +455,24 @@ func (t *ZZKTest) TestServiceListener_Sync_RestartAllOnInstanceChanged(c *C) {
 		}
 	}
 
-	delta, ok = listener.Sync(false, svc, reqs)
+	delta, ok = listener.Sync(false, sn, reqs)
 	c.Assert(ok, Equals, true)
 	c.Assert(delta, Equals, -4)
 }
 
 func (t *ZZKTest) TestServiceListener_Start(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/pools/poolid/hosts/hostid")
 	c.Assert(err, IsNil)
@@ -482,10 +481,10 @@ func (t *ZZKTest) TestServiceListener_Start(c *C) {
 	listener.SetConnection(conn)
 
 	// no host
-	handler.On("SelectHost", svc).Return("", ErrTestHostNotFound).Once()
-	c.Assert(listener.Start(svc, 0), Equals, false)
+	handler.On("SelectHost", sn).Return("", ErrTestHostNotFound).Once()
+	c.Assert(listener.Start(sn, 0), Equals, false)
 
-	handler.On("SelectHost", svc).Return("hostid", nil)
+	handler.On("SelectHost", sn).Return("hostid", nil)
 
 	// host state exists
 	req := StateRequest{
@@ -496,26 +495,25 @@ func (t *ZZKTest) TestServiceListener_Start(c *C) {
 	}
 	err = conn.CreateDir("/pools/poolid/hosts/hostid/instances/" + req.StateID())
 	c.Assert(err, IsNil)
-	c.Check(listener.Start(svc, 0), Equals, true)
+	c.Check(listener.Start(sn, 0), Equals, true)
 
 	// host state does not exist
-	c.Check(listener.Start(svc, 1), Equals, true)
+	c.Check(listener.Start(sn, 1), Equals, true)
 }
 
 func (t *ZZKTest) TestServiceListener_Stop_Offline(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 
 	// an offline host
@@ -575,19 +573,18 @@ func (t *ZZKTest) TestServiceListener_Stop_Offline(c *C) {
 }
 
 func (t *ZZKTest) TestServiceListener_Stop_Online(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 
 	// an online host
@@ -652,19 +649,18 @@ func (t *ZZKTest) TestServiceListener_Stop_Online(c *C) {
 }
 
 func (t *ZZKTest) TestServiceListener_Pause(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/pools/poolid/hosts/hostid")
 	c.Assert(err, IsNil)
@@ -732,19 +728,18 @@ func (t *ZZKTest) TestServiceListener_Pause(c *C) {
 }
 
 func (t *ZZKTest) TestServiceListener_Resume(c *C) {
-
 	// Pre-requisites
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
 	handler := &mocks.ServiceHandler{}
 
 	// Basic set up
-	svc := &service.Service{
+	sn := &ServiceNode{
 		ID:        "serviceid",
 		Name:      "serviceA",
 		Instances: 1,
 	}
-	err = conn.Create("/pools/poolid/services/serviceid", &ServiceNode{Service: svc})
+	err = conn.Create("/pools/poolid/services/serviceid", sn)
 	c.Assert(err, IsNil)
 	err = conn.CreateDir("/pools/poolid/hosts/hostid")
 	c.Assert(err, IsNil)

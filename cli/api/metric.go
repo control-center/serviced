@@ -18,13 +18,14 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
 )
 
 //
 func (a *api) PostMetric(metricName string, metricValue string) (string, error) {
-	url := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+	url := fmt.Sprintf("http://%s/api/metrics/store", config.GetOptions().HostStats)
 	timeStamp := time.Now().Unix()
 	hostId, err := utils.HostID()
 	if err != nil {

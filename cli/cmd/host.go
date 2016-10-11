@@ -16,6 +16,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strings"
@@ -62,6 +63,15 @@ func (c *ServicedCli) initHost() {
 						Value: "",
 						Usage: "Memory to allocate on this host, e.g. 20G, 50%",
 					},
+					cli.StringFlag{
+						Name:  "key-file, k",
+						Value: "",
+						Usage: "Name of the output host key file",
+					},
+					cli.BoolFlag{
+						Name:  "register, r",
+						Usage: "Register delegate keys on the host via ssh",
+					},
 				},
 			}, {
 				Name:         "remove",
@@ -70,6 +80,11 @@ func (c *ServicedCli) initHost() {
 				Description:  "serviced host remove HOSTID ...",
 				BashComplete: c.printHostsAll,
 				Action:       c.cmdHostRemove,
+			}, {
+				Name:        "register",
+				Usage:       "Set the authentication keys to use for this host. When KEYSFILE is -, read from stdin.",
+				Description: "serviced host register KEYSFILE",
+				Action:      c.cmdHostRegister,
 			}, {
 				Name:         "set-memory",
 				Usage:        "Set the memory allocation for a specific host",
@@ -227,13 +242,18 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		Memory:  ctx.String("memory"),
 	}
 
-	if host, err := c.driver.AddHost(cfg); err != nil {
+	host, privateKey, err := c.driver.AddHost(cfg)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return
 	} else if host == nil {
 		fmt.Fprintln(os.Stderr, "received nil host")
-	} else {
-		fmt.Println(host.ID)
+		return
 	}
+
+	keyfileName := ctx.String("key-file")
+	registerHost := ctx.Bool("register")
+	c.outputDelegateKey(host, privateKey, keyfileName, registerHost)
 }
 
 // serviced host remove HOSTID ...
@@ -266,4 +286,35 @@ func (c *ServicedCli) cmdHostSetMemory(ctx *cli.Context) {
 	if err := c.driver.SetHostMemory(api.HostUpdateConfig{args[0], args[1]}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
+}
+
+// serviced host register (KEYSFILE | -)
+func (c *ServicedCli) cmdHostRegister(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) != 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "register")
+		return
+	}
+
+	var (
+		data []byte
+		err  error
+	)
+	fname := args[0]
+	switch fname {
+	case "-":
+		data, err = ioutil.ReadAll(os.Stdin)
+	default:
+		data, err = ioutil.ReadFile(fname)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := c.driver.RegisterHost(data); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 }

@@ -29,20 +29,27 @@ import (
 	"syscall"
 
 	"github.com/control-center/serviced/commons/atomicfile"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
+// Refine facade.DfsValidator to avoid circular dependencies
+type NfsClientValidator interface {
+	ValidateClient(string) bool
+}
+
 // Server manages exporting an NFS mount.
 type Server struct {
 	sync.Mutex
-	basePath      string
-	exportedName  string
-	exportOptions string
-	network       string
-	clients       map[string]struct{}
-	volumes       map[string]int32
-	exported      map[string]struct{}
+	basePath        string
+	exportedName    string
+	exportOptions   string
+	network         string
+	clients         map[string]struct{}
+	volumes         map[string]int32
+	exported        map[string]struct{}
+	clientValidator NfsClientValidator
 }
 
 var (
@@ -54,6 +61,8 @@ var (
 	ErrBasePathNotDir = errors.New("nfs server: base path not a directory")
 	// ErrInvalidNetwork is returned when the network specifier does not parse in CIDR format
 	ErrInvalidNetwork = errors.New("nfs server: the network value is not CIDR")
+
+	log = logging.PackageLogger()
 )
 
 var (
@@ -124,13 +133,14 @@ func NewServer(basePath, exportedName, network string) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		basePath:      basePath,
-		exportedName:  exportedName,
-		exportOptions: "rw,insecure,no_subtree_check,async",
-		clients:       make(map[string]struct{}),
-		network:       network,
-		volumes:       make(map[string]int32),
-		exported:      make(map[string]struct{}),
+		basePath:        basePath,
+		exportedName:    exportedName,
+		exportOptions:   "rw,insecure,no_subtree_check,async",
+		clients:         make(map[string]struct{}),
+		network:         network,
+		volumes:         make(map[string]int32),
+		exported:        make(map[string]struct{}),
+		clientValidator: nil,
 	}, nil
 }
 
@@ -149,13 +159,33 @@ func (c *Server) Clients() []string {
 	return clients
 }
 
+func (c *Server) filterHostsWithoutDfsPerms(clients []string) []string {
+	if c.clientValidator == nil {
+		return clients
+	}
+	filteredClients := []string{}
+	for _, client := range clients {
+		if c.clientValidator.ValidateClient(client) {
+			filteredClients = append(filteredClients, client)
+		} else {
+			log.Debug("Filtered NFS client with ip %s", client)
+		}
+	}
+	return filteredClients
+}
+
+func (c *Server) SetClientValidator(validator NfsClientValidator) {
+	c.clientValidator = validator
+}
+
 // SetClients replaces the existing clients with the new clients
 func (c *Server) SetClients(clients ...string) {
 	c.Lock()
 	defer c.Unlock()
+	filteredClients := c.filterHostsWithoutDfsPerms(clients)
 	c.clients = make(map[string]struct{})
 
-	for _, client := range clients {
+	for _, client := range filteredClients {
 		c.clients[client] = struct{}{}
 	}
 }

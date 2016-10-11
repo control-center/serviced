@@ -18,12 +18,13 @@ import "time"
 // ReadPool is the read model for resource pools which contains properties for viewing
 // information about resource pools.
 type ReadPool struct {
-	ID                string    // Unique identifier for resource pool, eg "default"
-	Description       string    // Description of the resource pool
-	CoreCapacity      int       // Sum of all cores on all hosts in the pool
-	MemoryCapacity    uint64    // Sum of all RAM available (bytes) on all hosts in the pool
-	MemoryCommitment  uint64    // Sum of RAM committed (bytes) to services in the pool
-	ConnectionTimeout int       // Wait delay on service rescheduling when an outage is reported (milliseconds)
-	CreatedAt         time.Time // When the pool was created
-	UpdatedAt         time.Time // When the poool was last updated
+	ID                string     // Unique identifier for resource pool, eg "default"
+	Description       string     // Description of the resource pool
+	CoreCapacity      int        // Sum of all cores on all hosts in the pool
+	MemoryCapacity    uint64     // Sum of all RAM available (bytes) on all hosts in the pool
+	MemoryCommitment  uint64     // Sum of RAM committed (bytes) to services in the pool
+	ConnectionTimeout int        // Wait delay on service rescheduling when an outage is reported (milliseconds)
+	CreatedAt         time.Time  // When the pool was created
+	UpdatedAt         time.Time  // When the poool was last updated
+	Permissions       Permission // A bitset of pemissions for this pool's hosts
 }

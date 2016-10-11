@@ -18,14 +18,6 @@ package node
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
-	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
-	rpcmocks"github.com/control-center/serviced/rpc/master/mocks"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 )
 
 const example_state = `
@@ -113,48 +105,4 @@ func TestParseContainerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Problem unmarshaling test state: %s", err)
 	}
-}
-
-func TestSetupContainer_DockerLog(t *testing.T) {
-	assert := assert.New(t)
-
-	// Create a fake pull registry that doesn't pull images
-	fakeRegistry := &regmocks.Registry{}
-	fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
-	fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
-	fakeRegistry.On("PullImage", mock.Anything).Return(nil)
-
-	// Create a fake HostAgent
-	fakeHostAgent := &HostAgent{
-		uiport:               ":443",
-		dockerLogDriver:      "fakejson-log",
-		dockerLogConfig:      map[string]string{"alpha": "one", "bravo": "two", "charlie": "three"},
-		virtualAddressSubnet: "0.0.0.0",
-		pullreg:              fakeRegistry,
-	}
-
-	// Create a fake client that won't make any RPC calls
-	fakeMasterClient := &rpcmocks.ClientInterface{}
-
-	// Create a fake service.Service
-	fakeService := &service.Service{
-		ImageID: "busybox:latest",
-	}
-	fakeUser := user.User{}
-	fakeMasterClient.On("GetTenantID", mock.Anything).Return("unused", nil)
-	fakeMasterClient.On("GetSystemUser").Return(fakeUser, nil)
-	fakeMasterClient.On("GetEvaluatedService", mock.Anything, mock.Anything).Return(fakeService, nil)
-
-	// Call setupContainer
-	config, hostconfig, err := fakeHostAgent.setupContainer(fakeMasterClient, fakeService, 0, fakeService.ImageID)
-
-	assert.NotNil(config)
-	assert.NotNil(hostconfig)
-	assert.Nil(err)
-
-	// Test that hostconfig values are as intended
-	assert.Equal(hostconfig.LogConfig.Type, "fakejson-log")
-	assert.Equal(hostconfig.LogConfig.Config["alpha"], "one")
-	assert.Equal(hostconfig.LogConfig.Config["bravo"], "two")
-	assert.Equal(hostconfig.LogConfig.Config["charlie"], "three")
 }

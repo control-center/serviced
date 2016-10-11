@@ -30,7 +30,7 @@ var (
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v47"
+	IMAGE_TAG     = "v48"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v7"
 )
@@ -76,12 +76,6 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 	if err := Mgr.Register(opentsdb); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "opentsdb",
-		}).WithError(err).Fatal("Unable to register internal service")
-	}
-	celery.docker = dockerAPI
-	if err := Mgr.Register(celery); err != nil {
-		log.WithFields(logrus.Fields{
-			"isvc": "celery",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	dockerRegistry.docker = dockerAPI

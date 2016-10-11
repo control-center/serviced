@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -110,6 +111,18 @@ func (mux *TCPMux) testConnect(t *testing.T) net.Conn {
 }
 
 func TestTCPMux(t *testing.T) {
+
+	// Create a master key pair
+	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
+	auth.LoadMasterKeysFromPEM(pub, priv)
+
+	dpub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
+	auth.LoadDelegateKeysFromPEM(pub, priv)
+
+	auth.RefreshToken(func() (string, int64, error) {
+		return auth.CreateJWTIdentity("host", "pool", true, true, dpub, time.Duration(365*24*60*60)*time.Second)
+	}, "")
+
 	target := newEchoListener(t)
 	defer target.Close()
 
@@ -126,6 +139,14 @@ func TestTCPMux(t *testing.T) {
 
 	conn := mux.testConnect(t)
 	header, err := utils.PackTCPAddressString(fmt.Sprintf("127.0.0.1:%s", listenerToPort(target.listener)))
+	if err != nil {
+		t.Fail()
+	}
+	token, err := auth.AuthTokenNonBlocking()
+	if err != nil {
+		t.Fail()
+	}
+	header, err = auth.BuildAuthMuxHeader(header, token)
 	if err != nil {
 		t.Fail()
 	}

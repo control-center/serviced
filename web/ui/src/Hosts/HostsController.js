@@ -27,6 +27,7 @@
 
         $scope.modalAddHost = function() {
             areUIReady.lock();
+            $scope.resetNewHost();
             $modalService.create({
                 templateUrl: "add-host.html",
                 model: $scope,
@@ -34,13 +35,10 @@
                 actions: [
                     {
                         role: "cancel",
-                        action: function(){
-                            $scope.resetNewHost();
-                            this.close();
-                        }
                     },{
                         role: "ok",
-                        label: "add_host",
+                        label: "Next",
+                        icon: "glyphicon-chevron-right",
                         action: function(){
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
@@ -53,8 +51,7 @@
 
                                 resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
-                                        $notification.create("", data.Detail).success();
-                                        this.close();
+                                        $modalService.modals.displayHostKeys(data.PrivateKey, $scope.newHost.host);
                                         update();
                                     }.bind(this))
                                     .error(function(data, status){

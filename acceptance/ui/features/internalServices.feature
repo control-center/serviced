@@ -16,7 +16,6 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
     Then I should see "Services"
-      And I should see an entry for "Celery" in the table
       And I should see an entry for "Docker Registry" in the table
       And I should see an entry for "Elastic Search - LogStash" in the table
       And I should see an entry for "Elastic Search - Serviced" in the table
@@ -39,8 +38,7 @@ Feature: Internal Services
   Scenario: Check that all services are active
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-    Then "Celery" should be active
-      And "Docker Registry" should be active
+    Then "Docker Registry" should be active
       And "Elastic Search - LogStash" should be active
       And "Elastic Search - Serviced" should be active
       And "Logstash" should be active
@@ -63,14 +61,6 @@ Feature: Internal Services
     Then I should see "Total bytes" in the "Memory Usage" graph
     When I hover over the "Memory Usage" graph
     Then I should see "Memory Usage" in the hover box
-
-  Scenario: View details for the Celery service
-    When I am on the applications page
-      And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Celery" in the "Services" table
-    Then I should not see an entry for "OpenTSDB" in the table
-      And I should see "Total % Used" in the "CPU Usage" graph
-      And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Docker Registry service
     When I am on the applications page

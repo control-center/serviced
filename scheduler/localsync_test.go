@@ -79,8 +79,6 @@ func (lst *LocalSyncTest) SetUpSuite(c *C) {
 	lst.CTX = datastore.Get()
 
 	lst.facade = facade.New()
-	fzzk := facade.GetFacadeZZK(lst.facade)
-	lst.facade.SetZZK(fzzk)
 	regindex := registry.NewRegistryIndexClient(lst.facade)
 	dockerclient, err := docker.NewDockerClient()
 	if err != nil {

@@ -45,6 +45,8 @@ type FacadeInterface interface {
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
+	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error
+
 	MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error
 
 	RemoveService(ctx datastore.Context, id string) error
@@ -71,11 +73,15 @@ type FacadeInterface interface {
 
 	DeployTemplateStatus(deploymentID string) (status string, err error)
 
-	AddHost(ctx datastore.Context, entity *host.Host) error
+	AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error)
 
 	GetHost(ctx datastore.Context, hostID string) (*host.Host, error)
 
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
+
+	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
+	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
@@ -129,27 +135,43 @@ type FacadeInterface interface {
 
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
+	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
 
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
 
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 
+	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
+
+	GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error)
+
 	AddUser(ctx datastore.Context, newUser user.User) error
 
 	GetUser(ctx datastore.Context, userName string) (user.User, error)
 
-	UpdateUser(ctx datastore.Context, user user.User) error
+	UpdateUser(ctx datastore.Context, u user.User) error
 
 	RemoveUser(ctx datastore.Context, userName string) error
 
 	GetSystemUser(ctx datastore.Context) (user.User, error)
 
-	ValidateCredentials(ctx datastore.Context, user user.User) (bool, error)
+	ValidateCredentials(ctx datastore.Context, u user.User) (bool, error)
 
 	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
 
 	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
 
 	ReportInstanceDead(serviceID string, instanceID int)
+
+	GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error)
+
+	GetServiceConfig(ctx datastore.Context, fileID string) (*servicedefinition.ConfigFile, error)
+
+	AddServiceConfig(ctx datastore.Context, serviceID string, conf servicedefinition.ConfigFile) error
+
+	UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error
+
+	DeleteServiceConfig(ctx datastore.Context, fileID string) error
 }

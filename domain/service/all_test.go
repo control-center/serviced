@@ -11,10 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package web
+// +build unit integration
 
-type APILink struct {
-	Rel    string `json:"rel"`
-	HRef   string `json:"href"`
-	Method string `json:"method"`
+package service
+
+import (
+	. "gopkg.in/check.v1"
+	"testing"
+)
+
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }

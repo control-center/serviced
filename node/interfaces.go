@@ -97,12 +97,22 @@ type HealthCheckRequest struct {
 	InstanceID int
 }
 
+type EvaluateServiceRequest struct {
+	ServiceID  string
+	InstanceID int
+}
+
+type EvaluateServiceResponse struct {
+	Service  service.Service
+	TenantID string
+}
+
 // The API for a service proxy.
 type LoadBalancer interface {
 	// SendLogMessage allows the proxy to send messages/logs to the master (to be displayed on the serviced master)
 	SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error
 
-	GetServiceEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error
+	GetISvcEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error
 
 	// GetProxySnapshotQuiece blocks until there is a snapshot request
 	GetProxySnapshotQuiece(serviceId string, snapshotId *string) error
@@ -110,9 +120,6 @@ type LoadBalancer interface {
 	// AckProxySnapshotQuiece is called by clients when the snapshot command has
 	// shown the service is quieced; the agent returns a response when the snapshot is complete
 	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
-
-	// GetTenantId retrieves a service's tenant id
-	GetTenantId(serviceId string, tenantId *string) error
 
 	// ReportHealthStatus writes the health check status to the cache
 	ReportHealthStatus(req master.HealthStatusRequest, unused *int) error
@@ -122,7 +129,7 @@ type LoadBalancer interface {
 	ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error
 
 	// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
-	GetEvaluatedService(request ServiceInstanceRequest, response *service.Service) error
+	GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error
 
 	// Ping waits for the specified time then returns the server time
 	Ping(waitFor time.Duration, timestamp *time.Time) error

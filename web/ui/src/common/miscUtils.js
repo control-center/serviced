@@ -30,6 +30,41 @@
             return elem.getScreenCTM().inverse().multiply(this.getScreenCTM());
         };
 
+        // creates a biset of specified size and
+        // sets the value to to val. Also attaches
+        // getter/setter functions angular can bind
+        // to to toggle fields
+        class NgBitset {
+            constructor(size, val){
+                this.val = val;
+                this.size = size;
+
+                // create angular getterSetters so that
+                // this bitset can bind to checkboxes in the UI
+                for(let i = 0; i < (1 << size); i = 1 << i){
+                    this[i] = (val) => {
+                        // if val, toggle the bit
+                        // TODO - act based on val?
+                        if(val !== undefined){
+                            this.toggle(i);
+                        }
+                        return this.isSet(i);
+                    };
+                }
+            }
+
+            isSet(i){
+                return (this.val & i) !== 0;
+            }
+
+            toggle(i){
+                this.val = this.val ^ i;
+            }
+
+            // TODO - set/unset
+        }
+
+
         var utils = {
 
             // TODO - use angular $location object to make this testable
@@ -47,6 +82,17 @@
             downloadFile: function(url){
                 window.location = url;
             },
+
+            // http://stackoverflow.com/a/18197341
+			downloadText(filename, text) {
+				var element = document.createElement('a');
+				element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+				element.setAttribute('download', filename);
+				element.style.display = 'none';
+				document.body.appendChild(element);
+				element.click();
+				document.body.removeChild(element);
+			},
 
             getModeFromFilename: function(filename){
                 var re = /(?:\.([^.]+))?$/;
@@ -328,7 +374,9 @@
 
                 }
                 return null;
-            }
+            },
+
+            NgBitset: NgBitset
        };
 
         return utils;

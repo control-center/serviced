@@ -14,8 +14,15 @@
 package api
 
 import (
+	"bytes"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
+	"github.com/control-center/serviced/auth"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
@@ -76,10 +83,10 @@ func (a *api) GetHostMemory(id string) (*metrics.MemoryUsageStats, error) {
 }
 
 // Adds a new host
-func (a *api) AddHost(config HostConfig) (*host.Host, error) {
+func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	agentClient, err := a.connectAgent(config.Address.String())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req := agent.BuildHostRequest{
@@ -91,19 +98,24 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 
 	h, err := agentClient.BuildHost(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	masterClient, err := a.connectMaster()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := masterClient.AddHost(*h); err != nil {
-		return nil, err
+	var privateKey []byte
+	if privateKey, err = masterClient.AddHost(*h); err != nil {
+		return nil, nil, err
 	}
 
-	return a.GetHost(h.ID)
+	if host_, err := a.GetHost(h.ID); err != nil {
+		return nil, nil, err
+	} else {
+		return host_, privateKey, nil
+	}
 }
 
 // Removes an existing host by its id
@@ -131,4 +143,64 @@ func (a *api) SetHostMemory(config HostUpdateConfig) error {
 	}
 	h.RAMLimit = config.Memory
 	return client.UpdateHost(*h)
+}
+
+func (a *api) AuthenticateHost(hostID string) (string, int64, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return "", 0, err
+	}
+	return client.AuthenticateHost(hostID)
+}
+
+// Retrieve host's public key
+func (a *api) GetHostPublicKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetHostPublicKey(id)
+}
+
+// Reset a host's key
+func (a *api) ResetHostKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.ResetHostKey(id)
+}
+
+// Write delegate keys to disk
+func (a *api) RegisterHost(keydata []byte) error {
+	keyfile := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
+	keydir := filepath.Dir(keyfile)
+	if err := os.MkdirAll(keydir, os.ModeDir|744); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(keyfile, keydata, 0644)
+}
+
+func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte) error {
+	hostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+	if h.ID == hostID {
+		return a.RegisterHost(keyData)
+	} else {
+		remoteCmd := "serviced host register -"
+		cmd := exec.Command("/usr/bin/ssh", h.IPAddr, "--", remoteCmd)
+		cmd.Stdin = bytes.NewReader(keyData)
+		return cmd.Run()
+	}
+}
+
+// Output a delegate key file to a given location on disk
+func (a *api) WriteDelegateKey(filename string, data []byte) error {
+	filedir := filepath.Dir(filename)
+	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, data, 0644)
 }

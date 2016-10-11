@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/go-json-rest"
 )
 
@@ -31,17 +30,7 @@ func getHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	response := hostsResponse{
-		Results: hosts,
-		Total:   len(hosts),
-		Links: []APILink{APILink{
-			Rel:    "self",
-			HRef:   r.URL.Path,
-			Method: "GET",
-		}},
-	}
-
-	w.WriteJson(response)
+	w.WriteJson(hosts)
 }
 
 // getHostsForPool returns the list of hosts for a pool.
@@ -64,21 +53,5 @@ func getHostsForPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContex
 		return
 	}
 
-	response := hostsResponse{
-		Results: hosts,
-		Total:   len(hosts),
-		Links: []APILink{APILink{
-			Rel:    "self",
-			HRef:   r.URL.Path,
-			Method: "GET",
-		}},
-	}
-
-	w.WriteJson(response)
-}
-
-type hostsResponse struct {
-	Results []host.ReadHost `json:"results"`
-	Total   int             `json:"total"`
-	Links   []APILink       `json:"links"`
+	w.WriteJson(hosts)
 }

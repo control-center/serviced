@@ -8,18 +8,17 @@
 
     controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location",
     "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
-    "miscUtils", "hostsFactory", "poolsFactory", "areUIReady",
+    "miscUtils", "areUIReady", "POOL_PERMISSIONS", "Pool", "$rootScope",
     function($scope, $routeParams, $location, resourcesFactory,
     authService, $modalService, $translate, $notification, utils,
-    hostsFactory, poolsFactory, areUIReady){
+    areUIReady, POOL_PERMISSIONS, Pool, $rootScope){
         // Ensure logged in
         authService.checkLogin($scope);
 
-        //
-        // Scope methods
-        //
+        // allow templates to get the list
+        // of permissions
+        $scope.permissions = POOL_PERMISSIONS;
 
-        // Pool view action - delete
         $scope.clickRemoveVirtualIp = function(ip) {
             $modalService.create({
                 template: $translate.instant("confirm_remove_virtual_ip") + " <strong>"+ ip.IP +"</strong>",
@@ -36,7 +35,7 @@
                             resourcesFactory.removePoolVirtualIP(ip.PoolID, ip.IP)
                                 .success(function(data) {
                                     $notification.create("Removed Virtual IP", ip.IP).success();
-                                    poolsFactory.update();
+                                    update();
                                 })
                                 .error(data => {
                                     $notification.create("Remove Virtual IP failed", data.Detail).error();
@@ -56,7 +55,7 @@
                 .success(function(data, status){
                     $scope.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();
-                    poolsFactory.update();
+                    update();
                 })
                 .error((data, status) => {
                     $notification.create("Add Virtual IP failed", data.Detail).error();
@@ -113,7 +112,8 @@
         $scope.editCurrentPool = function(){
             $scope.editablePool = {
                 ID: $scope.currentPool.model.ID,
-                ConnectionTimeout: utils.humanizeDuration($scope.currentPool.model.ConnectionTimeout)
+                ConnectionTimeout: utils.humanizeDuration($scope.currentPool.model.ConnectionTimeout),
+                permissions: new utils.NgBitset(POOL_PERMISSIONS.length, $scope.currentPool.model.Permissions)
             };
 
             $modalService.create({
@@ -135,10 +135,14 @@
                                 var enableSubmit = this.disableSubmitButton();
                                 // convert validated human input into ms for rest call    
                                 poolModel.ConnectionTimeout = utils.parseDuration($scope.editablePool.ConnectionTimeout);
+                                // add the Permissions field and remove the NgBitset field
+                                poolModel.Permissions = poolModel.permissions.val;
+                                delete poolModel.permissions;
                                 // update pool with recently edited pool
                                 resourcesFactory.updatePool($scope.currentPool.model.ID, poolModel)
                                     .success(function(data, status){
                                         $notification.create("Updated pool", poolModel.ID).success();
+                                        update();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -159,11 +163,21 @@
                 }
             });
         };
-        
+
+        function setCurrentPool(pool){
+            $scope.currentPool = new Pool(pool);
+            $scope.currentPool.fetchHosts();
+        }
+
+        // update/refresh current pools data
+        function update(){
+            // TODO - use v2 endpoint once its in
+            return resourcesFactory.getPool($scope.params.poolID)
+                .success(pool => setCurrentPool(pool));
+        }
 
         function init(){
 
-            $scope.name = "pooldetails";
             $scope.params = $routeParams;
 
             $scope.add_virtual_ip = {};
@@ -172,56 +186,25 @@
                 { label: 'breadcrumb_pools', url: '/pools' }
             ];
 
-            // start polling
-            poolsFactory.activate();
-
-            // Ensure we have a list of pools
-            poolsFactory.update()
-                .then(() => {
-                    $scope.currentPool = poolsFactory.get($scope.params.poolID);
-                    if ($scope.currentPool) {
-                        $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
-
-                        // start polling
-                        hostsFactory.activate();
-
-                        hostsFactory.update()
-                            .then(() => {
-                               // reduce the list to hosts associated with this pool
-                                $scope.hosts = hostsFactory.hostList.filter(function(host){
-                                    return host.model.PoolID === $scope.currentPool.id;
-                                });
-
-                            });
-                    }
-
-                });
-
             $scope.virtualIPsTable = {
                 sorting: {
                     IP: "asc"
-                },
-                watchExpression: function(){
-                    // if poolsFactory updates, update view
-                    return poolsFactory.lastUpdate;
                 }
             };
 
             $scope.hostsTable = {
                 sorting: {
                     name: "asc"
-                },
-                watchExpression: function(){
-                    return hostsFactory.lastUpdate;
                 }
             };
+
+            // get the pool the do some first time setup
+            update().then(() => {
+                $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
+                $rootScope.$emit("ready");
+            });
         }
 
         init();
-
-        $scope.$on("$destroy", function(){
-            poolsFactory.deactivate();
-            hostsFactory.deactivate();
-        });
     }]);
 })();

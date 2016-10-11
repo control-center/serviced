@@ -105,7 +105,6 @@ func getISVCS() []service.Service {
 	services = append(services, isvcs.ZookeeperISVC)
 	services = append(services, isvcs.LogstashISVC)
 	services = append(services, isvcs.OpentsdbISVC)
-	services = append(services, isvcs.CeleryISVC)
 	services = append(services, isvcs.DockerRegistryISVC)
 	services = append(services, isvcs.KibanaISVC)
 	return services
@@ -119,7 +118,6 @@ func getIRS() []dao.RunningService {
 	services = append(services, isvcs.ZookeeperIRS)
 	services = append(services, isvcs.LogstashIRS)
 	services = append(services, isvcs.OpentsdbIRS)
-	services = append(services, isvcs.CeleryIRS)
 	services = append(services, isvcs.DockerRegistryIRS)
 	services = append(services, isvcs.KibanaIRS)
 	return services
@@ -141,7 +139,17 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 	w.WriteJson(&simpleResponse{"Migrated services.", []link{}})
 }
 
+// DEPRECATED
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+
+	// load the internal monitoring data
+	config, err := getInternalMetrics()
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
+		return
+	}
+
 	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
@@ -152,7 +160,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		}
 
 		for ii, _ := range result {
-			fillBuiltinMetrics(&result[ii])
+			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
 		}
 		w.WriteJson(&result)
 		return
@@ -166,7 +175,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		}
 
 		for ii, _ := range result {
-			fillBuiltinMetrics(&result[ii])
+			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
 		}
 		w.WriteJson(&result)
 		return
@@ -204,7 +214,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	for ii, _ := range result {
-		fillBuiltinMetrics(&result[ii])
+		result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+		result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
 	}
 	w.WriteJson(&result)
 }
@@ -307,7 +318,16 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	w.WriteJson(&topServices)
 }
 
+// DEPRECATED
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+	// load the internal monitoring data
+	config, err := getInternalMetrics()
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
+		return
+	}
+
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -339,7 +359,8 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	}
 
 	if svc.ID == serviceID {
-		fillBuiltinMetrics(&svc)
+		svc.MonitoringProfile.MetricConfigs = append(svc.MonitoringProfile.MetricConfigs, *config)
+		svc.MonitoringProfile.GraphConfigs = append(svc.MonitoringProfile.GraphConfigs, getInternalGraphConfigs(svc.ID)...)
 		w.WriteJson(&svc)
 		return
 	}

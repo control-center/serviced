@@ -994,11 +994,6 @@
                     };
                 })()
             };
-            $scope.scheduledTasksTable = {
-                sorting: {
-                    Schedule: "asc"
-                }
-            };
 
             // servicesTable should not be sortable since it
             // is a hierarchy.

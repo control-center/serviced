@@ -14,7 +14,11 @@
 // Package domain defines the monitoring profiles for control center domain objects
 package domain
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/control-center/serviced/validation"
+)
 
 //MonitorProfile describes metrics, thresholds and graphs to monitor an object's performance
 type MonitorProfile struct {
@@ -102,4 +106,21 @@ func (profile *MonitorProfile) ReBuild(timeSpan string, tags map[string][]string
 	}
 
 	return &newProfile, nil
+}
+
+// ValidEntity ensures the monitor profile is valid before it is written to the
+// database.
+func (profile MonitorProfile) ValidEntity() error {
+	violations := validation.NewValidationError()
+	for _, mc := range profile.MetricConfigs {
+		violations.Add(mc.ValidEntity())
+	}
+	for _, gc := range profile.GraphConfigs {
+		violations.Add(gc.ValidEntity())
+	}
+
+	if violations.HasError() {
+		return violations
+	}
+	return nil
 }

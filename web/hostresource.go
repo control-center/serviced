@@ -24,6 +24,7 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -144,8 +145,143 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 		return
 	}
 
+	// load the internal monitoring data
+	config, err := getInternalMetrics()
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
+		return
+	}
+	mp.MetricConfigs = append(mp.MetricConfigs, *config)
+	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+
 	glog.V(4).Infof("restGetServiceMonitoringProfile: id %s, monitoring profile %#v", serviceID, mp)
 	w.WriteJson(&mp)
+}
+
+func restGetServiceConfigFiles(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	files, err := facade.GetServiceConfigs(dataCtx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not get service config files: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceConfigFiles: id %s, config files: %#v", serviceID, files)
+	w.WriteJson(&files)
+}
+
+func restGetServiceConfigFile(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	fileID, err := url.QueryUnescape(r.PathParam("fileId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if fileID == "" {
+		restBadRequest(w, errors.New("fileID must be specified for GET"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	file, err := facade.GetServiceConfig(dataCtx, fileID)
+	if err != nil {
+		glog.Errorf("Could not get service config file: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(file)
+}
+
+func restAddServiceConfigFile(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceId must be specified for POST"))
+		return
+	}
+
+	var file servicedefinition.ConfigFile
+	if err := r.DecodeJsonPayload(&file); err != nil {
+		glog.V(1).Infof("Could not decode service config payload: %v", err)
+		restBadRequest(w, err)
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	if err := facade.AddServiceConfig(dataCtx, serviceID, file); err != nil {
+		glog.Errorf("Could not add config file: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+	return
+}
+
+func restUpdateServiceConfigFile(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	fileID, err := url.QueryUnescape(r.PathParam("fileId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if fileID == "" {
+		restBadRequest(w, errors.New("fileID must be specified for PUT"))
+		return
+	}
+
+	var file servicedefinition.ConfigFile
+	if err := r.DecodeJsonPayload(&file); err != nil {
+		glog.V(1).Infof("Could not decode service config payload: %v", err)
+		restBadRequest(w, err)
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	if err := facade.UpdateServiceConfig(dataCtx, fileID, file); err != nil {
+		glog.Errorf("Could not update config file: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+	return
+}
+
+func restDeleteServiceConfigFile(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	fileID, err := url.QueryUnescape(r.PathParam("fileId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if fileID == "" {
+		restBadRequest(w, errors.New("fileID must be specified for DELETE"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	if err := facade.DeleteServiceConfig(dataCtx, fileID); err != nil {
+		glog.Errorf("Could not delete config file: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+	return
 }
 
 func restGetServicePublicEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
@@ -172,6 +308,58 @@ func restGetServicePublicEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx 
 
 	glog.V(4).Infof("restGetServicePublicEndpoints: id %s, publicEndpoints: %#v", serviceID, pubs)
 	w.WriteJson(&pubs)
+}
+
+func restGetServiceIPAssignments(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	addrs, err := facade.GetServiceAddressAssignmentDetails(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up address assignments: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceAddressAssignments: id %s, addressAssignmentsL %#v", serviceID, addrs)
+	w.WriteJson(&addrs)
+}
+
+func restGetServiceExportedEndpoints(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+
+	values := r.URL.Query()
+	_, includeChildren := values["includeChildren"]
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	addrs, err := facade.GetServiceExportedEndpoints(dataCtx, serviceID, includeChildren)
+	if err != nil {
+		glog.Errorf("Could not look up address assignments: %s", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(4).Infof("restGetServiceAddressAssignments: id %s, addressAssignmentsL %#v", serviceID, addrs)
+	w.WriteJson(&addrs)
 }
 
 // restGetAggregateServices provides aggregate service information
@@ -257,6 +445,11 @@ type addHostRequest struct {
 	RAMLimit string
 }
 
+type addHostResponse struct {
+	simpleResponse
+	PrivateKey string
+}
+
 //restAddHost adds a Host. Request input is host.Host
 func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	var payload addHostRequest
@@ -311,14 +504,14 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
-	err = facade.AddHost(dataCtx, host)
+	privateKey, err := facade.AddHost(dataCtx, host)
 	if err != nil {
 		glog.Errorf("Unable to add host: %v", err)
 		restServerError(w, err)
 		return
 	}
 	glog.V(0).Info("Added host ", host.ID)
-	w.WriteJson(&simpleResponse{"Added host", hostLinks(host.ID)})
+	w.WriteJson(&addHostResponse{simpleResponse{"Added host", hostLinks(host.ID)}, string(privateKey[:])})
 }
 
 //restUpdateHost updates a host. Request input is host.Host
@@ -373,6 +566,29 @@ func restRemoveHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	}
 	glog.V(0).Info("Removed host ", hostID)
 	w.WriteJson(&simpleResponse{"Removed host", hostsLinks()})
+}
+
+// restResetHostKey generates and returns a new  host-key for a given host-id
+func restResetHostKey(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if len(hostID) == 0 {
+		restBadRequest(w, fmt.Errorf("hostID must be specified for DELETE"))
+		return
+	}
+
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+	key, err := facade.ResetHostKey(dataCtx, hostID)
+	if err != nil {
+		glog.Errorf("Could not reset key for host %s: %v", hostID, err)
+		restServerError(w, err)
+		return
+	}
+	glog.V(0).Info("Reset host key for ", hostID)
+	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:])})
 }
 
 func buildHostMonitoringProfile(host *host.Host) error {

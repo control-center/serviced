@@ -29,7 +29,36 @@ type PublicEndpoint struct {
 	ServiceName string
 	Application string
 	Protocol    string
-	VHostName   string
-	PortAddress string
+	VHostName   string `json:",omitempty"`
+	PortAddress string `json:",omitempty"`
 	Enabled     bool
+}
+
+// IPAssignment is a minimal service object that describes an address assignment
+// for a service.
+type IPAssignment struct {
+	ServiceID   string
+	ServiceName string
+	PoolID      string
+	HostID      string
+	HostName    string
+	Type        string
+	IPAddress   string
+	Port        uint16
+}
+
+// ExportedEndpoint is a minimal service object that describes exported
+// endpoints for a service.
+// NOTE: Could add booleans for ip assignment, vhost, and ports
+type ExportedEndpoint struct {
+	ServiceID   string
+	ServiceName string
+	Application string
+	Protocol    string
+}
+
+// Config displays the most basic information about a service config file
+type Config struct {
+	ID       string
+	Filename string
 }
