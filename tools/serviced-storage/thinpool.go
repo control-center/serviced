@@ -31,7 +31,7 @@ type ThinPoolCreate struct {
 		Purpose string   `description:"Purpose of the thin pool (docker|serviced)"`
 		Devices []string `description:"Block devices to use" required:"1"`
 	} `positional-args:"yes" required:"yes"`
-	Size string `short:"s" long:"size" default:"90%FREE" description:"Size of the thin pool to be created. May be specified either as a fixed amount (e.g., \"20G\") or a percentage of the free space in the volume group (e.g., \"90%\")"`
+	Size string `short:"s" long:"size" default:"90%" description:"Size of the thin pool to be created. May be specified either as a fixed amount (e.g., \"20G\") or a percentage of the free space in the volume group (e.g., \"90%\")"`
 }
 
 type LogicalVolumeInfo struct {
