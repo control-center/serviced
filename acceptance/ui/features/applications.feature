@@ -169,7 +169,7 @@ Feature: Application Management
 
   @clean_hosts @clean_services
   Scenario: Remove an instance of the default template
-    Given only the default host is added
+    Given PENDING only the default host is added
       And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
     When I am on the applications page
       And I remove "table://applications/defaultApp/template" from the Applications list
