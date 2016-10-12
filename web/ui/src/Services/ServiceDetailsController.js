@@ -304,9 +304,7 @@
                     var IP = $scope.ips.assign.value.IPAddr;
                     return resourcesFactory.assignIP(serviceID, IP)
                         .success(function (data, status) {
-                            // HACK: update(true) forces a full update to
-                            // work around issue https://jira.zenoss.com/browse/CC-939
-                            // servicesFactory.update(true);
+                            update();
                         });
                 };
 
@@ -368,7 +366,6 @@
                     } else {
                         $scope.setServiceState(service, state);
                     }
-                    // servicesFactory.updateHealth();
                 };
 
                 // verifies if use wants to start parent service, or parent
@@ -540,7 +537,7 @@
                                     if (publicEndpoint.type === "vhost") {
                                         resourcesFactory.removeVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                                             .success(() => {
-                                                // servicesFactory.update();
+                                                update();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.Name).success();
                                             })
                                             .error((data, status) => {
@@ -549,7 +546,7 @@
                                     } else if (publicEndpoint.type === "port") {
                                         resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                                             .success(() => {
-                                                // servicesFactory.update();
+                                                update();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
                                             })
                                             .error((data, status) => {
@@ -676,6 +673,7 @@
                 };
 
                 $scope.validateService = function () {
+                    alert("Thought to be Unused validateService");
                     // TODO: Validate name and startup command
                     var svc = $scope.currentService.model,
                         max = svc.InstanceLimits.Max,
@@ -699,10 +697,11 @@
                 };
 
                 $scope.updateService = function (newService) {
+                    alert("Thought to be Unused updateService");
                     if ($scope.validateService()) {
                         return resourcesFactory.updateService($scope.currentService.model.ID, newService)
                             .success((data, status) => {
-                                // servicesFactory.update();
+                                update();
                                 this.editableService = {};
                             });
                     }
@@ -963,6 +962,7 @@
                                         $scope.resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
                                             .success(function (data, status) {
                                                 $notification.create("Updated service", $scope.editableService.Name).success();
+                                                update();
                                                 this.close();
                                             }.bind(this))
                                             .error(function (data, status) {
@@ -1047,11 +1047,7 @@
                             $scope.currentService.fetchServiceChildren()
                                 .then($scope.flattenServicesTree);
 
-                            // fetchAll() will trigger update at completion
-                            $scope.currentService.fetchAll();
-
                             // sets $scope.breadcrumbs
-                            // $scope.breadcrumbs = makeCrumbs($scope.currentService);
                             $scope.fetchBreadcrumbs();
 
                             // update serviceTreeState
@@ -1060,10 +1056,27 @@
                             // property for view to bind for tree state NOTE: WHA????
                             $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
 
-                            // update fast-moving statuses
-                            $scope.currentService.fetchAllStates();
+                            update();
                         });
                 };
+
+                function update() {
+                    
+                    $scope.getService($scope.params.serviceId)
+                        .then(function (model) {
+                            console.log("SET CURRENT SERVICE --------------");
+
+                            $scope.currentService.update(model);
+                        });
+
+                    // fetchAll() will trigger update at completion
+                    $scope.currentService.fetchAll(true);
+
+                    // update fast-moving statuses
+                    $scope.currentService.fetchAllStates();
+
+
+                }
 
                 function init() {
 
@@ -1160,12 +1173,8 @@
 
                             }, 250);
 
-
                         }
                     }, 3000);
-
-                    // servicesFactory.activate();
-                    // servicesFactory.update();
 
                     poolsFactory.activate();
                     poolsFactory.update();
@@ -1176,15 +1185,10 @@
                         hostsFactory.deactivate();
                         poolsFactory.deactivate();
                     });
-
-
-
                 }
 
                 // kick off controller
                 init();
-
-
 
                 function makeCrumbs(current) {
 
@@ -1212,5 +1216,7 @@
 
                     return crumbs;
                 }
+
             }]);
+
 })();

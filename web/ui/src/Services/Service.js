@@ -29,7 +29,7 @@
         // TODO: error callback
         resourcesFactory.v2[methodName](this.id)
             .then(data => {
-                console.log(`fetched ${data.length} ${propertyName} from ${methodName} for id ${this.id}`);
+                // console.log(`fetched ${data.length} ${propertyName} from ${methodName} for id ${this.id}`);
                 this[propertyName] = data;
                 this.touch();
                 deferred.resolve();
@@ -52,19 +52,20 @@
 
     class Service {
 
-        constructor(service) {
-            // these properties are for convenience
-            this.name = service.Name;
-            this.id = service.ID;
-            // NOTE: desiredState is mutable to improve UX
-            this.desiredState = service.DesiredState;
-            this.children = [];
+        constructor(model) {
+            this.subservices = [];
             this.instances = [];
+            this.update(model);
+        }
 
-            // make service immutable
-            this.model = Object.freeze(service);
+        update(model) {
+            // basically new-up with exisiting children and instances
+            this.name = model.Name;
+            this.id = model.ID;
+            this.desiredState = model.DesiredState;
+            this.model = Object.freeze(model);
             this.evaluateServiceType();
-            this.touch();
+            this.touch();   
         }
 
         evaluateServiceType() {
@@ -78,7 +79,7 @@
                 this.type.push(APP);
             }
 
-            if (this.children.length && !this.model.Startup) {
+            if (this.subservices.length && !this.model.Startup) {
                 this.type.push(META);
             }
 
@@ -88,13 +89,14 @@
         }
 
         // fills out service object
-        fetchAll() {
-            this.fetchEndpoints();
-            this.fetchAddresses();
-            this.fetchConfigs();
+        fetchAll(force) {
+            this.fetchEndpoints(force);
+            this.fetchAddresses(force);
+            this.fetchConfigs(force);
+            // forced fetch-children discards existing tree services
             this.fetchServiceChildren();
-            this.fetchMonitoringProfile();
-            this.fetchExportEndpoints();
+            this.fetchMonitoringProfile(force);
+            this.fetchExportEndpoints(force);
         }
 
         fetchAddresses(force) {
@@ -152,13 +154,11 @@
         fetchServiceChildren(force) {
             let deferred = $q.defer();
             // fetch.call(this, "getServiceChildren", "subservices", force);
-            if (this.subservices && !force) {
+            if (this.subservices.length && !force) {
                 deferred.resolve();
             }
             resourcesFactory.v2.getServiceChildren(this.id)
                 .then(data => {
-                    console.log(`fetched ${data.length} children services from getServiceChildren for id ${this.id}`);
-                    $notification.create(`API call returned ${data.length} sub-service${data.length === 1 ? "" : "s"} for ${this.name}`).success();
                     this.subservices = data.map(s => new Service(s));
                     this.touch();
                     deferred.resolve();
