@@ -8,3 +8,7 @@ Before('@login-required') do
   response = RestClient::Request.execute(:method => :post, :url => url, :payload => payload, :verify_ssl => false, :content_type => 'application/json' )
   @cookies = response.cookies
 end
+
+Before('@reload_service') do
+  CC.CLI.service.clean_remove('testsvc', 2)
+end

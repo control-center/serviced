@@ -285,6 +285,7 @@ def getTableValue(valueOrTableUrl)
     tableType = parsedUrl[1]
     tableName = parsedUrl[2]
     propertyName = parsedUrl[3]
+    #printf "******* #{tableType}, #{tableName}, #{propertyName}\n"
     if PARSED_DATA[tableType].nil?
         raise(ArgumentError.new('Invalid table type'))
     elsif PARSED_DATA[tableType][tableName].nil?

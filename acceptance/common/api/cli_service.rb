@@ -100,6 +100,17 @@ module CCApi
             CC.CLI.execute("%{serviced} service start #{service}")
         end
 
+        # Stops the service.
+        def stop(service)
+            if !check_service_exists(service)
+                raise "Can't stop unknown service: #{service}"
+            end
+            CC.CLI.execute("%{serviced} service stop #{service}")
+        end
+
+        def status
+            CC.CLI.execute('%{serviced} service status')
+        end
 
         # Checks the CLI output to see if an app/id exists.
         def service_with_id_exists?(app, id)
@@ -112,8 +123,24 @@ module CCApi
             return false
         end
 
+        def clean_remove(serviceName, expectedInstancesToStop)
+            if CC.CLI.service.check_service_exists(serviceName)
+                CC.CLI.service.stop(serviceName)
+                i = 10
+                while i > 0
+                    sleep(1)
+                    result = CC.CLI.execute("%{serviced} service status | grep stopped | wc -l")
+                    printf "Waiting for service '#{serviceName}' to stop before removing...\n"
+                    if result.strip.to_i == expectedInstancesToStop
+                        CC.CLI.service.remove_service(serviceName)
+                        break
+                    end
+                    i = i - 1
+                end
+            end
+        end
+
         def remove_service(serviceName)
-            serviceName = getTableValue(serviceName)
             CC.CLI.execute("%{serviced} service rm #{serviceName}")
         end
 

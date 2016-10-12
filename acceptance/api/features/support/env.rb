@@ -1,3 +1,5 @@
+require 'cucumber-api'
+
 require 'fileutils'
 
 def combineAllDataFiles(dir)
@@ -99,9 +101,10 @@ TEMPLATE_DIR = template_dir
 printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]
 printf "Using dataset=%s\n", ENV["DATASET"]
 printf "Using template directory=%s\n", template_dir
+
+
 HOST_IP = ENV["HOST_IP"]
 TARGET_HOST = ENV["TARGET_HOST"]
 printf "Using HOST_IP=%s\n", HOST_IP
 printf "Using TARGET_HOST=%s\n", TARGET_HOST
-
 

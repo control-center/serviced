@@ -22,10 +22,6 @@ Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
 end
 
 Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
-    #visitApplicationsPage()
-    #exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
-    #addService(app, "default", id) if !exists
-
     CC.CLI.template.deploy(app, "default", id) if !CC.CLI.service.service_with_id_exists?(app, id)
 end
 

@@ -11,7 +11,9 @@ module CCApi
             # Description isn't used in the CLI.
             nameValue =  getTableValue(name)
             result = CC.CLI.execute("%{serviced} pool add '#{nameValue}'")
-            expect(result.strip).to eq(nameValue.to_s)
+            if result.strip != nameValue.to_s
+                raise "failed to add pool #{nameValue}!\n"
+            end
         end
 
         def add_default_pool()

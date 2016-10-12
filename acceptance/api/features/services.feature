@@ -4,7 +4,7 @@ Feature: V2 Services tests
   Background:
     Given that the test template is added
     And that the default resource pool is added
-    And that the "testsvc" application with the "XYZZY" Deployment ID is added
+    And that the "testsvc" application with the "Acceptance" Deployment ID is added
     And that the "testsvc" application is started
 
   @services
@@ -71,16 +71,19 @@ Feature: V2 Services tests
     Then the response status should be "200"
     And the JSON response root should be array
     And the JSON response should have key "$[0].IPAddress"
-    And the JSON response should have value "1000" at "$[0].Ports[0]"
+    And the JSON response should have value "1000" at "$[0].Port"
 
   @services
   Scenario: PUT and GET context for a service
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
-    When I grab "$[0].ID" as "serviceid"
+    When I grab "$.[?(@["Name"]=="s1")].ID" as "serviceid"
     And I send a PUT request from file "default/servicecontext.json" to CC at "/api/v2/services/{serviceid}/context"
     Then the response status should be "200"
+    When I send a GET request to CC at "/api/v2/services"
+    Then the response status should be "200"
+    When I grab "$.[?(@["Name"]=="s1")].ID" as "serviceid"
     When I send a GET request to CC at "/api/v2/services/{serviceid}/context"
     Then the response status should be "200"
     And the JSON response root should be object
@@ -90,12 +93,11 @@ Feature: V2 Services tests
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
-    When I grab "$[0].ID" as "serviceid"
+    When I grab "$.[?(@["Name"]=="s2")].ID" as "serviceid"
     And I send a GET request to CC at "/api/v2/services/{serviceid}/publicendpoints"
     Then the response status should be "200"
     And the JSON response root should be array
-    #TODO can be an empty array, need to find one with an endpoint to query into it
-    #And the JSON response should have key "$[0].IPAddress"
+    And the JSON response should have key "$[0].Protocol"
 
   @services
   Scenario: GET monitoring profile for a service
@@ -140,9 +142,9 @@ Feature: V2 Services tests
     And I send a GET request to CC at "/api/v2/services/{serviceid}/serviceconfigs"
     Then the response status should be "200"
     And the JSON response root should be array
-    And the JSON response should have value "/etc/my.cnf" at "$[0].Filename"
+    And the JSON response should have value "/etc/my.cnf" at "$..Filename*"
 
-  @services
+  @services @reload_service
   Scenario: POST a service config for a service
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/services"
@@ -153,7 +155,6 @@ Feature: V2 Services tests
 
   @services
   Scenario: DELETE a service config from a service
-  Scenario: GET details for a service config
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
@@ -161,9 +162,7 @@ Feature: V2 Services tests
     And I send a GET request to CC at "/api/v2/services/{serviceid}/serviceconfigs"
     Then the response status should be "200"
     And the JSON response root should be array
-    When I grab "$.[?(@["Filename"]=="fakeservicedotconf")].ID" as "serviceid"
-    And I send a DELETE request to CC at "/api/v2/serviceconfigs/{serviceconfigid}"
+    When I grab "$[0].ID" as "configid"
+    And I send a DELETE request to CC at "/api/v2/serviceconfigs/{configid}"
     Then the response status should be "200"
-
-
-
+    

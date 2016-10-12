@@ -193,6 +193,8 @@ docker run --rm --name api_acceptance \
     ${DEBUG_OPTION} \
     -v `pwd`/api:/capybara:rw \
     -v `pwd`/common:/common:rw \
+    -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
+    -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \

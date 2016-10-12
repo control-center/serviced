@@ -7,6 +7,9 @@ module CCApi
 
         # Deploys the service.
         def deploy(template, pool, id)
+            if CC.CLI.service.service_with_id_exists?(template, id)
+                return
+            end
             template = getTableValue(template)
             templateID = get_template_id(template)
             pool = getTableValue(pool)
@@ -20,8 +23,7 @@ module CCApi
         def add_template(dir)
             templateID = CC.CLI.execute("%{serviced} template compile #{dir} | %{serviced} template add")
             result = CC.CLI.execute("%{serviced} template list #{templateID}")
-            printf "Line count: #{result.lines.count}"
-            if result.lines.count != 0
+            if result.lines.count == 0
                 raise "Error adding template!: #{result}"
             end
         end

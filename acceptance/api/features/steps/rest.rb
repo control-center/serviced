@@ -1,5 +1,3 @@
-require 'cucumber-api'
-
 When(/^I send a (GET|POST|PATCH|PUT|DELETE) payload request to CC at "(.*?)" with body "(.*?)"$/) do |method, path, body|
   make_request(method, path, body)
 end
@@ -56,8 +54,8 @@ end
 # find a value in the response
 Then(/^the JSON response should have value "(.*?)" at "(.*?)"$/) do |value, jsonpath|
   data = @response.get jsonpath
-  if data == nil or data.to_s != value
-    raise "Could not find #{value} at the specified path #{jsonpath}"
+  if data == nil or !data.to_s.include? value
+    raise "Could not find #{value} at path #{jsonpath}, data was: #{data}, body: #{@response.body}, code: #{@response.code}"
   end
 end
 
