@@ -2,14 +2,12 @@ package mocks
 
 import "github.com/stretchr/testify/mock"
 
+import "github.com/control-center/serviced/datastore"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
 import "github.com/control-center/serviced/domain/service"
-import (
-	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/datastore"
-)
+import zkservice "github.com/control-center/serviced/zzk/service"
 
 type ZZK struct {
 	mock.Mock
@@ -187,19 +185,19 @@ func (_m *ZZK) GetActiveHosts(poolID string, hosts *[]string) error {
 
 	return r0
 }
-func (_m *ZZK) IsHostActive(poolID string, hostID string) (bool, error) {
-	ret := _m.Called(poolID, hostID)
+func (_m *ZZK) IsHostActive(poolID string, hostId string) (bool, error) {
+	ret := _m.Called(poolID, hostId)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
-		r0 = rf(poolID, hostID)
+		r0 = rf(poolID, hostId)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(poolID, hostID)
+		r1 = rf(poolID, hostId)
 	} else {
 		r1 = ret.Error(1)
 	}

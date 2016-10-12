@@ -455,6 +455,12 @@ func (_m *FacadeInterface) ResetHostKey(ctx datastore.Context, hostID string) ([
 
 	return r0, r1
 }
+func (_m *FacadeInterface) SetHostExpiration(ctx datastore.Context, hostID string, expiration int64) {
+	_m.Called(ctx, hostID, expiration)
+}
+func (_m *FacadeInterface) RemoveHostExpiration(ctx datastore.Context, hostID string) {
+	_m.Called(ctx, hostID)
+}
 func (_m *FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	ret := _m.Called(ctx)
 
