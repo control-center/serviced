@@ -135,6 +135,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/services/:serviceId/context", gz(sc.checkAuth(getServiceContext))},
 		rest.Route{"PUT", "/api/v2/services/:serviceId/context", gz(sc.checkAuth(putServiceContext))},
 		rest.Route{"GET", "/api/v2/statuses", gz(sc.checkAuth(restGetAggregateServices))},
+		rest.Route{"GET", "/api/v2/hoststatuses", gz(sc.checkAuth(getHostStatuses))},
 
 		rest.Route{"GET", "/api/v2/services/:serviceId/serviceconfigs", gz(sc.checkAuth(restGetServiceConfigFiles))},
 		rest.Route{"POST", "/api/v2/services/:serviceId/serviceconfigs", gz(sc.checkAuth(restAddServiceConfigFile))},

@@ -64,7 +64,7 @@ Feature: Service Endpoints
 
 
   Scenario: Public Endpoint dialog - bad host given
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -74,7 +74,7 @@ Feature: Service Endpoints
     Then I should see "no such host"
 
   Scenario: Public Endpoint dialog - add https
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -93,7 +93,7 @@ Feature: Service Endpoints
       And I should see the endpoint entry with both "table://services/childServiceWithVHost/port_https" and "table://services/childServiceWithVHost/host"
 
   Scenario: Public Endpoint dialog - add http
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -112,7 +112,7 @@ Feature: Service Endpoints
       And I should see the endpoint entry with both "table://services/childServiceWithVHost/port_http" and "table://services/childServiceWithVHost/host"
 
   Scenario: Public Endpoint dialog - add tls
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -131,7 +131,7 @@ Feature: Service Endpoints
       And I should see the endpoint entry with both "table://services/childServiceWithVHost/port_tls" and "table://services/childServiceWithVHost/host"
 
   Scenario: Public Endpoint dialog - add other
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -150,31 +150,31 @@ Feature: Service Endpoints
       And I should see the endpoint entry with both "table://services/childServiceWithVHost/port_other" and "table://services/childServiceWithVHost/host"
 
   Scenario: Public Endpoint dialog - remove https
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING  I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I delete Endpoint "table://services/childServiceWithVHost/port_https"
     Then I should not see "table://services/childServiceWithVHost/port_https"
 
   Scenario: Public Endpoint dialog - remove http
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I delete Endpoint "table://services/childServiceWithVHost/port_http"
     Then I should not see "table://services/childServiceWithVHost/port_http"
 
   Scenario: Public Endpoint dialog - remove tls
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I delete Endpoint "table://services/childServiceWithVHost/port_tls"
     Then I should not see "table://services/childServiceWithVHost/port_tls"
 
   Scenario: Public Endpoint dialog - remove other
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I delete Endpoint "table://services/childServiceWithVHost/port_other"
     Then I should not see "table://services/childServiceWithVHost/port_other"
 
   Scenario: Public Endpoint dialog - Re-add https again
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I click the Add Public Endpoint button
       And I should see the Add Public Endpoint dialog
@@ -193,7 +193,7 @@ Feature: Service Endpoints
       And I should see the endpoint entry with both "table://services/childServiceWithVHost/port_https" and "table://services/childServiceWithVHost/host"
 
   Scenario: Public Endpoint dialog - remove https
-    When I view the details of "table://services/topService/name" in the "Applications" table
+    When PENDING I view the details of "table://services/topService/name" in the "Applications" table
       And I view the details of "table://services/childServiceWithVHost/name" in the "Services" table
       And I delete Endpoint "table://services/childServiceWithVHost/port_https"
     Then I should not see "table://services/childServiceWithVHost/port_https"

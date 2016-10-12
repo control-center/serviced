@@ -366,6 +366,14 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	return err
 }
 
+func (z *zkf) IsHostActive(poolID string, hostID string) (bool, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return false, err
+	}
+	return zks.IsHostOnline(conn, poolID, hostID)
+}
+
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
@@ -721,6 +729,17 @@ func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest,
 	}
 
 	return zks.GetServiceStateIDs(conn, poolID, serviceID)
+}
+
+func (ck *zkf) GetServiceNodes() ([]zks.ServiceNode, error) {
+	// get the root-based connection to look up the service nodes
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		plog.WithError(err).Debug("Could not acquire root-based connection")
+		return nil, err
+	}
+
+	return zks.GetServiceNodes(conn)
 }
 
 func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
