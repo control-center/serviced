@@ -6,7 +6,7 @@ Feature: V2 Pools tests
     And that the default resource pool is added
 
   @pools
-  Scenario: I can GET all pools
+  Scenario: GET all pools
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/pools"
     Then the response status should be "200"
@@ -20,7 +20,7 @@ Feature: V2 Pools tests
     Then the response status should be "405"
 
   @pools
-  Scenario: I can GET the list of hosts for a given pool
+  Scenario: GET the list of hosts for a given pool
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/pools"
     Then the response status should be "200"

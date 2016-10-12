@@ -27,6 +27,7 @@ def make_request(method, path, body)
 
     @headers = {} if @headers.nil?
     bodyJson = @body.nil? ? "" : @body.to_json
+
     begin
         case method
             when 'GET'

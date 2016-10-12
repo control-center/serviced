@@ -2,6 +2,7 @@
 
 
 The `ui` subdirectory contains UI functional tests which can be executed in a completely automated fashion using [Capybara](https://github.com/jnicklas/capybara) in a [Docker](http://www.docker.com) container.
+The `api` subdirectory contains a set of tests for v2 of the CC REST API.
 
 The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also includes support for [screenshots](https://github.com/mattheworiordan/capybara-screenshot) of failed tests cases.
 
@@ -43,7 +44,7 @@ A report of the test execution is written to `ui/output`.
 
 ### Step 1 - Start Control Center
 The test suite assumes serviced is already running and ready to receive requests
-from a web browser.
+from a web browser or a REST client.
 
 To run the test, you must specify the URL for Control Center either
 by setting the environment variable APPLICATION_URL or by specifying the
@@ -96,7 +97,7 @@ This step is not necessary if you do not run tests involving hosts.
 **NOTE:** If you stop and restart the start mock agents script while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock agent. Restarting serviced will fix this.
 
 #### Add the test template
-The Application tests assume that a test template has already been added to the system. To comple and add the test template, use the following commands:
+The Application tests assume that a test template has already been added to the system. To compile and add the test template, use the following commands:
 
 ```
 $ zendev cd serviced
@@ -106,6 +107,14 @@ $ serviced template compile dao/testsvc | serviced template add
 In the future, this step may be incorporated directly into the Cucumber tests for Applications.
 
 ### Step 4 - Run the test suite
+
+Note: on a local developer setup, please set the following in your env or at cmd line as you run the launcher scripts:
+```
+SERVICED_ETC_PATH=$(zendev root)/opt_serviced/etc
+SERVICED_ISVCS_PATH=$(zendev root)/opt_serviced/var/isvcs 
+```
+
+#### UI acceptance
 
 Capybara uses different 'drivers' to interface with a web browser.
 By default, `runUIAcceptance.sh` executes tests against Chrome.
@@ -131,6 +140,14 @@ $ ./runUIAcceptance.sh -d poltergeist -a <servicedURL> -u <userID> -p <password>
 ```
 
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
+
+#### API acceptance
+
+None of the above browser concerns are needed in the REST tests.
+
+```
+$ ./runAPIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
+```
 
 ### Step 5 - Review the test results
 
@@ -254,10 +271,6 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 
 ## TODOs
 
- * Add example of REST validation using Cucumber. Here are some helper libraries to consider:
-   * https://github.com/DigitalInnovation/cucumber_rest_api
-   * https://github.com/jayzes/cucumber-api-steps
-   * https://github.com/collectiveidea/json_spec
  * Add example of CLI validation using Cucumber.
 
 ## Known Issues

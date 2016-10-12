@@ -126,12 +126,11 @@ Feature: V2 Services tests
     Given I send and accept JSON
     When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
-    When I grab "$[0].ID" as "serviceid"
+    When I grab "$.[?(@["Name"]=="s1")].ID" as "serviceid"
     And I send a GET request to CC at "/api/v2/services/{serviceid}/serviceconfigs"
     Then the response status should be "200"
     And the JSON response root should be array
-    And the JSON response should have key "$[0].ID"
-
+    And the JSON response should have key "$[0].Filename"
 
   @services
   Scenario: GET details for a service config
@@ -139,10 +138,12 @@ Feature: V2 Services tests
     When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
     When I grab "$.[?(@["Name"]=="s1")].ID" as "serviceid"
-    And I send a GET request to CC at "/api/v2/services/{serviceid}/serviceconfigs"
     Then the response status should be "200"
-    And the JSON response root should be array
-    And the JSON response should have value "/etc/my.cnf" at "$..Filename*"
+    And I send a GET request to CC at "/api/v2/services/{serviceid}/serviceconfigs"
+    When I grab "$[0].ID" as "configid"
+    And I send a GET request to CC at "/api/v2/serviceconfigs/{configid}"
+    Then the JSON response root should be object
+    And the JSON response should have value "/etc/my.cnf" at "Filename"
 
   @services @reload_service
   Scenario: POST a service config for a service
@@ -151,6 +152,8 @@ Feature: V2 Services tests
     Then the response status should be "200"
     When I grab "$.[?(@["Name"]=="s1")].ID" as "serviceid"
     And I send a POST request from file "default/serviceconfig.json" to CC at "/api/v2/services/{serviceid}/serviceconfigs"
+    Then the response status should be "200"
+    When I send a GET request to CC at "/api/v2/services"
     Then the response status should be "200"
 
   @services
@@ -165,4 +168,3 @@ Feature: V2 Services tests
     When I grab "$[0].ID" as "configid"
     And I send a DELETE request to CC at "/api/v2/serviceconfigs/{configid}"
     Then the response status should be "200"
-    
