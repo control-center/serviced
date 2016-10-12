@@ -1126,7 +1126,12 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 
 func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade_scheduleService"))
-	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
+	logger := plog.WithFields(log.Fields{
+		"tenantid":     tenantID,
+		"serviceid":    serviceID,
+		"desiredstate": desiredState,
+	})
+	logger.Debug("Started Facade.ScheduleService")
 
 	// Build a list of services to be scheduled
 	svcs := []service.Service{}
@@ -1136,7 +1141,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	}
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
 	if err != nil {
-		glog.Errorf("Could not retrieve service(s) for scheduling %s: %s", serviceID, err)
+		logger.WithError(err).Errorf("Could not retrieve service(s) for scheduling")
 		return 0, err
 	}
 
@@ -1147,28 +1152,31 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		}
 		for _, svc := range svcs {
 			if err := f.validateServiceStart(ctx, &svc); err != nil {
-				glog.Errorf("Service %s (%s) failed validation for start: %s", svc.Name, svc.ID, err)
+				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
 				return 0, err
 			}
 		}
 	}
 
 	// Schedule the services, calculating the number of affected services as we go
-	affected := 0
-	for _, svc := range svcs {
-		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
-			continue
-		} else if svc.DesiredState == int(desiredState) {
-			continue
-		}
+	affected := len(svcs)
+	go func() {
+		logger := plog.WithField("serviceid", serviceID)
+		logger.Debug("Begin go func in scheduleService()")
+		for _, svc := range svcs {
+			if svc.ID != serviceID && svc.Launch == commons.MANUAL {
+				continue
+			} else if svc.DesiredState == int(desiredState) {
+				continue
+			}
 
-		err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
-		if err != nil {
-			return affected, err
+			err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
+			if err != nil {
+				logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
+				return
+			}
 		}
-
-		affected++
-	}
+	}()
 	return affected, nil
 }
 
