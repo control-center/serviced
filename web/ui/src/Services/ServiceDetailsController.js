@@ -867,7 +867,6 @@
                     let deferred = $q.defer();
                     $scope.resourcesFactory.v2.getService(id)
                         .then(function (data) {
-                            console.log("got service id " + data.id);
                             deferred.resolve(data);
                         },
                         function (error) {
@@ -1025,6 +1024,16 @@
                     $scope.currentDescendents = rows.slice(1);
                 };
 
+                $scope.fetchBreadcrumbs = function () {
+                    $scope.resourcesFactory.v2.getServiceAncestors($scope.currentService.id)
+                        .then(current => {
+                            $scope.breadcrumbs = makeCrumbs(current);
+                        },
+                        error => {
+                            console.warn(error);
+                        });
+                };
+
                 $scope.setCurrentService = function () {
 
                     $scope.currentService = undefined;
@@ -1041,9 +1050,9 @@
                             // fetchAll() will trigger update at completion
                             $scope.currentService.fetchAll();
 
-                            // setup breadcrumbs
-                            $scope.breadcrumbs = makeCrumbs($scope.currentService);
-
+                            // sets $scope.breadcrumbs
+                            // $scope.breadcrumbs = makeCrumbs($scope.currentService);
+                            $scope.fetchBreadcrumbs();
 
                             // update serviceTreeState
                             $scope.setCurrentTreeState();
@@ -1178,22 +1187,23 @@
 
 
                 function makeCrumbs(current) {
+
                     var crumbs = [{
-                        label: current.name,
+                        label: current.Name,
                         itemClass: "active",
-                        id: current.id
+                        id: current.ID
                     }];
 
                     (function recurse(service) {
                         if (service) {
                             crumbs.unshift({
-                                label: service.name,
-                                url: "/services/" + service.id,
-                                id: service.id
+                                label: service.Name,
+                                url: "/services/" + service.ID,
+                                id: service.ID
                             });
-                            recurse(service.parent);
+                            recurse(service.Parent);
                         }
-                    })(current.parent);
+                    })(current.Parent);
 
                     crumbs.unshift({
                         label: "Applications",

@@ -322,6 +322,10 @@
                 url: id => `/api/v2/services/${id}`,
                 payload: (id, service) => service
             },
+            getServiceAncestors: {
+                method: GET,
+                url: id => `/api/v2/services/${id}?ancestors`,
+            },
             getServiceChildren: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/services`,
