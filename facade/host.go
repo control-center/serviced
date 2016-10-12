@@ -383,8 +383,8 @@ func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since 
 		}
 		status.Active = active
 
-		authed, _ := f.hostRegistry.IsExpired(h.ID)
-		status.Authenticated = !authed
+		expired, _ := f.hostRegistry.IsExpired(h.ID)
+		status.Authenticated = !expired
 
 		instances, err := f.GetHostInstances(ctx, since, id)
 		if err != nil {
