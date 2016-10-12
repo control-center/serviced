@@ -12,60 +12,60 @@ Feature: CLI Validation
 
   @port
   Scenario: List the port public endpoints
-    Given PENDING that the "port0" port is added
+    Given that the "port0" port is added
     Then I should see the port public endpoint "port0" in the list output
 
   @port
   Scenario: Add a new port public endpoint
-    Given PENDING that the "port1" port does not exist
+    Given that the "port1" port does not exist
       And that the "port1" port is added
     Then I should see the port public endpoint "port1" in the service
 
   @port
   Scenario: Delete the port public endpoint
-    Given PENDING that the "port0" port is added
+    Given that the "port0" port is added
       And the port public endpoint "port0" is removed
     Then I should not see the port public endpoint "port0" in the service
 
   @port
   Scenario: Disable a port public endpoint
-    Given PENDING that the "port0" port is added
+    Given that the "port0" port is added
       And that the port public endpoint "port0" is disabled
     Then the port public endpoint "port0" should be "disabled" in the service
 
   @port
   Scenario: Disable and enable a port public endpoint
-    Given PENDING that the "port0" port is added
+    Given that the "port0" port is added
       And that the port public endpoint "port0" is disabled
       And that the port public endpoint "port0" is enabled
     Then the port public endpoint "port0" should be "enabled" in the service
 
   @vhost
   Scenario: List the vhost public endpoints
-    Given PENDING that the "vhost0" vhost is added
+    Given that the "vhost0" vhost is added
     Then I should see the vhost public endpoint "vhost0" in the list output
 
   @vhost
   Scenario: Add a new vhost public endpoint
-    Given PENDING that the "vhost1" vhost does not exist
+    Given that the "vhost1" vhost does not exist
       And that the "vhost1" vhost is added
     Then I should see the vhost public endpoint "vhost1" in the service
 
   @vhost
   Scenario: Delete the vhost public endpoint
-    Given PENDING that the "vhost0" vhost is added
+    Given that the "vhost0" vhost is added
       And the vhost public endpoint "vhost0" is removed
     Then I should not see the vhost public endpoint "vhost0" in the service
 
   @vhost
   Scenario: Disable a port vhost endpoint
-    Given PENDING that the "vhost0" vhost is added
+    Given that the "vhost0" vhost is added
       And that the vhost public endpoint "vhost0" is disabled
     Then the vhost public endpoint "vhost0" should be "disabled" in the service
 
   @vhost
   Scenario: Disable and enable a vhost public endpoint
-    Given PENDING that the "vhost0" vhost is added
+    Given that the "vhost0" vhost is added
       And that the vhost public endpoint "vhost0" is disabled
       And that the vhost public endpoint "vhost0" is enabled
     Then the vhost public endpoint "vhost0" should be "enabled" in the service
