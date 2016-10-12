@@ -35,6 +35,7 @@ type ZZK interface {
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error
 	GetActiveHosts(poolID string, hosts *[]string) error
+	IsHostActive(poolID string, hostId string) (bool, error)
 	UpdateResourcePool(_pool *pool.ResourcePool) error
 	RemoveResourcePool(poolID string) error
 	AddVirtualIP(vip *pool.VirtualIP) error

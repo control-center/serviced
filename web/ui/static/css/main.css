@@ -916,6 +916,7 @@ input.startup {
 .popover .healthTooltipDetailRow {
     position: relative;
     font-size: 12px;
+    white-space: nowrap;
 }
 .popover .healthTooltipDetailRow .healthTooltipDetailName {
     display: inline-block;
@@ -1266,23 +1267,22 @@ health-icon {
 
 /* NOTE: hardcoding glyphicon glyphs here to make CSS simpler.
  * Changes to glyphicons or angular could cause this to break */
-.passed .healthIcon:before{
+.passed>.healthIcon:before{
     color: #0084DB;
     content: "\e084";
 }
-.failed .healthIcon:before{
+.failed>.healthIcon:before{
     color: #9C1200;
     content: "\e101";
 }
-.unknown .healthIcon:before{
+.unknown>.healthIcon:before{
     color: #94C0DB;
     content: "\e085";
 }
-.not_running .healthIcon:before{
+.not_running>.healthIcon:before{
     color: #AAA;
     content: "\e082";
 }
-
 
 h3 health-icon {
     top: 2px;

@@ -83,6 +83,10 @@ type FacadeInterface interface {
 
 	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
+	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
+
+	RemoveHostExpiration(ctx datastore.Context, hostID string)
+
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
 	UpdateHost(ctx datastore.Context, entity *host.Host) error
@@ -175,6 +179,7 @@ type FacadeInterface interface {
 
 	DeleteServiceConfig(ctx datastore.Context, fileID string) error
 
-	UpdateServiceCache(ctx datastore.Context) error
+	GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error)
 
+	UpdateServiceCache(ctx datastore.Context) error
 }
