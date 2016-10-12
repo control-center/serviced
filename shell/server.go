@@ -30,9 +30,9 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 	worker "github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -431,14 +431,7 @@ func StartDocker(cfg *ProcessConfig, masterAddress, workerAddress, dockerRegistr
 		argv = append(argv, "-i", "-t")
 	}
 
-	// set the systemuser and password
-	systemUser := user.User{}
-	if systemUser, err = masterClient.GetSystemUser(); err != nil {
-		glog.Errorf("Unable to get system user account for client: %s", err)
-	}
-
-	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s ", systemUser.Name))
-	argv = append(argv, "-e", fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s ", systemUser.Password))
+	argv = append(argv, "-e", fmt.Sprintf("SERVICED_VERSION=%s ", servicedversion.Version))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=true"))
 	argv = append(argv, "-e", fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", image))

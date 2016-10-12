@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/Sirupsen/logrus"
 )
 
 var _ = Suite(&S{
@@ -35,6 +36,11 @@ type S struct {
 	elastic.ElasticTest
 	ctx   datastore.Context
 	store Store
+}
+
+func (s *S) SetupSuite(c *C) {
+	// Show Debug logs if something fails.
+	plog.SetLevel(logrus.DebugLevel, true)
 }
 
 func (s *S) SetUpTest(c *C) {
@@ -213,4 +219,75 @@ func (s *S) Test_VersionConflicts(t *C) {
 	svc3.DatabaseVersion = 1
 	err = s.store.Put(s.ctx, svc3)
 	t.Assert(err, Not(IsNil))
+}
+
+// Sets up the initial state of the Cache tests, adding svc_test_id.
+func setInitialCacheState(s *S, t *C) *Service {
+	// Verify there are no updated services initially.
+	t.Log("Initial GetUpdatedservices() call")
+	svcs, err := s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 0)
+
+	// Store svc_name, last updated 10h ago.
+	t.Log("Store svc_test_id with updatedAt 10h ago")
+	svc := &Service{
+		ID: "svc_test_id",
+		Name: "svc_name",
+		PoolID: "testPool",
+		DesiredState: int(SVCStop),
+		Launch: "auto",
+		UpdatedAt: time.Now().Add(-time.Duration(10) * time.Hour),
+	}
+	err = s.store.Put(s.ctx, svc)
+	t.Assert(err, IsNil)
+
+	// Validate that the DesiredState from elastic is SVCStop.
+	t.Log("Validate DesiredState from elastic is SVCStop(0)")
+	svcElastic, err := s.store.Get(s.ctx, svc.ID)
+	t.Assert(err, IsNil)
+	t.Assert(svcElastic.DesiredState, Equals, int(SVCStop))
+
+	return svc
+}
+
+func (s *S) Test_GetUpdatedServiceStates(t *C) {
+	// Setup the cache test.
+	svc := setInitialCacheState(s, t)
+
+	// Validate that we do not get this service when querying services updated in the last hour.
+	t.Log("Validate no service returned with since=1h ago")
+	svcs, err := s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 0)
+
+	// Update the DesiredState
+	t.Log("Updating DesiredState")
+	s.store.UpdateDesiredState(s.ctx, svc.ID, int(SVCRun))
+
+	// Validate that we get this service when querying services updated in the last hour.
+	t.Log("Verify GetUpdatedServices() returns updated svc_test_id")
+	svcs, err = s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+	svcElastic := &svcs[0]
+	t.Log("Verify the updated service has the cached state SVCRun(1)")
+	t.Assert(svcElastic.DesiredState, Equals, int(SVCRun))
+}
+
+func (s *S) Test_GetWithCachedState(t *C) {
+	// Setup the cache test.
+	svc := setInitialCacheState(s, t)
+
+	// Update the DesiredState
+	t.Log("Updating DesiredState")
+	s.store.UpdateDesiredState(s.ctx, svc.ID, int(SVCRun))
+
+	// Validate that if we query for this service that we'll get the
+	// updated desired state.
+	t.Log("Verify Get() returns a service with cached state SVCRun(1)")
+	svc, err := s.store.Get(s.ctx, svc.ID);
+	t.Assert(err, IsNil)
+	t.Assert(svc, NotNil)
+	t.Assert(svc.DesiredState, Equals, int(SVCRun))
 }
