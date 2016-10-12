@@ -204,21 +204,24 @@
 
                 // modalAssignIP opens a modal view to assign an ip address to a service
                 $scope.modalAssignIP = function (ip, poolID) {
-                    $scope.ips.assign = { 'ip': ip, 'value': null };
+                    let modalScope = $scope.$new(true);
+                    modalScope.assignments = { 'ip': ip, 'value': null };
                     resourcesFactory.getPoolIPs(poolID)
                         .success(function (data) {
-                            var options = [{ 'Value': 'Automatic', 'IPAddr': '' }];
-
-                            var i, IPAddr, value;
+                            let options = [{ 'Value': 'Automatic', 'IPAddr': '' }];
+                            let i, IPAddr, value;
                             //host ips
                             if (data && data.HostIPs) {
                                 for (i = 0; i < data.HostIPs.length; ++i) {
                                     IPAddr = data.HostIPs[i].IPAddress;
                                     value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
                                     options.push({ 'Value': value, 'IPAddr': IPAddr });
+                                    // TODO: look up associated endpoint name
+                                    //modalScope.assignments.ip.EndpointName = "Boogity";
+
                                     // set the default value to the currently assigned value
-                                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                                        $scope.ips.assign.value = options[options.length - 1];
+                                    if (modalScope.assignments.ip.IPAddress === IPAddr) {
+                                        modalScope.assignments.value = options[options.length - 1];
                                     }
                                 }
                             }
@@ -230,22 +233,22 @@
                                     value = "Virtual IP: " + IPAddr;
                                     options.push({ 'Value': value, 'IPAddr': IPAddr });
                                     // set the default value to the currently assigned value
-                                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                                        $scope.ips.assign.value = options[options.length - 1];
+                                    if (modalScope.assignments.ip.IPAddr === IPAddr) {
+                                        modalScope.assignments.value = options[options.length - 1];
                                     }
                                 }
                             }
 
-                            //default to automatic
-                            if (!$scope.ips.assign.value) {
-                                $scope.ips.assign.value = options[0];
+                            //default to automatic if necessary
+                            if (!modalScope.assignments.value) {
+                                modalScope.assignments.value = options[0];
 
                             }
-                            $scope.ips.assign.options = options;
+                            modalScope.assignments.options = options;
 
                             $modalService.create({
                                 templateUrl: "assign-ip.html",
-                                model: $scope,
+                                model: modalScope,
                                 title: "assign_ip",
                                 actions: [
                                     {
@@ -373,8 +376,8 @@
                 $scope.modal_confirmSetServiceState = function (service, state, childCount) {
                     $modalService.create({
                         template: ["<h4>" + $translate.instant("choose_services_" + state) + "</h4><ul>",
-                            "<li>" + $translate.instant(state + "_service_name", { name: "<strong>" + service.name + "</strong>" }) + "</li>",
-                            "<li>" + $translate.instant(state + "_service_name_and_children", { name: "<strong>" + service.name + "</strong>", count: "<strong>" + childCount + "</strong>" }) + "</li></ul>"
+                        "<li>" + $translate.instant(state + "_service_name", { name: "<strong>" + service.name + "</strong>" }) + "</li>",
+                        "<li>" + $translate.instant(state + "_service_name_and_children", { name: "<strong>" + service.name + "</strong>", count: "<strong>" + childCount + "</strong>" }) + "</li></ul>"
                         ].join(""),
                         model: $scope,
                         title: $translate.instant(state + "_service"),
@@ -1137,12 +1140,17 @@
 
                             $scope.currentService.fetchAllStates();
 
-                            // $scope.resourcesFactory.v2.getServiceStatuses(Object.keys($scope.cachedServiceStatuses))
-                            //     .then(response => {
-                            //         response.forEach(svc => {
-                            //             $scope.cachedServiceStatuses[svc.ServiceID] = svc;
-                            //         });
-                            //     });
+                            // fetchAllStates gathers status on instances
+                            // need to delay a bit to gather stats on services
+                            setTimeout(function () {
+                                $scope.currentService.updateDescendentStatuses()
+                                    .then( () => {
+                                    }, error => {
+                                        console.warn(`Unable to get stats for services`);
+                                    });
+
+                            }, 250);
+
 
                         }
                     }, 3000);

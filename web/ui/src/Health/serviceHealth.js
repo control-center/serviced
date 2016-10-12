@@ -46,7 +46,7 @@
                     service.desiredState);
 
                 // refresh list of instances
-                // service.getServiceInstances();
+                service.fetchInstances();
 
                 // if this service has instances, evaluate their health
                 service.instances.forEach(instance => {

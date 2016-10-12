@@ -42,6 +42,13 @@
         return deferred.promise;
     }
 
+    function getDescendents(descendents, service) {
+        if (service.subservices) {
+            service.subservices.forEach(svc => getDescendents(descendents, svc));
+        }
+        descendents[service.id] = service;
+        return descendents;
+    }
 
     class Service {
 
@@ -100,7 +107,7 @@
 
         fetchEndpoints(force) {
             // populate publicEndpoints property
-            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force)
+            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force);
         }
 
         fetchExportEndpoints(force) {
@@ -130,7 +137,7 @@
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
                 .then(data => {
-                    console.log(`fetched ${data.length} instances from getServiceInstances (updateState) for id ${this.id}`);
+                    // console.log(`fetched ${data.length} instances for ${this.id}`);
                     this.instances = data.map(i => new Instance(i));
                     deferred.resolve();
                 },
@@ -174,6 +181,32 @@
                         deferred.resolve(results[0]);
                     } else {
                         deferred.reject(`Could not get service status for id ${this.id}`);
+                    }
+                }, error => {
+                    deferred.reject(error);
+                });
+            return deferred.promise;
+        }
+
+        updateDescendentStatuses() {
+            let deferred = $q.defer();
+
+            let descendents = getDescendents({}, this);
+            let ids = Object.keys(descendents);
+            console.log(`Healthcheck: FETCH --------------- ${ids.length} services`);
+
+            resourcesFactory.v2.getServiceStatuses(ids)
+                .then(results => {
+                    if (results.length) {
+                        // iterate through results and call updateState(status) on each service
+                        results.forEach(stat => {
+                            let svc = descendents[stat.ServiceID];
+                            svc.updateState(stat);
+                            // console.log(`Healthcheck: ${descendents[stat.ServiceID].name}`);
+                        });
+                        deferred.resolve();
+                    } else {
+                        deferred.reject(`Healthcheck: ID not found ${this.id}`);
                     }
                 }, error => {
                     deferred.reject(error);
@@ -281,7 +314,7 @@
                     if (ept.ServiceID === this.id) {
                         ept.desiredState = this.desiredState;
                     } else {
-                        console.log("Whose kid is this? Not mine!");
+                        // console.log("Whose kid is this? Not mine!");
                     }
                 });
             }
@@ -293,7 +326,7 @@
                 let s = statusMap[i.model.InstanceID];
                 // make sure status exists for instance
                 if (!s) {
-                    console.log(`Service instance ${i.model.InstanceID} has no status. Skipping status update.`);
+                    console.log(`Service instance ${i.model.ServiceName} has no instance`);
                     return;
                 }
                 i.updateState(s);
@@ -304,6 +337,7 @@
 
             serviceHealth.update({ [this.id]: this });
             this.status = serviceHealth.get(this.id);
+            // console.log(`Healthcheck: ${this.name} is ${this.status.status}`);
             this.touch();
         }
 

@@ -107,7 +107,7 @@
                 <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.Type}}</td>
                 <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="click_host(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
                 <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
-                <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddress}}:{{ip.Ports[0]}}</td>
+                <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddress}}:{{ip.Port}}</td>
                 <td data-title="'actions'|translate">
                     <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-link"></i>

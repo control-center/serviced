@@ -19,7 +19,6 @@
             this.resources = {
                 RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
             };
-            console.log(`Health constructor`);
 
             this.updateState({
                 HealthStatus: instance.HealthStatus,
@@ -35,7 +34,7 @@
             this.resources.RAMAverage = Math.max(0, status.MemoryUsage.Avg);
             this.resources.RAMLast = Math.max(0, status.MemoryUsage.Cur);
             this.resources.RAMMax = Math.max(0, status.MemoryUsage.Max);
-            console.log(`Health setting Health property from status object`);
+            // console.log(`Setting health property on instance`);
             this.healthChecks = status.HealthStatus;
         }
 
