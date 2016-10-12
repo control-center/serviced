@@ -16,16 +16,26 @@ package service
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/elastigo/search"
 
 	"errors"
 	"strings"
 	"time"
+	"sync"
+	"github.com/control-center/serviced/logging"
+	log "github.com/Sirupsen/logrus"
 )
 
-// NewStore creates a Service store
-func NewStore() Store {
-	return &storeImpl{}
+var (
+	kind     = "service"
+	plog = logging.PackageLogger()
+)
+
+type volatileService struct {
+	ID             string
+	DesiredState   int
+	UpdatedAt      time.Time	// Time when the cached entry was changed, not when elastic was changed
 }
 
 // Store type for interacting with Service persistent storage
@@ -38,6 +48,9 @@ type Store interface {
 
 	// Delete removes the a Service if it exists
 	Delete(ctx datastore.Context, id string) error
+
+	// Update the DesiredState in volatile memory for the service
+	UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error
 
 	// GetServices returns all services
 	GetServices(ctx datastore.Context) ([]Service, error)
@@ -72,65 +85,114 @@ type Store interface {
 	GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error)
 }
 
+// NewStore creates a Service store
+func NewStore() Store {
+	return &storeImpl{
+		serviceCacheLock: &sync.RWMutex{},
+		serviceCache: map[string]volatileService{},
+	}
+}
+
 type storeImpl struct {
 	ds datastore.DataStore
+	serviceCacheLock *sync.RWMutex
+	serviceCache  map[string]volatileService
 }
 
 // Put adds or updates a Service
 func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Put"))
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 
-	return s.ds.Put(ctx, Key(svc.ID), svc)
+	err := s.ds.Put(ctx, Key(svc.ID), svc)
+	if err == nil {
+		s.updateVolatileInfo(svc.ID, svc.DesiredState, svc.UpdatedAt) // Uses Mutex Lock
+	}
+	return err
+}
+
+// UpdateDesiredState updates the DesiredState for the service by saving the information in volatile storage.
+func (s *storeImpl) UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error {
+	plog.WithFields(log.Fields{
+		"serviceID": serviceID,
+		"desiredState": desiredState,
+	}).Debug("Storing desiredState")
+	s.updateVolatileInfo(serviceID, desiredState, time.Now())
+	return nil
 }
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
 func (s *storeImpl) Get(ctx datastore.Context, id string) (*Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Get"))
+	// Get the service from elastic and fill additional info into the
+	// service object.
+	svc, err := s.get(ctx, id)
+	if err == nil {
+		s.fillAdditionalInfo(svc) // Mutex RLock
+	}
+	return svc, err
+}
+
+// Get the service from elastic (without modifications)
+func (s *storeImpl) get(ctx datastore.Context, id string) (*Service, error) {
 	svc := &Service{}
 	if err := s.ds.Get(ctx, Key(id), svc); err != nil {
 		return nil, err
 	}
-
-	//Copy original config files
-	fillConfig(svc)
-
 	return svc, nil
 }
 
 // Delete removes the a Service if it exists
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
-	return s.ds.Delete(ctx, Key(id))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Delete"))
+	err := s.ds.Delete(ctx, Key(id))
+	if err == nil {
+		s.removeVolatileInfo(id) // Uses Mutex RLock
+	}
+	return err
 }
 
 // GetServices returns all services
 func (s *storeImpl) GetServices(ctx datastore.Context) ([]Service, error) {
-	return query(ctx, "_exists_:ID")
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServices"))
+	return s.query(ctx, "_exists_:ID")
 }
 
 // GetUpdatedServices returns all services updated since "since" time.Duration ago
 func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duration) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetUpdatedServices"))
 	q := datastore.NewQuery(ctx)
-	t0 := time.Now().Add(-since).Format(time.RFC3339)
-	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0)).Search("_exists_:ID")
+	t0 := time.Now().Add(-since)
+	t0s := t0.Format(time.RFC3339)
+	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0s)).Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
 	}
-	return convert(results)
+	// First get the list of updated services from Elastic.
+	svcs, err := s.convert(results)
+	if err != nil {
+		return nil, err
+	}
+	// Then add updated services from the cache
+	return s.addUpdatedServicesFromCache(ctx, svcs, t0)
 }
 
 // GetTaggedServices returns services with the given tags
 func (s *storeImpl) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetTaggedServices"))
 	if len(tags) == 0 {
 		return nil, errors.New("empty tags not allowed")
 	}
 	qs := strings.Join(tags, " AND ")
-	return query(ctx, qs)
+	return s.query(ctx, qs)
 }
 
 // GetServicesByPool returns services with the given pool id
 func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServicesByPool"))
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
@@ -142,11 +204,12 @@ func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]S
 	if err != nil {
 		return nil, err
 	}
-	return convert(results)
+	return s.convert(results)
 }
 
 // GetServicesByDeployment returns services with the given deployment id
 func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServicesByDeployment"))
 	id := strings.TrimSpace(deploymentID)
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
@@ -158,11 +221,12 @@ func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID 
 	if err != nil {
 		return nil, err
 	}
-	return convert(results)
+	return s.convert(results)
 }
 
 // GetChildServices returns services that are children of the given parent service id
 func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetChildServices"))
 	id := strings.TrimSpace(parentID)
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
@@ -174,10 +238,11 @@ func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]
 	if err != nil {
 		return nil, err
 	}
-	return convert(results)
+	return s.convert(results)
 }
 
 func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parentID, serviceName string) (*Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.FindChildService"))
 	parentID = strings.TrimSpace(parentID)
 
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
@@ -201,7 +266,7 @@ func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parent
 
 	if results.Len() == 0 {
 		return nil, nil
-	} else if svcs, err := convert(results); err != nil {
+	} else if svcs, err := s.convert(results); err != nil {
 		return nil, err
 	} else {
 		return &svcs[0], nil
@@ -210,6 +275,7 @@ func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parent
 
 // FindTenantByDeployment returns the tenant service for a given deployment id and service name
 func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.FindTenantByDeploymentID"))
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
 		return nil, errors.New("empty deployment ID not allowed")
 	} else if name = strings.TrimSpace(name); name == "" {
@@ -231,14 +297,14 @@ func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID
 
 	if results.Len() == 0 {
 		return nil, nil
-	} else if svcs, err := convert(results); err != nil {
+	} else if svcs, err := s.convert(results); err != nil {
 		return nil, err
 	} else {
 		return &svcs[0], nil
 	}
 }
 
-func query(ctx datastore.Context, query string) ([]Service, error) {
+func (s *storeImpl) query(ctx datastore.Context, query string) ([]Service, error) {
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
@@ -246,17 +312,34 @@ func query(ctx datastore.Context, query string) ([]Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return convert(results)
+	return s.convert(results)
 }
 
-func fillConfig(svc *Service) {
+// fillAdditionalInfo fills the service object with additional information
+// that amends or overrides what was retrieved from elastic
+func (s *storeImpl) fillAdditionalInfo(svc *Service) {
+	plog.WithFields(log.Fields{
+		"serviceId": svc.ID,
+		"serviceName": svc.Name,
+	}).Debug("Adding additional info to Elastic result")
+	s.fillConfig(svc)
+
+	// Update the service from volatile cached data.
+	cacheEntry, ok := s.getVolatileInfo(svc.ID) // Uses Mutex RLock
+	if ok {
+		s.updateServiceFromVolatileService(svc, cacheEntry)
+	}
+}
+
+// fillConfig fills in the ConfigFiles values
+func (s *storeImpl) fillConfig(svc *Service) {
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 	for key, val := range svc.OriginalConfigs {
 		svc.ConfigFiles[key] = val
 	}
 }
 
-func convert(results datastore.Results) ([]Service, error) {
+func (s *storeImpl) convert(results datastore.Results) ([]Service, error) {
 	svcs := make([]Service, results.Len())
 	for idx := range svcs {
 		var svc Service
@@ -264,7 +347,7 @@ func convert(results datastore.Results) ([]Service, error) {
 		if err != nil {
 			return nil, err
 		}
-		fillConfig(&svc)
+		s.fillAdditionalInfo(&svc)
 		svcs[idx] = svc
 	}
 	return svcs, nil
@@ -275,12 +358,105 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-//confFileKey creates a Key suitable for getting, putting and deleting svcConfigFile
-func confFileKey(id string) datastore.Key {
-	return datastore.NewKey(confKind, id)
+// Take the list of services and append services updated since 'since'
+func (s *storeImpl) addUpdatedServicesFromCache(ctx datastore.Context, svcs []Service, since time.Time) ([]Service, error) {
+	// Make a map of service ids so we don't duplicate services from our cache.
+	svcMap := make(map[string]struct{})
+	for _, svc := range svcs {
+		svcMap[svc.ID] = struct{}{}
+	}
+
+	// If getting these one at a time turns out to be hard on elastic, we can
+	// later try batching the elastic queries for sets of N ids until we go
+	// through the whole list with a new elastic search.
+	for _, cacheEntry := range s.getUpdatedCacheEntries(since) { // single Mutex RLock
+		// Don't add services already in the list.
+		if _, ok := svcMap[cacheEntry.ID]; !ok {
+			// Query the service from elastic.  We already have the cached
+			// data, so we save making a mutex lock here for every service
+			// by called s.get() and updating the service without needing
+			// additional mutex locks.
+			if svc, err := s.get(ctx, cacheEntry.ID); err != nil {
+				return svcs, err
+			} else {
+				// Fill additional info without a mutex lock.
+				s.fillConfig(svc)
+				s.updateServiceFromVolatileService(svc, cacheEntry)
+				svcs = append(svcs, *svc)
+			}
+		} else {
+			plog.Debugf("Skipping service %s (already exists in list)", cacheEntry.ID)
+		}
+	}
+	return svcs, nil
 }
 
-var (
-	kind     = "service"
-	confKind = "serviceconfig"
-)
+// Update all properties of the service with data from our volatile structure. No
+// mutex lock needed.
+func (s *storeImpl) updateServiceFromVolatileService(svc *Service, cacheEntry volatileService) {
+	svc.DesiredState = cacheEntry.DesiredState
+}
+
+// updateVolatileInfo updates the local cache for volatile information
+func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updatedAt time.Time) error {
+	// Validate desired state
+	if err := validation.IntIn(desiredState, int(SVCRun), int(SVCStop), int(SVCPause)); err != nil {
+		plog.WithFields(log.Fields{
+			"serviceID": serviceID,
+			"desiredState": desiredState,
+		}).Debug("Invalid Desired State")
+		return err
+	}
+
+	plog.WithFields(log.Fields{
+		"serviceID": serviceID,
+		"desiredState": desiredState,
+		"updatedAt": updatedAt,
+	}).Debug("Saving desired state in cache")
+
+	s.serviceCacheLock.Lock()
+	defer s.serviceCacheLock.Unlock()
+	cacheEntry := volatileService{
+		ID:           serviceID,
+		DesiredState: desiredState,
+		UpdatedAt:    updatedAt,
+	}
+	s.serviceCache[serviceID] = cacheEntry
+
+	return nil
+}
+
+// removeVolatileInfo removes the service's information from the local cache
+func (s *storeImpl) removeVolatileInfo(serviceID string) {
+	s.serviceCacheLock.Lock()
+	defer s.serviceCacheLock.Unlock()
+	delete(s.serviceCache, serviceID)
+}
+
+// Returns the volatile data for a service id.
+func (s *storeImpl) getVolatileInfo(serviceID string) (volatileService, bool) {
+	s.serviceCacheLock.RLock()
+	defer s.serviceCacheLock.RUnlock()
+	cacheEntry, ok := s.serviceCache[serviceID]
+	return cacheEntry, ok
+}
+
+// Returns the list of cache entries updated since the given time.
+func (s *storeImpl) getUpdatedCacheEntries(since time.Time) []volatileService {
+	s.serviceCacheLock.RLock()
+	defer s.serviceCacheLock.RUnlock()
+
+	plog.WithFields(log.Fields{
+		"since": since,
+	}).Debugf("Querying services updated since")
+
+	cacheEntries := []volatileService{}
+	for _, cacheEntry := range s.serviceCache {
+		if cacheEntry.UpdatedAt.After(since) {
+			plog.Debugf("Adding cache entry: %v", cacheEntry)
+			cacheEntries = append(cacheEntries, cacheEntry)
+		}
+	}
+	plog.Debugf("Returning %d cached entries", len(cacheEntries))
+	return cacheEntries
+}

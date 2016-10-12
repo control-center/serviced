@@ -131,7 +131,10 @@ func (graph *GraphConfig) Equals(that *GraphConfig) bool {
 // ValidEntity ensures that no graph configs have an id with prefix "internal"
 func (graph GraphConfig) ValidEntity() error {
 	if strings.HasPrefix(graph.ID, "internal") {
-		return fmt.Errorf("graph id cannot have prefix 'internal'")
+		return fmt.Errorf("graph %s: cannot have prefix 'internal'", graph.ID)
+	}
+	if graph.BuiltIn {
+		return fmt.Errorf("graph %s: cannot have BuiltIn set to true", graph.ID)
 	}
 	return nil
 }

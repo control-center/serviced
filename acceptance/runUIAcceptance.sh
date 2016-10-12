@@ -94,6 +94,22 @@ if [ -z "${APPLICATION_PASSWORD-}" ]; then
     exit 1
 fi
 
+if [ -z "${SERVICED_ETC_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ETC_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ETC_PATH=${SERVICED_HOME}/etc
+fi
+
+if [ -z "${SERVICED_ISVCS_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ISVCS_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ISVCS_PATH=${SERVICED_HOME}/var/isvcs
+fi
+
 #
 # Get the current UID and GID. These are passed into the container for use in
 # creating a container-local user account so ownership of files created in the
@@ -204,6 +220,8 @@ docker run --rm --name ui_acceptance \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
+    -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
+    -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \

@@ -176,4 +176,6 @@ type FacadeInterface interface {
 	DeleteServiceConfig(ctx datastore.Context, fileID string) error
 
 	GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error)
+
+	UpdateServiceCache(ctx datastore.Context) error
 }

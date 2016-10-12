@@ -214,6 +214,9 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	for ii, _ := range result {
+		if strings.HasPrefix(result[ii].ID, "isvc-") {
+			continue
+		}
 		result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
 		result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
 	}

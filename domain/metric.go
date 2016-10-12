@@ -90,7 +90,7 @@ func (config MetricConfig) ValidEntity() error {
 	violations := validation.NewValidationError()
 	for _, m := range config.Metrics {
 		if m.BuiltIn {
-			violations.AddViolation(fmt.Sprintf("config %s: metric %s cannot have built in set to true", config.ID, m.ID))
+			violations.AddViolation(fmt.Sprintf("config %s: metric %s cannot have BuiltIn set to true", config.ID, m.ID))
 		}
 	}
 	if violations.HasError() {
