@@ -34,7 +34,7 @@ var (
 // are not removed from the registry
 type HostExpirationRegistry struct {
 	registry map[string]int64
-	sync.Mutex
+	sync.RWMutex
 }
 
 // Set adds a host to the expiration registry by its
@@ -56,8 +56,8 @@ func (reg *HostExpirationRegistry) Remove(hostid string) {
 // and returns a bool or an error if the host isn't
 // in the registry
 func (reg *HostExpirationRegistry) IsExpired(hostid string) (bool, error) {
-	reg.Lock()
-	defer reg.Unlock()
+	reg.RLock()
+	defer reg.RUnlock()
 	expiration, ok := reg.registry[hostid]
 	if !ok {
 		// if it doesnt exist, I guess it's expired
