@@ -19,6 +19,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/zzk/registry"
+	"strings"
 )
 
 // VHostManager manages all vhosts on a host
@@ -76,12 +77,22 @@ func (m *VHostManager) Set(name string, data []registry.ExportDetails) {
 }
 
 // Handle manages a vhost request and returns true if the vhost is enabled
-func (m *VHostManager) Handle(name string, w http.ResponseWriter, r *http.Request) bool {
+func (m *VHostManager) Handle(httphost string, w http.ResponseWriter, r *http.Request) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	// For a request to "xyz.domain.com" See if we have a vhost handler for
+	// either "xyz.domain.com" or "xyz"
+	subdomain := strings.Split(httphost, ".")[0]
+	return m.handle(httphost, w, r) || m.handle(subdomain, w, r)
+}
+
+func (m *VHostManager) handle(name string, w http.ResponseWriter, r *http.Request) bool {
 	h, ok := m.vhosts[name]
 	if ok {
+		plog.WithFields(log.Fields{
+			"name": name,
+		}).Debug("Found VHost handler")
 		return h.Handle(m.useTLS, w, r)
 	}
 	return false

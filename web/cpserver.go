@@ -132,11 +132,9 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		glog.V(2).Infof("httphandler handling request: %+v", r)
 
 		httphost := strings.Split(r.Host, ":")[0]
-		parts := strings.Split(httphost, ".")
-		subdomain := parts[0]
-		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
-		if len(parts) > 1 {
-			if sc.vhostmgr.Handle(subdomain, w, r) {
+		glog.V(2).Infof("httphost: '%s'", httphost)
+		if strings.Contains(httphost, ".") {
+			if sc.vhostmgr.Handle(httphost, w, r) {
 				return
 			}
 		}

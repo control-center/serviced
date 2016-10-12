@@ -29,6 +29,11 @@ import (
 	"strings"
 )
 
+type errInvalidVhostUsedCCHostname struct{}
+func (e errInvalidVhostUsedCCHostname) Error() string {
+	return "You cannot add a vhost using the Control Center host name"
+}
+
 // json payload object for adding/removing/enabling a public endpoint
 // with a service. other properties are retrieved from the url
 type endpointRequest struct {
@@ -45,6 +50,13 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	serviceid, application, vhostname, err := getVHostContext(r)
 	if err != nil {
 		restServerError(w, err)
+		return
+	}
+
+	// Disallow adding a vhost with the same name as the hostname being used
+	// to view CC (do not lock them out of the CC ui from this hostname)
+	if strings.Compare(strings.ToLower(r.Host), strings.ToLower(vhostname)) == 0 {
+		restServerError(w, errInvalidVhostUsedCCHostname{})
 		return
 	}
 
