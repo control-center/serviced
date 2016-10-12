@@ -1173,7 +1173,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
 			if err != nil {
 				logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
-				continue // TODO: See if this needs to be a return?
+				return
 			}
 		}
 	}()
