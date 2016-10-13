@@ -17,6 +17,8 @@
         META = "meta",           // service with children but no startup command
         DEPLOYING = "deploying"; // service whose parent is still being deployed
 
+    // fetch retrieves something from the v2 api
+    // endpoint and stores it on the `this` context
     function fetch(methodName, propertyName, force) {
         let deferred = $q.defer();
 
@@ -26,10 +28,8 @@
         }
         // NOTE: V2 API only
         // TODO: make sure methodName exists
-        // TODO: error callback
         resourcesFactory.v2[methodName](this.id)
             .then(data => {
-                // console.log(`fetched ${data.length} ${propertyName} from ${methodName} for id ${this.id}`);
                 this[propertyName] = data;
                 this.touch();
                 deferred.resolve();
@@ -42,10 +42,10 @@
         return deferred.promise;
     }
 
+    // given a service, accumulate all descendents into
+    // a map keyed by service id
     function getDescendents(descendents, service) {
-        if (service.subservices) {
-            service.subservices.forEach(svc => getDescendents(descendents, svc));
-        }
+        service.subservices.forEach(svc => getDescendents(descendents, svc));
         descendents[service.id] = service;
         return descendents;
     }
@@ -93,7 +93,8 @@
             this.fetchEndpoints(force);
             this.fetchAddresses(force);
             this.fetchConfigs(force);
-            // forced fetch-children discards existing tree services
+            // NOTE: force-fetching children will wipe
+            // out the entire service tree below this service
             this.fetchServiceChildren();
             this.fetchMonitoringProfile(force);
             this.fetchExportEndpoints(force);
@@ -113,14 +114,16 @@
         }
 
         fetchExportEndpoints(force) {
-            // fetch.call(this, "getServiceExportEndpoints", "exportedServiceEndpoints", force);
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceExportEndpoints(this.id)
                 .then(response => {
-                    console.log(`fetched ${response.length} exportEndpoints for id ${this.id}`);
-                    let tcpEndpoints = response.filter(function(ept) { return ept.Protocol === "tcp"; });
-                    tcpEndpoints.forEach(ept => ept.Value = ept.ServiceName + " - " + ept.Application);
-                    this.exportedServiceEndpoints = tcpEndpoints;
+                    this.exportedServiceEndpoints = response
+                        .filter(ept => ept.Protocol === "tcp")
+                        .map(ept => {
+                            // TODO - dont modify model data :(
+                            ept.Value = `${ept.ServiceName} - ${ept.Application}`;
+                            return ept;
+                        });
                     deferred.resolve();
                 },
                 error => {
@@ -139,7 +142,7 @@
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
                 .then(data => {
-                    // console.log(`fetched ${data.length} instances for ${this.id}`);
+                    // TODO - dont blow away existing instances
                     this.instances = data.map(i => new Instance(i));
                     deferred.resolve();
                 },
@@ -153,12 +156,12 @@
 
         fetchServiceChildren(force) {
             let deferred = $q.defer();
-            // fetch.call(this, "getServiceChildren", "subservices", force);
             if (this.subservices.length && !force) {
                 deferred.resolve();
             }
             resourcesFactory.v2.getServiceChildren(this.id)
                 .then(data => {
+                    // TODO - dont blow away existing children
                     this.subservices = data.map(s => new Service(s));
                     this.touch();
                     deferred.resolve();
@@ -177,7 +180,9 @@
 
             resourcesFactory.v2.getServiceStatus(this.id)
                 .then(results => {
-                    if (results.length && !results[0].NotFound) {
+                    if (results.length){
+                        // getServiceStatus returns an array of results
+                        // but we only want a single result
                         deferred.resolve(results[0]);
                     } else {
                         deferred.reject(`Could not get service status for id ${this.id}`);
@@ -188,25 +193,21 @@
             return deferred.promise;
         }
 
+        // fetch and update service statuses for all
+        // descendents of this service
         updateDescendentStatuses() {
             let deferred = $q.defer();
-
             let descendents = getDescendents({}, this);
             let ids = Object.keys(descendents);
-            console.log(`Healthcheck: FETCH --------------- ${ids.length} services`);
-
             resourcesFactory.v2.getServiceStatuses(ids)
                 .then(results => {
                     if (results.length) {
-                        // iterate through results and call updateState(status) on each service
                         results.forEach(stat => {
+                            // TODO - handle stat.NotFound
                             let svc = descendents[stat.ServiceID];
                             svc.updateState(stat);
-                            // console.log(`Healthcheck: ${descendents[stat.ServiceID].name}`);
                         });
                         deferred.resolve();
-                    } else {
-                        deferred.reject(`Healthcheck: ID not found ${this.id}`);
                     }
                 }, error => {
                     deferred.reject(error);
@@ -295,14 +296,14 @@
         fetchAllStates() {
             return $q.all([this.fetchInstances(), this.getStatus()])
                 .then(results => {
-                    this.updateState(results[1]);
+                    let statuses = results[1];
+                    this.updateState(statuses);
                 }, error => {
-                    console.log("Unable to update instance states");
-                    // TODO: Error
+                    console.warn("Unable to fetch instance states");
                 });
         }
 
-        // updates service state and instances states        
+        // update fast-moving service and instance state
         updateState(status) {
 
             // update service status
@@ -312,32 +313,32 @@
             if (this.publicEndpoints) {
                 this.publicEndpoints.forEach(ept => {
                     if (ept.ServiceID === this.id) {
+                        // TODO - dont modify model data
                         ept.desiredState = this.desiredState;
                     } else {
-                        // console.log("Whose kid is this? Not mine!");
+                        // TODO - deal with public endpoints which
+                        // are descendents rather than children
                     }
                 });
             }
-            let statusMap = {};
-            status.Status.forEach(s => statusMap[s.InstanceID] = s);
+            let statusMap = status.Status.reduce((map, s) => {
+                map[s.InstanceID] = s;
+                return map;
+            }, {});
 
             // update instance status
             this.instances.forEach(i => {
                 let s = statusMap[i.model.InstanceID];
-                // make sure status exists for instance
-                if (!s) {
-                    console.log(`Service instance ${i.model.ServiceName} has no instance`);
-                    return;
+                if (s) {
+                    i.updateState(s);
+                } else {
+                    console.log(`Could not find status for instance ${i.id}`);
                 }
-                i.updateState(s);
             });
 
             // TODO: pass myself into health status and get my health status back
-            // update my health icon
-
             serviceHealth.update({ [this.id]: this });
             this.status = serviceHealth.get(this.id);
-            // console.log(`Healthcheck: ${this.name} is ${this.status.status}`);
             this.touch();
         }
 

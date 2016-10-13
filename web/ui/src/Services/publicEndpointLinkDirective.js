@@ -53,8 +53,8 @@
                 };
                                                                                 
                 var isServiceRunning = function(id){
-                    // if not found, empty service object returned
-                    // Service (Service.js) class adds its own desired state into the endpoint object
+                    // when Service created public endpoints, it attached
+                    // its own desiredState to the public endpoint
                     return publicEndpoint.desiredState === 1;
                 };
                 
