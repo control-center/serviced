@@ -3,7 +3,7 @@
 #
 # Make sure that Xvfb is started in case we're using Chrome or Firefox
 # (Xvfb is not used by poltergeist/phantomjs)
-if [ "${CAPYBARA_DRIVER}" != "poltergeist" ]; then
+if [ "${CAPYBARA_DRIVER}" == "selenium" ] || ["${CAPYBARA_DRIVER}" == "selenium_chrome" ]; then
     /etc/init.d/xvfb start
 fi
 

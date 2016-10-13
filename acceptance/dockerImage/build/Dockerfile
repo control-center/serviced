@@ -1,4 +1,4 @@
-FROM ubuntu:xenial
+FROM ubuntu:trusty
 MAINTAINER Zenoss, Inc <dev@zenoss.com>
 
 # Get the basic set of dev tools
@@ -32,7 +32,7 @@ RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
 RUN /bin/bash -lc "gem install site_prism -v 2.8"
 RUN /bin/bash -lc "gem install headless -v 2.2.2"
 RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
-
+RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
@@ -107,8 +107,6 @@ RUN chmod a+x /etc/init.d/xvfb
 #
 ADD runCucumber.sh /usr/sbin/runCucumber.sh
 RUN chmod a+x /usr/sbin/runCucumber.sh
-ADD runAPICucumber.sh /usr/sbin/runAPICucumber.sh
-RUN chmod a+x /usr/sbin/runAPICucumber.sh
 
 #
 # Setup a default timezone that matches CST since the default TZ in the ubuntu
@@ -126,5 +124,3 @@ RUN touch /etc/default/serviced
 # This is the directory that will be the mount point for the cucumber files
 #
 WORKDIR /capybara
-
-RUN /bin/bash -lc "gem install cucumber-api -v 0.3"

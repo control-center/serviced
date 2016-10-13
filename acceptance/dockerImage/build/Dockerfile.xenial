@@ -32,6 +32,7 @@ RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
 RUN /bin/bash -lc "gem install site_prism -v 2.8"
 RUN /bin/bash -lc "gem install headless -v 2.2.2"
 RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
+RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system

@@ -13,7 +13,6 @@
 #
 debug=false
 interactive=false
-DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 TAGS=()
 DATASET=default
@@ -52,15 +51,13 @@ while (( "$#" )); do
             exit 1
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
-        echo "       [-d driverName] [-t timeout] [--tags tagname [--tags tagname]]"
+        echo "       [-t timeout] [--tags tagname [--tags tagname]]"
         echo "       [--dataset setName] [--debug] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
         echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
-        echo "    -d driverName         identifies the Capybara driver to use"
-        echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
@@ -118,7 +115,7 @@ elif [ `uname -s` == "Darwin" ]; then
     echo "ERROR: not supported on Mac OS X"
     exit 1
 else
-    CMD="runAPICucumber.sh ${CUCUMBER_OPTS}"
+    CMD="runCucumber.sh ${CUCUMBER_OPTS}"
 fi
 
 parse_host() {
@@ -181,7 +178,7 @@ if [ -z "$BUILD_NUMBER" ]; then
     BUILD_NUMBER="local-build"
 fi
 if [ -z "$JOB_NAME" ]; then
-    JOB_NAME="serviced-acceptance"
+    JOB_NAME="serviced-api-acceptance"
 fi
 
 cp -u `pwd`/../serviced `pwd`/api
@@ -207,5 +204,5 @@ docker run --rm --name api_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.0 \
+    -t zenoss/capybara:1.1.0-xenial \
     ${CMD}

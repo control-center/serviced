@@ -20,6 +20,7 @@ default: dockerBuild
 
 dockerBuild: reporterJar
 	docker build -t zenoss/capybara:$(VERSION) build
+	docker build -t zenoss/capybara:$(VERSION)-xenial build -f ./build/Dockerfile.xenial
 
 reporterJar: build/reporter.jar
 
