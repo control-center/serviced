@@ -90,9 +90,7 @@ func (m *VHostManager) Handle(httphost string, w http.ResponseWriter, r *http.Re
 func (m *VHostManager) handle(name string, w http.ResponseWriter, r *http.Request) bool {
 	h, ok := m.vhosts[name]
 	if ok {
-		plog.WithFields(log.Fields{
-			"name": name,
-		}).Debug("Found VHost handler")
+		plog.WithField("name", name).Debug("Found VHost handler")
 		return h.Handle(m.useTLS, w, r)
 	}
 	return false

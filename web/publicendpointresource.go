@@ -31,7 +31,7 @@ import (
 
 type errInvalidVhostUsedCCHostname struct{}
 func (e errInvalidVhostUsedCCHostname) Error() string {
-	return "You cannot add a vhost using the Control Center host name"
+	return "cannot add a vhost using the Control Center host name"
 }
 
 // json payload object for adding/removing/enabling a public endpoint

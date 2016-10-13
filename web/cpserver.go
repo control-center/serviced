@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	daoclient "github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
@@ -33,7 +34,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/gorilla/mux"
-	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
 
@@ -66,6 +66,13 @@ var uiConfig UIConfig
 func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int,
 	aGroup string, certPEMFile string, keyPEMFile string, pollFrequency int, configuredSnapshotSpacePercent int, facade facade.FacadeInterface) *ServiceConfig {
 
+	logger := plog.WithFields(logrus.Fields{
+		"bindport":  bindPort,
+		"agentport": agentPort,
+		"muxport":   muxPort,
+		"muxtls":    muxTLS,
+	})
+
 	uiCfg := UIConfig{
 		PollFrequency: pollFrequency,
 	}
@@ -85,7 +92,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 
 	hostAddrs, err := utils.GetIPv4Addresses()
 	if err != nil {
-		glog.Fatal(err)
+		logger.Fatal(err)
 	}
 	cfg.localAddrs = make(map[string]struct{})
 	for _, host := range hostAddrs {
@@ -103,8 +110,8 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the publicendpointhandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
-
-	glog.V(1).Infof("starting vhost synching")
+	logger := plog.WithField("bindport", sc.bindPort)
+	logger.Debug("Starting vhost synching")
 
 	// start public port listener
 	sc.startPublicPortListener(shutdown)
@@ -115,9 +122,10 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+	accessLogPath := "/var/log/serviced.access.log"
+	accessLogFile, err := os.OpenFile(accessLogPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 	if err != nil {
-		glog.Errorf("Could not create access log file.")
+		logger.WithField("accesslogpath", accessLogPath).Errorf("Could not create access log file.")
 	}
 
 	uiHandler := rest.ResourceHandler{
@@ -129,17 +137,17 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	uiHandler.SetRoutes(routes...)
 
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.V(2).Infof("httphandler handling request: %+v", r)
+		logger := logger.WithField("request", r)
 
 		httphost := strings.Split(r.Host, ":")[0]
-		glog.V(2).Infof("httphost: '%s'", httphost)
+		logger.WithField("httphost", httphost).Debug("In httphandler")
 		if strings.Contains(httphost, ".") {
 			if sc.vhostmgr.Handle(httphost, w, r) {
 				return
 			}
 		}
 
-		glog.V(2).Infof("httphost: calling uiHandler")
+		logger.Debug("Calling CC uiHandler")
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
@@ -177,7 +185,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 		err := http.ListenAndServe(":80", http.HandlerFunc(redirect))
 		if err != nil {
-			glog.Errorf("could not setup HTTP webserver: %s", err)
+			logger.WithError(err).Error("Could not setup HTTP webserver")
 		}
 	}()
 	go func() {
@@ -190,10 +198,10 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			CipherSuites:             utils.CipherSuites("http"),
 		}
 		server := &http.Server{Addr: sc.bindPort, TLSConfig: config}
-		glog.Infof("Creating HTTP server on port %s with CipherSuite: %v", sc.bindPort, utils.CipherSuitesByName(config))
+		logger.WithField("ciphersuite", utils.CipherSuitesByName(config)).Info("Creating HTTP server")
 		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
-			glog.Fatalf("could not setup HTTPS webserver: %s", err)
+			logger.WithError(err).Error("Could not setup HTTPS webserver")
 		}
 	}()
 	blockerChan := make(chan bool)
@@ -203,9 +211,15 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 var methods = []string{"GET", "POST", "PUT", "DELETE", "HEAD"}
 
 func routeToInternalServiceProxy(path string, target string, requiresAuth bool, routes []rest.Route) []rest.Route {
+	logger := plog.WithFields(logrus.Fields{
+		"path":         path,
+		"target":       target,
+		"requiresauth": requiresAuth,
+	})
+
 	targetURL, err := url.Parse(target)
 	if err != nil {
-		glog.Errorf("Unable to parse proxy target URL: %s", target)
+		logger.WithError(err).Error("Unable to parse proxy target URL")
 		return routes
 	}
 	// Wrap the normal http.Handler in a rest.handlerFunc
@@ -231,7 +245,7 @@ func (sc *ServiceConfig) unAuthorizedClient(realfunc handlerClientFunc) handlerF
 	return func(w *rest.ResponseWriter, r *rest.Request) {
 		client, err := sc.getClient()
 		if err != nil {
-			glog.Errorf("Unable to acquire client: %v", err)
+			plog.WithError(err).Error("Unable to acquire client")
 			restServerError(w, err)
 			return
 		}
@@ -248,7 +262,7 @@ func (sc *ServiceConfig) authorizedClient(realfunc handlerClientFunc) handlerFun
 		}
 		client, err := sc.getClient()
 		if err != nil {
-			glog.Errorf("Unable to acquire client: %v", err)
+			plog.WithError(err).Error("Unable to acquire client")
 			restServerError(w, err)
 			return
 		}
@@ -271,19 +285,20 @@ func (sc *ServiceConfig) isCollectingStats() handlerFunc {
 func (sc *ServiceConfig) getClient() (c *daoclient.ControlClient, err error) {
 	// setup the client
 	if c, err = daoclient.NewControlClient(sc.agentPort); err != nil {
-		glog.Errorf("Could not create a control center client: %s", err)
+		plog.WithError(err).Error("Could not create a control center client")
 	}
 	return
 }
 
 func (sc *ServiceConfig) getMasterClient() (master.ClientInterface, error) {
-	glog.V(2).Infof("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
+	logger := plog.WithField("agentport", sc.agentPort)
+	logger.Debug("Start getMasterClient")
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
-		glog.Errorf("Could not create a control center client to %v: %v", sc.agentPort, err)
+		logger.Error("Could not create a control center client")
 		return nil, err
 	}
-	glog.V(2).Info("end getMasterClient")
+	logger.Debug("End getMasterClient")
 	return c, nil
 }
 
@@ -330,7 +345,7 @@ func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
 	if ctx.master == nil {
 		c, err := ctx.sc.getMasterClient()
 		if err != nil {
-			glog.Errorf("Could not create a control center client: %v", err)
+			plog.WithError(err).Error("Could not create a control center client")
 			return nil, err
 		}
 		ctx.master = c
@@ -367,7 +382,7 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 func (sc *ServiceConfig) startPublicPortListener(shutdown <-chan interface{}) {
 	// set up the public port manager
 	pubmgr := NewPublicPortManager("", sc.certPEMFile, sc.keyPEMFile, func(portAddress string, err error) {
-		logger := plog.WithField("portAddress", portAddress).WithError(err)
+		logger := plog.WithField("portaddress", portAddress).WithError(err)
 
 		// connect to zookeeper
 		conn, err := zzk.GetLocalConnection("/")
