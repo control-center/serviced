@@ -85,7 +85,7 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 			"/usr/bin/ssh",
 			"-t", targetIP, "--",
 			"serviced", "--endpoint", GetOptionsRPCEndpoint(),
-			"service", "attach", fmt.Sprintf("%s/%d", serviceID, instanceID),
+			"service", "attach", fmt.Sprintf("%s", targetContainer),
 		}
 		cmd = append(cmd, command)
 		cmd = append(cmd, args...)
