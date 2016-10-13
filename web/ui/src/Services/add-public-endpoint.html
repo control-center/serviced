@@ -16,7 +16,7 @@
 
 <div class="form-group">
     <label for="add_vhost_application"><span translate>add_vhost_application_endpoint</span>:</label>
-    <select focusme id="add_vhost_application" ng-model="publicEndpoints.add.app_ep" ng-options="opt as opt.Value for opt in exportedServiceEndpoints.data"  class="form-control"></select>
+    <select focusme id="add_vhost_application" ng-model="publicEndpoints.add.app_ep" ng-options="opt as opt.Value for opt in currentService.exportedServiceEndpoints"  class="form-control"></select>
 </div>
 
 <div ng-show="publicEndpoints.add.type === 'vhost'">
