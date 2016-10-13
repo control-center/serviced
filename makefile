@@ -161,12 +161,12 @@ serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
-	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced $(GOBIN)/serviced; fi
 
 serviced-controller: $(GO)
 serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
 
 
 tools: serviced-storage
@@ -174,7 +174,7 @@ tools: serviced-storage
 serviced-storage: $(GO)
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
