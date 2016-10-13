@@ -46,7 +46,11 @@
                     service.desiredState);
 
                 // refresh list of instances
-                service.fetchInstances();
+                // TODO - this "if" is a workaround for old servicesFactory
+                // services and should be removed along with servicesFactory
+                if(service.fetchInstances){
+                    service.fetchInstances();
+                }
 
                 // if this service has instances, evaluate their health
                 service.instances.forEach(instance => {
