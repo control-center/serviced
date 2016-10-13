@@ -28,7 +28,6 @@
 
                 // Ensure logged in
                 authService.checkLogin($scope);
-                $scope.resourcesFactory = resourcesFactory;
                 $scope.hostsFactory = hostsFactory;
 
                 $scope.defaultHostAlias = $location.host();
@@ -261,9 +260,12 @@
                                                 // disable ok button, and store the re-enable function
                                                 var enableSubmit = this.disableSubmitButton();
 
-                                                $scope.assignIP()
+                                                var serviceID = modalScope.assignments.ip.ServiceID;
+                                                var IP = modalScope.assignments.value.IPAddr;
+                                                resourcesFactory.assignIP(serviceID, IP)
                                                     .success(function (data, status) {
                                                         $notification.create("Added IP", data.Detail).success();
+                                                        update();
                                                         this.close();
                                                     }.bind(this))
                                                     .error(function (data, status) {
@@ -282,32 +284,12 @@
                 };
 
                 $scope.anyServicesExported = function (service) {
-                    // if(service){
-                    //     for (var i in service.Endpoints) {
-                    //         if (service.Endpoints[i].Purpose === "export") {
-                    //             return true;
-                    //         }
-                    //     }
-                    //     for (var j in service.children) {
-                    //         if ($scope.anyServicesExported(service.children[j])) {
-                    //             return true;
-                    //         }
-                    //     }
-                    // }
-                    // return false;
-                    return true;
+                    if($scope.currentService && $scope.currentService.exportedServiceEndpoints){
+                        return $scope.currentService.exportedServiceEndpoints.length > 0;
+                    } else {
+                        return false;
+                    }
                 };
-
-
-                $scope.assignIP = function () {
-                    var serviceID = $scope.ips.assign.ip.ServiceID;
-                    var IP = $scope.ips.assign.value.IPAddr;
-                    return resourcesFactory.assignIP(serviceID, IP)
-                        .success(function (data, status) {
-                            update();
-                        });
-                };
-
 
                 $scope.publicEndpointProtocol = function (publicEndpoint) {
                     if (publicEndpoint.type === "vhost") {
@@ -329,6 +311,8 @@
 
                 // sets a service to start, stop or restart state
                 $scope.setServiceState = function (service, state, skipChildren) {
+                    // service[state]() ends up translating to something like
+                    // service.start() or service.stop()
                     service[state](skipChildren).error(function (data, status) {
                         $notification.create("Unable to " + state + " service", data.Detail).error();
                     });
@@ -437,7 +421,7 @@
                     //edit variables (context) of current service
                     let modalScope = $scope.$new(true);
 
-                    $scope.resourcesFactory.v2.getServiceContext(contextFileId)
+                    resourcesFactory.v2.getServiceContext(contextFileId)
                         .then(function (data) {
 
                             //set editor options for context editing
@@ -465,7 +449,7 @@
                                             let enableSubmit = this.disableSubmitButton();
                                             let storableContext = makeStorableContext(modalScope.Context);
 
-                                            $scope.resourcesFactory.v2.updateServiceContext(contextFileId, storableContext)
+                                            resourcesFactory.v2.updateServiceContext(contextFileId, storableContext)
                                                 .success(function (data, status) {
                                                     $notification.create("Updated variables for", $scope.currentService.name).success();
                                                     this.close();
@@ -563,8 +547,9 @@
                 $scope.editConfig = function (configFileId) {
                     let modalScope = $scope.$new(true);
 
-                    // get the configfile 
-                    $scope.resourcesFactory.v2.getServiceConfig(configFileId)
+                    // TODO - pop the modal up FIRST and show
+                    // a loading animation while the request is filled
+                    resourcesFactory.v2.getServiceConfig(configFileId)
                         .then(function (data) {
 
                             //set editor options for context editing
@@ -593,7 +578,7 @@
                                                 // disable ok button, and store the re-enable function
                                                 var enableSubmit = this.disableSubmitButton();
 
-                                                $scope.resourcesFactory.v2.updateServiceConfig(configFileId, modalScope)
+                                                resourcesFactory.v2.updateServiceConfig(configFileId, modalScope)
                                                     .success(function (data, status) {
                                                         $notification.create("Updated configuation file", data.Filename).success();
                                                         this.close();
@@ -672,41 +657,6 @@
                         });
                 };
 
-                $scope.validateService = function () {
-                    alert("Thought to be Unused validateService");
-                    // TODO: Validate name and startup command
-                    var svc = $scope.currentService.model,
-                        max = svc.InstanceLimits.Max,
-                        min = svc.InstanceLimits.Min,
-                        num = svc.Instances;
-                    if (typeof num === 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
-                        var msg = $translate.instant("instances_invalid") + " ";
-                        if (min > 0) {
-                            msg += $translate.instant("minimum") + " " + min;
-                            if (max > 0) {
-                                msg += ", ";
-                            }
-                        }
-                        if (max > 0) {
-                            msg += $translate.instant("maximum") + " " + max;
-                        }
-                        $notification.create("", msg).error();
-                        return false;
-                    }
-                    return true;
-                };
-
-                $scope.updateService = function (newService) {
-                    alert("Thought to be Unused updateService");
-                    if ($scope.validateService()) {
-                        return resourcesFactory.updateService($scope.currentService.model.ID, newService)
-                            .success((data, status) => {
-                                update();
-                                this.editableService = {};
-                            });
-                    }
-                };
-
                 $scope.subNavClick = function (crumb) {
                     if (crumb.id) {
                         $scope.routeToService(crumb.id);
@@ -735,17 +685,6 @@
 
                     return LogSearch.getURL(appConfig, globalConfig);
                 };
-
-                // $scope.cachedServiceStatuses = {};
-
-                // $scope.getServiceStatus = function (id) {
-                //     if (!(id in $scope.cachedServiceStatuses)) {
-                //         // returning object allows object property inspection
-                //         // without throwing a null reference error
-                //         $scope.cachedServiceStatuses[id] = {};
-                //     }
-                //     return $scope.cachedServiceStatuses[id];
-                // };
 
                 // grab default kibana search configs and adjust
                 // the query to look for this specific service instance
@@ -802,11 +741,6 @@
                         });
                 };
 
-                $scope.startTerminal = function (app) {
-                    window.open("http://" + window.location.hostname + ":50000");
-                };
-
-
 
                 $scope.getHostName = function (id) {
                     if (hostsFactory.get(id)) {
@@ -840,20 +774,16 @@
                         console.warn("Cannot store toggle state: no current service");
                         return;
                     }
-                    // console.log(`TOGGLE ------------------`);
-
                     if ($scope.currentTreeState[service.id].collapsed) {
                         $scope.currentTreeState[service.id].collapsed = false;
 
                         if (service.subservices.length) {
                             $scope.showChildren(service);
                         } else {
-                            service.fetchServiceChildren().then(
-                                function () {
-                                    // console.log(`fetched children for ${service.name} and got ${service.subservices.length} children back`);
-                                    $scope.flattenServicesTree();
-                                    $scope.currentService.updateDescendentStatuses();
-                                });
+                            service.fetchServiceChildren().then(() => {
+                                $scope.flattenServicesTree();
+                                $scope.currentService.updateDescendentStatuses();
+                            });
                         }
                     } else {
                         $scope.currentTreeState[service.id].collapsed = true;
@@ -861,25 +791,11 @@
                         $scope.currentService.updateDescendentStatuses();
                         $scope.hideChildren(service);
                     }
-
-                };
-
-                $scope.getService = function (id) {
-                    let deferred = $q.defer();
-                    $scope.resourcesFactory.v2.getService(id)
-                        .then(function (data) {
-                            deferred.resolve(data);
-                        },
-                        function (error) {
-                            console.warn(error);
-                            deferred.reject(error);
-                        });
-                    return deferred.promise;
                 };
 
                 $scope.getServiceEndpoints = function (id) {
                     let deferred = $q.defer();
-                    $scope.resourcesFactory.v2.getServiceEndpoints(id)
+                    resourcesFactory.v2.getServiceEndpoints(id)
                         .then(function (response) {
                             console.log("got service endpoints for id " + id);
                             deferred.resolve(response.data);
@@ -889,13 +805,6 @@
                             deferred.reject(response.statusText);
                         });
                     return deferred.promise;
-                };
-
-                $scope.getServices = function () {
-                    $scope.resourcesFactory.v2.getServices()
-                        .success(function (data) {
-                            console.log(data.length + " top level children.");
-                        });
                 };
 
                 $scope.hideChildren = function (service) {
@@ -961,7 +870,7 @@
                                         var enableSubmit = this.disableSubmitButton();
 
                                         // update service with recently edited service
-                                        $scope.resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
+                                        resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
                                             .success(function (data, status) {
                                                 $notification.create("Updated service", $scope.editableService.Name).success();
                                                 update();
@@ -1010,6 +919,8 @@
                             };
                         }
                         let rowState = treeState[service.id];
+                        // TODO - merge rather than overwrite to avoid
+                        // causing the entire tree to bounce
                         let rowItem = {
                             service: service,
                             depth: depth,
@@ -1017,17 +928,17 @@
                             hidden: rowState.hidden
                         };
                         rows.push(rowItem);
-                        // console.log(`${depth} : ${service.name} `);
                         if (service.subservices.length) {
                             service.subservices.forEach(svc => flatten(svc, depth + 1));
                         }
                     })($scope.currentService, 0);
-                    // remove top-level service
+                    // rows[0] is always the top level service, so 
+                    // slice that off
                     $scope.currentDescendents = rows.slice(1);
                 };
 
                 $scope.fetchBreadcrumbs = function () {
-                    $scope.resourcesFactory.v2.getServiceAncestors($scope.currentService.id)
+                    resourcesFactory.v2.getServiceAncestors($scope.currentService.id)
                         .then(current => {
                             $scope.breadcrumbs = makeCrumbs(current);
                         },
@@ -1036,13 +947,11 @@
                         });
                 };
 
+                // constructs a new current service
                 $scope.setCurrentService = function () {
-
                     $scope.currentService = undefined;
-                    $scope.getService($scope.params.serviceId)
+                    resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
-                            console.log("SET CURRENT SERVICE --------------");
-
                             $scope.currentService = new Service(model);
 
                             $scope.currentDescendents = [];
@@ -1061,31 +970,29 @@
                             // property for view to bind for tree state NOTE: WHA????
                             $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
 
-                            update();
+                            // fetchAll() will trigger update at completion
+                            $scope.currentService.fetchAll(true);
+
+                            // update fast-moving statuses
+                            $scope.currentService.fetchAllStates();
                         });
                 };
 
                 function update() {
-                    
-                    $scope.getService($scope.params.serviceId)
+                    // update service model data
+                    resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
                             console.log("SET CURRENT SERVICE --------------");
 
                             $scope.currentService.update(model);
                         });
 
-                    // fetchAll() will trigger update at completion
-                    $scope.currentService.fetchAll(true);
-
                     // update fast-moving statuses
                     $scope.currentService.fetchAllStates();
-
-
+                    $scope.currentService.updateDescendentStatuses();
                 }
 
                 function init() {
-
-                    console.log("INIT -----------------------------");
 
                     $scope.name = "servicedetails";
                     $scope.params = $routeParams;
@@ -1144,40 +1051,15 @@
                     // if the current service changes, update
                     // various service controller thingies
                     $scope.$watch("params.serviceId", $scope.setCurrentService);
-                    // $scope.$watch("currentService.lastUpdate", () => {
-                    //     if (!$scope.$$phase) {
-                    //         $scope.$apply();
-                    //     }
-                    // });
 
                     hostsFactory.activate();
                     hostsFactory.update();
 
-                    // TODO: use baseFactory update pattern
-                    // this will fetch health, instances, and memory stats
+                    // TODO - use UI_POLL_INTERVAL
                     let intervalVal = setInterval(function () {
                         if ($scope.currentService) {
-
-                            // make a list of IDs from scope.descendents (with err function of course)
-                            // add new resourcesfactory endpoint to get multiple states
-                            // send list of IDs to that new endpoint. 
-                            // when it comes back, iterate over the scope.descendents list again
-                            // and call each service's service.updateState(status) 
-                            // with the status that was returned for that service
-
                             $scope.currentService.fetchAllStates();
-
-                            // fetchAllStates gathers status on instances
-                            // need to delay a bit to gather stats on services
-                            setTimeout(function () {
-                                $scope.currentService.updateDescendentStatuses()
-                                    .then( () => {
-                                    }, error => {
-                                        console.warn(`Unable to get stats for services`);
-                                    });
-
-                            }, 250);
-
+                            $scope.currentService.updateDescendentStatuses();
                         }
                     }, 3000);
 

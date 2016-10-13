@@ -321,7 +321,10 @@
                     }
                 });
             }
-            let statusMap = status.Status.reduce((map, s) => map[s.InstanceId] = s, {});
+            let statusMap = status.Status.reduce((map, s) => {
+                map[s.InstanceID] = s;
+                return map;
+            }, {});
 
             // update instance status
             this.instances.forEach(i => {

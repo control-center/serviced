@@ -360,6 +360,7 @@
             getServiceInstances: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/instances`,
+                ignorePending: true
             },
             getServiceIpAssignments: {
                 method: GET,
@@ -384,10 +385,12 @@
             getServiceStatus: {
                 method: GET,
                 url: id => `/api/v2/statuses?serviceId=${id}`,
+                ignorePending: true
             },
             getServiceStatuses: {
                 method: GET,
                 url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
+                ignorePending: true
             }
         };
 
@@ -473,7 +476,7 @@
                 });
 
                 // NOTE: only limits GET requests
-                if(method === GET){
+                if(method === GET && !config.ignorePending){
                     pendingGETRequests[resourceName] = deferred;
                 }
 
