@@ -13,8 +13,6 @@
 #
 debug=false
 interactive=false
-DRIVER_NAME=selenium_chrome
-TIMEOUT=10
 TAGS=()
 DATASET=default
 
@@ -29,12 +27,6 @@ while (( "$#" )); do
         shift 2
     elif [ "$1" == "-a" ]; then
         APPLICATION_URL="${2}"
-        shift 2
-    elif [ "$1" == "-d" ]; then
-        DRIVER_NAME="${2}"
-        shift 2
-    elif [ "$1" == "-t" ]; then
-        TIMEOUT="${2}"
         shift 2
     elif [ "$1" == "--tags" ]; then
         TAGS+=("${2}")
@@ -55,16 +47,13 @@ while (( "$#" )); do
             exit 1
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
-        echo "       [-d driverName] [-t timeout] [--tags tagname [--tags tagname]]"
+        echo "       [--tags tagname [--tags tagname]]"
         echo "       [--dataset setName] [--debug] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
         echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
-        echo "    -d driverName         identifies the Capybara driver to use"
-        echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
-        echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
         echo "    --debug               opens the browser on the host's DISPLAY"
@@ -94,22 +83,6 @@ if [ -z "${APPLICATION_PASSWORD-}" ]; then
     exit 1
 fi
 
-if [ -z "${SERVICED_ETC_PATH}" ]; then
-    if [ -z "${SERVICED_HOME}" ]; then
-        echo "ERROR: Both SERVICED_HOME and SERVICED_ETC_PATH are undefined."
-        exit 1
-    fi
-    SERVICED_ETC_PATH=${SERVICED_HOME}/etc
-fi
-
-if [ -z "${SERVICED_ISVCS_PATH}" ]; then
-    if [ -z "${SERVICED_HOME}" ]; then
-        echo "ERROR: Both SERVICED_HOME and SERVICED_ISVCS_PATH are undefined."
-        exit 1
-    fi
-    SERVICED_ISVCS_PATH=${SERVICED_HOME}/var/isvcs
-fi
-
 #
 # Get the current UID and GID. These are passed into the container for use in
 # creating a container-local user account so ownership of files created in the
@@ -117,14 +90,6 @@ fi
 #
 CALLER_UID=`id -u`
 CALLER_GID=`id -g`
-
-if [ "$debug" == true ]; then
-    if [[ "$DISPLAY" =~ "\:[0-9]" ]]; then
-        DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
-    else
-        DEBUG_OPTION="-e DISPLAY=$DISPLAY"
-    fi
-fi
 
 if [ -n "${TAGS}" ]; then
     for i in "${TAGS[@]}"
@@ -208,18 +173,18 @@ if [ -z "$BUILD_NUMBER" ]; then
     BUILD_NUMBER="local-build"
 fi
 if [ -z "$JOB_NAME" ]; then
-    JOB_NAME="serviced-acceptance"
+    JOB_NAME="serviced-api-acceptance"
 fi
 
-cp -u `pwd`/../serviced `pwd`/ui
+cp -u `pwd`/../serviced `pwd`/api
+trap 'docker rm -f api_acceptance' INT
 
-trap 'docker rm -f ui_acceptance' INT
-
-docker run --rm --name ui_acceptance \
+docker run --rm --name api_acceptance \
     --add-host=${TARGET_HOST}:${TARGET_HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
-    -v `pwd`/ui:/capybara:rw \
+    -v `pwd`/api:/capybara:rw \
+    -v `pwd`/common:/common:rw \
     -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
     -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
     ${LIB_DEVMAPPER_MOUNT} \
@@ -227,8 +192,6 @@ docker run --rm --name ui_acceptance \
     -e CALLER_GID=${CALLER_GID} \
     -e BUILD_NUMBER=${BUILD_NUMBER} \
     -e JOB_NAME=${JOB_NAME} \
-    -e CAPYBARA_DRIVER=${DRIVER_NAME} \
-    -e CAPYBARA_TIMEOUT=${TIMEOUT} \
     -e DATASET=${DATASET} \
     -e APPLICATION_URL=${APPLICATION_URL} \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
@@ -236,5 +199,5 @@ docker run --rm --name ui_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.1 \
+    -t zenoss/capybara:1.1.1-xenial \
     ${CMD}
