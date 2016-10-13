@@ -377,10 +377,16 @@ func getEndpoint(options config.Options) string {
 }
 
 func setLogging(ctx *cli.Context) error {
+	// Rather than immediately returning from the function on error, keep track
+	// of the errors and continue.  This allows us to process all arguments,
+	// start watchers, etc.
+	var errors []error
+
 	if ctx.Args().First() != "server" {
 		logrus.SetLevel(logrus.WarnLevel)
 		logri.SetLevel(logrus.WarnLevel)
 	}
+
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
@@ -395,18 +401,18 @@ func setLogging(ctx *cli.Context) error {
 
 	if ctx.IsSet("stderrthreshold") {
 		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
 	if ctx.IsSet("vmodule") {
 		if err := glog.SetVModule(ctx.GlobalString("vmodule")); err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
 
 	if ctx.IsSet("log_backtrace_at") {
 		if err := glog.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
 
@@ -429,7 +435,13 @@ func setLogging(ctx *cli.Context) error {
 			}).Info("Changed glog logging level")
 		}
 	}()
-	return nil
+
+	if len(errors) == 0 {
+		return nil
+	} else {
+		// not technically correct, but realistically we only care about the first error
+		return errors[0]
+	}
 }
 
 func setIsvcsEnv(ctx *cli.Context) error {
