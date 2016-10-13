@@ -14,14 +14,17 @@
 package auth
 
 import (
+	"bytes"
 	"crypto"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
@@ -327,6 +330,34 @@ func WatchDelegateKeyFile(filename string, cancel <-chan interface{}) error {
 		loadKeys()
 	}
 	return nil
+}
+
+func WriteKeyToFile(filename string, data []byte) error {
+	filedir := filepath.Dir(filename)
+	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, keydata, 0644)
+}
+
+func RegisterLocalHost(keydata []byte) error {
+	keyfile := filepath.Join(config.GetOptions().EtcPath, DelegateKeyFileName)
+	return WriteKeyToFile(keyfile, keydata)
+}
+
+func RegisterRemoteHost(hostID string, keydata []byte) error {
+	hostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+	if h.ID == hostID {
+		return RegisterHost(keyData)
+	} else {
+		remoteCmd := "serviced host register -"
+		cmd := exec.Command("/usr/bin/ssh", h.IPAddr, "--", remoteCmd)
+		cmd.Stdin = bytes.NewReader(keyData)
+		return cmd.Run()
+	}
 }
 
 func updateDelegateKeys(pub crypto.PublicKey, priv crypto.PrivateKey) {

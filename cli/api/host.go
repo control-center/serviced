@@ -14,15 +14,9 @@
 package api
 
 import (
-	"bytes"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/control-center/serviced/auth"
-	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
@@ -173,34 +167,14 @@ func (a *api) ResetHostKey(id string) ([]byte, error) {
 
 // Write delegate keys to disk
 func (a *api) RegisterHost(keydata []byte) error {
-	keyfile := filepath.Join(config.GetOptions().EtcPath, auth.DelegateKeyFileName)
-	keydir := filepath.Dir(keyfile)
-	if err := os.MkdirAll(keydir, os.ModeDir|744); err != nil {
-		return err
-	}
-	return ioutil.WriteFile(keyfile, keydata, 0644)
+	return auth.RegisterLocalHost(keydata)
 }
 
 func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte) error {
-	hostID, err := utils.HostID()
-	if err != nil {
-		return err
-	}
-	if h.ID == hostID {
-		return a.RegisterHost(keyData)
-	} else {
-		remoteCmd := "serviced host register -"
-		cmd := exec.Command("/usr/bin/ssh", h.IPAddr, "--", remoteCmd)
-		cmd.Stdin = bytes.NewReader(keyData)
-		return cmd.Run()
-	}
+	return auth.RegisterRemoteHost(h.ID, keyData)
 }
 
 // Output a delegate key file to a given location on disk
 func (a *api) WriteDelegateKey(filename string, data []byte) error {
-	filedir := filepath.Dir(filename)
-	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
-		return err
-	}
-	return ioutil.WriteFile(filename, data, 0644)
+	return auth.WriteKeyToFile(filename, data)
 }

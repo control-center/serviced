@@ -56,6 +56,9 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return f.addHost(ctx, entity)
 }
 
+func (f *Facade) addAndRegisterHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
+}
+
 func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
