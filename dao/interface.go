@@ -70,8 +70,9 @@ type ServiceStateRequest struct {
 }
 
 type ScheduleServiceRequest struct {
-	ServiceID  string
-	AutoLaunch bool
+	ServiceID   string
+	AutoLaunch  bool
+	Synchronous bool
 }
 
 type WaitServiceRequest struct {

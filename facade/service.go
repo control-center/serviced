@@ -1112,7 +1112,7 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 }
 
 // ScheduleService changes a service's desired state and returns the number of affected services
-func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
+func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ScheduleService"))
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
@@ -1121,10 +1121,10 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, desiredState, false)
+	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false)
 }
 
-func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, desiredState service.DesiredState, locked bool) (int, error) {
+func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade_scheduleService"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":     tenantID,
@@ -1158,11 +1158,11 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		}
 	}
 
-	// Schedule the services, calculating the number of affected services as we go
-	affected := len(svcs)
-	go func() {
-		logger := plog.WithField("serviceid", serviceID)
-		logger.Debug("Begin go func in scheduleService()")
+	var affected int
+
+	if synchronous {
+		// Schedule the services synchronously, calculating the number of affected services as we go
+		affected := 0
 		for _, svc := range svcs {
 			if svc.ID != serviceID && svc.Launch == commons.MANUAL {
 				continue
@@ -1172,11 +1172,32 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 
 			err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
 			if err != nil {
-				logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
-				return
+				return affected, err
 			}
+
+			affected++
 		}
-	}()
+	} else {
+		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
+		affected = len(svcs)
+		go func() {
+			logger := plog.WithField("serviceid", serviceID)
+			logger.Debug("Begin go func in scheduleService()")
+			for _, svc := range svcs {
+				if svc.ID != serviceID && svc.Launch == commons.MANUAL {
+					continue
+				} else if svc.DesiredState == int(desiredState) {
+					continue
+				}
+
+				err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
+				if err != nil {
+					logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
+					return
+				}
+			}
+		}()
+	}
 	return affected, nil
 }
 
@@ -1296,22 +1317,22 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("StartService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRun)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("RestartService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRestart)
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRestart)
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PauseService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCPause)
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCPause)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop)
 }
 
 type ipinfo struct {
@@ -1472,7 +1493,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 		// Restart the service if it is running and new address assignments are made
 		if restart && svc.DesiredState == int(service.SVCRun) {
-			f.RestartService(ctx, dao.ScheduleServiceRequest{svc.ID, false})
+			f.RestartService(ctx, dao.ScheduleServiceRequest{svc.ID, false, true})
 		}
 
 		return nil
