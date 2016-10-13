@@ -845,18 +845,20 @@
                     if ($scope.currentTreeState[service.id].collapsed) {
                         $scope.currentTreeState[service.id].collapsed = false;
 
-                        if (service.subservices) {
+                        if (service.subservices.length) {
                             $scope.showChildren(service);
                         } else {
                             service.fetchServiceChildren().then(
                                 function () {
                                     // console.log(`fetched children for ${service.name} and got ${service.subservices.length} children back`);
                                     $scope.flattenServicesTree();
+                                    $scope.currentService.updateDescendentStatuses();
                                 });
                         }
                     } else {
                         $scope.currentTreeState[service.id].collapsed = true;
                         $scope.flattenServicesTree();
+                        $scope.currentService.updateDescendentStatuses();
                         $scope.hideChildren(service);
                     }
 
@@ -900,7 +902,7 @@
                     // get the state of the current service's tree
                     var treeState = $scope.currentTreeState;
 
-                    if (service.subservices) {
+                    if (service.subservices.length) {
                         service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = true;
                             $scope.hideChildren(child);
@@ -911,7 +913,7 @@
                 $scope.showChildren = function (service) {
                     var treeState = $scope.currentTreeState;
 
-                    if (service.subservices) {
+                    if (service.subservices.length) {
                         service.subservices.forEach(function (child) {
                             treeState[child.id].hidden = false;
 
@@ -1016,7 +1018,7 @@
                         };
                         rows.push(rowItem);
                         // console.log(`${depth} : ${service.name} `);
-                        if (service.subservices) {
+                        if (service.subservices.length) {
                             service.subservices.forEach(svc => flatten(svc, depth + 1));
                         }
                     })($scope.currentService, 0);
@@ -1045,7 +1047,10 @@
 
                             $scope.currentDescendents = [];
                             $scope.currentService.fetchServiceChildren()
-                                .then($scope.flattenServicesTree);
+                                .then(() => {
+                                    $scope.flattenServicesTree();
+                                    $scope.currentService.updateDescendentStatuses();
+                                });
 
                             // sets $scope.breadcrumbs
                             $scope.fetchBreadcrumbs();
