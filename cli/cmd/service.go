@@ -31,6 +31,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
@@ -683,9 +684,9 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	}
 }
 
-// parseServiceInstance gets the service id and instance id from a provided
+// parseServiceInstance gets the service or docker id and instance id from a provided
 // service string, being either a deploymentPath/servicepath/instanceid or
-// serviceid/instanceid
+// serviceid/instanceid or dockerid
 func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) {
 	servicepath, name := path.Split(keyword)
 	instanceID := -1
@@ -701,6 +702,13 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		} else {
 			servicepath = strings.TrimRight(servicepath, "/")
 			instanceID = num
+		}
+	}
+
+	// is the servicepath a dockerid?
+	if instanceID < 0 {
+		if _, err := docker.FindContainer(servicepath); err == nil {
+			return servicepath, instanceID, nil
 		}
 	}
 

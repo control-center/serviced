@@ -45,29 +45,45 @@ func (a *api) StopServiceInstance(serviceID string, instanceID int) error {
 
 // AttachServiceInstance locates and attaches to a running instance of a service
 func (a *api) AttachServiceInstance(serviceID string, instanceID int, command string, args []string) error {
-	client, err := a.connectMaster()
-	if err != nil {
-		return err
-	}
+	var (
+		targetHost      string
+		targetIP        string
+		targetContainer string
+	)
 
-	// get the location of the running instance
-	location, err := client.LocateServiceInstance(serviceID, instanceID)
-	if err != nil {
-		return err
-	}
-
-	// check to see if it is running on this host
 	hostID, err := utils.HostID()
 	if err != nil {
 		return err
 	}
 
+	// Check to see if serviceID is actually a dockerID
+	_, err = dockerclient.FindContainer(serviceID)
+	if err == nil {
+		targetHost = hostID
+		targetContainer = serviceID
+	} else {
+		client, err := a.connectMaster()
+		if err != nil {
+			return err
+		}
+
+		// get the location of the running instance
+		location, err := client.LocateServiceInstance(serviceID, instanceID)
+		if err != nil {
+			return err
+		}
+
+		targetHost = location.HostID
+		targetIP = location.HostIP
+		targetContainer = location.ContainerID
+	}
+
 	// attach to the container
 	cmd := []string{}
-	if location.HostID != hostID {
+	if targetHost != hostID {
 		cmd := []string{
 			"/usr/bin/ssh",
-			"-t", location.HostIP, "--",
+			"-t", targetIP, "--",
 			"serviced", "--endpoint", GetOptionsRPCEndpoint(),
 			"service", "attach", fmt.Sprintf("%s/%d", serviceID, instanceID),
 		}
@@ -81,7 +97,7 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 			cmd = append(cmd, command)
 			cmd = append(cmd, args...)
 		}
-		return utils.AttachAndExec(location.ContainerID, cmd)
+		return utils.AttachAndExec(targetContainer, cmd)
 	}
 }
 
