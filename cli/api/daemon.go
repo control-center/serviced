@@ -459,11 +459,44 @@ func (d *daemon) startMaster() (err error) {
 	if d.disk, err = volume.GetDriver(options.VolumesPath); err != nil {
 		storagelogger.WithError(err).Fatal("Unable to access application storage")
 	}
+
 	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_volumes_v2", "0.0.0.0/0"); err != nil {
 		storagelogger.WithError(err).Fatal("Unable to initialize NFS server")
 	}
 
-	//set tenant volumes on nfs storagedriver
+	if d.storageHandler, err = storage.NewServer(d.net, thisHost, options.VolumesPath); err != nil {
+		log.WithError(err).Fatal("Unable to create internal NFS server manager")
+	}
+
+	d.dsDriver = d.initDriver()
+	d.dsContext = d.initContext()
+	d.facade = d.initFacade()
+	d.cpDao = d.initDAO()
+
+	// Create tenant volumes if they do not already exist
+	services, err := d.facade.GetAllServices(d.dsContext)
+	if err != nil {
+		log.WithError(err).Fatal("Unable to get deployed services")
+	}
+
+	for _, s := range services {
+		if s.ParentServiceID == "" {
+			tenantLogger := log.WithField("Tenant ID", s.ID)
+			// This is a tenant and should have a volume
+			_, err := d.disk.Get(s.ID)
+			if err == volume.ErrVolumeNotExists {
+				tenantLogger.Warn("Tenant volume not found")
+				if _, err := d.disk.Create(s.ID); err != nil {
+					tenantLogger.WithError(err).Fatal("Could not re-create tenant volume")
+				}
+				tenantLogger.Warn("Created new tenant volume")
+			} else if err != nil {
+				tenantLogger.WithError(err).Fatal("Could not get volume for tenant")
+			}
+		}
+	}
+
+	// Set tenant volumes on nfs storagedriver
 	log.Debug("Exporting tenant volumes via NFS")
 	tenantVolumes := make(map[string]struct{})
 	for _, vol := range d.disk.List() {
@@ -479,15 +512,6 @@ func (d *daemon) startMaster() (err error) {
 			tenantlogger.WithError(err).Error("Unable to export tenant volume via NFS. Application data will not be available on remote hosts")
 		}
 	}
-
-	if d.storageHandler, err = storage.NewServer(d.net, thisHost, options.VolumesPath); err != nil {
-		log.WithError(err).Fatal("Unable to create internal NFS server manager")
-	}
-
-	d.dsDriver = d.initDriver()
-	d.dsContext = d.initContext()
-	d.facade = d.initFacade()
-	d.cpDao = d.initDAO()
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		log.WithError(err).Fatal("Unable to create default pool")
