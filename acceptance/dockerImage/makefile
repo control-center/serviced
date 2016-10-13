@@ -36,3 +36,4 @@ reporter/target/reporter.jar:
 
 dockerPush:
 	docker push zenoss/capybara:$(VERSION)
+	docker push zenoss/capybara:$(VERSION)-xenial

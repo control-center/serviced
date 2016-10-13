@@ -13,7 +13,6 @@
 #
 debug=false
 interactive=false
-TIMEOUT=10
 TAGS=()
 DATASET=default
 
@@ -28,9 +27,6 @@ while (( "$#" )); do
         shift 2
     elif [ "$1" == "-a" ]; then
         APPLICATION_URL="${2}"
-        shift 2
-    elif [ "$1" == "-t" ]; then
-        TIMEOUT="${2}"
         shift 2
     elif [ "$1" == "--tags" ]; then
         TAGS+=("${2}")
@@ -51,14 +47,13 @@ while (( "$#" )); do
             exit 1
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
-        echo "       [-t timeout] [--tags tagname [--tags tagname]]"
+        echo "       [--tags tagname [--tags tagname]]"
         echo "       [--dataset setName] [--debug] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
         echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
-        echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
         echo "    --debug               opens the browser on the host's DISPLAY"
@@ -204,5 +199,5 @@ docker run --rm --name api_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.0-xenial \
+    -t zenoss/capybara:1.1.1-xenial \
     ${CMD}

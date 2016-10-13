@@ -272,6 +272,8 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 ## TODOs
 
  * Add example of CLI validation using Cucumber.
+ * The code in 'common' is an altered copy of the CLI wrapper specific to the UI tests. There were gem dependency issues (mime-types) when trying to reuse the code as is -- maybe fork cucumber-api and try updating the rest-client gem.
+ * In order to share common code, the 'common' folder is mounted and symlinked in the container. There is a file called common_include that is pulling in dependencies from common, since cucumber can't find them even though they are under the 'features' folder.' 
 
 ## Known Issues
 

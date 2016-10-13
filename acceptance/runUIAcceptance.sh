@@ -236,5 +236,5 @@ docker run --rm --name ui_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.0 \
+    -t zenoss/capybara:1.1.1 \
     ${CMD}
