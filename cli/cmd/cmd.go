@@ -181,7 +181,7 @@ func (c *ServicedCli) Run(args []string) {
 // NOTE: Neither this routine, nor the methods it calls, can use glog to report problems.
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-	options := getRuntimeOptions(ctx)
+	options := getRuntimeOptions(c.config, ctx)
 	if err := api.ValidateCommonOptions(options); err != nil {
 		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
@@ -254,7 +254,7 @@ func (c *ServicedCli) exit(code int) error {
 
 // Get all runtime options as a combination of default values, environment variable settings and
 // command line overrides.
-func getRuntimeOptions(ctx *cli.Context) config.Options {
+func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options {
 	options := config.Options{
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
@@ -326,10 +326,10 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
 	// zendev, we need to double-check the environment variables for Master/Agent after all option
 	// initialization has been done
-	if os.Getenv("SERVICED_MASTER") == "1" {
+	if cfg.StringVal("MASTER", "") == "1" {
 		options.Master = true
 	}
-	if os.Getenv("SERVICED_AGENT") == "1" {
+	if cfg.StringVal("AGENT", "") == "1" {
 		options.Agent = true
 	}
 	if options.Master {
@@ -344,7 +344,7 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 
 	options.Endpoint = getEndpoint(options)
 
-	if os.Getenv("SERVICED_MUX_DISABLE_TLS") == "1" {
+	if cfg.StringVal("MUX_DISABLE_TLS", "") == "1" {
 		options.MuxDisableTLS = true
 	}
 
