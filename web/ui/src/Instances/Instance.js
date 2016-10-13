@@ -20,6 +20,9 @@
                 RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
             };
 
+            // the instance model data comes in with health and
+            // memory stats, so use that to do an initial instace
+            // status update
             this.updateState({
                 HealthStatus: instance.HealthStatus,
                 MemoryUsage: instance.MemoryUsage
@@ -30,11 +33,11 @@
             return this.resources.RAMLast < this.resources.RAMCommitment;
         }
 
+        // update fast-moving instance state
         updateState(status) {
             this.resources.RAMAverage = Math.max(0, status.MemoryUsage.Avg);
             this.resources.RAMLast = Math.max(0, status.MemoryUsage.Cur);
             this.resources.RAMMax = Math.max(0, status.MemoryUsage.Max);
-            // console.log(`Setting health property on instance`);
             this.healthChecks = status.HealthStatus;
         }
 
