@@ -25,6 +25,9 @@ var (
 	_ jwt.Claims = &jwtIdentity{}
 )
 
+// At sets a fake time, executes the provided
+// function, then restores the default time getter,
+// making it possible to test time-sensitive stuff
 func At(t time.Time, f func()) {
 	defer func() {
 		jwt.TimeFunc = time.Now

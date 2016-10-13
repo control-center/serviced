@@ -75,4 +75,6 @@ acceptance/dockerImage/reporter/dependency-reduced-pom.xml
 acceptance/dockerImage/reporter/target
 acceptance/ui/output
 acceptance/mockAgent/mockAgent
+acceptance/api/features/common
+acceptance/features/steps/*_steps.rb
 

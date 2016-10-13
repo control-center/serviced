@@ -6,8 +6,13 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification", "instancesFactory", "servicesFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification, instancesFactory, servicesFactory){
+    controlplane.controller("HostDetailsController", [
+    "$scope", "$routeParams", "$location", "resourcesFactory", "authService",
+    "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification",
+    "instancesFactory", "servicesFactory", "$interval",
+    function($scope, $routeParams, $location, resourcesFactory, authService,
+    $modalService, $translate, utils, hostsFactory, $notification,
+    instancesFactory, servicesFactory, $interval){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -158,6 +163,42 @@
             });
         };
 
+        // TODO - move this to Host.js when v2 stuff drops
+        // provide a way for hostIcon to get statuses
+        $scope.getHostStatus = function(id){
+            if($scope.hostStatuses){
+                return $scope.hostStatuses[id];
+            }
+        };
+        $scope.getHostStatusClass = function(host){
+            if(!host){
+                return "unknown";
+            }
+
+            let status = $scope.getHostStatus(host.id);
+
+            // stuff hasnt loaded, so unknown
+            if(!status){
+                return "unknown";
+            }
+
+            let active = status.Active,
+                authed = status.Authenticated;
+
+            // connected and authenticated
+            if(active && authed){
+                return "passed";
+
+            // connected but not yet authenticated
+            } else if(active && !authed){
+                // TODO - something more clearly related to auth
+                return "unknown";
+
+            // not connected
+            } else {
+                return "failed";
+            }
+        };
 
         init();
 
@@ -185,6 +226,19 @@
                 }
             };
 
+            // TODO - remove this and consolidate with v2
+            // status polling
+            $scope.hostStatusInterval = $interval(() => {
+                resourcesFactory.getHostStatuses()
+                    .then(data => {
+                        let statuses = {};
+                        data.forEach(s => statuses[s.HostID] = s);
+                        $scope.hostStatuses = statuses;
+                    }, err => {
+                        console.log("err", err); 
+                    });
+            }, 3000);
+
             // kick off hostsFactory updating
             // TODO - update loop here
             hostsFactory.update()
@@ -198,6 +252,7 @@
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
             servicesFactory.deactivate();
+            $interval.cancel($scope.hostStatusInterval);
         });
     }]);
 })();

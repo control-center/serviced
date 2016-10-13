@@ -69,6 +69,12 @@
                 method: GET,
                 url: id => `/api/v2/pools/${id}/hosts`
             },
+            // TODO - MOVE THIS WHEN THE V2 API
+            // OBJECT IS IN!
+            getHostStatuses: {
+                method: GET,
+                url: id => `/api/v2/hoststatuses`
+            },
             addVHost: {
                 method: PUT,
                 url: (serviceID, serviceName, endpointName, vhostName) => {

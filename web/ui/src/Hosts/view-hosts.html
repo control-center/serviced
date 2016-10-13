@@ -17,9 +17,8 @@
           {{host.name}}
           <div class="overcomIndicator" ng-class="{'bad': !host.resourcesGood()}" title="This host's resources are oversubscribed."></div>
       </td>
-      <td data-title="'label_active'|translate" sortable="'active'" style="text-align:center;">
-        <div ng-if="host.active" class="passed" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
-        <div ng-if="!host.active" class="failed" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
+      <td data-title="'label_active'|translate" sortable="'active'" class="host-stat-cell" style="text-align:center; position: relative;">
+          <host-icon data-get-host-status="getHostStatus" data-host="host"></host-icon>
       </td>
       <td data-title="'label_pool_name'|translate" sortable="'model.PoolID'" ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
       <td data-title="'label_host_memory'|translate" sortable="'model.Memory'">{{host.model.Memory | toGB}}</td>

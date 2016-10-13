@@ -291,6 +291,18 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 	return f.generateDelegateKey(ctx, &value)
 }
 
+// SetHostExpiration sets a host's auth token
+// expiration time in the HostExpirationRegistry
+func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
+	f.hostRegistry.Set(hostid, expiration)
+}
+
+// RemoveHostExpiration removes a host from the
+// HostExpirationRegistry
+func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
+	f.hostRegistry.Remove(hostid)
+}
+
 // GetHosts returns a list of all registered hosts
 func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
@@ -349,6 +361,46 @@ func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]ho
 	}
 
 	return toReadHosts(hosts), nil
+}
+
+// GetHostStatuses returns the memory usage and whether or not a host is active
+func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error) {
+	if hostIDs == nil {
+		return []host.HostStatus{}, nil
+	}
+
+	statuses := []host.HostStatus{}
+	for _, id := range hostIDs {
+		h, err := f.GetHost(ctx, id)
+		if err != nil {
+			continue
+		}
+
+		status := host.HostStatus{HostID: id, MemoryUsage: service.Usage{}}
+		active, err := f.zzk.IsHostActive(h.PoolID, h.ID)
+		if err != nil {
+			continue
+		}
+		status.Active = active
+
+		expired, _ := f.hostRegistry.IsExpired(h.ID)
+		status.Authenticated = !expired
+
+		instances, err := f.GetHostInstances(ctx, since, id)
+		if err != nil {
+			continue
+		}
+
+		for _, i := range instances {
+			status.MemoryUsage.Cur += i.MemoryUsage.Cur
+			status.MemoryUsage.Max += i.MemoryUsage.Max
+			status.MemoryUsage.Avg += i.MemoryUsage.Avg
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
 }
 
 func toReadHosts(hosts []host.Host) []host.ReadHost {

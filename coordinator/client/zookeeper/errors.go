@@ -51,6 +51,8 @@ func xlateError(err error) error {
 		return client.ErrSessionMoved
 	case zklib.ErrNoServer:
 		return client.ErrNoServer
+	case zklib.ErrAPIError:
+		return client.ErrAPIError
 	}
 	return err
 }
