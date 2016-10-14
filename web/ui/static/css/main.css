@@ -1421,9 +1421,14 @@ input[type=file] {
     height: auto;
 }
 
+/* give tree-expansion cells more room for their expansion buttons */
+.jelly-treetable tbody tr > td:first-child {
+    padding: 0 0 0 8px;
+}
+
 .table-collapse {
     font-size: 8px;
-    padding: 0px 3px 3px 3px;
+    padding: 6px 13px 12px 0;
     vertical-align: middle;
     cursor: pointer;
 }
@@ -1590,6 +1595,18 @@ input[type=file] {
 
 .modal .big .CodeMirror {
     height: 500px;
+}
+
+.modal .CodeMirror {
+    background: transparent;
+}
+
+.modal-context {
+    margin-top: 2rem;
+}
+
+.modal-mckracken {
+  margin-bottom: -50%;
 }
 
 /* sticky service controls */
