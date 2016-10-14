@@ -43,11 +43,11 @@
                 //add service endpoint data
                 $scope.exportedServiceEndpoints = {};
 
-                $scope.click_pool = function (id) {
+                $scope.clickPool = function (id) {
                     resourcesFactory.routeToPool(id);
                 };
 
-                $scope.click_host = function (id) {
+                $scope.clickHost = function (id) {
                     resourcesFactory.routeToHost(id);
                 };
 
@@ -63,7 +63,7 @@
                     // default public endpoint options
                     $scope.publicEndpoints.add = {
                         type: "port",
-                        app_ep: $scope.currentService.exportedServiceEndpoints[0],
+                        endpoint: $scope.currentService.exportedServiceEndpoints[0],
                         name: "",
                         host: $scope.defaultHostAlias,
                         port: "",
@@ -155,7 +155,7 @@
 
                         validate: function (newPublicEndpoint) {
                             // if no service endpoint selected
-                            if (!newPublicEndpoint.app_ep) {
+                            if (!newPublicEndpoint.endpoint) {
                                 this.createNotification("Unable to add Public Endpoint", "No service endpoint selected").error();
                                 return false;
                             }
@@ -187,9 +187,9 @@
 
 
                 $scope.addPublicEndpoint = function (newPublicEndpoint) {
-                    var serviceId = newPublicEndpoint.app_ep.ServiceID;
-                    var serviceName = newPublicEndpoint.app_ep.ServiceName;
-                    var serviceEndpoint = newPublicEndpoint.app_ep.Application;
+                    var serviceId = newPublicEndpoint.endpoint.ServiceID;
+                    var serviceName = newPublicEndpoint.endpoint.ServiceName;
+                    var serviceEndpoint = newPublicEndpoint.endpoint.Application;
                     if (newPublicEndpoint.type === "vhost") {
                         var vhostName = newPublicEndpoint.name;
                         return resourcesFactory.addVHost(serviceId, serviceName, serviceEndpoint, vhostName);

@@ -105,8 +105,8 @@
                     <a href="#/services/{{ip.ServiceID}}" class="link" ng-click="routeToService(ip.ServiceID, $event)">{{ip.ServiceName}}</a>
                 </td>
                 <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.Type}}</td>
-                <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="click_host(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
-                <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
+                <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="clickHost(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
+                <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="clickPool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
                 <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddress}}:{{ip.Port}}</td>
                 <td data-title="'actions'|translate">
                     <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action">
@@ -207,7 +207,7 @@
                     <span ng-show="instance.resources.RAMCommitment===0">N/A</span>
                     <span ng-show="instance.resources.RAMCommitment!==0" ng-class="{'bad': !instance.resourcesGood()}" class="overcomText">{{instance.resources.RAMLast|toMB:true}} / {{instance.resources.RAMMax|toMB:true}} / {{instance.resources.RAMAverage|toMB:true}} MB</span>
                 </td>
-                <td data-title="'host'|translate" sortable="'getHostName(instance.model.HostID)'" ng-click="click_host(instance.model.HostID)" class="link">{{getHostName(instance.model.HostID)}}</td>
+                <td data-title="'host'|translate" sortable="'getHostName(instance.model.HostID)'" ng-click="clickHost(instance.model.HostID)" class="link">{{getHostName(instance.model.HostID)}}</td>
                 <td data-title="'running_tbl_docker_id'|translate" sortable="'instance.model.ContainerID'">{{instance.model.ContainerID|cut:false:12:"..."}}</td>
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="viewLog(instance)" class="btn btn-link action">
