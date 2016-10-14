@@ -83,6 +83,8 @@ type FacadeInterface interface {
 
 	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
+	RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error
+
 	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
 
 	RemoveHostExpiration(ctx datastore.Context, hostID string)

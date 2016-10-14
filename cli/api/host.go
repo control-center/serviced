@@ -171,7 +171,7 @@ func (a *api) RegisterHost(keydata []byte) error {
 }
 
 func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte) error {
-	return auth.RegisterRemoteHost(h.ID, keyData)
+	return auth.RegisterRemoteHost(h.ID, h.IPAddr, keyData)
 }
 
 // Output a delegate key file to a given location on disk

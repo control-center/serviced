@@ -56,9 +56,6 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	return f.addHost(ctx, entity)
 }
 
-func (f *Facade) addAndRegisterHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
-}
-
 func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
@@ -292,6 +289,12 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 		return nil, err
 	}
 	return f.generateDelegateKey(ctx, &value)
+}
+
+// RegisterHost attempts to register a host's keys over ssh, or locally if it's
+// the current host.
+func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error {
+	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys)
 }
 
 // SetHostExpiration sets a host's auth token
