@@ -75,9 +75,20 @@ def getTableValue(valueOrTableUrl)
   end
 end
 
-
-
 printf "Setting up acceptance test env\n"
+
+output_dir = ENV["OUTPUT_DIR"]
+if output_dir.nil? || output_dir.empty?
+  printf "ERROR: OUTPUT_DIR is not defined; check cucumber.yml"
+  exit 1
+end
+
+if Dir.exists?(output_dir)
+  FileUtils.rm_rf(output_dir)
+end
+
+FileUtils.mkdir_p(output_dir)
+printf "Using output directory=%s\n", output_dir
 
 printf "Using app_host=%s\n", ENV["APPLICATION_URL"]
 printf "Using userid=%s\n", ENV["APPLICATION_USERID"]
