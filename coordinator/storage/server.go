@@ -21,7 +21,12 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
+)
+
+var (
+	zkStorageClientsPath = "/storage/clients"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -71,10 +76,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		conn.CreateDir("/storage/leader")
 	}
 
-	storageClientsPath := "/storage/clients"
-
-	if exists, _ := conn.Exists(storageClientsPath); !exists {
-		conn.CreateDir(storageClientsPath)
+	if exists, _ := conn.Exists(zkStorageClientsPath); !exists {
+		conn.CreateDir(zkStorageClientsPath)
 	}
 
 	leader, err := conn.NewLeader("/storage/leader")
@@ -95,7 +98,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	done := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
-		clients, clientW, err := conn.ChildrenW(storageClientsPath, done)
+		clients, clientW, err := conn.ChildrenW(zkStorageClientsPath, done)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err
@@ -120,4 +123,57 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		close(done)
 		done = make(chan struct{})
 	}
+}
+
+func updateDfsClientInTransaction(tx client.Transaction, client *host.Host, delete bool) {
+	if delete {
+		tx.Delete(client.IPAddr)
+	} else {
+		node := &Node{
+			Host:    *client,
+			version: nil,
+		}
+		tx.Create(client.IPAddr, node)
+	}
+}
+
+func updateDfsClients(clients []host.Host, delete bool) error {
+	// Get a connection to /storage/clients
+	conn, err := zzk.GetLocalConnection(zkStorageClientsPath)
+	if err != nil {
+		return err
+	}
+	// Get current dfs clients and put them in a map
+	currentClients, err := conn.Children("")
+	if err != nil {
+		return err
+	}
+	currentClientsMap := make(map[string]bool)
+	for _, c := range currentClients {
+		currentClientsMap[c] = true
+	}
+	// Create a transaction
+	tx := conn.NewTransaction()
+	// Update clients
+	for _, c := range clients {
+		_, exists := currentClientsMap[c.IPAddr]
+		if delete && exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		} else if !delete && !exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func UnregisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, true)
+}
+
+func RegisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, false)
 }

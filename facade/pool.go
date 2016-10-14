@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -151,6 +152,28 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 		return err
 	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
+	}
+
+	// Update dfs permissions of the hosts that belong to the pool if
+	// the pool's dfs permissions have changed
+	if entity.HasDfsAccess() != current.HasDfsAccess() {
+		dfsClients, err := f.FindHostsInPool(ctx, entity.ID)
+		if err != nil {
+			msg := "Error retrieving hosts belonging to pool"
+			plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+		}
+		var clientsError error
+		if entity.HasDfsAccess() { // Enable dfs access
+			plog.WithField("poolID", entity.ID).Debug("DFS Access enabled for pool")
+			clientsError = storage.RegisterDfsClients(dfsClients...)
+		} else { // Disable dfs access
+			plog.WithField("poolID", entity.ID).Debug("DFS Access disabled for pool")
+			clientsError = storage.UnregisterDfsClients(dfsClients...)
+		}
+		if clientsError != nil {
+			msg := "Could not update dfs clients in zk after changing pool permissions"
+			plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+		}
 	}
 
 	return nil
