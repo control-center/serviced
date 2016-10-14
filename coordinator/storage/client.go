@@ -32,13 +32,15 @@ import (
 
 type nfsMountT func(string, string) error
 
-var nfsMount = nfs.Mount
-var nfsUnmount = nfs.Unmount
-var mkdirAll = os.MkdirAll
-var storageClient *Client
-var mp = utils.GetDefaultMountProc()
-
-var ErrClientNotInitialized = errors.New("storage client not initialized")
+var (
+	nfsMount                = nfs.Mount
+	nfsUnmount              = nfs.Unmount
+	mkdirAll                = os.MkdirAll
+	storageClient           *Client
+	mp                      = utils.GetDefaultMountProc()
+	ErrClientNotInitialized = errors.New("storage client not initialized")
+	zkStoragePath           = "/storage/clients"
+)
 
 // Client is a storage client that manges discovering and mounting filesystems
 type Client struct {
@@ -140,7 +142,7 @@ func (c *Client) loop() {
 
 	var doneC chan<- string
 	var leader client.Leader
-	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
+	nodePath := fmt.Sprintf("%s/%s", zkStoragePath, node.IPAddr)
 
 	doneW := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&doneW)
@@ -259,5 +261,23 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 	}
 
 	glog.V(4).Infof("updated node %s: %+v", nodePath, node)
+	return nil
+}
+
+func UnregisterStorageClient(clientIp string) error {
+	conn, err := zzk.GetLocalConnection(zkStoragePath)
+	if err != nil {
+		return err
+	}
+	exists, err := conn.Exists(clientIp)
+	if err != nil {
+		return err
+	}
+	if exists {
+		err = conn.Delete(clientIp)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

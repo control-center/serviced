@@ -768,10 +768,17 @@ func (d *daemon) startAgent() error {
 			"zkpath": poolPath,
 		}).Info("Established pool-based connection to ZooKeeper")
 
-		if !delegateHasDFSAccess() {
-			log.Debug("Did not mount the distributed filesystem. Delegate does not have DFS permissions")
-		} else if options.NFSClient == "0" {
-			log.Debug("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
+		if !delegateHasDFSAccess() || options.NFSClient == "0" {
+			if options.NFSClient == "0" {
+				log.Debug("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
+			} else {
+				log.Debug("Did not mount the distributed filesystem. Delegate does not have DFS permissions")
+			}
+			err := storage.UnregisterStorageClient(thisHost.IPAddr)
+			if err != nil {
+				msg := fmt.Sprintf("Error unregistering %s as dfs client", thisHost.IPAddr)
+				log.WithError(err).WithField("client", thisHost.IPAddr).Info(msg)
+			}
 		} else {
 			log := log.WithFields(logrus.Fields{
 				"path": options.VolumesPath,
