@@ -30,7 +30,7 @@ describe('serviceHealth', function() {
             name: "mockservice" + id,
             desiredState: STOPPED,
             instances: [],
-            fetchInstances: () => {}
+            fetchInstances: function(){}
         };
     }
     function createMockInstance(serviceID){
