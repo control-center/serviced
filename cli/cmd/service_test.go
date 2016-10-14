@@ -675,8 +675,8 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID
 	//
 	// OPTIONS:
-	//    --auto-launch        Recursively schedules child services
-	//    --sync, -s           Schedules services synchronously
+	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -718,8 +718,8 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//    serviced service restart { SERVICEID | INSTANCEID }
 	//
 	// OPTIONS:
-	//    --auto-launch        Recursively schedules child services
-	//    --sync, -s           Schedules services synchronously
+	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
@@ -769,8 +769,8 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//    serviced service stop SERVICEID
 	//
 	// OPTIONS:
-	//    --auto-launch        Recursively schedules child services
-	//    --sync, -s           Schedules services synchronously
+	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
