@@ -21,7 +21,7 @@
         // of permissions
         $scope.permissions = POOL_PERMISSIONS;
 
-        $scope.click_pool = function(id) {
+        $scope.clickPool = function(id) {
             resourcesFactory.routeToPool(id);
         };
 

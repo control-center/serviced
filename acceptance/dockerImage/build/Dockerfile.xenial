@@ -32,6 +32,7 @@ RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
 RUN /bin/bash -lc "gem install site_prism -v 2.8"
 RUN /bin/bash -lc "gem install headless -v 2.2.2"
 RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
+RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
@@ -66,7 +67,7 @@ RUN rm -rf /usr/local/share/firefox-44.0.tar.bz2
 # Install chromedriver that selenium needs to work with chrome
 # (from https://devblog.supportbee.com/2014/10/27/setting-up-cucumber-to-run-with-Chrome-on-Linux/)
 #
-RUN wget -N http://chromedriver.storage.googleapis.com/2.21/chromedriver_linux64.zip -P /tmp
+RUN wget -N http://chromedriver.storage.googleapis.com/2.24/chromedriver_linux64.zip -P /tmp
 RUN unzip /tmp/chromedriver_linux64.zip -d /tmp
 RUN mv /tmp/chromedriver /usr/bin
 RUN chmod +x /usr/bin/chromedriver

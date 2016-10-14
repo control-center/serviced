@@ -1,0 +1,24 @@
+{
+  "pools":
+  {
+    "pool1": {
+      "ID": "testPool1",
+      "Description": "test pool"
+    },
+
+    "pool2": {
+      "ID": "testPool2",
+      "Description": "another pool"
+    },
+
+    "pool3": {
+      "ID": "testPool3",
+      "Description": "yet another pool"
+    },
+
+    "pool4": {
+      "ID": "testPool4",
+      "Description": "still yet another pool"
+    }
+  }
+}

@@ -115,6 +115,9 @@ func (c *ThinPoolCreate) Execute(args []string) error {
 	}
 
 	logger.WithField("thinpool", thinPoolName).Info("Created thin pool")
+
+	// Output to stdout for scriptability
+	fmt.Println(thinPoolName)
 	return nil
 }
 
