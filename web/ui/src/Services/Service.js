@@ -65,7 +65,7 @@
             this.desiredState = model.DesiredState;
             this.model = Object.freeze(model);
             this.evaluateServiceType();
-            this.touch();   
+            this.touch();
         }
 
         evaluateServiceType() {
@@ -141,9 +141,18 @@
         fetchInstances() {
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
-                .then(data => {
-                    // TODO - dont blow away existing instances
-                    this.instances = data.map(i => new Instance(i));
+                .then(results => {
+                    // console.log(`fetched ${data.length} instances for ${this.id}`);
+                    results.forEach(data => {
+                        let iid = data.InstanceID;
+                        if (this.instances[iid]) {
+                            this.instances[iid].update(data);
+                        } else {
+                            this.instances[iid] = new Instance(data);
+                        }
+                    });
+                    // chop off any extraneous instances
+                    this.instances.splice(results.length);
                     deferred.resolve();
                 },
                 error => {

@@ -12,20 +12,23 @@
 
     class Instance {
 
-        constructor(instance) {
-            this.model = Object.freeze(instance);
-            this.id = buildStateId(this.model.HostID, this.model.ServiceID, this.model.InstanceID);
+        constructor(data) {
+            this.model = Object.freeze(data);
+            this.update(data);
+        }
 
-            this.resources = {
-                RAMCommitment: utils.parseEngineeringNotation(instance.RAMCommitment)
-            };
-
+        update(data) {
             // the instance model data comes in with health and
             // memory stats, so use that to do an initial instace
             // status update
+            this.model = Object.freeze(data);
+            this.id = buildStateId(this.model.HostID, this.model.ServiceID, this.model.InstanceID);
+            this.resources = {
+                RAMCommitment: utils.parseEngineeringNotation(data.RAMCommitment)
+            };
             this.updateState({
-                HealthStatus: instance.HealthStatus,
-                MemoryUsage: instance.MemoryUsage
+                HealthStatus: data.HealthStatus,
+                MemoryUsage: data.MemoryUsage
             });
         }
 
