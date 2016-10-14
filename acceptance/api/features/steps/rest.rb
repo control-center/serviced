@@ -13,8 +13,8 @@ When(/^I send a (GET|POST|PATCH|PUT|DELETE) request from file "(.*?)" to CC at "
 end
 
 def make_request(method, path, body)
-    host = ENV["APPLICATION_URL"]
-    url = %$https://#{host}#{path}$
+    hosturl = ENV["APPLICATION_URL"]
+    url = %$#{hosturl}#{path}$
     request_url = URI.encode resolve(url)
     @body = body
     if 'GET' == %/#{method}/ and $cache.has_key? %/#{request_url}/
