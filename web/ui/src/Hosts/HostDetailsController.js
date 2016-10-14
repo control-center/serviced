@@ -133,16 +133,16 @@
             scope.host = $scope.currentHost;
 
             $modalService.create({
-                template: `<p>Do you want to immediately invalidate ${$scope.currentHost.name}'s authentication keys and generate a new key pair? Services running on the host will not be able to create authenticated connections until the new keys are registered on ${$scope.currentHost.name} using <span class="inline-code">serviced host register</span>.</p>`,
+                template: $translate.instant("reset_host_keys", {name: $scope.currentHost.name}),
                 model: scope,
-                title: $translate.instant("Reset Host Keys"),
+                title: $translate.instant("title_reset_host_keys"),
                 actions: [
                     {
                         role: "cancel"
                     },{
                         role: "ok",
                         classes: "submit btn-primary",
-                        label: "Reset Keys",
+                        label: $translate.instant("btn_reset_keys"),
                         action: function(){
                             // disable ok button, and store the re-enable function
                             let enableSubmit = this.disableSubmitButton();
@@ -235,7 +235,7 @@
                         data.forEach(s => statuses[s.HostID] = s);
                         $scope.hostStatuses = statuses;
                     }, err => {
-                        console.log("err", err); 
+                        console.log("err", err);
                     });
             }, 3000);
 

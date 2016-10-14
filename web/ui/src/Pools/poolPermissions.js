@@ -4,11 +4,11 @@
     controlplane.constant("POOL_PERMISSIONS", [
         {
             label: "Admin",
-            description: "Allow hosts to start, stop and restart services",
+            description: "admin_permissions",
             position: 1 << 0
         },{
             label: "DFS",
-            description: "Allow hosts to read and write to the DFS",
+            description: "dfs_permissions",
             position: 1 << 1
         }
     ]);
