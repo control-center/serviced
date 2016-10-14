@@ -167,6 +167,7 @@ func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
 			*args.Get(2).(*host.Host) = h
 		})
 	ft.zzk.On("RemoveHost", &h).Return(nil)
+	ft.zzk.On("UnregisterDfsClients", []host.Host{h}).Return(nil)
 	ft.hostkeyStore.On("Delete", ft.ctx, h.ID).Return(nil)
 	ft.hostStore.On("Delete", ft.ctx, host.HostKey(h.ID)).Return(nil)
 
