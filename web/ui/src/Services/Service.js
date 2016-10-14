@@ -142,12 +142,15 @@
             let deferred = $q.defer();
             resourcesFactory.v2.getServiceInstances(this.id)
                 .then(results => {
-                    // console.log(`fetched ${data.length} instances for ${this.id}`);
                     results.forEach(data => {
+                        // new-ing instances will cause UI bounce and force rebuilding
+                        // of the popover. To minimize UI churn, update/merge status info
+                        // into exisiting instance objects  
                         let iid = data.InstanceID;
                         if (this.instances[iid]) {
                             this.instances[iid].update(data);
                         } else {
+                            // add into the proper instance slot here
                             this.instances[iid] = new Instance(data);
                         }
                     });

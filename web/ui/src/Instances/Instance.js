@@ -17,14 +17,14 @@
         }
 
         update(data) {
-            // the instance model data comes in with health and
-            // memory stats, so use that to do an initial instace
-            // status update
             this.model = Object.freeze(data);
             this.id = buildStateId(this.model.HostID, this.model.ServiceID, this.model.InstanceID);
             this.resources = {
                 RAMCommitment: utils.parseEngineeringNotation(data.RAMCommitment)
             };
+            // the instance model data comes in with health and
+            // memory stats, so use that to do an initial instace
+            // status update
             this.updateState({
                 HealthStatus: data.HealthStatus,
                 MemoryUsage: data.MemoryUsage
