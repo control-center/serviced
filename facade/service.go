@@ -1130,8 +1130,10 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		"tenantid":     tenantID,
 		"serviceid":    serviceID,
 		"desiredstate": desiredState,
+		"autolaunch":   autoLaunch,
+		"synchronous":  synchronous,
 	})
-	logger.Debug("Started Facade.ScheduleService")
+	logger.Info("Started Facade.ScheduleService")
 
 	// Build a list of services to be scheduled
 	svcs := []service.Service{}
@@ -1161,6 +1163,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	var affected int
 
 	if synchronous {
+		logger.Info("Scheduling services synchronously")
 		// Schedule the services synchronously, calculating the number of affected services as we go
 		affected := 0
 		for _, svc := range svcs {
@@ -1178,6 +1181,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			affected++
 		}
 	} else {
+		logger.Info("Scheduling services asynchronously")
 		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
 		affected = len(svcs)
 		go func() {

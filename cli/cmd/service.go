@@ -158,8 +158,8 @@ func (c *ServicedCli) initService() {
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
 					},
-					cli.BoolTFlag{
-						Name:  "sync",
+					cli.BoolFlag{
+						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
 				},
@@ -174,8 +174,8 @@ func (c *ServicedCli) initService() {
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
 					},
-					cli.BoolTFlag{
-						Name:  "sync",
+					cli.BoolFlag{
+						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
 				},
@@ -190,8 +190,8 @@ func (c *ServicedCli) initService() {
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
 					},
-					cli.BoolTFlag{
-						Name:  "sync",
+					cli.BoolFlag{
+						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
 				},
