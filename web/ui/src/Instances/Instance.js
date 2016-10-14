@@ -13,7 +13,6 @@
     class Instance {
 
         constructor(data) {
-            this.model = Object.freeze(data);
             this.update(data);
         }
 
