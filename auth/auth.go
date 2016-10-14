@@ -60,6 +60,8 @@ var (
 	ErrBadRestToken = errors.New("Invalid rest token")
 	// ErrRestTokenBadSig is thrown when a rest token has a bad signature
 	ErrRestTokenBadSig = errors.New("Rest token signature cannot be verified")
+	// ErrSSHFailed is thrown when we can't ssh to a remote host to register keys
+	ErrSSHFailed = errors.New("Unable to make an ssh connection to host")
 
 	log    = logging.PackageLogger()
 	endian = binary.BigEndian

@@ -448,6 +448,7 @@ type addHostRequest struct {
 type addHostResponse struct {
 	simpleResponse
 	PrivateKey string
+	Registered bool
 }
 
 //restAddHost adds a Host. Request input is host.Host
@@ -511,7 +512,13 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 	glog.V(0).Info("Added host ", host.ID)
-	w.WriteJson(&addHostResponse{simpleResponse{"Added host", hostLinks(host.ID)}, string(privateKey[:])})
+	var registered bool
+	if err := facade.RegisterHostKeys(dataCtx, host, privateKey[:]); err != nil {
+		glog.V(2).Infof("Unable to register keys for host %s automatically (%s)", host.ID, err)
+	} else {
+		registered = true
+	}
+	w.WriteJson(&addHostResponse{simpleResponse{"Added host", hostLinks(host.ID)}, string(privateKey[:]), registered})
 }
 
 //restUpdateHost updates a host. Request input is host.Host
@@ -588,7 +595,7 @@ func restResetHostKey(w *rest.ResponseWriter, r *rest.Request, ctx *requestConte
 		return
 	}
 	glog.V(0).Info("Reset host key for ", hostID)
-	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:])})
+	w.WriteJson(&addHostResponse{simpleResponse{"Reset host-key", hostLinks(hostID)}, string(key[:]), false})
 }
 
 func buildHostMonitoringProfile(host *host.Host) error {

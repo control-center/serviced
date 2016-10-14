@@ -20,13 +20,8 @@
 package config
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
-	"github.com/control-center/serviced/rpc/rpcutils"
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/logri"
@@ -136,29 +131,4 @@ func LoadOptions(ops Options) {
 		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
 	}
-}
-
-// Validate options which are common to all CLI commands
-func ValidateCommonOptions(opts Options) error {
-	var err error
-
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
-	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(opts.RPCDisableTLS)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
-	}
-
-	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
-		return fmt.Errorf("error validating UI port: %s", err)
-	}
-
-	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
-	if err := validation.IsSubnetCIDR(opts.VirtualAddressSubnet); err != nil {
-		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
-	}
-
-	return nil
 }
