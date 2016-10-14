@@ -189,7 +189,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	config.LoadOptions(options)
 
 	// Set logging options
-	if err := setLogging(ctx); err != nil {
+	if err := setLogging(&options, ctx); err != nil {
 		fmt.Printf("Unable to set logging options: %s\n", err)
 	}
 
@@ -348,6 +348,24 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		options.MuxDisableTLS = true
 	}
 
+	// Set the logging configuration filename.
+	// This is handled in a non-standard way for two reasons:
+	// 1) It needs to be set by an environment variable, but not a CLI flag.  This
+	//    is so we don't add too many arcane arguemtns to the CLI.
+	// 2) The default value differs depending on whther we are running a server or
+	//    CLI command.
+	logConfigPath := cfg.StringVal("LOG_CONFIG", "")
+	if logConfigPath == "" {
+		var filename string
+		if ctx.Args().First() == "server" {
+			filename = "logconfig-server.yaml"
+		} else {
+			filename = "logconfig-cli.yaml"
+		}
+		logConfigPath = filepath.Join(options.EtcPath, filename)
+	}
+	options.LogConfigFilename = logConfigPath
+
 	return options
 }
 
@@ -376,16 +394,16 @@ func getEndpoint(options config.Options) string {
 	return endpoint
 }
 
-func setLogging(ctx *cli.Context) error {
+func setLogging(options *config.Options, ctx *cli.Context) error {
 	// Rather than immediately returning from the function on error, keep track
 	// of the errors and continue.  This allows us to process all arguments,
 	// start watchers, etc.
 	var errors []error
 
-	if ctx.Args().First() != "server" {
-		logrus.SetLevel(logrus.WarnLevel)
-		logri.SetLevel(logrus.WarnLevel)
+	if err := logri.ApplyConfigFromFile(options.LogConfigFilename); err != nil {
+		errors = append(errors, err)
 	}
+	go logri.WatchConfigFile(options.LogConfigFilename)
 
 	// Set glog verbosity.  Map the glog verbosity level onto logrus levels as best
 	// we can, so that the verbosity for both can be controlled with a single argument.
