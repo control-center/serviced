@@ -387,16 +387,22 @@ func setLogging(ctx *cli.Context) error {
 		logri.SetLevel(logrus.WarnLevel)
 	}
 
+	// Set glog verbosity.  Map the glog verbosity level onto logrus levels as best
+	// we can, so that the verbosity for both can be controlled with a single argument.
+	if ctx.IsSet("v") {
+		verbosity := ctx.GlobalInt("v")
+		glog.SetVerbosity(verbosity)
+		level := logrus.DebugLevel - logrus.Level(verbosity)
+		logrus.SetLevel(level)
+		logri.SetLevel(level)
+	}
+
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
 
 	if ctx.IsSet("alsologtostderr") {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
-	}
-
-	if ctx.IsSet("v") {
-		glog.SetVerbosity(ctx.GlobalInt("v"))
 	}
 
 	if ctx.IsSet("stderrthreshold") {
@@ -424,15 +430,19 @@ func setLogging(ctx *cli.Context) error {
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {
 			<-signalChan
-			log.Debug("Received signal to toggle logging")
+			verbosity := 0
+			level := logrus.DebugLevel
 			if glog.GetVerbosity() == 0 {
-				glog.SetVerbosity(2)
-			} else {
-				glog.SetVerbosity(0)
+				verbosity = 2
+				level = logrus.InfoLevel
 			}
+			glog.SetVerbosity(verbosity)
+			logrus.SetLevel(level)
+			logri.SetLevel(level)
 			log.WithFields(logrus.Fields{
-				"level": glog.GetVerbosity(),
-			}).Info("Changed glog logging level")
+				"glog-verbosity": verbosity,
+				"logrus-level":   level,
+			}).Info("Changed logging level")
 		}
 	}()
 
