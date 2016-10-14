@@ -30,6 +30,7 @@ add_to_etc_hosts
 
 start_serviced             && succeed "Serviced started within timeout"    || fail "serviced failed to start within $START_TIMEOUT seconds."
 
+cd ${DIR}/acceptance
 # launch cucumber/capybara with colorized output disabled for better readability in Jenkins
 CUCUMBER_OPTS=--no-color ./runAPIacceptance.sh -a https://${HOSTNAME} $*
 
