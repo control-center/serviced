@@ -675,8 +675,9 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID
 	//
 	// OPTIONS:
-	//    --auto-launch	Recursively schedules child services
-	//    --sync            Schedules services synchronously
+	//    --auto-launch        Recursively schedules child services
+	//    --sync               Schedules services synchronously
+
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
