@@ -51,7 +51,7 @@
 
                                 resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
-                                        $modalService.modals.displayHostKeys(data.PrivateKey, $scope.newHost.host);
+                                        $modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, $scope.newHost.host);
                                         update();
                                     }.bind(this))
                                     .error(function(data, status){
