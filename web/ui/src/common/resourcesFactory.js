@@ -312,6 +312,88 @@
             }
         };
 
+        var v2MethodConfigs = {
+            getService: {
+                method: GET,
+                url: id => `/api/v2/services/${id}`,
+            },
+            updateService: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}`,
+                payload: (id, service) => service
+            },
+            getServiceAncestors: {
+                method: GET,
+                url: id => `/api/v2/services/${id}?ancestors`,
+            },
+            getServiceChildren: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/services`,
+            },
+            getServiceConfig: {
+                method: GET,
+                url: id => `/api/v2/serviceconfigs/${id}`,
+            },
+            updateServiceConfig: {
+                method: PUT,
+                url: (id) => `/api/v2/serviceconfigs/${id}`,
+                payload: (id, cfg) => {return JSON.stringify({
+                    'Filename':    cfg.Filename, 
+                    'Owner':       cfg.Owner, 
+                    'Permissions': cfg.Permissions, 
+                    'Content':     cfg.Content
+                });}
+            },
+            getServiceConfigs: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/serviceconfigs`,
+            },
+            getServiceContext: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/context`,
+            },
+            updateServiceContext: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}/context`,
+                payload: (id, ctx) => ctx
+            },
+            getServiceInstances: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/instances`,
+                ignorePending: true
+            },
+            getServiceIpAssignments: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/ipassignments?includeChildren`,
+            },
+            getServiceMonitoringProfile: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/monitoringprofile`,
+            },
+            getServicePublicEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
+            },
+            getServiceExportEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/exportendpoints?includeChildren`,
+            },
+            getServices: {
+                method: GET,
+                url: since => `/api/v2/services${ since ? "?since="+ since : ""}`,
+            },
+            getServiceStatus: {
+                method: GET,
+                url: id => `/api/v2/statuses?serviceId=${id}`,
+                ignorePending: true
+            },
+            getServiceStatuses: {
+                method: GET,
+                url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
+                ignorePending: true
+            }
+        };
+
         // adds success and error functions
         // to regular promise ala $http
         function httpify(deferred){
@@ -394,7 +476,7 @@
                 });
 
                 // NOTE: only limits GET requests
-                if(method === GET){
+                if(method === GET && !config.ignorePending){
                     pendingGETRequests[resourceName] = deferred;
                 }
 
@@ -457,6 +539,13 @@
         // to interface
         for(var name in methodConfigs){
             resourcesFactoryInterface[name] = generateMethod(methodConfigs[name]);
+        }
+
+        // generate Version 2 API methods and attach
+        // to interface
+        resourcesFactoryInterface.v2 = {};
+        for(var name in v2MethodConfigs){
+            resourcesFactoryInterface.v2[name] = generateMethod(v2MethodConfigs[name]);
         }
 
         return resourcesFactoryInterface;
