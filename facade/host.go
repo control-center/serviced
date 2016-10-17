@@ -247,6 +247,12 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		}
 	}
 
+	// unregister host as dfs client
+	err = f.zzk.UnregisterDfsClients(*_host)
+	if err != nil {
+		glog.Warningf("Could not disable dfs for deleted host %s: %s", _host.ID, err)
+	}
+
 	return nil
 }
 
