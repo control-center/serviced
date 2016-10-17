@@ -19,6 +19,7 @@
             },
             link: function ($scope, element, attrs){
                 let publicEndpoint = $scope.publicEndpoint;
+                let hostAlias = $scope.hostAlias;
 
                 // A method to return the displayed URL for an endpoint.
                 var getUrl = function(publicEndpoint){
@@ -27,14 +28,15 @@
                     if ("VHostName" in publicEndpoint){
                         var port = $location.port() === "" || +$location.port() === 443 ? "" : ":" + $location.port();
                         var host = publicEndpoint.VHostName.indexOf('.') === -1 ?
-                            publicEndpoint.VHostName + ".{{hostAlias}}" : publicEndpoint.VHostName;
+                          `${publicEndpoint.VHostName}.${hostAlias}`:
+                          publicEndpoint.VHostName;
                         url = $location.protocol() + "://" + host + port;
                     } else if ("PortAddress" in publicEndpoint){
                         // Port public endpoint
                         var portAddress = publicEndpoint.PortAddress;
                         var protocol = publicEndpoint.Protocol.toLowerCase();
                         if(portAddress.startsWith(":")){
-                            portAddress = "{{hostAlias}}" + portAddress;
+                            portAddress = `${hostAlias}${portAddress}`;
                         }
                         // Remove the port for standard http/https ports.
                         if(protocol !== "") {
@@ -47,17 +49,17 @@
                             url = protocol + "://" + portAddress;
                         } else {
                             url = portAddress;
-                        }                
+                        }
                     }
                     return url;
                 };
-                                                                                
+
                 var isServiceRunning = function(id){
                     // when Service created public endpoints, it attached
                     // its own desiredState to the public endpoint
                     return publicEndpoint.desiredState === 1;
                 };
-                
+
                 var addPopover = function(element, translation){
                     // Set the popup with the content data.
                     element.popover({
@@ -65,45 +67,55 @@
                         placement: "top",
                         delay: 0,
                         content: $translate.instant(translation),
-                    });                    
+                    });
                 };
-                
-                var url = getUrl(publicEndpoint);
-                var html = "";
-                var popover = false;
 
-                // If we have a ServiceID, this is a subservice.
-                if ("ServiceID" in publicEndpoint){
-                    // Check the service and endpoint and..
-                    if (!isServiceRunning(publicEndpoint.ServiceID) || !publicEndpoint.Enabled) {
-                        // .. show the url as a url label (not clickable) with a bootstrap popover..
-                        html = '<span><b>' + url + '</b></span>';
-                        popover = true;
-                    } else if (publicEndpoint.Protocol !== '') {
-                        // ..or show the url as a clickable link.
-                        html = '<a target="_blank" class="link" href="' + url + '">' + url + '</a>';
-                    } else {
-                        // ..or just show the host:port for the port endpoint.
-                        html = '<span>' + url + '</span>';
-                    }
-                } else {
-                    // This is a top level application.  Check the state and..
-                    if (+$scope.state !== 1 || !publicEndpoint.Enabled){
-                        // .. show the url as a label with a bootstrap popover..
-                        html = '<span>' + url + '</span>';
-                        popover = true;
-                    } else {
-                        // ..or show the url as a clickable link.
-                        html = '<a target="_blank" class="link" href="' + url + '">' + url + '</a>';
-                    }
+                function updateVhostLink() {
+                  var url = getUrl(publicEndpoint, $scope),
+                      html = "",
+                      popover = false;
+                  // If we have a ServiceID, this is a subservice.
+                  if ("ServiceID" in publicEndpoint){
+                      // Check the service and endpoint and..
+                      if (!isServiceRunning(publicEndpoint) || !publicEndpoint.Enabled) {
+                          // .. show the url as a url label (not clickable) with a bootstrap popover..
+                          html = `<span><b>${url}</b></span>`;
+                          popover = true;
+                      } else if (publicEndpoint.Protocol !== '') {
+                          // ..or show the url as a clickable link.
+                          html = `<a target="_blank" class="link" href="${url}">${url}</a>`;
+                      } else {
+                          // ..or just show the host:port for the port endpoint.
+                          html = `<span>${url}</span>`;
+                      }
+                  } else {
+                      // This is a top level application.  Check the state and..
+                      if (+$scope.state !== 1 || !publicEndpoint.Enabled){
+                          // .. show the url as a label with a bootstrap popover..
+                          html = `<span>${url}</span>`;
+                          popover = true;
+                      } else {
+                          // ..or show the url as a clickable link.
+                          html = `<a target="_blank" class="link" href="${url}">${url}</a>`;
+                      }
+                  }
+
+                  // Replace the element's html with our new hot content
+                  element.html(html);
+
+                  // Either set or unset the popover on the element
+                  if (popover){
+                    addPopover(element, "vhost_unavailable");
+                  } else if (element.popover) {
+                    element.popover('destroy');
+                  }
                 }
-                
-                // Compile the element.
-                var el =$compile(html)($scope);
-                if (popover){
-                    addPopover(el, "vhost_unavailable");
-                }
-                element.replaceWith(el);
+
+                // TODO: Use a controller for this garbage
+                // Register a watcher to update the link when desiredState changes
+                $scope.$watch("publicEndpoint.desiredState", function(newVal, oldVal){
+                  updateVhostLink();
+                });
             }
         };
     }]);
