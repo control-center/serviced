@@ -362,7 +362,7 @@ func restGetServiceExportedEndpoints(w *rest.ResponseWriter, r *rest.Request, ct
 	w.WriteJson(&addrs)
 }
 
-func restGetDescendantStatus(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+func restCountDescendantStates(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
@@ -374,7 +374,7 @@ func restGetDescendantStatus(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 	fac := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
 
-	status, err := fac.GetDescendantStatus(dataCtx, serviceID)
+	status, err := fac.CountDescendantStates(dataCtx, serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get descendant status: %s", err)
 		restServerError(w, err)
