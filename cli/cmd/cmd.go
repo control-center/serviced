@@ -182,7 +182,7 @@ func (c *ServicedCli) Run(args []string) {
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(ctx)
-	if err := config.ValidateCommonOptions(options); err != nil {
+	if err := api.ValidateCommonOptions(options); err != nil {
 		fmt.Printf("Invalid option(s) found: %s\n", err)
 		return err
 	}

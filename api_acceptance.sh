@@ -30,7 +30,12 @@ add_to_etc_hosts
 
 start_serviced             && succeed "Serviced started within timeout"    || fail "serviced failed to start within $START_TIMEOUT seconds."
 
+# build/start mock agents
+cd ${DIR}
+make mockAgent
 cd ${DIR}/acceptance
+sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
+
 # launch cucumber/capybara with colorized output disabled for better readability in Jenkins
 CUCUMBER_OPTS=--no-color ./runAPIacceptance.sh -a https://${HOSTNAME} $*
 

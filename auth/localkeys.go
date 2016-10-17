@@ -14,14 +14,19 @@
 package auth
 
 import (
+	"bytes"
 	"crypto"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/utils"
 	"github.com/fsnotify/fsnotify"
 )
@@ -326,6 +331,70 @@ func WatchDelegateKeyFile(filename string, cancel <-chan interface{}) error {
 	for _ = range filechanges {
 		loadKeys()
 	}
+	return nil
+}
+
+func WriteKeyToFile(filename string, keydata []byte) error {
+	filedir := filepath.Dir(filename)
+	if err := os.MkdirAll(filedir, os.ModeDir|755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filename, keydata, 0644)
+}
+
+func RegisterLocalHost(keydata []byte) error {
+	keyfile := filepath.Join(config.GetOptions().EtcPath, DelegateKeyFileName)
+	if err := WriteKeyToFile(keyfile, keydata); err != nil {
+		return err
+	}
+	log.Info("Registered delegate keys")
+	return nil
+}
+
+func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte) error {
+	thisHostID, err := utils.HostID()
+
+	if err != nil {
+		return err
+	}
+
+	if thisHostID == hostID {
+		// Hey, we aren't remote at all
+		return RegisterLocalHost(keydata)
+	}
+
+	log := log.WithField("hostid", hostID)
+
+	var args []string
+
+	// Force an ssh connection timeout
+	args = append(args, "-o", "ConnectTimeout=10")
+
+	if !logrus.IsTerminal() {
+		// Disable asking for passphrase or password
+		args = append(args, "-o", "BatchMode=yes")
+		// Don't hang on asking to add the fingerprint
+		args = append(args, "-o", "StrictHostKeyChecking=no")
+	}
+
+	// Address to which we will ssh (the IP address used to register the
+	// host, which is the best we have)
+	args = append(args, hostIPAddr)
+
+	// Add the command to run on the remote side, which will read keys from stdin
+	args = append(args, "--", "serviced", "host", "register", "-")
+
+	log.WithField("command", fmt.Sprintf("/usr/bin/ssh %s", strings.Join(args, " "))).Debug("Registering delegate keys via ssh")
+	cmd := exec.Command("/usr/bin/ssh", args...)
+
+	// Send the key data through the pipe
+	cmd.Stdin = bytes.NewReader(keydata)
+
+	if err := cmd.Run(); err != nil {
+		log.WithError(err).Debug("Delegate key registration via SSH failed")
+		return ErrSSHFailed
+	}
+	log.Info("Registered delegate keys via SSH")
 	return nil
 }
 
