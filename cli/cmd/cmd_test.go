@@ -92,7 +92,7 @@ type APITest struct {
 }
 
 func InitAPITest(args ...string) {
-	New(DefaultAPITest, utils.TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultAPITest, utils.TestConfigReader(map[string]string{}), MockLogControl{}).Run(args)
 }
 
 func (t APITest) StartServer() error {
@@ -113,6 +113,8 @@ func ExampleServicedCLI_CmdInit_logging() {
 	// starting server
 }
 
+/*
+TODO: move this function into a different test suite
 func ExampleServicedCLI_CmdInit_logerr() {
 	InitAPITest("serviced", "--master", "--stderrthreshold", "abc", "--allow-loop-back=true", "server")
 	InitAPITest("serviced", "--agent", "--endpoint", "5.6.7.8:4979", "--vmodule", "abc", "server")
@@ -126,3 +128,4 @@ func ExampleServicedCLI_CmdInit_logerr() {
 	// Unable to set logging options: syntax error: expect file.go:234
 	// starting server
 }
+*/

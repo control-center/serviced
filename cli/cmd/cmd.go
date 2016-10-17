@@ -34,8 +34,6 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/logri"
 )
 
 var (
@@ -47,20 +45,22 @@ type ServicedCli struct {
 	driver       api.API
 	app          *cli.App
 	config       utils.ConfigReader
+	logControl   logging.LogControl
 	exitDisabled bool
 }
 
 // New instantiates a new command-line client
-func New(driver api.API, config utils.ConfigReader) *ServicedCli {
+func New(driver api.API, config utils.ConfigReader, logControl logging.LogControl) *ServicedCli {
 	if config == nil {
 		log.Fatal("Missing configuration data")
 	}
 	defaultOps := api.GetDefaultOptions(config)
 
 	c := &ServicedCli{
-		driver: driver,
-		app:    cli.NewApp(),
-		config: config,
+		driver:     driver,
+		app:        cli.NewApp(),
+		config:     config,
+		logControl: logControl,
 	}
 
 	c.app.Name = "serviced"
@@ -189,7 +189,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	config.LoadOptions(options)
 
 	// Set logging options
-	if err := setLogging(&options, ctx); err != nil {
+	if err := setLogging(&options, ctx, c.logControl); err != nil {
 		fmt.Printf("Unable to set logging options: %s\n", err)
 	}
 
@@ -394,48 +394,46 @@ func getEndpoint(options config.Options) string {
 	return endpoint
 }
 
-func setLogging(options *config.Options, ctx *cli.Context) error {
+func setLogging(options *config.Options, ctx *cli.Context, logControl logging.LogControl) error {
 	// Rather than immediately returning from the function on error, keep track
 	// of the errors and continue.  This allows us to process all arguments,
 	// start watchers, etc.
 	var errors []error
 
-	if err := logri.ApplyConfigFromFile(options.LogConfigFilename); err != nil {
+	if err := logControl.ApplyConfigFromFile(options.LogConfigFilename); err != nil {
 		errors = append(errors, err)
 	}
-	go logri.WatchConfigFile(options.LogConfigFilename)
+	go logControl.WatchConfigFile(options.LogConfigFilename)
 
 	// Set glog verbosity.  Map the glog verbosity level onto logrus levels as best
 	// we can, so that the verbosity for both can be controlled with a single argument.
 	if ctx.IsSet("v") {
 		verbosity := ctx.GlobalInt("v")
-		glog.SetVerbosity(verbosity)
-		level := logrus.DebugLevel - logrus.Level(verbosity)
-		logrus.SetLevel(level)
-		logri.SetLevel(level)
+		logControl.SetVerbosity(verbosity)
+		logControl.SetLevel(logrus.DebugLevel - logrus.Level(verbosity))
 	}
 
 	if ctx.IsSet("logtostderr") {
-		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
+		logControl.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
 
 	if ctx.IsSet("alsologtostderr") {
-		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
+		logControl.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
 	if ctx.IsSet("stderrthreshold") {
-		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
+		if err := logControl.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
 			errors = append(errors, err)
 		}
 	}
 	if ctx.IsSet("vmodule") {
-		if err := glog.SetVModule(ctx.GlobalString("vmodule")); err != nil {
+		if err := logControl.SetVModule(ctx.GlobalString("vmodule")); err != nil {
 			errors = append(errors, err)
 		}
 	}
 
 	if ctx.IsSet("log_backtrace_at") {
-		if err := glog.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
+		if err := logControl.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
 			errors = append(errors, err)
 		}
 	}
@@ -450,13 +448,12 @@ func setLogging(options *config.Options, ctx *cli.Context) error {
 			<-signalChan
 			verbosity := 0
 			level := logrus.DebugLevel
-			if glog.GetVerbosity() == 0 {
+			if logControl.GetVerbosity() == 0 {
 				verbosity = 2
 				level = logrus.InfoLevel
 			}
-			glog.SetVerbosity(verbosity)
-			logrus.SetLevel(level)
-			logri.SetLevel(level)
+			logControl.SetVerbosity(verbosity)
+			logControl.SetLevel(level)
 			log.WithFields(logrus.Fields{
 				"glog-verbosity": verbosity,
 				"logrus-level":   level,

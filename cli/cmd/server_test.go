@@ -34,7 +34,7 @@ func (t ServerAPITest) StartServer() error {
 }
 
 func InitServerAPITest(args ...string) {
-	New(DefaultServerAPITest, utils.TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultServerAPITest, utils.TestConfigReader(map[string]string{}), MockLogControl{}).Run(args)
 }
 
 func ExampleSerivcedCLI_CmdServer_good() {
