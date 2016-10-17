@@ -324,23 +324,11 @@
                     return endpoint.VHostName ? "vhost" : "port";
                 };
 
-                // desired states to be used when counting how many descendant
-                // services will be affected by a state change
-                var serviceStateChangeTargets = {
-                    // only stopped services will be started
-                    "start": 0,
-                    // only started services will be stopped
-                    "stop": 1,
-                    // only started services will be restarted
-                    "restart": 1
-                };
-
                 // clicks to a service's start, stop, or restart
                 // button should first determine if the service has
                 // children and ask the user to choose to start all
                 // children or only the top service
                 $scope.clickRunning = function (service, state) {
-                    var targetState = serviceStateChangeTargets[state];
                     resourcesFactory.v2.getDescendantCounts(service.id)
                       .success(function (data, status) {
                         var childCount = 0;
