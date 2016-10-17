@@ -1297,7 +1297,7 @@ func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceI
 
 	var r0 map[string]map[int]int
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) map[string]map[int]int); ok {
-		r0 = rf(ctx)
+		r0 = rf(ctx, serviceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]map[int]int)
@@ -1306,7 +1306,7 @@ func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceI
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx)
+		r1 = rf(ctx, serviceID)
 	} else {
 		r1 = ret.Error(1)
 	}
