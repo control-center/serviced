@@ -159,6 +159,10 @@ func (c *ServicedCli) initService() {
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
 					},
+					cli.BoolFlag{
+						Name:  "sync, s",
+						Usage: "Schedules services synchronously",
+					},
 				},
 			}, {
 				Name:         "restart",
@@ -171,6 +175,10 @@ func (c *ServicedCli) initService() {
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
 					},
+					cli.BoolFlag{
+						Name:  "sync, s",
+						Usage: "Schedules services synchronously",
+					},
 				},
 			}, {
 				Name:         "stop",
@@ -182,6 +190,10 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{
 						Name:  "auto-launch",
 						Usage: "Recursively schedules child services",
+					},
+					cli.BoolFlag{
+						Name:  "sync, s",
+						Usage: "Schedules services synchronously",
 					},
 				},
 			}, {
@@ -1159,7 +1171,7 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already started")
@@ -1184,7 +1196,7 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 	}
 
 	if instanceID < 0 {
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting %d service(s)\n", affected)
@@ -1213,7 +1225,7 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already stopped")

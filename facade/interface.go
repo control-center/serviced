@@ -51,7 +51,7 @@ type FacadeInterface interface {
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
+	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 

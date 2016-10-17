@@ -482,8 +482,8 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	for i, svc := range svcs {
 		if svc.DesiredState != int(service.SVCStop) {
 			if force {
-				defer f.scheduleService(ctx, info.TenantID, svc.ID, false, service.DesiredState(svc.DesiredState), true)
-				if _, err := f.scheduleService(ctx, info.TenantID, svc.ID, false, service.SVCStop, true); err != nil {
+				defer f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true)
+				if _, err := f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.SVCStop, true); err != nil {
 					glog.Errorf("Could not %s service %s (%s): %s", service.SVCStop, svc.Name, svc.ID, err)
 					return err
 				}
@@ -537,8 +537,8 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	serviceids := make([]string, len(svcs))
 	for i, svc := range svcs {
 		if svc.DesiredState == int(service.SVCRun) {
-			defer f.scheduleService(ctx, tenantID, svc.ID, false, service.DesiredState(svc.DesiredState), true)
-			if _, err := f.scheduleService(ctx, tenantID, svc.ID, false, service.SVCPause, true); err != nil {
+			defer f.scheduleService(ctx, tenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true)
+			if _, err := f.scheduleService(ctx, tenantID, svc.ID, false, true, service.SVCPause, true); err != nil {
 				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
 				return "", err
 			}

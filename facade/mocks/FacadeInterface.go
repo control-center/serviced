@@ -170,19 +170,19 @@ func (_m *FacadeInterface) RemoveService(ctx datastore.Context, id string) error
 
 	return r0
 }
-func (_m *FacadeInterface) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
-	ret := _m.Called(ctx, serviceID, autoLaunch, desiredState)
+func (_m *FacadeInterface) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error) {
+	ret := _m.Called(ctx, serviceID, autoLaunch, synchronous, desiredState)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool, service.DesiredState) int); ok {
-		r0 = rf(ctx, serviceID, autoLaunch, desiredState)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool, bool, service.DesiredState) int); ok {
+		r0 = rf(ctx, serviceID, autoLaunch, synchronous, desiredState)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool, service.DesiredState) error); ok {
-		r1 = rf(ctx, serviceID, autoLaunch, desiredState)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool, bool, service.DesiredState) error); ok {
+		r1 = rf(ctx, serviceID, autoLaunch, synchronous, desiredState)
 	} else {
 		r1 = ret.Error(1)
 	}

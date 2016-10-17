@@ -538,7 +538,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error restarting service: %s", err)
 		restServerError(w, err)
 		return
@@ -565,7 +565,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error starting service: %s", err)
 		restServerError(w, err)
 		return
@@ -592,7 +592,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 	}
 
 	var affected int
-	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error stopping service: %s", err)
 		restServerError(w, err)
 		return
