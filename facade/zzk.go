@@ -55,4 +55,6 @@ type ZZK interface {
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
 	GetServiceNodes() ([]zkservice.ServiceNode, error)
+	RegisterDfsClients(clients ...host.Host) error
+	UnregisterDfsClients(clients ...host.Host) error
 }

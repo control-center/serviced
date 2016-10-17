@@ -24,6 +24,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
+var (
+	ZkStorageClientsPath = "/storage/clients"
+)
+
 // Server manages the exporting of a file system to clients.
 type Server struct {
 	host   *host.Host
@@ -71,10 +75,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		conn.CreateDir("/storage/leader")
 	}
 
-	storageClientsPath := "/storage/clients"
-
-	if exists, _ := conn.Exists(storageClientsPath); !exists {
-		conn.CreateDir(storageClientsPath)
+	if exists, _ := conn.Exists(ZkStorageClientsPath); !exists {
+		conn.CreateDir(ZkStorageClientsPath)
 	}
 
 	leader, err := conn.NewLeader("/storage/leader")
@@ -95,7 +97,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	done := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&done)
 	for {
-		clients, clientW, err := conn.ChildrenW(storageClientsPath, done)
+		clients, clientW, err := conn.ChildrenW(ZkStorageClientsPath, done)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err

@@ -493,3 +493,27 @@ func (_m *ZZK) GetServiceNodes() ([]zkservice.ServiceNode, error) {
 
 	return r0, r1
 }
+func (_m *ZZK) RegisterDfsClients(clients ...host.Host) error {
+	ret := _m.Called(clients)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(...host.Host) error); ok {
+		r0 = rf(clients...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) UnregisterDfsClients(clients ...host.Host) error {
+	ret := _m.Called(clients)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(...host.Host) error); ok {
+		r0 = rf(clients...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
