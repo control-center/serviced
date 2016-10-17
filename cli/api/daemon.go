@@ -613,15 +613,6 @@ func createMuxListener() net.Listener {
 	return listener
 }
 
-// Check if the pool the agent belongs to is allowed to access the DFS
-func delegateHasDFSAccess() bool {
-	identity := auth.CurrentIdentity()
-	if identity == nil {
-		return false
-	}
-	return identity.HasDFSAccess()
-}
-
 func (d *daemon) startAgent() error {
 	options := config.GetOptions()
 	muxListener := createMuxListener()
@@ -768,7 +759,7 @@ func (d *daemon) startAgent() error {
 			"zkpath": poolPath,
 		}).Info("Established pool-based connection to ZooKeeper")
 
-		if !delegateHasDFSAccess() {
+		if !auth.HasDFSAccess() {
 			log.Debug("Did not mount the distributed filesystem. Delegate does not have DFS permissions")
 		} else if options.NFSClient == "0" {
 			log.Debug("Did not mount the distributed filesystem, since SERVICED_NFS_CLIENT is disabled on this host")
