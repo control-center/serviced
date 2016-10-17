@@ -394,12 +394,12 @@
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {
                     if ($scope.getEndpointType(publicEndpoint) === "vhost") {
-                        resourcesFactory.enableVHost(publicEndpoint.ApplicationId, newPublicEndpoint.Application, newPublicEndpoint.ServiceEndpoint, newPublicEndpoint.Name)
+                        resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
                     } else if ($scope.getEndpointType(publicEndpoint) === "port") {
-                        resourcesFactory.enablePort(publicEndpoint.ApplicationId, newPublicEndpoint.Application, newPublicEndpoint.ServiceEndpoint, newPublicEndpoint.PortAddr)
+                        resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
