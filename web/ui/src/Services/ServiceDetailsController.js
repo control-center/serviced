@@ -324,15 +324,15 @@
                     return endpoint.VHostName ? "vhost" : "port";
                 };
 
-                // filters to be used when counting how many descendent
+                // desired states to be used when counting how many descendant
                 // services will be affected by a state change
-                var serviceStateChangeFilters = {
+                var serviceStateChangeTargets = {
                     // only stopped services will be started
-                    "start": service => service.desiredState === 0,
+                    "start": 0,
                     // only started services will be stopped
-                    "stop": service => service.desiredState === 1,
+                    "stop": 1,
                     // only started services will be restarted
-                    "restart": service => service.desiredState === 1
+                    "restart": 1
                 };
 
                 // clicks to a service's start, stop, or restart
@@ -340,18 +340,23 @@
                 // children and ask the user to choose to start all
                 // children or only the top service
                 $scope.clickRunning = function (service, state) {
-                    var filterFn = serviceStateChangeFilters[state];
-                    var childCount = utils.countTheKids(service, filterFn);
-
-                    // if the service has affected children, check if the user
-                    // wants to start just the service, or the service and children
-                    if (childCount > 0) {
-                        $scope.modal_confirmSetServiceState(service, state, childCount);
-
-                        // if no children, just start the service
-                    } else {
-                        $scope.setServiceState(service, state);
-                    }
+                    var targetState = serviceStateChangeTargets[state];
+                    resourcesFactory.v2.getDescendantCounts(service.id)
+                      .success(function (data, status) {
+                        var childCount = data.auto[targetState] || 0;
+                        if (childCount > 0) {
+                            // if the service has affected children, check if the user
+                            // wants to start just the service, or the service and children
+                            $scope.modal_confirmSetServiceState(service, state, childCount);
+                        } else {
+                            // if no children, just start the service
+                            $scope.setServiceState(service, state);
+                        }
+                      }.bind(this))
+                      .error(function (data, status) {
+                          console.log("unable to obtain descendant counts");
+                          $scope.modal_confirmSetServiceState(service, state, "unknown");
+                      }.bind(this));
                 };
 
                 // verifies if use wants to start parent service, or parent

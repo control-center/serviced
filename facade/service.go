@@ -2084,6 +2084,14 @@ func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.Public
 func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
 	result := make(map[string]map[int]int)
 	f.walkServices(ctx, serviceID, true, func(svc *service.Service) error {
+		if svc.ID == serviceID {
+			// Ignore the parent service
+			return nil
+		}
+		if svc.Startup == "" {
+			// Ignore folder services
+			return nil
+		}
 		m, ok := result[svc.Launch]
 		if !ok {
 			m = make(map[int]int)
