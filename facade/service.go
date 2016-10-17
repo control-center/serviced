@@ -2076,3 +2076,21 @@ func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.Public
 
 	return pubs
 }
+
+// CountDescendantStates returns the count of descendants of a service in terms
+// of their Launch (auto/manual) and their DesiredState. This is primarily for
+// use by the UI, so that it can know how many descendants a start/stop action
+// will affect.
+func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
+	result := make(map[string]map[int]int)
+	f.walkServices(ctx, serviceID, true, func(svc *service.Service) error {
+		m, ok := result[svc.Launch]
+		if !ok {
+			m = make(map[int]int)
+			result[svc.Launch] = m
+		}
+		m[svc.DesiredState]++
+		return nil
+	}, "descendantStatus")
+	return result, nil
+}
