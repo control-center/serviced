@@ -33,7 +33,7 @@ import (
 var plog = logging.PackageLogger()
 
 var (
-	ErrNoAuthenticatedHosts = errors.New("No authenticated hosts found")
+	ErrNoAuthenticatedHosts = errors.New("no authenticated hosts found")
 )
 
 type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)

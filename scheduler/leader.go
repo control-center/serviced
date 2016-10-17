@@ -92,7 +92,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	// filter out hosts that have not been authenticated
 	hosts := []host.Host{}
 	for _, h := range reghosts {
-		hlogger := logger.WithField("HostID", h.ID)
+		hlogger := logger.WithField("hostid", h.ID)
 		isAuthenticated, err := l.facade.HostIsAuthenticated(datastore.Get(), h.ID)
 		if err != nil {
 			hlogger.WithError(err).Debug("Unable to check if host is authenticated")
