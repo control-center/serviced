@@ -21,7 +21,9 @@ import (
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs/ttl"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
@@ -75,16 +77,35 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	})
 
 	plog.Debug("Looking for available hosts in resource pool")
-	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
+	reghosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get available hosts from resource pool")
 		return "", err
 	}
 
 	// if no hosts are returned, then a shutdown has been triggered
-	if len(hosts) == 0 {
+	if len(reghosts) == 0 {
 		plog.Debug("Scheduler is shutting down")
 		return "", errors.New("scheduler is shutting down")
+	}
+
+	// filter out hosts that have not been authenticated
+	hosts := []host.Host{}
+	for _, h := range reghosts {
+		hlogger := logger.WithField("HostID", h.ID)
+		isAuthenticated, err := l.facade.HostIsAuthenticated(datastore.Get(), h.ID)
+		if err != nil {
+			hlogger.WithError(err).Debug("Unable to check if host is authenticated")
+		} else if !isAuthenticated {
+			hlogger.Debug("Host not authenticated")
+		} else {
+			hosts = append(hosts, h)
+		}
+	}
+
+	//  Are there any hosts left?
+	if len(hosts) == 0 {
+		return "", ErrNoAuthenticatedHosts
 	}
 
 	assignment := sn.AddressAssignment
@@ -117,7 +138,7 @@ func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 			}
 		}
 
-		logger.WithField("hostid", hostID).Warn("Could not assign service to ip address.  Check to see if host is running or reassign ips")
+		logger.WithField("hostid", hostID).Warn("Could not assign service to ip address.  Check to see if host is running and registered or reassign ips")
 		return "", errors.New("assigned ip is not available")
 	}
 
