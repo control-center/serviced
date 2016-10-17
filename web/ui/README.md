@@ -55,7 +55,7 @@ make sure you have build tools (for native npm modules)
 
 install a few global npm packages
 
-    sudo npm install gulp jshint 6to5
+    sudo npm install --global gulp jshint 6to5
 
 navigate to the `web/ui` directory and remove `node_modules` if present
 
@@ -65,7 +65,7 @@ install CC UI dev dependencies
 
     npm install
 
-use our local npm repo by adding the following line to your `$HOME/.nmprc`:
+use our local npm repo by adding the following line to your `$HOME/.npmrc`:
 
     registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
 
