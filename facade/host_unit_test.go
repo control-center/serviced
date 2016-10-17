@@ -162,6 +162,9 @@ func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
 	// The return value is a public/private key package
 	_, _, err = auth.LoadRSAKeyPairPackage(result)
 	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
 }
 
 func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
@@ -209,6 +212,9 @@ func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
 	// The return value is a public/private key package
 	_, _, err = auth.LoadRSAKeyPairPackage(result)
 	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
 }
 
 func (ft *FacadeUnitTest) Test_HostIsAuthenticated(c *C) {

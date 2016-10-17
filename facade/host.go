@@ -138,6 +138,9 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 		return nil, err
 	}
 
+	// Reset the host's "authenticated" status
+	f.RemoveHostExpiration(ctx, entity.ID)
+
 	// Concatenate and return keys
 	delegatePEMBlock := append(privatePEM, masterPEM...)
 	return delegatePEMBlock, nil

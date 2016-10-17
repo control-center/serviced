@@ -98,6 +98,8 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 	ft.hostauthregistry = &authmocks.HostExpirationRegistryInterface{}
 	ft.Facade.SetHostExpirationRegistry(ft.hostauthregistry)
 
+	ft.hostauthregistry.On("Remove", mock.AnythingOfType("string")).Return()
+
 	ft.ctx.On("Metrics").Return(metrics.NewMetrics())
 }
 
