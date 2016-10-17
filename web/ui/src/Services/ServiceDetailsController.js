@@ -343,7 +343,28 @@
                     var targetState = serviceStateChangeTargets[state];
                     resourcesFactory.v2.getDescendantCounts(service.id)
                       .success(function (data, status) {
-                        var childCount = data.auto[targetState] || 0;
+                        var childCount = 0;
+                        switch (state) {
+                          case "start":
+                            // When starting, we only care about autostart
+                            // services that are currently stopped
+                            if (data.auto) {
+                              childCount += data.auto["0"] || 0;
+                            }
+                            break;
+                          case "restart":
+                          case "stop":
+                            // When stopping or restarting, we care about
+                            // running services that are either manual or
+                            // autostart
+                            if (data.auto) {
+                              childCount += data.auto["1"] || 0;
+                            }
+                            if (data.manual) {
+                              childCount += data.manual["1"] || 0;
+                            }
+                            break;
+                        }
                         if (childCount > 0) {
                             // if the service has affected children, check if the user
                             // wants to start just the service, or the service and children
