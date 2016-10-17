@@ -29,6 +29,12 @@ var (
 	ErrMissingHost = errors.New("Host is not present in host expiration registry")
 )
 
+type HostExpirationRegistryInterface interface {
+	Set(string, int64)
+	Remove(string)
+	IsExpired(string) (bool, error)
+}
+
 // HostExpirationRegistry is a threadsafe map of
 // host id to auth expiration time. NOTE: expired hosts
 // are not removed from the registry

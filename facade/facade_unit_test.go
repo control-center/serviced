@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/auth"
+	authmocks "github.com/control-center/serviced/auth/mocks"
 	datastoremocks "github.com/control-center/serviced/datastore/mocks"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	hostmocks "github.com/control-center/serviced/domain/host/mocks"
@@ -38,18 +39,19 @@ import (
 var _ = Suite(&FacadeUnitTest{})
 
 type FacadeUnitTest struct {
-	Facade        *facade.Facade
-	ctx           *datastoremocks.Context
-	zzk           *zzkmocks.ZZK
-	dfs           *dfsmocks.DFS
-	hostStore     *hostmocks.Store
-	poolStore     *poolmocks.Store
-	hostkeyStore  *keymocks.Store
-	registryStore *registrymocks.ImageRegistryStore
-	serviceStore  *servicemocks.Store
-	configStore   *configmocks.Store
-	templateStore *templatemocks.Store
-	metricsClient *zzkmocks.MetricsClient
+	Facade           *facade.Facade
+	ctx              *datastoremocks.Context
+	zzk              *zzkmocks.ZZK
+	dfs              *dfsmocks.DFS
+	hostStore        *hostmocks.Store
+	poolStore        *poolmocks.Store
+	hostkeyStore     *keymocks.Store
+	registryStore    *registrymocks.ImageRegistryStore
+	serviceStore     *servicemocks.Store
+	configStore      *configmocks.Store
+	templateStore    *templatemocks.Store
+	metricsClient    *zzkmocks.MetricsClient
+	hostauthregistry *authmocks.HostExpirationRegistryInterface
 }
 
 func (ft *FacadeUnitTest) SetUpSuite(c *C) {
@@ -92,6 +94,9 @@ func (ft *FacadeUnitTest) SetUpTest(c *C) {
 
 	ft.metricsClient = &zzkmocks.MetricsClient{}
 	ft.Facade.SetMetricsClient(ft.metricsClient)
+
+	ft.hostauthregistry = &authmocks.HostExpirationRegistryInterface{}
+	ft.Facade.SetHostExpirationRegistry(ft.hostauthregistry)
 
 	ft.ctx.On("Metrics").Return(metrics.NewMetrics())
 }

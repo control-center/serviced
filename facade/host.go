@@ -315,6 +315,16 @@ func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
 	f.hostRegistry.Remove(hostid)
 }
 
+// HostIsAuthenticated checks whether a host has authenticated and has an unexpired
+//  token
+func (f *Facade) HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error) {
+	isExpired, err := f.hostRegistry.IsExpired(hostid)
+	if err != nil {
+		return false, err
+	}
+	return !isExpired, nil
+}
+
 // GetHosts returns a list of all registered hosts
 func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
