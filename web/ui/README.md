@@ -41,6 +41,41 @@ The three primary make targets are `build`, `test`, and `clean`. All of these ta
 action on the Javascript code. Developers who want to build/test/clean _only_ the Go code or _only_ the Javascript code should use the native build tools for those languages directly rather than make. For Javascript, the primary build tool is [gulp](http://gulpjs.com/).
 
 ### Installing dev tools locally
+
+Do these things and then you'll be able to develop the CC UI app supes fast!
+
+install nodejs 6
+
+    curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+
+make sure you have build tools (for native npm modules)
+
+    sudo apt-get install -y build-essential
+
+install a few global npm packages
+
+    sudo npm install gulp jshint 6to5
+
+navigate to the `web/ui` directory and remove `node_modules` if present
+
+    rm -rf node_modules
+
+install CC UI dev dependencies
+
+    npm install
+
+use our local npm repo by adding the following line to your `$HOME/.nmprc`:
+
+    registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
+
+And now you're all set to develop the CC UI app locally. The previous steps are all (mostly) one-time setup. To develop the web app, open either Chrome (recommended) or Firefox's dev tools, make sure caching is off (you should be able to specifically disable caching when dev tools is open), and run the following in a terminal:
+
+    gulp && gulp watch
+
+Now whenever changes are made to the source html, css, or js, the web app will be rebuilt on the fly. Refresh the page in the browser and you will see your changes right away. Boom! Now learn to use Chrome's dev tools! They're amazing!
+
+### Installing dev tools locally - the longer version
 It is recommended (but not required) that developers working on the UI code install the Javascript build tools directly.
 The makefile will not use the Docker container `zenoss/serviced-build` if it finds [Node.js](http://nodejs.org)
 on the user's path. Therefore, bypassing the Docker container will speed up your local builds a little bit.
@@ -52,7 +87,6 @@ registry = http://nexus.zendev.org:8081/nexus/content/repositories/npm
 This will direct NPM to pull artifacts from the Zenoss-local NPM repo on our
 [Nexus server](http://www.sonatype.com/nexus-repository-sonatype) -
 http://nexus.zendev.org:8081/nexus/#view-repositories
-
 
 Regardless of whether you are using the `zenoss/serviced-build` container or installing the tools locally, the tool chain for UI builds is divided into two parts:
   * pre-requisite tools
@@ -69,6 +103,7 @@ Once the pre-requisite build tools are installed, all other components of the JS
 
 **NOTE:** npm will cache everything it downloads in `serviced/web/ui/node_modules`.  In the unlikely event, you encounter a problem with
 incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
+
 
 ### Updating dev tool versions
 To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.
