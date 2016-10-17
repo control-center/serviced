@@ -142,6 +142,8 @@
 
                                         $scope.addPublicEndpoint(newPublicEndpoint)
                                             .success(function (data, status) {
+                                                // reload the table
+                                                refreshEndpoints();
                                                 $notification.create("Added public endpoint").success();
                                                 this.close();
                                             }.bind(this))
@@ -294,7 +296,7 @@
                 };
 
                 $scope.publicEndpointProtocol = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         return "https";
                     } else {
                         if (publicEndpoint.Protocol !== "") {
@@ -391,12 +393,12 @@
 
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
-                    } else if (publicEndpoint.type === "port") {
+                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
                         resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
@@ -406,12 +408,12 @@
 
 
                 $scope.clickEndpointDisable = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
                             });
-                    } else if (publicEndpoint.type === "port") {
+                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
                         resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
@@ -509,7 +511,7 @@
 
                     $modalService.create({
                         template: $translate.instant("remove_public_endpoint") + ": <strong>" +
-                        (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong><br><br>",
+                        (publicEndpoint.ServiceName ? publicEndpoint.ServiceName : "port " + publicEndpoint.PortAddress) + "</strong><br><br>",
                         model: $scope,
                         title: "remove_public_endpoint",
                         actions: [
@@ -520,19 +522,21 @@
                                 label: "remove_public_endpoint_confirm",
                                 classes: "btn-danger",
                                 action: function () {
-                                    if (publicEndpoint.type === "vhost") {
-                                        resourcesFactory.removeVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
+                                        resourcesFactory.removeVHost(publicEndpoint.ServiceID, publicEndpoint.Application, publicEndpoint.VHostName)
                                             .success(() => {
-                                                update();
-                                                $notification.create("Removed Public Endpoint", publicEndpoint.Name).success();
+                                                // reload the table
+                                                refreshEndpoints();
+                                                $notification.create("Removed Public Endpoint", publicEndpoint.Application).success();
                                             })
                                             .error((data, status) => {
                                                 $notification.create("Remove Public Endpoint failed", data.Detail).error();
                                             });
-                                    } else if (publicEndpoint.type === "port") {
-                                        resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
+                                        resourcesFactory.removePort(publicEndpoint.ServiceID, publicEndpoint.Application, publicEndpoint.PortAddress)
                                             .success(() => {
-                                                update();
+                                                // reload the table
+                                                refreshEndpoints();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
                                             })
                                             .error((data, status) => {
@@ -981,12 +985,14 @@
                         });
                 };
 
+                function refreshEndpoints() {
+                    $scope.currentService.fetchEndpoints(true);
+                }
+
                 function update() {
                     // update service model data
                     resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
-                            console.log("SET CURRENT SERVICE --------------");
-
                             $scope.currentService.update(model);
                         });
 
