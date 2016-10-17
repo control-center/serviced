@@ -9,15 +9,17 @@
     // share angular services outside of angular context
     let $notification, serviceHealth, $q, resourcesFactory, utils;
 
-    controlplane.controller("ServiceDetailsController",
-        ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
+    controlplane.controller("ServiceDetailsController", [
+            "$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
             "$timeout", "miscUtils", "hostsFactory", "$serviceHealth", "Service",
             "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
+            "$filter",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
                 $timeout, _utils, hostsFactory, _serviceHealth, Service,
-                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch) {
+                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch,
+                $filter) {
 
                 // api access via angular context
                 $notification = _$notification;
@@ -929,11 +931,12 @@
                         };
                         rows.push(rowItem);
                         if (service.subservices.length) {
-                            service.subservices.forEach(svc => flatten(svc, depth + 1));
+                            $filter('orderBy')(service.subservices, 'name')
+                                .forEach(svc => flatten(svc, depth + 1));
                         }
                     })($scope.currentService, 0);
-                    // rows[0] is always the top level service, so 
-                    // slice that off
+
+                    // rows[0] is always the top level service, so slice that off
                     $scope.currentDescendents = rows.slice(1);
                 };
 
