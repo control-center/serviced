@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/volume"
 )
@@ -100,7 +101,7 @@ func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 		driver: d,
 		tenant: getTenant(volumeName),
 	}
-	if !d.networkDisabled {
+	if !d.networkDisabled && auth.HasDFSAccess() {
 		//actual NFS mount
 		if err := mount(volumeName, volumePath); err != nil {
 			return nil, err

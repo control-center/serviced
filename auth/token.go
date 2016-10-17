@@ -119,6 +119,15 @@ func CurrentIdentity() Identity {
 	return currentIdentity
 }
 
+// Check if the current identity is allowed to access the DFS
+func HasDFSAccess() bool {
+	identity := CurrentIdentity()
+	if identity == nil {
+		return false
+	}
+	return identity.HasDFSAccess()
+}
+
 // TokenLoop accepts a function that returns an expiring token. It will then
 // periodically refresh that token, one minute before it is due to expire,
 // setting the result as the current live token, until the done channel is
