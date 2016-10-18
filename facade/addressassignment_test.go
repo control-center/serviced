@@ -125,6 +125,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 			HostName:    "h1",
 			IPAddress:   "12.27.36.45",
 			Port:        1234,
+			Application: "ep1",
 		},
 	}
 	c.Assert(addrs, DeepEquals, expected)
@@ -141,6 +142,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 		HostName:    "h1",
 		IPAddress:   "12.27.36.45",
 		Port:        2123,
+		Application: "ep2",
 	})
 	c.Assert(addrs, DeepEquals, expected)
 
