@@ -4,33 +4,145 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location",
-        "$filter", "resourcesFactory", "authService", "$modalService",
-        "$interval", "$timeout", "$translate", "$notification", "miscUtils", "hostsFactory",
-        "poolsFactory", "servicesFactory", "areUIReady",
-    function($scope, $routeParams, $location, $filter, resourcesFactory,
-    authService, $modalService, $interval, $timeout, $translate, $notification,
-    utils, hostsFactory, poolsFactory, servicesFactory, areUIReady){
-        // Ensure logged in
-        authService.checkLogin($scope);
+    class HostsController {
 
-        $scope.indent = utils.indentClass;
+        constructor($scope, $routeParams, resourcesFactory, authService,
+                    $modalService, $translate, $notification, areUIReady,
+                    $interval, servicedConfig, log, miscUtils, Host) {
 
-        $scope.resetNewHost = function(){
-            $scope.newHost = {
-                port: $translate.instant('placeholder_port')
+            authService.checkLogin(this);
+
+            this.resourcesFactory = resourcesFactory;
+            this.$modalService = $modalService;
+            this.$translate = $translate;
+            this.$notification = $notification;
+            this.areUIReady = areUIReady;
+            this.$interval = $interval;
+            this.utils = miscUtils;
+            this.params = $routeParams;
+
+            this.touch();
+
+            this.name = "hosts";
+            this.indent = this.utils.indentClass;
+            this.hostsInView = [];
+
+            this.updateFrequency = 3000;
+            servicedConfig.getConfig()
+                .then(config => {
+                    this.updateFrequency = config.PollFrequency * 1000;
+                }).catch(err => {
+                    let errMessage = err.data ? err.data.Detail : err.statusText;
+                    log.error("could not load serviced config:", errMessage);
+                });
+
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_hosts', itemClass: 'active' }
+            ];
+
+            $scope.hostsTable = {
+                sorting: {
+                    name: "asc"
+                },
+                watchExpression: () => this.lastUpdate
             };
-            if ($scope.pools && $scope.pools.length > 0){
-                $scope.newHost.PoolID = $scope.pools[0].id;
-            }
-        };
 
-        $scope.modalAddHost = function() {
-            areUIReady.lock();
-            $scope.resetNewHost();
-            $modalService.create({
+            $scope.dropped = [];
+
+            this.refreshHosts().then(() => {
+                $scope.$emit("ready");
+            },
+                error => $notification.create("Unable to load hosts.", error.Detail).error()
+            );
+
+            this.refreshPoolIds();
+
+            this.startPolling();
+
+            $scope.$on("$destroy", () => {
+                this.stopPolling();
+            });
+
+            this.updateHostsInView = this.updateHostsInView.bind(this);
+            this.getHostStatus = this.getHostStatus.bind(this);
+
+            this.newScope = () => $scope.$new(true);
+            this.newHost = data => new Host(data);
+        }
+
+        touch() {
+            this.lastUpdate = new Date().getTime();
+        }
+
+        refreshHosts() {
+            return this.resourcesFactory.v2.getHosts().then(data => {
+                this.hosts = data.map(result => this.newHost(result));
+                this.touch();
+            });
+        }
+
+        refreshPoolIds() {
+            this.resourcesFactory.v2.getPools()
+                .success(data => {
+                    this.poolIds = data.map(result => result.ID).sort();
+                })
+                .error(data => {
+                    this.$notification.create("Unable to load pools.", data.Detail).error();
+                });
+        }
+
+        refreshHostStatuses() {
+            if (!this.hostsInView || this.hostsInView.length < 1) { return; }
+
+            let ids = this.hostsInView.map(h => h.id);
+            return this.resourcesFactory.v2.getHostStatuses(ids).then(data => {
+                    let statusHash = data.reduce(function(hash, status) {
+                        hash[status.HostID] = status; return hash;
+                    }, {});
+
+                    this.hosts.forEach(h => {
+                        if (h.id in statusHash) {
+                            h.status = statusHash[h.id];
+                        }
+                    });
+                });
+        }
+
+        startPolling() {
+            if (!this.updatePromise) {
+                this.updatePromise = this.$interval(
+                    () => this.refreshHostStatuses(),
+                    this.updateFrequency
+                );
+            }
+        }
+
+        stopPolling() {
+            if (this.updatePromise) {
+                this.$interval.cancel(this.updatePromise);
+                this.updatePromise = null;
+            }
+        }
+
+        clickAddHost() {
+            let modalScope = this.newScope();
+            modalScope.resourcesFactory = this.resourcesFactory;
+            modalScope.$modalService = this.$modalService;
+            modalScope.refreshHosts = () => this.refreshHosts();
+            modalScope.utils = this.utils;
+            modalScope.$translate = this.$translate;
+            modalScope.$notification = this.$notification;
+            modalScope.poolIds = this.poolIds;
+
+            modalScope.newHost = {
+                port: this.$translate.instant('placeholder_port'),
+                PoolID: this.arrayEmpty(this.poolsIds) ? "" : this.poolIds[0]
+            };
+
+            this.areUIReady.lock();
+            this.$modalService.create({
                 templateUrl: "add-host.html",
-                model: $scope,
+                model: modalScope,
                 title: "add_host",
                 actions: [
                     {
@@ -43,20 +155,20 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
-                                if ($scope.newHost.RAMLimit === undefined || $scope.newHost.RAMLimit === '') {
-                                    $scope.newHost.RAMLimit = "100%";
+                                if (modalScope.newHost.RAMLimit === undefined || modalScope.newHost.RAMLimit === '') {
+                                    modalScope.newHost.RAMLimit = "100%";
                                 }
 
-                                $scope.newHost.IPAddr = $scope.newHost.host + ':' + $scope.newHost.port;
+                                modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
 
-                                resourcesFactory.addHost($scope.newHost)
+                                modalScope.resourcesFactory.addHost(modalScope.newHost)
                                     .success(function(data, status){
-                                        $modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, $scope.newHost.host);
-                                        update();
+                                        modalScope.$modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, modalScope.newHost.host);
+                                        modalScope.refreshHosts();
                                     }.bind(this))
                                     .error(function(data, status){
                                         // TODO - form error highlighting
-                                        this.createNotification("", data.Detail).error();
+                                        modalScope.$notification.create("", data.Detail).error();
                                         // reenable button
                                         enableSubmit();
                                     }.bind(this));
@@ -65,25 +177,32 @@
                     }
                 ],
                 validate: function(){
-                    var err = utils.validateHostName($scope.newHost.host, $translate) ||
-                        utils.validatePortNumber($scope.newHost.port, $translate) ||
-                        utils.validateRAMLimit($scope.newHost.RAMLimit);
+                    var err = modalScope.utils.validateHostName(modalScope.newHost.host, modalScope.$translate) ||
+                        modalScope.utils.validatePortNumber(modalScope.newHost.port, modalScope.$translate) ||
+                        modalScope.utils.validateRAMLimit(modalScope.newHost.RAMLimit);
                     if(err){
-                        this.createNotification("Error", err).error();
+                        modalScope.$notification.create("Error", err).error();
                         return false;
                     }
                     return true;
                 },
                 onShow: () => {
-                    areUIReady.unlock();
+                    this.areUIReady.unlock();
                 }
             });
-        };
+        }
 
-        $scope.remove_host = function(hostId) {
-            $modalService.create({
-                template: $translate.instant("confirm_remove_host") + " <strong>"+ hostsFactory.get(hostId).name +"</strong>",
-                model: $scope,
+        clickRemoveHost(id) {
+            let modalScope = this.newScope();
+            modalScope.resourcesFactory = this.resourcesFactory;
+            modalScope.refreshHosts = () => this.refreshHosts();
+            modalScope.update = this.update;
+            modalScope.$notification = this.$notification;
+
+            let hostToRemove = this.hosts.find(h => h.id === id);
+            this.$modalService.create({
+                template: this.$translate.instant("confirm_remove_host") + " <strong>" + hostToRemove.name + "</strong>",
+                model: modalScope,
                 title: "remove_host",
                 actions: [
                     {
@@ -93,132 +212,52 @@
                         label: "remove_host",
                         classes: "btn-danger",
                         action: function(){
-
-                            resourcesFactory.removeHost(hostId)
+                            modalScope.resourcesFactory.removeHost(id)
                                 .success(function(data, status) {
-                                    $notification.create("Removed host", hostId).success();
-                                    // After removing, refresh our list
-                                    update();
+                                    modalScope.$notification.create("Removed host", id).success();
+                                    modalScope.refreshHosts();
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
-                                    $notification.create("Removing host failed", data.Detail).error();
+                                    modalScope.$notification.create("Removing host failed", data.Detail).error();
                                     this.close();
                                 }.bind(this));
                         }
                     }
                 ]
             });
-        };
-
-        $scope.clickHost = function(hostId) {
-            resourcesFactory.routeToHost(hostId);
-        };
-
-        $scope.clickPool = function(poolID) {
-            resourcesFactory.routeToPool(poolID);
-        };
-
-        // TODO - move this to Host.js when v2 stuff drops
-        // provide a way for hostIcon to get statuses
-        $scope.getHostStatus = function(id){
-            if($scope.hostStatuses){
-                return $scope.hostStatuses[id];
-            }
-        };
-        $scope.getHostStatusClass = function(host){
-            let status = $scope.getHostStatus(host.id);
-
-            // stuff hasnt loaded, so unknown
-            if(!status){
-                return "unknown";
-            }
-
-            let active = status.Active,
-                authed = status.Authenticated;
-
-            // connected and authenticated
-            if(active && authed){
-                return "passed";
-
-            // connected but not yet authenticated
-            } else if(active && !authed){
-                // TODO - something more clearly related to auth
-                return "unknown";
-
-            // not connected
-            } else {
-                return "failed";
-            }
-        };
-
-
-        function update(){
-            hostsFactory.update()
-                .then(() => {
-                    $scope.hosts = hostsFactory.hostList;
-                }, () => {
-                    // wait a sec and try again
-                    $timeout(update, 1000);
-                });
-
-            poolsFactory.update()
-                .then(() => {
-                    $scope.pools = poolsFactory.poolList;
-                    $scope.resetNewHost();
-                }, () => {
-                    // wait a sec and try again
-                    $timeout(update, 1000);
-                });
         }
 
-        function init(){
-            $scope.name = "hosts";
-            $scope.params = $routeParams;
-
-            $scope.breadcrumbs = [
-                { label: 'breadcrumb_hosts', itemClass: 'active' }
-            ];
-
-            $scope.hostsTable = {
-                sorting: {
-                    name: "asc"
-                },
-                watchExpression: function(){
-                    return hostsFactory.lastUpdate;
-                }
-            };
-
-            $scope.dropped = [];
-
-            // update hosts
-            update();
-
-            // TODO - remove this and consolidate with v2
-            // status polling
-            $scope.hostStatusInterval = $interval(() => {
-                resourcesFactory.getHostStatuses()
-                    .then(data => {
-                        let statuses = {};
-                        data.forEach(s => statuses[s.HostID] = s);
-                        $scope.hostStatuses = statuses;
-                    }, err => {
-                        console.log("err", err);
-                    });
-            }, 3000);
-
-            servicesFactory.activate();
-            hostsFactory.activate();
-            poolsFactory.activate();
+        clickHost(id) {
+            this.resourcesFactory.routeToHost(id);
         }
 
-        init();
+        clickPool(id) {
+            this.resourcesFactory.routeToPool(id);
+        }
 
-        $scope.$on("$destroy", function(){
-            hostsFactory.deactivate();
-            servicesFactory.deactivate();
-            poolsFactory.deactivate();
-            $interval.cancel($scope.hostStatusInterval);
-        });
-    }]);
+        getHostStatus(id) {
+            let index = this.hostsInView.findIndex(h => h.id === id);
+            if (index > -1) {
+                return this.hostsInView[index].status;
+            }
+        }
+
+        updateHostsInView(data) {
+            this.hostsInView = data;
+            this.refreshHostStatuses();
+        }
+
+        arrayEmpty(array) {
+            return typeof array !== "undefined" && array !== null && array.length > 0;
+        }
+    }
+
+    HostsController.$inject = ["$scope", "$routeParams", "resourcesFactory",
+        "authService", "$modalService", "$translate", "$notification", "areUIReady",
+        "$interval", "servicedConfig", "log", "miscUtils", "Host"];
+    controlplane.controller("HostsController", HostsController);
+
 })();
+
+

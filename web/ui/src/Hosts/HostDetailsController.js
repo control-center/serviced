@@ -1,36 +1,161 @@
-/* globals controlplane: true */
-
 /* HostDetailsController
  * Displays list of hosts
  */
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", [
-    "$scope", "$routeParams", "$location", "resourcesFactory", "authService",
-    "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification",
-    "instancesFactory", "servicesFactory", "$interval",
-    function($scope, $routeParams, $location, resourcesFactory, authService,
-    $modalService, $translate, utils, hostsFactory, $notification,
-    instancesFactory, servicesFactory, $interval){
-        // Ensure logged in
-        authService.checkLogin($scope);
+    class HostDetailsController {
 
-        $scope.name = "hostdetails";
-        $scope.params = $routeParams;
+        constructor($scope, $routeParams, $location, resourcesFactory, authService,
+                    $modalService, $translate, $notification, $interval, servicedConfig,
+                    log, miscUtils, Host, Instance, $q) {
 
-        $scope.breadcrumbs = [
-            { label: 'breadcrumb_hosts', url: '/hosts' }
-        ];
+            authService.checkLogin(this);
 
-        $scope.viewLog = function(instance) {
-            $scope.editService = angular.copy(instance);
-            resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
+            this.resourcesFactory = resourcesFactory;
+            this.$modalService = $modalService;
+            this.$translate = $translate;
+            this.$notification = $notification;
+            this.utils = miscUtils;
+            this.Host = Host;
+            this.params = $routeParams;
+            this.Instance = Instance;
+            this.$interval = $interval;
+            this.$q = $q;
+
+            this.name = "hostdetails";
+
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_hosts', url: '/hosts' }
+            ];
+
+
+            this.hostInstances = [];
+
+            this.touch();
+            this.touchInstances();
+
+            $scope.ipsTable = {
+                sorting: {
+                    InterfaceName: "asc"
+                },
+                watchExpression: () => this.lastUpdate
+            };
+
+            $scope.instancesTable = {
+                sorting: {
+                    name: "asc"
+                },
+                watchExpression: () => this.lastInstanceUpdate
+            };
+
+            this.refreshHost()
+                .then(this.refresh())
+                .then(() => {
+                    $scope.breadcrumbs.push({
+                        label: this.currentHost.name,
+                        itemClass: 'active' }
+                    );
+
+                    $scope.$emit("ready");
+                    }
+                );
+
+            this.updateFrequency = 3000;
+            servicedConfig.getConfig()
+                .then(config => {
+                    this.updateFrequency = config.PollFrequency * 1000;
+                }).catch(err => {
+                    let errMessage = err.data ? err.data.Detail : err.statusText;
+                    log.error("could not load serviced config:", errMessage);
+                });
+
+
+            this.startPolling();
+
+            $scope.$on("$destroy", () => this.stopPolling());
+
+            this.newScope = () => $scope.$new(true);
+            this.getHostStatus = this.getHostStatus.bind(this);
+        }
+
+        touch() {
+            this.lastUpdate = new Date().getTime();
+        }
+
+        touchInstances() {
+            this.lastInstanceUpdate = new Date().getTime();
+        }
+
+        refreshHost() {
+            return this.resourcesFactory.getHost(this.params.hostId)
+                .then(data => {
+                    this.currentHost = new this.Host(data);
+                    this.touch();
+                });
+        }
+
+        refreshInstances() {
+            return this.resourcesFactory.v2.getHostInstances(this.params.hostId)
+                .then(data => {
+                    this.hostInstances = data.map(i => new this.Instance(i));
+                    this.touchInstances();
+                });
+        }
+
+        refreshHostStatus() {
+            var id = this.params.hostId;
+            return this.resourcesFactory.v2.getHostStatuses([id])
+                .then(data => {
+                    var statusHash = data.reduce(function(hash, status) {
+                        hash[status.HostID] = status; return hash;
+                    }, {});
+
+                    if (id in statusHash) {
+                        this.currentHost.status = statusHash[id];
+                    }
+                });
+        }
+
+        refresh() {
+            return this.$q.all([ 
+                this.refreshInstances(),
+                this.refreshHostStatus()]
+            );
+        }
+
+        getHostStatus() {
+            return this.currentHost.status;
+        }
+
+        startPolling() {
+            if (!this.updatePromise) {
+                this.updatePromise = this.$interval(
+                    () => this.refresh(), this.updateFrequency
+                );
+            }
+        }
+
+        stopPolling() {
+            if (this.updatePromise) {
+                this.$interval.cancel(this.updatePromise);
+                this.updatePromise = null;
+            }
+        }
+
+        viewLog(instance) {
+            let modalScope = this.newScope();
+            modalScope.resourcesFactory = this.resourcesFactory;
+            modalScope.utils = this.utils;
+            modalScope.editService = angular.copy(instance);
+            modalScope.$modalService = this.$modalService;
+
+            this.resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                 .success(function(log) {
-                    $scope.editService.log = log.Detail;
-                    $modalService.create({
+                    modalScope.log = log.Detail;
+                    modalScope.$modalService.create({
                         templateUrl: "view-log.html",
-                        model: $scope,
+                        model: modalScope,
                         title: "title_log",
                         bigModal: true,
                         actions: [
@@ -43,8 +168,8 @@
                                 icon: "glyphicon-repeat",
                                 action: function(){
                                     var textarea = this.$el.find("textarea");
-                                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id).success(function(log) {
-                                        $scope.editService.log = log.Detail;
+                                    modalScope.resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id).success(function(log) {
+                                        modalScope.log = log.Detail;
                                         textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                     })
                                     .error((data, status) => {
@@ -55,7 +180,7 @@
                                 classes: "btn-primary",
                                 label: "download",
                                 action: function(){
-                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                    modalScope.utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
                                 },
                                 icon: "glyphicon-download"
                             }
@@ -69,21 +194,29 @@
                 .error((data, status) => {
                     this.createNotification("Unable to fetch logs", data.Detail).error();
                 });
-        };
+        }
 
-        $scope.click_app = function(instance) {
-            $location.path('/services/' + instance.model.ServiceID);
-        };
+        click_app(instance) {
+            this.$location.path('/services/' + instance.model.ServiceID);
+        }
 
-        $scope.editCurrentHost = function(){
-            $scope.editableHost = {
-                Name: $scope.currentHost.name,
-                RAMLimit: $scope.currentHost.RAMLimit
+        editCurrentHost() {
+            let modalScope = this.newScope();
+            modalScope.resourcesFactory = this.resourcesFactory;
+            modalScope.utils = this.utils;
+            modalScope.$modalService = this.$modalService;
+            modalScope.$notification = this.$notification;
+            modalScope.refreshHost = () => this.refreshHost();
+            modalScope.currentHost = this.currentHost;
+
+            modalScope.editableHost = {
+                Name: this.currentHost.name,
+                RAMLimit: this.currentHost.RAMLimit
             };
 
-            $modalService.create({
+            this.$modalService.create({
                 templateUrl: "edit-host.html",
-                model: $scope,
+                model: modalScope,
                 title: "title_edit_host",
                 actions: [
                     {
@@ -92,17 +225,18 @@
                         role: "ok",
                         label: "btn_save_changes",
                         action: function(){
-                            var hostModel = angular.copy($scope.currentHost.model);
-                            angular.extend(hostModel, $scope.editableHost);
+                            var hostModel = angular.copy(modalScope.currentHost.model);
+                            angular.extend(hostModel, modalScope.editableHost);
 
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
                                 // update host with recently edited host
-                                resourcesFactory.updateHost($scope.currentHost.id, hostModel)
+                                modalScope.resourcesFactory.updateHost(modalScope.currentHost.id, hostModel)
                                     .success(function(data, status){
-                                        $notification.create("Updated host", hostModel.Name).success();
+                                        modalScope.$notification.create("Updated host", hostModel.Name).success();
+                                        modalScope.refreshHost();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -114,7 +248,7 @@
                     }
                 ],
                 validate: function(){
-                    var err = utils.validateRAMLimit($scope.editableHost.RAMLimit, $scope.currentHost.model.Memory);
+                    var err = modalScope.utils.validateRAMLimit(modalScope.editableHost.RAMLimit, modalScope.currentHost.model.Memory);
                     if(err){
                         this.createNotification("Error", err).error();
                         return false;
@@ -122,34 +256,36 @@
                     return true;
                 }
             });
-        };
+        }
 
-        $scope.resetKeys = function() {
-            $scope.modal_confirmResetKeys();
-        };
+        resetKeys() {
+            this.modal_confirmResetKeys();
+        }
 
-        $scope.modal_confirmResetKeys = function(){
-            let scope = $scope.$new(true);
-            scope.host = $scope.currentHost;
+        modal_confirmResetKeys() {
+            let scope = this.newScope();
+            scope.host = this.currentHost;
+            scope.$modalService = this.$modalService;
+            scope.resourcesFactory = this.resourcesFactory;
 
-            $modalService.create({
-                template: $translate.instant("reset_host_keys", {name: $scope.currentHost.name}),
+            this.$modalService.create({
+                template: this.$translate.instant("reset_host_keys", {name: this.currentHost.name}),
                 model: scope,
-                title: $translate.instant("title_reset_host_keys"),
+                title: this.$translate.instant("title_reset_host_keys"),
                 actions: [
                     {
                         role: "cancel"
                     },{
                         role: "ok",
                         classes: "submit btn-primary",
-                        label: $translate.instant("btn_reset_keys"),
+                        label: this.$translate.instant("btn_reset_keys"),
                         action: function(){
                             // disable ok button, and store the re-enable function
                             let enableSubmit = this.disableSubmitButton();
 
-                            resourcesFactory.resetHostKeys($scope.currentHost.id)
+                            scope.resourcesFactory.resetHostKeys(scope.host.id)
                                 .success((data, status) => {
-                                    $modalService.modals.displayHostKeys(data.PrivateKey, $scope.currentHost.name);
+                                    scope.$modalService.modals.displayHostKeys(data.PrivateKey, scope.host.name);
                                 })
                                 .error((data, status) => {
                                     // TODO - form error highlighting
@@ -161,98 +297,17 @@
                     }
                 ]
             });
-        };
-
-        // TODO - move this to Host.js when v2 stuff drops
-        // provide a way for hostIcon to get statuses
-        $scope.getHostStatus = function(id){
-            if($scope.hostStatuses){
-                return $scope.hostStatuses[id];
-            }
-        };
-        $scope.getHostStatusClass = function(host){
-            if(!host){
-                return "unknown";
-            }
-
-            let status = $scope.getHostStatus(host.id);
-
-            // stuff hasnt loaded, so unknown
-            if(!status){
-                return "unknown";
-            }
-
-            let active = status.Active,
-                authed = status.Authenticated;
-
-            // connected and authenticated
-            if(active && authed){
-                return "passed";
-
-            // connected but not yet authenticated
-            } else if(active && !authed){
-                // TODO - something more clearly related to auth
-                return "unknown";
-
-            // not connected
-            } else {
-                return "failed";
-            }
-        };
-
-        init();
-
-        function init(){
-            // start polling
-            hostsFactory.activate();
-            servicesFactory.activate();
-            servicesFactory.update();
-
-            $scope.ipsTable = {
-                sorting: {
-                    InterfaceName: "asc"
-                },
-                watchExpression: function(){
-                    return hostsFactory.lastUpdate;
-                }
-            };
-
-            $scope.instancesTable = {
-                sorting: {
-                    name: "asc"
-                },
-                watchExpression: function(){
-                    return instancesFactory.lastUpdate;
-                }
-            };
-
-            // TODO - remove this and consolidate with v2
-            // status polling
-            $scope.hostStatusInterval = $interval(() => {
-                resourcesFactory.getHostStatuses()
-                    .then(data => {
-                        let statuses = {};
-                        data.forEach(s => statuses[s.HostID] = s);
-                        $scope.hostStatuses = statuses;
-                    }, err => {
-                        console.log("err", err);
-                    });
-            }, 3000);
-
-            // kick off hostsFactory updating
-            // TODO - update loop here
-            hostsFactory.update()
-                .then(() => {
-                    $scope.currentHost = hostsFactory.get($scope.params.hostId);
-                    $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
-                });
-
         }
 
-        $scope.$on("$destroy", function(){
-            hostsFactory.deactivate();
-            servicesFactory.deactivate();
-            $interval.cancel($scope.hostStatusInterval);
-        });
-    }]);
+        restart(hostId, instanceId) {
+            this.resourcesFactory.killRunning(hostId, instanceId)
+                .then(this.refresh());
+        }
+    }
+
+    HostDetailsController.$inject = ["$scope", "$routeParams", "$location", "resourcesFactory",
+        "authService", "$modalService", "$translate", "$notification",
+        "$interval", "servicedConfig", "log", "miscUtils", "Host", "Instance", "$q"];
+    controlplane.controller("HostDetailsController", HostDetailsController);
+
 })();

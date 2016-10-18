@@ -81,6 +81,7 @@
 
                     var config = utils.propGetter($scope, attrs.config);
                     var data = utils.propGetter($scope, attrs.data);
+                    var onUpdate = utils.propGetter($scope, attrs.update);
 
                     orderBy = $filter("orderBy");
 
@@ -180,6 +181,10 @@
                                     table.removeClass("has-pagination");
                                 }
                             }
+                        }
+
+                        if (onUpdate && onUpdate()) {
+                            onUpdate()(tableEntries);
                         }
 
                         $scope[tableID].resultsLength = totalItemCount;
