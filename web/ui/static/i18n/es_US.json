@@ -280,6 +280,7 @@
     "ram_commitment": "RAM solicitada",
     "refresh": "Refrescar",
     "register_keys": "Registre las claves en el servidor <strong>{{name}}</strong> usando el comando <span class=\"inline-code\">serviced host register</span>. Si pierde las claves, debe generar claves nuevas.",
+    "registered_keys": "To Spanish; We've registered the keys on the host for you, so no action is needed, but this will be your only opportunity to save a copy of these keys. If they're lost, new keys must be generated for the host.",
     "remove_host": "Eliminar Servidor",
     "remove_pool": "Eliminar Grupo de recursos",
     "remove_public_endpoint_confirm": "Eliminar",

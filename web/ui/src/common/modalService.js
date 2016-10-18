@@ -244,10 +244,11 @@
 
             }
 
-            let displayHostKeys = function(keys, name) {
+            let displayHostKeys = function(keys, registered, name) {
                 let model = $rootScope.$new(true);
                 model.keys = keys;
                 model.name = name;
+                model.registered = registered;
 
                 create({
                     templateUrl: "display-host-keys.html",
@@ -268,6 +269,9 @@
                         // TODO - dont touch the DOM!
                         let keysWrapEl = this.$el.find(".keys-wrap"),
                             keysEl = keysWrapEl.find(".keys");
+                        if (model.registered) {
+                            this.createNotification("", "Host keys registered automatically").success();
+                        }
                         keysWrapEl.on("click", e => {
                             // TODO - if already selected, this deselects
                             keysEl.select();

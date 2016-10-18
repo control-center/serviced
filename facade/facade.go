@@ -74,7 +74,7 @@ type Facade struct {
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
 	serviceCache  *serviceCache
-	hostRegistry  *auth.HostExpirationRegistry
+	hostRegistry  auth.HostExpirationRegistryInterface
 
 	isvcsPath string
 }
@@ -104,3 +104,7 @@ func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = h
 func (f *Facade) SetMetricsClient(client MetricsClient) { f.metricsClient = client }
 
 func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
+
+func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegistryInterface) {
+	f.hostRegistry = hostRegistry
+}

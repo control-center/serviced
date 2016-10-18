@@ -170,19 +170,19 @@ func (_m *FacadeInterface) RemoveService(ctx datastore.Context, id string) error
 
 	return r0
 }
-func (_m *FacadeInterface) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
-	ret := _m.Called(ctx, serviceID, autoLaunch, desiredState)
+func (_m *FacadeInterface) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error) {
+	ret := _m.Called(ctx, serviceID, autoLaunch, synchronous, desiredState)
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool, service.DesiredState) int); ok {
-		r0 = rf(ctx, serviceID, autoLaunch, desiredState)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool, bool, service.DesiredState) int); ok {
+		r0 = rf(ctx, serviceID, autoLaunch, synchronous, desiredState)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool, service.DesiredState) error); ok {
-		r1 = rf(ctx, serviceID, autoLaunch, desiredState)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool, bool, service.DesiredState) error); ok {
+		r1 = rf(ctx, serviceID, autoLaunch, synchronous, desiredState)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -455,11 +455,43 @@ func (_m *FacadeInterface) ResetHostKey(ctx datastore.Context, hostID string) ([
 
 	return r0, r1
 }
+func (_m *FacadeInterface) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error {
+	ret := _m.Called(ctx, entity, keys)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, *host.Host, []byte) error); ok {
+		r0 = rf(ctx, entity, keys)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
 func (_m *FacadeInterface) SetHostExpiration(ctx datastore.Context, hostID string, expiration int64) {
 	_m.Called(ctx, hostID, expiration)
 }
 func (_m *FacadeInterface) RemoveHostExpiration(ctx datastore.Context, hostID string) {
 	_m.Called(ctx, hostID)
+}
+func (_m *FacadeInterface) HostIsAuthenticated(ctx datastore.Context, hostID string) (bool, error) {
+	ret := _m.Called(ctx, hostID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) bool); ok {
+		r0 = rf(ctx, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(bool)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 func (_m *FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	ret := _m.Called(ctx)
@@ -1280,4 +1312,25 @@ func (_m *FacadeInterface) UpdateServiceCache(ctx datastore.Context) error {
 	}
 
 	return r0
+}
+func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
+	ret := _m.Called(ctx)
+
+	var r0 map[string]map[int]int
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) map[string]map[int]int); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[int]int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

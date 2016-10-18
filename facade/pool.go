@@ -153,6 +153,29 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 		return err
 	}
 
+	// Update dfs permissions of the hosts that belong to the pool if
+	// the pool's dfs permissions have changed
+	if entity.HasDfsAccess() != current.HasDfsAccess() {
+		dfsClients, err := f.FindHostsInPool(ctx, entity.ID)
+		if err != nil {
+			msg := "Error retrieving pool's hosts"
+			plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+		} else {
+			var clientsError error
+			if entity.HasDfsAccess() { // Enable dfs access
+				plog.WithField("poolID", entity.ID).Debug("DFS Access enabled for pool")
+				clientsError = f.zzk.RegisterDfsClients(dfsClients...)
+			} else { // Disable dfs access
+				plog.WithField("poolID", entity.ID).Debug("DFS Access disabled for pool")
+				clientsError = f.zzk.UnregisterDfsClients(dfsClients...)
+			}
+			if clientsError != nil {
+				msg := "Could not update dfs clients in zk after changing pool permissions"
+				plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+			}
+		}
+	}
+
 	return nil
 }
 

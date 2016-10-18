@@ -11,7 +11,9 @@ module CCApi
             host = getTableValue("table://hosts/defaultHost/name")
             json = CC.CLI.get_json("%{serviced} host list -v")
             if (json.length != 1 || findArrayMatch(json, "Name", host) == nil)
+                printf "****** Removing all hosts\n"
                 remove_all_hosts()
+                printf "****** Adding default host\n"
                 add_default_host()
             end
         end
@@ -53,6 +55,11 @@ module CCApi
 
         def add_default_host()
             add_host_json("defaultHost")
+        end
+
+        def add_local_agent()
+            remove_all_hosts()
+            CC.CLI.execute("%{serviced} host add '#{ENV["HOST_IP"]}:4979' 'default' --memory '100%' -k /dev/null")
         end
     end
 end

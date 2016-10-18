@@ -150,11 +150,9 @@ func initElasticSearch() {
 	// /etc/default/serviced
 	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
-		clusterArg := ""
-		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
-			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
-		}
-		return fmt.Sprintf(`exec /opt/elasticsearch-logstash/bin/elasticsearch -Des.insecure.allow.root=true -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
+		nodeName := elasticsearch_logstash.Name
+		clusterName := elasticsearch_logstash.Configuration["cluster"]
+		return fmt.Sprintf("exec /opt/elasticsearch-logstash/bin/es-logstash-start.sh %s %s", nodeName, clusterName)
 	}
 }
 

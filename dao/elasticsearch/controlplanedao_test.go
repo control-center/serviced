@@ -511,11 +511,11 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 
 	// start the service
 	var affected int
-	if err = dt.Dao.StartService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
+	if err = dt.Dao.StartService(dao.ScheduleServiceRequest{id, true, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if err = dt.Dao.StopService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
+	if err = dt.Dao.StopService(dao.ScheduleServiceRequest{id, true, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -577,7 +577,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	t.Assert(err, IsNil)
 
 	var affected int
-	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true}, &affected); err != nil {
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true, true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 

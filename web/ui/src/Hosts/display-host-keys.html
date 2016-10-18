@@ -4,4 +4,5 @@
     <textarea class="keys" readonly style="height: 100%; max-width: 100%; background-color: #DDD;">{{keys}}</textarea>
 </div><br>
 
-<p><span translate>register_keys</span></p>
+<p ng-hide="registered"><span translate>register_keys</span></p>
+<p ng-show="registered"><span translate>registered_keys</span></p>

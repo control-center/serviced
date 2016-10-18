@@ -280,6 +280,7 @@
     "ram_commitment": "RAM Requested",
     "refresh": "Refresh",
     "register_keys": "These keys must be registered on the host machine <strong>{{name}}</strong> using the <span class=\"inline-code\">serviced host register</span> command. If the keys are lost, new keys must be generated for the host.",
+    "registered_keys": "We've registered the keys on the host for you, so no action is needed, but this will be your only opportunity to save a copy of these keys. If they're lost, new keys must be generated for the host.",
     "remove_host": "Remove Host",
     "remove_pool": "Remove Pool",
     "remove_public_endpoint_confirm": "Remove",

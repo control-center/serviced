@@ -9,15 +9,17 @@
     // share angular services outside of angular context
     let $notification, serviceHealth, $q, resourcesFactory, utils;
 
-    controlplane.controller("ServiceDetailsController",
-        ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
+    controlplane.controller("ServiceDetailsController", [
+            "$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
             "$timeout", "miscUtils", "hostsFactory", "$serviceHealth", "Service",
             "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
+            "$filter",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
                 $timeout, _utils, hostsFactory, _serviceHealth, Service,
-                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch) {
+                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch,
+                $filter) {
 
                 // api access via angular context
                 $notification = _$notification;
@@ -140,6 +142,8 @@
 
                                         $scope.addPublicEndpoint(newPublicEndpoint)
                                             .success(function (data, status) {
+                                                // reload the table
+                                                refreshEndpoints();
                                                 $notification.create("Added public endpoint").success();
                                                 this.close();
                                             }.bind(this))
@@ -292,7 +296,7 @@
                 };
 
                 $scope.publicEndpointProtocol = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         return "https";
                     } else {
                         if (publicEndpoint.Protocol !== "") {
@@ -322,34 +326,48 @@
                     return endpoint.VHostName ? "vhost" : "port";
                 };
 
-                // filters to be used when counting how many descendent
-                // services will be affected by a state change
-                var serviceStateChangeFilters = {
-                    // only stopped services will be started
-                    "start": service => service.desiredState === 0,
-                    // only started services will be stopped
-                    "stop": service => service.desiredState === 1,
-                    // only started services will be restarted
-                    "restart": service => service.desiredState === 1
-                };
-
                 // clicks to a service's start, stop, or restart
                 // button should first determine if the service has
                 // children and ask the user to choose to start all
                 // children or only the top service
                 $scope.clickRunning = function (service, state) {
-                    var filterFn = serviceStateChangeFilters[state];
-                    var childCount = utils.countTheKids(service, filterFn);
-
-                    // if the service has affected children, check if the user
-                    // wants to start just the service, or the service and children
-                    if (childCount > 0) {
-                        $scope.modal_confirmSetServiceState(service, state, childCount);
-
-                        // if no children, just start the service
-                    } else {
-                        $scope.setServiceState(service, state);
-                    }
+                    resourcesFactory.v2.getDescendantCounts(service.id)
+                      .success(function (data, status) {
+                        var childCount = 0;
+                        switch (state) {
+                          case "start":
+                            // When starting, we only care about autostart
+                            // services that are currently stopped
+                            if (data.auto) {
+                              childCount += data.auto["0"] || 0;
+                            }
+                            break;
+                          case "restart":
+                          case "stop":
+                            // When stopping or restarting, we care about
+                            // running services that are either manual or
+                            // autostart
+                            if (data.auto) {
+                              childCount += data.auto["1"] || 0;
+                            }
+                            if (data.manual) {
+                              childCount += data.manual["1"] || 0;
+                            }
+                            break;
+                        }
+                        if (childCount > 0) {
+                            // if the service has affected children, check if the user
+                            // wants to start just the service, or the service and children
+                            $scope.modal_confirmSetServiceState(service, state, childCount);
+                        } else {
+                            // if no children, just start the service
+                            $scope.setServiceState(service, state);
+                        }
+                      }.bind(this))
+                      .error(function (data, status) {
+                          console.log("unable to obtain descendant counts");
+                          $scope.modal_confirmSetServiceState(service, state, "unknown");
+                      }.bind(this));
                 };
 
                 // verifies if use wants to start parent service, or parent
@@ -389,12 +407,12 @@
 
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
-                    } else if (publicEndpoint.type === "port") {
+                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
                         resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
@@ -404,12 +422,12 @@
 
 
                 $scope.clickEndpointDisable = function (publicEndpoint) {
-                    if (publicEndpoint.type === "vhost") {
+                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
                         resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
                             });
-                    } else if (publicEndpoint.type === "port") {
+                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
                         resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
@@ -507,7 +525,7 @@
 
                     $modalService.create({
                         template: $translate.instant("remove_public_endpoint") + ": <strong>" +
-                        (publicEndpoint.Name ? publicEndpoint.Name : "port " + publicEndpoint.PortAddr) + "</strong><br><br>",
+                        (publicEndpoint.ServiceName ? publicEndpoint.ServiceName : "port " + publicEndpoint.PortAddress) + "</strong><br><br>",
                         model: $scope,
                         title: "remove_public_endpoint",
                         actions: [
@@ -518,19 +536,21 @@
                                 label: "remove_public_endpoint_confirm",
                                 classes: "btn-danger",
                                 action: function () {
-                                    if (publicEndpoint.type === "vhost") {
-                                        resourcesFactory.removeVHost(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                                    if ($scope.getEndpointType(publicEndpoint) === "vhost") {
+                                        resourcesFactory.removeVHost(publicEndpoint.ServiceID, publicEndpoint.Application, publicEndpoint.VHostName)
                                             .success(() => {
-                                                update();
-                                                $notification.create("Removed Public Endpoint", publicEndpoint.Name).success();
+                                                // reload the table
+                                                refreshEndpoints();
+                                                $notification.create("Removed Public Endpoint", publicEndpoint.Application).success();
                                             })
                                             .error((data, status) => {
                                                 $notification.create("Remove Public Endpoint failed", data.Detail).error();
                                             });
-                                    } else if (publicEndpoint.type === "port") {
-                                        resourcesFactory.removePort(publicEndpoint.ApplicationId, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                                    } else if ($scope.getEndpointType(publicEndpoint) === "port") {
+                                        resourcesFactory.removePort(publicEndpoint.ServiceID, publicEndpoint.Application, publicEndpoint.PortAddress)
                                             .success(() => {
-                                                update();
+                                                // reload the table
+                                                refreshEndpoints();
                                                 $notification.create("Removed Public Endpoint", publicEndpoint.PortName).success();
                                             })
                                             .error((data, status) => {
@@ -929,11 +949,12 @@
                         };
                         rows.push(rowItem);
                         if (service.subservices.length) {
-                            service.subservices.forEach(svc => flatten(svc, depth + 1));
+                            $filter('orderBy')(service.subservices, 'name')
+                                .forEach(svc => flatten(svc, depth + 1));
                         }
                     })($scope.currentService, 0);
-                    // rows[0] is always the top level service, so 
-                    // slice that off
+
+                    // rows[0] is always the top level service, so slice that off
                     $scope.currentDescendents = rows.slice(1);
                 };
 
@@ -978,12 +999,14 @@
                         });
                 };
 
+                function refreshEndpoints() {
+                    $scope.currentService.fetchEndpoints(true);
+                }
+
                 function update() {
                     // update service model data
                     resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
-                            console.log("SET CURRENT SERVICE --------------");
-
                             $scope.currentService.update(model);
                         });
 
