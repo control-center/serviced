@@ -84,8 +84,9 @@ func (s *CmdLoggingSuite) Test_LoadsConfigFile_Error(c *C) {
 	s.log.On("WatchConfigFile", expected).Return(nil)
 	s.api.On("GetHosts").Return([]host.Host{}, nil)
 	f := func(args ...string) { s.Run(env, args...) }
-	output := string(pipe(f, "serviced", "host", "list"))
-	output = strings.Trim(output, "\n")
+	g := func(args ...string) { pipeStderr(f, args...) }
+	output := string(pipe(g, "serviced", "host", "list"))
+	output = strings.Split(output, "\n")[0]
 	s.log.AssertExpectations(c)
 	s.api.AssertExpectations(c)
 	c.Assert(output, Matches, ".*"+err)

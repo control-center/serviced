@@ -183,14 +183,14 @@ func (c *ServicedCli) Run(args []string) {
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := getRuntimeOptions(c.config, ctx)
 	if err := api.ValidateCommonOptions(options); err != nil {
-		fmt.Printf("Invalid option(s) found: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Invalid option(s) found: %s\n", err)
 		return err
 	}
 	config.LoadOptions(options)
 
 	// Set logging options
 	if err := setLogging(&options, ctx, c.logControl); err != nil {
-		fmt.Printf("Unable to set logging options: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
 	// Try to authenticate this host
@@ -202,7 +202,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
 	//       should be moved to api.ValidateServerOptions
 	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Printf("Unable to set isvcs options: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
 		return err
 	}
 	return nil
