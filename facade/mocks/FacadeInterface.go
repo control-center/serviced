@@ -472,6 +472,27 @@ func (_m *FacadeInterface) SetHostExpiration(ctx datastore.Context, hostID strin
 func (_m *FacadeInterface) RemoveHostExpiration(ctx datastore.Context, hostID string) {
 	_m.Called(ctx, hostID)
 }
+func (_m *FacadeInterface) HostIsAuthenticated(ctx datastore.Context, hostID string) (bool, error) {
+	ret := _m.Called(ctx, hostID)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) bool); ok {
+		r0 = rf(ctx, hostID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(bool)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, hostID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *FacadeInterface) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	ret := _m.Called(ctx)
 

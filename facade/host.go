@@ -138,6 +138,9 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 		return nil, err
 	}
 
+	// Reset the host's "authenticated" status
+	f.RemoveHostExpiration(ctx, entity.ID)
+
 	// Concatenate and return keys
 	delegatePEMBlock := append(privatePEM, masterPEM...)
 	return delegatePEMBlock, nil
@@ -313,6 +316,16 @@ func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expirat
 // HostExpirationRegistry
 func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
 	f.hostRegistry.Remove(hostid)
+}
+
+// HostIsAuthenticated checks whether a host has authenticated and has an unexpired
+//  token
+func (f *Facade) HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error) {
+	isExpired, err := f.hostRegistry.IsExpired(hostid)
+	if err != nil {
+		return false, err
+	}
+	return !isExpired, nil
 }
 
 // GetHosts returns a list of all registered hosts

@@ -16,6 +16,7 @@
 package facade_test
 
 import (
+	"errors"
 	"time"
 
 	"github.com/control-center/serviced/auth"
@@ -25,6 +26,10 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
+)
+
+var (
+	ErrTestHost = errors.New("Host test error")
 )
 
 func (ft *FacadeUnitTest) Test_GetHost(c *C) {
@@ -157,6 +162,9 @@ func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
 	// The return value is a public/private key package
 	_, _, err = auth.LoadRSAKeyPairPackage(result)
 	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
 }
 
 func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
@@ -204,6 +212,31 @@ func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
 	// The return value is a public/private key package
 	_, _, err = auth.LoadRSAKeyPairPackage(result)
 	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
+}
+
+func (ft *FacadeUnitTest) Test_HostIsAuthenticated(c *C) {
+	h := getTestHost()
+
+	// Not expired, should return true
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(false, nil).Once()
+	result, err := ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, IsNil)
+	c.Assert(result, Equals, true)
+
+	// Expired, should return false
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(true, nil).Once()
+	result, err = ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, IsNil)
+	c.Assert(result, Equals, false)
+
+	// Error should return error
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(false, ErrTestHost).Once()
+	result, err = ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, Equals, ErrTestHost)
+
 }
 
 func getTestHost() host.Host {
