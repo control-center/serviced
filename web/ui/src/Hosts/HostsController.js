@@ -37,7 +37,7 @@
                         role: "cancel",
                     },{
                         role: "ok",
-                        label: "Next",
+                        label: "btn_next",
                         icon: "glyphicon-chevron-right",
                         action: function(){
                             if(this.validate()){
@@ -203,7 +203,7 @@
                         data.forEach(s => statuses[s.HostID] = s);
                         $scope.hostStatuses = statuses;
                     }, err => {
-                        console.log("err", err); 
+                        console.log("err", err);
                     });
             }, 3000);
 

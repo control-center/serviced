@@ -1,8 +1,8 @@
-<p>Click the text area to copy the keys for host <strong>{{name}}</strong></p>
+<p><span translate>copy_keys</span></p>
 
 <div class="keys-wrap" style="position: relative; height: 200px;">
     <textarea class="keys" readonly style="height: 100%; max-width: 100%; background-color: #DDD;">{{keys}}</textarea>
 </div><br>
 
-<p ng-hide="registered">These keys must be registered on the host machine <strong>{{name}}</strong> using the <span class="inline-code">serviced host register</span> command. If the keys are lost, new keys must be generated for the host.</p>
-<p ng-show="registered">We've registered the keys on the host for you, so no action is needed, but this will be your only opportunity to save a copy of these keys. If they're lost, new keys must be generated for the host.</p>
+<p ng-hide="registered"><span translate>register_keys</span></p>
+<p ng-show="registered"><span translate>registered_keys</span></p>

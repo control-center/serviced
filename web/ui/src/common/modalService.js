@@ -253,10 +253,10 @@
                 create({
                     templateUrl: "display-host-keys.html",
                     model: model,
-                    title: "Host Keys",
+                    title: $translate.instant("title_host_keys"),
                     actions: [
                         {
-                            label: "Download Keys",
+                            label: $translate.instant("btn_download_keys"),
                             action: function(){
                                 utils.downloadText(name + ".keys", keys);
                             },
