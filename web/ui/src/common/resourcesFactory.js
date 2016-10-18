@@ -391,6 +391,11 @@
                 method: GET,
                 url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
                 ignorePending: true
+            },
+            getDescendantCounts: {
+              method: GET,
+              url: id => `/api/v2/services/${id}/descendantstates`,
+              ignorePending: true
             }
         };
 

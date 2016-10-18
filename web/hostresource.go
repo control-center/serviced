@@ -362,6 +362,27 @@ func restGetServiceExportedEndpoints(w *rest.ResponseWriter, r *rest.Request, ct
 	w.WriteJson(&addrs)
 }
 
+func restCountDescendantStates(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	} else if serviceID == "" {
+		restBadRequest(w, errors.New("serviceID must be specified for GET"))
+		return
+	}
+	fac := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	status, err := fac.CountDescendantStates(dataCtx, serviceID)
+	if err != nil {
+		glog.Errorf("Unable to get descendant status: %s", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&status)
+}
+
 // restGetAggregateServices provides aggregate service information
 func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	values := r.URL.Query()

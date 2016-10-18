@@ -1292,3 +1292,24 @@ func (_m *FacadeInterface) UpdateServiceCache(ctx datastore.Context) error {
 
 	return r0
 }
+func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
+	ret := _m.Called(ctx)
+
+	var r0 map[string]map[int]int
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) map[string]map[int]int); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]map[int]int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

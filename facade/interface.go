@@ -184,4 +184,6 @@ type FacadeInterface interface {
 	GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error)
 
 	UpdateServiceCache(ctx datastore.Context) error
+
+	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
 }
