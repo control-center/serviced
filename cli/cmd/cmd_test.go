@@ -99,33 +99,3 @@ func (t APITest) StartServer() error {
 	fmt.Println("starting server")
 	return nil
 }
-
-func ExampleServicedCLI_CmdInit_logging() {
-	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--master", "--allow-loop-back=true", "server")
-	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent", "--endpoint", "1.2.3.4:4979", "server")
-	InitAPITest("serviced", "--stderrthreshold", "2", "--vmodule", "a=1,b=2,c=3", "--master", "--agent", "--allow-loop-back=true", "server")
-	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent", "--allow-loop-back=true", "server")
-
-	// Output:
-	// starting server
-	// starting server
-	// starting server
-	// starting server
-}
-
-/*
-TODO: move this function into a different test suite
-func ExampleServicedCLI_CmdInit_logerr() {
-	InitAPITest("serviced", "--master", "--stderrthreshold", "abc", "--allow-loop-back=true", "server")
-	InitAPITest("serviced", "--agent", "--endpoint", "5.6.7.8:4979", "--vmodule", "abc", "server")
-	InitAPITest("serviced", "--master", "--log_backtrace_at", "abc", "--allow-loop-back=true", "server")
-
-	// Output:
-	// Unable to set logging options: strconv.ParseInt: parsing "abc": invalid syntax
-	// starting server
-	// Unable to set logging options: syntax error: expect comma-separated list of filename=N
-	// starting server
-	// Unable to set logging options: syntax error: expect file.go:234
-	// starting server
-}
-*/
