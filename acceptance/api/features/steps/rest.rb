@@ -52,11 +52,6 @@ def make_request(method, path, body)
     $cache[%/#{request_url}/] = @response if 'GET' == %/#{method}/
 end
 
-
-Given (/^that the local host agent is added$/) do
-    CC.CLI.host.add_local_agent()
-end
-
 # find a value in the response
 Then(/^the JSON response should have value "(.*?)" at "(.*?)"$/) do |value, jsonpath|
   data = @response.get jsonpath
