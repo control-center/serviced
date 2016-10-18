@@ -394,12 +394,20 @@
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {
                     if ($scope.getEndpointType(publicEndpoint) === "vhost") {
-                        resourcesFactory.enableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                        resourcesFactory.enableVHost(publicEndpoint.ServiceID, publicEndpoint.ServiceName, publicEndpoint.Application, publicEndpoint.VHostName)
+                            .success(() => {
+                                // reload the table
+                                refreshEndpoints();
+                            })
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
                     } else if ($scope.getEndpointType(publicEndpoint) === "port") {
-                        resourcesFactory.enablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                        resourcesFactory.enablePort(publicEndpoint.ServiceID, publicEndpoint.ServiceName, publicEndpoint.Application, publicEndpoint.PortAddress)
+                            .success(() => {
+                                // reload the table
+                                refreshEndpoints();
+                            })
                             .error((data, status) => {
                                 $notification.create("Enable Public Endpoint failed", data.Detail).error();
                             });
@@ -409,12 +417,20 @@
 
                 $scope.clickEndpointDisable = function (publicEndpoint) {
                     if ($scope.getEndpointType(publicEndpoint) === "vhost") {
-                        resourcesFactory.disableVHost(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.Name)
+                        resourcesFactory.disableVHost(publicEndpoint.ServiceID, publicEndpoint.ServiceName, publicEndpoint.Application, publicEndpoint.VHostName)
+                            .success(() => {
+                                // reload the table
+                                refreshEndpoints();
+                            })
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
                             });
                     } else if ($scope.getEndpointType(publicEndpoint) === "port") {
-                        resourcesFactory.disablePort(publicEndpoint.ApplicationId, publicEndpoint.Application, publicEndpoint.ServiceEndpoint, publicEndpoint.PortAddr)
+                        resourcesFactory.disablePort(publicEndpoint.ServiceID, publicEndpoint.ServiceName, publicEndpoint.Application, publicEndpoint.PortAddress)
+                            .success(() => {
+                                // reload the table
+                                refreshEndpoints();
+                            })
                             .error((data, status) => {
                                 $notification.create("Disable Public Endpoint failed", data.Detail).error();
                             });
