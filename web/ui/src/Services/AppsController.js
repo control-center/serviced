@@ -95,10 +95,19 @@
 
             service.model.Endpoints.forEach(endpoint => {
                 if(endpoint.VHostList){
-                    endpoint.VHostList.forEach(vHost => endPoints.push(vHost));
+                    endpoint.VHostList.forEach(vHost => endPoints.push({
+                        VHostName:     vHost.Name,
+                        Enabled:       vHost.Enabled,
+                        desiredState:  service.desiredState
+                    }));
                 }
                 if(endpoint.PortList){
-                    endpoint.PortList.forEach(port => endPoints.push(port));
+                    endpoint.PortList.forEach(port => endPoints.push({
+                        PortAddress:  port.PortAddr,
+                        Enabled:      port.Enabled,
+                        desiredState: service.desiredState,
+                        Protocol:     port.Protocol
+                    }));
                 }
             });
             
