@@ -19,12 +19,14 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	mockapi "github.com/control-center/serviced/cli/api/apimocks"
 	"github.com/control-center/serviced/domain/host"
 	mocklog "github.com/control-center/serviced/logging/mocks"
 	"github.com/control-center/serviced/utils"
+	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
 )
@@ -80,13 +82,23 @@ func (s *CmdLoggingSuite) Test_LoadsConfigFile_Error(c *C) {
 	env := map[string]string{}
 	expected := "/opt/serviced/etc/logconfig-cli.yaml"
 	err := "foobarbazqux"
+	watch := make(chan struct{})
 	s.log.On("ApplyConfigFromFile", expected).Return(errors.New(err))
-	s.log.On("WatchConfigFile", expected).Return(nil)
+	s.log.On("WatchConfigFile", expected).Return(nil).Run(
+		func(args mock.Arguments) {
+			watch <- struct{}{}
+		})
 	s.api.On("GetHosts").Return([]host.Host{}, nil)
 	f := func(args ...string) { s.Run(env, args...) }
 	g := func(args ...string) { pipeStderr(f, args...) }
 	output := string(pipe(g, "serviced", "host", "list"))
 	output = strings.Split(output, "\n")[0]
+	timeout := time.After(time.Second)
+	select {
+	case <-watch:
+	case <-timeout:
+		c.Error("Timeout waiting for WatchConfigFile")
+	}
 	s.log.AssertExpectations(c)
 	s.api.AssertExpectations(c)
 	c.Assert(output, Matches, ".*"+err)
