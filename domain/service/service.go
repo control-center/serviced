@@ -296,7 +296,7 @@ func CloneService(fromSvc *Service, suffix string) (*Service, error) {
 	var graphConfigs = []domain.GraphConfig{}
 	for _, gc := range svc.MonitoringProfile.GraphConfigs {
 		if !gc.BuiltIn {
-			graphConfigs = append(graphs, gc)
+			graphConfigs = append(graphConfigs, gc)
 		}
 	}
 	svc.MonitoringProfile.GraphConfigs = graphConfigs
