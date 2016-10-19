@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/properties"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -49,6 +50,7 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/scheduler"
+	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
@@ -78,7 +80,6 @@ import (
 	"time"
 
 	// Needed for profiling
-
 	_ "net/http/pprof"
 )
 
@@ -473,6 +474,10 @@ func (d *daemon) startMaster() (err error) {
 	d.facade = d.initFacade()
 	d.cpDao = d.initDAO()
 
+	if err = d.checkVersion(); err != nil {
+		log.WithError(err).Fatal("Unable to initialize version")
+	}
+
 	// Create tenant volumes if they do not already exist
 	services, err := d.facade.GetAllServices(d.dsContext)
 	if err != nil {
@@ -536,6 +541,57 @@ func (d *daemon) startMaster() (err error) {
 
 	log.Info("Started serviced master")
 
+	return nil
+}
+
+func (d *daemon) checkVersion() error {
+	//check version
+	var err error
+	updateCCVersion := false
+	var ccProps *properties.StoredProperties
+	log.Debug("Checking CC Version")
+	if ccProps, err = properties.NewStore().Get(d.dsContext); datastore.IsErrNoSuchEntity(err) {
+		//First startup of 1.2. Could be either fresh install or upgrade
+		log.Debug("Previous stored properties not found")
+		ccProps = properties.New()
+		updateCCVersion = true
+		// Run any initialization need for first startup
+		// Existing pools need all access after an upgrade. Only happens at upgrade
+		pools, err := d.facade.GetResourcePools(d.dsContext)
+		if err != nil {
+			return fmt.Errorf("Unable to get pools: %v", err)
+		}
+		if len(pools) > 0 {
+			log.Info("Updating permissions on preexisting pools")
+			for _, existingPool := range pools {
+				existingPool.Permissions = pool.DFSAccess + pool.AdminAccess
+				if err := d.facade.UpdateResourcePool(d.dsContext, &existingPool); err != nil {
+					return fmt.Errorf("Could not update pool permissions: %v", err)
+				}
+
+			}
+		}
+
+	} else if err != nil {
+		log.WithError(err).Fatal("Unable to retrieve properties object")
+	} else {
+		// Update the CC Version if not current, could run upgrades here
+		ccVersion, _ := ccProps.CCVersion()
+		if servicedversion.Version != ccVersion {
+			updateCCVersion = true
+			log.Info("need to cc version is...")
+		}
+	}
+
+	if updateCCVersion {
+		ccProps.SetCCVersion(servicedversion.Version)
+		log.WithFields(logrus.Fields{
+			"version": servicedversion.Version,
+		}).Info("Updating stored version")
+		if err = properties.NewStore().Put(d.dsContext, ccProps); err != nil {
+			return fmt.Errorf("Unable to create properties object: %v", err)
+		}
+	}
 	return nil
 }
 
