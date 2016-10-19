@@ -74,30 +74,18 @@
                   var url = getUrl(publicEndpoint, $scope),
                       html = "",
                       popover = false;
-                  // If we have a ServiceID, this is a subservice.
-                  if ("ServiceID" in publicEndpoint){
-                      // Check the service and endpoint and..
-                      if (!isServiceRunning(publicEndpoint) || !publicEndpoint.Enabled) {
-                          // .. show the url as a url label (not clickable) with a bootstrap popover..
-                          html = `<span><b>${url}</b></span>`;
-                          popover = true;
-                      } else if (publicEndpoint.Protocol !== '') {
-                          // ..or show the url as a clickable link.
-                          html = `<a target="_blank" class="link" href="${url}">${url}</a>`;
-                      } else {
-                          // ..or just show the host:port for the port endpoint.
-                          html = `<span>${url}</span>`;
-                      }
+
+                  // Check the service and endpoint and..
+                  if (!isServiceRunning(publicEndpoint) || !publicEndpoint.Enabled) {
+                      // .. show the url as a url label (not clickable) with a bootstrap popover..
+                      html = `<span><b>${url}</b></span>`;
+                      popover = true;
+                  } else if (publicEndpoint.Protocol !== '') {
+                      // ..or show the url as a clickable link.
+                      html = `<a target="_blank" class="link" href="${url}">${url}</a>`;
                   } else {
-                      // This is a top level application.  Check the state and..
-                      if (+$scope.state !== 1 || !publicEndpoint.Enabled){
-                          // .. show the url as a label with a bootstrap popover..
-                          html = `<span>${url}</span>`;
-                          popover = true;
-                      } else {
-                          // ..or show the url as a clickable link.
-                          html = `<a target="_blank" class="link" href="${url}">${url}</a>`;
-                      }
+                      // ..or just show the host:port for the port endpoint.
+                      html = `<span>${url}</span>`;
                   }
 
                   // Replace the element's html with our new hot content
