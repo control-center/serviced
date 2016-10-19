@@ -43,7 +43,7 @@ func (c *Client) ReportHealthStatus(key health.HealthStatusKey, value health.Hea
 		Value:   value,
 		Expires: expires,
 	}
-	return c.call("ReportHealthStatus", request, empty)
+	return c.call("ReportHealthStatus", request, nil)
 }
 
 // ReportInstanceDead removes stopped instances from the health check status cache.
@@ -52,5 +52,5 @@ func (c *Client) ReportInstanceDead(serviceID string, instanceID int) error {
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
-	return c.call("ReportInstanceDead", request, empty)
+	return c.call("ReportInstanceDead", request, nil)
 }
