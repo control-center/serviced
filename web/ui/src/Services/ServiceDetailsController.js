@@ -219,8 +219,7 @@
                                     IPAddr = data.HostIPs[i].IPAddress;
                                     value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
                                     options.push({ 'Value': value, 'IPAddr': IPAddr });
-                                    // TODO: look up associated endpoint name
-                                    //modalScope.assignments.ip.EndpointName = "Boogity";
+                                    modalScope.assignments.ip.Application = ip.Application;
 
                                     // set the default value to the currently assigned value
                                     if (modalScope.assignments.ip.IPAddress === IPAddr) {

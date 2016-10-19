@@ -96,6 +96,7 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, svc s
 
 			// Append a new record for the port
 			addr.Port = ep.AddressConfig.Port
+			addr.Application = ep.Application
 			addrs = append(addrs, addr)
 			logger.WithField("port", ep.AddressConfig.Port).Debug("Added port")
 		}
