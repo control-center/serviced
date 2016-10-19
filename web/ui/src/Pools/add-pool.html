@@ -2,14 +2,16 @@
     <label for="new_pool_name">
         <span translate>label_pool_name</span>:
     </label>
-    <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text" placeholder="{{'placeholder_pool_name'|translate}}" maxlength=100 ng-model="newPool.ID">
+    <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text" 
+           placeholder="{{'placeholder_pool_name'|translate}}" maxlength=100 ng-model="newPool.ID">
 </div>
 
 <div class="form-group">
     <label for="new_pool_description">
         <span translate>label_pool_description</span>:
     </label>
-    <input class="form-control" name="new_pool_description" id="new_pool_description" type="text" placeholder="{{'placeholder_pool_description'|translate}}" ng-model="newPool.Description">
+    <input class="form-control" name="new_pool_description" id="new_pool_description" type="text" 
+           placeholder="{{'placeholder_pool_description'|translate}}" ng-model="newPool.Description">
 </div>
 
 <div class="form-group">
@@ -24,7 +26,9 @@
             id="new_pool_permission_{{permission.position}}"
             ng-model="newPool.permissions[permission.position]"
             ng-model-options="{getterSetter: true}"/>
-        <label style="font-weight: normal;" for="new_pool_permission_{{permission.position}}" title="{{permission.description|translate}}">{{permission.label|translate}}</label><br>
+        <label style="font-weight: normal;" for="new_pool_permission_{{permission.position}}" title="{{permission.description|translate}}">
+            {{permission.label|translate}}
+        </label><br>
     </div>
 </div>
 

@@ -23,7 +23,7 @@
                 </div>
             `;
         };
-          
+
         class Controller {
             constructor(){
                 // hi.
@@ -115,7 +115,7 @@
                 }
             }
         }
-      
+
         return {
             restrict: "EA",
             scope: {
@@ -139,7 +139,7 @@
                 scope.vm.popover = $icon.data("bs.popover");
                 scope.vm.updatePopover();
 
-                // use a bitfield to describe host state as a 
+                // use a bitfield to describe host state as a
                 // single value to determine if we need to
                 // update the view
                 var ACTIVE = 1 << 1,

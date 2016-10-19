@@ -2,17 +2,9 @@
     'use strict';
 
     // share angular services outside of angular context
-    let POOL_PERMISSIONS, $q, resourcesFactory;
+    let POOL_PERMISSIONS, $q, resourcesFactory, Host;
 
     controlplane.factory('Pool', PoolFactory);
-
-    // TODO - this is a dummy class till the fo'real one is in
-    // TODO - import real Host
-    function Host(model){
-        this.id = model.ID;
-        this.name = model.Name;
-        this.model = Object.freeze(model);
-    }
 
     // Pool object constructor takes a pool object (backend pool object)
     // and wraps it with extra functionality and info
@@ -67,14 +59,15 @@
     }
 
 
-    PoolFactory.$inject = ['POOL_PERMISSIONS', '$q', 'resourcesFactory'];
+    PoolFactory.$inject = ['POOL_PERMISSIONS', '$q', 'resourcesFactory', 'Host'];
 
-    function PoolFactory(_POOL_PERMISSIONS, _$q, _resourcesFactory) {
+    function PoolFactory(_POOL_PERMISSIONS, _$q, _resourcesFactory, _Host) {
 
         // api access via angular context
         POOL_PERMISSIONS = _POOL_PERMISSIONS;
         $q = _$q;
         resourcesFactory = _resourcesFactory;
+        Host = _Host;
 
         return Pool;
     }

@@ -133,7 +133,7 @@
                             if(this.validate()){
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
-                                // convert validated human input into ms for rest call    
+                                // convert validated human input into ms for rest call
                                 poolModel.ConnectionTimeout = utils.parseDuration($scope.editablePool.ConnectionTimeout);
                                 // add the Permissions field and remove the NgBitset field
                                 poolModel.Permissions = poolModel.permissions.val;

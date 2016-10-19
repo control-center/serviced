@@ -55,7 +55,7 @@
                 method: GET,
                 url: id => `/pools/${id}`
             },
-			getV2Pools: {
+            getV2Pools: {
                 method: GET,
                 url: "/api/v2/pools",
             },
@@ -73,7 +73,8 @@
             // OBJECT IS IN!
             getHostStatuses: {
                 method: GET,
-                url: id => `/api/v2/hoststatuses`
+                url: id => `/api/v2/hoststatuses`,
+                ignorePending: true
             },
             addVHost: {
                 method: PUT,
@@ -206,6 +207,10 @@
                 url: "/hosts/add",
                 payload: host => host
             },
+            getHost: {
+                method: GET,
+                url: id => `/hosts/${id}`
+            },
             updateHost: {
                 method: PUT,
                 url: id => `/hosts/${id}`,
@@ -313,6 +318,23 @@
         };
 
         var v2MethodConfigs = {
+            getPools: {
+                method: GET,
+                url: () => `/api/v2/pools`,
+            },
+            getHosts: {
+                method: GET,
+                url: () => `/api/v2/hosts`,
+            },
+            getHostInstances: {
+                method: GET,
+                url: id => `/api/v2/hosts/${id}/instances`,
+            },
+            getHostStatuses: {
+                method: GET,
+                url: ids => ids ? `/api/v2/hoststatuses?hostId=` + ids.join("&hostId=") : `/api/v2/hoststatuses`,
+                ignorePending: true
+            },
             getService: {
                 method: GET,
                 url: id => `/api/v2/services/${id}`,
@@ -338,9 +360,9 @@
                 method: PUT,
                 url: (id) => `/api/v2/serviceconfigs/${id}`,
                 payload: (id, cfg) => {return JSON.stringify({
-                    'Filename':    cfg.Filename, 
-                    'Owner':       cfg.Owner, 
-                    'Permissions': cfg.Permissions, 
+                    'Filename':    cfg.Filename,
+                    'Owner':       cfg.Owner,
+                    'Permissions': cfg.Permissions,
                     'Content':     cfg.Content
                 });}
             },
