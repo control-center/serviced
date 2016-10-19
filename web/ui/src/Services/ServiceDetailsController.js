@@ -1041,7 +1041,7 @@
 
                     $scope.publicEndpointsTable = {
                         sorting: {
-                            ServiceEndpoint: "asc"
+                            ServiceName: "asc"
                         }
                     };
                     $scope.ipsTable = {
