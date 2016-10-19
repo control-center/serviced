@@ -108,10 +108,12 @@ func (s *CmdLoggingSuite) Test_VerbosityFlag(c *C) {
 	s.log.On("WatchConfigFile", expected).Return(nil)
 	s.api.On("GetHosts").Return([]host.Host{}, nil)
 	tests := map[int]logrus.Level{
-		0: logrus.DebugLevel,
-		1: logrus.InfoLevel,
-		2: logrus.WarnLevel,
-		3: logrus.ErrorLevel,
+		0:  logrus.DebugLevel,
+		1:  logrus.InfoLevel,
+		2:  logrus.WarnLevel,
+		3:  logrus.ErrorLevel,
+		4:  logrus.ErrorLevel,
+		-1: logrus.ErrorLevel,
 	}
 	for verbosity, level := range tests {
 		s.log.On("SetVerbosity", verbosity).Once()

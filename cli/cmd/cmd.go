@@ -410,7 +410,16 @@ func setLogging(options *config.Options, ctx *cli.Context, logControl logging.Lo
 	if ctx.IsSet("v") {
 		verbosity := ctx.GlobalInt("v")
 		logControl.SetVerbosity(verbosity)
-		logControl.SetLevel(logrus.DebugLevel - logrus.Level(verbosity))
+		switch verbosity {
+		case 0:
+			logControl.SetLevel(logrus.DebugLevel)
+		case 1:
+			logControl.SetLevel(logrus.InfoLevel)
+		case 2:
+			logControl.SetLevel(logrus.WarnLevel)
+		default:
+			logControl.SetLevel(logrus.ErrorLevel)
+		}
 	}
 
 	if ctx.IsSet("logtostderr") {
