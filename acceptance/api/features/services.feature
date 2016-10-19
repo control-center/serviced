@@ -132,6 +132,16 @@ Feature: V2 Services tests
     Then the JSON response root should be object
     And the JSON response should have value "/etc/my.cnf" at "Filename"
 
+  Scenario: GET descendant states for a service
+    Given I send and accept JSON
+    When I send a GET request to CC at "/api/v2/services"
+    Then the response status should be "200"
+    When I grab "$.[?(@["Name"]=="testsvc")].ID" as "serviceid"
+    And I send a GET request to CC at "/api/v2/services/{serviceid}/descendantstates"
+    And the JSON response root should be object
+    And the JSON response should have key "auto"
+    And the JSON response should have value "2" at "auto.1"
+
   @reload_service
   Scenario: POST a service config for a service
     Given I send and accept JSON
