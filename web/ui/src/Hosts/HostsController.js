@@ -4,27 +4,19 @@
 (function(){
     "use strict";
 
+    let resourcesFactory, authService, $modalService, $translate, $notification,
+        areUIReady, $interval, servicedConfig, utils, Host, log;
+
     class HostsController {
 
-        constructor($scope, $routeParams, resourcesFactory, authService,
-                    $modalService, $translate, $notification, areUIReady,
-                    $interval, servicedConfig, log, miscUtils, Host) {
+        constructor($scope) {
 
             authService.checkLogin(this);
-
-            this.resourcesFactory = resourcesFactory;
-            this.$modalService = $modalService;
-            this.$translate = $translate;
-            this.$notification = $notification;
-            this.areUIReady = areUIReady;
-            this.$interval = $interval;
-            this.utils = miscUtils;
-            this.params = $routeParams;
 
             this.touch();
 
             this.name = "hosts";
-            this.indent = this.utils.indentClass;
+            this.indent = utils.indentClass;
             this.hostsInView = [];
 
             this.updateFrequency = 3000;
@@ -63,11 +55,17 @@
                 this.stopPolling();
             });
 
+            // These methods will be called by directives, so when they are executed
+            // 'this' will be the directive and not the contoller.  To solve this we can
+            // bind 'this' to the controller.
             this.updateHostsInView = this.updateHostsInView.bind(this);
             this.getHostStatus = this.getHostStatus.bind(this);
 
+            // New scopes are created to use as models for the modals dialogs.
+            // They require some additional methods that are on the global
+            // scope.  Since we want to keep $scope limited to just the constructor,
+            // this method can be used to create new scopes for modals.
             this.newScope = () => $scope.$new(true);
-            this.newHost = data => new Host(data);
         }
 
         touch() {
@@ -75,19 +73,19 @@
         }
 
         refreshHosts() {
-            return this.resourcesFactory.v2.getHosts().then(data => {
-                this.hosts = data.map(result => this.newHost(result));
+            return resourcesFactory.v2.getHosts().then(data => {
+                this.hosts = data.map(result => new Host(result));
                 this.touch();
             });
         }
 
         refreshPoolIds() {
-            this.resourcesFactory.v2.getPools()
+            resourcesFactory.v2.getPools()
                 .success(data => {
                     this.poolIds = data.map(result => result.ID).sort();
                 })
                 .error(data => {
-                    this.$notification.create("Unable to load pools.", data.Detail).error();
+                    $notification.create("Unable to load pools.", data.Detail).error();
                 });
         }
 
@@ -95,7 +93,7 @@
             if (!this.hostsInView || this.hostsInView.length < 1) { return; }
 
             let ids = this.hostsInView.map(h => h.id);
-            return this.resourcesFactory.v2.getHostStatuses(ids).then(data => {
+            return resourcesFactory.v2.getHostStatuses(ids).then(data => {
                     let statusHash = data.reduce(function(hash, status) {
                         hash[status.HostID] = status; return hash;
                     }, {});
@@ -110,7 +108,7 @@
 
         startPolling() {
             if (!this.updatePromise) {
-                this.updatePromise = this.$interval(
+                this.updatePromise = $interval(
                     () => this.refreshHostStatuses(),
                     this.updateFrequency
                 );
@@ -119,28 +117,23 @@
 
         stopPolling() {
             if (this.updatePromise) {
-                this.$interval.cancel(this.updatePromise);
+                $interval.cancel(this.updatePromise);
                 this.updatePromise = null;
             }
         }
 
         clickAddHost() {
             let modalScope = this.newScope();
-            modalScope.resourcesFactory = this.resourcesFactory;
-            modalScope.$modalService = this.$modalService;
             modalScope.refreshHosts = () => this.refreshHosts();
-            modalScope.utils = this.utils;
-            modalScope.$translate = this.$translate;
-            modalScope.$notification = this.$notification;
             modalScope.poolIds = this.poolIds;
 
             modalScope.newHost = {
-                port: this.$translate.instant('placeholder_port'),
+                port: $translate.instant('placeholder_port'),
                 PoolID: this.arrayEmpty(this.poolsIds) ? "" : this.poolIds[0]
             };
 
-            this.areUIReady.lock();
-            this.$modalService.create({
+            areUIReady.lock();
+            $modalService.create({
                 templateUrl: "add-host.html",
                 model: modalScope,
                 title: "add_host",
@@ -161,14 +154,14 @@
 
                                 modalScope.newHost.IPAddr = modalScope.newHost.host + ':' + modalScope.newHost.port;
 
-                                modalScope.resourcesFactory.addHost(modalScope.newHost)
+                                resourcesFactory.addHost(modalScope.newHost)
                                     .success(function(data, status){
-                                        modalScope.$modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, modalScope.newHost.host);
+                                        $modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, modalScope.newHost.host);
                                         modalScope.refreshHosts();
                                     }.bind(this))
                                     .error(function(data, status){
                                         // TODO - form error highlighting
-                                        modalScope.$notification.create("", data.Detail).error();
+                                        $notification.create("", data.Detail).error();
                                         // reenable button
                                         enableSubmit();
                                     }.bind(this));
@@ -177,31 +170,26 @@
                     }
                 ],
                 validate: function(){
-                    var err = modalScope.utils.validateHostName(modalScope.newHost.host, modalScope.$translate) ||
-                        modalScope.utils.validatePortNumber(modalScope.newHost.port, modalScope.$translate) ||
-                        modalScope.utils.validateRAMLimit(modalScope.newHost.RAMLimit);
+                    var err = utils.validateHostName(modalScope.newHost.host, $translate) ||
+                        utils.validatePortNumber(modalScope.newHost.port, $translate) ||
+                        utils.validateRAMLimit(modalScope.newHost.RAMLimit);
                     if(err){
-                        modalScope.$notification.create("Error", err).error();
+                        $notification.create("Error", err).error();
                         return false;
                     }
                     return true;
                 },
-                onShow: () => {
-                    this.areUIReady.unlock();
-                }
+                onShow: () => areUIReady.unlock()
             });
         }
 
         clickRemoveHost(id) {
             let modalScope = this.newScope();
-            modalScope.resourcesFactory = this.resourcesFactory;
             modalScope.refreshHosts = () => this.refreshHosts();
-            modalScope.update = this.update;
-            modalScope.$notification = this.$notification;
 
             let hostToRemove = this.hosts.find(h => h.id === id);
-            this.$modalService.create({
-                template: this.$translate.instant("confirm_remove_host") + " <strong>" + hostToRemove.name + "</strong>",
+            $modalService.create({
+                template: $translate.instant("confirm_remove_host") + " <strong>" + hostToRemove.name + "</strong>",
                 model: modalScope,
                 title: "remove_host",
                 actions: [
@@ -212,14 +200,14 @@
                         label: "remove_host",
                         classes: "btn-danger",
                         action: function(){
-                            modalScope.resourcesFactory.removeHost(id)
+                            resourcesFactory.removeHost(id)
                                 .success(function(data, status) {
-                                    modalScope.$notification.create("Removed host", id).success();
+                                    $notification.create("Removed host", id).success();
                                     modalScope.refreshHosts();
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
-                                    modalScope.$notification.create("Removing host failed", data.Detail).error();
+                                    $notification.create("Removing host failed", data.Detail).error();
                                     this.close();
                                 }.bind(this));
                         }
@@ -229,11 +217,11 @@
         }
 
         clickHost(id) {
-            this.resourcesFactory.routeToHost(id);
+            resourcesFactory.routeToHost(id);
         }
 
         clickPool(id) {
-            this.resourcesFactory.routeToPool(id);
+            resourcesFactory.routeToPool(id);
         }
 
         getHostStatus(id) {
@@ -253,10 +241,27 @@
         }
     }
 
-    HostsController.$inject = ["$scope", "$routeParams", "resourcesFactory",
-        "authService", "$modalService", "$translate", "$notification", "areUIReady",
-        "$interval", "servicedConfig", "log", "miscUtils", "Host"];
-    controlplane.controller("HostsController", HostsController);
+    controlplane.controller("HostsController", ["$scope", "resourcesFactory", "authService",
+        "$modalService", "$translate", "$notification", "areUIReady",
+        "$interval", "servicedConfig", "log", "miscUtils", "Host",
+        function($scope, _resourcesFactory, _authService, _$modalService, _$translate,
+        _$notification, _areUIReady, _$interval, _servicedConfig, _log, _miscUtils, _Host) {
+
+            resourcesFactory = _resourcesFactory;
+            authService = _authService;
+            $modalService = _$modalService;
+            $translate = _$translate;
+            $notification = _$notification;
+            areUIReady = _areUIReady;
+            $interval = _$interval;
+            servicedConfig = _servicedConfig;
+            utils = _miscUtils;
+            Host = _Host;
+            log = _log;
+
+        return new HostsController($scope);
+
+    }]);
 
 })();
 

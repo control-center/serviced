@@ -4,24 +4,15 @@
 (function() {
     'use strict';
 
+    let params, $location, resourcesFactory, authService, $modalService,
+        $translate, $notification, $interval, servicedConfig, log, utils,
+        Host, Instance, $q;
+
     class HostDetailsController {
 
-        constructor($scope, $routeParams, $location, resourcesFactory, authService,
-                    $modalService, $translate, $notification, $interval, servicedConfig,
-                    log, miscUtils, Host, Instance, $q) {
+        constructor($scope) {
 
             authService.checkLogin(this);
-
-            this.resourcesFactory = resourcesFactory;
-            this.$modalService = $modalService;
-            this.$translate = $translate;
-            this.$notification = $notification;
-            this.utils = miscUtils;
-            this.Host = Host;
-            this.params = $routeParams;
-            this.Instance = Instance;
-            this.$interval = $interval;
-            this.$q = $q;
 
             this.name = "hostdetails";
 
@@ -52,12 +43,12 @@
             this.refreshHost()
                 .then(this.refresh())
                 .then(() => {
-                    $scope.breadcrumbs.push({
-                        label: this.currentHost.name,
-                        itemClass: 'active' }
-                    );
+                        $scope.breadcrumbs.push({
+                            label: this.currentHost.name,
+                            itemClass: 'active' }
+                        );
 
-                    $scope.$emit("ready");
+                        $scope.$emit("ready");
                     }
                 );
 
@@ -75,7 +66,15 @@
 
             $scope.$on("$destroy", () => this.stopPolling());
 
+            // New scopes are created to use as models for the modals dialogs.
+            // They require some additional methods that are on the global
+            // scope.  Since we want to keep $scope limited to just the constructor,
+            // this method can be used to create new scopes for modals.
             this.newScope = () => $scope.$new(true);
+
+            // This method will be called by a directive, so when it is executed
+            // 'this' will be the directive and not the contoller.  To solve this we can
+            // bind 'this' to the controller.
             this.getHostStatus = this.getHostStatus.bind(this);
         }
 
@@ -88,24 +87,24 @@
         }
 
         refreshHost() {
-            return this.resourcesFactory.getHost(this.params.hostId)
+            return resourcesFactory.getHost(params.hostId)
                 .then(data => {
-                    this.currentHost = new this.Host(data);
+                    this.currentHost = new Host(data);
                     this.touch();
                 });
         }
 
         refreshInstances() {
-            return this.resourcesFactory.v2.getHostInstances(this.params.hostId)
+            return resourcesFactory.v2.getHostInstances(params.hostId)
                 .then(data => {
-                    this.hostInstances = data.map(i => new this.Instance(i));
+                    this.hostInstances = data.map(i => new Instance(i));
                     this.touchInstances();
                 });
         }
 
         refreshHostStatus() {
-            var id = this.params.hostId;
-            return this.resourcesFactory.v2.getHostStatuses([id])
+            var id = params.hostId;
+            return resourcesFactory.v2.getHostStatuses([id])
                 .then(data => {
                     var statusHash = data.reduce(function(hash, status) {
                         hash[status.HostID] = status; return hash;
@@ -118,7 +117,7 @@
         }
 
         refresh() {
-            return this.$q.all([ 
+            return $q.all([
                 this.refreshInstances(),
                 this.refreshHostStatus()]
             );
@@ -130,7 +129,7 @@
 
         startPolling() {
             if (!this.updatePromise) {
-                this.updatePromise = this.$interval(
+                this.updatePromise = $interval(
                     () => this.refresh(), this.updateFrequency
                 );
             }
@@ -138,22 +137,19 @@
 
         stopPolling() {
             if (this.updatePromise) {
-                this.$interval.cancel(this.updatePromise);
+                $interval.cancel(this.updatePromise);
                 this.updatePromise = null;
             }
         }
 
         viewLog(instance) {
             let modalScope = this.newScope();
-            modalScope.resourcesFactory = this.resourcesFactory;
-            modalScope.utils = this.utils;
             modalScope.editService = angular.copy(instance);
-            modalScope.$modalService = this.$modalService;
 
-            this.resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
+            resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                 .success(function(log) {
                     modalScope.log = log.Detail;
-                    modalScope.$modalService.create({
+                    $modalService.create({
                         templateUrl: "view-log.html",
                         model: modalScope,
                         title: "title_log",
@@ -168,7 +164,7 @@
                                 icon: "glyphicon-repeat",
                                 action: function(){
                                     var textarea = this.$el.find("textarea");
-                                    modalScope.resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id).success(function(log) {
+                                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id).success(function(log) {
                                         modalScope.log = log.Detail;
                                         textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                     })
@@ -180,7 +176,7 @@
                                 classes: "btn-primary",
                                 label: "download",
                                 action: function(){
-                                    modalScope.utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
                                 },
                                 icon: "glyphicon-download"
                             }
@@ -197,15 +193,11 @@
         }
 
         click_app(instance) {
-            this.$location.path('/services/' + instance.model.ServiceID);
+            $location.path('/services/' + instance.model.ServiceID);
         }
 
         editCurrentHost() {
             let modalScope = this.newScope();
-            modalScope.resourcesFactory = this.resourcesFactory;
-            modalScope.utils = this.utils;
-            modalScope.$modalService = this.$modalService;
-            modalScope.$notification = this.$notification;
             modalScope.refreshHost = () => this.refreshHost();
             modalScope.currentHost = this.currentHost;
 
@@ -214,7 +206,7 @@
                 RAMLimit: this.currentHost.RAMLimit
             };
 
-            this.$modalService.create({
+            $modalService.create({
                 templateUrl: "edit-host.html",
                 model: modalScope,
                 title: "title_edit_host",
@@ -233,9 +225,9 @@
                                 var enableSubmit = this.disableSubmitButton();
 
                                 // update host with recently edited host
-                                modalScope.resourcesFactory.updateHost(modalScope.currentHost.id, hostModel)
+                                resourcesFactory.updateHost(modalScope.currentHost.id, hostModel)
                                     .success(function(data, status){
-                                        modalScope.$notification.create("Updated host", hostModel.Name).success();
+                                        $notification.create("Updated host", hostModel.Name).success();
                                         modalScope.refreshHost();
                                         this.close();
                                     }.bind(this))
@@ -248,7 +240,7 @@
                     }
                 ],
                 validate: function(){
-                    var err = modalScope.utils.validateRAMLimit(modalScope.editableHost.RAMLimit, modalScope.currentHost.model.Memory);
+                    var err = utils.validateRAMLimit(modalScope.editableHost.RAMLimit, modalScope.currentHost.model.Memory);
                     if(err){
                         this.createNotification("Error", err).error();
                         return false;
@@ -265,27 +257,25 @@
         modal_confirmResetKeys() {
             let scope = this.newScope();
             scope.host = this.currentHost;
-            scope.$modalService = this.$modalService;
-            scope.resourcesFactory = this.resourcesFactory;
 
-            this.$modalService.create({
-                template: this.$translate.instant("reset_host_keys", {name: this.currentHost.name}),
+            $modalService.create({
+                template: $translate.instant("reset_host_keys", {name: this.currentHost.name}),
                 model: scope,
-                title: this.$translate.instant("title_reset_host_keys"),
+                title: $translate.instant("title_reset_host_keys"),
                 actions: [
                     {
                         role: "cancel"
                     },{
                         role: "ok",
                         classes: "submit btn-primary",
-                        label: this.$translate.instant("btn_reset_keys"),
+                        label: $translate.instant("btn_reset_keys"),
                         action: function(){
                             // disable ok button, and store the re-enable function
                             let enableSubmit = this.disableSubmitButton();
 
-                            scope.resourcesFactory.resetHostKeys(scope.host.id)
+                            resourcesFactory.resetHostKeys(scope.host.id)
                                 .success((data, status) => {
-                                    scope.$modalService.modals.displayHostKeys(data.PrivateKey, scope.host.name);
+                                    $modalService.modals.displayHostKeys(data.PrivateKey, scope.host.name);
                                 })
                                 .error((data, status) => {
                                     // TODO - form error highlighting
@@ -300,14 +290,35 @@
         }
 
         restart(hostId, instanceId) {
-            this.resourcesFactory.killRunning(hostId, instanceId)
+            resourcesFactory.killRunning(hostId, instanceId)
                 .then(this.refresh());
         }
     }
 
-    HostDetailsController.$inject = ["$scope", "$routeParams", "$location", "resourcesFactory",
-        "authService", "$modalService", "$translate", "$notification",
-        "$interval", "servicedConfig", "log", "miscUtils", "Host", "Instance", "$q"];
-    controlplane.controller("HostDetailsController", HostDetailsController);
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location",
+        "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
+        "$interval", "servicedConfig", "log", "miscUtils", "Host", "Instance", "$q",
+        function($scope, _$routeParams, _$location, _resourcesFactory, _authService, _$modalService,
+        _$translate, _$notification, _$interval, _servicedConfig, _log, _miscUtils,
+        _Host, _Instance, _$q) {
+
+            params = _$routeParams;
+            $location = _$location;
+            resourcesFactory = _resourcesFactory;
+            authService = _authService;
+            $modalService = _$modalService;
+            $translate = _$translate;
+            $notification = _$notification;
+            $interval = _$interval;
+            servicedConfig = _servicedConfig;
+            utils = _miscUtils;
+            Host = _Host;
+            Instance = _Instance;
+            $q = _$q;
+            log = _log;
+
+        return new HostDetailsController($scope);
+
+    }]);
 
 })();
