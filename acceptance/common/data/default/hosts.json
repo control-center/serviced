@@ -1,0 +1,89 @@
+{
+  "hosts":
+  {
+    "defaultHost": {
+      "hostName": "%{local_ip}",
+      "name": "defaultHost",
+      "rpcPort": 4981,
+      "hostID": 4981,
+      "memory": 6442450944,
+      "memoryGB": "6.00 GB",
+      "ramGB": "75% (4.50 GB)",
+      "cores": 4981,
+      "kernelVersion": "Default Kernel Version Test",
+      "kernelRelease": "Default Kernel Release Test",
+      "ccRelease": "Default CC Release Test",
+      "pool": "default",
+      "commitment": "75%",
+      "outboundIP": "%{local_ip}"
+    },
+
+    "host2": {
+      "hostName": "%{local_ip}",
+      "name": "secondHost",
+      "rpcPort": 4982,
+      "hostID": 4982,
+      "memory": 6442450944,
+      "memoryGB": "6.00 GB",
+      "ramGB": "5602947K",
+      "cores": 4982,
+      "kernelVersion": "Kernel Version test 2",
+      "kernelRelease": "Kernel Release test 2",
+      "ccRelease": "CC Release test 2",
+      "pool": "default",
+      "commitment": "5602947K",
+      "outboundIP": "%{local_ip}"
+    },
+
+    "host3": {
+      "hostName": "%{local_ip}",
+      "name": "thirdHost",
+      "rpcPort": 4983,
+      "hostID": 4983,
+      "memory":  5368709120,
+      "memoryGB": "5.00 GB",
+      "ramGB": "20% (1.00 GB)",
+      "cores": 3,
+      "kernelVersion": "Third Test Kernel Version",
+      "kernelRelease": "Third Test Kernel Release",
+      "ccRelease": "Third Test CC Release",
+      "pool": "testPool2",
+      "commitment": "20%",
+      "outboundIP": "%{local_ip}"
+    },
+
+    "host4": {
+      "hostName": "%{local_ip}",
+      "name": "fourthHost",
+      "rpcPort": 4984,
+      "hostID": 4984,
+      "memory":  536870912,
+      "memoryGB": "0.50 GB",
+      "ramGB": "100% (0.50 GB)",
+      "cores": 4,
+      "kernelVersion": "v4",
+      "kernelRelease": "#4",
+      "ccRelease": "v4",
+      "pool": "testPool3",
+      "commitment": "100%",
+      "outboundIP": "%{local_ip}"
+    },
+
+    "host5": {
+      "hostName": "%{local_ip}",
+      "name": "fifthHost",
+      "rpcPort": 4985,
+      "hostID": 4985,
+      "memory":  2147483648,
+      "memoryGB": "2.00 GB",
+      "ramGB": "75% (1.50 GB)",
+      "cores": 55,
+      "kernelVersion": "#5",
+      "kernelRelease": "v5",
+      "ccRelease": "#5",
+      "pool": "testPool4",
+      "commitment": "75%",
+      "outboundIP": "%{local_ip}"
+    }
+  }
+}

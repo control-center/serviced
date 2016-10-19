@@ -80,6 +80,9 @@ start_serviced() {
     mkdir -p ${SERVICED_ISVCS_PATH}
     mkdir -p ${SERVICED_BACKUPS_PATH}
 
+    cp ${DIR}/pkg/logconfig-cli.yaml ${SERVICED_ETC_PATH}
+    cp ${DIR}/pkg/logconfig-server.yaml ${SERVICED_ETC_PATH}
+
     sudo GOPATH=${GOPATH} PATH=${PATH} \
         SERVICED_ETC_PATH=${SERVICED_ETC_PATH} \
         SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} \

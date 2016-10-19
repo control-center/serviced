@@ -214,6 +214,9 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	for ii, _ := range result {
+		if strings.HasPrefix(result[ii].ID, "isvc-") {
+			continue
+		}
 		result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
 		result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
 	}
@@ -535,7 +538,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error restarting service: %s", err)
 		restServerError(w, err)
 		return
@@ -562,7 +565,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error starting service: %s", err)
 		restServerError(w, err)
 		return
@@ -589,7 +592,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 	}
 
 	var affected int
-	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
 		glog.Errorf("Unexpected error stopping service: %s", err)
 		restServerError(w, err)
 		return

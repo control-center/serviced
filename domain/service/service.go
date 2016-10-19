@@ -275,6 +275,32 @@ func CloneService(fromSvc *Service, suffix string) (*Service, error) {
 		svc.Volumes[idx].ResourcePath += suffix
 	}
 
+	// CC-2750: filter invalid monitoring profile data
+	var metricConfigs = []domain.MetricConfig{}
+	for _, mc := range svc.MonitoringProfile.MetricConfigs {
+		if mc.ID == "metrics" {
+			continue
+		}
+
+		var metrics = []domain.Metric{}
+		for _, m := range mc.Metrics {
+			if !m.BuiltIn {
+				metrics = append(metrics, m)
+			}
+		}
+		mc.Metrics = metrics
+		metricConfigs = append(metricConfigs, mc)
+	}
+	svc.MonitoringProfile.MetricConfigs = metricConfigs
+
+	var graphConfigs = []domain.GraphConfig{}
+	for _, gc := range svc.MonitoringProfile.GraphConfigs {
+		if !gc.BuiltIn {
+			graphConfigs = append(graphConfigs, gc)
+		}
+	}
+	svc.MonitoringProfile.GraphConfigs = graphConfigs
+
 	return &svc, nil
 }
 
@@ -340,11 +366,6 @@ func (s *Service) GetServicePorts() []ServiceEndpoint {
 
 // AddVirtualHost Add a virtual host for given service, this method avoids duplicates vhosts
 func (s *Service) AddVirtualHost(application, vhostName string, isEnabled bool) (*servicedefinition.VHost, error) {
-	// We currently don't allow vhosts that contain a '.'
-	if strings.Contains(vhostName, ".") {
-		return nil, fmt.Errorf("Virtual host name must not contain a '.'")
-	}
-
 	if s.Endpoints != nil {
 
 		//find the matching endpoint

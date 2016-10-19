@@ -322,6 +322,31 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, reque
 		addrLogger.Debug("Deleted public port address")
 	}
 
+	// Build a list of unique parent directory paths which need to be created
+	pathsToBuild := map[string]string{}
+	for pubKey, _ := range request.PortsToPublish {
+		if _, ok := pathsToBuild[pubKey.HostID]; ok {
+			continue
+		}
+		hostpth := path.Join(pth, pubKey.HostID)
+		ok, err := conn.Exists(hostpth)
+		if err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not read parent path for public port address",
+			}
+		} else if !ok {
+			pathsToBuild[pubKey.HostID] = hostpth
+		}
+	}
+
+	// Build any missing parent directory paths
+	if err := buildParentPaths(logger, conn, pathsToBuild); err != nil {
+		err.Message = "could not register public port address"
+		return err
+	}
+
 	for pubKey, pubValue := range request.PortsToPublish {
 		addrpth := path.Join(pth, pubKey.HostID, pubKey.PortAddress)
 		addrLogger := logger.WithFields(log.Fields{
@@ -329,19 +354,23 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, reque
 			"portaddress": pubKey.PortAddress,
 			"zkpath":      addrpth,
 		})
-		err := conn.CreateIfExists(addrpth, &pubValue)
-		if err == client.ErrNoNode {
-			if err := conn.CreateDir(path.Join(pth, pubKey.HostID)); err != nil {
-				return &RegistryError{
-					Action:  "sync",
-					Path:    path.Join(pth, pubKey.HostID),
-					Message: "could not register public port address",
-				}
+
+		ok, err := conn.Exists(addrpth)
+		if err != nil {
+			addrLogger.WithError(err).Debug("skipped public port address because of an unexpected error")
+			return &RegistryError{
+				Action:  "sync",
+				Path:   addrpth,
+				Message: "could not register public port address",
 			}
-			pubValue.SetVersion(nil)
-			tx.Create(addrpth, &pubValue)
+		}
+
+		publicPort := pubValue
+		if !ok {
+			publicPort.SetVersion(nil)
+			tx.Create(addrpth, &publicPort)
 			addrLogger.Debug("Created public port address")
-		} else if err == client.ErrNodeExists {
+		} else {
 			existingPub := &PublicPort{}
 			if err := conn.Get(addrpth, existingPub); err != nil {
 				return &RegistryError{
@@ -350,16 +379,9 @@ func syncServicePublicPorts(conn client.Connection, tx client.Transaction, reque
 					Message: "could not read current public port address",
 				}
 			}
-			pubValue.SetVersion(existingPub.Version())
-			tx.Set(addrpth, &pubValue)
+			publicPort.SetVersion(existingPub.Version())
+			tx.Set(addrpth, &publicPort)
 			addrLogger.Debug("Updated public port address")
-		} else if err != nil {
-			addrLogger.WithError(err).Debug("skipped public port address because of an unexpected error")
-			return &RegistryError{
-				Action:  "sync",
-				Path:   addrpth,
-				Message: "could not register public port address",
-			}
 		}
 	}
 
@@ -383,26 +405,55 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, request Se
 		addrLogger.Debug("Deleted virtual host")
 	}
 
-	for vhostKey, vhost := range request.VHostsToPublish {
+	// Build a list of unique parent directory paths which need to be created
+	pathsToBuild := map[string]string{}
+	for vhostKey, _ := range request.VHostsToPublish {
+		if _, ok := pathsToBuild[vhostKey.HostID]; ok {
+			continue
+		}
+		hostpth := path.Join(pth, vhostKey.HostID)
+		ok, err := conn.Exists(hostpth)
+		if err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not read parent path for virtual host address",
+			}
+		} else if !ok {
+			pathsToBuild[vhostKey.HostID] = hostpth
+		}
+	}
+
+	// Build any missing parent directory paths
+	if err := buildParentPaths(logger, conn, pathsToBuild); err != nil {
+		err.Message = "could not register virtual host address"
+		return err
+	}
+
+	for vhostKey, vhostValue := range request.VHostsToPublish {
 		addrpth := path.Join(pth, vhostKey.HostID, vhostKey.Subdomain)
 		addrLogger := logger.WithFields(log.Fields{
 			"hostid":    vhostKey.HostID,
 			"subdomain": vhostKey.Subdomain,
 			"zkpath":    addrpth,
 		})
-		err := conn.CreateIfExists(addrpth, &vhost)
-		if err == client.ErrNoNode {
-			if err := conn.CreateDir(path.Join(pth, vhostKey.HostID)); err != nil {
-				return &RegistryError{
-					Action:  "sync",
-					Path:    path.Join(pth, vhostKey.HostID),
-					Message: "could not register virtual host",
-				}
+
+		ok, err := conn.Exists(addrpth)
+		if err != nil {
+			addrLogger.WithError(err).Debug("skipped virtual host address because of an unexpected error")
+			return &RegistryError{
+				Action:  "sync",
+				Path:   addrpth,
+				Message: "could not register virtual host address",
 			}
+		}
+
+		vhost := vhostValue
+		if !ok {
 			vhost.SetVersion(nil)
 			tx.Create(addrpth, &vhost)
-			addrLogger.Debug("Created public port address")
-		} else if err == client.ErrNodeExists {
+			addrLogger.Debug("Created virtual host address")
+		} else {
 			existingVHost := &VHost{}
 			if err := conn.Get(addrpth, existingVHost); err != nil {
 				return &RegistryError{
@@ -414,16 +465,27 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, request Se
 			vhost.SetVersion(existingVHost.Version())
 			tx.Set(addrpth, &vhost)
 			addrLogger.Debug("Updated virtual host")
-		} else if err != nil {
-			addrLogger.WithError(err).Debug("skipped virtual host because of an unexpected error")
-			return &RegistryError{
-				Action:  "sync",
-				Path:   addrpth,
-				Message: "could not register public port address",
-			}
 		}
 	}
 
 	logger.Debug("Updated transaction to sync virtual hosts for service")
+	return nil
+}
+
+// Build any missing parent directory paths
+func buildParentPaths(logger *log.Entry, conn client.Connection, pathsToBuild map[string]string) *RegistryError {
+	for hostID, hostpth := range pathsToBuild {
+		hostLogger := logger.WithFields(log.Fields{
+			"hostid":     hostID,
+			"zkpath":      hostpth,
+		})
+		if err := conn.CreateDir(hostpth); err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+			}
+		}
+		hostLogger.Debug("Created path for parent host")
+	}
 	return nil
 }

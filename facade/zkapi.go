@@ -21,6 +21,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/datastore"
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
@@ -364,6 +365,14 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	}
 	*hosts, err = zks.GetCurrentHosts(conn, poolID)
 	return err
+}
+
+func (z *zkf) IsHostActive(poolID string, hostID string) (bool, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return false, err
+	}
+	return zks.IsHostOnline(conn, poolID, hostID)
 }
 
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
@@ -786,4 +795,56 @@ func (zk *zkf) buildServiceRegistryCache(conn client.Connection) error {
 	}
 	zk.svcRegistry.BuildCache(publicPorts, vhosts)
 	return nil
+}
+
+func updateDfsClientInTransaction(tx client.Transaction, client *host.Host, delete bool) {
+	if delete {
+		tx.Delete(client.IPAddr)
+	} else {
+		node := &storage.Node{
+			Host: *client,
+		}
+		tx.Create(client.IPAddr, node)
+	}
+}
+
+func updateDfsClients(clients []host.Host, delete bool) error {
+	// Get a connection to /storage/clients
+	conn, err := zzk.GetLocalConnection(storage.ZkStorageClientsPath)
+	if err != nil {
+		return err
+	}
+	// Get current dfs clients and put them in a map
+	currentClients, err := conn.Children("")
+	if err != nil {
+		return err
+	}
+	currentClientsMap := make(map[string]bool)
+	for _, c := range currentClients {
+		currentClientsMap[c] = true
+	}
+	// Create a transaction
+	tx := conn.NewTransaction()
+	// Update clients
+	for _, c := range clients {
+		_, exists := currentClientsMap[c.IPAddr]
+		if delete && exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		} else if !delete && !exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (zk *zkf) UnregisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, true)
+}
+
+func (zk *zkf) RegisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, false)
 }

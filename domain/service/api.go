@@ -45,6 +45,7 @@ type IPAssignment struct {
 	Type        string
 	IPAddress   string
 	Port        uint16
+	Application string
 }
 
 // ExportedEndpoint is a minimal service object that describes exported

@@ -180,7 +180,7 @@ func testCmdLogExport(t *testing.T, tc LogsCLITestCase) {
 }
 
 func runLogsAPITest(driver api.API, args ...string) {
-	c := New(driver, utils.TestConfigReader(make(map[string]string)))
+	c := New(driver, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }

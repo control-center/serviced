@@ -51,7 +51,7 @@ type FacadeInterface interface {
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
+	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
@@ -82,6 +82,14 @@ type FacadeInterface interface {
 	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
 
 	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
+	RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error
+
+	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
+
+	RemoveHostExpiration(ctx datastore.Context, hostID string)
+
+	HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error)
 
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
@@ -175,6 +183,9 @@ type FacadeInterface interface {
 
 	DeleteServiceConfig(ctx datastore.Context, fileID string) error
 
+	GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error)
+
 	UpdateServiceCache(ctx datastore.Context) error
 
+	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
 }

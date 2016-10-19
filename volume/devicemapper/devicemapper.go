@@ -461,6 +461,9 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
+		if err == ErrNoMetadata {
+			err = volume.ErrVolumeNotExists
+		}
 		return nil, err
 	}
 	if mounted, _ := devmapper.Mounted(vol.Path()); !mounted {

@@ -167,7 +167,7 @@ type ServiceAPITest struct {
 }
 
 func InitServiceAPITest(args ...string) {
-	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)))
+	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }
@@ -676,6 +676,7 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -718,6 +719,7 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
@@ -768,6 +770,7 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
+	//    --sync, -s		Schedules services synchronously
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {

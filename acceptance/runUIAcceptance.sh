@@ -94,6 +94,22 @@ if [ -z "${APPLICATION_PASSWORD-}" ]; then
     exit 1
 fi
 
+if [ -z "${SERVICED_ETC_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ETC_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ETC_PATH=${SERVICED_HOME}/etc
+fi
+
+if [ -z "${SERVICED_ISVCS_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ISVCS_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ISVCS_PATH=${SERVICED_HOME}/var/isvcs
+fi
+
 #
 # Get the current UID and GID. These are passed into the container for use in
 # creating a container-local user account so ownership of files created in the
