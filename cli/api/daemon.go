@@ -579,7 +579,6 @@ func (d *daemon) checkVersion() error {
 		ccVersion, _ := ccProps.CCVersion()
 		if servicedversion.Version != ccVersion {
 			updateCCVersion = true
-			log.Info("need to cc version is...")
 		}
 	}
 
