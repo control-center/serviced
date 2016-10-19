@@ -23,8 +23,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/logri"
 )
 
 const (
@@ -108,6 +106,7 @@ type Options struct {
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 	TokenExpiration            int               // The time in seconds before an authentication token expires
+	LogConfigFilename          string            // Path to the logri configuration
 }
 
 // GetOptions returns a COPY of the global options struct
@@ -118,11 +117,6 @@ func GetOptions() Options {
 // LoadOptions overwrites the existing server options
 func LoadOptions(ops Options) {
 	options = ops
-
-	// Set verbosity
-	glog.SetVerbosity(options.Verbosity)
-	level := logrus.InfoLevel + logrus.Level(options.Verbosity)
-	logri.SetLevel(level)
 
 	// Check option boundaries
 	if options.ESStartupTimeout < minTimeout {

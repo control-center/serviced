@@ -101,7 +101,7 @@ type HealthCheckAPITest struct {
 }
 
 func InitHealthCheckAPITest(args ...string) {
-	c := New(DefaultHealthCheckAPITest, utils.TestConfigReader(make(map[string]string)))
+	c := New(DefaultHealthCheckAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }

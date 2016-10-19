@@ -20,6 +20,7 @@ import (
 
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/cli/cmd"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 )
@@ -48,7 +49,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "WARNING: could not read default configs: %s\n", err)
 	}
 
-	cmd.New(api.New(), config).Run(os.Args)
+	cmd.New(api.New(), config, logging.NewLogControl()).Run(os.Args)
 }
 
 func getConfigs(args []string) (*utils.EnvironConfigReader, error) {
