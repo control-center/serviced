@@ -21,6 +21,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
@@ -144,6 +146,87 @@ func (s *S) TestRemovePort(t *C) {
 
 	err = svc.RemoveVirtualHost("server", ":1234")
 	t.Assert(err, NotNil)
+}
+
+func (s *S) TestCloneService(t *C) {
+	svc := &Service{
+		ID:           "testserviceidwithatleasttwelvecharacters",
+		Name:         "testservice",
+		DesiredState: int(SVCRun),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		Endpoints: []ServiceEndpoint{
+			{
+				Name:        "ep",
+				Purpose:     "export",
+				Protocol:    "tcp",
+				PortNumber:  8000,
+				Application: "ep",
+			},
+		},
+		Volumes: []servicedefinition.Volume{
+			{
+				Owner:         "root",
+				Permission:    "0777",
+				ResourcePath:  "data",
+				ContainerPath: "data",
+				Type:          "dfs",
+			},
+		},
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				{
+					ID:          "test-service-metric",
+					Name:        "test metric",
+					Description: "this is a test",
+					Metrics: []domain.Metric{
+						{
+							ID:      "internal",
+							BuiltIn: true,
+						}, {
+							ID:      "external",
+							BuiltIn: false,
+						},
+					},
+				}, {
+					ID: "metrics",
+				},
+			},
+			GraphConfigs: []domain.GraphConfig{
+				{
+					ID:      "internal",
+					BuiltIn: true,
+				}, {
+					ID:      "external",
+					BuiltIn: false,
+				},
+			},
+		},
+	}
+
+	suffix := "tester"
+	clonedSvc, err := CloneService(svc, suffix)
+	t.Assert(err, IsNil)
+
+	t.Check(clonedSvc.ID, Not(Equals), svc.ID)
+	t.Check(clonedSvc.DesiredState, Equals, int(SVCStop))
+	t.Check(clonedSvc.CreatedAt.Equal(svc.CreatedAt), Equals, false)
+	t.Check(clonedSvc.UpdatedAt.Equal(svc.UpdatedAt), Equals, false)
+	t.Check(clonedSvc.Name, Equals, svc.Name+suffix)
+
+	actualEp0 := clonedSvc.Endpoints[0]
+	t.Check(actualEp0.Name, Equals, "eptester")
+	t.Check(actualEp0.Application, Equals, "eptester")
+	t.Check(actualEp0.ApplicationTemplate, Equals, "tester")
+
+	profile := clonedSvc.MonitoringProfile
+
+	t.Check(profile.MetricConfigs, HasLen, 1)
+	t.Check(profile.MetricConfigs[0].ID, Equals, "test-service-metric")
+	t.Check(profile.MetricConfigs[0].Metrics, HasLen, 1)
+	t.Check(profile.MetricConfigs[0].Metrics[0].ID, Equals, "external")
+	t.Check(profile.GraphConfigs, HasLen, 1)
+	t.Check(profile.GraphConfigs[0].ID, Equals, "external")
 }
 
 func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
