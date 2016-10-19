@@ -66,10 +66,10 @@
 
       <table jelly-table data-data="currentService.publicEndpoints" data-config="publicEndpointsTable" class="table">
           <tr ng-repeat="publicEndpoint in $data">
-              <td data-title="'vhost_application'|translate" sortable="'Application'">
+              <td data-title="'vhost_application'|translate" sortable="'ServiceName'">
                   <a href="#/services/{{publicEndpoint.ServiceID}}" class="link" ng-click="routeToService(publicEndpoint.ServiceID, $event)">{{publicEndpoint.ServiceName}}</a>
               </td>
-              <td data-title="'endpoint'|translate" sortable="'ServiceEndpoint'">{{publicEndpoint.Application}}</td>
+              <td data-title="'endpoint'|translate" sortable="'Application'">{{publicEndpoint.Application}}</td>
               <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{getEndpointType(publicEndpoint)}}</td>
               <td data-title="'public_endpoint_protocol'|translate">{{publicEndpoint.Protocol}}</td>
               <td data-title="'public_endpoint_url'|translate">
