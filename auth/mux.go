@@ -15,6 +15,7 @@ package auth
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"net"
@@ -37,6 +38,8 @@ const (
 var (
 	ErrBadMuxAddress = errors.New("Bad mux address")
 	ErrBadMuxHeader  = errors.New("Bad mux header")
+
+	endian = binary.BigEndian
 )
 
 func BuildAuthMuxHeader(address []byte, token string) ([]byte, error) {
