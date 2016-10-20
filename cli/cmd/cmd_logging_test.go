@@ -89,10 +89,8 @@ func (s *CmdLoggingSuite) Test_LoadsConfigFile_Error(c *C) {
 			watch <- struct{}{}
 		})
 	s.api.On("GetHosts").Return([]host.Host{}, nil)
-	f := func(args ...string) { s.Run(env, args...) }
-	g := func(args ...string) { pipeStderr(f, args...) }
-	output := string(pipe(g, "serviced", "host", "list"))
-	output = strings.Split(output, "\n")[0]
+	output := captureStderr(func() { s.Run(env, "serviced", "host", "list") })
+	firstLine := strings.Split(string(output), "\n")[0]
 	timeout := time.After(time.Second)
 	select {
 	case <-watch:
@@ -101,7 +99,7 @@ func (s *CmdLoggingSuite) Test_LoadsConfigFile_Error(c *C) {
 	}
 	s.log.AssertExpectations(c)
 	s.api.AssertExpectations(c)
-	c.Assert(output, Matches, ".*"+err)
+	c.Assert(firstLine, Matches, ".*"+err)
 }
 
 func (s *CmdLoggingSuite) Test_LoadsSpecifiedConfigFile(c *C) {

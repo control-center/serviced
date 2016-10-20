@@ -193,7 +193,7 @@ func ExampleServicedCLI_CmdSnapshotList() {
 }
 
 func TestServicedCLI_CmdSnapshotList_ShowTagsShort(t *testing.T) {
-	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
+	output := captureStdout(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "-t") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -211,7 +211,7 @@ func TestServicedCLI_CmdSnapshotList_ShowTagsShort(t *testing.T) {
 }
 
 func TestServicedCLI_CmdSnapshotList_ShowTagsLong(t *testing.T) {
-	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "--show-tags")
+	output := captureStdout(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "--show-tags") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -238,7 +238,7 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
 }
 
 func TestServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort(t *testing.T) {
-	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
+	output := captureStdout(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -255,7 +255,7 @@ func TestServicedCLI_CmdSnapshotList_byServiceID_ShowTagsShort(t *testing.T) {
 }
 
 func TestervicedCLI_CmdSnapshotList_byServiceID_ShowTagsLong(t *testing.T) {
-	output := pipe(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "--show-tags")
+	output := captureStdout(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "--show-tags") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -274,13 +274,13 @@ func ExampleServicedCLI_CmdSnapshotList_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
 	// failed to retrieve all snapshots
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list") })
 	// failed to retrieve all snapshots by service id
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1") })
 	// failed to retrieve all snapshots with tags
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "-t") })
 	// failed to retrieve all snapshots with tags by service id
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t") })
 
 	// Output:
 	// invalid snapshot
@@ -293,13 +293,13 @@ func ExampleServicedCLI_CmdSnapshotList_err() {
 	DefaultSnapshotAPITest.snapshots = nil
 	defer func() { DefaultSnapshotAPITest.snapshots = DefaultTestSnapshots }()
 	// no snapshots found
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list") })
 	// no snapshots found for service id
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1") })
 	// no snapshots found with tags
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "-t")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "-t") })
 	// no snapshots found with tags for service id
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "list", "test-service-1", "-t")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1", "-t") })
 
 	// Output:
 	// no snapshots found
@@ -355,7 +355,7 @@ this command exits 1 which fails the test runner
 func ExampleServicedCLI_CmdSnapshotAdd_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "add", "test-service-2")
+	pipeStderr(func(){InitSnapshotAPITest( "serviced", "snapshot", "add", "test-service-2")})
 
 	// Output:
 	// invalid snapshot
@@ -365,7 +365,7 @@ func ExampleServicedCLI_CmdSnapshotAdd_fail() {
 /*
 this command exits 1 which fails the test runner
 func ExampleServicedCLI_CmdSnapshotAdd_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "add", NilSnapshot)
+	pipeStderr(func(){InitSnapshotAPITest( "serviced", "snapshot", "add", NilSnapshot)})
 
 	// Output:
 	// received nil snapshot
@@ -429,7 +429,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_BadID() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-0-snapshot")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-0-snapshot") })
 
 	// Output:
 	// no snapshot found
@@ -445,7 +445,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_nomatch_Tag() {
 func ExampleServicedCLI_CmdSnapshotRemove_error() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-1-snapshot-1")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-1-snapshot-1") })
 
 	// Output:
 	// invalid snapshot
@@ -454,7 +454,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_error() {
 func ExampleServicedCLI_CmdSnapshotRemove_errorGetByTag() {
 	DefaultSnapshotAPITest.getByTagFail = true
 	defer func() { DefaultSnapshotAPITest.getByTagFail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-1", "tag-1")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-1", "tag-1") })
 
 	// Output:
 	// unable to retrieve snapshot by tag name
@@ -488,14 +488,14 @@ func ExampleServicedCLI_CmdSnapshotCommit_usage() {
 func ExampleServicedCLI_CmdSnapshotCommit_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "commit", "ABC123")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "commit", "ABC123") })
 
 	// Output:
 	// invalid snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotCommit_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "commit", NilSnapshot)
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "commit", NilSnapshot) })
 
 	// Output:
 	// received nil snapshot
@@ -530,7 +530,7 @@ func ExampleServicedCLI_CmdSnapshotRollback_usage() {
 /*
 this command exits 1 which fails the test runner
 func ExampleServicedCLI_CmdSnapshotRollback_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "rollback", "test-service-0-snapshot")
+	pipeStderr(func(){InitSnapshotAPITest( "serviced", "snapshot", "rollback", "test-service-0-snapshot")})
 
 	// Output:
 	// no snapshot found
@@ -564,7 +564,7 @@ func ExampleServicedCLI_CmdSnapshotTag() {
 }
 
 func ExampleServicedCLI_CmdSnapshotTag_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "tag", "test-service-0-snapshot", "tag-A")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "tag", "test-service-0-snapshot", "tag-A") })
 
 	// Output:
 	// no snapshot found
@@ -573,7 +573,7 @@ func ExampleServicedCLI_CmdSnapshotTag_err() {
 func ExampleServicedCLI_CmdSnapshotTag_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A") })
 
 	// Output:
 	// invalid snapshot
@@ -582,7 +582,7 @@ func ExampleServicedCLI_CmdSnapshotTag_fail() {
 func ExampleServicedCLI_CmdSnapshotTag_btrfsFail() {
 	DefaultSnapshotAPITest.btrfsFail = true
 	defer func() { DefaultSnapshotAPITest.btrfsFail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A") })
 
 	// Output:
 	// operation not supported on btrfs driver
@@ -596,7 +596,7 @@ func ExampleServicedCLI_CmdSnapshotUntag() {
 }
 
 func ExampleServicedCLI_CmdSnapshotUntag_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-0", "tag-A")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "untag", "test-service-0", "tag-A") })
 
 	// Output:
 	// no snapshot found
@@ -605,7 +605,7 @@ func ExampleServicedCLI_CmdSnapshotUntag_err() {
 func ExampleServicedCLI_CmdSnapshotUntag_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-1", "tag-2")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "untag", "test-service-1", "tag-2") })
 
 	// Output:
 	// invalid snapshot
@@ -614,7 +614,7 @@ func ExampleServicedCLI_CmdSnapshotUntag_fail() {
 func ExampleServicedCLI_CmdSnapshotUntag_btrfsFail() {
 	DefaultSnapshotAPITest.btrfsFail = true
 	defer func() { DefaultSnapshotAPITest.btrfsFail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-1", "tag-A")
+	pipeStderr(func() { InitSnapshotAPITest("serviced", "snapshot", "untag", "test-service-1", "tag-A") })
 
 	// Output:
 	// operation not supported on btrfs driver

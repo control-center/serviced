@@ -68,7 +68,7 @@ func ExampleServicedCLI_CmdDockerOverride_usage() {
 }
 
 func ExampleServicedCli_cmdDockerOverride_fail() {
-	pipeStderr(InitDockerAPITest, "serviced", "docker", "override", "anything", OverrideFail)
+	pipeStderr(func() { InitDockerAPITest("serviced", "docker", "override", "anything", OverrideFail) })
 
 	// Output:
 	// override failed
