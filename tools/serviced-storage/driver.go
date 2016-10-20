@@ -195,63 +195,36 @@ func (c *CheckOrphans) Execute(args []string) error {
 	}
 
 	directory := GetDefaultDriver(string(c.Args.Path))
-	volDir := directory + "/.devicemapper/volumes"
-	fsVolDir := directory + "/.devicemapper/metadata"
 
-	files, err := ioutil.ReadDir(volDir)
+	// compile a list of device hashes visible to CC
+	ccDir := directory + "/.devicemapper/volumes"
+	ccFiles, err := ioutil.ReadDir(ccDir)
 	if err != nil {
 		return err
 	}
-
-	var ccVols []string
-	var snaps []string
-	var orphans []string
-	for _, f := range files {
-		if strings.Contains(f.Name(), ".") {
-			snaps = append(snaps, f.Name())
-			orphans = append(orphans, f.Name())
-		} else {
-			ccVols = append(ccVols, f.Name())
-		}
-	}
-
-	// This will store CC-visible device identifiers for comparing with the filesystem's metadata
-	var known []string
-	for _, v := range ccVols {
-		dat, _ := ioutil.ReadFile(volDir + "/" + v + "/metadata.json")
-		var m Metadata
-		json.Unmarshal(dat, &m)
-		known = append(known, m.CurrentDevice)
-		for k, vv := range m.Snapshots.(map[string]interface{}) {
-			known = append(known, vv.(string))
-			// Check if this snapshot is in our metadata
-			for i, s := range orphans {
-				if s == k {
-					orphans = append(orphans[:i], orphans[i+1:]...)
-				}
+	var ccDevices []string
+	for _, f := range ccFiles {
+		if !strings.Contains(f.Name(), ".") {
+			dat, _ := ioutil.ReadFile(ccDir + "/" + f.Name() + "/metadata.json")
+			var m Metadata
+			json.Unmarshal(dat, &m)
+			// store the device hashes assigned to the tenant as well as those assigned to its snapshots
+			ccDevices = append(ccDevices, m.CurrentDevice)
+			for _, vv := range m.Snapshots.(map[string]interface{}) {
+				ccDevices = append(ccDevices, vv.(string))
 			}
 		}
 	}
-	if len(orphans) > 0 {
-		fmt.Println("Orphans were found:")
-		for _, o := range orphans {
-			fmt.Println("-", o)
-		}
-	} else {
-		fmt.Println("No orphaned device volumes found")
-		return nil
-	}
 
-	// now we compare these against the devices on the filesystem metadata to divine the needed "device_id"
-	filez, err := ioutil.ReadDir(fsVolDir)
+	// compare the first set of hashes to the list of 'Docker driver device' hashes
+	dddDir := directory + "/.devicemapper/metadata"
+	dddFiles, err := ioutil.ReadDir(dddDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	// create a clean map of filesystem IDs, each mapped to their respective hash IDs
-	var fsVols map[string]float64
-	fsVols = map[string]float64{}
-	for _, f := range filez {
-		d := fsVolDir + "/" + f.Name()
+	var orphans []string
+	for _, f := range dddFiles {
+		d := dddDir + "/" + f.Name()
 		dat, err := ioutil.ReadFile(d)
 		if err != nil {
 			return err
@@ -259,41 +232,40 @@ func (c *CheckOrphans) Execute(args []string) error {
 		var m map[string]interface{}
 		json.Unmarshal(dat, &m)
 		for k, v := range m {
+			// store only device hashes we care about
 			if k == "initialized" && v.(bool) == false {
-				fsVols[f.Name()] = m["device_id"].(float64)
+				found := false
+				for _, vv := range ccDevices {
+					if f.Name() == vv {
+						found = true
+						break
+					}
+				}
+				if found == false {
+					orphans = append(orphans, f.Name())
+				}
 			}
 		}
 	}
 
-	// store only the device ids of the devices we care about
-	var zorphans map[string]float64
-	zorphans = map[string]float64{}
-	for k, v := range fsVols {
-		found := false
-		for _, vv := range known {
-			if k == vv {
-				found = true
-			}
-		}
-		if found == false {
-			zorphans[k] = v
-		}
-	}
-
-	if len(zorphans) > 0 {
-		for k, v := range zorphans {
-			fmt.Println(k, v)
+	if len(orphans) > 0 {
+		fmt.Println("Orphaned devices were found")
+		for _, v := range orphans {
 			if c.Clean {
 				driver, err := InitDriverIfExists(directory)
 				if err != nil {
-					log.Fatal(err)
+					return err
 				}
-				if err := driver.Remove(k); err != nil {
-					log.Fatal(err)
+				if err := driver.Remove(v); err != nil {
+					return err
 				}
-				fmt.Println("Removed orphaned snapshot", k)
+				fmt.Println("Removed orphaned snapshot", v)
+			} else {
+				fmt.Println(v)
 			}
 		}
+	} else {
+		fmt.Println("No orphaned devices found.")
 	}
 	return nil
 }
