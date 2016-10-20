@@ -17,7 +17,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"fmt"
 )
 
 var (
@@ -43,9 +42,9 @@ type RPCHeaderHandler struct{}
 // Convenience methods for Writing data in the format [LENGTH|DATA]
 func WriteLengthAndBytes(b []byte, writer io.Writer) error {
 	// write length
-	var bLen uint32 = uint32(len(b))
+	var bLen uint16 = uint16(len(b))
 	bLenBuf := make([]byte, BodyLenLen)
-	endian.PutUint32(bLenBuf, bLen)
+	endian.PutUint16(bLenBuf, bLen)
 
 	n, err := writer.Write(bLenBuf)
 	if err != nil {
@@ -59,7 +58,7 @@ func WriteLengthAndBytes(b []byte, writer io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if uint32(n) != bLen {
+	if uint16(n) != bLen {
 		return ErrWritingBody
 	}
 
@@ -78,7 +77,7 @@ func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
 		return nil, ErrReadingLength
 	}
 
-	bLength := endian.Uint32(bLenBuf)
+	bLength := endian.Uint16(bLenBuf)
 
 	// Now read the data
 	var b []byte
@@ -88,7 +87,7 @@ func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if uint32(n) != bLength {
+		if uint16(n) != bLength {
 			return nil, ErrReadingBody
 		}
 	}
@@ -105,7 +104,6 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 	)
 	binary.Write(w, byteOrder, RPCMagicNumber)
 	if writeAuth {
-		fmt.Println("Writing auth byte 1")
 		binary.Write(w, byteOrder, uint8(1))
 		// get current host token
 		var signer Signer = &delegateKeys
@@ -124,7 +122,6 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 		h := NewAuthHeader([]byte(token), req, signer)
 		_, err = h.WriteTo(w)
 	} else {
-		fmt.Println("Writing auth byte 0")
 		binary.Write(w, byteOrder, uint8(0))
 		WriteLengthAndBytes(req, w)
 	}
@@ -140,7 +137,6 @@ func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error
 	if err := binary.Read(reader, byteOrder, &m); err != nil {
 		return nil, nil, err
 	}
-	fmt.Println("Read magic number: ", m)
 	if m != RPCMagicNumber {
 		return nil, nil, ErrBadRPCHeader
 	}
@@ -149,7 +145,6 @@ func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Println("Read has auth: ", hasAuth)
 	if hasAuth[0] == 1 {
 		sender, _, payload, err = ReadAuthHeader(reader)
 		if err != nil {
@@ -161,6 +156,5 @@ func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error
 			return nil, nil, err
 		}
 	}
-	fmt.Println("Read sender: ", sender.HostID())
 	return sender, payload, nil
 }

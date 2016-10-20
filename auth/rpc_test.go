@@ -18,7 +18,6 @@ package auth_test
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
 )
@@ -40,7 +39,6 @@ func (s *TestAuthSuite) TestAuthenticated(c *C) {
 	c.Assert(err, IsNil)
 	// check the identity has been correctly extracted
 	c.Assert(body, DeepEquals, request)
-	fmt.Println("Host id:", ident.HostID())
 	c.Assert(s.hostId, DeepEquals, ident.HostID())
 	c.Assert(s.poolId, DeepEquals, ident.PoolID())
 	c.Assert(s.admin, Equals, ident.HasAdminAccess())
