@@ -379,7 +379,7 @@ func TestServicedCLI_CmdServiceList_one(t *testing.T) {
 	}
 
 	var actual service.Service
-	output := pipe(InitServiceAPITest, "serviced", "service", "list", serviceID)
+	output := captureStdout(func() { InitServiceAPITest("serviced", "service", "list", serviceID) })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -397,7 +397,7 @@ func TestServicedCLI_CmdServiceList_all(t *testing.T) {
 	}
 
 	var actual []*service.Service
-	output := pipe(InitServiceAPITest, "serviced", "service", "list", "--verbose")
+	output := captureStdout(func() { InitServiceAPITest("serviced", "service", "list", "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -422,9 +422,9 @@ func ExampleServicedCLI_CmdServiceList_fail() {
 	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
 	// Error retrieving service
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list", "test-service-0") })
 	// Error retrieving all services
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list") })
 
 	// Output:
 	// invalid service
@@ -435,9 +435,9 @@ func ExampleServicedCLI_CmdServiceList_err() {
 	DefaultServiceAPITest.services = nil
 	defer func() { DefaultServiceAPITest.services = DefaultTestServices }()
 	// Service not found
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list", "test-service-0") })
 	// No Services found
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list") })
 
 	// Output:
 	// service not found
@@ -488,21 +488,27 @@ func ExampleServicedCLI_CmdServiceAdd_usage() {
 func ExampleServicedCLI_CmdServiceAdd_fail() {
 	DefaultServiceAPITest.errs["AddService"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["AddService"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-service-1", "test-service", "test-image", "bash -c lsof")
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "add", "--parent-id", "test-service-1", "test-service", "test-image", "bash -c lsof")
+	})
 
 	// Output:
 	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceAdd_missingParentArg() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
+	})
 
 	// Output:
 	// Must specify a parent service ID
 }
 
 func ExampleServicedCLI_CmdServiceAdd_parentNotFound() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
+	pipeStderr(func() {
+		InitServiceAPITest("serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
+	})
 
 	// Output:
 	// Error searching for parent service: service not found
@@ -537,7 +543,7 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceRemove_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "remove", "test-service-0") })
 
 	// Output:
 	// service not found
@@ -547,7 +553,7 @@ func ExampleServicedCLI_CmdServiceRemove_failed() {
 	DefaultServiceAPITest.errs["RemoveService"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["RemoveService"] = nil }()
 
-	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "remove", "test-service-1") })
 
 	// Output:
 	// test-service-1: stub for facade failed
@@ -599,7 +605,7 @@ func ExampleServicedCLI_CmdServiceEdit_fail() {
 	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
 	// Failed to get service
-	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "edit", "test-service-0") })
 	// TODO: Failed to update service
 
 	// Output:
@@ -608,7 +614,7 @@ func ExampleServicedCLI_CmdServiceEdit_fail() {
 
 func ExampleServicedCLI_CmdServiceEdit_err() {
 	// Service not found
-	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "edit", "test-service-0") })
 	// TODO: Nil Service after update
 
 	// Output:
@@ -646,14 +652,14 @@ func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
 func ExampleServicedCLI_CmdServiceAssignIPs_fail() {
 	DefaultServiceAPITest.errs["AssignIP"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["AssignIP"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-3")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "assign-ip", "test-service-3") })
 
 	// Output:
 	// invalid service
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-0", "100.99.88.1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "assign-ip", "test-service-0", "100.99.88.1") })
 
 	// Output:
 	// service not found
@@ -682,14 +688,14 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 func ExampleServicedCLI_CmdServiceStart_fail() {
 	DefaultServiceAPITest.errs["StartService"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["StartService"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "start", "test-service-1") })
 
 	// Output:
 	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceStart_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "start", "test-service-0") })
 
 	// Output:
 	// service not found
@@ -725,17 +731,17 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 func ExampleServicedCLI_CmdServiceRestart_fail() {
 	DefaultServiceAPITest.errs["RestartService"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["RestartService"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-1") })
 
 	// Output:
 	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceRestart_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-0")    // Non-existant service
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/4")  // Non-existant instance
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/a")  // Non-numeric instance number
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/0b") // Non-numeric instance number
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-0") })    // Non-existant service
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-3/4") })  // Non-existant instance
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-3/a") })  // Non-numeric instance number
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-3/0b") }) // Non-numeric instance number
 
 	// Output:
 	// service not found
@@ -774,7 +780,7 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "stop", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "stop", "test-service-0") })
 
 	// Output:
 	// service not found
@@ -849,7 +855,7 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 */
 
 func ExampleServicedCLI_CmdServiceShell_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "shell", "test-service-0", "some", "command")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "shell", "test-service-0", "some", "command") })
 
 	// Output:
 	// service not found
@@ -857,7 +863,7 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 }
 
 /*func ExampleServicedCLI_CmdServiceRun_list() {
-	output := pipe(InitServiceAPITest, "serviced", "service", "run", "test-service-1")
+	output := captureStdout(func(){InitServiceAPITest( "serviced", "service", "run", "test-service-1")})
 	actual := strings.Split(string(output[:]), "\n")
 	sort.Strings(actual)
 
@@ -921,7 +927,7 @@ func ExampleServicedCLI_CmdServiceRun_usage() {
 */
 
 func ExampleServicedCLI_CmdServiceRun_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "run", "test-service-0", "goodbye")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "run", "test-service-0", "goodbye") })
 
 	// Output:
 	// service not found
@@ -958,7 +964,7 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 }
 
 func TestServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
-	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "-t")
+	output := captureStdout(func() { InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "-t") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -974,7 +980,7 @@ func TestServicedCLI_CmdServiceListSnapshots_ShowTagsShort(t *testing.T) {
 }
 
 func TestServicedCLI_CmdServiceListSnapshots_ShowTagsLong(t *testing.T) {
-	output := pipe(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+	output := captureStdout(func() { InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "--show-tags") })
 	expected :=
 		"Snapshot                                 Description        Tags" +
 			"\ntest-service-1-snapshot-1                description 1      tag-1" +
@@ -1011,14 +1017,14 @@ func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
 	DefaultServiceAPITest.errs["GetSnapshotsByServiceID"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["GetSnapshotsByServiceID"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1") })
 
 	// Output:
 	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-3")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-3") })
 
 	// Output:
 	// no snapshots found
@@ -1069,14 +1075,14 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 func ExampleServicedCLI_CmdServiceSnapshot_fail() {
 	DefaultServiceAPITest.errs["AddSnapshot"] = ErrStub
 	defer func() { DefaultServiceAPITest.errs["AddSnapshot"] = nil }()
-	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "snapshot", "test-service-1") })
 
 	// Output:
 	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "snapshot", "test-service-0") })
 
 	// Output:
 	// service not found
@@ -1105,21 +1111,21 @@ func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceEndpoints_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-0")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "endpoints", "test-service-0") })
 
 	// Output:
 	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceEndpoints_worksNoEndpoints() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-1")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "endpoints", "test-service-1") })
 
 	// Output:
 	// Zenoss - no endpoints defined
 }
 
 func ExampleServicedCLI_CmdServiceEndpoints_works() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-2")
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "endpoints", "test-service-2") })
 
 	// Output:
 	// Name    ServiceID         Endpoint         Purpose    Host       HostIP     HostPort    ContainerID     ContainerIP     ContainerPort

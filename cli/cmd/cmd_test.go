@@ -27,12 +27,12 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
-func pipe(f func(...string), args ...string) []byte {
+func captureStdout(f func()) []byte {
 	r, w, _ := os.Pipe()
 	stdout := os.Stdout
 	os.Stdout = w
 
-	f(args...)
+	f()
 
 	output := make(chan []byte)
 	go func() {
@@ -46,19 +46,12 @@ func pipe(f func(...string), args ...string) []byte {
 	return <-output
 }
 
-func pipeAPI(f func(api.API, ...string), test api.API, args ...string) []byte {
-	p := func(args ...string) {
-		f(test, args...)
-	}
-	return pipe(p, args...)
-}
-
-func pipeStderr(f func(...string), args ...string) {
+func captureStderr(f func()) []byte {
 	r, w, _ := os.Pipe()
 	stderr := os.Stderr
 	os.Stderr = w
 
-	f(args...)
+	f()
 
 	output := make(chan []byte)
 	go func() {
@@ -68,14 +61,11 @@ func pipeStderr(f func(...string), args ...string) {
 	}()
 	w.Close()
 	os.Stderr = stderr
-	fmt.Printf("%s", <-output)
+	return <-output
 }
 
-func pipeAPIStderr(f func(api.API, ...string), test api.API, args ...string) {
-	p := func(args ...string) {
-		f(test, args...)
-	}
-	pipeStderr(p, args...)
+func pipeStderr(f func()) {
+	fmt.Printf("%s", captureStderr(f))
 }
 
 // Trims leading and trailing whitespace from each line of a multi-line string
