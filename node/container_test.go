@@ -22,7 +22,6 @@ import (
 
 	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
 )
 
 func TestSetupContainer_DockerLog(t *testing.T) {
@@ -46,10 +45,9 @@ func TestSetupContainer_DockerLog(t *testing.T) {
 		ID:      "faketestService",
 		Name:    "fakeTestServiceName",
 	}
-	fakeUser := user.User{}
 
 	// Call setupContainer
-	cfg, hcfg, servicestate, err := fakeHostAgent.createContainerConfig("unused", fakeService, 0, fakeUser, "unused")
+	cfg, hcfg, servicestate, err := fakeHostAgent.createContainerConfig("unused", fakeService, 0, "unused")
 
 	assert.NotNil(cfg)
 	assert.NotNil(hcfg)

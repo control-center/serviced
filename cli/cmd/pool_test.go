@@ -92,7 +92,7 @@ func DefaultPoolAPI() PoolAPITest {
 }
 
 func RunCmd(test api.API, args ...string) {
-	New(test, utils.TestConfigReader(make(map[string]string))).Run(args)
+	New(test, utils.TestConfigReader(make(map[string]string)), MockLogControl{}).Run(args)
 }
 
 func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {

@@ -140,7 +140,7 @@ func (c *Client) loop() {
 
 	var doneC chan<- string
 	var leader client.Leader
-	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
+	nodePath := fmt.Sprintf("%s/%s", ZkStorageClientsPath, node.IPAddr)
 
 	doneW := make(chan struct{})
 	defer func(channel *chan struct{}) { close(*channel) }(&doneW)

@@ -16,6 +16,7 @@ package facade
 import (
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/hostkey"
@@ -52,6 +53,7 @@ func New() *Facade {
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
 		serviceCache:  NewServiceCache(),
+		hostRegistry:  auth.NewHostExpirationRegistry(),
 		zzk:           getZZK(),
 	}
 }
@@ -72,6 +74,7 @@ type Facade struct {
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
 	serviceCache  *serviceCache
+	hostRegistry  auth.HostExpirationRegistryInterface
 
 	isvcsPath string
 }
@@ -101,3 +104,7 @@ func (f *Facade) SetHealthCache(hcache *health.HealthStatusCache) { f.hcache = h
 func (f *Facade) SetMetricsClient(client MetricsClient) { f.metricsClient = client }
 
 func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
+
+func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegistryInterface) {
+	f.hostRegistry = hostRegistry
+}

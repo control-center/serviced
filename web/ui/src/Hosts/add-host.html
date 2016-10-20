@@ -14,7 +14,7 @@
 <div class="form-group">
     <label for="new_host_parent"><span translate>label_host_parent</span>:</label>
     <select class="form-control" name="new_host_parent" id="new_host_parent"
-        ng-model="newHost.PoolID" ng-required ng-options="pool.id as pool.id for pool in pools">
+        ng-model="newHost.PoolID" ng-required ng-options="id for id in poolIds">
     </select>
 </div>
 

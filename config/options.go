@@ -20,16 +20,9 @@
 package config
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
-	"github.com/control-center/serviced/rpc/rpcutils"
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/logri"
 )
 
 const (
@@ -113,6 +106,7 @@ type Options struct {
 	SnapshotSpacePercent       int               // Percent of tenant volume size that is assumed to be needed to create a snapshot
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 	TokenExpiration            int               // The time in seconds before an authentication token expires
+	LogConfigFilename          string            // Path to the logri configuration
 }
 
 // GetOptions returns a COPY of the global options struct
@@ -124,11 +118,6 @@ func GetOptions() Options {
 func LoadOptions(ops Options) {
 	options = ops
 
-	// Set verbosity
-	glog.SetVerbosity(options.Verbosity)
-	level := logrus.InfoLevel + logrus.Level(options.Verbosity)
-	logri.SetLevel(level)
-
 	// Check option boundaries
 	if options.ESStartupTimeout < minTimeout {
 		log.WithFields(logrus.Fields{
@@ -136,29 +125,4 @@ func LoadOptions(ops Options) {
 		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
 	}
-}
-
-// Validate options which are common to all CLI commands
-func ValidateCommonOptions(opts Options) error {
-	var err error
-
-	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
-	}
-	rpcutils.RPCDisableTLS, err = strconv.ParseBool(opts.RPCDisableTLS)
-	if err != nil {
-		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
-	}
-
-	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
-		return fmt.Errorf("error validating UI port: %s", err)
-	}
-
-	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
-	if err := validation.IsSubnetCIDR(opts.VirtualAddressSubnet); err != nil {
-		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
-	}
-
-	return nil
 }

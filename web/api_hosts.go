@@ -15,6 +15,8 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/zenoss/go-json-rest"
 )
@@ -54,4 +56,50 @@ func getHostsForPool(w *rest.ResponseWriter, r *rest.Request, ctx *requestContex
 	}
 
 	w.WriteJson(hosts)
+}
+
+// getHostStatus return status information for hosts.  This includes the memory usage and
+// whether or not the host is active.
+func getHostStatuses(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	facade := ctx.getFacade()
+	dataCtx := ctx.getDatastoreContext()
+
+	values := r.URL.Query()
+
+	var hostIDs []string
+	if _, ok := values["hostId"]; ok {
+		hostIDs = values["hostId"]
+	} else {
+		hosts, err := facade.GetReadHosts(dataCtx)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+
+		hostIDs = make([]string, len(hosts))
+		for i, host := range hosts {
+			hostIDs[i] = host.ID
+		}
+	}
+
+	since := values.Get("since")
+	var duration time.Duration
+	if since == "" {
+		duration = time.Hour
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		duration = time.Duration(tint) * time.Millisecond
+	}
+
+	statuses, err := facade.GetHostStatuses(dataCtx, hostIDs, time.Now().Add(-duration))
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(statuses)
 }

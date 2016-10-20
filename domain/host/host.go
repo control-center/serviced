@@ -23,6 +23,7 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
@@ -91,6 +92,13 @@ type ReadServiced struct {
 	Version string
 	Date    string
 	Release string
+}
+
+type HostStatus struct {
+	HostID        string
+	MemoryUsage   service.Usage
+	Active        bool
+	Authenticated bool
 }
 
 func (a *Host) TotalRAM() (mem uint64) {

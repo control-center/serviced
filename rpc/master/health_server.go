@@ -63,13 +63,13 @@ func (s *Server) GetServicesHealth(unused struct{}, results *map[string]map[int]
 }
 
 // ReportHealthStatus sends an update to the health check status cache.
-func (s *Server) ReportHealthStatus(request HealthStatusRequest, unused *string) error {
+func (s *Server) ReportHealthStatus(request HealthStatusRequest, _ *struct{}) error {
 	s.f.ReportHealthStatus(request.Key, request.Value, request.Expires)
 	return nil
 }
 
 // ReportInstanceDead removes stopped instances from the health check status cache.
-func (s *Server) ReportInstanceDead(request ReportDeadInstanceRequest, unused *string) error {
+func (s *Server) ReportInstanceDead(request ReportDeadInstanceRequest, _ *struct{}) error {
 	s.f.ReportInstanceDead(request.ServiceID, request.InstanceID)
 	return nil
 }

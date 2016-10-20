@@ -1,0 +1,28 @@
+{
+  "virtualips": 
+  {
+    "ip1": {
+      "ip": "17.17.17.17",
+      "netmask": "255.0.0.0",
+      "interface": "iFirst"
+    },
+
+    "ip2": {
+      "ip": "20.20.20.20",
+      "netmask": "255.255.255.0",
+      "interface": "iAnother"
+    },
+
+    "ip3": {
+      "ip": "1.2.3.4",
+      "netmask": "255.255.0.0",
+      "interface": "iAnother2"
+    },
+
+    "ip4": {
+      "ip": "16.27.38.49",
+      "netmask": "255.0.0.0",
+      "interface": "extra"
+    }
+  }
+}

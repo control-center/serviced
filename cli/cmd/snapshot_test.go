@@ -56,7 +56,7 @@ type SnapshotAPITest struct {
 }
 
 func InitSnapshotAPITest(args ...string) {
-	New(DefaultSnapshotAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
+	New(DefaultSnapshotAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{}).Run(args)
 }
 
 func (t SnapshotAPITest) hasSnapshot(id string) (bool, error) {

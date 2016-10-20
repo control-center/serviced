@@ -124,9 +124,11 @@ func (req HostAuthenticationRequest) valid(publicKeyPEM []byte) error {
 func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthenticationResponse) error {
 	keypem, err := s.f.GetHostKey(s.context(), req.HostID)
 	if err != nil {
+		s.f.RemoveHostExpiration(s.context(), req.HostID)
 		return err
 	}
 	if err := req.valid(keypem); err != nil {
+		s.f.RemoveHostExpiration(s.context(), req.HostID)
 		return err
 	}
 	host, err := s.f.GetHost(s.context(), req.HostID)
@@ -147,8 +149,10 @@ func (s *Server) AuthenticateHost(req HostAuthenticationRequest, resp *HostAuthe
 	dfsAccess := p.Permissions&pool.DFSAccess != 0
 	signed, expires, err := auth.CreateJWTIdentity(host.ID, host.PoolID, adminAccess, dfsAccess, keypem, s.expiration)
 	if err != nil {
+		s.f.RemoveHostExpiration(s.context(), host.ID)
 		return err
 	}
+	s.f.SetHostExpiration(s.context(), host.ID, expires)
 	*resp = HostAuthenticationResponse{signed, expires}
 	return nil
 }

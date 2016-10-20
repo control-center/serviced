@@ -24,7 +24,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -34,6 +36,31 @@ const (
 	outboundIPRetryDelay = 1
 	outboundIPMaxWait    = 90
 )
+
+// Validate options which are common to all CLI commands
+func ValidateCommonOptions(opts config.Options) error {
+	var err error
+
+	rpcutils.RPCCertVerify, err = strconv.ParseBool(opts.RPCCertVerify)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-cert-verify value %v", err)
+	}
+	rpcutils.RPCDisableTLS, err = strconv.ParseBool(opts.RPCDisableTLS)
+	if err != nil {
+		return fmt.Errorf("error parsing rpc-disable-tls value %v", err)
+	}
+
+	if err := validation.ValidUIAddress(opts.UIPort); err != nil {
+		return fmt.Errorf("error validating UI port: %s", err)
+	}
+
+	// TODO: move this to ValidateServerOptions if this is really only used by master/agent, and not cli
+	if err := validation.IsSubnetCIDR(opts.VirtualAddressSubnet); err != nil {
+		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
+	}
+
+	return nil
+}
 
 // Validate options which are specific to running a master and/or agent
 func ValidateServerOptions(options *config.Options) error {

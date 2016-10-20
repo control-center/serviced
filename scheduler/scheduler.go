@@ -14,6 +14,7 @@
 package scheduler
 
 import (
+	"errors"
 	"sync"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
@@ -30,6 +31,10 @@ import (
 )
 
 var plog = logging.PackageLogger()
+
+var (
+	ErrNoAuthenticatedHosts = errors.New("no authenticated hosts found")
+)
 
 type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
 

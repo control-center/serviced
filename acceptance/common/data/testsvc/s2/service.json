@@ -1,0 +1,90 @@
+{
+          "Command": "/usr/bin/python3 -m http.server 9090",
+          "Endpoints": [{
+              "Name": "websvc",
+              "Application": "websvc",
+              "PortNumber": 9090,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "VHostList": [
+                {
+                  "Name": "websvc",
+                  "Enabled": true
+                }
+              ],
+              "PortList": [
+                {
+                  "PortAddr": ":1234",
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Name": "websvc1",
+              "Application": "websvc1",
+              "PortNumber": 9091,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1235",
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Name": "websvc2",
+              "Application": "websvc2",
+              "PortNumber": 9092,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1236",
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Name": "websvc3",
+              "Application": "websvc3",
+              "PortNumber": 9093,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "VHosts": null,
+              "PortList": [
+                {
+                  "PortAddr": ":1237",
+                  "Enabled": true
+                }
+              ]
+            }
+          ],
+          "ConfigFiles": {
+                "/etc/bar.txt": {
+                    "Filename": "/etc/bar.txt",
+                    "Owner": "root:root",
+                    "Permissions": "660"
+                }
+          },
+          "ImageID": "zenoss/ubuntu:wget",
+          "Instances": {
+            "min": 1
+          },
+          "LogConfigs":[ {
+            "path": "/tmp/foo",
+            "type": "foo"
+          }],
+          "Runs": {
+            "exit0": "date",
+            "exit1": "date; exit 42",
+            "sleepy60": "sleep 60"
+          },
+          "Snapshot": {
+            "Pause": "echo pause",
+            "Resume": "echo resume"
+          }
+}

@@ -138,6 +138,9 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 		return nil, err
 	}
 
+	// Reset the host's "authenticated" status
+	f.RemoveHostExpiration(ctx, entity.ID)
+
 	// Concatenate and return keys
 	delegatePEMBlock := append(privatePEM, masterPEM...)
 	return delegatePEMBlock, nil
@@ -247,6 +250,12 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		}
 	}
 
+	// unregister host as dfs client
+	err = f.zzk.UnregisterDfsClients(*_host)
+	if err != nil {
+		glog.Warningf("Could not disable dfs for deleted host %s: %s", _host.ID, err)
+	}
+
 	return nil
 }
 
@@ -289,6 +298,34 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 		return nil, err
 	}
 	return f.generateDelegateKey(ctx, &value)
+}
+
+// RegisterHost attempts to register a host's keys over ssh, or locally if it's
+// the current host.
+func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error {
+	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys)
+}
+
+// SetHostExpiration sets a host's auth token
+// expiration time in the HostExpirationRegistry
+func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
+	f.hostRegistry.Set(hostid, expiration)
+}
+
+// RemoveHostExpiration removes a host from the
+// HostExpirationRegistry
+func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
+	f.hostRegistry.Remove(hostid)
+}
+
+// HostIsAuthenticated checks whether a host has authenticated and has an unexpired
+//  token
+func (f *Facade) HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error) {
+	isExpired, err := f.hostRegistry.IsExpired(hostid)
+	if err != nil {
+		return false, err
+	}
+	return !isExpired, nil
 }
 
 // GetHosts returns a list of all registered hosts
@@ -349,6 +386,46 @@ func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]ho
 	}
 
 	return toReadHosts(hosts), nil
+}
+
+// GetHostStatuses returns the memory usage and whether or not a host is active
+func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error) {
+	if hostIDs == nil {
+		return []host.HostStatus{}, nil
+	}
+
+	statuses := []host.HostStatus{}
+	for _, id := range hostIDs {
+		h, err := f.GetHost(ctx, id)
+		if err != nil {
+			continue
+		}
+
+		status := host.HostStatus{HostID: id, MemoryUsage: service.Usage{}}
+		active, err := f.zzk.IsHostActive(h.PoolID, h.ID)
+		if err != nil {
+			continue
+		}
+		status.Active = active
+
+		expired, _ := f.hostRegistry.IsExpired(h.ID)
+		status.Authenticated = !expired
+
+		instances, err := f.GetHostInstances(ctx, since, id)
+		if err != nil {
+			continue
+		}
+
+		for _, i := range instances {
+			status.MemoryUsage.Cur += i.MemoryUsage.Cur
+			status.MemoryUsage.Max += i.MemoryUsage.Max
+			status.MemoryUsage.Avg += i.MemoryUsage.Avg
+		}
+
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
 }
 
 func toReadHosts(hosts []host.Host) []host.ReadHost {

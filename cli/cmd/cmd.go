@@ -34,8 +34,6 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/logri"
 )
 
 var (
@@ -47,20 +45,22 @@ type ServicedCli struct {
 	driver       api.API
 	app          *cli.App
 	config       utils.ConfigReader
+	logControl   logging.LogControl
 	exitDisabled bool
 }
 
 // New instantiates a new command-line client
-func New(driver api.API, config utils.ConfigReader) *ServicedCli {
+func New(driver api.API, config utils.ConfigReader, logControl logging.LogControl) *ServicedCli {
 	if config == nil {
 		log.Fatal("Missing configuration data")
 	}
 	defaultOps := api.GetDefaultOptions(config)
 
 	c := &ServicedCli{
-		driver: driver,
-		app:    cli.NewApp(),
-		config: config,
+		driver:     driver,
+		app:        cli.NewApp(),
+		config:     config,
+		logControl: logControl,
 	}
 
 	c.app.Name = "serviced"
@@ -181,16 +181,16 @@ func (c *ServicedCli) Run(args []string) {
 // NOTE: Neither this routine, nor the methods it calls, can use glog to report problems.
 //       Otherwise, the unit-tests with "-race" will fail.
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-	options := getRuntimeOptions(ctx)
-	if err := config.ValidateCommonOptions(options); err != nil {
-		fmt.Printf("Invalid option(s) found: %s\n", err)
+	options := getRuntimeOptions(c.config, ctx)
+	if err := api.ValidateCommonOptions(options); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid option(s) found: %s\n", err)
 		return err
 	}
 	config.LoadOptions(options)
 
 	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Printf("Unable to set logging options: %s\n", err)
+	if err := setLogging(&options, ctx, c.logControl); err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
 	// Try to authenticate this host
@@ -202,7 +202,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
 	//       should be moved to api.ValidateServerOptions
 	if err := setIsvcsEnv(ctx); err != nil {
-		fmt.Printf("Unable to set isvcs options: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
 		return err
 	}
 	return nil
@@ -213,7 +213,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 func (c *ServicedCli) authenticateHost(options *config.Options) error {
 	// Try to load the master keys, fail silently if they don't exist
 	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
-	auth.LoadMasterKeyFile(masterKeyFile)
+	if err := auth.LoadMasterKeyFile(masterKeyFile); err != nil {
+		log.WithError(err).Debug("Unable to load master keys")
+	}
 
 	// Load the delegate keys
 	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
@@ -252,7 +254,7 @@ func (c *ServicedCli) exit(code int) error {
 
 // Get all runtime options as a combination of default values, environment variable settings and
 // command line overrides.
-func getRuntimeOptions(ctx *cli.Context) config.Options {
+func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options {
 	options := config.Options{
 		DockerRegistry:             ctx.GlobalString("docker-registry"),
 		NFSClient:                  ctx.GlobalString("nfs-client"),
@@ -324,7 +326,7 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
 	// zendev, we need to double-check the environment variables for Master/Agent after all option
 	// initialization has been done
-	if os.Getenv("SERVICED_MASTER") == "1" {
+	if cfg.StringVal("MASTER", "") == "1" {
 		options.Master = true
 	}
 
@@ -343,9 +345,27 @@ func getRuntimeOptions(ctx *cli.Context) config.Options {
 
 	options.Endpoint = getEndpoint(options)
 
-	if os.Getenv("SERVICED_MUX_DISABLE_TLS") == "1" {
+	if cfg.StringVal("MUX_DISABLE_TLS", "") == "1" {
 		options.MuxDisableTLS = true
 	}
+
+	// Set the logging configuration filename.
+	// This is handled in a non-standard way for two reasons:
+	// 1) It needs to be set by an environment variable, but not a CLI flag.  This
+	//    is so we don't add too many arcane arguemtns to the CLI.
+	// 2) The default value differs depending on whther we are running a server or
+	//    CLI command.
+	logConfigPath := cfg.StringVal("LOG_CONFIG", "")
+	if logConfigPath == "" {
+		var filename string
+		if ctx.Args().First() == "server" {
+			filename = "logconfig-server.yaml"
+		} else {
+			filename = "logconfig-cli.yaml"
+		}
+		logConfigPath = filepath.Join(options.EtcPath, filename)
+	}
+	options.LogConfigFilename = logConfigPath
 
 	return options
 }
@@ -375,37 +395,56 @@ func getEndpoint(options config.Options) string {
 	return endpoint
 }
 
-func setLogging(ctx *cli.Context) error {
-	if ctx.Args().First() != "server" {
-		logrus.SetLevel(logrus.WarnLevel)
-		logri.SetLevel(logrus.WarnLevel)
+func setLogging(options *config.Options, ctx *cli.Context, logControl logging.LogControl) error {
+	// Rather than immediately returning from the function on error, keep track
+	// of the errors and continue.  This allows us to process all arguments,
+	// start watchers, etc.
+	var errors []error
+
+	if err := logControl.ApplyConfigFromFile(options.LogConfigFilename); err != nil {
+		errors = append(errors, err)
 	}
+	go logControl.WatchConfigFile(options.LogConfigFilename)
+
+	// Set glog verbosity.  Map the glog verbosity level onto logrus levels as best
+	// we can, so that the verbosity for both can be controlled with a single argument.
+	if ctx.IsSet("v") {
+		verbosity := ctx.GlobalInt("v")
+		logControl.SetVerbosity(verbosity)
+		switch verbosity {
+		case 0:
+			logControl.SetLevel(logrus.DebugLevel)
+		case 1:
+			logControl.SetLevel(logrus.InfoLevel)
+		case 2:
+			logControl.SetLevel(logrus.WarnLevel)
+		default:
+			logControl.SetLevel(logrus.ErrorLevel)
+		}
+	}
+
 	if ctx.IsSet("logtostderr") {
-		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
+		logControl.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
 
 	if ctx.IsSet("alsologtostderr") {
-		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
-	}
-
-	if ctx.IsSet("v") {
-		glog.SetVerbosity(ctx.GlobalInt("v"))
+		logControl.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
 	if ctx.IsSet("stderrthreshold") {
-		if err := glog.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
-			return err
+		if err := logControl.SetStderrThreshold(ctx.GlobalString("stderrthreshold")); err != nil {
+			errors = append(errors, err)
 		}
 	}
 	if ctx.IsSet("vmodule") {
-		if err := glog.SetVModule(ctx.GlobalString("vmodule")); err != nil {
-			return err
+		if err := logControl.SetVModule(ctx.GlobalString("vmodule")); err != nil {
+			errors = append(errors, err)
 		}
 	}
 
 	if ctx.IsSet("log_backtrace_at") {
-		if err := glog.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
-			return err
+		if err := logControl.SetTraceLocation(ctx.GlobalString("log_backtrace_at")); err != nil {
+			errors = append(errors, err)
 		}
 	}
 
@@ -417,18 +456,27 @@ func setLogging(ctx *cli.Context) error {
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {
 			<-signalChan
-			log.Debug("Received signal to toggle logging")
-			if glog.GetVerbosity() == 0 {
-				glog.SetVerbosity(2)
-			} else {
-				glog.SetVerbosity(0)
+			verbosity := 0
+			level := logrus.DebugLevel
+			if logControl.GetVerbosity() == 0 {
+				verbosity = 2
+				level = logrus.InfoLevel
 			}
+			logControl.SetVerbosity(verbosity)
+			logControl.SetLevel(level)
 			log.WithFields(logrus.Fields{
-				"level": glog.GetVerbosity(),
-			}).Info("Changed glog logging level")
+				"glog-verbosity": verbosity,
+				"logrus-level":   level,
+			}).Info("Changed logging level")
 		}
 	}()
-	return nil
+
+	if len(errors) == 0 {
+		return nil
+	} else {
+		// not technically correct, but realistically we only care about the first error
+		return errors[0]
+	}
 }
 
 func setIsvcsEnv(ctx *cli.Context) error {

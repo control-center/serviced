@@ -52,7 +52,7 @@ var _ = Suite(&mySuite{})
 
 func (s *mySuite) SetUpTest(c *C) {
 	s.api = mocks.API{}
-	s.cli = New(&s.api, utils.TestConfigReader(make(map[string]string)))
+	s.cli = New(&s.api, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 }
 
 func (s *mySuite) Test_cmdKeyReset(c *C) {

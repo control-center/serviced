@@ -29,7 +29,7 @@ func (s *TestAPISuite) TestValidateCommonOptions(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)
 
-	err := config.ValidateCommonOptions(testOptions)
+	err := ValidateCommonOptions(testOptions)
 
 	c.Assert(err, IsNil)
 }
@@ -39,7 +39,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCCertVerify(c 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCCertVerify = "foobar"
 
-	err := config.ValidateCommonOptions(testOptions)
+	err := ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error parsing rpc-cert-verify value")
 }
@@ -49,7 +49,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidRPCDisableTLS(c 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.RPCDisableTLS = "not a boolean string"
 
-	err := config.ValidateCommonOptions(testOptions)
+	err := ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error parsing rpc-disable-tls value")
 }
@@ -59,7 +59,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidUIAddress(c *C) 
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.UIPort = "not a valid port string"
 
-	err := config.ValidateCommonOptions(testOptions)
+	err := ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error validating UI port")
 }
@@ -69,7 +69,7 @@ func (s *TestAPISuite) TestValidateCommonOptionsFailsWithInvalidVirtualAddressSu
 	testOptions := GetDefaultOptions(configReader)
 	testOptions.VirtualAddressSubnet = "not a valid subnet"
 
-	err := config.ValidateCommonOptions(testOptions)
+	err := ValidateCommonOptions(testOptions)
 
 	s.assertErrorContent(c, err, "error validating virtual-address-subnet")
 }

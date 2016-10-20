@@ -27,7 +27,7 @@ var controlplane = angular.module('controlplane', [
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
     'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log',
-    'LogSearch'
+    'LogSearch', 'hostIcon'
 ]);
 
 controlplane.
@@ -47,13 +47,16 @@ controlplane.
                 controller: "AppsController"}).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: "HostsController"}).
+                controller: "HostsController",
+                controllerAs: "hostsVM"}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
-                controller: "HostDetailsController"}).
+                controller: "HostDetailsController",
+                controllerAs: "hostDetailsVM"}).
             when('/pools', {
                 templateUrl: '/static/partials/view-pools.html',
-                controller: "PoolsController"}).
+                controller: "PoolsController",
+                controllerAs: "poolsVM"}).
             when('/pools/:poolID', {
                 templateUrl: '/static/partials/view-pool-details.html',
                 controller: "PoolDetailsController"}).
@@ -70,10 +73,10 @@ controlplane.
         $translateProvider.useStaticFilesLoader({
             prefix: '/static/i18n/',
             suffix: '.json'
-        });
+       });
         $translateProvider.preferredLanguage('en_US');
         $translateProvider.fallbackLanguage('en_US');
-        $translateProvider.useSanitizeValueStrategy('sanitize');
+        $translateProvider.useSanitizeValueStrategy('sanitizeParameters');
     }]).
     config(['CacheFactoryProvider', function(CacheFactoryProvider){
         angular.extend(CacheFactoryProvider.defaults, {

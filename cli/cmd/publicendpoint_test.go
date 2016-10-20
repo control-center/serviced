@@ -81,7 +81,7 @@ func (t ServiceAPITest) EnablePublicEndpointVHost(serviceID, endpointName, vhost
 }
 
 func InitPublicEndpointPortTest(args ...string) {
-	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)))
+	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }

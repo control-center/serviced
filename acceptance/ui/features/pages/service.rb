@@ -79,11 +79,24 @@ class Service < SitePrism::Page
     end
 
     def check_endpoint_find?(c1, c2)
-        self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
-            line=tr.text.upcase()
-            if  line.include?(c1) && line.include?(c2)
-                return true
+        delay = 3   # seconds
+        maxRetries = 2
+        begin
+            retries ||= 0
+            self.page.all(:xpath, "//table[@data-config='publicEndpointsTable']//tr").each do |tr|
+                line=tr.text.upcase()
+                if  line.include?(c1) && line.include?(c2)
+                    return true
+                end
             end
+
+        # For whatever reason, this method sometimes fails with a 'stale element reference' error, which can mean
+        # that in between the time we find an element and try to reference, it's been deleted.
+        # So we use a retry here as a work around.
+        # For more information, google "selenium stale element reference".
+        rescue Selenium::WebDriver::Error::StaleElementReferenceError
+            sleep delay
+            retry if (retries += 1) < maxRetries
         end
         return false
     end

@@ -41,7 +41,7 @@ type BackupAPITest struct {
 }
 
 func InitBackupAPITest(args ...string) {
-	New(DefaultBackupAPITest, utils.TestConfigReader{}).Run(args)
+	New(DefaultBackupAPITest, utils.TestConfigReader{}, MockLogControl{}).Run(args)
 }
 
 func (t BackupAPITest) Backup(dirpath string, excludes []string) (string, error) {
