@@ -17,8 +17,9 @@ import (
 	"bytes"
 	"errors"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 /*
@@ -36,7 +37,7 @@ const (
 
 var (
 	ErrBadRPCHeader   = errors.New("Bad rpc header")
-	ErrRequestExpired = errors.New("Expired rpc request")
+	ErrRequestExpired = errors.New("Expired RPC request")
 )
 
 type RPCHeaderParser interface {

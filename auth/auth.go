@@ -61,8 +61,6 @@ var (
 	ErrRestTokenBadSig = errors.New("Rest token signature cannot be verified")
 	// ErrSSHFailed is thrown when we can't ssh to a remote host to register keys
 	ErrSSHFailed = errors.New("Unable to make an ssh connection to host")
-	// ErrPayloadTooLarge is thrown when the payload for an auth header overflows a uint16
-	ErrPayloadTooLarge = errors.New("Payload is too large for an auth header")
 
 	log = logging.PackageLogger()
 )

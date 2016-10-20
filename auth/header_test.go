@@ -17,20 +17,158 @@ package auth_test
 
 import (
 	"bytes"
+	"io"
 	"time"
 
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
 )
 
+func (s *TestAuthSuite) getHeader(payload []byte) io.WriterTo {
+	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	header := auth.NewAuthHeader([]byte(tokenString), payload, signer)
+	return header
+}
+
+func (s *TestAuthSuite) TestHappyPath(c *C) {
+	var b bytes.Buffer
+
+	pl := []byte("payload")
+	header := s.getHeader(pl)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+
+	sender, timestamp, payload, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, IsNil)
+
+	c.Assert(sender.HostID(), Equals, s.hostId)
+	c.Assert(sender.PoolID(), Equals, s.poolId)
+
+	c.Assert(timestamp.Before(time.Now().UTC()), Equals, true)
+	c.Assert(string(payload), Equals, string(pl))
+
+}
+
 func (s *TestAuthSuite) TestBadMagicNumber(c *C) {
 	var b bytes.Buffer
 
-	token, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
-	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	payload := []byte("payload")
+	pl := []byte("payload")
+	header := s.getHeader(pl)
 
-	header, err := auth.NewAuthHeader(token, payload, signer)
-	c.Assert(err, Not(IsNil))
+	b.Write([]byte{13})
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+
+	sender, timestamp, payload, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, Equals, auth.ErrInvalidAuthHeader)
+	c.Assert(sender, IsNil)
+	c.Assert(timestamp.IsZero(), Equals, true)
+	c.Assert(payload, IsNil)
+}
+
+func (s *TestAuthSuite) TestBadProtocolVersion(c *C) {
+	var b bytes.Buffer
+
+	pl := []byte("payload")
+	header := s.getHeader(pl)
+
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+
+	bs := b.Bytes()
+	bs[3] = 0 // We started with 1, so this will never be a valid proto version
+	b.Reset()
+	b.Write(bs)
+
+	sender, timestamp, payload, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, Equals, auth.ErrUnknownAuthProtocol)
+	c.Assert(sender, IsNil)
+	c.Assert(timestamp.IsZero(), Equals, true)
+	c.Assert(payload, IsNil)
+}
+
+func (s *TestAuthSuite) TestInvalidToken(c *C) {
+	var b bytes.Buffer
+	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	token := []byte(tokenString)
+	// Break that there token
+	token[10] += 1
+
+	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+	sender, _, _, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, Equals, auth.ErrIdentityTokenBadSig)
+	c.Assert(sender, IsNil)
+}
+
+func (s *TestAuthSuite) TestHugeToken(c *C) {
+	var b bytes.Buffer
+
+	token := make([]byte, 1<<16) // One byte too large
+	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, Equals, auth.ErrBadToken)
+}
+
+func (s *TestAuthSuite) TestZeroToken(c *C) {
+	var b bytes.Buffer
+
+	token := []byte{}
+	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+	sender, _, _, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, Equals, auth.ErrBadToken)
+	c.Assert(sender, IsNil)
+}
+
+func (s *TestAuthSuite) TestZeroPayload(c *C) {
+	var b bytes.Buffer
+
+	pl := []byte{}
+	header := s.getHeader(pl)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+
+	sender, timestamp, payload, err := auth.ReadAuthHeader(&b)
+	c.Assert(err, IsNil)
+
+	c.Assert(sender.HostID(), Equals, s.hostId)
+	c.Assert(sender.PoolID(), Equals, s.poolId)
+
+	c.Assert(timestamp.Before(time.Now().UTC()), Equals, true)
+	c.Assert(string(payload), Equals, string(pl))
+}
+
+func (s *TestAuthSuite) TestHugePayload(c *C) {
+	var b bytes.Buffer
+
+	payload := make([]byte, 1<<16) // One byte too large
+	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	token := []byte(tokenString)
+	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
+	header := auth.NewAuthHeader(token, payload, signer)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, Equals, auth.ErrPayloadTooLarge)
+}
+
+func (s *TestAuthSuite) TestExpiredRequest(c *C) {
+	var b bytes.Buffer
+
+	pl := []byte("payload")
+	header := s.getHeader(pl)
+	_, err := header.WriteTo(&b)
+	c.Assert(err, IsNil)
+
+	auth.At(time.Now().UTC().Add(time.Hour), func() {
+		_, _, _, err := auth.ReadAuthHeader(&b)
+		c.Assert(err, Equals, auth.ErrHeaderExpired)
+	})
 
 }
