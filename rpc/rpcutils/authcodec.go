@@ -49,10 +49,6 @@ var (
 	}
 	endian = binary.BigEndian
 
-	ErrWritingLength = errors.New("Wrote too few bytes for message length")
-	ErrWritingBody   = errors.New("Wrote too few bytes for message body")
-	ErrReadingLength = errors.New("Read too few bytes for message length")
-	ErrReadingBody   = errors.New("Read too few bytes for message body")
 	ErrNoAdmin       = errors.New("Delegate does not have admin access")
 
 	log = logging.PackageLogger()
@@ -79,61 +75,6 @@ func requiresAuthentication(callName string) bool {
 func requiresAdmin(callName string) bool {
 	_, ok := NonAdminRequiredCalls[callName]
 	return !ok
-}
-
-// Convenience methods for Reading/Writing data in the format [LENGTH|DATA]
-func WriteLengthAndBytes(b []byte, writer io.Writer) error {
-	// write length
-	var bLen uint32 = uint32(len(b))
-	bLenBuf := make([]byte, LEN_BYTES)
-	endian.PutUint32(bLenBuf, bLen)
-
-	n, err := writer.Write(bLenBuf)
-	if err != nil {
-		return err
-	}
-	if n != LEN_BYTES {
-		return ErrWritingLength
-	}
-
-	n, err = writer.Write(b)
-	if err != nil {
-		return err
-	}
-	if uint32(n) != bLen {
-		return ErrWritingBody
-	}
-
-	return nil
-}
-
-func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
-	// Read the length of the data
-	bLenBuf := make([]byte, LEN_BYTES)
-	n, err := io.ReadFull(reader, bLenBuf)
-	if err != nil {
-		return nil, err
-	}
-	if n != LEN_BYTES {
-		return nil, ErrReadingLength
-	}
-
-	bLength := endian.Uint32(bLenBuf)
-
-	// Now read the data
-	var b []byte
-	if bLength > 0 {
-		b = make([]byte, bLength)
-		n, err = io.ReadFull(reader, b)
-		if err != nil {
-			return nil, err
-		}
-		if uint32(n) != bLength {
-			return nil, ErrReadingBody
-		}
-	}
-
-	return b, nil
 }
 
 // We nead a ReadWriteCloser that we can pass to the underlying codec and use
@@ -194,19 +135,8 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	a.lastError = nil
 	a.buff.ReadBuff.Reset()
 
-	// Read the header
-	header, err := ReadLengthAndBytes(a.conn)
-	if err != nil {
-		log.WithError(err).Debug("Error reading authentication header")
-		return err
-	}
 
-	// Read the rest of the request
-	body, err := ReadLengthAndBytes(a.conn)
-	if err != nil {
-		log.WithError(err).Debug("Error reading RPC request")
-		return err
-	}
+	ident, body, err := a.parser.ParseHeader(a.conn)
 
 	// Now write the actual request to the buffer
 	if _, err = a.buff.ReadBuff.Write(body); err != nil {
@@ -226,17 +156,12 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	//  This is safe because go's rpc server always calls ReadRequestHeader and ReadRequestBody back-to-back
 	//   (unless ReadRequestHeader returns an error)
 	if requiresAuthentication(r.ServiceMethod) {
-		ident, err := a.parser.ParseHeader(header, body)
-		if err != nil {
-			log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Could not authenticate RPC request")
-			a.lastError = err
-		} else if requiresAdmin(r.ServiceMethod) && !ident.HasAdminAccess() {
+		if requiresAdmin(r.ServiceMethod) && ( ident == nil || ident.HasAdminAccess()){
 			log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received unauthorized RPC request")
 			a.lastError = ErrNoAdmin
 		}
 
 		//TODO: save the identity so we can inject it into the request body later
-
 	}
 	return nil
 }
@@ -269,7 +194,7 @@ func (a *AuthServerCodec) WriteResponse(r *rpc.Response, body interface{}) error
 
 	// Get the response from the buffer and write it to the actual connection
 	response := a.buff.WriteBuff.Bytes()
-	if err := WriteLengthAndBytes(response, a.conn); err != nil {
+	if err := auth.WriteLengthAndBytes(response, a.conn); err != nil {
 		return err
 	}
 
@@ -338,24 +263,7 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	// Get the request off the buffer
 	request := a.buff.WriteBuff.Bytes()
 
-	if requiresAuthentication(r.ServiceMethod) {
-		header, err = a.headerBuilder.BuildHeader(request)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Write the header (may be empty)
-	if err = WriteLengthAndBytes(header, a.conn); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Error sending authentication header")
-		return err
-	}
-
-	// Write the rest of the request
-	if err = WriteLengthAndBytes(request, a.conn); err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Error sending rpc request")
-		return err
-	}
+	err = a.headerBuilder.WriteHeader(a.conn, request, requiresAuthentication(r.ServiceMethod))
 
 	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Successfully sent RPC request")
 
@@ -372,7 +280,7 @@ func (a *AuthClientCodec) ReadResponseHeader(r *rpc.Response) error {
 	a.buff.ReadBuff.Reset()
 
 	// Read the response from the connection
-	response, err := ReadLengthAndBytes(a.conn)
+	response, err := auth.ReadLengthAndBytes(a.conn)
 	if err != nil {
 		// It is common to get harmless errors here whenever the client is closed
 		return err
