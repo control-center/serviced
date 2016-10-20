@@ -164,6 +164,32 @@ func (f *Facade) validateServiceAdd(ctx datastore.Context, svc *service.Service)
 		}
 	}
 
+	// remove any BuiltIn enabled monitoring configs
+	metricConfigs := []domain.MetricConfig{}
+	for _, mc := range svc.MonitoringProfile.MetricConfigs {
+		if mc.ID == "metrics" {
+			continue
+		}
+
+		metrics := []domain.Metric{}
+		for _, m := range mc.Metrics {
+			if !m.BuiltIn {
+				metrics = append(metrics, m)
+			}
+		}
+		mc.Metrics = metrics
+		metricConfigs = append(metricConfigs, mc)
+	}
+	svc.MonitoringProfile.MetricConfigs = metricConfigs
+
+	graphs := []domain.GraphConfig{}
+	for _, g := range svc.MonitoringProfile.GraphConfigs {
+		if !g.BuiltIn {
+			graphs = append(graphs, g)
+		}
+	}
+	svc.MonitoringProfile.GraphConfigs = graphs
+
 	// set service defaults
 	svc.DesiredState = int(service.SVCStop) // new services must always be stopped
 	svc.DatabaseVersion = 0                 // create service set database version to 0
@@ -1178,8 +1204,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 
 func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState) (affected int, err error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":  serviceID,
-		"tenantid": tenantID,
+		"serviceid":    serviceID,
+		"tenantid":     tenantID,
 		"desiredstate": desiredState,
 	})
 	logger.Debug("Begin scheduleServices")
@@ -1194,7 +1220,7 @@ func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, 
 		err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
 		if err != nil {
 			logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
-			return  affected, err
+			return affected, err
 		}
 		affected++
 	}
