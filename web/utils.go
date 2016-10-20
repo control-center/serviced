@@ -132,7 +132,7 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 
 	// Set the muxHeader on the remote connection so it knows what service to
 	// proxy the connection to.
-	muxHeader, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
+	muxAddr, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -149,14 +149,8 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 		return nil, err
 	}
 
-	muxHeader, err = auth.BuildAuthMuxHeader(muxHeader, token)
-	if err != nil {
-		plog.WithError(err).Error("Error building authenticated mux header.")
-		return nil, err
-	}
-
-	// Check for errors writing the mux header.
-	if _, err = remote.Write(muxHeader); err != nil {
+	if err := auth.AddSignedMuxHeader(muxAddr, token); err != nil {
+		plog.WithError(err).Error("Unable to send authenticated mux header")
 		return nil, err
 	}
 
