@@ -404,6 +404,22 @@
                 method: GET,
                 url: since => `/api/v2/services${ since ? "?since="+ since : ""}`,
             },
+            getInternalServices: {
+                method: GET,
+                url: () => `/api/v2/internalservices`,
+            },
+            getInternalService: {
+                method: GET,
+                url: id => `/api/v2/internalservices/${id}`,
+            },
+            getInternalServiceInstances: {
+                method: GET,
+                url: id => `/api/v2/internalservices/${id}/instances`,
+            },
+            getInternalServiceStatuses: {
+                method: GET,
+                url: ids => ids ? `/api/v2/internalservicestatuses?${ids.map(id => `id=${id}`).join('&')}` : '/api/v2/internalservicestatuses',
+            },
             getServiceStatus: {
                 method: GET,
                 url: id => `/api/v2/statuses?serviceId=${id}`,
@@ -559,7 +575,17 @@
             // redirect to specific host
             routeToHost: function(id) {
                 $location.path('/hosts/' + id);
-            }
+            },
+
+            // redirect to specific internal service details
+            routeToInternalService: function(id) {
+                $location.path('/internalservices/' + id);
+            },
+        
+            // redirect to internal service page
+            routeToInternalServices: function() {
+                $location.path('/internalservices');
+            },
         };
 
         // generate additional methods and attach

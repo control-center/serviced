@@ -1,0 +1,25 @@
+<div ng-show="internalServiceDetailsVM.loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
+
+<div class="serviceDetails">
+    <div class="serviceControls" sticky sticky-class="stickied">
+        <h2 class="serviceTitle">
+            <health-icon ng-if="internalServiceDetailsVM.service.model.Startup" 
+                         data-status="internalServiceDetailsVM.service.status" 
+                         style="display: inline-block; font-size: 0.6em;"></health-icon>
+            {{internalServiceDetailsVM.service.model.Name}}
+            <span class="version" ng-show="internalServiceDetailsVM.service.model.Version">
+                (v{{internalServiceDetailsVM.service.model.Version}})</span>
+        </h2>
+        <div class="serviceBoxGradient"></div>
+    </div>
+    <div class="serviceDescription">
+        {{internalServiceDetailsVM.service.model.Description}}
+    </div>
+</div>
+
+<graph-panel
+    ng-if="internalServiceDetailsVM.service.model.MonitoringProfile.GraphConfigs.length > 0"
+    data-service-id="internalServiceDetailsVM.service.id"
+    data-graph-configs="internalServiceDetailsVM.service.model.MonitoringProfile.GraphConfigs"
+    class="infoWrapper graphPanel">
+</graph-panel>
