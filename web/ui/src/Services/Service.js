@@ -55,6 +55,7 @@
         constructor(model) {
             this.subservices = [];
             this.instances = [];
+            this.publicEndpoints = [];
             this.update(model);
         }
 
@@ -109,8 +110,43 @@
         }
 
         fetchEndpoints(force) {
-            // populate publicEndpoints property
-            fetch.call(this, "getServicePublicEndpoints", "publicEndpoints", force);
+            let deferred = $q.defer();
+            let statuses;
+            // kick off request for statuses for public endpoint
+            // service statuses
+            this.getEndpointStatuses()
+                .then(s => {
+                    s = s || [];
+                    // convert array of endpoint service statuses
+                    // to a map of serviceid -> endpoint status
+                    statuses = s.reduce((acc, s) => {
+                        acc[s.ServiceID] = s;
+                        return acc;
+                    },{});
+                })
+                // kick off request for public endpoints
+                .then(() => {
+                    return resourcesFactory.v2.getServicePublicEndpoints(this.id);
+                })
+                .then(response => {
+                    this.publicEndpoints = response.map(ept => {
+                        // TODO - dont modify model data :(
+                        ept.Value = `${ept.ServiceName} - ${ept.Application}`;
+                        // if this endpoint has a service status,
+                        // add that service's desiredState so that
+                        // the endpoint knows if its accessible or not
+                        if(statuses[ept.ServiceID]){
+                            ept.desiredState = statuses[ept.ServiceID].DesiredState;
+                        }
+                        return ept;
+                    });
+                    deferred.resolve();
+                })
+                .catch(error => {
+                    console.warn(error);
+                    deferred.reject();
+                });
+            return deferred.promise;
         }
 
         fetchExportEndpoints(force) {
@@ -203,6 +239,15 @@
                     deferred.reject(error);
                 });
             return deferred.promise;
+        }
+
+        getEndpointStatuses(){
+            let eps = this.publicEndpoints.reduce((acc, ep) => {
+                acc[ep.ServiceID] = ep;
+                return acc;
+            }, {});
+            let ids = Object.keys(eps);
+            return resourcesFactory.v2.getServiceStatuses(ids);
         }
 
         // fetch and update service statuses for all
@@ -306,34 +351,37 @@
 
         // kicks off request to update fast-moving instances and service state
         fetchAllStates() {
-            return $q.all([this.fetchInstances(), this.getStatus()])
+            return $q.all([
+                this.fetchInstances(), 
+                this.getStatus(),
+                this.getEndpointStatuses()])
                 .then(results => {
-                    let statuses = results[1];
-                    this.updateState(statuses);
+                    let myStatus = results[1],
+                        otherStatuses = results[2];
+                    this.updateState(myStatus, otherStatuses);
                 }, error => {
                     console.warn("Unable to fetch instance states");
                 });
         }
 
         // update fast-moving service and instance state
-        updateState(status) {
+        updateState(myStatus, otherStatuses) {
 
             // update service status
-            this.desiredState = status.DesiredState;
+            this.desiredState = myStatus.DesiredState;
 
             // update public endpoints
-            if (this.publicEndpoints) {
+            if(otherStatuses){
+                otherStatuses = otherStatuses.reduce((acc, s) => {
+                    acc[s.ServiceID] = s;
+                    return acc;
+                },{});
                 this.publicEndpoints.forEach(ept => {
-                    if (ept.ServiceID === this.id) {
-                        // TODO - dont modify model data
-                        ept.desiredState = this.desiredState;
-                    } else {
-                        // TODO - deal with public endpoints which
-                        // are descendents rather than children
-                    }
+                    ept.desiredState = otherStatuses[ept.ServiceID].DesiredState;
                 });
             }
-            let statusMap = status.Status.reduce((map, s) => {
+
+            let statusMap = myStatus.Status.reduce((map, s) => {
                 map[s.InstanceID] = s;
                 return map;
             }, {});
