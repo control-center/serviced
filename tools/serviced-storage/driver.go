@@ -44,11 +44,7 @@ type DriverSet struct {
 }
 
 // DriverUnset is the subcommand for unsetting the default driver
-type DriverUnset struct {
-	Args struct {
-		Remove string `description:"Use this flag to automatically remove orphaned devices"`
-	}
-}
+type DriverUnset struct{}
 
 // DriverDisable is the subcommand to disable the driver
 type DriverDisable struct {
