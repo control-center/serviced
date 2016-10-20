@@ -1,0 +1,47 @@
+<div ng-show="internalServicesVM.loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
+
+<div class="serviceDetails">
+    <div class="serviceControls" sticky sticky-class="stickied">
+        <h2 class="serviceTitle">
+            <health-icon ng-if="internalServicesVM.parent.model.Startup" data-status="internalServicesVM.parent.status" style="display: inline-block; font-size: 0.6em;"></health-icon>
+            {{internalServicesVM.parent.model.Name}}
+            <span class="version" ng-show="internalServicesVM.parent.model.Version"> (v{{internalServicesVM.parent.model.Version}})</span>
+        </h2>
+        <div class="serviceBoxGradient"></div>
+    </div>
+    <div class="serviceDescription">
+        {{internalServicesVM.parent.model.Description}}
+    </div>
+</div>
+
+<h3 translate>title_services</h3>
+<table jelly-table data-data="internalServicesVM.children" data-config="internalServicesTable" class="table side-flush">
+    <thead>
+        <tr>
+          <th style="width: 200px;" translate>label_service</th>
+          <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
+          <th translate>deployed_tbl_description</th>
+        </tr>
+    </thead>
+    <tr ng-repeat="internalService in $data">
+      <td data-title="'label_service'|translate" sortable="'name'" 
+          ng-click="internalServicesVM.clickInternalService(internalService.id)"
+          style="white-space: nowrap;" class="link">
+          {{internalService.model.Name}}
+      </td>
+      <td data-title="'Instances'" style="text-align:center;">
+        <health-icon data-status="internalService.status"></health-icon>
+      </td>
+      <td data-title="'deployed_tbl_description'|translate">
+        <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly
+               type="text" value="{{internalService.model.Description}}">
+      </td>
+    </tr>
+</table>
+
+<graph-panel
+    ng-if="internalServicesVM.parent.model.MonitoringProfile.GraphConfigs.length > 0"
+    data-service-id="internalServicesVM.parent.id"
+    data-graph-configs="internalServicesVM.parent.model.MonitoringProfile.GraphConfigs"
+    class="infoWrapper graphPanel">
+</graph-panel>

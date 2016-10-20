@@ -12,11 +12,13 @@
         "$modalService", "$translate", "$timeout",
         "$cookies", "servicesFactory", "miscUtils",
         "ngTableParams", "$filter", "poolsFactory",
+        "$serviceHealth",
     function($scope, $routeParams, $location,
     $notification, resourcesFactory, authService,
     $modalService, $translate, $timeout,
     $cookies, servicesFactory, utils,
-    NgTableParams, $filter, poolsFactory){
+    NgTableParams, $filter, poolsFactory,
+    $serviceHealth){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -25,8 +27,12 @@
         $scope.defaultHostAlias = $location.host();
 
         // redirect to specific service details
-        $scope.routeToService = function(id) {
-            resourcesFactory.routeToService(id);
+        $scope.routeToService = function(service) {
+            if (service.isIsvc()) {
+                resourcesFactory.routeToInternalServices();
+            } else {
+                resourcesFactory.routeToService(service.id);
+            }
         };
 
         // redirect to specific pool
@@ -110,13 +116,13 @@
                     }));
                 }
             });
-            
+
             return endPoints;
         }, function(service){
             return service.id + service.model.DatabaseVersion;
         });
 
-        
+
         $scope.modal_removeService = function(service) {
             $modalService.create({
                 template: $translate.instant("warning_remove_service"),
@@ -286,6 +292,35 @@
                 $scope.templates.data = utils.mapToArr(templates);
             });
         }
+       
+        function fetchInternalServiceInstances(app) {
+            return resourcesFactory.v2.getInternalServiceInstances(app.id).then( data => {
+                app.instances = data;
+            });
+        }
+
+        function getInternalServicesHealth() {
+            $scope.apps.forEach(app => {
+                if (app.isIsvc()) {
+                    resourcesFactory.v2.getInternalServiceStatuses([app.id]).then(data => {
+                        if (!data || data.length === 0) {
+                            return;
+                        }
+                        let status = data[0];
+                        let instanceStatusMap = status.Status.reduce((map, s) => {
+                            map[s.InstanceID] = s;
+                            return map;
+                        }, {});
+    
+                        app.instances.forEach(i => {
+                            i.healthChecks = instanceStatusMap[i.InstanceID].HealthStatus;
+                        });
+
+                        $serviceHealth.update({[app.id]: app});
+                    });
+                }
+            }); 
+        }
 
         // poll for apps that are being deployed
         $scope.deployingServices = [];
@@ -396,6 +431,14 @@
                 // locally bind top level service list
                 $scope.apps = servicesFactory.serviceTree;
 
+                if ($scope.apps) {
+                    $scope.apps.forEach(app => {
+                        if (app.isIsvc()) {
+                            fetchInternalServiceInstances(app).then(() => getInternalServicesHealth());
+                        }
+                    });
+                }
+
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
                 if(!$cookies.get("autoRunWizardHasRun") && $scope.apps.length === 1){
@@ -409,6 +452,7 @@
             //register polls
             resourcesFactory.registerPoll("deployingApps", getDeploying, 3000);
             resourcesFactory.registerPoll("templates", refreshTemplates, 5000);
+            resourcesFactory.registerPoll("internalServiceHealth", getInternalServicesHealth, 3000);
 
             //unregister polls on destroy
             $scope.$on("$destroy", function(){
