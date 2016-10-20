@@ -76,7 +76,7 @@ controlplane.
        });
         $translateProvider.preferredLanguage('en_US');
         $translateProvider.fallbackLanguage('en_US');
-        $translateProvider.useSanitizeValueStrategy('sanitize');
+        $translateProvider.useSanitizeValueStrategy('sanitizeParameters');
     }]).
     config(['CacheFactoryProvider', function(CacheFactoryProvider){
         angular.extend(CacheFactoryProvider.defaults, {
