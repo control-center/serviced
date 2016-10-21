@@ -149,7 +149,7 @@ func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface)
 		return nil, err
 	}
 
-	if err := auth.AddSignedMuxHeader(muxAddr, token); err != nil {
+	if err := auth.AddSignedMuxHeader(remote, muxAddr, token); err != nil {
 		plog.WithError(err).Error("Unable to send authenticated mux header")
 		return nil, err
 	}

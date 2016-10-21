@@ -18,6 +18,7 @@ package auth_test
 import (
 	"bytes"
 	"encoding/binary"
+
 	"github.com/control-center/serviced/auth"
 	. "gopkg.in/check.v1"
 )
@@ -37,12 +38,8 @@ func (s *TestAuthSuite) TestAuthenticated(c *C) {
 	// extract header
 	ident, body, err := rpcHeaderHandler.ReadHeader(&conn)
 	c.Assert(err, IsNil)
-	// check the identity has been correctly extracted
 	c.Assert(body, DeepEquals, request)
-	c.Assert(s.hostId, DeepEquals, ident.HostID())
-	c.Assert(s.poolId, DeepEquals, ident.PoolID())
-	c.Assert(s.admin, Equals, ident.HasAdminAccess())
-	c.Assert(s.dfs, Equals, ident.HasDFSAccess())
+	c.Assert(ident.Valid(), Equals, nil)
 }
 
 func (s *TestAuthSuite) TestNotAuthenticated(c *C) {

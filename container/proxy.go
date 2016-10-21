@@ -239,14 +239,13 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	// connection isn't sitting open waiting for an authentication token to be
 	// loaded.
 	var (
-		err          error
-		token        string
-		muxAddr      []byte
-		tokenTimeout = 30 * time.Second
+		muxAddrPacked []byte
+		token         string
+		tokenTimeout  = 30 * time.Second
 	)
 
 	if !isLocalContainer {
-		muxAddr, err = utils.PackTCPAddressString(address.containerAddr)
+		muxAddrPacked, err = utils.PackTCPAddressString(address.containerAddr)
 		if err != nil {
 			glog.Errorf("Container address is invalid. Can't create proxy: %s", address.containerAddr)
 			return
@@ -290,8 +289,8 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	}
 
 	// If this is not a local container, write the mux header
-	if token != "" && len(muxAddr) > 0 {
-		auth.AddSignedMuxHeader(remote, muxAddr, token)
+	if token != "" && len(muxAddrPacked) > 0 {
+		auth.AddSignedMuxHeader(remote, muxAddrPacked, token)
 	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",

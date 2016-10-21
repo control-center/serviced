@@ -49,7 +49,7 @@ var (
 	}
 	endian = binary.BigEndian
 
-	ErrNoAdmin       = errors.New("Delegate does not have admin access")
+	ErrNoAdmin = errors.New("Delegate does not have admin access")
 
 	log = logging.PackageLogger()
 )
@@ -135,8 +135,12 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	a.lastError = nil
 	a.buff.ReadBuff.Reset()
 
-
-	ident, body, err := a.parser.ParseHeader(a.conn)
+	ident, body, err := a.parser.ReadHeader(a.conn)
+	if err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Could not authenticate RPC request")
+		a.lastError = err
+		return err
+	}
 
 	// Now write the actual request to the buffer
 	if _, err = a.buff.ReadBuff.Write(body); err != nil {
@@ -156,11 +160,10 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	//  This is safe because go's rpc server always calls ReadRequestHeader and ReadRequestBody back-to-back
 	//   (unless ReadRequestHeader returns an error)
 	if requiresAuthentication(r.ServiceMethod) {
-		if requiresAdmin(r.ServiceMethod) && ( ident == nil || ident.HasAdminAccess()){
+		if requiresAdmin(r.ServiceMethod) && (ident == nil || !ident.HasAdminAccess()) {
 			log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received unauthorized RPC request")
 			a.lastError = ErrNoAdmin
 		}
-
 		//TODO: save the identity so we can inject it into the request body later
 	}
 	return nil
@@ -244,11 +247,6 @@ func NewAuthClientCodec(conn io.ReadWriteCloser, createCodec ClientCodecCreator,
 // This implementation gets an auth header when appropriate, and writes it to the stream
 //  before letting the underlying codec send the rest of the request.
 func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
-	var (
-		header []byte = []byte{}
-		err    error
-	)
-
 	// Lock to ensure we write the header and the rest of the request back-to-back
 	//  This method may be called by multiple goroutines concurrently
 	a.wBuffMutex.Lock()
@@ -263,7 +261,9 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	// Get the request off the buffer
 	request := a.buff.WriteBuff.Bytes()
 
-	err = a.headerBuilder.WriteHeader(a.conn, request, requiresAuthentication(r.ServiceMethod))
+	if err := a.headerBuilder.WriteHeader(a.conn, request, requiresAuthentication(r.ServiceMethod)); err != nil {
+		return err
+	}
 
 	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Successfully sent RPC request")
 
