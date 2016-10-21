@@ -149,7 +149,7 @@ func (s *MySuite) TestWriteResponse(c *C) {
 	body := 0
 	resp := &rpc.Response{}
 	emptyLenBuff := make([]byte, auth.BodyLenLen)
-	var emptyBodyBuff []byte
+	emptyBodyBuff := make([]byte, 0)
 
 	// Failure on wrapped codec
 	codectest.wrappedServerCodec.On("WriteResponse", resp, body).Return(ErrTestCodec).Once()

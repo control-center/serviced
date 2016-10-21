@@ -43,56 +43,29 @@ type RPCHeaderHandler struct{}
 // Convenience methods for Writing data in the format [LENGTH|DATA]
 func WriteLengthAndBytes(b []byte, writer io.Writer) error {
 	// write length
-	var bLen uint16 = uint16(len(b))
-	bLenBuf := make([]byte, BodyLenLen)
-	endian.PutUint16(bLenBuf, bLen)
-
-	n, err := writer.Write(bLenBuf)
-	if err != nil {
+	var pl payloadLength = payloadLength(len(b))
+	if err := binary.Write(writer, byteOrder, pl); err != nil {
 		return err
 	}
-	if n != BodyLenLen {
-		return ErrWritingLength
-	}
-
-	n, err = writer.Write(b)
-	if err != nil {
+	if err := binary.Write(writer, byteOrder, b); err != nil {
 		return err
 	}
-	if uint16(n) != bLen {
-		return ErrWritingBody
-	}
-
 	return nil
 }
 
 // Convenience methods for Reading data in the format [LENGTH|DATA]
 func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
 	// Read the length of the data
-	bLenBuf := make([]byte, BodyLenLen)
-	n, err := io.ReadFull(reader, bLenBuf)
-	if err != nil {
+	var payloadLen payloadLength
+	if err := binary.Read(reader, byteOrder, &payloadLen); err != nil {
 		return nil, err
 	}
-	if n != BodyLenLen {
-		return nil, ErrReadingLength
-	}
-
-	bLength := endian.Uint16(bLenBuf)
 
 	// Now read the data
-	var b []byte
-	if bLength > 0 {
-		b = make([]byte, bLength)
-		n, err = io.ReadFull(reader, b)
-		if err != nil {
-			return nil, err
-		}
-		if uint16(n) != bLength {
-			return nil, ErrReadingBody
-		}
+	b := make([]byte, payloadLen)
+	if err := binary.Read(reader, byteOrder, &b); err != nil {
+		return nil, err
 	}
-
 	return b, nil
 }
 
