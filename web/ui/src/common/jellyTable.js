@@ -50,9 +50,9 @@
                     <tfoot><tr>
                         <td colspan="100%" class="statusBar">
                             <ul>
-                                <li class="entry">Last Update: <strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
+                                <li class="entry"><span translate>last_update</span><strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
                                 <li class="entry"><strong>{{${tableID}.resultsLength}}</strong>
-                                    Result{{ ${tableID}.resultsLength !== 1 ? "s" : ""  }}
+                                    <span translate>results</span>
                                 </li>
                             </ul>
                         </td>
