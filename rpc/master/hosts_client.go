@@ -104,3 +104,9 @@ func (c *Client) ResetHostKey(hostID string) ([]byte, error) {
 	err := c.call("ResetHostKey", hostID, &response)
 	return response, err
 }
+
+func (c *Client) HostsAuthenticated(hostIDs []string) (map[string]bool, error) {
+	response := make(map[string]bool)
+	err := c.call("HostsAuthenticated", hostIDs, &response)
+	return response, err
+}

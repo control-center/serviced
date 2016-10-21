@@ -68,6 +68,9 @@ type ClientInterface interface {
 	// Reset hostID's private key
 	ResetHostKey(hostID string) ([]byte, error)
 
+	// HostsAuthenticated returns if the hosts passed are authenticated or not
+	HostsAuthenticated(hostIDs []string) (map[string]bool, error)
+
 	//--------------------------------------------------------------------------
 	// Pool Management Functions
 

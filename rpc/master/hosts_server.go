@@ -170,3 +170,18 @@ func (s *Server) ResetHostKey(hostID string, key *[]byte) error {
 	*key = publicKey
 	return err
 }
+
+// Given a list of hostsID return if they are authenticated
+func (s *Server) HostsAuthenticated(hostIDs []string, res *map[string]bool) error {
+	authenticatedHosts := make(map[string]bool)
+	if hostIDs == nil || len(hostIDs) == 0 {
+		*res = authenticatedHosts
+		return nil
+	}
+	for _, hid := range hostIDs {
+		isAuth, _ := s.f.HostIsAuthenticated(s.context(), hid)
+		authenticatedHosts[hid] = isAuth
+	}
+	*res = authenticatedHosts
+	return nil
+}
