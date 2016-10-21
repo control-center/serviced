@@ -96,6 +96,7 @@ type ReadServiced struct {
 
 type HostStatus struct {
 	HostID        string
+	HostName      string
 	MemoryUsage   service.Usage
 	Active        bool
 	Authenticated bool

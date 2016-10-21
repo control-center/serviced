@@ -152,7 +152,7 @@ func TestServicedCLI_CmdHostList_one(t *testing.T) {
 	}
 
 	var actual host.Host
-	output := pipe(InitHostAPITest, "serviced", "host", "list", "test-host-id-1")
+	output := captureStdout(func() { InitHostAPITest("serviced", "host", "list", "test-host-id-1") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -170,7 +170,7 @@ func TestServicedCLI_CmdHostList_all(t *testing.T) {
 	}
 
 	var actual []host.Host
-	output := pipe(InitHostAPITest, "serviced", "host", "list", "--verbose")
+	output := captureStdout(func() { InitHostAPITest("serviced", "host", "list", "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -195,9 +195,9 @@ func ExampleServicedCLI_CmdHostList_fail() {
 	DefaultHostAPITest.fail = true
 	defer func() { DefaultHostAPITest.fail = false }()
 	// Error retrieving host
-	pipeStderr(InitHostAPITest, "serviced", "host", "list", "test-host-id-1")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "list", "test-host-id-1") })
 	// Error retrieving all hosts
-	pipeStderr(InitHostAPITest, "serviced", "host", "list")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "list") })
 
 	// Output:
 	// invalid host
@@ -208,9 +208,9 @@ func ExampleServicedCLI_CmdHostList_err() {
 	DefaultHostAPITest.hosts = make([]host.Host, 0)
 	defer func() { DefaultHostAPITest.hosts = DefaultTestHosts }()
 	// Host not found
-	pipeStderr(InitHostAPITest, "serviced", "host", "list", "test-host-id-0")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "list", "test-host-id-0") })
 	// No hosts found
-	pipeStderr(InitHostAPITest, "serviced", "host", "list")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "list") })
 
 	// Output:
 	// host not found
@@ -257,7 +257,7 @@ func ExampleServicedCLI_CmdHostAdd_registerfail() {
 	// Register host failed.  Write key file
 	DefaultHostAPITest.registerFail = true
 	defer func() { DefaultHostAPITest.registerFail = false }()
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--register", "127.0.0.1:8080", "default")
+	pipeStderr(func(){InitHostAPITest( "serviced", "host", "add", "--register", "127.0.0.1:8080", "default")})
 
 	// Output:
 	// Wrote delegate key file to IP-127-0-0-1.delegate.key
@@ -270,7 +270,7 @@ func ExampleServicedCLI_CmdHostAdd_registerfail() {
 
 func ExampleServicedCLI_CmdHostAdd_keyfile() {
 	// Specify location of key file.
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--key-file", "foobar", "127.0.0.1:8080", "default")
+	pipeStderr(func(){InitHostAPITest( "serviced", "host", "add", "--key-file", "foobar", "127.0.0.1:8080", "default")})
 
 	// Output:
 	// Wrote delegate key file to foobar
@@ -284,7 +284,7 @@ func ExampleServicedCLI_CmdHostAdd_keyfilefail() {
 	// Failure writing keyfile
 	DefaultHostAPITest.writeFail = true
 	defer func() { DefaultHostAPITest.writeFail = false }()
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", "default")
+	pipeStderr(func(){InitHostAPITest( "serviced", "host", "add", "127.0.0.1:8080", "default")})
 
 	// Output:
 	// 127.0.0.1-default
@@ -297,7 +297,7 @@ func ExampleServicedCLI_CmdHostAdd_keyfilefail() {
 func ExampleServicedCLI_CmdHostAdd_keyfileRegister() {
 	// Specify location of key file and register host.
 	// Write the key file even though we registered.
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "--register", "--key-file", "foobar", "127.0.0.3:8080", "default")
+	pipeStderr(func(){InitHostAPITest( "serviced", "host", "add", "--register", "--key-file", "foobar", "127.0.0.3:8080", "default")})
 
 	// Output:
 	// Registered host at 127.0.0.3
@@ -317,14 +317,14 @@ func ExampleServicedCLI_CmdHostAdd_badurl() {
 func ExampleServicedCLI_CmdHostAdd_fail() {
 	DefaultHostAPITest.fail = true
 	defer func() { DefaultHostAPITest.fail = false }()
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", "default")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", "default") })
 
 	// Output:
 	// invalid host
 }
 
 func ExampleServicedCLI_CmdHostAdd_err() {
-	pipeStderr(InitHostAPITest, "serviced", "host", "add", "127.0.0.1:8080", NilPool)
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "add", "127.0.0.1:8080", NilPool) })
 
 	// Output:
 	// received nil host
@@ -369,7 +369,7 @@ func ExampleServicedCLI_CmdHostRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdHostRemove_err() {
-	pipeStderr(InitHostAPITest, "serviced", "host", "remove", "test-host-id-0")
+	pipeStderr(func() { InitHostAPITest("serviced", "host", "remove", "test-host-id-0") })
 
 	// Output:
 	// test-host-id-0: no host found

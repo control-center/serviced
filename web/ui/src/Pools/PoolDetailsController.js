@@ -171,7 +171,6 @@
 
         // update/refresh current pools data
         function update(){
-            // TODO - use v2 endpoint once its in
             return resourcesFactory.getPool($scope.params.poolID)
                 .success(pool => setCurrentPool(pool));
         }

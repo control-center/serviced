@@ -65,8 +65,15 @@ controlplane.
                 controller: "StatusController"}).
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
-                controller: "BackupRestoreController"
-            }).
+                controller: "BackupRestoreController"}).
+            when('/internalservices', {
+                templateUrl: '/static/partials/view-internal-services.html',
+                controller: "InternalServicesController",
+                controllerAs: "internalServicesVM"}).
+            when('/internalservices/:id', {
+                templateUrl: '/static/partials/view-internal-service-details.html',
+                controller: "InternalServiceDetailsController",
+                controllerAs: "internalServiceDetailsVM"}).
             otherwise({redirectTo: '/apps'});
     }]).
     config(['$translateProvider', function($translateProvider) {

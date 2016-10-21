@@ -87,7 +87,7 @@ func InitPublicEndpointPortTest(args ...string) {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_usage(t *testing.T) {
-	output := pipe(InitSnapshotAPITest, "serviced", "service", "public-endpoints", "list", "-h")
+	output := captureStdout(func() { InitSnapshotAPITest("serviced", "service", "public-endpoints", "list", "-h") })
 	expected :=
 		"NAME:\n" +
 			"   list - Lists public endpoints for a service\n" +
@@ -114,7 +114,9 @@ func ExampleServicedCLI_CmdPublicEndpointsList_usage(t *testing.T) {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_InvalidService() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "list", "invalidservice")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "invalidservice")
+	})
 
 	// Output:
 	// service not found
@@ -176,21 +178,27 @@ func ExampleServicedCLI_CmdPublicEndpointsList_endpointTypePort() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_endpointTypeVHost() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "list", "Zenoss", "zproxy", "--vhosts")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "Zenoss", "zproxy", "--vhosts")
+	})
 
 	// Output:
 	// No public endpoints found
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_endpointNoneFound() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "list", "Zenoss", "zope")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "Zenoss", "zope")
+	})
 
 	// Output:
 	// No public endpoints found
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsList_endpointInvalid() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "list", "Zenoss", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "list", "Zenoss", "invalid")
+	})
 
 	// Output:
 	// Endpoint 'invalid' not found
@@ -259,14 +267,18 @@ func ExampleServicedCLI_CmdPublicEndpointsPortAdd() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd_InvalidEnable() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "http", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "http", "invalid")
+	})
 
 	// Output:
 	// The enabled flag must be true or false
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortAdd_InvalidProtocol() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "invalid", "true")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "add", "Zenoss", "zproxy", ":22222", "invalid", "true")
+	})
 
 	// Output:
 	// The protocol must be one of: https, http, other-tls, other
@@ -293,7 +305,9 @@ func ExampleServicedCLI_CmdPublicEndpointsPortRemove() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidArgCount() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", ":22222", "true", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", ":22222", "true", "invalid")
+	})
 
 	// Output:
 	// NAME:
@@ -309,14 +323,18 @@ func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidArgCount() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidService() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "enable", "invalid", "zproxy", ":22222", "true")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "enable", "invalid", "zproxy", ":22222", "true")
+	})
 
 	// Output:
 	// service not found
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsPortEnable_InvalidEnableFlag() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", ":22222", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "port", "enable", "Zenoss", "zproxy", ":22222", "invalid")
+	})
 
 	// Output:
 	// The enabled flag must be true or false
@@ -355,14 +373,18 @@ func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidArgCount() {
 }
 
 func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidService() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "add", "invalid", "zproxy", "zproxy2", "true")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "add", "invalid", "zproxy", "zproxy2", "true")
+	})
 
 	// Output:
 	// service not found
 }
 
 func ExampleServicedCLI_cmdPublicEndpointsVHostAdd_InvalidEnableFlag() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "add", "Zenoss", "invalid", "zproxy2", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "add", "Zenoss", "invalid", "zproxy2", "invalid")
+	})
 
 	// Output:
 	// The enabled flag must be true or false
@@ -376,7 +398,9 @@ func ExampleServicedCLI_CmdPublicEndpointsVHostRemove() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidArgCount() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "true", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "true", "invalid")
+	})
 
 	// Output:
 	// NAME:
@@ -392,14 +416,18 @@ func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidArgCount() {
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidService() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "invalid", "zproxy", "zproxy", "true")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "enable", "invalid", "zproxy", "zproxy", "true")
+	})
 
 	// Output:
 	// service not found
 }
 
 func ExampleServicedCLI_CmdPublicEndpointsVHostEnable_InvalidEnableFlag() {
-	pipeStderr(InitPublicEndpointPortTest, "serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "invalid")
+	pipeStderr(func() {
+		InitPublicEndpointPortTest("serviced", "service", "public-endpoints", "vhost", "enable", "Zenoss", "zproxy", "zproxy", "invalid")
+	})
 
 	// Output:
 	// The enabled flag must be true or false

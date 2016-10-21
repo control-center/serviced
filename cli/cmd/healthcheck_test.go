@@ -143,7 +143,7 @@ func ExampleServicedCLI_CmdHealthCheck_twoServices() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_undefinedService() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "undefined-iservice")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "undefined-iservice") })
 
 	// Output:
 	// could not find isvc "undefined-iservice"
@@ -151,7 +151,7 @@ func ExampleServicedCLI_CmdHealthCheck_undefinedService() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-failed")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-failed") })
 
 	// Output:
 	// Service Name          Container Name    Container ID  Health Check  Status
@@ -160,7 +160,7 @@ func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_stoppedStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-stopped")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-stopped") })
 
 	// Output:
 	// Service Name           Container Name     Container ID  Health Check  Status
@@ -169,7 +169,7 @@ func ExampleServicedCLI_CmdHealthCheck_stoppedStatus() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_unknownStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-unknown")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-unknown") })
 
 	// Output:
 	// Service Name           Container Name     Container ID  Health Check  Status

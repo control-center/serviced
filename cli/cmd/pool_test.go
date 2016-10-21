@@ -181,7 +181,7 @@ func TestServicedCLI_CmdPoolList_one(t *testing.T) {
 	}
 
 	var actual pool.ResourcePool
-	output := pipeAPI(RunCmd, test, "serviced", "pool", "list", poolID)
+	output := captureStdout(func() { RunCmd(test, "serviced", "pool", "list", poolID) })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -200,7 +200,7 @@ func TestServicedCLI_CmdPoolList_all(t *testing.T) {
 	}
 
 	var actual []*pool.ResourcePool
-	output := pipeAPI(RunCmd, test, "serviced", "pool", "list", "--verbose")
+	output := captureStdout(func() { RunCmd(test, "serviced", "pool", "list", "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -225,9 +225,9 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 	test := DefaultPoolAPI()
 	test.fail = true
 	// Error retrieving pool
-	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list", "test-pool-id-1")
+	pipeStderr(func() { RunCmd(test, "serviced", "pool", "list", "test-pool-id-1") })
 	// Error retrieving all pools
-	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list")
+	pipeStderr(func() { RunCmd(test, "serviced", "pool", "list") })
 
 	// Output:
 	// invalid pool
@@ -239,9 +239,9 @@ func ExampleServicedCLI_CmdPoolList_err() {
 	*test.pools = make([]pool.ResourcePool, 0)
 
 	// Pool not found
-	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list", "test-pool-id-0")
+	pipeStderr(func() { RunCmd(test, "serviced", "pool", "list", "test-pool-id-0") })
 	// No pools found
-	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list")
+	pipeStderr(func() { RunCmd(test, "serviced", "pool", "list") })
 
 	// Output:
 	// pool not found
@@ -270,7 +270,7 @@ func ExampleServicedCLI_CmdPoolAdd() {
 }
 
 func ExampleServicedCLI_CmdPoolAdd_err() {
-	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "add", NilPool, "4", "1024", "3")
+	pipeStderr(func() { RunCmd(DefaultPoolAPI(), "serviced", "pool", "add", NilPool, "4", "1024", "3") })
 
 	// Output:
 	// received nil resource pool
@@ -306,7 +306,7 @@ func TestServicedCLI_CmdPoolAdd_perm(t *testing.T) {
 }
 
 func ExampleServicedCLI_CmdPoolRemove() {
-	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-1")
+	pipeStderr(func() { RunCmd(DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-1") })
 
 	// Output:
 	// test-pool-id-1
@@ -331,7 +331,7 @@ func ExampleServicedCLI_CmdPoolRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolRemove_err() {
-	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-0")
+	pipeStderr(func() { RunCmd(DefaultPoolAPI(), "serviced", "pool", "remove", "test-pool-id-0") })
 
 	// Output:
 	// test-pool-id-0: pool not found
@@ -364,7 +364,7 @@ func TestExampleServicedCLI_CmdPoolListIPs(t *testing.T) {
 	}
 
 	var actual []host.HostIPResource
-	output := pipeAPI(RunCmd, test, "serviced", "pool", "list-ips", poolID, "--verbose")
+	output := captureStdout(func() { RunCmd(test, "serviced", "pool", "list-ips", poolID, "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshalling resource: %s", err)
 	}
@@ -400,7 +400,7 @@ func ExampleServicedCLI_CmdPoolListIPs_usage() {
 }
 
 func ExampleServicedCLI_CmdPoolListIPs_fail() {
-	pipeAPIStderr(RunCmd, DefaultPoolAPI(), "serviced", "pool", "list-ips", "test-pool-id-0")
+	pipeStderr(func() { RunCmd(DefaultPoolAPI(), "serviced", "pool", "list-ips", "test-pool-id-0") })
 
 	// Output:
 	// no pool found
@@ -409,7 +409,7 @@ func ExampleServicedCLI_CmdPoolListIPs_fail() {
 func ExampleServicedCLI_CmdPoolListIPs_err() {
 	test := DefaultPoolAPI()
 	test.hostIPs = nil
-	pipeAPIStderr(RunCmd, test, "serviced", "pool", "list-ips", "test-pool-id-1")
+	pipeStderr(func() { RunCmd(test, "serviced", "pool", "list-ips", "test-pool-id-1") })
 
 	// Output:
 	// no resource pool IPs found
