@@ -304,6 +304,7 @@
     "running_tbl_start": "Start Time",
     "save": "Save",
     "service_instances": "Services Instances",
+    "settings": "Settings",
     "starting_service": "Starting Service...",
     "starting": "Starting",
     "start_service_and_children": "Start Service and {{count}} Children",
