@@ -143,6 +143,31 @@ func (t HostAPITest) WriteDelegateKey(filename string, data []byte) error {
 	return nil
 }
 
+func (t HostAPITest) GetHostWithAuthInfo(id string) (*api.AuthHost, error) {
+	if t.fail {
+		return nil, ErrInvalidHost
+	}
+
+	for _, h := range t.hosts {
+		if h.ID == id {
+			return &api.AuthHost{h, true}, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (t HostAPITest) GetHostsWithAuthInfo() ([]api.AuthHost, error) {
+	if t.fail {
+		return nil, ErrInvalidHost
+	}
+	authHosts := []api.AuthHost{}
+	for _, h := range t.hosts {
+		authHosts = append(authHosts, api.AuthHost{h, true})
+	}
+	return authHosts, nil
+}
+
 func TestServicedCLI_CmdHostList_one(t *testing.T) {
 	hostID := "test-host-id-1"
 

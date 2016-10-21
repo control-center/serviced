@@ -47,7 +47,7 @@ func (c *ServicedCli) initHost() {
 					},
 					cli.StringFlag{
 						Name:  "show-fields",
-						Value: "ID,Pool,Name,Addr,RPCPort,Cores,RAM,Cur/Max/Avg,Network,Release",
+						Value: "ID,Auth,Pool,Name,Addr,RPCPort,Cores,RAM,Cur/Max/Avg,Network,Release",
 						Usage: "Comma-delimited list describing which fields to display",
 					},
 				},
@@ -154,7 +154,7 @@ func (c *ServicedCli) printHostAdd(ctx *cli.Context) {
 func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
 		hostID := ctx.Args()[0]
-		if host, err := c.driver.GetHost(hostID); err != nil {
+		if host, err := c.driver.GetHostWithAuthInfo(hostID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if host == nil {
 			fmt.Fprintln(os.Stderr, "host not found")
@@ -166,7 +166,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		return
 	}
 
-	hosts, err := c.driver.GetHosts()
+	hosts, err := c.driver.GetHostsWithAuthInfo()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -192,6 +192,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			}
 			t.AddRow(map[string]interface{}{
 				"ID":          h.ID,
+				"Auth":        h.Authenticated,
 				"Pool":        h.PoolID,
 				"Name":        h.Name,
 				"Addr":        h.IPAddr,

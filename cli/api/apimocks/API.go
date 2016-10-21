@@ -1278,3 +1278,45 @@ func (_m *API) SendDockerAction(serviceID string, instanceID int, action string,
 
 	return r0
 }
+func (_m *API) GetHostWithAuthInfo(_a0 string) (*api.AuthHost, error) {
+	ret := _m.Called(_a0)
+
+	var r0 *api.AuthHost
+	if rf, ok := ret.Get(0).(func(string) *api.AuthHost); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*api.AuthHost)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) GetHostsWithAuthInfo() ([]api.AuthHost, error) {
+	ret := _m.Called()
+
+	var r0 []api.AuthHost
+	if rf, ok := ret.Get(0).(func() []api.AuthHost); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]api.AuthHost)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
