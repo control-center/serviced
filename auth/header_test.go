@@ -158,6 +158,7 @@ func (s *TestAuthSuite) TestZeroPayload(c *C) {
 }
 
 func (s *TestAuthSuite) TestHugePayload(c *C) {
+	c.Skip("Avoiding allocating memory for a huge payload")
 	var b bytes.Buffer
 
 	payload := make([]byte, 1<<32) // One byte too large
