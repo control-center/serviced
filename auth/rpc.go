@@ -14,14 +14,16 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 )
 
 var (
-	RPCMagicNumber = magicNumber([3]byte{224, 227, 155})
-	BodyLenLen     = binary.Size(uint16(0))
+	RPCMagicNumber = []byte{224, 227, 155}
+	BodyLenLen     = 2
 
 	ErrBadRPCHeader  = errors.New("Bad rpc header")
 	ErrWritingLength = errors.New("Wrote too few bytes for message length")
@@ -103,7 +105,9 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 		err2  error
 	)
 	binary.Write(w, byteOrder, RPCMagicNumber)
+	fmt.Println("Wrote magic number")
 	if writeAuth {
+		fmt.Println("Writing auth header")
 		binary.Write(w, byteOrder, uint8(1))
 		// get current host token
 		var signer Signer = &delegateKeys
@@ -121,9 +125,12 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 		}
 		h := NewAuthHeader([]byte(token), req, signer)
 		_, err = h.WriteTo(w)
+		fmt.Println("Wrote auth header to writer")
 	} else {
+		fmt.Println("Not writing auth header")
 		binary.Write(w, byteOrder, uint8(0))
 		WriteLengthAndBytes(req, w)
+		fmt.Println("Wrote request header to writer")
 	}
 	return err
 }
@@ -131,27 +138,38 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 // Extracts the token and signature from the header, and validates the signature against the token and request
 func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error) {
 	// Read and verify the first three bytes are the magic number
-	var m magicNumber
-	var sender Identity
-	var payload []byte
+	var (
+		m       = make([]byte, 3)
+		sender  Identity
+		payload []byte
+	)
 	if err := binary.Read(reader, byteOrder, &m); err != nil {
 		return nil, nil, err
 	}
-	if m != RPCMagicNumber {
+	fmt.Println("Read in three bytes")
+	if !bytes.Equal(m, RPCMagicNumber) {
+		fmt.Println("m is not the magic number")
+		fmt.Println(string(m), string(RPCMagicNumber))
 		return nil, nil, ErrBadRPCHeader
 	}
+	fmt.Println("Got a magic num")
 	var hasAuth [1]byte
 	err := binary.Read(reader, byteOrder, &hasAuth)
+	fmt.Println("Got the auth byte")
 	if err != nil {
 		return nil, nil, err
 	}
 	if hasAuth[0] == 1 {
+		fmt.Println("hasAuth is 1")
 		sender, _, payload, err = ReadAuthHeader(reader)
+		fmt.Println("Read the payload")
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
+		fmt.Println("hasAuth is 0")
 		payload, err = ReadLengthAndBytes(reader)
+		fmt.Println("Read the payload")
 		if err != nil {
 			return nil, nil, err
 		}
