@@ -120,7 +120,7 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 			}
 			signer = &masterKeys
 		}
-		h := NewAuthHeader([]byte(token), req, signer)
+		h := NewAuthHeaderWriterTo([]byte(token), req, signer)
 		_, err = h.WriteTo(w)
 	} else {
 		binary.Write(w, byteOrder, uint8(0))

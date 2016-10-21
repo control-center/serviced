@@ -43,7 +43,7 @@ func AddSignedMuxHeader(w io.Writer, address []byte, token string) error {
 	if len(address) != ADDRESS_BYTES {
 		return ErrBadMuxAddress
 	}
-	header := NewAuthHeader([]byte(token), address, &delegateKeys)
+	header := NewAuthHeaderWriterTo([]byte(token), address, &delegateKeys)
 	_, err := header.WriteTo(w)
 	return err
 }

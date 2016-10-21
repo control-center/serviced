@@ -34,47 +34,51 @@ The following diagram shows the components of the header in byte order:
 
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-----+-+---+-----------+---+---+-------------------------------+
-|  M  |V|   | TIMESTAMP |T L|P L|            TOKEN              |
-|  A  |E|   |    (8)    |O E|A E|        (max len 32k)          |
-|  G  |R|   |           |K N|Y N|                               |
-|  I  |S|   |           |E  |L  |                               |
-|  C  |N|   |           |N  |D  |                               |
-+-+-+-+-+---------------+---+---+ - - - - - - - - - - - - - - - +
-:                    TOKEN continued ...                        :
-+---------------------------------------------------------------+
-:                    PAYLOAD (max len 32k)                      |
-+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
++-----+-+-------+--------+---+---+------------------------------+
+|  M  |V|   L   |                                               |
+|  A  |E|   E   |                                               |
+|  G  |R|   N   |              SIGNATURE (256)                  |
+|  I  |S|       |                                               |
+|  C  |N|       |                                               |
++-+-+-+-+-------+- - - - - - - - - - - - - - - - - - - - - - - -+
+:                    SIGNATURE continued ...                    :
++-----------+---------------------------------------------------+
+| TIMESTAMP |                   AUTH TOKEN                      |
+|    (8)    |                                                   |
++-----------+ - - - - - - - - - - - - - - - - - - - - - - - - - +
+:                    AUTH TOKEN continued ...                   :
++---+-----------------------------------------------------------+
+|P L|                                                           |
+|A E|                                                           |
+|Y N|               PAYLOAD (max len 32k)                       |
+|L  |                                                           |
+|D  |                                                           |
++---+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
 :                    PAYLOAD continued ...                      :
 +---------------------------------------------------------------+
-|                    SIGNATURE (256)                            |
-+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
-:                    SIGNATURE continued ...                    :
-+---------------------------------------------------------------+
+
 
 MAGIC:     A magic number to identify this as an auth header connection
 
 VERSN:     The version of the protocol being used (currently 1)
 
+LEN:       The length of the timestamp and token, limited to 32k
+
+SIGNATURE: An RSA signature of the entire header minus the magic number and
+           protocol version, using the private key whose public key is
+           contained in the identity token.
+
 TIMESTAMP: A Unix timestamp (UTC)
 
-TOKEN LEN: The length of the authentication token, limited to 32k
+TOKEN:     A JSON Web Token, signed by a trusted third party (the master),
+           comprising the sender's identity, including a public key that can be
+           used to verify the header itself.
 
 PAYLD LEN: The length of the header payload, limited to 32k
 
-TOKEN:     A JSON Web Token, signed by a trusted third party (the master),
-		   comprising the sender's identity, including a public key that can be
-		   used to verify the header itself.
-
 PAYLOAD:   The payload, if any. For the mux, this will be the target address
-		   proxied by this connection.
+           proxied by this connection.
 
-SIGNATURE: An RSA signature of the entire header minus the magic number and
-		   protocol version, using the private key whose public key is
-		   contained in the identity token.
-
-
-MAGIC VERSION ALLLEN SIGNATURE TIMESTAMP TOKEN PAYLOADLEN PAYLOAD
 */
 
 type magicNumber [3]byte
@@ -106,12 +110,14 @@ var (
 	ErrHeaderExpired = errors.New("Expired authentication header")
 )
 
-// AuthHeaderError will be return
+// AuthHeaderError wraps another error with an accompanying payload, for the
+// sake of those receiving the error who need access to the payload.
 type AuthHeaderError struct {
 	Err     error
 	Payload []byte
 }
 
+// Error implements the error interface.
 func (e *AuthHeaderError) Error() string {
 	return e.Err.Error()
 }
@@ -212,10 +218,17 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
-func NewAuthHeader(token, payload []byte, signer Signer) io.WriterTo {
+// NewAuthHeaderWriterTo returns an io.WriterTo that can write an
+// authentication header with the given parameters to a Writer.
+func NewAuthHeaderWriterTo(token, payload []byte, signer Signer) io.WriterTo {
 	return &authHeaderWriterTo{token, payload, signer}
 }
 
+// ReadAuthHeader reads an authentication header from the reader given. If
+// there's a non-EOF error, it will read to the payload and return an
+// AuthHeaderError with the contents of the payload and the original error.
+// This allows us to support protocols that require the payload for bookkeeping
+// purposes, like RPC.
 func ReadAuthHeader(r io.Reader) (sender Identity, timestamp time.Time, payload []byte, err error) {
 
 	// Read and verify the first three bytes are the magic number
@@ -246,36 +259,7 @@ func ReadAuthHeader(r io.Reader) (sender Identity, timestamp time.Time, payload 
 	return
 }
 
-func eatBytesAndGetPayloadError(r io.Reader, n uint32, e error) error {
-	written, err := io.CopyN(ioutil.Discard, r, int64(n))
-	if err != nil {
-		return ErrReadingBody
-	}
-	if written != int64(n) {
-		return ErrReadingBody
-	}
-	payload, err := readPayload(r)
-	if err != nil {
-		return err
-	}
-	return &AuthHeaderError{e, payload}
-}
-
-func readPayload(r io.Reader) ([]byte, error) {
-	// Read the payload length
-	var payloadLen payloadLength
-	if err := binary.Read(r, byteOrder, &payloadLen); err != nil {
-		return nil, err
-	}
-
-	// Read the payload
-	payload := make([]byte, int(payloadLen))
-	if err := binary.Read(r, byteOrder, &payload); err != nil {
-		return nil, err
-	}
-	return payload, nil
-}
-
+// readAuthHeaderV1 implements version 1 of the authentication header protocol.
 func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload []byte, err error) {
 
 	// Read in the length of everything up to the payload length
@@ -351,4 +335,39 @@ func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload [
 		err = &AuthHeaderError{err, payload}
 	}
 	return
+}
+
+// eatBytesAndGetPayloadError fast-forwards the reader to the payload, reads
+// off the payload, and wraps the provided error with the payload in an
+// AuthHeaderError.
+func eatBytesAndGetPayloadError(r io.Reader, n uint32, e error) error {
+	written, err := io.CopyN(ioutil.Discard, r, int64(n))
+	if err != nil {
+		return ErrReadingBody
+	}
+	if written != int64(n) {
+		return ErrReadingBody
+	}
+	payload, err := readPayload(r)
+	if err != nil {
+		return err
+	}
+	return &AuthHeaderError{e, payload}
+}
+
+// readPayload reads a payload length and the accompanying payload from
+// a reader.
+func readPayload(r io.Reader) ([]byte, error) {
+	// Read the payload length
+	var payloadLen payloadLength
+	if err := binary.Read(r, byteOrder, &payloadLen); err != nil {
+		return nil, err
+	}
+
+	// Read the payload
+	payload := make([]byte, int(payloadLen))
+	if err := binary.Read(r, byteOrder, &payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
 }
