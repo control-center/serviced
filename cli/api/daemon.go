@@ -730,7 +730,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Authenticate against the master
-		reauthenticate := func() (string, int64, error) {
+		getToken := func() (string, int64, error) {
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
 				return "", 0, err
@@ -744,7 +744,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Start authenticating
-		auth.TokenLoop(reauthenticate, tokenFile, d.shutdown, forceRefresh)
+		auth.TokenLoop(getToken, tokenFile, d.shutdown, forceRefresh)
 	}()
 
 	// initialize a listener to watch the master leader
