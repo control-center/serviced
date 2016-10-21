@@ -203,3 +203,23 @@ func parseSeq(path string) (uint64, error) {
 	parts := strings.Split(path, "-")
 	return strconv.ParseUint(parts[len(parts)-1], 10, 64)
 }
+
+// GetLowestSequence returns the lowest sequenced value ephemeral node from the
+// list.
+func GetLowestSequence(ch []string) (string, error) {
+	var (
+		lowestSequence uint64 = math.MaxUint64
+		leader                = ""
+	)
+
+	for _, p := range ch {
+		s, err := parseSeq(p)
+		if err != nil {
+			return "", err
+		}
+		if s < lowestSequence {
+			lowestSequence, leader = s, p
+		}
+	}
+	return leader, nil
+}
