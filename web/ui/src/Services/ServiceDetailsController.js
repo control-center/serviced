@@ -14,12 +14,12 @@
             "authService", "$modalService", "$translate", "$notification",
             "$timeout", "miscUtils", "$serviceHealth", "Service",
             "CCUIState", "$cookies", "areUIReady", "LogSearch",
-            "$filter",
+            "$filter", "Pool",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
                 $timeout, _utils, _serviceHealth, Service,
                 CCUIState, $cookies, areUIReady, LogSearch,
-                $filter) {
+                $filter, Pool) {
 
                 // api access via angular context
                 $notification = _$notification;
@@ -877,13 +877,29 @@
                 };
 
                 $scope.editCurrentService = function () {
-
+                    let modalModel = $scope.$new(true);
                     // clone service for editing
                     $scope.editableService = angular.copy($scope.currentService.model);
+                    modalModel.model = angular.copy($scope.currentService.model);
+                    modalModel.pools = [];
+
+                    // this modal needs to know all the pools,
+                    // so axe for all the pools!
+                    // TODO - cache this list?
+                    (function getPools(){
+                        resourcesFactory.v2.getPools()
+                            .then(data => {
+                                modalModel.pools = data.map(result => new Pool(result));
+                            })
+                            .catch(data => {
+                                console.warn("Could not load pools, trying again in 1s");
+                                $timeout(getPools, 1000);
+                            });
+                    })();
 
                     $modalService.create({
                         templateUrl: "edit-service.html",
-                        model: $scope,
+                        model: modalModel,
                         title: "title_edit_service",
                         actions: [
                             {
@@ -898,9 +914,9 @@
                                         var enableSubmit = this.disableSubmitButton();
 
                                         // update service with recently edited service
-                                        resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
+                                        resourcesFactory.v2.updateService(modalModel.model.ID, modalModel.model)
                                             .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.Name).success();
+                                                $notification.create("Updated service", modalModel.model.Name).success();
                                                 update();
                                                 this.close();
                                             }.bind(this))
@@ -913,7 +929,7 @@
                             }
                         ],
                         validate: function () {
-                            if ($scope.editableService.InstanceLimits.Min > $scope.editableService.Instances || $scope.editableService.Instances === undefined) {
+                            if (modalModel.model.InstanceLimits.Min > modalModel.model.Instances || modalModel.model.Instances === undefined) {
                                 return false;
                             }
 
