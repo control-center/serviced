@@ -176,10 +176,10 @@
                                 if (totalItemCount > config().pgsize) {
                                     table.addClass("has-pagination");
                                     // ngtable pagination requires total item count
-                                    params.total(totalItemCount);
                                 } else {
                                     table.removeClass("has-pagination");
                                 }
+                                params.total(totalItemCount);
                             }
                         }
 
