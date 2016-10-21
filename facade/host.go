@@ -401,7 +401,7 @@ func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since 
 			continue
 		}
 
-		status := host.HostStatus{HostID: id, MemoryUsage: service.Usage{}}
+		status := host.HostStatus{HostID: id, HostName: h.Name, MemoryUsage: service.Usage{}}
 		active, err := f.zzk.IsHostActive(h.PoolID, h.ID)
 		if err != nil {
 			continue
