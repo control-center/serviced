@@ -21,7 +21,6 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/servicedversion"
-	"github.com/control-center/serviced/utils"
 )
 
 func main() {
@@ -43,7 +42,7 @@ func main() {
 		cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-		cli.StringFlag{"endpoint", utils.GetGateway(defaultRPCPort), "serviced endpoint address"},
+		cli.IntFlag{"rpcport", defaultRPCPort, "port to use for RPC requests"},
 		cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 		cli.BoolFlag{"mux-disable-tls", "disable contacting the mux via TLS"},
 		cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},

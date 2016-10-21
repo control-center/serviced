@@ -30,6 +30,7 @@ type ControllerOptions struct {
 	KeyPEMFile              string   // path to the KeyPEMfile
 	CertPEMFile             string   // path to the CertPEMfile
 	ServicedEndpoint        string
+	RPCPort                 int      // the TCP port for the RPC to the agent
 	Autorestart             bool
 	MetricForwarderPort     string // port to which container processes send performance data to
 	Logstash                bool
