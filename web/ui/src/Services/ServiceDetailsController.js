@@ -775,9 +775,9 @@
                         });
                 };
 
-
+                $scope.hostNames = {};
                 $scope.getHostName = function (id) {
-                    return "I DONT KNOW";
+                    return $scope.hostNames[id];
                 };
 
                 // expand/collapse state of service tree nodes
@@ -1103,6 +1103,22 @@
                     };
 
                     $scope.ips = {};
+
+                    // get host status to create a map of
+                    // host id to name
+                    (function getHostNames(){
+                        resourcesFactory.v2.getHostStatuses()
+                            .then(result => {
+                                $scope.hostNames = result.reduce((acc,s) => {
+                                    acc[s.HostID] = s.HostName;
+                                    return acc;
+                                }, {});
+                            })
+                            .catch(err => {
+                                console.warn("Could not fetch host names, retrying in 1s", err);
+                                $timeout(getHostNames, 1000);
+                            });
+                    })();
 
                     // if the current service changes, update
                     // various service controller thingies
