@@ -54,10 +54,6 @@ var (
 	log = logging.PackageLogger()
 )
 
-const (
-	LEN_BYTES = 4
-)
-
 // Checks the RPC method name to see if authentication is required.
 //  If it is, calls on the client side will include a signed header, which will be
 //  Verified on the server side
