@@ -22,7 +22,7 @@ import (
 
 var (
 	RPCMagicNumber = []byte{224, 227, 155}
-	BodyLenLen     = 2
+	BodyLenLen     = 4
 
 	ErrBadRPCHeader  = errors.New("Bad rpc header")
 	ErrWritingLength = errors.New("Wrote too few bytes for message length")

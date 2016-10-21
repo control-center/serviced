@@ -148,7 +148,7 @@ func (s *MySuite) TestReadRequestBody(c *C) {
 func (s *MySuite) TestWriteResponse(c *C) {
 	body := 0
 	resp := &rpc.Response{}
-	emptyLenBuff := []byte{0, 0}
+	emptyLenBuff := make([]byte, auth.BodyLenLen)
 	var emptyBodyBuff []byte
 
 	// Failure on wrapped codec
@@ -237,18 +237,18 @@ func (s *MySuite) TestWriteRequest(c *C) {
 
 func (s *MySuite) TestReadResponseHeader(c *C) {
 	resp := &rpc.Response{}
-	emptyLenBuff := []byte{0, 0}
+	emptyLenBuff := make([]byte, auth.BodyLenLen)
 	var emptyBodyBuff []byte
 
 	// Error on wrapped codec
-	codectest.conn.On("Read", emptyLenBuff).Return(2, nil).Once()
+	codectest.conn.On("Read", emptyLenBuff).Return(auth.BodyLenLen, nil).Once()
 	codectest.conn.On("Read", emptyBodyBuff).Return(0, nil).Once()
 	codectest.wrappedClientCodec.On("ReadResponseHeader", resp).Return(ErrTestCodec).Once()
 	err := codectest.authClientCodec.ReadResponseHeader(resp)
 	c.Assert(err, Equals, ErrTestCodec)
 
 	// Success
-	codectest.conn.On("Read", emptyLenBuff).Return(2, nil).Once()
+	codectest.conn.On("Read", emptyLenBuff).Return(auth.BodyLenLen, nil).Once()
 	codectest.wrappedClientCodec.On("ReadResponseHeader", resp).Return(nil).Once()
 	err = codectest.authClientCodec.ReadResponseHeader(resp)
 	c.Assert(err, IsNil)

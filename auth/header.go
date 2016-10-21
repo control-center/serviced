@@ -85,7 +85,7 @@ type magicNumber [3]byte
 type protocolVersion uint8
 type timestamp uint64
 type tokenLength uint16
-type payloadLength uint16
+type payloadLength uint32
 type signature [256]byte
 
 var (

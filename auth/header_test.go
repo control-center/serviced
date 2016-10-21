@@ -29,7 +29,7 @@ var authHeaderError *auth.AuthHeaderError
 func (s *TestAuthSuite) getHeader(payload []byte) io.WriterTo {
 	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader([]byte(tokenString), payload, signer)
+	header := auth.NewAuthHeaderWriterTo([]byte(tokenString), payload, signer)
 	return header
 }
 
@@ -99,7 +99,7 @@ func (s *TestAuthSuite) TestInvalidToken(c *C) {
 
 	payload := []byte("payload")
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, payload, signer)
+	header := auth.NewAuthHeaderWriterTo(token, payload, signer)
 
 	_, err := header.WriteTo(&b)
 	c.Assert(err, IsNil)
@@ -117,7 +117,7 @@ func (s *TestAuthSuite) TestHugeToken(c *C) {
 
 	token := make([]byte, 1<<16) // One byte too large
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+	header := auth.NewAuthHeaderWriterTo(token, []byte("payload"), signer)
 	_, err := header.WriteTo(&b)
 	c.Assert(err, Equals, auth.ErrBadToken)
 }
@@ -128,7 +128,7 @@ func (s *TestAuthSuite) TestZeroToken(c *C) {
 	payload := []byte("payload")
 	token := []byte{}
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, payload, signer)
+	header := auth.NewAuthHeaderWriterTo(token, payload, signer)
 	_, err := header.WriteTo(&b)
 	c.Assert(err, IsNil)
 	sender, _, _, err := auth.ReadAuthHeader(&b)
@@ -160,11 +160,11 @@ func (s *TestAuthSuite) TestZeroPayload(c *C) {
 func (s *TestAuthSuite) TestHugePayload(c *C) {
 	var b bytes.Buffer
 
-	payload := make([]byte, 1<<16) // One byte too large
+	payload := make([]byte, 1<<32) // One byte too large
 	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	token := []byte(tokenString)
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, payload, signer)
+	header := auth.NewAuthHeaderWriterTo(token, payload, signer)
 	_, err := header.WriteTo(&b)
 	c.Assert(err, Equals, auth.ErrPayloadTooLarge)
 }
