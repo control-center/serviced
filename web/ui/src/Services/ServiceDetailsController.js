@@ -12,13 +12,13 @@
     controlplane.controller("ServiceDetailsController", [
             "$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
-            "$timeout", "miscUtils", "hostsFactory", "$serviceHealth", "Service",
-            "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
+            "$timeout", "miscUtils", "$serviceHealth", "Service",
+            "CCUIState", "$cookies", "areUIReady", "LogSearch",
             "$filter",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
-                $timeout, _utils, hostsFactory, _serviceHealth, Service,
-                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch,
+                $timeout, _utils, _serviceHealth, Service,
+                CCUIState, $cookies, areUIReady, LogSearch,
                 $filter) {
 
                 // api access via angular context
@@ -30,7 +30,6 @@
 
                 // Ensure logged in
                 authService.checkLogin($scope);
-                $scope.hostsFactory = hostsFactory;
 
                 $scope.defaultHostAlias = $location.host();
                 if (utils.needsHostAlias($location.host())) {
@@ -778,13 +777,7 @@
 
 
                 $scope.getHostName = function (id) {
-                    if (hostsFactory.get(id)) {
-                        return hostsFactory.get(id).name;
-                    } else {
-                        // TODO - if unknown host, dont make linkable
-                        // and use custom css to show unknown
-                        return "unknown";
-                    }
+                    return "I DONT KNOW";
                 };
 
                 // expand/collapse state of service tree nodes
@@ -985,6 +978,14 @@
 
                 // constructs a new current service
                 $scope.setCurrentService = function () {
+                    let first = false;
+                    // if this is the first time setting the service,
+                    // be sure to emit "ready" after things are settled.
+                    // the ready event clears the big loading jellyfish
+                    if($scope.currentService === undefined){
+                        first = true;
+                    }
+
                     $scope.currentService = undefined;
                     resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
@@ -1011,6 +1012,10 @@
 
                             // update fast-moving statuses
                             $scope.currentService.fetchAllStates();
+
+                            if(first){
+                                $scope.$root.$emit("ready");
+                            }
                         });
                 };
 
@@ -1083,15 +1088,9 @@
 
                     $scope.ips = {};
 
-                    // pools are needed for edit service dialog
-                    $scope.pools = poolsFactory.poolList;
-
                     // if the current service changes, update
                     // various service controller thingies
                     $scope.$watch("params.serviceId", $scope.setCurrentService);
-
-                    hostsFactory.activate();
-                    hostsFactory.update();
 
                     // TODO - use UI_POLL_INTERVAL
                     let intervalVal = setInterval(function () {
@@ -1101,14 +1100,8 @@
                         }
                     }, 3000);
 
-                    poolsFactory.activate();
-                    poolsFactory.update();
-
                     $scope.$on("$destroy", function () {
                         clearInterval(intervalVal);
-                        // servicesFactory.deactivate();
-                        hostsFactory.deactivate();
-                        poolsFactory.deactivate();
                     });
                 }
 

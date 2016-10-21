@@ -174,7 +174,7 @@
                         utils.validatePortNumber(modalScope.newHost.port, $translate) ||
                         utils.validateRAMLimit(modalScope.newHost.RAMLimit);
                     if(err){
-                        $notification.create("Error", err).error();
+                        this.createNotification("Error", err).error();
                         return false;
                     }
                     return true;
