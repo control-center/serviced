@@ -719,6 +719,8 @@ func (d *daemon) startAgent() error {
 	// Start watching for delegate keys to be loaded
 	go auth.WatchDelegateKeyFile(delegateKeyFile, d.shutdown)
 
+	forceRefresh := make(chan struct{})
+
 	go func() {
 		// Wait for delegate keys to exist before trying to authenticate
 		select {
@@ -728,7 +730,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Authenticate against the master
-		getToken := func() (string, int64, error) {
+		reauthenticate := func() (string, int64, error) {
 			masterClient, err := master.NewClient(d.servicedEndpoint)
 			if err != nil {
 				return "", 0, err
@@ -742,7 +744,46 @@ func (d *daemon) startAgent() error {
 		}
 
 		// Start authenticating
-		auth.TokenLoop(getToken, tokenFile, d.shutdown)
+		auth.TokenLoop(reauthenticate, tokenFile, d.shutdown, forceRefresh)
+	}()
+
+	// initialize a listener to watch the master leader
+	leaderListener := zzk.NewLeaderListener("/scheduler")
+
+	// set up a connection loop to persist zookeeper and manage the leader
+	// watcher
+	go func() {
+		for {
+			select {
+			case conn := <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					leaderListener.Run(d.shutdown, conn)
+				}
+				select {
+				case <-d.shutdown:
+					return
+				default:
+				}
+			case <-d.shutdown:
+				return
+			}
+		}
+	}()
+
+	// reauthenticate if a new scheduler leader is elected
+	go func() {
+		for {
+			select {
+			case <-leaderListener.Wait():
+				select {
+				case forceRefresh <- struct{}{}:
+				case <-d.shutdown:
+					return
+				}
+			case <-d.shutdown:
+				return
+			}
+		}
 	}()
 
 	// Flag so we only log that a host hasn't been added yet once
