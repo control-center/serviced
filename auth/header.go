@@ -139,8 +139,6 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 		bytesWritten  int64
 	)
 
-	// MAGIC VERSION | ALLLEN SIGNATURE TIMESTAMP TOKEN PAYLOADLEN PAYLOAD
-
 	// Timestamp
 	ts := jwt.TimeFunc().UTC().Unix()
 	if err = binary.Write(&signedContent, byteOrder, timestamp(ts)); err != nil {
@@ -313,7 +311,7 @@ func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload [
 		return
 	}
 
-	payload, err = readPayload(teed)
+	payload, err = ReadLengthAndBytes(teed)
 	if err != nil {
 		return
 	}
@@ -348,26 +346,9 @@ func eatBytesAndGetPayloadError(r io.Reader, n uint32, e error) error {
 	if written != int64(n) {
 		return ErrReadingBody
 	}
-	payload, err := readPayload(r)
+	payload, err := ReadLengthAndBytes(r)
 	if err != nil {
 		return err
 	}
 	return &AuthHeaderError{e, payload}
-}
-
-// readPayload reads a payload length and the accompanying payload from
-// a reader.
-func readPayload(r io.Reader) ([]byte, error) {
-	// Read the payload length
-	var payloadLen payloadLength
-	if err := binary.Read(r, byteOrder, &payloadLen); err != nil {
-		return nil, err
-	}
-
-	// Read the payload
-	payload := make([]byte, int(payloadLen))
-	if err := binary.Read(r, byteOrder, &payload); err != nil {
-		return nil, err
-	}
-	return payload, nil
 }

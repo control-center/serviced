@@ -21,26 +21,42 @@ import (
 )
 
 var (
+	// RPCMagicNumber is a magic number for RPC
 	RPCMagicNumber = []byte{224, 227, 155}
-	BodyLenLen     = 4
+	// BodyLenLen is the length of the length of the payload
+	BodyLenLen = 4
 
-	ErrBadRPCHeader  = errors.New("Bad rpc header")
+	// ErrBadRPCHeader is thrown when the RPC header is bad
+	ErrBadRPCHeader = errors.New("Bad rpc header")
+	// ErrWritingLength is thrown when the length writing has an error
 	ErrWritingLength = errors.New("Wrote too few bytes for message length")
-	ErrWritingBody   = errors.New("Wrote too few bytes for message body")
+	// ErrWritingBody is thrown when the body writing has an error
+	ErrWritingBody = errors.New("Wrote too few bytes for message body")
+	// ErrReadingLength is thrown when we read too few bytes for message length
 	ErrReadingLength = errors.New("Read too few bytes for message length")
-	ErrReadingBody   = errors.New("Read too few bytes for message body")
+	// ErrReadingBody is thrown when we read too few bytes for message body
+	ErrReadingBody = errors.New("Read too few bytes for message body")
 )
 
+// RPCHeaderParser reads headers from readers and parses them
 type RPCHeaderParser interface {
+	// ReadHeader reads an RPC header from a reader, parsing the authentication
+	// header, if any.
 	ReadHeader(io.Reader) (Identity, []byte, error)
 }
+
+// RPCHeaderBuilder builds headers and writes them to writers
 type RPCHeaderBuilder interface {
+	// WriteHeader writes an RPC header to the provided writer. Optionally, it
+	// writes an authentication header as part of the RPC header.
 	WriteHeader(io.Writer, []byte, bool) error
 }
 
+// RPCHeaderHandler is an implementation of RPCHeaderParser and RPCHeaderBuilder
 type RPCHeaderHandler struct{}
 
-// Convenience methods for Writing data in the format [LENGTH|DATA]
+// WriteLengthAndBytes writes the length of a byte array and then the bytes
+// themselves. It is the inverse of ReadLengthAndBytes.
 func WriteLengthAndBytes(b []byte, writer io.Writer) error {
 	// write length
 	var pl payloadLength = payloadLength(len(b))
@@ -53,7 +69,8 @@ func WriteLengthAndBytes(b []byte, writer io.Writer) error {
 	return nil
 }
 
-// Convenience methods for Reading data in the format [LENGTH|DATA]
+// ReadLengthAndBytes reads the length of a byte array and then the bytes
+// themselves. It is the inverse of WriteLengthAndBytes.
 func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
 	// Read the length of the data
 	var payloadLen payloadLength
@@ -69,7 +86,8 @@ func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
 	return b, nil
 }
 
-// WriteHeader writes and rpc header
+// WriteHeader writes an RPC header to the provided writer. Optionally, it
+// writes an authentication header as part of the RPC header.
 func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) error {
 	var (
 		token string
@@ -102,7 +120,8 @@ func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) 
 	return err
 }
 
-// Extracts the token and signature from the header, and validates the signature against the token and request
+// ReadHeader reads an RPC header from a reader, parsing the authentication
+// header, if any.
 func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error) {
 	// Read and verify the first three bytes are the magic number
 	var (
