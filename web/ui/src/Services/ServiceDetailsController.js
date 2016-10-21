@@ -12,14 +12,14 @@
     controlplane.controller("ServiceDetailsController", [
             "$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
-            "$timeout", "miscUtils", "hostsFactory", "$serviceHealth", "Service",
-            "poolsFactory", "CCUIState", "$cookies", "areUIReady", "LogSearch",
-            "$filter",
+            "$timeout", "miscUtils", "$serviceHealth", "Service",
+            "CCUIState", "$cookies", "areUIReady", "LogSearch",
+            "$filter", "Pool",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
-                $timeout, _utils, hostsFactory, _serviceHealth, Service,
-                poolsFactory, CCUIState, $cookies, areUIReady, LogSearch,
-                $filter) {
+                $timeout, _utils, _serviceHealth, Service,
+                CCUIState, $cookies, areUIReady, LogSearch,
+                $filter, Pool) {
 
                 // api access via angular context
                 $notification = _$notification;
@@ -30,7 +30,6 @@
 
                 // Ensure logged in
                 authService.checkLogin($scope);
-                $scope.hostsFactory = hostsFactory;
 
                 $scope.defaultHostAlias = $location.host();
                 if (utils.needsHostAlias($location.host())) {
@@ -776,15 +775,9 @@
                         });
                 };
 
-
+                $scope.hostNames = {};
                 $scope.getHostName = function (id) {
-                    if (hostsFactory.get(id)) {
-                        return hostsFactory.get(id).name;
-                    } else {
-                        // TODO - if unknown host, dont make linkable
-                        // and use custom css to show unknown
-                        return "unknown";
-                    }
+                    return $scope.hostNames[id];
                 };
 
                 // expand/collapse state of service tree nodes
@@ -884,13 +877,29 @@
                 };
 
                 $scope.editCurrentService = function () {
-
+                    let modalModel = $scope.$new(true);
                     // clone service for editing
                     $scope.editableService = angular.copy($scope.currentService.model);
+                    modalModel.model = angular.copy($scope.currentService.model);
+                    modalModel.pools = [];
+
+                    // this modal needs to know all the pools,
+                    // so axe for all the pools!
+                    // TODO - cache this list?
+                    (function getPools(){
+                        resourcesFactory.v2.getPools()
+                            .then(data => {
+                                modalModel.pools = data.map(result => new Pool(result));
+                            })
+                            .catch(data => {
+                                console.warn("Could not load pools, trying again in 1s");
+                                $timeout(getPools, 1000);
+                            });
+                    })();
 
                     $modalService.create({
                         templateUrl: "edit-service.html",
-                        model: $scope,
+                        model: modalModel,
                         title: "title_edit_service",
                         actions: [
                             {
@@ -905,9 +914,9 @@
                                         var enableSubmit = this.disableSubmitButton();
 
                                         // update service with recently edited service
-                                        resourcesFactory.v2.updateService($scope.editableService.ID, $scope.editableService)
+                                        resourcesFactory.v2.updateService(modalModel.model.ID, modalModel.model)
                                             .success(function (data, status) {
-                                                $notification.create("Updated service", $scope.editableService.Name).success();
+                                                $notification.create("Updated service", modalModel.model.Name).success();
                                                 update();
                                                 this.close();
                                             }.bind(this))
@@ -920,7 +929,7 @@
                             }
                         ],
                         validate: function () {
-                            if ($scope.editableService.InstanceLimits.Min > $scope.editableService.Instances || $scope.editableService.Instances === undefined) {
+                            if (modalModel.model.InstanceLimits.Min > modalModel.model.Instances || modalModel.model.Instances === undefined) {
                                 return false;
                             }
 
@@ -985,6 +994,14 @@
 
                 // constructs a new current service
                 $scope.setCurrentService = function () {
+                    let first = false;
+                    // if this is the first time setting the service,
+                    // be sure to emit "ready" after things are settled.
+                    // the ready event clears the big loading jellyfish
+                    if($scope.currentService === undefined){
+                        first = true;
+                    }
+
                     $scope.currentService = undefined;
                     resourcesFactory.v2.getService($scope.params.serviceId)
                         .then(function (model) {
@@ -1011,6 +1028,10 @@
 
                             // update fast-moving statuses
                             $scope.currentService.fetchAllStates();
+
+                            if(first){
+                                $scope.$root.$emit("ready");
+                            }
                         });
                 };
 
@@ -1083,15 +1104,25 @@
 
                     $scope.ips = {};
 
-                    // pools are needed for edit service dialog
-                    $scope.pools = poolsFactory.poolList;
+                    // get host status to create a map of
+                    // host id to name
+                    (function getHostNames(){
+                        resourcesFactory.v2.getHostStatuses()
+                            .then(result => {
+                                $scope.hostNames = result.reduce((acc,s) => {
+                                    acc[s.HostID] = s.HostName;
+                                    return acc;
+                                }, {});
+                            })
+                            .catch(err => {
+                                console.warn("Could not fetch host names, retrying in 1s", err);
+                                $timeout(getHostNames, 1000);
+                            });
+                    })();
 
                     // if the current service changes, update
                     // various service controller thingies
                     $scope.$watch("params.serviceId", $scope.setCurrentService);
-
-                    hostsFactory.activate();
-                    hostsFactory.update();
 
                     // TODO - use UI_POLL_INTERVAL
                     let intervalVal = setInterval(function () {
@@ -1101,14 +1132,8 @@
                         }
                     }, 3000);
 
-                    poolsFactory.activate();
-                    poolsFactory.update();
-
                     $scope.$on("$destroy", function () {
                         clearInterval(intervalVal);
-                        // servicesFactory.deactivate();
-                        hostsFactory.deactivate();
-                        poolsFactory.deactivate();
                     });
                 }
 

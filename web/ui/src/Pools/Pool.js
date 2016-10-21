@@ -42,9 +42,7 @@
             if (this.hosts && !force) {
                 deferred.resolve();
             }
-            // TODO - this is actually a v2 endpoint
-            // and should be on resourcesFactory.v2
-            resourcesFactory.getPoolHosts(this.id)
+            resourcesFactory.v2.getPoolHosts(this.id)
                 .then(data => {
                     this.hosts = data.map(h => new Host(h));
                     this.touch();
