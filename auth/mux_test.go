@@ -16,6 +16,7 @@
 package auth_test
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/control-center/serviced/auth"
@@ -23,31 +24,31 @@ import (
 )
 
 func (s *TestAuthSuite) TestBuildHeaderBadAddr(c *C) {
-	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
-	c.Assert(err, IsNil)
-	c.Assert(fakeToken, NotNil)
+	token, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	addr := "this is more than 6 bytes"
-	_, err = auth.BuildAuthMuxHeader([]byte(addr), fakeToken)
+	var b bytes.Buffer
+	err := auth.AddSignedMuxHeader(&b, []byte(addr), token)
 	c.Assert(err, Equals, auth.ErrBadMuxAddress)
 }
 
 func (s *TestAuthSuite) TestExtractBadHeader(c *C) {
 	mockHeader := []byte{0, 0, 0, 19, 109, 121, 32, 115, 117, 112, 101, 114, 32, 102}
-	_, _, err := auth.ExtractMuxHeader(mockHeader)
-	c.Assert(err, Equals, auth.ErrBadMuxHeader)
+	b := bytes.NewBuffer(mockHeader)
+	_, _, err := auth.ReadMuxHeader(b)
+	c.Assert(err, Not(IsNil))
 }
 
 func (s *TestAuthSuite) TestBuildAndExtractHeader(c *C) {
-	fakeToken, _, err := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
-	c.Assert(err, IsNil)
-	c.Assert(fakeToken, NotNil)
-	addr := "zenoss"
+	token, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
+	addr := "zenoss" // Not valid, but it is 6 bytes!
+	var b bytes.Buffer
+
 	// build header
-	header, err := auth.BuildAuthMuxHeader([]byte(addr), fakeToken)
+	err := auth.AddSignedMuxHeader(&b, []byte(addr), token)
 	c.Assert(err, Equals, nil)
-	c.Assert(header, NotNil)
+
 	// extract header
-	extractedAddr, ident, err := auth.ExtractMuxHeader(header)
+	extractedAddr, ident, err := auth.ReadMuxHeader(&b)
 	// check the address is correctly decoded
 	c.Assert(err, IsNil)
 	c.Assert(string(extractedAddr), DeepEquals, addr)
