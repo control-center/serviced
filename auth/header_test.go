@@ -24,6 +24,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+var authHeaderError *auth.AuthHeaderError
+
 func (s *TestAuthSuite) getHeader(payload []byte) io.WriterTo {
 	tokenString, _, _ := auth.CreateJWTIdentity(s.hostId, s.poolId, s.admin, s.dfs, s.delegatePubPEM, time.Hour)
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
@@ -61,10 +63,10 @@ func (s *TestAuthSuite) TestBadMagicNumber(c *C) {
 	c.Assert(err, IsNil)
 
 	sender, timestamp, payload, err := auth.ReadAuthHeader(&b)
-	c.Assert(err, Equals, auth.ErrInvalidAuthHeader)
 	c.Assert(sender, IsNil)
 	c.Assert(timestamp.IsZero(), Equals, true)
 	c.Assert(payload, IsNil)
+	c.Assert(err, Equals, auth.ErrInvalidAuthHeader)
 }
 
 func (s *TestAuthSuite) TestBadProtocolVersion(c *C) {
@@ -95,14 +97,19 @@ func (s *TestAuthSuite) TestInvalidToken(c *C) {
 	// Break that there token
 	token[10] += 1
 
+	payload := []byte("payload")
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+	header := auth.NewAuthHeader(token, payload, signer)
 
 	_, err := header.WriteTo(&b)
 	c.Assert(err, IsNil)
 	sender, _, _, err := auth.ReadAuthHeader(&b)
-	c.Assert(err, Equals, auth.ErrIdentityTokenBadSig)
 	c.Assert(sender, IsNil)
+
+	c.Assert(err, FitsTypeOf, authHeaderError)
+	e := err.(*auth.AuthHeaderError)
+	c.Assert(e.Err, Equals, auth.ErrIdentityTokenBadSig)
+	c.Assert(e.Payload, DeepEquals, payload)
 }
 
 func (s *TestAuthSuite) TestHugeToken(c *C) {
@@ -118,14 +125,18 @@ func (s *TestAuthSuite) TestHugeToken(c *C) {
 func (s *TestAuthSuite) TestZeroToken(c *C) {
 	var b bytes.Buffer
 
+	payload := []byte("payload")
 	token := []byte{}
 	signer, _ := auth.RSASignerFromPEM(s.delegatePrivPEM)
-	header := auth.NewAuthHeader(token, []byte("payload"), signer)
+	header := auth.NewAuthHeader(token, payload, signer)
 	_, err := header.WriteTo(&b)
 	c.Assert(err, IsNil)
 	sender, _, _, err := auth.ReadAuthHeader(&b)
-	c.Assert(err, Equals, auth.ErrBadToken)
 	c.Assert(sender, IsNil)
+	c.Assert(err, FitsTypeOf, authHeaderError)
+	e := err.(*auth.AuthHeaderError)
+	c.Assert(e.Err, Equals, auth.ErrBadToken)
+	c.Assert(e.Payload, DeepEquals, payload)
 }
 
 func (s *TestAuthSuite) TestZeroPayload(c *C) {
@@ -161,14 +172,17 @@ func (s *TestAuthSuite) TestHugePayload(c *C) {
 func (s *TestAuthSuite) TestExpiredRequest(c *C) {
 	var b bytes.Buffer
 
-	pl := []byte("payload")
-	header := s.getHeader(pl)
+	payload := []byte("payload")
+	header := s.getHeader(payload)
 	_, err := header.WriteTo(&b)
 	c.Assert(err, IsNil)
 
 	auth.At(time.Now().UTC().Add(time.Hour), func() {
 		_, _, _, err := auth.ReadAuthHeader(&b)
-		c.Assert(err, Equals, auth.ErrHeaderExpired)
+		c.Assert(err, FitsTypeOf, authHeaderError)
+		e := err.(*auth.AuthHeaderError)
+		c.Assert(e.Err, Equals, auth.ErrHeaderExpired)
+		c.Assert(e.Payload, DeepEquals, payload)
 	})
 
 }

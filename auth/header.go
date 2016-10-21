@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -33,12 +34,12 @@ The following diagram shows the components of the header in byte order:
 
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-----+-+---------------+---+---+-------------------------------+
-|  M  |V|   TIMESTAMP   |T L|P L|            TOKEN              |
-|  A  |E|      (8)      |O E|A E|        (max len 32k)          |
-|  G  |R|               |K N|Y N|                               |
-|  I  |S|               |E  |L  |                               |
-|  C  |N|               |N  |D  |                               |
++-----+-+---+-----------+---+---+-------------------------------+
+|  M  |V|   | TIMESTAMP |T L|P L|            TOKEN              |
+|  A  |E|   |    (8)    |O E|A E|        (max len 32k)          |
+|  G  |R|   |           |K N|Y N|                               |
+|  I  |S|   |           |E  |L  |                               |
+|  C  |N|   |           |N  |D  |                               |
 +-+-+-+-+---------------+---+---+ - - - - - - - - - - - - - - - +
 :                    TOKEN continued ...                        :
 +---------------------------------------------------------------+
@@ -71,6 +72,9 @@ PAYLOAD:   The payload, if any. For the mux, this will be the target address
 SIGNATURE: An RSA signature of the entire header minus the magic number and
 		   protocol version, using the private key whose public key is
 		   contained in the identity token.
+
+
+MAGIC VERSION ALLLEN SIGNATURE TIMESTAMP TOKEN PAYLOADLEN PAYLOAD
 */
 
 type magicNumber [3]byte
@@ -102,6 +106,16 @@ var (
 	ErrHeaderExpired = errors.New("Expired authentication header")
 )
 
+// AuthHeaderError will be return
+type AuthHeaderError struct {
+	Err     error
+	Payload []byte
+}
+
+func (e *AuthHeaderError) Error() string {
+	return e.Err.Error()
+}
+
 // authHeaderWriterTo is a simple struct that has references to all the
 // user-supplied auth header data, and thus can build the header
 type authHeaderWriterTo struct {
@@ -119,6 +133,8 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 		bytesWritten  int64
 	)
 
+	// MAGIC VERSION | ALLLEN SIGNATURE TIMESTAMP TOKEN PAYLOADLEN PAYLOAD
+
 	// Timestamp
 	ts := jwt.TimeFunc().UTC().Unix()
 	if err = binary.Write(&signedContent, byteOrder, timestamp(ts)); err != nil {
@@ -131,7 +147,9 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 	if int(tokenLength(tokenLen)) != tokenLen {
 		return 0, ErrBadToken
 	}
-	if err = binary.Write(&signedContent, byteOrder, tokenLength(tokenLen)); err != nil {
+
+	// Token
+	if err = binary.Write(&signedContent, byteOrder, h.token); err != nil {
 		return 0, err
 	}
 
@@ -142,11 +160,6 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 		return 0, ErrPayloadTooLarge
 	}
 	if err = binary.Write(&signedContent, byteOrder, payloadLength(payloadLen)); err != nil {
-		return 0, err
-	}
-
-	// Token
-	if err = binary.Write(&signedContent, byteOrder, h.token); err != nil {
 		return 0, err
 	}
 
@@ -175,12 +188,12 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	n += int64(binary.Size(ProtocolVersion))
 
-	// Write the buffer contents
-	bytesWritten, err = signedContent.WriteTo(w)
+	// Write the length of everything left except the payload len and payload
+	allLen := uint32(tokenLen + 8)
+	err = binary.Write(w, byteOrder, allLen)
 	if err != nil {
 		return n, err
 	}
-	n += bytesWritten
 
 	// Write the signature
 	err = binary.Write(w, byteOrder, sig)
@@ -188,6 +201,13 @@ func (h *authHeaderWriterTo) WriteTo(w io.Writer) (n int64, err error) {
 		return n, err
 	}
 	n += int64(binary.Size(sig))
+
+	// Write the buffer contents (timestamp, token, payloadlen, payload)
+	bytesWritten, err = signedContent.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n += bytesWritten
 
 	return n, nil
 }
@@ -226,52 +246,91 @@ func ReadAuthHeader(r io.Reader) (sender Identity, timestamp time.Time, payload 
 	return
 }
 
+func eatBytesAndGetPayloadError(r io.Reader, n uint32, e error) error {
+	written, err := io.CopyN(ioutil.Discard, r, int64(n))
+	if err != nil {
+		return ErrReadingBody
+	}
+	if written != int64(n) {
+		return ErrReadingBody
+	}
+	payload, err := readPayload(r)
+	if err != nil {
+		return err
+	}
+	return &AuthHeaderError{e, payload}
+}
+
+func readPayload(r io.Reader) ([]byte, error) {
+	// Read the payload length
+	var payloadLen payloadLength
+	if err := binary.Read(r, byteOrder, &payloadLen); err != nil {
+		return nil, err
+	}
+
+	// Read the payload
+	payload := make([]byte, int(payloadLen))
+	if err := binary.Read(r, byteOrder, &payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
+
 func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload []byte, err error) {
 
-	var signable bytes.Buffer
+	// Read in the length of everything up to the payload length
+	var allLen uint32
+	if err = binary.Read(r, byteOrder, &allLen); err != nil {
+		return
+	}
+
+	// Read the signature
+	var sig = make([]byte, 256)
+	if err = binary.Read(r, byteOrder, sig); err != nil {
+		return
+	}
+
+	var (
+		signable  bytes.Buffer
+		remaining = allLen
+	)
+
+	// Read into a tee reader so we can verify the signature on the original
+	// data later
 	teed := io.TeeReader(r, &signable)
 
 	// Read and validate the timestamp
 	var ts timestamp
+	remaining -= uint32(binary.Size(ts))
 	if err = binary.Read(teed, byteOrder, &ts); err != nil {
+		err = eatBytesAndGetPayloadError(teed, remaining, err)
 		return
 	}
 	tstamp = time.Unix(int64(ts), 0).UTC()
 	cutoff := jwt.TimeFunc().UTC().Add(-expirationDelta)
 	if tstamp.Before(cutoff) {
-		err = ErrHeaderExpired
-		return
-	}
-
-	// Read the token length
-	var tokenLen tokenLength
-	if err = binary.Read(teed, byteOrder, &tokenLen); err != nil {
-		return
-	}
-
-	// Read the payload length
-	var payloadLen payloadLength
-	if err = binary.Read(teed, byteOrder, &payloadLen); err != nil {
+		err = eatBytesAndGetPayloadError(teed, remaining, ErrHeaderExpired)
 		return
 	}
 
 	// Read the token and validate it
-	token := make([]byte, int(tokenLen))
+	token := make([]byte, int(remaining))
 	if err = binary.Read(teed, byteOrder, &token); err != nil {
+		err = eatBytesAndGetPayloadError(teed, 0, err)
 		return
 	}
 	sender, err = ParseJWTIdentity(string(token))
 	if err != nil {
+		err = eatBytesAndGetPayloadError(teed, 0, err)
 		return
 	}
 	if sender == nil {
-		err = ErrBadToken
+		err = eatBytesAndGetPayloadError(teed, 0, ErrBadToken)
 		return
 	}
 
-	// Read the payload
-	payload = make([]byte, int(payloadLen))
-	if err = binary.Read(teed, byteOrder, &payload); err != nil {
+	payload, err = readPayload(teed)
+	if err != nil {
 		return
 	}
 
@@ -280,18 +339,16 @@ func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload [
 	// intentions.
 	signableContent := signable.Bytes()
 
-	// Read the signature from the original reader
-	var sig = make([]byte, 256)
-	if err = binary.Read(r, byteOrder, sig); err != nil {
-		return
-	}
-
 	// Verify the signature of the signable content
 	var verifier Verifier
 	verifier, err = sender.Verifier()
 	if err != nil {
+		err = &AuthHeaderError{err, payload}
 		return
 	}
 	err = verifier.Verify(signableContent, sig)
+	if err != nil {
+		err = &AuthHeaderError{err, payload}
+	}
 	return
 }

@@ -17,7 +17,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -132,29 +131,32 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	// There is no need for synchronization here, since go's RPC server
 	//  ensures that requests are read one-at-a-time
 
-	var tmpError error
-
 	// Reset state
 	a.lastError = nil
 	a.buff.ReadBuff.Reset()
 
 	ident, body, err := a.parser.ReadHeader(a.conn)
 	if err != nil {
-		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Error("Could not authenticate RPC request")
-		tmpError = err
-	} else {
-		// Now write the actual request to the buffer
-		if _, err = a.buff.ReadBuff.Write(body); err != nil {
+		log.WithError(err).WithField("ServiceMethod", r.ServiceMethod).Debug("Could not authenticate RPC request")
+		if e, ok := err.(*auth.AuthHeaderError); ok {
+			body = e.Payload
+			a.lastError = e.Err
+		} else {
 			return err
 		}
-
-		// Let the underlying codec read the request from the buffer and parse it
-		if err := a.wrappedcodec.ReadRequestHeader(r); err != nil {
-			return err
-		}
-
-		log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received RPC request")
 	}
+
+	// Now write the actual request to the buffer
+	if _, err = a.buff.ReadBuff.Write(body); err != nil {
+		return err
+	}
+
+	// Let the underlying codec read the request from the buffer and parse it
+	if err := a.wrappedcodec.ReadRequestHeader(r); err != nil {
+		return err
+	}
+
+	log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received RPC request")
 
 	// Now we can get the method name from r and authenticate if required
 	//  If this fails, save the error to return later
@@ -162,11 +164,11 @@ func (a *AuthServerCodec) ReadRequestHeader(r *rpc.Request) error {
 	//  This is safe because go's rpc server always calls ReadRequestHeader and ReadRequestBody back-to-back
 	//   (unless ReadRequestHeader returns an error)
 	if requiresAuthentication(r.ServiceMethod) {
-		if tmpError != nil {
-			a.lastError = tmpError
-		} else if requiresAdmin(r.ServiceMethod) && (ident == nil || !ident.HasAdminAccess()) {
-			log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received unauthorized RPC request")
-			a.lastError = ErrNoAdmin
+		if a.lastError == nil {
+			if requiresAdmin(r.ServiceMethod) && (ident == nil || !ident.HasAdminAccess()) {
+				log.WithField("ServiceMethod", r.ServiceMethod).Debug("Received unauthorized RPC request")
+				a.lastError = ErrNoAdmin
+			}
 		}
 		//TODO: save the identity so we can inject it into the request body later
 	}
@@ -266,7 +268,6 @@ func (a *AuthClientCodec) WriteRequest(r *rpc.Request, body interface{}) error {
 	request := a.buff.WriteBuff.Bytes()
 
 	needsAuth := requiresAuthentication(r.ServiceMethod)
-	fmt.Println("This guy needs auth", needsAuth)
 	if err := a.headerBuilder.WriteHeader(a.conn, request, needsAuth); err != nil {
 		return err
 	}

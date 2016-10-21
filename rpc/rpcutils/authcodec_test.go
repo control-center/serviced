@@ -4,10 +4,11 @@ package rpcutils
 
 import (
 	"errors"
-	"github.com/stretchr/testify/mock"
-	. "gopkg.in/check.v1"
 	"io"
 	"net/rpc"
+
+	"github.com/stretchr/testify/mock"
+	. "gopkg.in/check.v1"
 
 	authmocks "github.com/control-center/serviced/auth/mocks"
 	"github.com/control-center/serviced/rpc/rpcutils/mocks"
@@ -144,7 +145,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.conn.On("Read", emptyLenBuff).Return(LEN_BYTES, nil).Run(readBodyLength).Once()
 	codectest.conn.On("Read", emptyBodyBuff).Return(len(body), nil).Run(readBody).Once()
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header, body).Return(ident, ErrTestCodec).Once()
+	codectest.headerParser.On("ReadHeader", header, body).Return(ident, ErrTestCodec).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	// Error won't come through until we call ReadRequestBody
 	c.Assert(err, IsNil)
@@ -159,7 +160,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.conn.On("Read", emptyLenBuff).Return(LEN_BYTES, nil).Run(readBodyLength).Once()
 	codectest.conn.On("Read", emptyBodyBuff).Return(len(body), nil).Run(readBody).Once()
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header, body).Return(ident, nil).Once()
+	codectest.headerParser.On("ReadHeader", header, body).Return(ident, nil).Once()
 	ident.On("HasAdminAccess").Return(false).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	// Error won't come through until we call ReadRequestBody
@@ -174,7 +175,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.conn.On("Read", emptyLenBuff).Return(LEN_BYTES, nil).Run(readBodyLength).Once()
 	codectest.conn.On("Read", emptyBodyBuff).Return(len(body), nil).Run(readBody).Once()
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header, body).Return(ident, nil).Once()
+	codectest.headerParser.On("ReadHeader", header, body).Return(ident, nil).Once()
 	ident.On("HasAdminAccess").Return(true).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
@@ -198,7 +199,7 @@ func (s *MySuite) TestReadRequestHeader(c *C) {
 	codectest.conn.On("Read", emptyBodyBuff).Return(len(body), nil).Run(readBody).Once()
 	req = &rpc.Request{ServiceMethod: "RPCTestType.NonAdminRequiredCall"}
 	codectest.wrappedServerCodec.On("ReadRequestHeader", req).Return(nil).Once()
-	codectest.headerParser.On("ParseHeader", header, body).Return(ident, nil).Once()
+	codectest.headerParser.On("ReadHeader", header, body).Return(ident, nil).Once()
 	err = codectest.authServerCodec.ReadRequestHeader(req)
 	c.Assert(err, IsNil)
 	codectest.conn.AssertExpectations(c)
@@ -283,15 +284,15 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	err := codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, Equals, ErrTestCodec)
 
-	// Test error on BuildHeader
+	// Test error on WriteHeader
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Run(writeContent).Once()
-	codectest.headerBuilder.On("BuildHeader", content).Return(nil, ErrTestCodec).Once()
+	codectest.headerBuilder.On("WriteHeader", content).Return(nil, ErrTestCodec).Once()
 	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, Equals, ErrTestCodec)
 
 	// Test error on write
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Run(writeContent).Once()
-	codectest.headerBuilder.On("BuildHeader", content).Return(header, nil).Once()
+	codectest.headerBuilder.On("WriteHeader", content).Return(header, nil).Once()
 	codectest.conn.On("Write", expectedHeaderLen).Return(4, ErrTestConnection).Once()
 	err = codectest.authClientCodec.WriteRequest(req, body)
 	c.Assert(err, Equals, ErrTestConnection)
@@ -299,7 +300,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 
 	// Test success on authenticating call
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Run(writeContent).Once()
-	codectest.headerBuilder.On("BuildHeader", content).Return(header, nil).Once()
+	codectest.headerBuilder.On("WriteHeader", content).Return(header, nil).Once()
 	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
 	codectest.conn.On("Write", header).Return(len(header), nil).Once()
 	codectest.conn.On("Write", expectedContentLen).Return(4, nil).Once()
@@ -313,7 +314,7 @@ func (s *MySuite) TestWriteRequest(c *C) {
 	expectedHeaderLen = []byte{0, 0, 0, 0}
 	req.ServiceMethod = "RPCTestType.NonAuthenticatingCall"
 	codectest.wrappedClientCodec.On("WriteRequest", req, body).Return(nil).Run(writeContent).Once()
-	codectest.headerBuilder.On("BuildHeader", content).Return(header, nil).Once()
+	codectest.headerBuilder.On("WriteHeader", content).Return(header, nil).Once()
 	codectest.conn.On("Write", expectedHeaderLen).Return(4, nil).Once()
 	codectest.conn.On("Write", header).Return(len(header), nil).Once()
 	codectest.conn.On("Write", expectedContentLen).Return(4, nil).Once()
