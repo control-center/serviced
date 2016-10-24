@@ -131,7 +131,6 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		OutboundIP:                 cfg.StringVal("OUTBOUND_IP", ""),
 		DockerDNS:                  cfg.StringSlice("DOCKER_DNS", []string{}),
 		Master:                     cfg.BoolVal("MASTER", false),
-		Agent:                      cfg.BoolVal("AGENT", false),
 		MuxPort:                    cfg.IntVal("MUX_PORT", 22250),
 		MuxDisableTLS:              cfg.BoolVal("MUX_DISABLE_TLS", false),
 		KeyPEMFile:                 cfg.StringVal("KEY_FILE", ""),

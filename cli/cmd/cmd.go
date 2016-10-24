@@ -265,7 +265,6 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		Listen:                     fmt.Sprintf(":%d", ctx.GlobalInt("listen")),
 		DockerDNS:                  ctx.GlobalStringSlice("docker-dns"),
 		Master:                     ctx.GlobalBool("master"),
-		Agent:                      ctx.GlobalBool("agent"),
 		MuxPort:                    ctx.GlobalInt("mux"),
 		MuxDisableTLS:              ctx.GlobalBool("mux-disable-tls"),
 		MUXTLSCiphers:              ctx.GlobalStringSlice("mux-tls-ciphers"),
@@ -330,7 +329,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		options.Master = true
 	}
 
-	// Check if we're running in server mode to determine if we're an agent
+	// When using the 'serviced server' command, we should always run as an agent
 	if ctx.Args().First() == "server" {
 		options.Agent = true
 	}
