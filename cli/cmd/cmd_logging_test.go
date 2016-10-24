@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/cli/api"
 	mockapi "github.com/control-center/serviced/cli/api/apimocks"
-	"github.com/control-center/serviced/domain/host"
 	mocklog "github.com/control-center/serviced/logging/mocks"
 	"github.com/control-center/serviced/utils"
 	"github.com/stretchr/testify/mock"
@@ -53,7 +53,7 @@ func (s *CmdLoggingSuite) Test_LoadsCliDefaultConfigFile(c *C) {
 	expected := "/opt/serviced/etc/logconfig-cli.yaml"
 	s.log.On("ApplyConfigFromFile", expected).Return(nil)
 	s.log.On("WatchConfigFile", expected).Return(nil)
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 	s.Run(env, "serviced", "host", "list")
 }
 
@@ -72,7 +72,7 @@ func (s *CmdLoggingSuite) Test_LoadsDefaultConfigFileFromHome(c *C) {
 	expected := home + "/etc/logconfig-cli.yaml"
 	s.log.On("ApplyConfigFromFile", expected).Return(nil)
 	s.log.On("WatchConfigFile", expected).Return(nil)
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 	s.Run(env, "serviced", "host", "list")
 }
 
@@ -88,7 +88,7 @@ func (s *CmdLoggingSuite) Test_LoadsConfigFile_Error(c *C) {
 		func(args mock.Arguments) {
 			watch <- struct{}{}
 		})
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 	output := captureStderr(func() { s.Run(env, "serviced", "host", "list") })
 	firstLine := strings.Split(string(output), "\n")[0]
 	timeout := time.After(time.Second)
@@ -107,7 +107,7 @@ func (s *CmdLoggingSuite) Test_LoadsSpecifiedConfigFile(c *C) {
 	env := map[string]string{"LOG_CONFIG": expected}
 	s.log.On("ApplyConfigFromFile", expected).Return(nil)
 	s.log.On("WatchConfigFile", expected).Return(nil)
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 	s.Run(env, "serviced", "host", "list")
 }
 
@@ -116,7 +116,7 @@ func (s *CmdLoggingSuite) Test_VerbosityFlag(c *C) {
 	expected := "/opt/serviced/etc/logconfig-cli.yaml"
 	s.log.On("ApplyConfigFromFile", expected).Return(nil)
 	s.log.On("WatchConfigFile", expected).Return(nil)
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 	tests := map[int]logrus.Level{
 		0:  logrus.DebugLevel,
 		1:  logrus.InfoLevel,
@@ -137,7 +137,7 @@ func (s *CmdLoggingSuite) Test_GlogOptions(c *C) {
 	expected := "/opt/serviced/etc/logconfig-cli.yaml"
 	s.log.On("ApplyConfigFromFile", expected).Return(nil)
 	s.log.On("WatchConfigFile", expected).Return(nil)
-	s.api.On("GetHosts").Return([]host.Host{}, nil)
+	s.api.On("GetHostsWithAuthInfo").Return([]api.AuthHost{}, nil)
 
 	s.log.On("SetAlsoToStderr", true).Return().Once()
 	s.Run(env, "serviced", "--alsologtostderr", "host", "list")

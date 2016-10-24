@@ -132,7 +132,7 @@ func HasDFSAccess() bool {
 // periodically refresh that token, one minute before it is due to expire,
 // setting the result as the current live token, until the done channel is
 // closed.
-func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
+func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}, forceRefresh <-chan struct{}) {
 	for {
 		expires, err := RefreshToken(f, tokenfile)
 		if err != nil {
@@ -152,6 +152,7 @@ func TokenLoop(f TokenFunc, tokenfile string, done <-chan interface{}) {
 			return
 		case <-time.After(refresh):
 		case <-NotifyOnKeyChange():
+		case <-forceRefresh:
 		}
 	}
 }

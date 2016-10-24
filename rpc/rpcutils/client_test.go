@@ -253,9 +253,7 @@ func (s *MySuite) TestBadToken(c *C) {
 	getToken := func() (string, int64, error) {
 		return fakeToken, expiration, nil
 	}
-	tmpDir := c.MkDir()
-	tokenFile := fmt.Sprintf("%s/token", tmpDir)
-	_, err = auth.RefreshToken(getToken, tokenFile)
+	_, err = auth.RefreshToken(getToken, "")
 	c.Assert(err, IsNil)
 
 	// Attempt RPC call with bad token
@@ -291,9 +289,7 @@ func (s *MySuite) TestExpiredToken(c *C) {
 	}
 
 	// Load the token
-	tmpDir := c.MkDir()
-	tokenFile := fmt.Sprintf("%s/token", tmpDir)
-	_, err = auth.RefreshToken(getToken, tokenFile)
+	_, err = auth.RefreshToken(getToken, "")
 	c.Assert(err, IsNil)
 
 	// Make RPC call after token has expired
@@ -330,9 +326,7 @@ func (s *MySuite) TestNotAdmin(c *C) {
 	}
 
 	// Load the token
-	tmpDir := c.MkDir()
-	tokenFile := fmt.Sprintf("%s/token", tmpDir)
-	_, err = auth.RefreshToken(getToken, tokenFile)
+	_, err = auth.RefreshToken(getToken, "")
 	c.Assert(err, IsNil)
 
 	// Attempt RPC call that requires admin

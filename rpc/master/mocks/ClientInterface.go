@@ -227,6 +227,27 @@ func (_m *ClientInterface) ResetHostKey(hostID string) ([]byte, error) {
 
 	return r0, r1
 }
+func (_m *ClientInterface) HostsAuthenticated(hostIDs []string) (map[string]bool, error) {
+	ret := _m.Called(hostIDs)
+
+	var r0 map[string]bool
+	if rf, ok := ret.Get(0).(func([]string) map[string]bool); ok {
+		r0 = rf(hostIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = rf(hostIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *ClientInterface) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	ret := _m.Called(poolID)
 
@@ -402,8 +423,6 @@ func (_m *ClientInterface) GetServiceInstances(serviceID string) ([]service.Inst
 
 	return r0, r1
 }
-
-// GetEvaluatedService provides a mock function with given fields: serviceID, instanceID
 func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error) {
 	ret := _m.Called(serviceID, instanceID)
 
@@ -420,9 +439,7 @@ func (_m *ClientInterface) GetEvaluatedService(serviceID string, instanceID int)
 	if rf, ok := ret.Get(1).(func(string, int) string); ok {
 		r1 = rf(serviceID, instanceID)
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(string)
-		}
+		r1 = ret.Get(1).(string)
 	}
 
 	var r2 error

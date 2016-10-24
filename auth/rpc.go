@@ -15,172 +15,141 @@ package auth
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
-
-	jwt "github.com/dgrijalva/jwt-go"
-	"time"
-)
-
-/*
-   When sending an RPC request, if authentication is required, the client sends an authentication token as well
-   as its signature. The token determines if the sender is authorized to make the RPC request
-
-   -------------------------------------------------------------------------------------------------------------------------------
-   |Auth Token length (4 bytes)|Auth Token (N bytes)|Timestamp(8 bytes)|Signature of Auth Token + Timestamp + Request(256 bytes) |
-   -------------------------------------------------------------------------------------------------------------------------------
-*/
-
-const (
-	TIMESTAMP_BYTES = 8
+	"io"
 )
 
 var (
-	ErrBadRPCHeader   = errors.New("Bad rpc header")
-	ErrRequestExpired = errors.New("Expired rpc request")
+	// RPCMagicNumber is a magic number for RPC
+	RPCMagicNumber = []byte{224, 227, 155}
+	// BodyLenLen is the length of the length of the payload
+	BodyLenLen = 4
+
+	// ErrBadRPCHeader is thrown when the RPC header is bad
+	ErrBadRPCHeader = errors.New("Bad rpc header")
+	// ErrWritingLength is thrown when the length writing has an error
+	ErrWritingLength = errors.New("Wrote too few bytes for message length")
+	// ErrWritingBody is thrown when the body writing has an error
+	ErrWritingBody = errors.New("Wrote too few bytes for message body")
+	// ErrReadingLength is thrown when we read too few bytes for message length
+	ErrReadingLength = errors.New("Read too few bytes for message length")
+	// ErrReadingBody is thrown when we read too few bytes for message body
+	ErrReadingBody = errors.New("Read too few bytes for message body")
 )
 
+// RPCHeaderParser reads headers from readers and parses them
 type RPCHeaderParser interface {
-	ParseHeader(header []byte, request []byte) (Identity, error)
-}
-type RPCHeaderBuilder interface {
-	BuildHeader([]byte) ([]byte, error)
+	// ReadHeader reads an RPC header from a reader, parsing the authentication
+	// header, if any.
+	ReadHeader(io.Reader) (Identity, []byte, error)
 }
 
+// RPCHeaderBuilder builds headers and writes them to writers
+type RPCHeaderBuilder interface {
+	// WriteHeader writes an RPC header to the provided writer. Optionally, it
+	// writes an authentication header as part of the RPC header.
+	WriteHeader(io.Writer, []byte, bool) error
+}
+
+// RPCHeaderHandler is an implementation of RPCHeaderParser and RPCHeaderBuilder
 type RPCHeaderHandler struct{}
 
-func (r *RPCHeaderHandler) BuildHeader(req []byte) ([]byte, error) {
+// WriteLengthAndBytes writes the length of a byte array and then the bytes
+// themselves. It is the inverse of ReadLengthAndBytes.
+func WriteLengthAndBytes(b []byte, writer io.Writer) error {
+	// write length
+	var pl payloadLength = payloadLength(len(b))
+	if err := binary.Write(writer, byteOrder, pl); err != nil {
+		return err
+	}
+	if err := binary.Write(writer, byteOrder, b); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ReadLengthAndBytes reads the length of a byte array and then the bytes
+// themselves. It is the inverse of WriteLengthAndBytes.
+func ReadLengthAndBytes(reader io.Reader) ([]byte, error) {
+	// Read the length of the data
+	var payloadLen payloadLength
+	if err := binary.Read(reader, byteOrder, &payloadLen); err != nil {
+		return nil, err
+	}
+
+	// Now read the data
+	b := make([]byte, payloadLen)
+	if err := binary.Read(reader, byteOrder, &b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// WriteHeader writes an RPC header to the provided writer. Optionally, it
+// writes an authentication header as part of the RPC header.
+func (r *RPCHeaderHandler) WriteHeader(w io.Writer, req []byte, writeAuth bool) error {
 	var (
-		token        string
-		err          error
-		err2         error
-		signAsMaster bool
+		token string
+		err   error
+		err2  error
 	)
-
-	// get current host token
-	signAsMaster = false
-	token, err = AuthTokenNonBlocking()
-	if err != nil {
-		log.WithError(err).Debug("Unable to retrieve delegate token")
-		// We may be an un-added master
-		token, err2 = MasterToken()
-		if err2 != nil {
-			log.WithError(err2).Debug("Unable to retrieve master token")
-			// Return the original error message
-			return nil, err
+	binary.Write(w, byteOrder, RPCMagicNumber)
+	if writeAuth {
+		binary.Write(w, byteOrder, uint8(1))
+		// get current host token
+		var signer Signer = &delegateKeys
+		token, err = AuthTokenNonBlocking()
+		if err != nil {
+			log.WithError(err).Debug("Unable to retrieve delegate token")
+			// We may be an un-added master
+			token, err2 = MasterToken()
+			if err2 != nil {
+				log.WithError(err2).Debug("Unable to retrieve master token")
+				// Return the original error message
+				return err
+			}
+			signer = &masterKeys
 		}
-		signAsMaster = true
+		h := NewAuthHeaderWriterTo([]byte(token), req, signer)
+		_, err = h.WriteTo(w)
+	} else {
+		binary.Write(w, byteOrder, uint8(0))
+		WriteLengthAndBytes(req, w)
 	}
-
-	return r.BuildAuthRPCHeader(token, req, signAsMaster)
+	return err
 }
 
-func (r *RPCHeaderHandler) BuildAuthRPCHeader(token string, req []byte, signAsMaster bool) ([]byte, error) {
-	headerBuf := new(bytes.Buffer)
-
-	// add token length
-	var tokenLen uint32 = uint32(len(token))
-	tokenLenBuf := make([]byte, TOKEN_LEN_BYTES)
-	endian.PutUint32(tokenLenBuf, tokenLen)
-	headerBuf.Write(tokenLenBuf)
-
-	// add token
-	headerBuf.Write([]byte(token))
-
-	// add timestamp
-	var timestamp uint64 = uint64(time.Now().UTC().Unix())
-	timestampBuf := make([]byte, TIMESTAMP_BYTES)
-	endian.PutUint64(timestampBuf, timestamp)
-	headerBuf.Write(timestampBuf)
-
-	// Build the data we want to sign (token + timestamp + request)
-	// copy headerBuf into a new buffer
-	sigBuffer := bytes.NewBuffer([]byte(token))
-
-	// Add the timestamp
-	sigBuffer.Write(timestampBuf)
-
-	// add the request
-	sigBuffer.Write(req)
-
-	// Sign sigBuffer
-	signer := SignAsDelegate
-	if signAsMaster {
-		signer = SignAsMaster
+// ReadHeader reads an RPC header from a reader, parsing the authentication
+// header, if any.
+func (r *RPCHeaderHandler) ReadHeader(reader io.Reader) (Identity, []byte, error) {
+	// Read and verify the first three bytes are the magic number
+	var (
+		m       = make([]byte, 3)
+		sender  Identity
+		payload []byte
+	)
+	if err := binary.Read(reader, byteOrder, &m); err != nil {
+		return nil, nil, err
 	}
-
-	signature, err := signer(sigBuffer.Bytes())
+	if !bytes.Equal(m, RPCMagicNumber) {
+		return nil, nil, ErrBadRPCHeader
+	}
+	var hasAuth [1]byte
+	err := binary.Read(reader, byteOrder, &hasAuth)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	// add signature to header
-	headerBuf.Write(signature)
-
-	return headerBuf.Bytes(), nil
-}
-
-// Extracts the token and signature from the header, and validates the signature against the token and request
-func (r *RPCHeaderHandler) ParseHeader(rawHeader []byte, req []byte) (Identity, error) {
-
-	if len(rawHeader) <= TOKEN_LEN_BYTES+TIMESTAMP_BYTES {
-		return nil, ErrBadRPCHeader
+	if hasAuth[0] == 1 {
+		sender, _, payload, err = ReadAuthHeader(reader)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		payload, err = ReadLengthAndBytes(reader)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-
-	var offset uint32 = 0
-
-	// First four bytes represents the token length
-	tokenLen := endian.Uint32(rawHeader[offset : offset+TOKEN_LEN_BYTES])
-	offset += TOKEN_LEN_BYTES
-	if len(rawHeader) <= TOKEN_LEN_BYTES+int(tokenLen) {
-		return nil, ErrBadRPCHeader
-	}
-
-	// Next tokenLen bytes contain the token
-	token := string(rawHeader[offset : offset+tokenLen])
-	offset += tokenLen
-
-	// Validate the token can be parsed
-	senderIdentity, err := ParseJWTIdentity(token)
-	if err != nil {
-		return nil, err
-	}
-	if senderIdentity == nil {
-		return nil, ErrBadToken
-	}
-
-	// Next 8 bytes contains the timestamp
-	timestampBuf := rawHeader[offset : offset+TIMESTAMP_BYTES]
-	timestamp := endian.Uint64(timestampBuf)
-	offset += TIMESTAMP_BYTES
-
-	// Validate timestamp (should be no earlier than current time - expirationDelta)
-	requestTime := time.Unix(int64(timestamp), 0)
-	cutoffTime := jwt.TimeFunc().UTC().Add(-expirationDelta)
-	if requestTime.Before(cutoffTime) {
-		return nil, ErrRequestExpired
-	}
-
-	// Grab the signature off the header
-	signature := rawHeader[offset:]
-
-	// Build the message that was signed (token + timestamp + req)
-	signed_message := bytes.NewBuffer([]byte(token))
-
-	// Add the timestamp
-	signed_message.Write(timestampBuf)
-
-	// add the request
-	signed_message.Write(req)
-
-	// Verify the identity of the signed message
-	senderVerifier, err := senderIdentity.Verifier()
-	if err != nil {
-		return nil, err
-	}
-	err = senderVerifier.Verify(signed_message.Bytes(), signature)
-	if err != nil {
-		return nil, err
-	}
-
-	return senderIdentity, nil
+	return sender, payload, nil
 }

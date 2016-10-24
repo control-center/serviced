@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -35,6 +36,56 @@ type HostConfig struct {
 type HostUpdateConfig struct {
 	HostID string
 	Memory string
+}
+
+type AuthHost struct {
+	host.Host
+	Authenticated bool
+}
+
+func getAuthInfo(client master.ClientInterface, hosts []host.Host) ([]AuthHost, error) {
+	hostIDs := []string{}
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+	authHosts, err := client.HostsAuthenticated(hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	hostsWithAuth := []AuthHost{}
+	for _, h := range hosts {
+		hostsWithAuth = append(hostsWithAuth, AuthHost{h, authHosts[h.ID]})
+	}
+	return hostsWithAuth, nil
+}
+
+// Get host information by its id
+func (a *api) GetHostWithAuthInfo(id string) (*AuthHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	h, err := client.GetHost(id)
+	if err != nil {
+		return nil, err
+	}
+	hostsWithAuth, err := getAuthInfo(client, []host.Host{*h})
+	if err != nil {
+		return nil, err
+	}
+	return &hostsWithAuth[0], nil
+}
+
+func (a *api) GetHostsWithAuthInfo() ([]AuthHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	hosts, err := client.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	return getAuthInfo(client, hosts)
 }
 
 // Returns a list of all hosts

@@ -138,7 +138,7 @@ func TestTCPMux(t *testing.T) {
 	testMsg := "\nhello\n"
 
 	conn := mux.testConnect(t)
-	header, err := utils.PackTCPAddressString(fmt.Sprintf("127.0.0.1:%s", listenerToPort(target.listener)))
+	addr, err := utils.PackTCPAddressString(fmt.Sprintf("127.0.0.1:%s", listenerToPort(target.listener)))
 	if err != nil {
 		t.Fail()
 	}
@@ -146,11 +146,7 @@ func TestTCPMux(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	header, err = auth.BuildAuthMuxHeader(header, token)
-	if err != nil {
-		t.Fail()
-	}
-	conn.Write(header)
+	auth.AddSignedMuxHeader(conn, addr, token)
 	conn.Write([]byte(testMsg))
 	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)

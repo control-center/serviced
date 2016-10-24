@@ -50,6 +50,8 @@ type API interface {
 	WriteDelegateKey(string, []byte) error
 	AuthenticateHost(string) (string, int64, error)
 	ResetHostKey(string) ([]byte, error)
+	GetHostWithAuthInfo(string) (*AuthHost, error)
+	GetHostsWithAuthInfo() ([]AuthHost, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)
