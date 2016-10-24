@@ -359,12 +359,72 @@
                 });
             };
 
+            let confirmServiceStateChange = function(service, state, childCount, onStartService, onStartServiceAndChildren){
+                let manyTemplate = function(model){
+                    return `
+                        <h4>${$translate.instant("choose_services_" + model.state)}</h4>
+                        <ul>
+                            <li>${$translate.instant(state + "_service_name", { name: "<strong>" + model.service.name + "</strong>" })}</li>
+                            <li>${$translate.instant(state + "_service_name_and_children", {
+                                 name: `<strong>${model.service.name}</strong>`,
+                                 count: `<strong>${model.childCount}</strong>` }
+                            )}</li>
+                        </ul>`;
+                };
+
+                let singleTemplate = function(model){
+                    return $translate.instant(
+                        "service_will_" + model.state,
+                        {name: `<strong>${model.service.name}</strong>`});
+                };
+                
+                let model = $rootScope.$new(true);
+                model = angular.extend(model, {service, state, childCount});
+                let html;
+                // button actions for the modal
+                let actions = [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        classes: " ",
+                        label: $translate.instant(state + "_service"),
+                        action: function () {
+                            onStartService(this);
+                        }
+                    }
+                ];
+
+                // if multiple services will be affected by this change,
+                // modify the model to explain that
+                if(childCount > 1) {
+                    html = manyTemplate(model);
+                    actions.push({
+                        role: "ok",
+                        label: $translate.instant(state + "_service_and_children", { count: childCount }),
+                        action: function () {
+                            onStartServiceAndChildren(this);
+                        }
+                    });
+                } else {
+                     html = singleTemplate(model);
+                }
+
+                create({
+                    template: html,
+                    model: model,
+                    title: $translate.instant(state + "_service"),
+                    actions: actions
+                });
+            };
+
             return {
                 create: create,
                 // some shared modals that anyone can enjoy!
                 modals: {
                     displayHostKeys,
-                    oneMoment
+                    oneMoment,
+                    confirmServiceStateChange
                 }
             };
 

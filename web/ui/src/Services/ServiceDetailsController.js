@@ -329,110 +329,33 @@
                 // children and ask the user to choose to start all
                 // children or only the top service
                 $scope.clickRunning = function (service, state) {
-                    resourcesFactory.v2.getDescendantCounts(service.id)
-                        .success((data, status) => {
-                            var childCount = 0;
-                            switch (state) {
-                                case "start":
-                                    // When starting, we only care about autostart
-                                    // services that are currently stopped
-                                    if (data.auto) {
-                                        childCount += data.auto["0"] || 0;
-                                    }
-                                    break;
-                                case "restart":
-                                case "stop":
-                                    // When stopping or restarting, we care about
-                                    // running services that are either manual or
-                                    // autostart
-                                    if (data.auto) {
-                                        childCount += data.auto["1"] || 0;
-                                    }
-                                    if (data.manual) {
-                                        childCount += data.manual["1"] || 0;
-                                    }
-                                    break;
-                            }
+                    let onStartService = function(modal){
+                        // the arg here explicitly prevents child services
+                        // from being started
+                        $scope.setServiceState(service, state, true);
+                        modal.close();
+                    };
+                    let onStartServiceAndChildren = function(modal){
+                        $scope.setServiceState(service, state);
+                        modal.close();
+                    };
 
-                            $scope.modal_confirmSetServiceState(service, state, childCount);
+                    Service.countAffectedDescendants(service, state)
+                        .then(count => {
+                            $modalService.modals.confirmServiceStateChange(service, state,
+                                count, onStartService,
+                                onStartServiceAndChildren);
                         })
-                        .error((data, status) => {
-                            console.warn("unable to obtain descendant counts");
-                            // TODO - separate modal for "unknown" children count?
-                            // NOTE - this will also close the "oneMoment" modal
-                            $scope.modal_confirmSetServiceState(service, state, 0);
+                        .catch(err => {
+                            console.warn("couldnt get descendant count", err);
+                            $modalService.modals.confirmServiceStateChange(service, state,
+                                0, onStartService,
+                                onStartServiceAndChildren);
                         });
-
                     
                     // let the user know they gonna have to hold onto
                     // their horses for just one moment.
                     $modalService.modals.oneMoment();
-                };
-
-                // verifies if use wants to start parent service, or parent
-                // and all children
-                $scope.modal_confirmSetServiceState = function (service, state, childCount) {
-
-                    let manyTemplate = function(model){
-                        return `
-                            <h4>${$translate.instant("choose_services_" + model.state)}</h4>
-                            <ul>
-                                <li>${$translate.instant(state + "_service_name", { name: "<strong>" + model.service.name + "</strong>" })}</li>
-                                <li>${$translate.instant(state + "_service_name_and_children", {
-                                     name: `<strong>${model.service.name}</strong>`,
-                                     count: `<strong>${model.childCount}</strong>` }
-                                )}</li>
-                            </ul>`;
-                    };
-
-                    let singleTemplate = function(model){
-                        return $translate.instant(
-                            "service_will_" + model.state,
-                            {name: `<strong>${model.service.name}</strong>`});
-                    };
-                    
-                    let model = $scope.$new(true);
-                    model = angular.extend(model, {service, state, childCount});
-                    let html;
-                    // button actions for the modal
-                    let actions = [
-                        {
-                            role: "cancel"
-                        },{
-                            role: "ok",
-                            classes: " ",
-                            label: $translate.instant(state + "_service"),
-                            action: function () {
-                                // the arg here explicitly prevents child services
-                                // from being started
-                                $scope.setServiceState(service, state, true);
-                                this.close();
-                            }
-                        }
-                    ];
-
-                    // if multiple services will be affected by this change,
-                    // modify the model to explain that
-                    if(childCount > 1) {
-                        html = manyTemplate(model);
-                        actions.push({
-                            role: "ok",
-                            label: $translate.instant(state + "_service_and_children", { count: childCount }),
-                            action: function () {
-                                $scope.setServiceState(service, state);
-                                this.close();
-                            }
-                        });
-                    } else {
-                         html = singleTemplate(model);
-                    }
-
-                    $modalService.create({
-                        template: html,
-                        model: model,
-                        title: $translate.instant(state + "_service"),
-                        actions: actions
-                    });
                 };
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {

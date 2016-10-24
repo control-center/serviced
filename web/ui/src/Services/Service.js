@@ -404,6 +404,42 @@
 
     }
 
+    // class methods
+    Service.countAffectedDescendants = function(service, state){
+        let deferred = $q.defer();
+        resourcesFactory.v2.getDescendantCounts(service.id)
+            .then((data, status) => {
+                var count = 0;
+                switch (state) {
+                    case "start":
+                        // When starting, we only care about autostart
+                        // services that are currently stopped
+                        if (data.auto) {
+                            count += data.auto["0"] || 0;
+                        }
+                        break;
+                    case "restart":
+                    case "stop":
+                        // When stopping or restarting, we care about
+                        // running services that are either manual or
+                        // autostart
+                        if (data.auto) {
+                            count += data.auto["1"] || 0;
+                        }
+                        if (data.manual) {
+                            count += data.manual["1"] || 0;
+                        }
+                        break;
+                }
+                deferred.resolve(count);
+            })
+            .catch((data, status) => {
+                deferred.reject(data);
+            });
+        return deferred.promise;
+    };
+
+
     ServiceFactory.$inject = ['$notification', '$serviceHealth', '$q', 'resourcesFactory', 'miscUtils', 'Instance'];
     function ServiceFactory(_$notification, _serviceHealth, _$q, _resourcesFactory, _utils, _Instance) {
 
