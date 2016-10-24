@@ -31,7 +31,7 @@ import (
 var (
 	maxCacheSize    = 4
 	itemTimeToLive  = time.Minute * 2
-	cleanupInterval = time.Second * 30
+	cleanupInterval = time.Duration(-1) // Duration < 0 signifies no automatic cleanup
 )
 
 func TestSimpleLRU(t *testing.T) { TestingT(t) }
@@ -182,52 +182,53 @@ func (s *TestSimpleLRUSuite) TestMaxItems(c *C) {
 	c.Assert(result, IsNil)
 }
 
-func (s *TestSimpleLRUSuite) TestCacheEmptyAfterTTLExpires(c *C) {
-	// Use a shorter values than the test suite defaults so we don't hold up the entire test suite waiting
-	// for the cache to clear
+func (s *TestSimpleLRUSuite) TestCleanupRemovesExpiredItems(c *C) {
 	shutdown := make(chan struct{})
 	defer close(shutdown)
-	cache, _ := NewSimpleLRUCache(maxCacheSize, time.Second*10, time.Second*2, shutdown)
+	now := time.Now()
+	cache, _ := NewSimpleLRUCache(maxCacheSize, itemTimeToLive, cleanupInterval, shutdown)
 
-	// Fill the cache with exactly the max number of items
-	for i := 1; i <= maxCacheSize; i++ {
-		item := testItem{
-			Name: fmt.Sprintf("key %d", i),
-			ID:   i,
-		}
-		cache.Set(item.Name, item)
-	}
+	// Add an item
+	At(now, func() { cache.Set("foo", "bar") })
 
-	// Sleep long enough for the cache cleanup to run
-	time.Sleep(cache.GetExpiration() + cache.GetCleanupInterval())
+	// Cleanup called before expiration does not clean up the item
+	At(now.Add(itemTimeToLive-time.Nanosecond), func() { cache.cleanup() })
+	c.Assert(cache.GetCurrentSize(), Equals, 1)
 
+	// Cleanup called after expiration cleans up the item
+	At(now.Add(itemTimeToLive+time.Nanosecond), func() { cache.cleanup() })
 	c.Assert(cache.GetCurrentSize(), Equals, 0)
 }
 
 func (s *TestSimpleLRUSuite) TestUsedItemsRemainInCache(c *C) {
-	// Use a shorter values than the test suite defaults so we don't hold up the entire test suite waiting
-	// for the cache to clear
 	shutdown := make(chan struct{})
 	defer close(shutdown)
-	cache, _ := NewSimpleLRUCache(maxCacheSize, time.Second*10, time.Second*2, shutdown)
+	now := time.Now()
+	cache, _ := NewSimpleLRUCache(maxCacheSize, itemTimeToLive, cleanupInterval, shutdown)
 
-	// Fill the cache with exactly the max number of items
-	for i := 1; i <= maxCacheSize; i++ {
-		item := testItem{
-			Name: fmt.Sprintf("key %d", i),
-			ID:   i,
-		}
-		cache.Set(item.Name, item)
+	// Add two items to the cache
+	items := []testItem{
+		{"A", 0},
+		{"B", 1},
+	}
+	for _, item := range items {
+		At(now, func() { cache.Set(item.Name, item) })
 	}
 
-	time.Sleep(time.Second * 5)
-	for i := 1; i <= 2; i++ {
-		_, ok := cache.Get(fmt.Sprintf("key %d", i))
+	// Touch the second item
+	At(now.Add(itemTimeToLive/2), func() {
+		_, ok := cache.Get(items[1].Name)
 		c.Assert(ok, Equals, true)
-	}
+	})
 
-	// Sleep long enough for the cache cleanup to run
-	time.Sleep(time.Second*5 + cache.GetCleanupInterval())
+	// Cleanup called after expiration cleans up the first item, but not the second
+	At(now.Add(itemTimeToLive+time.Nanosecond), func() { cache.cleanup() })
+	c.Assert(cache.GetCurrentSize(), Equals, 1)
 
-	c.Assert(cache.GetCurrentSize(), Equals, 2)
+	item, ok := cache.Get(items[0].Name)
+	c.Assert(ok, Equals, false)
+
+	item, ok = cache.Get(items[1].Name)
+	c.Assert(ok, Equals, true)
+	c.Assert(item, Equals, items[1])
 }
