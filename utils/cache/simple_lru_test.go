@@ -29,36 +29,35 @@ import (
 )
 
 var (
-	maxCacheSize = 4
-	itemTimeToLive = time.Minute * 2
+	maxCacheSize    = 4
+	itemTimeToLive  = time.Minute * 2
 	cleanupInterval = time.Second * 30
 )
 
 func TestSimpleLRU(t *testing.T) { TestingT(t) }
 
-type  TestSimpleLRUSuite struct{
-	cache *SimpleLRUCache
+type TestSimpleLRUSuite struct {
+	cache    *SimpleLRUCache
 	shutdown chan struct{}
 }
 
 var _ = Suite(&TestSimpleLRUSuite{})
 
-
 type testItem struct {
-	Name  string
-	ID    int
+	Name string
+	ID   int
 }
 
-func (s * TestSimpleLRUSuite) SetUpTest(c *C) {
+func (s *TestSimpleLRUSuite) SetUpTest(c *C) {
 	s.shutdown = make(chan struct{})
 	s.cache, _ = NewSimpleLRUCache(maxCacheSize, itemTimeToLive, cleanupInterval, s.shutdown)
 }
 
-func (s * TestSimpleLRUSuite) TearDownTest(c *C) {
+func (s *TestSimpleLRUSuite) TearDownTest(c *C) {
 	close(s.shutdown)
 }
 
-func (s * TestSimpleLRUSuite) TestConstructor(c *C) {
+func (s *TestSimpleLRUSuite) TestConstructor(c *C) {
 	shutdown := make(chan struct{})
 	defer close(shutdown)
 	cache, err := NewSimpleLRUCache(maxCacheSize, itemTimeToLive, cleanupInterval, shutdown)
@@ -71,8 +70,7 @@ func (s * TestSimpleLRUSuite) TestConstructor(c *C) {
 	c.Assert(cache.GetCurrentSize(), Equals, 0)
 }
 
-
-func (s * TestSimpleLRUSuite) TestConstructorFails(c *C) {
+func (s *TestSimpleLRUSuite) TestConstructorFails(c *C) {
 	shutdown := make(chan struct{})
 	defer close(shutdown)
 	cache, err := NewSimpleLRUCache(0, itemTimeToLive, cleanupInterval, shutdown)
@@ -84,14 +82,14 @@ func (s * TestSimpleLRUSuite) TestConstructorFails(c *C) {
 	c.Assert(cache, IsNil)
 }
 
-func (s * TestSimpleLRUSuite) TestGetOnEmptyCache(c *C) {
+func (s *TestSimpleLRUSuite) TestGetOnEmptyCache(c *C) {
 	result, isFound := s.cache.Get("somekey")
 
 	c.Assert(isFound, Equals, false)
 	c.Assert(result, IsNil)
 }
 
-func (s * TestSimpleLRUSuite) TestSimpleSetAndGet(c *C) {
+func (s *TestSimpleLRUSuite) TestSimpleSetAndGet(c *C) {
 	item := testItem{
 		Name: "something",
 		ID:   21,
@@ -109,7 +107,7 @@ func (s * TestSimpleLRUSuite) TestSimpleSetAndGet(c *C) {
 	c.Assert(result, IsNil)
 }
 
-func (s * TestSimpleLRUSuite) TestMaxItems(c *C) {
+func (s *TestSimpleLRUSuite) TestMaxItems(c *C) {
 	// Fill the cache with exactly the max number of items
 	for i := 1; i <= maxCacheSize; i++ {
 		item := testItem{
@@ -184,7 +182,7 @@ func (s * TestSimpleLRUSuite) TestMaxItems(c *C) {
 	c.Assert(result, IsNil)
 }
 
-func (s * TestSimpleLRUSuite) TestCacheEmptyAfterTTLExpires(c *C) {
+func (s *TestSimpleLRUSuite) TestCacheEmptyAfterTTLExpires(c *C) {
 	// Use a shorter values than the test suite defaults so we don't hold up the entire test suite waiting
 	// for the cache to clear
 	shutdown := make(chan struct{})
@@ -206,7 +204,7 @@ func (s * TestSimpleLRUSuite) TestCacheEmptyAfterTTLExpires(c *C) {
 	c.Assert(cache.GetCurrentSize(), Equals, 0)
 }
 
-func (s * TestSimpleLRUSuite) TestUsedItemsRemainInCache(c *C) {
+func (s *TestSimpleLRUSuite) TestUsedItemsRemainInCache(c *C) {
 	// Use a shorter values than the test suite defaults so we don't hold up the entire test suite waiting
 	// for the cache to clear
 	shutdown := make(chan struct{})
@@ -222,7 +220,7 @@ func (s * TestSimpleLRUSuite) TestUsedItemsRemainInCache(c *C) {
 		cache.Set(item.Name, item)
 	}
 
-	time.Sleep(time.Second*5)
+	time.Sleep(time.Second * 5)
 	for i := 1; i <= 2; i++ {
 		_, ok := cache.Get(fmt.Sprintf("key %d", i))
 		c.Assert(ok, Equals, true)

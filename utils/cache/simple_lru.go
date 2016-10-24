@@ -13,17 +13,17 @@
 package cache
 
 import (
-	"time"
 	lru "github.com/hashicorp/golang-lru"
+	"time"
 )
 
 type SimpleLRUCache struct {
-	maxItems         int
-	expiration       time.Duration
-	cleanupInterval  time.Duration
+	maxItems        int
+	expiration      time.Duration
+	cleanupInterval time.Duration
 
 	// Keep the cache implementation private
-	lruCache         *lru.Cache
+	lruCache *lru.Cache
 }
 
 // assert the LRUCache interface is implemented by SimpleLRUCache
@@ -31,9 +31,9 @@ var _ LRUCache = &SimpleLRUCache{}
 
 // An internal struct to track the expiration time for each item in the cache
 type cacheItem struct {
-	key        string
-	value      interface{}
-	expires    time.Time
+	key     string
+	value   interface{}
+	expires time.Time
 }
 
 //
@@ -82,8 +82,8 @@ func (c *SimpleLRUCache) Get(key string) (interface{}, bool) {
 	if data != nil && ok {
 		var item cacheItem
 		item, _ = data.(cacheItem)
-		item.expires = time.Now().Add(c.expiration)	// update the expiration
-                c.lruCache.Add(key, item)
+		item.expires = time.Now().Add(c.expiration) // update the expiration
+		c.lruCache.Add(key, item)
 		return item.value, true
 	}
 	return nil, false
@@ -93,8 +93,8 @@ func (c *SimpleLRUCache) Get(key string) (interface{}, bool) {
 // If the key already exists in the cache, it's value will be replaced.
 func (c *SimpleLRUCache) Set(key string, value interface{}) {
 	item := cacheItem{
-		key:   key,
-		value: value,
+		key:     key,
+		value:   value,
 		expires: time.Now().Add(c.expiration),
 	}
 
@@ -124,9 +124,9 @@ func (c *SimpleLRUCache) startCleaner(shutdown chan struct{}) {
 	go (func() {
 		for {
 			select {
-			case <- timer:
+			case <-timer:
 				c.cleanup()
-			case <- shutdown:
+			case <-shutdown:
 				return
 			}
 		}

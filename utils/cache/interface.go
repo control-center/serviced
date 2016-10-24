@@ -27,4 +27,3 @@ type LRUCache interface {
 	// Returns the maximum size of the cache.
 	GetMaxSize() int
 }
-
