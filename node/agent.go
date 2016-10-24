@@ -79,7 +79,8 @@ type HostAgent struct {
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
-	useTLS               bool                 // true if MUX should use TLS
+	muxport              string               // the mux port to serviced (default is 22250)
+	useTLS               bool                 // true if TLS should be enabled for MUX
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
@@ -120,6 +121,7 @@ type AgentOptions struct {
 	FSType               volume.DriverType
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
+	MuxPort              string
 	UseTLS               bool
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
@@ -146,6 +148,7 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.dockerDNS = options.DockerDNS
 	agent.mount = options.Mount
 	agent.mux = options.Mux
+	agent.muxport = options.MuxPort
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet

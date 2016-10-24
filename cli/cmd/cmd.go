@@ -80,7 +80,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
-		cli.BoolFlag{"mux-disable-tls", "disable TLS for mux connections"},
+		cli.StringFlag{"mux-disable-tls", defaultOps.MuxDisableTLS, "disable TLS for mux connections"},
 		cli.StringSliceFlag{"mux-tls-ciphers", convertToStringSlice(defaultOps.MUXTLSCiphers), "list of supported TLS ciphers for MUX"},
 		cli.StringFlag{"mux-tls-min-version", string(defaultOps.MUXTLSMinVersion), "mininum TLS version for MUX"},
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
@@ -267,7 +267,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		Master:                     ctx.GlobalBool("master"),
 		Agent:                      ctx.GlobalBool("agent"),
 		MuxPort:                    ctx.GlobalInt("mux"),
-		MuxDisableTLS:              ctx.GlobalBool("mux-disable-tls"),
+		MuxDisableTLS:              ctx.GlobalString("mux-disable-tls"),
 		MUXTLSCiphers:              ctx.GlobalStringSlice("mux-tls-ciphers"),
 		MUXTLSMinVersion:           ctx.GlobalString("mux-tls-min-version"),
 		VolumesPath:                ctx.GlobalString("volumes-path"),
@@ -343,10 +343,6 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 	}
 
 	options.Endpoint = getEndpoint(options)
-
-	if cfg.StringVal("MUX_DISABLE_TLS", "") == "1" {
-		options.MuxDisableTLS = true
-	}
 
 	// Set the logging configuration filename.
 	// This is handled in a non-standard way for two reasons:

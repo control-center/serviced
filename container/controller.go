@@ -89,7 +89,7 @@ type ControllerOptions struct {
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
 		Port        int    // the TCP port to use
-		TLS         bool   // True if TLS is used
+		DisableTLS  bool   // True if TLS is disabled
 		KeyPEMFile  string // Path to the key file when TLS is used
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
@@ -431,7 +431,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		InstanceID:           instanceID,
 		IsShell:              os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true",
 		TCPMuxPort:           uint16(options.Mux.Port),
-		UseTLS:               options.Mux.TLS,
+		UseTLS:               !options.Mux.DisableTLS,
 		VirtualAddressSubnet: options.VirtualAddressSubnet,
 	}
 	c.endpoints, err = NewContainerEndpoints(service, opts)

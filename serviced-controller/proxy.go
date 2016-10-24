@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/container"
@@ -33,7 +34,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	cfg := utils.NewEnvironOnlyConfigReader("SERVICED_")
 	options := ControllerOptions{
 		MuxPort:                 ctx.GlobalInt("muxport"),
-		TLS:                     !ctx.GlobalBool("mux-disable-tls"),
+		MUXDisableTLS:           ctx.GlobalBool("mux-disable-tls"),
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
 		RPCPort:                 ctx.GlobalInt("rpcport"),
@@ -53,7 +54,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 		MetricForwardingEnabled: !ctx.GlobalBool("disable-metric-forwarding"),
 	}
 
-	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)			// TODO: Is this set in container.go?
+	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)
 	options.RPCPort = cfg.IntVal("RPC_PORT", options.RPCPort)
 	options.KeyPEMFile = cfg.StringVal("KEY_FILE", options.KeyPEMFile)		// TODO: Is this set in container.go?
 	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)		// TODO: Is this set in container.go?
@@ -67,6 +68,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 
 	rpcutils.RPC_CLIENT_SIZE = 2
 	rpcutils.RPCDisableTLS = options.RPCDisableTLS
+
 	if err := StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		// exit with an error if we can't start the proxy so that the delegate can record the container logs
@@ -83,6 +85,9 @@ func StartProxy(options ControllerOptions) error {
 		return err
 	}
 
+	glog.V(2).Infof("Starting container proxy: muxPort=%d, MuxDisableTLS=%s, servicedEndpoint=%s, RPCDisableTLS=%s",
+		o.Mux.Port, strconv.FormatBool(o.Mux.DisableTLS),
+		o.ServicedEndpoint, strconv.FormatBool(o.RPCDisableTLS))
 	c, err := container.NewController(o)
 	if err != nil {
 		return err

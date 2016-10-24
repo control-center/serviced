@@ -46,7 +46,7 @@ type Options struct {
 	DockerDNS                  []string
 	Agent                      bool
 	MuxPort                    int
-	MuxDisableTLS              bool // Whether TLS should be disabled for the mux
+	MuxDisableTLS              string            //  Disable TLS for MUX connections, string val of bool
 	KeyPEMFile                 string
 	CertPEMFile                string
 	VolumesPath                string

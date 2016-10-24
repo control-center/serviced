@@ -25,6 +25,7 @@ import (
 
 func main() {
 	defaultRPCPort := 4979
+	defaultMuxPort := 22250
 	defaultMetricsForwarderPort := ":22350"
 	if cpConsumerUrl, err := url.Parse(os.Getenv("CONTROLPLANE_CONSUMER_URL")); err == nil {
 		hostParts := strings.Split(cpConsumerUrl.Host, ":")
@@ -39,7 +40,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/filebeat", "path to the filebeat binary"},
 		cli.StringFlag{"forwarder-config", "/etc/filebeat.conf", "path to the filebeat config file"},
-		cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
+		cli.IntFlag{"muxport", defaultMuxPort, "multiplexing port to use"},
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 		cli.IntFlag{"rpcport", defaultRPCPort, "port to use for RPC requests"},
