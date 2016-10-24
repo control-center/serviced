@@ -358,10 +358,15 @@
                         })
                         .error((data, status) => {
                             console.warn("unable to obtain descendant counts");
+                            // TODO - separate modal for "unknown" children count?
+                            // NOTE - this will also close the "oneMoment" modal
+                            $scope.modal_confirmSetServiceState(service, state, 0);
                         });
 
-                    // TODO - pop a loading type modal
-                    alert("HOL'UP!");
+                    
+                    // let the user know they gonna have to hold onto
+                    // their horses for just one moment.
+                    $modalService.modals.oneMoment();
                 };
 
                 // verifies if use wants to start parent service, or parent
@@ -426,10 +431,9 @@
                         template: html,
                         model: model,
                         title: $translate.instant(state + "_service"),
-                        actions: actions 
+                        actions: actions
                     });
                 };
-
 
                 $scope.clickEndpointEnable = function (publicEndpoint) {
                     if ($scope.getEndpointType(publicEndpoint) === "vhost") {

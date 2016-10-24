@@ -9,19 +9,24 @@
         function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
         utils){
 
-            var defaultModalTemplate = '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">\
-                <div class="modal-dialog {{bigModal}}">\
-                    <div class="modal-content">\
-                        <div class="modal-header">\
-                            <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>\
-                            <span class="modal-title">{{title}}</span>\
-                        </div>\
-                        <div class="modal-notify"></div>\
-                        <div class="modal-body">{{template}}</div>\
-                        <div class="modal-footer"></div>\
-                    </div>\
-                </div>\
-            </div>';
+            var defaultModalTemplate = function(model){
+                return `
+                    <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog ${model.bigModal}">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    ${model.unclosable ?
+                                        `` :
+                                        `<button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>`}
+                                    <span class="modal-title">${model.title}</span>
+                                </div>
+                                <div class="modal-notify"></div>
+                                <div class="modal-body">${model.template}</div>
+                                <div class="modal-footer"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            };
 
             var actionButtonTemplate = '<button type="button" class="btn {{classes}}"><span ng-show="icon" class="glyphicon {{icon}}"></span> {{label}}</button>';
 
@@ -51,14 +56,21 @@
                 var $modalFooter;
 
                 // inject user provided template into modal template
-                var modalTemplate = $interpolate(defaultModalTemplate)({
+                var modalTemplate = defaultModalTemplate({
                     template: template,
                     title: $translate.instant(config.title),
-                    bigModal: config.bigModal ? "big" : ""
+                    bigModal: config.bigModal ? "big" : "",
+                    unclosable: config.unclosable
                 });
 
+                let bootstrapModalConfig = {};
+                if(config.unclosable){
+                    bootstrapModalConfig.backdrop = "static";
+                    bootstrapModalConfig.keyboard = false;
+                }
+
                 // bind user provided model to final modal template
-                this.$el = $($compile(modalTemplate)(model)).modal();
+                this.$el = $($compile(modalTemplate)(model)).modal(bootstrapModalConfig);
 
                 $modalFooter = this.$el.find(".modal-footer");
                 // cache a reference to the notification holder
@@ -290,11 +302,29 @@
                 });
             };
 
+            let oneMoment = function(message) {
+                let model = $rootScope.$new(true);
+                model.message = message || $translate.instant("one_moment");
+                let html = `
+                    <div style="width: 100%; text-align: center;">
+                        <img src="static/img/loading.gif">
+                        <div style="max-width: 75%; margin: 10px auto;">${model.message}</div>
+                    </div>`;
+
+                create({
+                    template: html,
+                    model: model,
+                    title: $translate.instant("one_moment"),
+                    unclosable: true
+                });
+            };
+
             return {
                 create: create,
                 // some shared modals that anyone can enjoy!
                 modals: {
-                    displayHostKeys
+                    displayHostKeys,
+                    oneMoment
                 }
             };
 
