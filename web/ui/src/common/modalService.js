@@ -9,6 +9,41 @@
         function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
         utils){
 
+            // accessing certain properties forces a DOM reflow,
+            // which is useful if you want some CSS changes to
+            // be applied to force the next CSS change to trigger
+            // a transition
+            function pokeDOM(){
+                return document.body.scrollTop;
+            }
+
+            // global, reusable, handy-dandy modal
+            // backdrop element, guaranteed to reduce all
+            // other content down to about 50% of its original
+            // brightness or your money back!
+            class ModalDarkener{
+                constructor(){
+                    this.el = document.createElement("div");
+                    this.el.className = "modal-darkener";
+                    document.body.appendChild(this.el);
+                }
+
+                show(){
+                    this.el.style.display = "block";
+                    pokeDOM();
+                    this.el.classList.add("show");
+                }
+
+                hide(){
+                    this.el.classList.remove("show");
+                    // TODO - css transition end
+                    setTimeout(() => {
+                        this.el.style.display = "none";
+                    }, 250);
+                }
+            }
+            var darkener = new ModalDarkener();
+
             var defaultModalTemplate = function(model){
                 return `
                     <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
@@ -63,11 +98,10 @@
                     unclosable: config.unclosable
                 });
 
-                let bootstrapModalConfig = {};
-                if(config.unclosable){
-                    bootstrapModalConfig.backdrop = "static";
-                    bootstrapModalConfig.keyboard = false;
-                }
+                let bootstrapModalConfig = {
+                    backdrop: false,
+                    keyboard: !config.unclosable
+                };
 
                 // bind user provided model to final modal template
                 this.$el = $($compile(modalTemplate)(model)).modal(bootstrapModalConfig);
@@ -107,16 +141,31 @@
                 this.$el.on("hidden.bs.modal", function(){
                     this.destroy();
                 }.bind(this));
+
+                // NOTE - internal boostrap modal event that we need
+                // to hook into to hide the modal if the darkener is
+                // clicked or if the modal is closed via the "x" close
+                // icon
+                this.$el.on("click.dismiss.modal", (e) => {
+                    // if clicking the backdrop or clicking an element
+                    // marked with class "close", close things
+                    if(e.target === e.currentTarget || e.target.classList.contains("close")){
+                        this.destroy();
+                        darkener.hide();
+                    }
+                });
             }
 
             Modal.prototype = {
                 constructor: Modal,
                 close: function(){
                     this.$el.modal("hide");
+                    darkener.hide();
                 },
                 show: function(){
                     this.$el.modal("show");
                     this.disableScroll();
+                    darkener.show();
                 },
                 validate: function(args){
                     return this.validateFn(args);
@@ -182,8 +231,6 @@
             };
 
 
-
-
             var modalsPath = "/static/partials/",
                 // keep track of existing modals so that they can be
                 // close/destroyed when a new one is created
@@ -230,11 +277,6 @@
                 modals.forEach(function(momo){
                     momo.destroy();
                 });
-
-                // if any existing modals, remove backdrop
-                if(modals.length){
-                    $(".modal-backdrop").remove();
-                }
 
                 var modal = new Modal(template, model, config);
                 modal.show();
