@@ -817,12 +817,12 @@ func (d *daemon) startAgent() error {
 				updatedHost, err := host.UpdateHostInfo(*myHost)
 				if err != nil {
 					log.WithError(err).Warn("Unable to acquire delegate host information")
-					return poolID
+					return "" // Try again
 				}
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
 					log.WithError(err).Warn("Unable to update master with delegate host information")
-					return poolID
+					return "" // Try again
 				}
 				log.Info("Updated master with delegate host information")
 				return poolID
