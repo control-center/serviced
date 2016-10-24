@@ -330,8 +330,10 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		options.Master = true
 	}
 
-	// We are always an agent
-	options.Agent = true
+	// Check if we're running in server mode to determine if we're an agent
+	if ctx.Args().First() == "server" {
+		options.Agent = true
+	}
 
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
