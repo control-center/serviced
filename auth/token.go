@@ -198,7 +198,7 @@ func LoadTokenFile(tokenfile string) error {
 	// No need to handle expires or save file, because we're loading from the file rather
 	// than re-requesting authentication tokens
 	updateToken(string(data), zerotime, "")
-	log.Infof("Updated authentication token from disk")
+	log.Debug("Updated authentication token from disk")
 	return nil
 }
 
