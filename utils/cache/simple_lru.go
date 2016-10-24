@@ -13,27 +13,44 @@
 package cache
 
 import (
-	"time"
 	lru "github.com/hashicorp/golang-lru"
+	"time"
 )
 
 type SimpleLRUCache struct {
-	maxItems         int
-	expiration       time.Duration
-	cleanupInterval  time.Duration
+	maxItems        int
+	expiration      time.Duration
+	cleanupInterval time.Duration
 
 	// Keep the cache implementation private
-	lruCache         *lru.Cache
+	lruCache *lru.Cache
 }
 
 // assert the LRUCache interface is implemented by SimpleLRUCache
 var _ LRUCache = &SimpleLRUCache{}
 
+var timeFunc func() time.Time = time.Now
+
+// At sets a fake time, executes the provided
+// function, then restores the default time getter,
+// making it possible to test time-sensitive stuff
+func At(t time.Time, f func()) {
+	defer func() {
+		timeFunc = time.Now
+	}()
+
+	timeFunc = func() time.Time {
+		return t
+	}
+
+	f()
+}
+
 // An internal struct to track the expiration time for each item in the cache
 type cacheItem struct {
-	key        string
-	value      interface{}
-	expires    time.Time
+	key     string
+	value   interface{}
+	expires time.Time
 }
 
 //
@@ -82,8 +99,8 @@ func (c *SimpleLRUCache) Get(key string) (interface{}, bool) {
 	if data != nil && ok {
 		var item cacheItem
 		item, _ = data.(cacheItem)
-		item.expires = time.Now().Add(c.expiration)	// update the expiration
-                c.lruCache.Add(key, item)
+		item.expires = timeFunc().Add(c.expiration) // update the expiration
+		c.lruCache.Add(key, item)
 		return item.value, true
 	}
 	return nil, false
@@ -93,9 +110,9 @@ func (c *SimpleLRUCache) Get(key string) (interface{}, bool) {
 // If the key already exists in the cache, it's value will be replaced.
 func (c *SimpleLRUCache) Set(key string, value interface{}) {
 	item := cacheItem{
-		key:   key,
-		value: value,
-		expires: time.Now().Add(c.expiration),
+		key:     key,
+		value:   value,
+		expires: timeFunc().Add(c.expiration),
 	}
 
 	c.lruCache.Add(key, item)
@@ -120,13 +137,14 @@ func (c *SimpleLRUCache) GetCleanupInterval() time.Duration {
 }
 
 func (c *SimpleLRUCache) startCleaner(shutdown chan struct{}) {
-	timer := time.Tick(c.cleanupInterval)
+	timer := time.NewTicker(c.cleanupInterval)
 	go (func() {
 		for {
 			select {
-			case <- timer:
+			case <-timer.C:
 				c.cleanup()
-			case <- shutdown:
+			case <-shutdown:
+				timer.Stop()
 				return
 			}
 		}
@@ -134,7 +152,7 @@ func (c *SimpleLRUCache) startCleaner(shutdown chan struct{}) {
 }
 
 func (c *SimpleLRUCache) cleanup() {
-	now := time.Now()
+	now := timeFunc()
 	for _, key := range c.lruCache.Keys() {
 		data, ok := c.lruCache.Get(key)
 		if data != nil && ok {
