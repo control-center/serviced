@@ -14,15 +14,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/devicemapper"
 	"github.com/jessevdk/go-flags"
 
 	log "github.com/Sirupsen/logrus"
@@ -71,7 +70,7 @@ type DriverList struct {
 type CheckOrphans struct {
 	Clean bool `description:"Indicates that the orphans should be removed" long:"clean" short:"c"`
 	Args  struct {
-		Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
+		Path flags.Filename `description:"Path of the driver"`
 	} `positional-args:"yes"`
 }
 
@@ -189,62 +188,42 @@ func (c *DriverList) Execute(args []string) error {
 // Execute displays orphaned volumes
 func (c *CheckOrphans) Execute(args []string) error {
 	App.initializeLogging()
-	type Metadata struct {
-		CurrentDevice string
-		Snapshots     interface{}
-	}
-
 	directory := GetDefaultDriver(string(c.Args.Path))
-
-	// compile a list of device hashes visible to CC
-	ccDir := directory + "/.devicemapper/volumes"
-	ccFiles, err := ioutil.ReadDir(ccDir)
+	dmd, err := InitDriverIfExists(directory)
 	if err != nil {
 		return err
 	}
+	drv, ok := dmd.(*devicemapper.DeviceMapperDriver)
+	if !ok {
+		log.Fatal("This only works on devicemapper devices")
+	}
+
+	//  we retrieve the list of all devices that CC has access to
 	var ccDevices []string
-	for _, f := range ccFiles {
-		if !strings.Contains(f.Name(), ".") {
-			dat, _ := ioutil.ReadFile(ccDir + "/" + f.Name() + "/metadata.json")
-			var m Metadata
-			json.Unmarshal(dat, &m)
-			// store the device hashes assigned to the tenant as well as those assigned to its snapshots
-			ccDevices = append(ccDevices, m.CurrentDevice)
-			for _, vv := range m.Snapshots.(map[string]interface{}) {
-				ccDevices = append(ccDevices, vv.(string))
-			}
-		}
-	}
-
-	// compare the first set of hashes to the list of 'Docker driver device' hashes
-	dddDir := directory + "/.devicemapper/metadata"
-	dddFiles, err := ioutil.ReadDir(dddDir)
-	if err != nil {
-		return err
-	}
-	var orphans []string
-	for _, f := range dddFiles {
-		d := dddDir + "/" + f.Name()
-		dat, err := ioutil.ReadFile(d)
+	for _, v := range drv.List() {
+		vol, err := drv.GetVolume(v, false)
 		if err != nil {
 			return err
 		}
-		var m map[string]interface{}
-		json.Unmarshal(dat, &m)
-		for k, v := range m {
-			// store only device hashes we care about
-			if k == "initialized" && v.(bool) == false {
-				found := false
-				for _, vv := range ccDevices {
-					if f.Name() == vv {
-						found = true
-						break
-					}
-				}
-				if found == false {
-					orphans = append(orphans, f.Name())
-				}
+		ccDevices = append(ccDevices, vol.Metadata.CurrentDevice())
+		for _, dHash := range vol.Metadata.Snapshots {
+			ccDevices = append(ccDevices, dHash)
+		}
+	}
+
+	// next we compare CC-visible device hashes to the device hashes stored by the device driver
+	var orphans []string
+	for _, d := range drv.DeviceSet.List() {
+		found := false
+		for _, c := range ccDevices {
+			// TODO: Investigate why (*devicemapper.DeviceMapperDriver).DeviceSet.List() contains an empty string!
+			if d == c || d == "" {
+				found = true
+				break
 			}
+		}
+		if !found {
+			orphans = append(orphans, d)
 		}
 	}
 
@@ -252,11 +231,7 @@ func (c *CheckOrphans) Execute(args []string) error {
 		fmt.Println("Orphaned devices were found")
 		for _, v := range orphans {
 			if c.Clean {
-				driver, err := InitDriverIfExists(directory)
-				if err != nil {
-					return err
-				}
-				if err := driver.Remove(v); err != nil {
+				if err := dmd.Remove(v); err != nil {
 					return err
 				}
 				fmt.Println("Removed orphaned snapshot", v)
