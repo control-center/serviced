@@ -526,6 +526,7 @@
                                 ],
                                 onShow: function () {
                                     modalScope.codemirrorRefresh = true;
+                                    modalScope.$apply();
                                 },
                                 onHide: function () {
                                     modalScope.codemirrorRefresh = false;
@@ -662,6 +663,7 @@
                                 },
                                 onShow: function () {
                                     modalScope.codemirrorRefresh = true;
+                                    modalScope.$apply();
                                 },
                                 onHide: function () {
                                     modalScope.codemirrorRefresh = false;

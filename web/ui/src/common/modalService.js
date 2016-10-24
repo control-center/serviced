@@ -181,12 +181,10 @@
 
                 disableScroll(){
                     var bodyEl = $("body");
-                    this.bodyOverflowProp = bodyEl.css("overflow");
                     bodyEl.css("overflow", "hidden");
                 },
                 enableScroll(){
-                    var prop = this.bodyOverflowProp || "scroll";
-                    $("body").css("overflow", prop);
+                    $("body").css("overflow", "scroll");
                 },
 
                 // convenience method to disable the default ok/submit button

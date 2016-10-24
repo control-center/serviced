@@ -1597,16 +1597,22 @@ input[type=file] {
     height: 500px;
 }
 
+.modal .codemirrorLoader {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(255,255,255,1) center center url("/static/img/loading.gif") no-repeat;
+    z-index: 10;
+}
+
 .modal .CodeMirror {
     background: transparent;
 }
 
 .modal-context {
     margin-top: 2rem;
-}
-
-.modal-mckracken {
-  margin-bottom: -50%;
 }
 
 .modal-darkener {
