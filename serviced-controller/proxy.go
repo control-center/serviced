@@ -37,6 +37,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
 		RPCPort:                 ctx.GlobalInt("rpcport"),
+		RPCDisableTLS:           ctx.GlobalBool("rpc-disable-tls"),
 		Autorestart:             ctx.GlobalBool("autorestart"),
 		MetricForwarderPort:     ctx.GlobalString("metric-forwarder-port"),
 		Logstash:                ctx.GlobalBool("logstash"),
@@ -52,10 +53,10 @@ func CmdServiceProxy(ctx *cli.Context) {
 		MetricForwardingEnabled: !ctx.GlobalBool("disable-metric-forwarding"),
 	}
 
-	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)
+	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)			// TODO: Is this set in container.go?
 	options.RPCPort = cfg.IntVal("RPC_PORT", options.RPCPort)
-	options.KeyPEMFile = cfg.StringVal("KEY_FILE", options.KeyPEMFile)
-	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)
+	options.KeyPEMFile = cfg.StringVal("KEY_FILE", options.KeyPEMFile)		// TODO: Is this set in container.go?
+	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)		// TODO: Is this set in container.go?
 	options.LogstashURL = cfg.StringVal("LOG_ADDRESS", options.LogstashURL)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 	options.ServicedEndpoint = utils.GetGateway(options.RPCPort)
@@ -65,8 +66,11 @@ func CmdServiceProxy(ctx *cli.Context) {
 	}
 
 	rpcutils.RPC_CLIENT_SIZE = 2
+	rpcutils.RPCDisableTLS = options.RPCDisableTLS
 	if err := StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		// exit with an error if we can't start the proxy so that the delegate can record the container logs
+		os.Exit(1)
 	}
 }
 

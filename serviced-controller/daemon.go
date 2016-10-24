@@ -43,6 +43,7 @@ func main() {
 		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 		cli.IntFlag{"rpcport", defaultRPCPort, "port to use for RPC requests"},
+		cli.BoolFlag{"rpc-disable-tls", "disable TLS for RPC requests"},
 		cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 		cli.BoolFlag{"mux-disable-tls", "disable contacting the mux via TLS"},
 		cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},

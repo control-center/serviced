@@ -31,6 +31,7 @@ type ControllerOptions struct {
 	CertPEMFile             string   // path to the CertPEMfile
 	ServicedEndpoint        string
 	RPCPort                 int      // the TCP port for the RPC to the agent
+	RPCDisableTLS           bool     // True if TLS should be used on RPC connections
 	Autorestart             bool
 	MetricForwarderPort     string // port to which container processes send performance data to
 	Logstash                bool
@@ -45,6 +46,7 @@ type ControllerOptions struct {
 
 func (c ControllerOptions) toContainerControllerOptions() (options container.ControllerOptions, err error) {
 	options.ServicedEndpoint = c.ServicedEndpoint
+	options.RPCDisableTLS = c.RPCDisableTLS
 	options.Service.Autorestart = c.Autorestart
 	options.Service.InstanceID = c.InstanceID
 	options.Service.ID = c.ServiceID

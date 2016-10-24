@@ -908,6 +908,7 @@ func (d *daemon) startAgent() error {
 			Master:               options.Endpoint,
 			UIPort:               options.UIPort,
 			RPCPort:              options.RPCPort,
+			RPCDisableTLS:        rpcutils.RPCDisableTLS,
 			DockerDNS:            options.DockerDNS,
 			VolumesPath:          options.VolumesPath,
 			Mount:                options.Mount,

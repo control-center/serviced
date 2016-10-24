@@ -61,6 +61,10 @@ var (
 	ErrInvalidHostID = errors.New("container: invalid host id")
 	// ErrNoServiceEndpoints is returned if we can't fetch the service endpoints
 	ErrNoServiceEndpoints = errors.New("container: unable to retrieve service endpoints")
+	// ErrNoDelegateKey is returned if the key file can not be read
+	ErrNoDelegateKey = errors.New("container: no delegate key file")
+	// ErrNoAuthToken is returned if the auth token file can not be read
+	ErrNoAuthToken = errors.New("container: no authentication token file")
 )
 
 const (
@@ -75,6 +79,7 @@ const (
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServicedEndpoint string
+	RPCDisableTLS    bool
 	Service          struct {
 		ID          string   // The uuid of the service to launch
 		InstanceID  string   // The running instance ID
@@ -286,6 +291,17 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		close(keyshutdown)
 		errc <- nil
 	}()
+
+	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher routines
+	//    and making the first RPC call in getService()
+	if err := auth.LoadDelegateKeysFromFile(containerDelegateKeyFile); err != nil {
+		glog.Errorf("Unable to load delegate keys from file %s: %s", containerDelegateKeyFile, err)
+		return nil, ErrNoDelegateKey
+	}
+	if err := auth.LoadTokenFile(containerTokenFile); err != nil {
+		glog.Errorf("Unable to token file %s: %s", containerTokenFile, err)
+		return nil, ErrNoAuthToken
+	}
 
 	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
 	go auth.WatchTokenFile(containerTokenFile, keyshutdown)

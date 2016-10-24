@@ -669,12 +669,16 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	if !a.useTLS {
 		cmd = append(cmd, "--mux-disable-tls")
 	}
-
+	if a.rpcDisableTLS {
+		cmd = append(cmd, "--rpc-disable-tls")
+	}
 	cfg.Cmd = append(cmd,
 		svc.ID,
 		strconv.Itoa(instanceID),
 		svc.Startup)
 
+	logger.WithField("Cmd", cfg.Cmd).Debug("Container start string")
+	logger.WithField("Env", cfg.Env).Debug("Container env vars")
 	if svc.Privileged {
 		hcfg.Privileged = true
 	}
