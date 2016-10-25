@@ -639,6 +639,7 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
+		fmt.Sprintf("SERVICED_MUX_PORT=%s", a.muxport),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
 		//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
@@ -669,12 +670,16 @@ func (a *HostAgent) createContainerConfig(tenantID string, svc *service.Service,
 	if !a.useTLS {
 		cmd = append(cmd, "--mux-disable-tls")
 	}
-
+	if a.rpcDisableTLS {
+		cmd = append(cmd, "--rpc-disable-tls")
+	}
 	cfg.Cmd = append(cmd,
 		svc.ID,
 		strconv.Itoa(instanceID),
 		svc.Startup)
 
+	logger.WithField("Cmd", cfg.Cmd).Debug("Container start string")
+	logger.WithField("Env", cfg.Env).Debug("Container env vars")
 	if svc.Privileged {
 		hcfg.Privileged = true
 	}

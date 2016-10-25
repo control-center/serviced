@@ -71,6 +71,7 @@ type HostAgent struct {
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
 	rpcport              string               // the rpc port to serviced (default is 4979)
+	rpcDisableTLS        bool                 // true of TLS should be disabled for RPC
 	hostID               string               // the hostID of the current host
 	dockerDNS            []string             // docker dns addresses
 	storage              volume.Driver        // driver supporting the application data
@@ -78,7 +79,8 @@ type HostAgent struct {
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
-	useTLS               bool // Whether the mux uses TLS
+	muxport              string               // the mux port to serviced (default is 22250)
+	useTLS               bool                 // true if TLS should be enabled for MUX
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
@@ -112,12 +114,14 @@ type AgentOptions struct {
 	Master               string
 	UIPort               string
 	RPCPort              string
+	RPCDisableTLS        bool                 // true if TLS should be disabled for RPC
 	DockerDNS            []string
 	VolumesPath          string
 	Mount                []string
 	FSType               volume.DriverType
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
+	MuxPort              string
 	UseTLS               bool
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
@@ -140,9 +144,11 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.master = options.Master
 	agent.uiport = options.UIPort
 	agent.rpcport = options.RPCPort
+	agent.rpcDisableTLS = options.RPCDisableTLS
 	agent.dockerDNS = options.DockerDNS
 	agent.mount = options.Mount
 	agent.mux = options.Mux
+	agent.muxport = options.MuxPort
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet

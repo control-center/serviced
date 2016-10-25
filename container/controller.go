@@ -75,6 +75,7 @@ const (
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServicedEndpoint string
+	RPCDisableTLS    bool
 	Service          struct {
 		ID          string   // The uuid of the service to launch
 		InstanceID  string   // The running instance ID
@@ -84,7 +85,7 @@ type ControllerOptions struct {
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
 		Port        int    // the TCP port to use
-		TLS         bool   // True if TLS is used
+		DisableTLS  bool   // True if TLS is disabled
 		KeyPEMFile  string // Path to the key file when TLS is used
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
@@ -290,6 +291,11 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
 	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
 
+	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher routines
+	//    and making the first RPC call in getService()
+	<-auth.WaitForDelegateKeys(nil)
+	<-auth.WaitForAuthToken(nil)
+
 	// get service
 	instanceID, err := strconv.Atoi(options.Service.InstanceID)
 	if err != nil {
@@ -415,7 +421,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		InstanceID:           instanceID,
 		IsShell:              os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true",
 		TCPMuxPort:           uint16(options.Mux.Port),
-		UseTLS:               options.Mux.TLS,
+		UseTLS:               !options.Mux.DisableTLS,
 		VirtualAddressSubnet: options.VirtualAddressSubnet,
 	}
 	c.endpoints, err = NewContainerEndpoints(service, opts)
