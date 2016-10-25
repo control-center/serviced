@@ -978,34 +978,31 @@
 
                 };
 
-                $scope.updateTreeState = function () {        
+                $scope.updateTreeState = function () {
                     let treeState = $scope.serviceTreeState[$scope.currentService.id];
-                    $scope.currentService.subservices.forEach(topLvlSvc => {
-
-                        (function recurse(service) {
-                            // initialize on page load
-                            if (!treeState[service.id]) {
-                                treeState[service.id] = {};
-                                treeState[service.id].collapsed = true;
-                                treeState[service.id].hidden = false;
-                                return;
-                            }
-                            // collapsed node - we're done here
-                            if (treeState[service.id].collapsed === true) {
-                                return;
-                            }
-                            // expanded node - get subservices
-                            service.fetchServiceChildren()
-                                .then(() => {
-                                    // toggle the UI row & set currentDescendents
-                                    $scope.flattenServicesTree();
-                                    // recurse for each child service
-                                    service.subservices.forEach(subservice => {
-                                        recurse(subservice);
-                                    });
+                    $scope.currentService.subservices.forEach(function recurse(service) {
+                        // initialize on page load
+                        if (!treeState[service.id]) {
+                            treeState[service.id] = {
+                                collapsed: true,
+                                hidden: false
+                            };
+                            return;
+                        }
+                        // collapsed node - we're done here
+                        if (treeState[service.id].collapsed === true) {
+                            return;
+                        }
+                        // expanded node - get subservices
+                        service.fetchServiceChildren()
+                            .then(() => {
+                                // toggle the UI row & set currentDescendents
+                                $scope.flattenServicesTree();
+                                // recurse for each child service
+                                service.subservices.forEach(subservice => {
+                                    recurse(subservice);
                                 });
-                        })(topLvlSvc);
-
+                            });
                     });
                 };
 
