@@ -62,11 +62,9 @@ func ValidateCommonOptions(opts config.Options) error {
 	return nil
 }
 
-// Validate options which are specific to running a master and/or agent
+// Validate options which are specific to running as a server
 func ValidateServerOptions(options *config.Options) error {
-	if !options.Master && !options.Agent {
-		return fmt.Errorf("serviced cannot be started: no mode (master or agent) was specified")
-	} else if err := validateStorageArgs(options); err != nil {
+	if err := validateStorageArgs(options); err != nil {
 		return err
 	}
 
