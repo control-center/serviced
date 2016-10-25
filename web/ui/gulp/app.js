@@ -8,6 +8,7 @@ var gulp = require("gulp"),
     rename = require("gulp-rename"),
     jshint = require("gulp-jshint"),
     concat = require("gulp-concat"),
+    gulpif = require("gulp-if"),
     merge = require("merge-stream");
 
 var config = require("./config.js");
@@ -16,9 +17,12 @@ var babelConfig = {
     presets: ["es2015"],
 };
 
+// if SKIP_TRANSPILE is set, skip js transpilation
+// NOTE: browser must support es6 stuff
+let shouldTranspile = !process.env.SKIP_TRANSPILE;
 
 gulp.task("build", cb => {
-    sequence("lint", "babel", "copyStatic", cb);
+    sequence("babel", "copyStatic", cb);
 });
 
 gulp.task("release", cb => {
@@ -28,7 +32,7 @@ gulp.task("release", cb => {
 gulp.task("babel", function(){
     return gulp.src(config.controlplaneFiles)
         .pipe(sourcemaps.init())
-            .pipe(babel(babelConfig))
+            .pipe(gulpif(shouldTranspile, babel(babelConfig)))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
         .pipe(gulp.dest(config.paths.srcBuild));

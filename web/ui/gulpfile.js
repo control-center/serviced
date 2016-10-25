@@ -21,10 +21,15 @@ gulp.task("clean", () => {
  * you probably want to do one of these:
  *
  * `gulp`
- * lints and builds the js library
+ * lints and builds the js library. NOTE: if you're using
+ * a browser that supports most es6, you can speed this up
+ * by setting SKIP_TRANSPILE. eg: `SKIP_TRANSPILE=1 gulp`
  *
  * `gulp watch`
  * watches the filesystem and continuously builds the js lib
+ * NOTE: if you're using a browser that supports most es6,
+ * you can speed this up by setting SKIP_TRANSPILE.
+ * eg: `SKIP_TRANSPILE=1 gulp watch`
  *
  * `gulp test`
  * runs unit tests

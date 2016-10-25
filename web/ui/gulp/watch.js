@@ -10,8 +10,6 @@ gulp.task("watch", cb => {
 });
 
 gulp.task("dowatch", function(){
-    // TODO - livereload server
-
     // transpile js
     gulp.watch(paths.src + "/**/*.js", ["babel"]);
 
