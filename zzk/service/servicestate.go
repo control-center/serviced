@@ -264,7 +264,6 @@ func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
 		"serviceid":                   sn.ID,
 		"servicename":                 sn.Name,
 		"shouldhaveaddressassignment": sn.ShouldHaveAddressAssignment,
-		"addressassignment":           sn.AddressAssignment,
 		"instanceid":                  instanceID,
 	})
 
