@@ -36,9 +36,12 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'src/**/*.js': ['6to5', 'coverage']
+        'src/**/*.js': ['babel', 'coverage']
     },
 
+    bablePreprocessor: {
+        options: ["es2015"]
+    },
 
     // test results reporter to use
     // possible values: 'dots', 'progress', 'html', 'junit', 'coverage'

@@ -7,7 +7,7 @@ var gulp = require("gulp"),
     uglify = require("gulp-uglify"),
     jshint = require("gulp-jshint"),
     sequence = require("run-sequence"),
-    to5 = require("gulp-6to5"),
+    babel = require("gulp-babel"),
     sourcemaps = require("gulp-sourcemaps"),
     karma = require('karma').server;
 
@@ -20,17 +20,8 @@ var paths = {
     thirdpartyBuild: "static/thirdparty/"
 };
 
-var to5Config = {
-    format: {
-        parentheses: true,
-        comments: true,
-        compact: false,
-        indent: {
-            adjustMultilineComment: false,
-            style: "    ",
-            base: 0
-        }
-    }
+var babelConfig = {
+    presets: ["es2015"],
 };
 
 // files to be concatenated/minified to make
@@ -128,7 +119,7 @@ gulp.task("debug3rdparty", function(){
 gulp.task("concat", function(){
     return gulp.src(controlplaneFiles)
         .pipe(sourcemaps.init())
-            .pipe(to5(to5Config))
+            .pipe(babel(babelConfig))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
         .pipe(gulp.dest(paths.srcBuild));
