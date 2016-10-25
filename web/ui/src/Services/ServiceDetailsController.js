@@ -789,12 +789,14 @@
                 // the service in question. eg:
                 //
                 // current service id
-                //      -> child service id
+                //      -> desendant service id
                 //          -> hidden
                 //          -> collapsed
-                //      -> child service id
+                //          -> parentId
+                //      -> desendant service id
                 //          -> hidden
                 //          -> collapsed
+                //          -> parentId
                 //      ...
 
                 $scope.toggleChildren = function (service) {
@@ -811,8 +813,13 @@
                             service.fetchServiceChildren().then(() => {
                                 $scope.flattenServicesTree();
                                 $scope.currentService.updateDescendentStatuses();
+                                service.subservices.forEach(sub => {
+                                    $scope.currentTreeState[sub.id].parentId = service.id;
+                                    $scope.currentTreeState[sub.id].hidden = false;
+                                });
                             });
                         }
+
                     } else {
                         $scope.currentTreeState[service.id].collapsed = true;
                         $scope.flattenServicesTree();
@@ -821,26 +828,13 @@
                     }
                 };
 
-                $scope.getServiceEndpoints = function (id) {
-                    let deferred = $q.defer();
-                    resourcesFactory.v2.getServiceEndpoints(id)
-                        .then(function (response) {
-                            console.log("got service endpoints for id " + id);
-                            deferred.resolve(response.data);
-                        },
-                        function (response) {
-                            console.warn(response.status + " " + response.statusText);
-                            deferred.reject(response.statusText);
-                        });
-                    return deferred.promise;
-                };
-
                 $scope.hideChildren = function (service) {
                     // get the state of the current service's tree
                     var treeState = $scope.currentTreeState;
 
                     if (service.subservices.length) {
                         service.subservices.forEach(function (child) {
+                            // treeState[child.id].collapsed = true;
                             treeState[child.id].hidden = true;
                             $scope.hideChildren(child);
                         });
@@ -861,6 +855,20 @@
                             }
                         });
                     }
+                };
+
+                $scope.getServiceEndpoints = function (id) {
+                    let deferred = $q.defer();
+                    resourcesFactory.v2.getServiceEndpoints(id)
+                        .then(function (response) {
+                            console.log("got service endpoints for id " + id);
+                            deferred.resolve(response.data);
+                        },
+                        function (response) {
+                            console.warn(response.status + " " + response.statusText);
+                            deferred.reject(response.statusText);
+                        });
+                    return deferred.promise;
                 };
 
                 //we need to bring this function into scope so we can use ng-hide if an object is empty
@@ -947,8 +955,55 @@
                     return $scope.indent(depth - offset);
                 };
 
-                $scope.setCurrentTreeState = function () {
-                    $scope.serviceTreeState[$scope.currentService.id] = {};
+                $scope.restoreTreeState = function () {
+
+                    if (!$scope.currentService) {
+                        return;
+                    }
+                    // initialize at first call
+                    if (!$scope.serviceTreeState[$scope.currentService.id]) {
+                        $scope.serviceTreeState[$scope.currentService.id] = {};
+                    }
+                    // delete hidden services state upon re-entry
+                    let treeState = $scope.serviceTreeState[$scope.currentService.id];
+                    Object.keys(treeState).forEach(k => {
+                        if (treeState[k].hidden) {
+                            delete treeState[k];
+                        }
+                    });
+                    $scope.serviceTreeState[$scope.currentService.id] = treeState;
+                    
+                    $scope.updateTreeState();
+                    $scope.currentTreeState = treeState;
+
+                };
+
+                $scope.updateTreeState = function () {
+                    let treeState = $scope.serviceTreeState[$scope.currentService.id];
+                    $scope.currentService.subservices.forEach(function recurse(service) {
+                        // initialize on page load
+                        if (!treeState[service.id]) {
+                            treeState[service.id] = {
+                                collapsed: true,
+                                hidden: false
+                            };
+                            return;
+                        }
+                        // collapsed node - we're done here
+                        if (treeState[service.id].collapsed === true) {
+                            return;
+                        }
+                        // expanded node - get subservices
+                        service.fetchServiceChildren()
+                            .then(() => {
+                                // toggle the UI row & set currentDescendents
+                                $scope.flattenServicesTree();
+                                // recurse for each child service
+                                service.subservices.forEach(subservice => {
+                                    recurse(subservice);
+                                });
+                            });
+                    });
                 };
 
                 $scope.flattenServicesTree = function () {
@@ -1010,18 +1065,13 @@
                             $scope.currentDescendents = [];
                             $scope.currentService.fetchServiceChildren()
                                 .then(() => {
+                                    $scope.restoreTreeState();
                                     $scope.flattenServicesTree();
                                     $scope.currentService.updateDescendentStatuses();
                                 });
 
                             // sets $scope.breadcrumbs
                             $scope.fetchBreadcrumbs();
-
-                            // update serviceTreeState
-                            $scope.setCurrentTreeState();
-
-                            // property for view to bind for tree state NOTE: WHA????
-                            $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];
 
                             // fetchAll() will trigger update at completion
                             $scope.currentService.fetchAll(true);
