@@ -48,6 +48,7 @@ type TestAPISuite struct {
 }
 
 func (s *TestAPISuite) SetUpTest(c *C) {
+	hostAuthenticated = true   // by-pass any attempt to read/validate authentication tokens
 	s.mockControlPlane = &daomocks.ControlPlane{}
 	s.mockMasterClient = &mocks.ClientInterface{}
 
