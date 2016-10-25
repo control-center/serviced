@@ -1597,6 +1597,16 @@ input[type=file] {
     height: 500px;
 }
 
+.modal .codemirrorLoader {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(255,255,255,1) center center url("/static/img/loading.gif") no-repeat;
+    z-index: 10;
+}
+
 .modal .CodeMirror {
     background: transparent;
 }
@@ -1605,8 +1615,23 @@ input[type=file] {
     margin-top: 2rem;
 }
 
-.modal-mckracken {
-  margin-bottom: -50%;
+.modal-darkener {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1040;
+    background-color: #000;
+
+    display: none;
+    opacity: 0;
+
+    transition: opacity 0.2s;
+}
+.modal-darkener.show {
+    display: block;
+    opacity: 0.5;
 }
 
 /* sticky service controls */
