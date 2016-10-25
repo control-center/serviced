@@ -20,6 +20,8 @@
 package config
 
 import (
+	"strconv"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/volume"
@@ -46,7 +48,7 @@ type Options struct {
 	DockerDNS                  []string
 	Agent                      bool
 	MuxPort                    int
-	MuxDisableTLS              string            //  Disable TLS for MUX connections, string val of bool
+	MuxDisableTLS              string //  Disable TLS for MUX connections, string val of bool
 	KeyPEMFile                 string
 	CertPEMFile                string
 	VolumesPath                string
@@ -125,4 +127,9 @@ func LoadOptions(ops Options) {
 		}).Debug("Overriding Elastic startup timeout")
 		options.ESStartupTimeout = minTimeout
 	}
+}
+
+func MuxTLSIsEnabled() bool {
+	disabled, _ := strconv.ParseBool(options.MuxDisableTLS)
+	return !disabled && options.MuxPort > 0
 }
