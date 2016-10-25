@@ -164,14 +164,12 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	})
 
 	loadToken := func() {
-		data, err := ioutil.ReadFile(tokenfile)
+		err := LoadTokenFile(tokenfile)
 		if err != nil {
 			log.WithError(err).Warn("Unable to load authentication token from file. Continuing to watch for changes")
+		} else {
+			log.Infof("Updated authentication token from disk")
 		}
-		// No need to handle expires or save file, because we're loading from the file rather
-		// than re-requesting authentication tokens
-		updateToken(string(data), zerotime, "")
-		log.Infof("Updated authentication token from disk")
 	}
 
 	// An initial token load without any file changes
@@ -185,6 +183,22 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	for _ = range filechangechan {
 		loadToken()
 	}
+	return nil
+}
+
+func LoadTokenFile(tokenfile string) error {
+	log := log.WithFields(logrus.Fields{
+		"tokenfile": tokenfile,
+	})
+
+	data, err := ioutil.ReadFile(tokenfile)
+	if err != nil {
+		log.WithError(err).Warn("Unable to load authentication token from file.")
+	}
+	// No need to handle expires or save file, because we're loading from the file rather
+	// than re-requesting authentication tokens
+	updateToken(string(data), zerotime, "")
+	log.Debug("Updated authentication token from disk")
 	return nil
 }
 

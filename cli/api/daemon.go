@@ -643,13 +643,14 @@ func createMuxListener() net.Listener {
 		err      error
 	)
 
+	muxDisableTLS, _ := strconv.ParseBool(options.MuxDisableTLS)
 	log := log.WithFields(logrus.Fields{
-		"tls":  !options.MuxDisableTLS,
+		"tls":  !muxDisableTLS,
 		"port": options.MuxPort,
 	})
 	log.Debug("Starting traffic multiplexer")
 
-	if !options.MuxDisableTLS {
+	if !muxDisableTLS {
 		tlsConfig, err := getTLSConfig("mux")
 		if err != nil {
 			log.WithError(err).Fatal("Invalid TLS configuration")
@@ -902,19 +903,22 @@ func (d *daemon) startAgent() error {
 			}
 		}
 
+		muxDisableTLS, _ := strconv.ParseBool(options.MuxDisableTLS)
 		agentOptions := node.AgentOptions{
 			IPAddress:            agentIP,
 			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
 			UIPort:               options.UIPort,
 			RPCPort:              options.RPCPort,
+			RPCDisableTLS:        rpcutils.RPCDisableTLS,
 			DockerDNS:            options.DockerDNS,
 			VolumesPath:          options.VolumesPath,
 			Mount:                options.Mount,
 			FSType:               options.FSType,
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
-			UseTLS:               !options.MuxDisableTLS,
+			MuxPort:              fmt.Sprintf("%d", options.MuxPort),
+			UseTLS:               !muxDisableTLS,
 			DockerRegistry:       options.DockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
@@ -1124,12 +1128,13 @@ func (d *daemon) initWeb() {
 		"master": options.Endpoint,
 	})
 	log.Debug("Starting Control Center UI server")
+	muxDisableTLS, _ := strconv.ParseBool(options.MuxDisableTLS)
 	cpserver := web.NewServiceConfig(
 		options.UIPort,
 		options.Endpoint,
 		options.ReportStats,
 		options.HostAliases,
-		!options.MuxDisableTLS,
+		!muxDisableTLS,
 		options.MuxPort,
 		options.AdminGroup,
 		options.CertPEMFile,

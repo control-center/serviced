@@ -23,7 +23,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/service"
@@ -31,7 +30,6 @@ import (
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/nfs"
 )
@@ -80,7 +78,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
-		cli.BoolFlag{"mux-disable-tls", "disable TLS for mux connections"},
+		cli.StringFlag{"mux-disable-tls", defaultOps.MuxDisableTLS, "disable TLS for mux connections"},
 		cli.StringSliceFlag{"mux-tls-ciphers", convertToStringSlice(defaultOps.MUXTLSCiphers), "list of supported TLS ciphers for MUX"},
 		cli.StringFlag{"mux-tls-min-version", string(defaultOps.MUXTLSMinVersion), "mininum TLS version for MUX"},
 		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
@@ -193,54 +191,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fmt.Fprintf(os.Stderr, "Unable to set logging options: %s\n", err)
 	}
 
-	// Try to authenticate this host
-	if err := c.authenticateHost(&options); err != nil {
-		// Not all commands require authentication
-		log.WithError(err).Debug("Unable to authenticate host")
-	}
-
 	// TODO: Since isvcs options are only used by server (master/agent), these settings
 	//       should be moved to api.ValidateServerOptions
 	if err := setIsvcsEnv(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to set isvcs options: %s\n", err)
 		return err
 	}
-	return nil
-}
-
-// This will authenticate the host once to get a valid token for any CLI commands
-//  that require it.
-func (c *ServicedCli) authenticateHost(options *config.Options) error {
-	// Try to load the master keys, fail silently if they don't exist
-	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
-	if err := auth.LoadMasterKeyFile(masterKeyFile); err != nil {
-		log.WithError(err).Debug("Unable to load master keys")
-	}
-
-	// Load the delegate keys
-	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
-	if err := auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
-		return err
-	}
-
-	// Get our host ID
-	myHostID, err := utils.HostID()
-	if err != nil {
-		return err
-	} else if err := validation.ValidHostID(myHostID); err != nil {
-		return err
-	}
-
-	// Load an auth token once
-	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
-	getToken := func() (string, int64, error) {
-		return c.driver.AuthenticateHost(myHostID)
-	}
-
-	if _, err := auth.RefreshToken(getToken, tokenFile); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -267,7 +223,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		Master:                     ctx.GlobalBool("master"),
 		Agent:                      ctx.GlobalBool("agent"),
 		MuxPort:                    ctx.GlobalInt("mux"),
-		MuxDisableTLS:              ctx.GlobalBool("mux-disable-tls"),
+		MuxDisableTLS:              ctx.GlobalString("mux-disable-tls"),
 		MUXTLSCiphers:              ctx.GlobalStringSlice("mux-tls-ciphers"),
 		MUXTLSMinVersion:           ctx.GlobalString("mux-tls-min-version"),
 		VolumesPath:                ctx.GlobalString("volumes-path"),
@@ -343,10 +299,6 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 	}
 
 	options.Endpoint = getEndpoint(options)
-
-	if cfg.StringVal("MUX_DISABLE_TLS", "") == "1" {
-		options.MuxDisableTLS = true
-	}
 
 	// Set the logging configuration filename.
 	// This is handled in a non-standard way for two reasons:
