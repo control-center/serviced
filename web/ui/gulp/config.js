@@ -2,6 +2,7 @@
 
 var paths = {
     src: "src/",
+    build: "build/",
     srcBuild: "build/js/",
     staticSrc: "static/",
     staticBuild: "build/",
