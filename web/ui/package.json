@@ -27,6 +27,7 @@
     "karma-junit-reporter": "^2.0.0",
     "karma-phantomjs-launcher": "^1.0.2",
     "karma-threshold-reporter": "^0.1.15",
+    "merge-stream": "^1.0.0",
     "run-sequence": "^1.2.2"
   }
 }

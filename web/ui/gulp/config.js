@@ -84,15 +84,10 @@ var staticFiles = [
     paths.staticSrc + 'lib/ng-table/ng-table.css'
 ];
 
-var babelConfig = {
-    presets: ["es2015"],
-};
-
 module.exports = {
     paths,
     controlplaneFiles,
     controlplanePartials,
     thirdpartyFiles,
-    staticFiles,
-    babelConfig
+    staticFiles
 };

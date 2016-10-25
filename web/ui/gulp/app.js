@@ -12,20 +12,23 @@ var gulp = require("gulp"),
 
 var config = require("./config.js");
 
-gulp.task("build", () => {
-    sequence("lint", "concat", "copyStatic", () => {});
+var babelConfig = {
+    presets: ["es2015"],
+};
+
+
+gulp.task("build", cb => {
+    sequence("lint", "babel", "copyStatic", cb);
 });
 
-gulp.task("release", function(){
-    // last arg is a callback function in case
-    // of an error.
-    sequence("lint", "concat", "uglify", "copyStatic", function(){});
+gulp.task("release", cb => {
+    sequence("lint", "babel", "uglify", "copyStatic", cb);
 });
 
-gulp.task("concat", function(){
+gulp.task("babel", function(){
     return gulp.src(config.controlplaneFiles)
         .pipe(sourcemaps.init())
-            .pipe(babel(config.babelConfig))
+            .pipe(babel(babelConfig))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
         .pipe(gulp.dest(config.paths.srcBuild));

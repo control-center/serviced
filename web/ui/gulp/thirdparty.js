@@ -9,12 +9,12 @@ var config = require("./config.js");
 
 // this needs to be run manually if 3rd party
 // code is updated, which should be infrequent
-gulp.task("release3rdparty", function(){
-    sequence("copyStatic", "concat3rdparty", "uglify3rdparty", function(){});
+gulp.task("release3rdparty", cb => {
+    sequence("copyStatic", "concat3rdparty", "uglify3rdparty", cb);
 });
 
-gulp.task("debug3rdparty", function(){
-    sequence("copyStatic", "concat3rdparty", "copyStatic", function(){});
+gulp.task("debug3rdparty", cb => {
+    sequence("copyStatic", "concat3rdparty", "copyStatic", cb);
 });
 
 gulp.task("concat3rdparty", function(){

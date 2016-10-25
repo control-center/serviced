@@ -6,6 +6,7 @@ let gulp = require("gulp");
 require("./gulp/app.js");
 require("./gulp/thirdparty.js");
 require("./gulp/test.js");
+require("./gulp/watch.js");
 
 gulp.task("default", ["build"]);
 
