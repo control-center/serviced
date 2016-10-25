@@ -956,92 +956,58 @@
                 };
 
                 $scope.restoreTreeState = function () {
-                    console.log("RESTORE TREE STATE -----------------------");
 
                     if (!$scope.currentService) {
                         return;
                     }
-
                     // initialize at first call
                     if (!$scope.serviceTreeState[$scope.currentService.id]) {
                         $scope.serviceTreeState[$scope.currentService.id] = {};
                     }
+                    // delete hidden services state upon re-entry
+                    let treeState = $scope.serviceTreeState[$scope.currentService.id];
+                    Object.keys(treeState).forEach(k => {
+                        if (treeState[k].hidden) {
+                            delete treeState[k];
+                        }
+                    });
+                    $scope.serviceTreeState[$scope.currentService.id] = treeState;
+                    
                     $scope.updateTreeState();
-                    $scope.currentTreeState = $scope.serviceTreeState[$scope.currentService.id];               
+                    $scope.currentTreeState = treeState;
 
                 };
 
-                $scope.updateTreeState = function () {
-
-
-                    /*
-                    given a service
-                    --------------------
-                    am i collapsed? NO! continue!
-                    fetchchildren
-                    toggle the UI row
-                    recurse for each child
-                    */
-
+                $scope.updateTreeState = function () {        
                     let treeState = $scope.serviceTreeState[$scope.currentService.id];
-                    let promises = [];
                     $scope.currentService.subservices.forEach(topLvlSvc => {
 
-                        (function recurse(svc) {
-                            console.log(`check: ${svc.name}`);
+                        (function recurse(service) {
                             // initialize on page load
-                            if (!treeState[svc.id]) {
-                                treeState[svc.id] = {};
-                                treeState[svc.id].collapsed = true;
-                                treeState[svc.id].hidden = false;
-                                console.log(`       ${svc.name} initialized`);
+                            if (!treeState[service.id]) {
+                                treeState[service.id] = {};
+                                treeState[service.id].collapsed = true;
+                                treeState[service.id].hidden = false;
                                 return;
                             }
-
-                            // am i collapsed? 
-                            if (treeState[svc.id].collapsed === true) {
+                            // collapsed node - we're done here
+                            if (treeState[service.id].collapsed === true) {
                                 return;
                             }
-                            //                  NO! continue!
-                            console.log(`      --> fetch children`);
-
-                            // fetchchildren
-                            let deferred = $q.defer();
-                            svc.fetchServiceChildren()
+                            // expanded node - get subservices
+                            service.fetchServiceChildren()
                                 .then(() => {
                                     // toggle the UI row & set currentDescendents
                                     $scope.flattenServicesTree();
-
-                                    // recurse for each child
-                                    svc.subservices.forEach(subSvc => {
-                                        recurse(subSvc);
+                                    // recurse for each child service
+                                    service.subservices.forEach(subservice => {
+                                        recurse(subservice);
                                     });
-                                    deferred.resolve();
                                 });
-                            promises.push(deferred.promise);
                         })(topLvlSvc);
 
-                        $q.all(promises).then( () => {
-                            console.log("Should show after all children fetched --------------------------- ");
-                        }).catch( err => {
-                            console.error(`Bummer: ${err}`);
-                        });
-
                     });
-
                 };
-
-                $scope.runTree = function (currentService) {
-                    (function inorder(service, level) {
-                        let mystate = $scope.serviceTreeState[service.id] ? "a" : "no";
-                        console.log(`Service ${service.name} has ${mystate} tree state`);
-                        if (service.subservices) {
-                            service.subservices.forEach(sub => {
-                                inorder(sub, level + 1);
-                            });
-                        }
-                    })(currentService, 0);
-                }; 
 
                 $scope.flattenServicesTree = function () {
                     // flatten the current service's subservices tree.
@@ -1210,9 +1176,6 @@
                     // if the current service changes, update
                     // various service controller thingies
                     $scope.$watch("params.serviceId", $scope.setCurrentService);
-
-                    //TODO - make this suck less
-                    $scope.restoreTreeState();
 
                     // TODO - use UI_POLL_INTERVAL
                     let intervalVal = setInterval(function () {
