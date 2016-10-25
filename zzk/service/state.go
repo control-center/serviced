@@ -37,7 +37,12 @@ type StateError struct {
 }
 
 func (err StateError) Error() string {
-	return fmt.Sprintf("could not %s instance %d from service %s on host %s: %s", err.Operation, err.Request.InstanceID, err.Request.ServiceID, err.Request.ServiceID, err.Message)
+	return fmt.Sprintf("could not %s instance %d from service %s on host %s: %s",
+		err.Operation,
+		err.Request.InstanceID,
+		err.Request.ServiceID,
+		err.Request.HostID,
+		err.Message)
 }
 
 // ErrInvalidStateID is an error that is returned when a state id value is not
