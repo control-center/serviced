@@ -90,7 +90,7 @@ start_serviced() {
         SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} \
         SERVICED_MASTER=1 \
         ${SERVICED} ${SERVICED_OPTS} \
-        --allow-loop-back=true --agent server &
+        --allow-loop-back=true server &
 
     echo "Waiting $START_TIMEOUT seconds for serviced to start ..."
     retry $START_TIMEOUT  wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null

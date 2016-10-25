@@ -86,18 +86,6 @@ func (s *TestAPISuite) TestValidateServerOptions(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *TestAPISuite) TestValidateServerOptionsFailsIfNotMasterOrAgent(c *C) {
-	configReader := utils.TestConfigReader(map[string]string{})
-	testOptions := GetDefaultOptions(configReader)
-	testOptions.Master = false
-	testOptions.Agent = false
-	config.LoadOptions(testOptions)
-
-	err := ValidateServerOptions(&testOptions)
-
-	s.assertErrorContent(c, err, "no mode (master or agent) was specified")
-}
-
 func (s *TestAPISuite) TestValidateServerOptionsFailsIfStorageInvalid(c *C) {
 	configReader := utils.TestConfigReader(map[string]string{})
 	testOptions := GetDefaultOptions(configReader)

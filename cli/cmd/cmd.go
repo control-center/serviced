@@ -78,7 +78,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.IntFlag{"listen", config.IntVal("RPC_PORT", api.DefaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", api.DefaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", convertToStringSlice(defaultOps.DockerDNS), "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
-		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
+		cli.BoolFlag{"agent", "deprecated"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
 		cli.StringFlag{"mux-disable-tls", defaultOps.MuxDisableTLS, "disable TLS for mux connections"},
 		cli.StringSliceFlag{"mux-tls-ciphers", convertToStringSlice(defaultOps.MUXTLSCiphers), "list of supported TLS ciphers for MUX"},
@@ -265,7 +265,6 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		Listen:                     fmt.Sprintf(":%d", ctx.GlobalInt("listen")),
 		DockerDNS:                  ctx.GlobalStringSlice("docker-dns"),
 		Master:                     ctx.GlobalBool("master"),
-		Agent:                      ctx.GlobalBool("agent"),
 		MuxPort:                    ctx.GlobalInt("mux"),
 		MuxDisableTLS:              ctx.GlobalString("mux-disable-tls"),
 		MUXTLSCiphers:              ctx.GlobalStringSlice("mux-tls-ciphers"),
@@ -329,9 +328,12 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 	if cfg.StringVal("MASTER", "") == "1" {
 		options.Master = true
 	}
-	if cfg.StringVal("AGENT", "") == "1" {
+
+	// When using the 'serviced server' command, we should always run as an agent
+	if ctx.Args().First() == "server" {
 		options.Agent = true
 	}
+
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
