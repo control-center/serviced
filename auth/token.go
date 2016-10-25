@@ -90,6 +90,22 @@ func AuthTokenNonBlocking() (string, error) {
 	return currentToken, nil
 }
 
+// WaitForAuthToken blocks until the authentication token is defined.
+func WaitForAuthToken(cancel <-chan interface{}) <-chan struct{} {
+	ch := make(chan struct{})
+	go func() {
+		for currentToken == "" {
+			select {
+			case <-cond.Wait():
+			case <-cancel: // Receive from nil channel never returns, so this is fine
+			}
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+
 // MasterToken() generates a new token with an empty host and pool ID and the master's public key,
 //  signed by the master's private key.  This will return an error if there is no master private
 //  key available (i.e. if we are not the master)
@@ -164,11 +180,14 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 	})
 
 	loadToken := func() {
-		err := LoadTokenFile(tokenfile)
-		if err != nil {
-			log.WithError(err).Warn("Unable to load authentication token from file. Continuing to watch for changes")
+		log := log.WithFields(logrus.Fields{
+			"tokenfile": tokenfile,
+		})
+
+		if err := LoadTokenFile(tokenfile); err != nil {
+			log.WithError(err).Warn("Unable to load authentication token from file.")
 		} else {
-			log.Infof("Updated authentication token from disk")
+			log.Debug("Updated authentication token from disk")
 		}
 	}
 
@@ -187,18 +206,13 @@ func WatchTokenFile(tokenfile string, done <-chan interface{}) error {
 }
 
 func LoadTokenFile(tokenfile string) error {
-	log := log.WithFields(logrus.Fields{
-		"tokenfile": tokenfile,
-	})
-
 	data, err := ioutil.ReadFile(tokenfile)
 	if err != nil {
-		log.WithError(err).Warn("Unable to load authentication token from file.")
+		return err
 	}
 	// No need to handle expires or save file, because we're loading from the file rather
 	// than re-requesting authentication tokens
 	updateToken(string(data), zerotime, "")
-	log.Debug("Updated authentication token from disk")
 	return nil
 }
 
