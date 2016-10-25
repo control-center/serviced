@@ -140,9 +140,7 @@ func (a *api) connectMaster() (master.ClientInterface, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the master: %s", err)
 		}
-		if err := a.authenticateHost(); err != nil {
-			return nil, err
-		}
+		a.authenticateHost()
 	}
 	return a.master, nil
 }
@@ -155,9 +153,7 @@ func (a *api) connectAgent(address string) (*agent.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}
-		if err := a.authenticateHost(); err != nil {
-			return nil, err
-		}
+		a.authenticateHost()
 	}
 	return a.agent, nil
 }
@@ -182,9 +178,7 @@ func (a *api) connectDAO() (dao.ControlPlane, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}
-		if err := a.authenticateHost(); err != nil {
-			return nil, err
-		}
+		a.authenticateHost()
 	}
 	return a.dao, nil
 }
