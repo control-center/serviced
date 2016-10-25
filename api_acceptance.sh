@@ -30,18 +30,18 @@ add_to_etc_hosts
 
 start_serviced             && succeed "Serviced started within timeout"    || fail "serviced failed to start within $START_TIMEOUT seconds."
 
+# add the local host as a CC host so there will be available IP assignments.
+${SERVICED} host add --register "${HOSTNAME}:4979" "default" --memory "100%" -k /dev/null
+if [ $? -ne 0 ]; then
+    echo "Failed to add CC host for api acceptance test, exiting";
+    exit 1;
+fi
+
 # build/start mock agents
 cd ${DIR}
 make mockAgent
 cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
-
-# add the local host as a CC host so there will be available IP assignments.
-../serviced host add --register "${HOSTNAME}:4979" "default" --memory "100%" -k /dev/null
-if [ $? -ne 0 ]; then
-    echo "Failed to add CC host for api acceptance test, exiting";
-    exit 1;
-fi
 
 # launch cucumber/capybara with colorized output disabled for better readability in Jenkins
 CUCUMBER_OPTS=--no-color ./runAPIacceptance.sh -a https://${HOSTNAME} $*

@@ -39,14 +39,14 @@ deploy_service() {
 start_service() {
     SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service start ${SERVICE_ID}
     sleep 5
-    [[ "1" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "1" == $(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
 stop_service() {
     SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service stop ${SERVICE_ID}
     sleep 10
-    [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "0" == $(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
@@ -228,10 +228,13 @@ echo "Pre-test cleanup complete"
 
 # Setup
 install_prereqs
-add_to_etc_hosts 
+add_to_etc_hosts
 
 # Run all the tests
 start_serviced             && succeed "Serviced has started within timeout"      || fail "serviced failed to start within $START_TIMEOUT seconds."
+
+echo "SERVICED=${SERVICED}"
+
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
