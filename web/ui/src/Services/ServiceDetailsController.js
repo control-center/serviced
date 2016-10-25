@@ -569,7 +569,7 @@
 
                                                 resourcesFactory.v2.updateServiceConfig(configFileId, modalScope)
                                                     .success(function (data, status) {
-                                                        $notification.create("Updated configuation file", data.Filename).success();
+                                                        $notification.create("Updated configuration file", data.Filename).success();
                                                         this.close();
                                                     }.bind(this))
                                                     .error(function (data, status) {
