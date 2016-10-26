@@ -16,7 +16,27 @@
               "PortList": [
                 {
                   "PortAddr": ":1234",
-                  "Enabled": true
+                  "Enabled": true,
+                  "UseTLS": true,
+                  "Protocol": "https"
+                },
+                {
+                  "PortAddr": ":1235",
+                  "Enabled": true,
+                  "UseTLS": false,
+                  "Protocol": "http"
+                },
+                {
+                  "PortAddr": ":1236",
+                  "Enabled": true,
+                  "UseTLS": true,
+                  "Protocol": "tcp"
+                },
+                {
+                  "PortAddr": ":1237",
+                  "Enabled": true,
+                  "UseTLS": false,
+                  "Protocol": "tcp"
                 }
               ]
             }

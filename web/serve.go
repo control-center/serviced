@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/proxy"
 )
 
@@ -61,7 +62,7 @@ func ServeTCP(cancel <-chan struct{}, listener net.Listener, tlsConfig *tls.Conf
 			})
 
 			// setup remote connection
-			remote, err := GetRemoteConnection(tlsConfig != nil, export)
+			remote, err := GetRemoteConnection(config.MuxTLSIsEnabled(), export)
 			if err != nil {
 				logger.WithError(err).Error("Could not get remote connection for endpoint")
 				continue
@@ -126,7 +127,7 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 			return
 		}
 
-		rp := GetReverseProxy(tlsConfig != nil, export)
+		rp := GetReverseProxy(config.MuxTLSIsEnabled(), export)
 
 		logger.WithFields(log.Fields{
 			"application": export.Application,
