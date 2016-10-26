@@ -13,40 +13,40 @@ TEST_VAR_PATH=/tmp/serviced-smoke/var
 
 # Add a host
 add_host() {
-    HOST_ID=$(sudo SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH} SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
+    HOST_ID=$(sudo ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
     sleep 1
-    [ -z "$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
+    [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0
 }
 
 add_template() {
-    TEMPLATE_ID=$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} template compile ${DIR}/dao/testsvc | SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} template add)
+    TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
     sleep 1
-    [ -z "$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} template list ${TEMPLATE_ID})" ] && return 1
+    [ -z "$(${SERVICED} template list ${TEMPLATE_ID})" ] && return 1
     return 0
 }
 
 deploy_service() {
     echo "Deploying template id '${TEMPLATE_ID}'"
-    echo SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} template deploy ${TEMPLATE_ID} default testsvc
-    SERVICE_ID=$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} template deploy ${TEMPLATE_ID} default testsvc)
+    echo ${SERVICED} template deploy ${TEMPLATE_ID} default testsvc
+    SERVICE_ID=$(${SERVICED} template deploy ${TEMPLATE_ID} default testsvc)
     echo " deployed template id '${TEMPLATE_ID}' - SERVICE_ID='${SERVICE_ID}'"
     sleep 2
-    [ -z "$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service list ${SERVICE_ID})" ] && return 1
+    [ -z "$(${SERVICED} service list ${SERVICE_ID})" ] && return 1
     return 0
 }
 
 start_service() {
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service start ${SERVICE_ID}
+    ${SERVICED} service start --sync ${SERVICE_ID}
     sleep 5
-    [[ "1" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "1" == $(${SERVICED} service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
 stop_service() {
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service stop ${SERVICE_ID}
+    ${SERVICED} service stop --sync ${SERVICE_ID}
     sleep 10
-    [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "0" == $(${SERVICED} service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
@@ -89,7 +89,7 @@ test_dir_config() {
 }
 
 test_attached() {
-    varx=$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service attach s1 whoami | tr -d '\r')
+    varx=$(${SERVICED} service attach s1 whoami | tr -d '\r')
     if [[ "$varx" == "root" ]]; then
         return 0
     fi
@@ -97,8 +97,8 @@ test_attached() {
 }
 
 test_port_mapped() {
-    echo "SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt"
-    varx=`SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt 2>/dev/null | tr -d '\r'| grep -v "^$" | tail -1`
+    echo "${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt"
+    varx=`${SERVICED} service attach s1 wget -qO- http://localhost:9090/etc/bar.txt 2>/dev/null | tr -d '\r'| grep -v "^$" | tail -1`
     if [[ "$varx" == "baz" ]]; then
         return 0
     fi
@@ -106,26 +106,26 @@ test_port_mapped() {
 }
 
 test_snapshot() {
-    SNAPSHOT_ID=$(SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service snapshot testsvc)
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} snapshot list | grep -q ${SNAPSHOT_ID}
+    SNAPSHOT_ID=$(${SERVICED} service snapshot testsvc)
+    ${SERVICED} snapshot list | grep -q ${SNAPSHOT_ID}
     return $?
 }
 
 test_snapshot_errs() {
     # make sure snapshot add returns non-zero code on error
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} snapshot add invalid-id &>/dev/null
+    ${SERVICED} snapshot add invalid-id &>/dev/null
     if [[ "$?" == 0 ]]; then
         return 1
     fi
 
     # make sure service snapshot returns non-zero code on error
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service snapshot invalid-id &>/dev/null
+    ${SERVICED} service snapshot invalid-id &>/dev/null
     if [[ "$?" == 0 ]]; then
         return 1
     fi
 
     # make sure snapshot rollback returns non-zero code on error
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} snapshot rollback invalid-id &>/dev/null
+    ${SERVICED} snapshot rollback invalid-id &>/dev/null
     if [[ "$?" == 0 ]]; then
         return 1
     fi
@@ -136,7 +136,7 @@ test_snapshot_errs() {
 test_service_shell() {
     sentinel=smoke_test_service_shell_sentinel_$$
     container=smoke_test_service_shell_$$
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service shell -s=$container s1 echo $sentinel
+    ${SERVICED} service shell -s=$container s1 echo $sentinel
     docker logs $container | grep -q $sentinel
     return $?
 }
@@ -145,31 +145,31 @@ test_service_run() {
     set -x
 
     # Make sure we start with no snapshots, othewise the checks below may pass for the wrong reason
-    SNAPSHOT_COUNT=`SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service list-snapshots s2 | wc -l`
+    SNAPSHOT_COUNT=`${SERVICED} service list-snapshots s2 | wc -l`
     [ "${SNAPSHOT_COUNT}" == "0" ] || return 1
 
     local rc=""
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s2 exit0; rc="$?"
+    ${SERVICED} service run s2 exit0; rc="$?"
     [ "$rc" -eq 0 ] || return "$rc"
 
     # Verify that the commit moved the 'latest' tag to the same layer ID as the snapshot
-    TENANT_ID=`SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service status testsvc --show-fields ServiceID | grep -v ServiceID `
+    TENANT_ID=`${SERVICED} service status testsvc --show-fields ServiceID | grep -v ServiceID `
     LATEST_IMAGE_ID=`docker images | grep ${TENANT_ID} | grep latest | awk '{print $3}' `
-    SNAPSHOT_LABEL=`SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service list-snapshots s2 | cut -d_ -f2 `
+    SNAPSHOT_LABEL=`${SERVICED} service list-snapshots s2 | cut -d_ -f2 `
     SNAPSHOT_IMAGE_ID=`docker images | grep ${SNAPSHOT_LABEL} | awk '{print $3}' `
     [ "${SNAPSHOT_IMAGE_ID}" == "${LATEST_IMAGE_ID}" ] || return 1
 
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s2 exit1; rc="$?"
+    ${SERVICED} service run s2 exit1; rc="$?"
     [ "$rc" -eq 42 ] || return "255"
 
     # Verify that the no additional snapshots were created
-    SNAPSHOT_COUNT=`SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service list-snapshots s2 | wc -l`
+    SNAPSHOT_COUNT=`${SERVICED} service list-snapshots s2 | wc -l`
     [ "${SNAPSHOT_COUNT}" == "1" ] || return 1
 
     # make sure kills to 'runs' are working OK
     for signal in INT TERM; do
         local sleepyPid=""
-        SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s2 sleepy60 &
+        ${SERVICED} service run s2 sleepy60 &
         sleepyPid="$!"
         sleep 10
         kill -"$signal" "$sleepyPid"
@@ -182,18 +182,18 @@ test_service_run() {
 test_service_run_command() {
     set -x
     local rc=""
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-exit0; rc="$?"
+    ${SERVICED} service run s1 commands-exit0; rc="$?"
     [ "$rc" -eq 0 ] || return "$rc"
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-exit1; rc="$?"
+    ${SERVICED} service run s1 commands-exit1; rc="$?"
     [ "$rc" -eq 42 ] || return "255"
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-exit0-nc; rc="$?"
+    ${SERVICED} service run s1 commands-exit0-nc; rc="$?"
     [ "$rc" -eq 0 ] || return "$rc"
-    SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-exit1-nc; rc="$?"
+    ${SERVICED} service run s1 commands-exit1-nc; rc="$?"
     [ "$rc" -eq 42 ] || return "255"
     # make sure kills to 'commands' are working OK
     for signal in INT TERM; do
         local sleepyPid=""
-        SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-sleepy60 &
+        ${SERVICED} service run s1 commands-sleepy60 &
         sleepyPid="$!"
         sleep 10
         kill -"$signal" "$sleepyPid"
@@ -202,7 +202,7 @@ test_service_run_command() {
     done
     for signal in INT TERM; do
         local sleepyPid=""
-        SERVICED_ETC_PATH=${SERVICED_ETC_PATH} ${SERVICED} service run s1 commands-sleepy60-nc &
+        ${SERVICED} service run s1 commands-sleepy60-nc &
         sleepyPid="$!"
         sleep 10
         kill -"$signal" "$sleepyPid"
@@ -228,10 +228,13 @@ echo "Pre-test cleanup complete"
 
 # Setup
 install_prereqs
-add_to_etc_hosts 
+add_to_etc_hosts
 
 # Run all the tests
 start_serviced             && succeed "Serviced has started within timeout"      || fail "serviced failed to start within $START_TIMEOUT seconds."
+
+echo "SERVICED=${SERVICED}"
+
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
@@ -253,4 +256,7 @@ test_snapshot_errs         && succeed "Snapshot errs returned expected err code"
 test_service_shell         && succeed "Service shell ran successfully"             || fail "Unable to run service shell"
 test_service_port          && succeed "Accessing public endpoint via port success" || fail "Unable to access public endpoint via port"
 stop_service               && succeed "Stopped service"                            || fail "Unable to stop service"
+
+echo "ALL TESTS PASSED"
+
 # "trap cleanup EXIT", above, will handle cleanup
