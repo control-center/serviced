@@ -104,7 +104,7 @@ func newTlsDialer(config *tls.Config) dialerInterface {
 // GetRemoteConnection returns a connection to a remote address
 func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote net.Conn, err error) {
 	var dialer dialerInterface
-	if useTLS {
+	if useTLS && !IsLocalAddress(export.HostIP) {
 		config := tls.Config{InsecureSkipVerify: true}
 		dialer = newTlsDialer(&config)
 	} else {

@@ -62,13 +62,20 @@ test_vhost() {
     return 0
 }
 
-test_service_port() {
+test_service_port_http() {
+    wget --no-check-certificate --content-on-error -O- http://${HOSTNAME}:1235 || return 1
+}
 
-    # make sure it is accessible
-    wget --content-on-error -O- http://${HOSTNAME}:1234 || return 1
+test_service_port_tcp() {
+    wget --no-check-certificate --content-on-error -O- http://${HOSTNAME}:1237 || return 1
+}
 
-    # make sure it is accessible via ipv6
-    # wget --no-check-certificate -qO- http://[${IP6}]:1234 || return 1
+test_service_port_https() {
+    wget --no-check-certificate --content-on-error -O- https://${HOSTNAME}:1234 || return 1
+}
+
+test_service_port_tcp_tls() {
+    wget --no-check-certificate --content-on-error -O- https://${HOSTNAME}:1236 || return 1
 }
 
 test_assigned_ip() {
@@ -228,7 +235,7 @@ echo "Pre-test cleanup complete"
 
 # Setup
 install_prereqs
-add_to_etc_hosts 
+add_to_etc_hosts
 
 # Run all the tests
 start_serviced             && succeed "Serviced has started within timeout"      || fail "serviced failed to start within $START_TIMEOUT seconds."
@@ -251,6 +258,11 @@ retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly"
 test_snapshot              && succeed "Created snapshot"                           || fail "Unable to create snapshot"
 test_snapshot_errs         && succeed "Snapshot errs returned expected err code"   || fail "Snapshot errs did not return expected err code"
 test_service_shell         && succeed "Service shell ran successfully"             || fail "Unable to run service shell"
-test_service_port          && succeed "Accessing public endpoint via port success" || fail "Unable to access public endpoint via port"
+
+test_service_port_http     && succeed "Accessing public endpoint via HTTP port success"    || fail "Unable to access public endpoint via HTTP port"
+test_service_port_https    && succeed "Accessing public endpoint via HTTPS port success"   || fail "Unable to access public endpoint via HTTPS port"
+test_service_port_tcp      && succeed "Accessing public endpoint via TCP port success"     || fail "Unable to access public endpoint via TCP port"
+test_service_port_tcp_tls  && succeed "Accessing public endpoint via TCP/TLS port success" || fail "Unable to access public endpoint via TCP/TLS port"
+
 stop_service               && succeed "Stopped service"                            || fail "Unable to stop service"
 # "trap cleanup EXIT", above, will handle cleanup
