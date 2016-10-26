@@ -129,7 +129,7 @@
 
             modalScope.newHost = {
                 port: $translate.instant('placeholder_port'),
-                PoolID: this.utils.arrayEmpty(this.pools) ? "" : this.pools[0].id
+                PoolID: utils.arrayEmpty(this.pools) ? "" : this.pools[0].id
             };
 
             areUIReady.lock();
