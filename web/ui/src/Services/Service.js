@@ -381,27 +381,38 @@
                 });
             }
 
-            let statusMap = myStatus.Status.reduce((map, s) => {
-                map[s.InstanceID] = s;
+            let instanceMap = this.instances.reduce((map, i) => {
+                map[i.model.InstanceID] = i;
                 return map;
             }, {});
 
-            // update instance status
-            this.instances.forEach(i => {
-                let s = statusMap[i.model.InstanceID];
-                if (s) {
-                    i.updateState(s);
-                } else {
-                    console.log(`Could not find status for instance ${i.id}`);
+            // iterate instance health and either update the service
+            // instance with the health, or create a temporary instace
+            // object to hold the health for evaluation
+            let instances = [];
+            myStatus.Status.forEach(instanceStatus => {
+                let instance = instanceMap[instanceStatus.InstanceID];
+                if(!instance){
+                    // create a temporary instance object to
+                    // use the status object
+                    instance = new Instance({
+                        InstanceID: instanceStatus.InstanceID,
+                        ServiceID: this.id,
+                        HealthStatus: instanceStatus.HealthStatus,
+                        MemoryUsage: instanceStatus.MemoryUsage,
+                        // NOTE - fake values!
+                        HostID: 0,
+                        RAMCommitment: 0
+                    });
                 }
+                instance.updateState(instanceStatus);
+                instances.push(instance);
             });
 
-            // TODO: pass myself into health status and get my health status back
-            serviceHealth.update({ [this.id]: this });
-            this.status = serviceHealth.get(this.id);
+            // get health for this service and its instances
+            this.status = serviceHealth.evaluate(this, instances);
             this.touch();
         }
-
     }
 
     // class methods

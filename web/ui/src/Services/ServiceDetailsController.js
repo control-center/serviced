@@ -7,23 +7,22 @@
     'use strict';
 
     // share angular services outside of angular context
-    let $notification, serviceHealth, $q, resourcesFactory, utils;
+    let $notification, $q, resourcesFactory, utils;
 
     controlplane.controller("ServiceDetailsController", [
             "$scope", "$q", "$routeParams", "$location", "resourcesFactory",
             "authService", "$modalService", "$translate", "$notification",
-            "$timeout", "miscUtils", "$serviceHealth", "Service",
+            "$timeout", "miscUtils", "Service",
             "CCUIState", "$cookies", "areUIReady", "LogSearch",
             "$filter", "Pool",
             function ($scope, _$q, $routeParams, $location, _resourcesFactory,
                 authService, $modalService, $translate, _$notification,
-                $timeout, _utils, _serviceHealth, Service,
+                $timeout, _utils, Service,
                 CCUIState, $cookies, areUIReady, LogSearch,
                 $filter, Pool) {
 
                 // api access via angular context
                 $notification = _$notification;
-                serviceHealth = _serviceHealth;
                 $q = _$q;
                 resourcesFactory = _resourcesFactory;
                 utils = _utils;
