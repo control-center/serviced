@@ -129,7 +129,7 @@
 
             modalScope.newHost = {
                 port: $translate.instant('placeholder_port'),
-                PoolID: this.arrayEmpty(this.pools) ? "" : this.pools[0].id
+                PoolID: this.utils.arrayEmpty(this.pools) ? "" : this.pools[0].id
             };
 
             areUIReady.lock();
@@ -234,10 +234,6 @@
         updateHostsInView(data) {
             this.hostsInView = data;
             this.refreshHostStatuses();
-        }
-
-        arrayEmpty(array) {
-            return typeof array === "undefined" || array === null || array.length <= 0;
         }
     }
 

@@ -273,7 +273,8 @@
                 .then(fillOutApps)
                 .then(fetchServicesHealth)
                 .then(fetchInternalServicesHealth)
-                .then(() => touch());
+                .then(() => touch())
+                .catch((error) => console.warn(error));
         }
 
         function fetchApps() {
@@ -313,8 +314,8 @@
         function fetchServices() {
             let deferred = $q.defer();
             resourcesFactory.v2.getTenants().then( data => {
-                var services = data.map(s => new Service(s));
-                deferred.resolve(services);
+                    var services = data.map(s => new Service(s));
+                    deferred.resolve(services);
                 },
                 error => {
                     console.warn(error);
@@ -337,10 +338,9 @@
             let deferred = $q.defer();
             resourcesFactory.v2.getInternalServices()
                 .then(data => {
-                    let parentIndex = data.findIndex(i => !i.Parent);
-                    if (parentIndex > -1) {
-                        var internalServices = new InternalService(data[parentIndex]);
-                        internalServices.fetchInstances();
+                    let parent = data.find(i => !i.Parent);
+                    if (parent) {
+                        var internalServices = new InternalService(parent);
                         deferred.resolve(internalServices);
                     } else {
                         deferred.reject("Parent not found");

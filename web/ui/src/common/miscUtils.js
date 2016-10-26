@@ -376,7 +376,11 @@
                 return null;
             },
 
-            NgBitset: NgBitset
+            NgBitset: NgBitset,
+
+            arrayEmpty: function(array) {
+                return typeof array === "undefined" || array === null || array.length <= 0;
+            }
        };
 
         return utils;
