@@ -32,8 +32,11 @@
 
           <td data-title="'label_public_endpoints'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
-                  <div ng-repeat="vhost in aggregateVHosts(service) track by $index">
-                      <public-endpoint-link data-public-endpoint="vhost" data-host-alias="defaultHostAlias"></public-endpoint-link>
+                  <div ng-repeat="vhost in service.publicEndpoints">
+                      <public-endpoint-link 
+                          data-public-endpoint="vhost" 
+                          data-host-alias="defaultHostAlias">
+                      </public-endpoint-link>
                   </div>
               </span>
               <span ng-if="service.isIsvc()" class="ntsh">N/A</span>

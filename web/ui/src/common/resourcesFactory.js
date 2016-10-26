@@ -326,6 +326,10 @@
                 method: GET,
                 url: id => `/api/v2/services/${id}`,
             },
+            getTenants: {
+                method: GET,
+                url: id => `/api/v2/services?tenants`,
+            },
             updateService: {
                 method: PUT,
                 url: id => `/api/v2/services/${id}`,
@@ -382,6 +386,10 @@
             getServicePublicEndpoints: {
                 method: GET,
                 url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
+            },
+            getServiceChildPublicEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/publicendpoints`,
             },
             getServiceExportEndpoints: {
                 method: GET,

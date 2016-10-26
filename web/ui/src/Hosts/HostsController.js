@@ -5,7 +5,7 @@
     "use strict";
 
     let resourcesFactory, authService, $modalService, $translate, $notification,
-        areUIReady, $interval, servicedConfig, utils, Host, log;
+        areUIReady, $interval, servicedConfig, utils, Host, log, Pool;
 
     class HostsController {
 
@@ -82,7 +82,7 @@
         refreshPoolIds() {
             resourcesFactory.v2.getPools()
                 .success(data => {
-                    this.poolIds = data.map(result => result.ID).sort();
+                    this.pools = data.map(result => new Pool(result)).sort((first, second) => first.id.localeCompare(second.id));
                 })
                 .error(data => {
                     $notification.create("Unable to load pools.", data.Detail).error();
@@ -125,11 +125,11 @@
         clickAddHost() {
             let modalScope = this.newScope();
             modalScope.refreshHosts = () => this.refreshHosts();
-            modalScope.poolIds = this.poolIds;
+            modalScope.pools = this.pools;
 
             modalScope.newHost = {
                 port: $translate.instant('placeholder_port'),
-                PoolID: this.arrayEmpty(this.poolsIds) ? "" : this.poolIds[0]
+                PoolID: utils.arrayEmpty(this.pools) ? "" : this.pools[0].id
             };
 
             areUIReady.lock();
@@ -235,17 +235,13 @@
             this.hostsInView = data;
             this.refreshHostStatuses();
         }
-
-        arrayEmpty(array) {
-            return typeof array !== "undefined" && array !== null && array.length > 0;
-        }
     }
 
     controlplane.controller("HostsController", ["$scope", "resourcesFactory", "authService",
         "$modalService", "$translate", "$notification", "areUIReady",
-        "$interval", "servicedConfig", "log", "miscUtils", "Host",
+        "$interval", "servicedConfig", "log", "miscUtils", "Host", "Pool",
         function($scope, _resourcesFactory, _authService, _$modalService, _$translate,
-        _$notification, _areUIReady, _$interval, _servicedConfig, _log, _miscUtils, _Host) {
+        _$notification, _areUIReady, _$interval, _servicedConfig, _log, _miscUtils, _Host, _Pool) {
 
             resourcesFactory = _resourcesFactory;
             authService = _authService;
@@ -258,6 +254,7 @@
             utils = _miscUtils;
             Host = _Host;
             log = _log;
+            Pool = _Pool;
 
         return new HostsController($scope);
 

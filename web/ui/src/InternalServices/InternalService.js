@@ -4,7 +4,7 @@
     let $serviceHealth, resourcesFactory;
 
     controlplane.factory('InternalService', InternalServiceFactory);
-  
+
     class InternalServiceInstance {
 
         constructor(data) {
@@ -14,7 +14,7 @@
 
             this.touch();
         }
-        
+
         touch() {
             this.lastUpdate = new Date().getTime();
         }
@@ -39,6 +39,10 @@
             this.lastUpdate = new Date().getTime();
         }
 
+        isIsvc() {
+            return true;
+        }
+
         fetchInstances() {
             return resourcesFactory.v2.getInternalServiceInstances(this.id)
                 .then(data => this.instances = data.map(i => new InternalServiceInstance(i)));
@@ -46,12 +50,12 @@
 
         updateStatus(status) {
             this.desiredState = status.DesiredState;
-            
+
             let statusMap = status.Status.reduce((map, s) => {
                 map[s.InstanceID] = s;
                 return map;
             }, {});
-            
+
             this.instances.forEach(i => {
                 let s = statusMap[i.id];
                 if (s) {
@@ -66,7 +70,7 @@
             this.touch();
         }
     }
-    
+
     InternalServiceFactory.$inject = ['$serviceHealth', 'resourcesFactory'];
     function InternalServiceFactory(_$serviceHealth, _resourcesFactory) {
 

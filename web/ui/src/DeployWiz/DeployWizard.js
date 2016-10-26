@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory", "log",
-    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory, log){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "log", "Pool", "Host",
+    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, log, Pool, Host){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -22,6 +22,16 @@
         $scope.dockerIsNotLoggedIn = function() {
             return !$scope.dockerLoggedIn;
         };
+
+        resourcesFactory.v2.getPools().then(data => {
+            $scope.pools = data.map(result => new Pool(result)).sort(
+                (first, second) => first.id.localeCompare(second.id)
+            );
+        });
+
+        resourcesFactory.v2.getHosts().then(data => {
+            $scope.hosts = data.map(result => new Host(result));
+        });
 
         var showError = function(message){
             $("#deployWizardNotificationsContent").html(message);
@@ -127,7 +137,7 @@
 
             // if there is not at least one host, add an
             // "add host" step to the wizard
-            if(hostsFactory.hostList.length === 0){
+            if($scope.hosts.length === 0){
                 $scope.newHost = {
                     port: $translate.instant('placeholder_port')
                 };
@@ -388,14 +398,18 @@
 
         $scope.refreshAppTemplates()
             .then(() => {
-                hostsFactory.update().finally(resetStepPage);
+                resourcesFactory.v2.getHosts().then(data => {
+                    $scope.hosts = data.map(result => new Host(result));
+                }).finally(resetStepPage);
             }, e => {
                 log.error(e);
             });
 
-        poolsFactory.update()
-            .finally(() => {
-                $scope.pools = poolsFactory.poolList;
-            });
+        resourcesFactory.v2.getPools().then(data => {
+            $scope.pools = data.map(result => new Pool(result)).sort(
+                (first, second) => first.id.localeCompare(second.id)
+            );
+        });
+
     }]);
 })();
