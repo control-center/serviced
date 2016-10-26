@@ -156,6 +156,7 @@ func getParent() interface{} {
 		Name              string
 		Description       string
 		Startup           string
+		DeploymentID      string
 		HasChildren       bool
 		MonitoringProfile domain.MonitorProfile
 	}{
@@ -163,6 +164,7 @@ func getParent() interface{} {
 		Name:              isvcs.InternalServicesISVC.Name,
 		Description:       isvcs.InternalServicesISVC.Description,
 		Startup:           isvcs.InternalServicesISVC.Startup,
+		DeploymentID:      isvcs.InternalServicesISVC.DeploymentID,
 		HasChildren:       true,
 		MonitoringProfile: isvcs.InternalServicesISVC.MonitoringProfile,
 	}
@@ -175,6 +177,7 @@ func getService(s service.Service) interface{} {
 		Description       string
 		Startup           string
 		Parent            interface{}
+		DeploymentID      string
 		HasChildren       bool
 		MonitoringProfile domain.MonitorProfile
 	}{
@@ -183,6 +186,7 @@ func getService(s service.Service) interface{} {
 		Description:       s.Description,
 		Startup:           s.Startup,
 		Parent:            getParent(),
+		DeploymentID:      s.DeploymentID,
 		HasChildren:       false,
 		MonitoringProfile: s.MonitoringProfile,
 	}

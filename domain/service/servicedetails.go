@@ -35,6 +35,7 @@ type ServiceDetails struct {
 	RAMCommitment   utils.EngNotation
 	Startup         string
 	HasChildren     bool
+	DeploymentID    string
 	datastore.VersionedEntity
 }
 

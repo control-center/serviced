@@ -178,4 +178,5 @@ var serviceDetailsFields = []string{
 	"InstanceLimits",
 	"RAMCommitment",
 	"Startup",
+	"DeploymentID",
 }

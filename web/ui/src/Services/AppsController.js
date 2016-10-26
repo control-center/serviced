@@ -10,15 +10,15 @@
         "$scope", "$routeParams", "$location",
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
-        "$cookies", "servicesFactory", "miscUtils",
-        "ngTableParams", "$filter", "poolsFactory",
-        "$serviceHealth",
+        "$cookies", "miscUtils",
+        "ngTableParams", "$filter",
+        "Service","InternalService", "$q",
     function($scope, $routeParams, $location,
     $notification, resourcesFactory, authService,
     $modalService, $translate, $timeout,
-    $cookies, servicesFactory, utils,
-    NgTableParams, $filter, poolsFactory,
-    $serviceHealth){
+    $cookies, utils,
+    NgTableParams, $filter,
+    Service, InternalService, $q){
 
         // Ensure logged in
         authService.checkLogin($scope);
@@ -41,6 +41,7 @@
         };
 
         $scope.modal_deployWizard = function() {
+
             // the modal occasionally won't show on page load, so we use a timeout to get around that.
             $timeout(function(){
                 $('#addApp').modal('show');
@@ -93,34 +94,6 @@
                 ]
             });
         };
-
-        // aggregate vhosts for a specified service, but
-        // only if the service has changed since last request
-        $scope.aggregateVHosts = utils.memoize(function(service) {
-            var endPoints = [];
-
-            service.model.Endpoints.forEach(endpoint => {
-                if(endpoint.VHostList){
-                    endpoint.VHostList.forEach(vHost => endPoints.push({
-                        VHostName:     vHost.Name,
-                        Enabled:       vHost.Enabled,
-                        desiredState:  service.desiredState
-                    }));
-                }
-                if(endpoint.PortList){
-                    endpoint.PortList.forEach(port => endPoints.push({
-                        PortAddress:  port.PortAddr,
-                        Enabled:      port.Enabled,
-                        desiredState: service.desiredState,
-                        Protocol:     port.Protocol
-                    }));
-                }
-            });
-
-            return endPoints;
-        }, function(service){
-            return service.id + service.model.DatabaseVersion;
-        });
 
 
         $scope.modal_removeService = function(service) {
@@ -190,35 +163,38 @@
             });
         };
 
-        // filters to be used when counting how many descendent
-        // services will be affected by a state change
-        var serviceStateChangeFilters = {
-            // only stopped services will be started
-            "start": service => service.desiredState === 0,
-            // only started services will be stopped
-            "stop": service => service.desiredState === 1,
-            // only started services will be restarted
-            "restart": service => service.desiredState === 1
-        };
-
         // clicks to a service's start, stop, or restart
         // button should first determine if the service has
         // children and ask the user to choose to start all
         // children or only the top service
         $scope.clickRunning = function(service, state){
-            var filterFn = serviceStateChangeFilters[state];
-            var childCount = utils.countTheKids(service, filterFn);
-
-            // if the service has affected children, check if the user
-            // wants to start just the service, or the service and children
-            if(childCount > 0){
-                $scope.modal_confirmSetServiceState(service, state, childCount);
-
-            // if no children, just start the service
-            } else {
+            let onStartService = function(modal){
+                // the arg here explicitly prevents child services
+                // from being started
+                $scope.setServiceState(service, state, true);
+                modal.close();
+            };
+            let onStartServiceAndChildren = function(modal){
                 $scope.setServiceState(service, state);
-            }
-            servicesFactory.updateHealth();
+                modal.close();
+            };
+
+            Service.countAffectedDescendants(service, state)
+                .then(count => {
+                    $modalService.modals.confirmServiceStateChange(service, state,
+                        count, onStartService,
+                        onStartServiceAndChildren);
+                })
+                .catch(err => {
+                    console.warn("couldnt get descendant count", err);
+                    $modalService.modals.confirmServiceStateChange(service, state,
+                        0, onStartService,
+                        onStartServiceAndChildren);
+                });
+
+            // let the user know they gonna have to hold onto
+            // their horses for just one moment.
+            $modalService.modals.oneMoment();
         };
 
         // verifies if use wants to start parent service, or parent
@@ -283,7 +259,6 @@
             });
         };
 
-
         /*
          * PRIVATE FUNCTIONS
          */
@@ -292,34 +267,108 @@
                 $scope.templates.data = utils.mapToArr(templates);
             });
         }
-       
-        function fetchInternalServiceInstances(app) {
-            return resourcesFactory.v2.getInternalServiceInstances(app.id).then( data => {
-                app.instances = data;
+
+        function refreshApps() {
+            return fetchApps()
+                .then(fillOutApps)
+                .then(fetchServicesHealth)
+                .then(fetchInternalServicesHealth)
+                .then(() => touch());
+        }
+
+        function fetchApps() {
+            return $q.all([fetchInternalService(), fetchServices()])
+                .then(results => {
+                    $scope.apps = [];
+
+                    var isvc = results[0];
+                    $scope.apps.push(isvc);
+
+                    var services = results[1];
+                    services.forEach(s => {
+                        $scope.apps.push(s);
+                    });
+                });
+        }
+
+        function fetchChildEndpoints(app) {
+            return resourcesFactory.v2.getServiceChildPublicEndpoints(app.id).then(data => {
+                app.publicEndpoints = data;
             });
         }
 
-        function getInternalServicesHealth() {
+        function fillOutApps() {
+            let promises = [];
+            $scope.apps.forEach(a => {
+                if (a.isIsvc()) {
+                    promises.push(() => a.fetchInstances());
+                } else {
+                    promises.push(fetchChildEndpoints(a));
+                }
+            });
+
+            return $q.all(promises);
+        }
+
+        function fetchServices() {
+            let deferred = $q.defer();
+            resourcesFactory.v2.getTenants().then( data => {
+                var services = data.map(s => new Service(s));
+                deferred.resolve(services);
+                },
+                error => {
+                    console.warn(error);
+                    deferred.reject();
+                });
+            return deferred.promise;
+        }
+
+        function fetchServicesHealth() {
+            if (!$scope.apps) { return; }
+
+            $scope.apps.forEach(app => {
+                if (!app.isIsvc()) {
+                    app.fetchAllStates();
+                }
+            });
+        }
+
+        function fetchInternalService() {
+            let deferred = $q.defer();
+            resourcesFactory.v2.getInternalServices()
+                .then(data => {
+                    let parentIndex = data.findIndex(i => !i.Parent);
+                    if (parentIndex > -1) {
+                        var internalServices = new InternalService(data[parentIndex]);
+                        internalServices.fetchInstances();
+                        deferred.resolve(internalServices);
+                    } else {
+                        deferred.reject("Parent not found");
+                    }
+                },
+                error => {
+                    console.warn(error);
+                    deferred.reject();
+                });
+            return deferred.promise;
+        }
+
+
+        function fetchInternalServicesHealth() {
             $scope.apps.forEach(app => {
                 if (app.isIsvc()) {
-                    resourcesFactory.v2.getInternalServiceStatuses([app.id]).then(data => {
-                        if (!data || data.length === 0) {
-                            return;
-                        }
-                        let status = data[0];
-                        let instanceStatusMap = status.Status.reduce((map, s) => {
-                            map[s.InstanceID] = s;
-                            return map;
-                        }, {});
-    
-                        app.instances.forEach(i => {
-                            i.healthChecks = instanceStatusMap[i.InstanceID].HealthStatus;
-                        });
+                    app.fetchInstances().then(() => {
+                        resourcesFactory.v2.getInternalServiceStatuses([app.id]).then(data => {
+                            let statusMap = data.reduce((map, s) => {
+                                map[s.ServiceID] = s;
+                                return map;
+                            }, {});
 
-                        $serviceHealth.update({[app.id]: app});
+                            app.updateStatus(statusMap[app.id]);
+                        });
                     });
                 }
-            }); 
+            });
         }
 
         // poll for apps that are being deployed
@@ -334,7 +383,7 @@
                 //if we have fewer results than last poll, we need to refresh our table
                 //TODO - better checking for deploying apps
                 if(lastPollResults > $scope.deployingServices.length){
-                    servicesFactory.update();
+                    refreshApps();
                 }
                 lastPollResults = $scope.deployingServices.length;
             });
@@ -354,6 +403,7 @@
                         // find the removed service and remove it
                         if($scope.apps[i].id === service.id){
                             $scope.apps.splice(i, 1);
+                            touch();
                             return;
                         }
                     }
@@ -365,8 +415,15 @@
                 .success(refreshTemplates);
         }
 
+        var lastUpdate;
+        function touch() {
+            lastUpdate = new Date().getTime();
+        }
+
         // init stuff for this controller
         function init(){
+            touch();
+
             if(utils.needsHostAlias($location.host())){
                 resourcesFactory.getHostAlias().success(function(data) {
                     $scope.defaultHostAlias = data.hostalias;
@@ -407,7 +464,7 @@
                 },
                 watchExpression: function(){
                     // TODO - check $scope.deployingServices as well
-                    return servicesFactory.lastUpdate;
+                    return lastUpdate;
                 }
             };
 
@@ -425,19 +482,8 @@
             // check for deploying apps
             getDeploying();
 
-            // start polling for apps
-            servicesFactory.activate();
-            servicesFactory.update().then(function(){
-                // locally bind top level service list
-                $scope.apps = servicesFactory.serviceTree;
-
-                if ($scope.apps) {
-                    $scope.apps.forEach(app => {
-                        if (app.isIsvc()) {
-                            fetchInternalServiceInstances(app).then(() => getInternalServicesHealth());
-                        }
-                    });
-                }
+            refreshApps().then(() => {
+                $scope.$emit("ready");
 
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
@@ -446,13 +492,11 @@
                 }
             });
 
-            // deploy wizard needs updated pools
-            poolsFactory.activate();
-
             //register polls
             resourcesFactory.registerPoll("deployingApps", getDeploying, 3000);
             resourcesFactory.registerPoll("templates", refreshTemplates, 5000);
-            resourcesFactory.registerPoll("internalServiceHealth", getInternalServicesHealth, 3000);
+            resourcesFactory.registerPoll("internalServiceHealth", fetchInternalServicesHealth, 3000);
+            resourcesFactory.registerPoll("appHealth", fetchServicesHealth, 3000);
 
             //unregister polls on destroy
             $scope.$on("$destroy", function(){
@@ -465,8 +509,6 @@
 
         $scope.$on("$destroy", function(){
             resourcesFactory.unregisterAllPolls();
-            servicesFactory.deactivate();
-            poolsFactory.deactivate();
         });
     }]);
 })();
