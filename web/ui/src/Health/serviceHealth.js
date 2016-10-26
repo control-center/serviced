@@ -56,10 +56,10 @@
                 service.instances.forEach(instance => {
 
                     // create a new status rollup for this instance
-                    instanceUniqueId = serviceId +"."+ instance.id;
+                    instanceUniqueId = serviceId +"."+ instance.model.InstanceID;
                     instanceStatus = new Status(
                         instanceUniqueId,
-                        service.name +" "+ instance.id,
+                        service.name +" "+ instance.model.InstanceID,
                         service.desiredState);
 
                     // evalute instance healthchecks and roll em up
@@ -96,12 +96,10 @@
 
             // if instances were provided, evaluate their health
             instances.forEach(instance => {
-                let instanceUniqueId = service.id +"."+ instance.id;
+                let instanceUniqueId = service.id +"."+ instance.model.InstanceID;
                 let instanceStatus = new Status(
-                    // id
                     instanceUniqueId,
-                    // name
-                    instanceUniqueId,
+                    service.name +" "+ instance.model.InstanceID,
                     service.desiredState);
 
                 // evalute instance healthchecks and roll em up
