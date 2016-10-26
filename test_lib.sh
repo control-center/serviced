@@ -15,7 +15,6 @@ if [ -z "${SERVICED}" ]; then
     echo "ERROR: Can not find a serviced binary"
     exit 1
 fi
-
 SERVICED_STORAGE=$(which serviced-storage)
 if [ -z "${SERVICED_STORAGE}" ]; then
     echo "ERROR: Can not find a serviced-storage binary"
@@ -31,11 +30,40 @@ export SERVICED_ETC_PATH=${TEST_VAR_PATH}/etc
 export SERVICED_VOLUMES_PATH=${TEST_VAR_PATH}/volumes
 export SERVICED_ISVCS_PATH=${TEST_VAR_PATH}/isvcs
 export SERVICED_BACKUPS_PATH=${TEST_VAR_PATH}/backups
+export TEST_CONFIG_FILE=${TEST_VAR_PATH}/serviced.default
+
+# Using an empty default file insulates the smoke tests from any random configuration on the current machine,
+# and, on the build slaves, it eliminates noise from the logs re: "could not read default configs"
+setup_serviced_config() {
+    mkdir -p ${TEST_VAR_PATH}
+    rm -f ${TEST_CONFIG_FILE}
+    touch ${TEST_CONFIG_FILE}
+
+    mkdir -p ${SERVICED_ETC_PATH}
+    mkdir -p ${SERVICED_VOLUMES_PATH}
+    mkdir -p ${SERVICED_ISVCS_PATH}
+    mkdir -p ${SERVICED_BACKUPS_PATH}
+
+    echo "SERVICED_ETC_PATH=${SERVICED_ETC_PATH}"         >> ${TEST_CONFIG_FILE}
+    echo "SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH}" >> ${TEST_CONFIG_FILE}
+    echo "SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH}"     >> ${TEST_CONFIG_FILE}
+    echo "SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH}" >> ${TEST_CONFIG_FILE}
+    echo "SERVICED_MASTER=1"                              >> ${TEST_CONFIG_FILE}
+    SERVICED="${SERVICED} --config-file ${TEST_CONFIG_FILE}"
+
+    cp ${DIR}/pkg/logconfig-cli.yaml    ${SERVICED_ETC_PATH}
+    cp ${DIR}/pkg/logconfig-server.yaml ${SERVICED_ETC_PATH}
+
+    echo "Contents of TEST_CONFIG_FILE:"
+    cat ${TEST_CONFIG_FILE}
+}
 
 print_env_info() {
     echo ==== ENV INFO =====
     go version
     docker version
+    echo "TEST_VAR_PATH=${TEST_VAR_PATH}"
+    echo "TEST_CONFIG_FILE=${TEST_CONFIG_FILE}"
     echo ===================
 }
 
@@ -74,21 +102,10 @@ start_serviced() {
     # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
     #   all of to force the proper subdirectories to be created under TEST_VAR_PATH
     echo "Starting serviced ..."
-    mkdir -p ${TEST_VAR_PATH}
-    mkdir -p ${SERVICED_ETC_PATH}
-    mkdir -p ${SERVICED_VOLUMES_PATH}
-    mkdir -p ${SERVICED_ISVCS_PATH}
-    mkdir -p ${SERVICED_BACKUPS_PATH}
 
-    cp ${DIR}/pkg/logconfig-cli.yaml ${SERVICED_ETC_PATH}
-    cp ${DIR}/pkg/logconfig-server.yaml ${SERVICED_ETC_PATH}
+    setup_serviced_config
 
     sudo GOPATH=${GOPATH} PATH=${PATH} \
-        SERVICED_ETC_PATH=${SERVICED_ETC_PATH} \
-        SERVICED_VOLUMES_PATH=${SERVICED_VOLUMES_PATH} \
-        SERVICED_ISVCS_PATH=${SERVICED_ISVCS_PATH} \
-        SERVICED_BACKUPS_PATH=${SERVICED_BACKUPS_PATH} \
-        SERVICED_MASTER=1 \
         ${SERVICED} ${SERVICED_OPTS} \
         --allow-loop-back=true --agent server &
 
@@ -112,6 +129,7 @@ retry() {
 }
 
 cleanup() {
+    echo "Starting test cleanup"
     # remove the service to free up the disk space allocated in the devicemapper pool
     echo "Removing testsvc (if any) ..."
     sudo ${SERVICED} service remove testsvc
@@ -155,5 +173,5 @@ cleanup() {
 
     echo "Removing up ${TEST_VAR_PATH} ..."
     sudo rm -rf ${TEST_VAR_PATH}
-
+    echo "Finished test cleanup"
 }
