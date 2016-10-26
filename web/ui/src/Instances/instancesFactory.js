@@ -3,16 +3,15 @@
 (function() {
     'use strict';
 
-    var resourcesFactory, $q, serviceHealth, $notification, utils;
+    var resourcesFactory, $q, $notification, utils;
 
     angular.module('instancesFactory', []).
-    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification", "miscUtils",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, _utils){
+    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "baseFactory", "$notification", "miscUtils",
+    function($rootScope, q, _resourcesFactory, $interval, BaseFactory, _notification, _utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
-        serviceHealth = _serviceHealth;
         $notification = _notification;
         utils = _utils;
 
