@@ -15,6 +15,8 @@
 
             this.touch();
 
+            this.pools = [];
+
             this.name = "hosts";
             this.indent = utils.indentClass;
             this.hostsInView = [];
@@ -125,11 +127,11 @@
         clickAddHost() {
             let modalScope = this.newScope();
             modalScope.refreshHosts = () => this.refreshHosts();
-            modalScope.pools = this.pools;
+            modalScope.poolIds = this.pools.map(p => p.id);
 
             modalScope.newHost = {
                 port: $translate.instant('placeholder_port'),
-                PoolID: utils.arrayEmpty(this.pools) ? "" : this.pools[0].id
+                PoolID: modalScope.poolIds[0] || "",
             };
 
             areUIReady.lock();
