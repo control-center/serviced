@@ -259,19 +259,34 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		select {
 		case <-hsevt:
 		case time := <-containerExit:
-
 			logger.WithField("terminated", time).Warn("Container exited unexpectedly, restarting")
 			containerExit = nil
-			if err := UpdateState(l.conn, req, func(s *State) bool {
-				s.Terminated = time
-				*ssdat = s.ServiceState
-				return true
-			}); err != nil {
-				logger.WithError(err).Error("Could not update state for stopped container")
-				return
-			}
-		case <-shutdown:
 
+			func() {
+				t := time.NewTicker(time.Second)
+				defer t.Stop()
+				for {
+					if err := UpdateState(l.conn, req, func(s *State) bool {
+						s.Terminated = time
+						*ssdat = s.ServiceState
+						return true
+					}); err == client.ErrNoServer {
+						logger.WithError(err).Warn("Server not found, attempting to retry updating service")
+						select {
+						case <-t.C:
+						case <-shutdown:
+							logger.Debug("Host state listener received signal to shut down")
+							return
+						}
+					} else if err != nil {
+						logger.WithError(err).Error("Could not update state for stopped container")
+						return
+					} else {
+						break
+					}
+				}
+			}()
+		case <-shutdown:
 			logger.Debug("Host state listener received signal to shut down")
 			return
 		}
