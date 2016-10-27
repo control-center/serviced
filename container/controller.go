@@ -507,7 +507,7 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 		retries := 3
 		failures := 0
 		for {
-			err := client.Ping(time.Second, &ts)
+			err := client.Ping(2 * time.Second, &ts)
 			if err != nil {
 				failures++
 				glog.Warningf("RPC Server healthcheck ping to delegate failed. Error: %v", err)
@@ -516,15 +516,13 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 					close(gone)
 					return
 				}
-				select {
-				// wait a bit and retry
-				case <-time.After(10 * time.Second):
-					continue
-
-				}
-
 			} else {
 				failures = 0
+			}
+			select {
+			case <-time.After(10 * time.Second):
+				continue
+
 			}
 		}
 	}()
