@@ -17,10 +17,6 @@ var babelConfig = {
     presets: ["es2015"],
 };
 
-// if SKIP_TRANSPILE is set, skip js transpilation
-// NOTE: browser must support es6 stuff
-let shouldTranspile = !process.env.SKIP_TRANSPILE;
-
 gulp.task("build", cb => {
     sequence("babel", "copyStatic", cb);
 });
@@ -32,7 +28,8 @@ gulp.task("release", cb => {
 gulp.task("babel", function(){
     return gulp.src(config.controlplaneFiles)
         .pipe(sourcemaps.init())
-            .pipe(gulpif(shouldTranspile, babel(babelConfig)))
+            // can skip transpile and build faster if fastBuild is set
+            .pipe(gulpif(!config.fastBuild, babel(babelConfig)))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
         .pipe(gulp.dest(config.paths.srcBuild));

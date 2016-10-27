@@ -10,6 +10,9 @@ gulp.task("watch", cb => {
 });
 
 gulp.task("dowatch", function(){
+    // skip js transpile, making js builds much faster
+    config.fastBuild = true;
+
     // transpile js
     gulp.watch(paths.src + "/**/*.js", ["babel"]);
 

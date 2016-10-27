@@ -85,10 +85,14 @@ var staticFiles = [
     paths.staticSrc + 'lib/ng-table/ng-table.css'
 ];
 
+// set to true to skip js transpile
+var fastBuild = false;
+
 module.exports = {
     paths,
     controlplaneFiles,
     controlplanePartials,
     thirdpartyFiles,
-    staticFiles
+    staticFiles,
+    fastBuild
 };
