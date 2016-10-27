@@ -20,17 +20,11 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/isvcs"
 )
-
-type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
-
-var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
 var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient.NewClient("unix:///var/run/docker.sock") }
 
@@ -404,38 +398,4 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		}
 	}
 	return newsvc.ID, nil
-}
-
-// writeLogstashConfiguration takes all the available
-// services and writes out the filters section for logstash.
-// This is required before logstash startsup
-func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
-	// FIXME: eventually this file should live in the DFS or the config should
-	// live in zookeeper to allow the agents to get to this
-	if err := dao.WriteConfigurationFile(templates); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
-// This method depends on the elasticsearch container being up and running.
-func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
-	templates, err := f.GetServiceTemplates(ctx)
-	if err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	if err := writeLogstashConfiguration(templates); err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	glog.V(2).Infof("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Errorf("Could not start logstash container: %s", err)
-		return err
-	}
-	return nil
 }
