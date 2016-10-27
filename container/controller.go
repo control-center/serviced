@@ -504,11 +504,25 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 	}
 	go func() {
 		var ts time.Time
+		retries := 3
+		failures := 0
 		for {
-			err := client.Ping(time.Minute, &ts)
+			err := client.Ping(2 * time.Second, &ts)
 			if err != nil {
-				close(gone)
-				return
+				failures++
+				glog.Warningf("RPC Server healthcheck ping to delegate failed. Error: %v", err)
+				if failures == retries {
+					glog.Error("RPC Server healthcheck retries exhausted, marking it dead and closing channel.")
+					close(gone)
+					return
+				}
+			} else {
+				failures = 0
+			}
+			select {
+			case <-time.After(10 * time.Second):
+				continue
+
 			}
 		}
 	}()
