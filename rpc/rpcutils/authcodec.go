@@ -37,6 +37,7 @@ var (
 		"Master.GetSystemUser":                   struct{}{},
 		"Master.ReportHealthStatus":              struct{}{},
 		"Master.ReportInstanceDead":              struct{}{},
+		"Master.UpdateHost":                      struct{}{},
 		"ControlCenter.GetServices":              struct{}{},
 		"ControlCenterAgent.GetEvaluatedService": struct{}{},
 		"ControlCenterAgent.GetHostID":           struct{}{},
