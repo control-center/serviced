@@ -1426,6 +1426,15 @@ input[type=file] {
     padding: 0 0 0 8px;
 }
 
+.jelly-search {
+    float:right;
+    margin: 18px 10px 0 0;
+    width: 200px;
+}
+    .jelly-search input {
+        height: 29px;
+    }
+
 .table-collapse {
     font-size: 8px;
     padding: 6px 13px 12px 0;

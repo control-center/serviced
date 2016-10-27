@@ -30,14 +30,16 @@
                 sorting: {
                     InterfaceName: "asc"
                 },
-                watchExpression: () => this.lastUpdate
+                watchExpression: () => this.lastUpdate,
+                searchColumns: ['InterfaceName', 'IPAddress', 'MACAddress']
             };
 
             $scope.instancesTable = {
                 sorting: {
                     name: "asc"
                 },
-                watchExpression: () => this.lastInstanceUpdate
+                watchExpression: () => this.lastInstanceUpdate,
+                searchColumns: ['model.ServiceName']                
             };
 
             this.refreshHost()

@@ -1075,22 +1075,26 @@
                     $scope.publicEndpointsTable = {
                         sorting: {
                             ServiceName: "asc"
-                        }
+                        },
+                        searchColumns: ['ServiceName', 'Application', 'Protocol' ]
                     };
                     $scope.ipsTable = {
                         sorting: {
                             ServiceName: "asc"
-                        }
+                        },
+                        searchColumns: ['ServiceName', 'PoolID', 'IPAddress', 'Port']
                     };
                     $scope.configTable = {
                         sorting: {
                             Filename: "asc"
-                        }
+                        },
+                        searchColumns: ['Filename']
                     };
                     $scope.instancesTable = {
                         sorting: {
                             "model.InstanceID": "asc"
                         },
+                        searchColumns: ['model.InstanceID', 'model.ContainerID'],
                         // instead of watching for a change, always
                         // reload at a specified interval
                         watchExpression: (function () {

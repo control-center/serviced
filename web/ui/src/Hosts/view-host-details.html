@@ -72,7 +72,7 @@
 <graph-panel ng-if="hostDetailsVM.currentHost.model.MonitoringProfile.GraphConfigs" data-service-id="hostDetailsVM.currentHost.id" data-graph-configs="hostDetailsVM.currentHost.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
 
 <!-- IPs -->
-<h3 translate>ip_addresses</h3>
+<h3 class="pull-left" translate>ip_addresses</h3>
 <table jelly-table data-data="hostDetailsVM.currentHost.model.IPs" data-config="ipsTable" class="table side-flush">
     <tr ng-repeat="address in $data">
       <td data-title="'ip_addresses_interface'|translate" sortable="'InterfaceName'">{{address.InterfaceName}}</td>
@@ -82,7 +82,7 @@
 </table>
 
 <!-- Running Service Instances -->
-<h3 translate>service_instances</h3>
+<h3 class="pull-left" translate>service_instances</h3>
 <table jelly-table data-data="hostDetailsVM.hostInstances" data-config="instancesTable" class="table side-flush">
     <tr ng-repeat="app in $data">
       <td data-title="'label_service'|translate" sortable="'model.ServiceName'" ng-click="hostDetailsVM.click_app(app)" class="link">{{app.model.ServiceName}}</td>

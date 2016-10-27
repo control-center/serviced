@@ -188,13 +188,15 @@
             $scope.virtualIPsTable = {
                 sorting: {
                     IP: "asc"
-                }
+                },
+                searchColumns: ['IP', 'BindInterfaces']
             };
 
             $scope.hostsTable = {
                 sorting: {
                     name: "asc"
-                }
+                },
+                searchColumns: ['name', 'model.Cores', 'model.KernelVersion']
             };
 
             // get the pool the do some first time setup

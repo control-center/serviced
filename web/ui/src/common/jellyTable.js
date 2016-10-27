@@ -17,8 +17,8 @@
     var PAGE_SIZE = 15; // TODO: pull from config file
 
     angular.module('jellyTable', [])
-    .directive("jellyTable", ["$interval", "ngTableParams", "$filter", "$animate", "$compile", "miscUtils",
-    function($interval, NgTableParams, $filter, $animate, $compile, utils){
+    .directive("jellyTable", ["$interval", "ngTableParams", "$filter", "$animate", "$compile", "miscUtils", "$parse",
+    function($interval, NgTableParams, $filter, $animate, $compile, utils, $parse){
         return {
             restrict: "A",
             // inherit parent scope
@@ -59,6 +59,12 @@
                     </tr></tfoot>
                 `);
 
+                $wrap.prepend(`
+                        <div class="jelly-search">
+                            <input type="text" class="form-control" placeholder="Search" name="searchTerm" translate/>
+                        </div>
+                `);
+
                 // mark this guy as an ng-table
                 table.attr("ng-table", tableID);
                 table.attr("template-pagination", "/static/partials/jellyPager.html");
@@ -74,11 +80,12 @@
                     // bind scope to html
                     fn($scope);
 
-                    var $loader, $noData,
+                    var $loader, $noData, $search,
                         toggleLoader, toggleNoData,
-                        getData, pageConfig, dataConfig,
+                        getData, pageConfig, dataConfig, searchTerm,
                         timezone, orderBy;
 
+                    searchTerm = {};
                     var config = utils.propGetter($scope, attrs.config);
                     var data = utils.propGetter($scope, attrs.data);
                     var onUpdate = utils.propGetter($scope, attrs.update);
@@ -99,6 +106,12 @@
 
                     $loader = $wrap.find(".loader");
                     $noData = $wrap.find(".noData");
+                    $search = $wrap.find(".jelly-search > input");
+
+                    $search.keyup(function() {
+                        searchTerm.jellySearch = $search.val().toLowerCase();
+                        $scope[tableID].reload();
+                    });
 
                     toggleLoader = function(newVal, oldVal){
                         if(oldVal === newVal){
@@ -149,10 +162,6 @@
                                 allItems = [];
                             }
 
-                            totalItemCount = allItems.length;
-                            // if no results show no data message
-                            toggleNoData(!totalItemCount);
-
                             if (config().getData) {
                                 // call overriden getData if available (eg services)
                                 sortedItems = config().getData(allItems, params);
@@ -163,10 +172,31 @@
                                     : allItems;
                             }
 
+                            // apply filters
+                            if (config().searchColumns) {
+                                if (params.filter().jellySearch) {
+                                    let term = params.filter().jellySearch.toLowerCase();
+                                    console.log(`searching for: ${term}`);
+                                    var sortedItems = sortedItems.filter(function (item) {
+                                        var match = false;
+                                        config().searchColumns.forEach(col => {
+                                            let z = $parse(col)(item).toString().toLowerCase();
+                                            match |= z.indexOf(term) > -1;
+                                        });
+                                        return match;
+                                    });
+                                }
+                            }
+
+                            totalItemCount = sortedItems.length;
+                            // if no results show no data message
+                            toggleNoData(!totalItemCount);
+
                             // pagination
-                            if (config().disablePagination) {
-                                // supress pagination
+                            if (config().disablePagination || !config().searchColumns) {
+                                // supress pagination via configuration or lack of configuration
                                 tableEntries = sortedItems;
+                                $wrap.find(".jelly-search").addClass("hidden");
                             } else {
                                 // slice sorted results array for current page
                                 var lower = (params.page() - 1) * config().pgsize;
@@ -175,10 +205,10 @@
 
                                 if (totalItemCount > config().pgsize) {
                                     table.addClass("has-pagination");
-                                    // ngtable pagination requires total item count
                                 } else {
                                     table.removeClass("has-pagination");
                                 }
+                                // ngtable pagination requires total item count
                                 params.total(totalItemCount);
                             }
                         }
@@ -191,12 +221,13 @@
                         $scope[tableID].lastUpdate = moment.utc().tz(timezone);
                         $defer.resolve(tableEntries);
                     };
-
+    
                     // setup config for ngtable
                     pageConfig = {
                         // count: hide pagination when total result count less than this number
                         count: config().pgsize,
-                        sorting: config().sorting
+                        sorting: config().sorting,
+                        filter: searchTerm
                     };
                     dataConfig = {
                         // counts: dynamic items-per-page widget. empty array will supress.
