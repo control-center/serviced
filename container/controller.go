@@ -524,7 +524,7 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 				}
 
 			} else {
-				failures == 0
+				failures = 0
 			}
 		}
 	}()
