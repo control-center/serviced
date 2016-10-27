@@ -163,7 +163,7 @@
                                     }.bind(this))
                                     .error(function(data, status){
                                         // TODO - form error highlighting
-                                        $notification.create("", data.Detail).error();
+                                        this.createNotification("", data.Detail).error();
                                         // reenable button
                                         enableSubmit();
                                     }.bind(this));
