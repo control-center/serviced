@@ -168,15 +168,15 @@
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc()">
                 <div ng-if="!row.service.isIsvc()">
                   <div ng-if="row.service.desiredState !== 2">
-                    <button ng-class="{disabled: row.service.desiredState === 1}" ng-click="clickRunning(row.service, 'start')" class="btn btn-link action">
+                    <button ng-class="{disabled: row.service.desiredState === 1}" ng-click="clickRunning(row.service, 'start', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-play"></i>
                         <span translate>start</span>
                     </button>
-                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'stop')" class="btn btn-link action">
+                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'stop', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-stop"></i>
                         <span translate>stop</span>
                     </button>
-                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'restart')" class="btn btn-link action">
+                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'restart', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>
