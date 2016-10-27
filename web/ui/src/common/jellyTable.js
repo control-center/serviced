@@ -61,7 +61,7 @@
 
                 $wrap.prepend(`
                         <div class="jelly-search">
-                            <input type="text" class="form-control" placeholder="Search" name="searchTerm" translate/>
+                            <input type="text" class="form-control" placeholder="Search" name="searchTerm"/>
                         </div>
                 `);
 
@@ -176,7 +176,6 @@
                             if (config().searchColumns) {
                                 if (params.filter().jellySearch) {
                                     let term = params.filter().jellySearch.toLowerCase();
-                                    console.log(`searching for: ${term}`);
                                     var sortedItems = sortedItems.filter(function (item) {
                                         var match = false;
                                         config().searchColumns.forEach(col => {
@@ -224,7 +223,7 @@
     
                     // setup config for ngtable
                     pageConfig = {
-                        // count: hide pagination when total result count less than this number
+                        // count: hide pagination when total count less than this number
                         count: config().pgsize,
                         sorting: config().sorting,
                         filter: searchTerm

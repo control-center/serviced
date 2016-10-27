@@ -903,6 +903,9 @@ input.startup {
 .control-buttons {
     margin-top: 20px;
 }
+.control-buttons.pull-right {
+    margin-left: 10px;
+}
 
 /* health and status popover content */
 .popover{
@@ -1428,7 +1431,7 @@ input[type=file] {
 
 .jelly-search {
     float:right;
-    margin: 18px 10px 0 0;
+    margin: 19px 0 0 0;
     width: 200px;
 }
     .jelly-search input {
