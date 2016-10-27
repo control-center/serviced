@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"strings"
 
 	"github.com/zenoss/glog"
@@ -29,15 +30,20 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
-type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
 
-var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
+var logstashConfigLock = &sync.Mutex{}
 
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
+// ReloadLogstashConfig will create a new logstash configuration based on the current
+// templates. If that configuration is different from the one currently used by logstash,
+// then it will restart the logstash container so it can use the new filter set.
+//
+// This method should be called anytime the available service definitions are modified
 // This method depends on the elasticsearch container being up and running.
-func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
+func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
+	// serialize updates so that we don't have different threads overwriting the same file.
+	logstashConfigLock.Lock()
+	defer logstashConfigLock.Unlock()
+
 	templates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
 		glog.Errorf("Could not write logstash configuration: %s", err)
@@ -53,6 +59,14 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 		return err
 	}
 	return nil
+}
+
+type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
+
+var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
+
+func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
+	return f.ReloadLogstashConfig(ctx)
 }
 
 func resourcesDir() string {

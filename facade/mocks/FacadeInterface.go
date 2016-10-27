@@ -1334,3 +1334,15 @@ func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceI
 
 	return r0, r1
 }
+func (_m *FacadeInterface) ReloadLogstashConfig(ctx datastore.Context) error {
+	ret := _m.Called(ctx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
