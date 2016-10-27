@@ -225,19 +225,19 @@ func (_m *FacadeInterface) AssignIPs(ctx datastore.Context, assignmentRequest ad
 
 	return r0
 }
-func (_m *FacadeInterface) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
-	ret := _m.Called(ctx, serviceTemplate)
+func (_m *FacadeInterface) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error) {
+	ret := _m.Called(ctx, serviceTemplate, reloadLogstashConfig)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(datastore.Context, servicetemplate.ServiceTemplate) string); ok {
-		r0 = rf(ctx, serviceTemplate)
+	if rf, ok := ret.Get(0).(func(datastore.Context, servicetemplate.ServiceTemplate, bool) string); ok {
+		r0 = rf(ctx, serviceTemplate, reloadLogstashConfig)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, servicetemplate.ServiceTemplate) error); ok {
-		r1 = rf(ctx, serviceTemplate)
+	if rf, ok := ret.Get(1).(func(datastore.Context, servicetemplate.ServiceTemplate, bool) error); ok {
+		r1 = rf(ctx, serviceTemplate, reloadLogstashConfig)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -277,12 +277,12 @@ func (_m *FacadeInterface) RemoveServiceTemplate(ctx datastore.Context, template
 
 	return r0
 }
-func (_m *FacadeInterface) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error {
-	ret := _m.Called(ctx, template)
+func (_m *FacadeInterface) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error {
+	ret := _m.Called(ctx, template, reloadLogstashConfig)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(datastore.Context, servicetemplate.ServiceTemplate) error); ok {
-		r0 = rf(ctx, template)
+	if rf, ok := ret.Get(0).(func(datastore.Context, servicetemplate.ServiceTemplate, bool) error); ok {
+		r0 = rf(ctx, template, reloadLogstashConfig)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -59,13 +59,13 @@ type FacadeInterface interface {
 
 	AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error)
 
-	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error)
+	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error)
 
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)
 
 	RemoveServiceTemplate(ctx datastore.Context, templateID string) error
 
-	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error
+	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error
 
 	DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error)
 
