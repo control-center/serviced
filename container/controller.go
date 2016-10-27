@@ -523,6 +523,8 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 
 				}
 
+			} else {
+				failures == 0
 			}
 		}
 	}()
