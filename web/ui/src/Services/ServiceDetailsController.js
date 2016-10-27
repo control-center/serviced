@@ -327,7 +327,14 @@
                 // button should first determine if the service has
                 // children and ask the user to choose to start all
                 // children or only the top service
-                $scope.clickRunning = function (service, state) {
+                $scope.clickRunning = function (service, state, force) {
+                    // if force, we dont need no stinkin confirmation
+                    // from the user.
+                    if(force){
+                        $scope.setServiceState(service, state);
+                        return;
+                    }
+
                     let onStartService = function(modal){
                         // the arg here explicitly prevents child services
                         // from being started
