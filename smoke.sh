@@ -219,6 +219,37 @@ test_service_run_command() {
     set +x
 }
 
+# Whitelist serviced.default values that don't need to be documented in the
+# defaults file.
+# Note: SERVICE_D_ISVCS_ENV_0 exists and is parsed as a list of entries.
+#       SERVICED_LOG_CONFIG documentation has been deferred as per Ian.
+whitelisted() {
+    grep -Fqx "$1" <<EOF
+SERVICED_ISVCS_ENV
+SERVICED_LOG_CONFIG
+EOF
+}
+
+# Make sure all config values from 'serviced config' are documented in the
+# serviced.default file.
+test_config_defaults() {
+    CONFIGS=`${SERVICED} config | cut -d\= -f1`
+    result=0
+
+    for cfg in ${CONFIGS}
+    do
+        if ! whitelisted "${cfg}"; then
+            grep " ${cfg}=" pkg/serviced.default >/dev/null 2>&1
+            if [ $? -eq 1 ]
+            then
+                echo "Could not find $cfg in pkg/serviced.default"
+                result=1
+            fi
+        fi
+    done
+    return ${result}
+}
+
 ###############################################################################
 ###############################################################################
 #
@@ -266,6 +297,8 @@ test_service_port_http     && succeed "Accessing public endpoint via HTTP port s
 test_service_port_https    && succeed "Accessing public endpoint via HTTPS port success"   || fail "Unable to access public endpoint via HTTPS port"
 test_service_port_tcp      && succeed "Accessing public endpoint via TCP port success"     || fail "Unable to access public endpoint via TCP port"
 test_service_port_tcp_tls  && succeed "Accessing public endpoint via TCP/TLS port success" || fail "Unable to access public endpoint via TCP/TLS port"
+
+test_config_defaults       && succeed "Defaults in serviced.default exist"         || fail "Missing defaults in serviced.default"
 
 stop_service               && succeed "Stopped service"                            || fail "Unable to stop service"
 
