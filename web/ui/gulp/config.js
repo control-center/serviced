@@ -86,6 +86,8 @@ var staticFiles = [
 ];
 
 // set to true to skip js transpile
+// NOTE: this is set to true automatically
+// when running the "watch" task
 var fastBuild = false;
 
 module.exports = {

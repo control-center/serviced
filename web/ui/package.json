@@ -29,7 +29,8 @@
     "karma-junit-reporter": "^2.0.0",
     "karma-threshold-reporter": "^0.1.15",
     "merge-stream": "^1.0.0",
-    "run-sequence": "^1.2.2"
+    "run-sequence": "^1.2.2",
+    "which": "^1.2.11"
   },
   "dependencies": {
     "gulp-if": "^2.0.1"
