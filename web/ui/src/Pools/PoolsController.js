@@ -67,7 +67,7 @@
                     deferred.resolve();
                 })
                 .error(data => {
-                    let message = data.Detail || data || "";
+                    let message = (data && data.Detail) || "";
                     console.warn("Unable to load pools.", message);
                     deferred.reject();
                 });
