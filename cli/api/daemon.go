@@ -1201,7 +1201,6 @@ func (d *daemon) addTemplates() {
 			// have changed.
 			log.Info("Loaded service templates")
 			d.facade.ReloadLogstashConfig(d.dsContext)
-			log.Info("Reloaded logstash configuration")
 		}
 	}()
 }
