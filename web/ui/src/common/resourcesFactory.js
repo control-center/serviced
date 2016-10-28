@@ -480,7 +480,9 @@
                 // theres already a pending request to
                 // this endpoint, so fail!
                 if(method === GET && pendingGETRequests[resourceName]){
-                    deferred.reject(`a request to ${resourceName} is pending`);
+                    let message = `a request to ${resourceName} is pending`;
+                    let data = { Detail: message };
+                    deferred.reject(data);
                     return deferred.promise;
                 }
 
@@ -576,7 +578,7 @@
             routeToInternalService: function(id) {
                 $location.path('/internalservices/' + id);
             },
-        
+
             // redirect to internal service page
             routeToInternalServices: function() {
                 $location.path('/internalservices');

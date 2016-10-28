@@ -68,7 +68,8 @@
                     deferred.resolve();
                 })
                 .error(data => {
-                    $notification.create("Unable to load pools.", data.Detail).error();
+                    let message = (data && data.Detail) || "";
+                    console.warn("Unable to load pools.", message);
                     deferred.reject();
                 });
             return deferred.promise;
@@ -120,7 +121,8 @@
                                     modalScope.refreshPools();
                                 })
                                 .error(data => {
-                                    $notification.create("Remove Pool failed", data.Detail).error();
+                                    let message = (data && data.Detail) || "";
+                                    $notification.create("Remove Pool failed", message).error();
                                 });
 
                             this.close();
