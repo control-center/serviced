@@ -78,7 +78,7 @@ func (s *TestWebSuite) TestRestAddAppTemplate(c *C) {
 		c.Fatalf("Unable to build mock upload request: %s", err)
 	}
 	s.mockFacade.
-		On("AddServiceTemplate", s.ctx.getDatastoreContext(), mock.AnythingOfType("servicetemplate.ServiceTemplate")).
+		On("AddServiceTemplate", s.ctx.getDatastoreContext(), mock.AnythingOfType("servicetemplate.ServiceTemplate"), true).
 		Return(expectedTemplateID, nil)
 
 	restAddAppTemplate(&(s.writer), &request, s.ctx)
@@ -98,7 +98,7 @@ func (s *TestWebSuite) TestRestAddAppTemplateFails(c *C) {
 		c.Fatalf("Unable to build mock upload request: %s", err)
 	}
 	s.mockFacade.
-		On("AddServiceTemplate", s.ctx.getDatastoreContext(), mock.AnythingOfType("servicetemplate.ServiceTemplate")).
+		On("AddServiceTemplate", s.ctx.getDatastoreContext(), mock.AnythingOfType("servicetemplate.ServiceTemplate"), true).
 		Return("", expectedError)
 
 	restAddAppTemplate(&(s.writer), &request, s.ctx)

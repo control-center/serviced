@@ -54,7 +54,8 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		return
 	}
 
-	templateID, err := ctx.getFacade().AddServiceTemplate(ctx.getDatastoreContext(), *template)
+	reloadLogstashConfig := true
+	templateID, err := ctx.getFacade().AddServiceTemplate(ctx.getDatastoreContext(), *template, reloadLogstashConfig)
 	if err != nil {
 		restServerError(w, err)
 		return

@@ -1188,14 +1188,19 @@ func (d *daemon) addTemplates() {
 				log.Warn("Unable to parse template file")
 				return nil
 			}
-			d.facade.AddServiceTemplate(d.dsContext, st)
+			reloadLogstashConfig := false		// defer reloading until all templates have been added
+			d.facade.AddServiceTemplate(d.dsContext, st, reloadLogstashConfig)
 			log.Debug("Added service template")
 			return nil
 		})
 		if err != nil {
 			log.WithError(err).Warn("Unable to autoload templates from the filesystem")
 		} else {
+			// Now that all of the templates have been loaded, update the logstash configuration.
+			// Note this also handles the case where CC has been upgraded, but none of the templates
+			// have changed.
 			log.Info("Loaded service templates")
+			d.facade.ReloadLogstashConfig(d.dsContext)
 		}
 	}()
 }

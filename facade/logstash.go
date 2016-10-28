@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,25 +11,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
-
-package dao
+package facade
 
 import (
-	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/utils"
-
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
+	"sync"
 	"strings"
+
+	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/utils"
+	"bytes"
 )
+
+
+var (
+	logstashConfigLock = &sync.Mutex{}
+	ErrLogstashUnchanged = errors.New("logstash config unchanged")
+)
+
+// ReloadLogstashConfig will create a new logstash configuration based on the current
+// templates. If that configuration is different from the one currently used by logstash,
+// then it will restart the logstash container so it can use the new filter set.
+//
+// This method should be called anytime the available service definitions are modified
+// This method depends on the elasticsearch container being up and running.
+func (f *Facade) ReloadLogstashConfig(ctx datastore.Context) error {
+	// serialize updates so that we don't have different threads overwriting the same file.
+	logstashConfigLock.Lock()
+	defer logstashConfigLock.Unlock()
+
+	templates, err := f.GetServiceTemplates(ctx)
+	if err != nil {
+		glog.Errorf("Could not write logstash configuration: %s", err)
+		return err
+	}
+	err = writeLogstashConfiguration(templates)
+	if err == ErrLogstashUnchanged {
+		return nil
+	} else if err != nil {
+		glog.Errorf("Could not write logstash configuration: %s", err)
+		return err
+	} 
+
+	glog.V(2).Infof("Starting logstash container")
+	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
+		glog.Errorf("Could not start logstash container: %s", err)
+		return err
+	}
+	return nil
+}
+
+type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
+
+var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
+
+func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
+	return f.ReloadLogstashConfig(ctx)
+}
 
 func resourcesDir() string {
 	homeDir := os.Getenv("SERVICED_HOME")
@@ -41,9 +88,15 @@ func resourcesDir() string {
 	return path.Clean(path.Join(homeDir, "isvcs/resources"))
 }
 
-// WriteConfigurationFile takes a map of ServiceTemplates and writes them to the
+// writeLogstashConfiguration takes a map of ServiceTemplates and writes them to the
 // appropriate place in the logstash.conf.
-func WriteConfigurationFile(templates map[string]servicetemplate.ServiceTemplate) error {
+// This is required before logstash startup
+//
+// This method returns nil of logstash configuration was replaced,
+// ErrLogstashUnchanged if the configuration is unchanged, or other errors if there was an I/O problem
+// FIXME: eventually this file should live in the DFS or the config should
+// live in zookeeper to allow the agents to get to this
+func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
 	filterDefs := make(map[string]string)
@@ -60,11 +113,35 @@ func WriteConfigurationFile(templates map[string]servicetemplate.ServiceTemplate
 	for _, template := range templates {
 		filters += getFilters(template.Services, filterDefs, []string{})
 	}
-	configFile := resourcesDir() + "/logstash/logstash.conf"
-	err := writeLogStashConfigFile(filters, configFile)
+	newConfigFile := resourcesDir() + "/logstash/logstash.conf.new"
+	err := writeLogStashConfigFile(filters, newConfigFile)
 	if err != nil {
+		glog.Errorf("Unable to create new logstash config file %s: %s", newConfigFile, err)
 		return err
 	}
+
+	originalFile := resourcesDir() + "/logstash/logstash.conf"
+	originalContents, err := ioutil.ReadFile(originalFile)
+	if err != nil {
+		glog.Errorf("Unable to read current logstash config file %s: %s", originalFile, err)
+		return err
+	}
+
+	newContents, err := ioutil.ReadFile(newConfigFile)
+	if err != nil {
+		glog.Errorf("Unable to read new logstash config file %s: %s", newConfigFile, err)
+		return err
+	}
+
+	// Now compare the new config to the current config, and
+	// only replace the current config if they are different
+	if bytes.Equal(originalContents, newContents) {
+		return ErrLogstashUnchanged
+	} else if err := os.Rename(newConfigFile, originalFile); err != nil {
+		glog.Errorf("Unable to replace logstash config file: %s", err)
+		return err
+	}
+	glog.Infof("Updated logstash configuration")
 	return nil
 }
 
