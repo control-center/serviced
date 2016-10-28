@@ -79,8 +79,8 @@ type HostAgent struct {
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
-	muxport              string               // the mux port to serviced (default is 22250)
-	useTLS               bool                 // true if TLS should be enabled for MUX
+	muxport              string // the mux port to serviced (default is 22250)
+	useTLS               bool   // true if TLS should be enabled for MUX
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
@@ -114,7 +114,7 @@ type AgentOptions struct {
 	Master               string
 	UIPort               string
 	RPCPort              string
-	RPCDisableTLS        bool                 // true if TLS should be disabled for RPC
+	RPCDisableTLS        bool // true if TLS should be disabled for RPC
 	DockerDNS            []string
 	VolumesPath          string
 	Mount                []string
@@ -407,8 +407,8 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		case <-startExit:
 			glog.Infof("Host Agent restarting")
 			close(unregister)
-			unregister = make(chan interface{})
 			rwg.Wait()
+			unregister = make(chan interface{})
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
 
