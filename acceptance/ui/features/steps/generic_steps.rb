@@ -119,6 +119,8 @@ def getTableType(table)
     type = ""
     if table == "Applications" || table == "Services"
         type = "services"
+    elsif table == "Internal Services"
+        type = "internalServices"
     elsif table == "Application Templates" || table == "Templates"
         type = "templates"
     elsif table == "Hosts"
