@@ -105,7 +105,10 @@
                     <a href="#/services/{{ip.ServiceID}}" class="link" ng-click="routeToService(ip.ServiceID, $event)">{{ip.ServiceName}}</a>
                 </td>
                 <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.Type}}</td>
-                <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="clickHost(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
+                <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'">
+                    <a href="#" class="link" ng-click="clickHost(ip.HostID)">{{getHostName(ip.HostID)}}</a>
+                    <div ng-show="!getHostName(ip.HostID)" class="ntsh">N/A</div>
+                </td>
                 <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="clickPool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
                 <td data-title="'tbl_virtual_ip'|translate">{{ip.IPAddress}}:{{ip.Port}}</td>
                 <td data-title="'actions'|translate">
