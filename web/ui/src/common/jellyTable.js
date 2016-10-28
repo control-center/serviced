@@ -179,8 +179,11 @@
                                     var sortedItems = sortedItems.filter(function (item) {
                                         var match = false;
                                         config().searchColumns.forEach(col => {
-                                            let z = $parse(col)(item).toString().toLowerCase();
-                                            match |= z.indexOf(term) > -1;
+                                            let data = $parse(col)(item);
+                                            if (data) {
+                                                let z = data.toString().toLowerCase();
+                                                match |= z.indexOf(term) > -1;
+                                            }
                                         });
                                         return match;
                                     });
