@@ -408,7 +408,11 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 			glog.Infof("Host Agent restarting")
 			close(unregister)
 			rwg.Wait()
+
+			// The unregister var is used directly in the goroutine that calls
+			// RegisterHost above. Always wait for rwg before re-assigning it.
 			unregister = make(chan interface{})
+
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
 
