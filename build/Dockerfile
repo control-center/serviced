@@ -41,13 +41,13 @@ RUN apt-get update -qq && apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
 # Install nodejs, npm, gulp, etc
 RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
-RUN apt update -qq && apt install -y nodejs
+RUN apt update -qq && apt install -y nodejs=6.9.1-1nodesource1~trusty1
 #RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
 RUN apt-get update -qq && apt-get install -yq build-essential=11.6ubuntu6
 
 # install and use yarn instead of npm
-RUN npm install -g yarn
+RUN npm install -g yarn@0.16.1
 
 # make a place for yarn globals to live
 RUN mkdir /yarn-global
