@@ -31,7 +31,8 @@
 
             $scope.poolsTable = {
                 sorting: { id: "asc" },
-                watchExpression: () => this.lastUpdate
+                watchExpression: () => this.lastUpdate,
+                searchColumns: ['id','model.CoreCapacity']
             };
 
             $scope.breadcrumbs = [

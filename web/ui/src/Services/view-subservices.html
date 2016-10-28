@@ -136,7 +136,7 @@
 
     <!-- Services -->
     <div ng-show="currentDescendents.length" class="jelly-treetable">
-        <h3 translate>title_services</h3>
+        <h3 class="pull-left" translate>title_services</h3>
         <table jelly-table data-data="currentDescendents" data-config="servicesTable" class="table">
             <thead>
                 <tr>
@@ -192,7 +192,7 @@
 
     <!-- Instances -->
     <div ng-show="hasCurrentInstances() && !currentService.isIsvc()"> 
-        <h3 translate>running_tbl_instances</h3>
+        <h3 class="pull-left" translate>running_tbl_instances</h3>
         <table jelly-table data-data="currentService.instances" data-config="instancesTable" class="table">
             <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
                 <td data-title="'running_tbl_instance_id'|translate" sortable="'instance.model.InstanceID'">{{instance.model.InstanceID}}</td>
