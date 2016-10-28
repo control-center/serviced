@@ -562,7 +562,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	if ok, err := conn.Exists(hspth); err != nil {
 		logger.WithError(err).Debug("Could not look up host state")
 
-		// CC-2853: only wrap errors that are of type client.ErrNoServer
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
 		if err == client.ErrNoServer {
 			return err
 		}
@@ -582,7 +582,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	if ok, err := conn.Exists(sspth); err != nil {
 		logger.WithError(err).Debug("Could not look up service state")
 
-		// CC-2853: only wrap errors that are of type client.ErrNoServer
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
 		if err == client.ErrNoServer {
 			return err
 		}
@@ -600,7 +600,7 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	if err := t.Commit(); err != nil {
 		logger.WithError(err).Debug("Could not commit transaction")
 
-		// CC-2853: only wrap errors that are of type client.ErrNoServer
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
 		if err == client.ErrNoServer {
 			return err
 		}
