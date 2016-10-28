@@ -200,10 +200,14 @@ func (c *CheckOrphans) Execute(args []string) error {
 
 	//  we retrieve the list of all devices that CC has access to
 	var ccDevices []string
-	for _, v := range drv.List() {
-		vol, err := drv.GetVolume(v, false)
+	for _, v := range drv.ListTenants() {
+		_vol, err := drv.Get(v)
 		if err != nil {
 			return err
+		}
+		vol, ok := _vol.(*devicemapper.DeviceMapperVolume)
+		if !ok {
+			log.Fatal("Volume", v, "could not be cast as devicemapper.DeviceMapperVolume")
 		}
 		ccDevices = append(ccDevices, vol.Metadata.CurrentDevice())
 		for _, dHash := range vol.Metadata.Snapshots {
@@ -216,7 +220,7 @@ func (c *CheckOrphans) Execute(args []string) error {
 	for _, d := range drv.DeviceSet.List() {
 		found := false
 		for _, c := range ccDevices {
-			// TODO: Investigate why (*devicemapper.DeviceMapperDriver).DeviceSet.List() contains an empty string!
+			// (*devicemapper.DeviceMapperDriver).DeviceSet.List() will contain an empty string for the base device
 			if d == c || d == "" {
 				found = true
 				break
@@ -229,10 +233,17 @@ func (c *CheckOrphans) Execute(args []string) error {
 
 	if len(orphans) > 0 {
 		fmt.Println("Orphaned devices were found")
+		// delete the actual devices
 		for _, v := range orphans {
 			if c.Clean {
-				if err := dmd.Remove(v); err != nil {
-					return err
+				drv.DeviceSet.UnmountDevice(v, drv.Root())
+				drv.DeviceSet.Lock()
+				if err := drv.DeactivateDevice(v); err != nil {
+					log.Info("An error occurred while attempting to deactivate the device:", err)
+				}
+				drv.DeviceSet.Unlock()
+				if err := drv.DeviceSet.DeleteDevice(v, false); err != nil {
+					log.Info("An error occurred while attempting to remove the device:", err)
 				}
 				fmt.Println("Removed orphaned snapshot", v)
 			} else {

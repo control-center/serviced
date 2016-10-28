@@ -202,7 +202,6 @@ func (e ThinpoolInitError) Error() string {
 	return e.msg
 }
 
-
 func getDevName(name string) string {
 	return "/dev/mapper/" + name
 }
@@ -319,6 +318,7 @@ func (devices *DeviceSet) allocateTransactionID() uint64 {
 }
 
 func (devices *DeviceSet) updatePoolTransactionID() error {
+	// devices.CheckTransactionID()
 	if err := devicemapper.SetTransactionID(devices.getPoolDevName(), devices.TransactionID, devices.OpenTransactionID); err != nil {
 		return fmt.Errorf("devmapper: Error setting devmapper transaction ID: %s", err)
 	}
@@ -715,6 +715,21 @@ func (devices *DeviceSet) startDeviceDeletionWorker() {
 	}
 }
 
+func (devices *DeviceSet) CheckTransactionID() error {
+	devices.Lock()
+	defer devices.Unlock()
+	id := devices.transaction.OpenTransactionID
+	if err := devices.loadTransactionMetaData(); err != nil {
+		return err
+	}
+	if id == devices.transaction.OpenTransactionID {
+		// nothing changed, disk not changed
+		return nil
+	}
+	devices.TransactionID = devices.transaction.OpenTransactionID
+	return nil
+}
+
 func (devices *DeviceSet) initMetaData() error {
 	devices.Lock()
 	defer devices.Unlock()
@@ -903,6 +918,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 		devices.markDeviceIDFree(deviceID)
 		return err
 	}
+
 	return nil
 }
 
@@ -1098,7 +1114,7 @@ func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	}
 
 	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
-		return  ThinpoolInitError{fmt.Sprintf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)}
+		return ThinpoolInitError{fmt.Sprintf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)}
 	}
 
 	return nil
