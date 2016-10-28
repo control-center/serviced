@@ -19,6 +19,7 @@ Feature: Internal Services
       And I should see an entry for "Docker Registry" in the table
       And I should see an entry for "Elastic Search - LogStash" in the table
       And I should see an entry for "Elastic Search - Serviced" in the table
+      And I should see an entry for "Kibana" in the table
       And I should see an entry for "Logstash" in the table
       And I should see an entry for "OpenTSDB" in the table
       And I should see an entry for "Zookeeper" in the table
@@ -38,12 +39,14 @@ Feature: Internal Services
   Scenario: Check that all services are active
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-    Then "Docker Registry" should be active
-      And "Elastic Search - LogStash" should be active
-      And "Elastic Search - Serviced" should be active
-      And "Logstash" should be active
-      And "OpenTSDB" should be active
-      And "Zookeeper" should be active
+    Then I should see "Services"
+      And "Docker Registry" should be active in the "Internal Services" table
+      And "Elastic Search - LogStash" should be active in the "Internal Services" table
+      And "Elastic Search - Serviced" should be active in the "Internal Services" table
+      And "Kibana" should be active in the "Internal Services" table
+      And "Logstash" should be active in the "Internal Services" table
+      And "OpenTSDB" should be active in the "Internal Services" table
+      And "Zookeeper" should be active in the "Internal Services" table
 
   Scenario: View the CPU Usage graph
     When I am on the applications page
@@ -65,7 +68,7 @@ Feature: Internal Services
   Scenario: View details for the Docker Registry service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Docker Registry" in the "Services" table
+      And I view the details for "Docker Registry" in the "Internal Services" table
     Then I should not see an entry for "Elastic Search - Serviced" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
@@ -73,23 +76,31 @@ Feature: Internal Services
   Scenario: View details for the Elastic Search - LogStash service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Elastic Search - LogStash" in the "Services" table
-    Then I should not see an entry for "Celery" in the table
+      And I view the details for "Elastic Search - LogStash" in the "Internal Services" table
+    Then I should not see an entry for "Kibana" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Elastic Search - Serviced service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Elastic Search - Serviced" in the "Services" table
+      And I view the details for "Elastic Search - Serviced" in the "Internal Services" table
     Then I should not see an entry for "Docker Registry" in the table
+      And I should see "Total % Used" in the "CPU Usage" graph
+      And I should see "Total bytes" in the "Memory Usage" graph
+
+  Scenario: View details for the Kibana service
+    When I am on the applications page
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Kibana" in the "Internal Services" table
+    Then I should not see an entry for "Zookeeper" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Logstash service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Logstash" in the "Services" table
+      And I view the details for "Logstash" in the "Internal Services" table
     Then I should not see an entry for "Zookeeper" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
@@ -97,7 +108,7 @@ Feature: Internal Services
   Scenario: View details for the OpenTSDB service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "OpenTSDB" in the "Services" table
+      And I view the details for "OpenTSDB" in the "Internal Services" table
     Then I should not see an entry for "Elastic Search - LogStash" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
@@ -105,7 +116,7 @@ Feature: Internal Services
   Scenario: View details for the Zookeeper service
     When I am on the applications page
       And I view the details for "Internal Services" in the "Applications" table
-      And I view the details for "Zookeeper" in the "Services" table
-    Then I should not see an entry for "Celery" in the table
+      And I view the details for "Zookeeper" in the "Internal Services" table
+    Then I should not see an entry for "Kibana" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
