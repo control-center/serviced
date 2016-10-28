@@ -266,7 +266,7 @@
                                                 resourcesFactory.assignIP(serviceID, IP)
                                                     .success(function (data, status) {
                                                         $notification.create("Added IP", data.Detail).success();
-                                                        update();
+                                                        $scope.currentService.fetchAddresses(true);
                                                         this.close();
                                                     }.bind(this))
                                                     .error(function (data, status) {
