@@ -128,7 +128,7 @@ gulp.task("debug3rdparty", function(){
 gulp.task("concat", function(){
     return gulp.src(controlplaneFiles)
         .pipe(sourcemaps.init())
-            .pipe(to5(to5Config))
+            // .pipe(to5(to5Config))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
         .pipe(gulp.dest(paths.srcBuild));

@@ -1087,8 +1087,7 @@
                     $scope.configTable = {
                         sorting: {
                             Filename: "asc"
-                        },
-                        searchColumns: ['Filename']
+                        }
                     };
                     $scope.instancesTable = {
                         sorting: {
