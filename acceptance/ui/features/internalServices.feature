@@ -91,11 +91,11 @@ Feature: Internal Services
 
   Scenario: View details for the Kibana service
     When I am on the applications page
-    And I view the details for "Internal Services" in the "Applications" table
-    And I view the details for "Kibana" in the "Internal Services" table
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Kibana" in the "Internal Services" table
     Then I should not see an entry for "Zookeeper" in the table
-    And I should see "Total % Used" in the "CPU Usage" graph
-    And I should see "Total bytes" in the "Memory Usage" graph
+      And I should see "Total % Used" in the "CPU Usage" graph
+      And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Logstash service
     When I am on the applications page
