@@ -132,8 +132,21 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		}
 
 		// delete the state from the coordinator
-		if err := DeleteState(l.conn, req); err != nil {
-			logger.WithError(err).Warn("Could not delete state")
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+
+		for {
+			if err := DeleteState(l.conn, req); err == client.ErrNoServer {
+				logger.WithError(err).Warn("Server not found, attempting to retry updating service")
+				select {
+				case <-t.C:
+				case <-shutdown:
+					return
+				}
+			} else if err != nil {
+				logger.WithError(err).Error("Could not delete state for stopped container")
+				return
+			}
 		}
 	}()
 
@@ -261,31 +274,12 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		case timeExit := <-containerExit:
 			logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
 			containerExit = nil
-
-			if ok := func() bool {
-				t := time.NewTicker(time.Second)
-				defer t.Stop()
-				for {
-					if err := UpdateState(l.conn, req, func(s *State) bool {
-						s.Terminated = timeExit
-						*ssdat = s.ServiceState
-						return true
-					}); err == client.ErrNoServer {
-						logger.WithError(err).Warn("Server not found, attempting to retry updating service")
-						select {
-						case <-t.C:
-						case <-shutdown:
-							logger.Debug("Host state listener received signal to shut down")
-							return false
-						}
-					} else if err != nil {
-						logger.WithError(err).Error("Could not update state for stopped container")
-						return false
-					} else {
-						return true
-					}
-				}
-			}(); !ok {
+			if err := UpdateState(l.conn, req, func(s *State) bool {
+				s.Terminated = timeExit
+				*ssdat = s.ServiceState
+				return true
+			}); err != nil {
+				logger.WithError(err).Error("Could not update state for stopped container, shutting down")
 				return
 			}
 		case <-shutdown:
