@@ -32,18 +32,6 @@ ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 RUN	go get github.com/tools/godep
 
-# Install nodejs, npm, gulp, etc
-RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
-# karma has dependencies that need to run native builds, so we need build-essential
-RUN apt-get update -qq && apt-get install build-essential=11.6ubuntu6
-
-# create link from nodejs to node
-RUN ln /usr/bin/nodejs /usr/bin/node
-RUN npm install -g gulp@3.8.10 jshint@2.5.11 6to5@2.13.3
-# add a script that allows tasks to be
-# performed as a specific user
-ADD userdo.sh /root/userdo.sh
-
 # build dependencies
 RUN	apt-get update -qq && apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
 RUN	gem install fpm
@@ -51,10 +39,34 @@ RUN	apt-get update -qq && apt-get install -y -q rpm
 RUN	apt-get update -qq && apt-get install -y -q mercurial bzr
 RUN apt-get update -qq && apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
+# Install nodejs, npm, gulp, etc
+RUN curl -sL https://deb.nodesource.com/setup_6.x | bash -
+RUN apt update -qq && apt install -y nodejs
+#RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
+# karma has dependencies that need to run native builds, so we need build-essential
+RUN apt-get update -qq && apt-get install -yq build-essential=11.6ubuntu6
+
+# install and use yarn instead of npm
+RUN npm install -g yarn
+
+# make a place for yarn globals to live
+RUN mkdir /yarn-global
+RUN chmod 755 /yarn-global
+RUN yarn global add gulp@3.8.8 jshint@2.9.2 babel@5.8.23 --global-folder /yarn-global
+
 # Cache the NPM packages within the docker image
 RUN mkdir -p /npm-cache/serviced/node_modules
 ADD package.json /npm-cache/serviced/package.json
-ADD npm-shrinkwrap.json /npm-cache/serviced/npm-shrinkwrap.json
-RUN cd /npm-cache/serviced; npm install
+ADD yarn.lock /npm-cache/serviced/yarn.lock
+RUN cd /npm-cache/serviced; yarn install --pure-lockfile
+
+# HACK - yarn doesnt try to normalize permissions after
+# unpacking tar files so do it by hand. see
+# https://github.com/yarnpkg/yarn/pull/1490
+RUN chmod -R +r /npm-cache/serviced/node_modules
+
+# add a script that allows tasks to be
+# performed as a specific user
+ADD userdo.sh /root/userdo.sh
 
 WORKDIR	/go/src/github.com/control-center/serviced

@@ -191,7 +191,7 @@ export BUILD_VERSION
 #
 buildServicedBuildImage: docker_ok buildServicedBuildImage_ok
 	cp web/ui/package.json build
-	cp web/ui/npm-shrinkwrap.json build
+	cp web/ui/yarn.lock build
 	docker build -t zenoss/serviced-build:$(BUILD_VERSION) build
 
 #
