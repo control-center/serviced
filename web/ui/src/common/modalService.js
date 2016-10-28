@@ -139,13 +139,12 @@
                 // listen for hide event and completely remove modal
                 // after it is hidden
                 this.$el.on("hidden.bs.modal", function(){
+                    darkener.hide();
                     this.destroy();
                 }.bind(this));
 
                 // NOTE - internal boostrap modal event that we need
-                // to hook into to hide the modal if the darkener is
-                // clicked or if the modal is closed via the "x" close
-                // icon
+                // to hook into to hide the modal if the darkener is clicked
                 this.$el.on("click.dismiss.modal", (e) => {
                     // if clicking the backdrop or clicking an element
                     // marked with class "close", close things

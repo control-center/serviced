@@ -903,6 +903,9 @@ input.startup {
 .control-buttons {
     margin-top: 20px;
 }
+.control-buttons.pull-right {
+    margin-left: 10px;
+}
 
 /* health and status popover content */
 .popover{
@@ -1425,6 +1428,15 @@ input[type=file] {
 .jelly-treetable tbody tr > td:first-child {
     padding: 0 0 0 8px;
 }
+
+.jelly-search {
+    float:right;
+    margin: 19px 0 0 0;
+    width: 200px;
+}
+    .jelly-search input {
+        height: 29px;
+    }
 
 .table-collapse {
     font-size: 8px;

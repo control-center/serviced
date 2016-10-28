@@ -440,6 +440,7 @@
                 sorting: {
                     name: "asc"
                 },
+                searchColumns: ['name','model.Description', 'model.DeploymentID', 'model.PoolID'],                
                 getData: function(data, params) {
                     // use built-in angular filter
                     var orderedData = params.sorting() ?
@@ -473,7 +474,8 @@
             $scope.templatesTable = {
                 sorting: {
                     Name: "asc"
-                }
+                },
+                searchColumns: ['Name','ID', 'Description']               
             };
 
             // Get a list of templates

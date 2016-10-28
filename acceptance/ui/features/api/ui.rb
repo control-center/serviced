@@ -4,7 +4,6 @@ require_relative "../pages/applications"
 require_relative "../pages/hosts"
 require_relative "../pages/pools"
 require_relative "../pages/service"
-require_relative "../pages/servicesmap"
 require_relative "../pages/user"
 
 #
@@ -22,7 +21,6 @@ class UI
             login: nil,
             pools: Pools.new,
             services: Service.new,
-            servicesMap: ServicesMap.new,
             user: User.new,
         }
     end
@@ -60,11 +58,6 @@ class UI
         return @pages[:applications]
     end
 
-    def ServicesMapPage
-        suppress_deploy_wizard()
-        return @pages[:servicesMap]
-    end
-
     def PoolsPage
         suppress_deploy_wizard()
         return @pages[:pools]
@@ -85,7 +78,7 @@ class UI
     ##
     # Login methods.
     #
-    
+
     # Tries to access the pools page.  If we're redirected to the
     # login page, we need to login.
     def verify_login?()

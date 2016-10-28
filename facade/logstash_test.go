@@ -18,11 +18,10 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
-package dao
+package facade
 
 import (
 	"github.com/control-center/serviced/domain/servicedefinition"
-	//	"github.com/control-center/serviced/domain/service"
 
 	"fmt"
 	"io/ioutil"

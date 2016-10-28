@@ -86,4 +86,3 @@ end
 When (/^I click the Add Public Endpoint button$/) do
     CC.UI.ServicesPage.click_add_publicendpoint_button()
 end
-

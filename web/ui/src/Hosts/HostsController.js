@@ -38,7 +38,8 @@
                 sorting: {
                     name: "asc"
                 },
-                watchExpression: () => this.lastUpdate
+                watchExpression: () => this.lastUpdate,
+                searchColumns: ['name', 'model.PoolID', 'model.Cores', 'model.KernelVersion']
             };
 
             $scope.dropped = [];

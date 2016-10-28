@@ -20,22 +20,16 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/isvcs"
 )
-
-type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
-
-var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
 var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient.NewClient("unix:///var/run/docker.sock") }
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
-func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
+func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddServiceTemplate"))
 	store := f.templateStore
 	hash, err := serviceTemplate.Hash()
@@ -64,18 +58,25 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 		glog.Errorf("Could not add template at %s: %s", hash, err)
 		return "", err
 	}
+
+	glog.Infof("Added template %s (%s)", serviceTemplate.Name, serviceTemplate.ID)
 	// This takes a while so don't block the main thread
-	go LogstashContainerReloader(ctx, f)
+	if reloadLogstashConfig {
+		go LogstashContainerReloader(ctx, f)
+	}
 	return hash, err
 }
 
 //UpdateServiceTemplate updates a service template
-func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error {
+func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpdateServiceTemplate"))
 	if err := f.templateStore.Put(ctx, template); err != nil {
 		return err
 	}
-	go LogstashContainerReloader(ctx, f) // don't block the main thread
+	glog.Infof("Updated template %s (%s)", template.Name, template.ID)
+	if reloadLogstashConfig {
+		go LogstashContainerReloader(ctx, f) // don't block the main thread
+	}
 	return nil
 }
 
@@ -86,7 +87,7 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 		return fmt.Errorf("Unable to find template: %s", id)
 	}
 
-	glog.V(2).Infof("Facade.RemoveServiceTemplate: %s", id)
+	glog.Infof("Removed template: %s", id)
 	if err := f.templateStore.Delete(ctx, id); err != nil {
 		return err
 	}
@@ -104,21 +105,25 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 		return err
 	}
 
+	reloadLogstashConfig := false		// defer reloading until all templates have been updated
 	for _, template := range templates {
 		template.DatabaseVersion = 0
 		if _, ok := curtemplates[template.ID]; ok {
-			if err := f.UpdateServiceTemplate(ctx, template); err != nil {
+			if err := f.UpdateServiceTemplate(ctx, template, reloadLogstashConfig); err != nil {
 				glog.Errorf("Could not update service template %s: %s", template.ID, err)
 				return err
 			}
 		} else {
 			template.ID = ""
-			if _, err := f.AddServiceTemplate(ctx, template); err != nil {
+			if _, err := f.AddServiceTemplate(ctx, template, reloadLogstashConfig); err != nil {
 				glog.Errorf("Could not add service template %s: %s", template.ID, err)
 				return err
 			}
 		}
 	}
+
+	// Now that all templates ahve been update, we need to update the logstash configuration
+	go LogstashContainerReloader(ctx, f)
 	return nil
 }
 
@@ -404,38 +409,4 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		}
 	}
 	return newsvc.ID, nil
-}
-
-// writeLogstashConfiguration takes all the available
-// services and writes out the filters section for logstash.
-// This is required before logstash startsup
-func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
-	// FIXME: eventually this file should live in the DFS or the config should
-	// live in zookeeper to allow the agents to get to this
-	if err := dao.WriteConfigurationFile(templates); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
-// This method depends on the elasticsearch container being up and running.
-func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
-	templates, err := f.GetServiceTemplates(ctx)
-	if err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	if err := writeLogstashConfiguration(templates); err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	glog.V(2).Infof("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Errorf("Could not start logstash container: %s", err)
-		return err
-	}
-	return nil
 }
