@@ -1224,6 +1224,7 @@ func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, 
 		}
 		affected++
 	}
+	logger.WithField("count", affected).Debug("Finished scheduleServices")
 	return affected, nil
 }
 
