@@ -120,6 +120,7 @@ Feature: Host Management
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Limit field with "table://hosts/defaultHost/commitment"
       And I click "Next"
+      And I wait for the submission to finish
 	Then I should see "Host Keys"
 	When I click "Ok"
     Then I should see "table://hosts/defaultHost/name" in the "Name" column
@@ -139,6 +140,7 @@ Feature: Host Management
       And I fill in the Resource Pool field with "table://hosts/host2/pool"
       And I fill in the RAM Limit field with "table://hosts/host2/commitment"
       And I click "Next"
+      And I wait for the submission to finish
 	Then I should see "Host Keys"
 	When I click "Ok"
     Then I should see an entry for "table://hosts/host2/name" in the table
@@ -163,6 +165,7 @@ Feature: Host Management
       And I fill in the Resource Pool field with "table://hosts/host3/pool"
       And I fill in the RAM Limit field with "table://hosts/host3/commitment"
       And I click "Next"
+      And I wait for the submission to finish
 	Then I should see "Host Keys"
 	When I click "Ok"
     Then I should see an entry for "table://hosts/host3/name" in the table

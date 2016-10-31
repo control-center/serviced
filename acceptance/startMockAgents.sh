@@ -39,6 +39,12 @@ echo "Using HOST_IP=$HOST_IP"
 
 set -e
 
+if [ ! -f ${DIR}/mockAgent/mockAgent ]; then
+    echo "mockAgent binary doesn't exist. compiling it.."
+    cd ${DIR}/mockAgent
+    go build
+fi
+
 set -x
 cd ${DIR}
 ${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/${DATASET}/hosts.json --host defaultHost --address ${HOST_IP} &
