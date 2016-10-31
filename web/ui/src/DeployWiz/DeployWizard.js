@@ -24,9 +24,7 @@
         };
 
         resourcesFactory.v2.getPools().then(data => {
-            $scope.pools = data.map(result => new Pool(result)).sort(
-                (first, second) => first.id.localeCompare(second.id)
-            );
+            $scope.poolIds = data.map(result => result.ID).sort();
         });
 
         resourcesFactory.v2.getHosts().then(data => {
@@ -141,8 +139,8 @@
                 $scope.newHost = {
                     port: $translate.instant('placeholder_port')
                 };
-                if ($scope.pools.length > 0){
-                    $scope.newHost.PoolID = $scope.pools[0].id;
+                if ($scope.poolIds.length > 0){
+                    $scope.newHost.PoolID = $scope.poolIds[0];
                 }
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
@@ -233,8 +231,8 @@
             $scope.newHost = {
                 port: $translate.instant('placeholder_port')
             };
-            if ($scope.pools.length > 0){
-                $scope.newHost.PoolID = $scope.pools[0].id;
+            if ($scope.poolIds.length > 0){
+                $scope.newHost.PoolID = $scope.poolIds[0];
             }
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
         };
@@ -405,11 +403,7 @@
                 log.error(e);
             });
 
-        resourcesFactory.v2.getPools().then(data => {
-            $scope.pools = data.map(result => new Pool(result)).sort(
-                (first, second) => first.id.localeCompare(second.id)
-            );
-        });
 
     }]);
+
 })();
