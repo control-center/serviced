@@ -6,8 +6,13 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "log", "Pool", "Host",
-    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, log, Pool, Host){
+    controlplane.controller("DeployWizard", [
+    "$scope", "$rootScope", "$notification", "$translate",
+    "$q", "resourcesFactory", "servicesFactory", "miscUtils",
+    "log", "Pool", "Host",
+    function($scope, $rootScope, $notification, $translate,
+    $q, resourcesFactory, servicesFactory, utils,
+    log, Pool, Host){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -300,6 +305,7 @@
                 $("#deploy-save-button").removeClass('active');
                 resetStepPage();
                 resetError();
+                $rootScope.$emit("wizard.deployed");
             };
 
             nextClicked = true;

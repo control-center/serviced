@@ -7,13 +7,13 @@
     'use strict';
 
     controlplane.controller("AppsController", [
-        "$scope", "$routeParams", "$location",
+        "$rootScope", "$scope", "$routeParams", "$location",
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
         "$cookies", "miscUtils",
         "ngTableParams", "$filter",
         "Service","InternalService", "$q",
-    function($scope, $routeParams, $location,
+    function($rootScope, $scope, $routeParams, $location,
     $notification, resourcesFactory, authService,
     $modalService, $translate, $timeout,
     $cookies, utils,
@@ -503,6 +503,12 @@
             //unregister polls on destroy
             $scope.$on("$destroy", function(){
                 resourcesFactory.unregisterAllPolls();
+            });
+
+            // be sure to update apps table after deploywiz
+            // finishes its dark magicks
+            $rootScope.$on("wizard.deployed", () => {
+                refreshApps();
             });
         }
 
