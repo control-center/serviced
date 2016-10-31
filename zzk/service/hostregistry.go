@@ -181,9 +181,9 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 		eventLogger := plog.WithFields(log.Fields{
 			"poolid":    h.poolid,
 			"hostid":    hostid,
-			"isOnline":  isOnline,
-			"isLocked":  isLocked,
-			"isRunning": isRunning,
+			"isonline":  isOnline,
+			"islocked":  isLocked,
+			"isrunning": isRunning,
 		})
 		eventLogger.Debug("Waiting for host event")
 

@@ -186,13 +186,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			return
 		}
 		// set up a listener on the service state node
-		ssdat = &ServiceState{}
-		ssevt, err := l.conn.GetW(sspth, ssdat, done)
-		if err == client.ErrNoNode {
-			logger.Debug("Service state was removed, exiting")
-			return
-		} else if err != nil {
+		ok, ssevt, err := l.conn.ExistsW(sspth, done)
+		if err != nil {
 			logger.WithError(err).Error("Could not watch service state")
+			return
+		}
+		if !ok {
+			logger.Debug("Service state was removed, exiting")
 			return
 		}
 
