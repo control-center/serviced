@@ -140,13 +140,19 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				logger.WithError(err).Warn("Server not found, attempting to retry updating service")
 				select {
 				case <-t.C:
+					select {
+					case <-shutdown:
+						return
+					default:
+					}
 				case <-shutdown:
 					return
 				}
+				continue
 			} else if err != nil {
 				logger.WithError(err).Error("Could not delete state for stopped container")
-				return
 			}
+			return
 		}
 	}()
 
