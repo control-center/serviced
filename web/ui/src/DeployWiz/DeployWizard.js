@@ -24,7 +24,8 @@
         };
 
         resourcesFactory.v2.getPools().then(data => {
-            $scope.poolIds = data.map(result => result.ID).sort();
+            $scope.pools = data.map(p => new Pool(p));
+            $scope.poolIds = $scope.pools.map(p => p.id).sort();
         });
 
         resourcesFactory.v2.getHosts().then(data => {
