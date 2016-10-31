@@ -7,7 +7,7 @@ class Pools < SitePrism::Page
 
     section :navbar, NavBarSection, ".navbar-collapse"
 
-    element :addPool_button, "[ng-click='modalAddPool()']"
+    element :addPool_button, ".add-pool-button"
     element :poolName_input, "input[name='new_pool_name']"
     element :description_input, "input[name='new_pool_description']"
     element :addVirtualIp_button, "[ng-click='modalAddVirtualIp(currentPool)']"
