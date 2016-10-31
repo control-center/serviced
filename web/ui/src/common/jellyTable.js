@@ -52,7 +52,7 @@
                             <ul>
                                 <li class="entry"><span translate>last_update</span><strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
                                 <li class="entry"><strong>{{${tableID}.resultsLength}}</strong>
-                                    <span translate>results</span>
+                                    <span translate>{{${tableID}.resultsLength === 1 ? "result" : "results"}}</span>
                                 </li>
                             </ul>
                         </td>
