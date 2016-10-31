@@ -560,8 +560,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	// Delete the host instance
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	if ok, err := conn.Exists(hspth); err != nil {
-
 		logger.WithError(err).Debug("Could not look up host state")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",
@@ -576,8 +580,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	// Delete the service instance
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	if ok, err := conn.Exists(sspth); err != nil {
-
 		logger.WithError(err).Debug("Could not look up service state")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",
@@ -590,8 +598,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	}
 
 	if err := t.Commit(); err != nil {
-
 		logger.WithError(err).Debug("Could not commit transaction")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",
