@@ -39,6 +39,10 @@ When (/^I fill in the RAM Limit field with "(.*?)"$/) do |ramLimit|
     fillInRAMLimit(ramLimit)
 end
 
+When (/^I wait for the submission to finish$/) do
+    expect(CC.UI.HostsPage).not_to have_selector(:link_or_button, 'Submitting...')
+end
+
 When (/^I click the add Host button$/) do
     clickAddHostButton()
 end

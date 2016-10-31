@@ -302,8 +302,8 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 
 // RegisterHost attempts to register a host's keys over ssh, or locally if it's
 // the current host.
-func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte) error {
-	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys)
+func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte, prompt bool) error {
+	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys, prompt)
 }
 
 // SetHostExpiration sets a host's auth token

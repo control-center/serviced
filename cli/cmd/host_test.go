@@ -129,7 +129,7 @@ func (t HostAPITest) RemoveHost(id string) error {
 	return nil
 }
 
-func (t HostAPITest) RegisterRemoteHost(h *host.Host, data []byte) error {
+func (t HostAPITest) RegisterRemoteHost(h *host.Host, data []byte, prompt bool) error {
 	if t.registerFail {
 		return errors.New("Forcing RemoteRegisterHost to fail for testing")
 	}

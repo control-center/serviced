@@ -90,13 +90,13 @@ func (s *mySuite) Test_outputDelegateKey_keyfile(c *C) {
 }
 
 func (s *mySuite) Test_outputDelegateKey_register(c *C) {
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData).Return(nil)
+	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(nil)
 	s.cli.outputDelegateKey(&testHost, testKeyData, "", true)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_registerfail(c *C) {
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData).Return(errors.New("woot"))
+	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(errors.New("woot"))
 	s.api.On("WriteDelegateKey", testHostFilename, testKeyData).Return(nil)
 	s.cli.outputDelegateKey(&testHost, testKeyData, "", true)
 	s.api.AssertExpectations(c)
@@ -104,7 +104,7 @@ func (s *mySuite) Test_outputDelegateKey_registerfail(c *C) {
 
 func (s *mySuite) Test_outputDelegateKey_register_keyfile(c *C) {
 	keyfileName := "foo-bar"
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData).Return(nil)
+	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(nil)
 	s.api.On("WriteDelegateKey", keyfileName, testKeyData).Return(nil)
 	s.cli.outputDelegateKey(&testHost, testKeyData, keyfileName, true)
 	s.api.AssertExpectations(c)
@@ -112,7 +112,7 @@ func (s *mySuite) Test_outputDelegateKey_register_keyfile(c *C) {
 
 func (s *mySuite) Test_outputDelegateKey_registerfail_keyfile(c *C) {
 	keyfileName := "foo-bar"
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData).Return(errors.New("woot"))
+	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(errors.New("woot"))
 	s.api.On("WriteDelegateKey", keyfileName, testKeyData).Return(nil)
 	s.cli.outputDelegateKey(&testHost, testKeyData, keyfileName, true)
 	s.api.AssertExpectations(c)
