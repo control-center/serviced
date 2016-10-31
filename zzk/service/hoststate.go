@@ -185,6 +185,16 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			logger.WithError(err).Error("Could not watch host state")
 			return
 		}
+		// set up a listener on the service state node
+		ssdat = &ServiceState{}
+		ssevt, err := l.conn.GetW(sspth, ssdat, done)
+		if err == client.ErrNoNode {
+			logger.Debug("Service state was removed, exiting")
+			return
+		} else if err != nil {
+			logger.WithError(err).Error("Could not watch service state")
+			return
+		}
 
 		// attach to the container if not already attached
 		if containerExit == nil {
@@ -274,9 +284,10 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 			logger.Debug("Could not process desired state for instance")
 		}
-
+		logger.Debug("Waiting for state events")
 		select {
 		case <-hsevt:
+		case <-ssevt:
 		case timeExit := <-containerExit:
 			logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
 			containerExit = nil
