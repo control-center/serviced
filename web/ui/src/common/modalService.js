@@ -5,9 +5,9 @@
     angular.module('modalService', []).
     factory("$modalService", [
         "$rootScope", "$templateCache", "$http", "$interpolate", "$compile", "$translate", "$notification",
-        "miscUtils",
+        "miscUtils", "CCUIState",
         function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
-        utils){
+        utils, CCUIState){
 
             // accessing certain properties forces a DOM reflow,
             // which is useful if you want some CSS changes to
@@ -105,6 +105,12 @@
 
                 // bind user provided model to final modal template
                 this.$el = $($compile(modalTemplate)(model)).modal(bootstrapModalConfig);
+
+                // enforce disabling animation on modals if necessary
+                if(CCUIState.get().disableAnimation){
+                    console.log("disabling animation");
+                    this.$el.removeClass("fade");
+                }
 
                 $modalFooter = this.$el.find(".modal-footer");
                 // cache a reference to the notification holder
@@ -283,7 +289,12 @@
                 // perform onShow function after modal is visible
                 modal.$el.one("shown.bs.modal.", function(){
                     // search for and autofocus the focusme element
-                    modal.$el.find("[focusme]").first().focus();
+                    // unless disableAnimation is set, which probably
+                    // indicates this is an acceptance test is horrendously
+                    // slow and prone to breaking
+                    if(!CCUIState.get().disableAnimation){
+                        modal.$el.find("[focusme]").first().focus();
+                    }
 
                     // call user provided onShow function
                     setTimeout(() => {
