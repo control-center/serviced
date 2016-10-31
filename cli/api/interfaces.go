@@ -46,7 +46,7 @@ type API interface {
 	SetHostMemory(HostUpdateConfig) error
 	GetHostPublicKey(string) ([]byte, error)
 	RegisterHost([]byte) error
-	RegisterRemoteHost(*host.Host, []byte) error
+	RegisterRemoteHost(*host.Host, []byte, bool) error
 	WriteDelegateKey(string, []byte) error
 	AuthenticateHost(string) (string, int64, error)
 	ResetHostKey(string) ([]byte, error)

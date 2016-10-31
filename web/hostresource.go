@@ -534,7 +534,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 	glog.V(0).Info("Added host ", host.ID)
 	var registered bool
-	if err := facade.RegisterHostKeys(dataCtx, host, privateKey[:]); err != nil {
+	if err := facade.RegisterHostKeys(dataCtx, host, privateKey[:], false); err != nil {
 		glog.V(2).Infof("Unable to register keys for host %s automatically (%s)", host.ID, err)
 	} else {
 		registered = true

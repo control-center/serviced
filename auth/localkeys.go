@@ -351,7 +351,7 @@ func RegisterLocalHost(keydata []byte) error {
 	return nil
 }
 
-func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte) error {
+func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte, prompt bool) error {
 	thisHostID, err := utils.HostID()
 
 	if err != nil {
@@ -370,7 +370,8 @@ func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte) error {
 	// Force an ssh connection timeout
 	args = append(args, "-o", "ConnectTimeout=10")
 
-	if !logrus.IsTerminal() {
+	if !prompt {
+		log.Debug("Disabling password prompt for non-terminal client")
 		// Disable asking for passphrase or password
 		args = append(args, "-o", "BatchMode=yes")
 		// Don't hang on asking to add the fingerprint
