@@ -14,11 +14,10 @@
 package dfs
 
 import (
-	"time"
-
 	"errors"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
+	"time"
 )
 
 const (
