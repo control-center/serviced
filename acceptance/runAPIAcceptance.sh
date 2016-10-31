@@ -15,6 +15,7 @@ debug=false
 interactive=false
 TAGS=()
 DATASET=default
+VERSION=$(cat dockerImage/VERSION)
 
 set -e
 
@@ -215,5 +216,5 @@ docker run --rm --name api_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.1-xenial \
+    -t zenoss/capybara:${VERSION}-xenial \
     ${CMD}
