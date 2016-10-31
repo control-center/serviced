@@ -125,7 +125,7 @@
     <div ng-show="!currentService.isIsvc()">
         <h3 class="pull-left" translate>title_config_files</h3>
         <table jelly-table data-data="currentService.configs" data-config="configTable" class="table">
-            <tr ng-repeat="configFile in currentService.configs">
+            <tr ng-repeat="configFile in $data">
                 <td data-title="'path'|translate" sortable="'Filename'">{{ configFile.Filename }}</td>
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="editConfig(configFile.ID)" class="btn btn-link action">
