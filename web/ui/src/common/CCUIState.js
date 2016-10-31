@@ -10,10 +10,18 @@
             // -> user name
             //    -> store name
             //       -> stored object
-            this.store = {};
+            this.store = {
+                // shared state
+                _shared: {}
+            };
         }
 
         get(userName, storeName){
+            // get the shared state
+            if(!userName){
+                return this.store._shared;
+            }
+
             var userStore = this.getUserStore(userName);
 
             // if the store doesnt exist for this user,

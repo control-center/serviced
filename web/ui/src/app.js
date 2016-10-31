@@ -172,21 +172,21 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(["$rootScope", "$window", "$location", "areUIReady", "log",
-    function($rootScope, $window, $location, areUIReady, log){
+    .run(["$rootScope", "$window", "$location", "areUIReady", "log", "CCUIState",
+    function($rootScope, $window, $location, areUIReady, log, CCUIState){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
         });
 
         var queryParams = $location.search(),
-            disableAnimation = false;
+            config = CCUIState.get();
 
         // option to disable animation for
         // acceptance tests
         if(queryParams["disable-animation"] === "true"){
-            disableAnimation = true;
             $("body").addClass("no-animation");
+            config.disableAnimation = true;
         }
 
         // set log level
@@ -207,7 +207,7 @@ controlplane.
 
             setTimeout(function(){
                 if(!isCleared){
-                    if(disableAnimation){
+                    if(config.disableAnimation){
                         clearLoader();
                     } else {
                         loaderEl.addClass("hide_it").one("transitionend", clearLoader);
