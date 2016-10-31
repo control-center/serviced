@@ -207,7 +207,7 @@ func (c *CheckOrphans) Execute(args []string) error {
 		}
 		vol, ok := _vol.(*devicemapper.DeviceMapperVolume)
 		if !ok {
-			log.Fatal("Volume", v, "could not be cast as devicemapper.DeviceMapperVolume")
+			log.Fatal("Volume", v, "is not of DeviceMapper type.")
 		}
 		ccDevices = append(ccDevices, vol.Metadata.CurrentDevice())
 		for _, dHash := range vol.Metadata.Snapshots {
