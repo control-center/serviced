@@ -222,6 +222,7 @@ docker run --rm --name ui_acceptance \
     -v `pwd`/ui:/capybara:rw \
     -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
     -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
+    -v /dev/shm:/dev/shm \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
