@@ -40,6 +40,7 @@ type storeImpl struct {
 
 // Get an RSA Key by host id.  Return ErrNoSuchEntity if not found
 func (s *storeImpl) Get(ctx datastore.Context, id string) (*HostKey, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Get"))
 	val := &HostKey{}
 	if err := s.ds.Get(ctx, Key(id), val); err != nil {
 		return nil, err
@@ -49,10 +50,12 @@ func (s *storeImpl) Get(ctx datastore.Context, id string) (*HostKey, error) {
 
 // Put adds/updates an RSA Key to the registry
 func (s *storeImpl) Put(ctx datastore.Context, id string, val *HostKey) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Put"))
 	return s.ds.Put(ctx, Key(id), val)
 }
 
 // Delete removes an RSA Key from the registry
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("HostKeyStore.Delete"))
 	return s.ds.Delete(ctx, Key(id))
 }

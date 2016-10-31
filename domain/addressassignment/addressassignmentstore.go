@@ -33,6 +33,7 @@ type Store struct {
 }
 
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignments"))
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Term("ServiceID", serviceID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
@@ -44,6 +45,7 @@ func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID st
 }
 
 func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port uint16) ([]AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignmentsByPort"))
 	if port == 0 {
 		return nil, fmt.Errorf("port must be greater than 0")
 	}
@@ -59,6 +61,7 @@ func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port u
 }
 
 func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.FindAssignmentByServiceEndpoint"))
 	if serviceID = strings.TrimSpace(serviceID); serviceID == "" {
 		return nil, fmt.Errorf("service ID cannot be empty")
 	} else if endpointName = strings.TrimSpace(endpointName); endpointName == "" {
@@ -83,6 +86,7 @@ func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID
 }
 
 func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, port uint16) (*AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.FindAssignmentByHostPort"))
 	if ipAddr = strings.TrimSpace(ipAddr); ipAddr == "" {
 		return nil, fmt.Errorf("hostIP cannot be empty")
 	} else if port == 0 {

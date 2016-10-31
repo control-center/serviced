@@ -23,6 +23,7 @@ import (
 
 // GetAllServiceDetails returns service details for an id
 func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceDetailsStore.GetAllServiceDetails"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"query_string": map[string]string{
@@ -62,6 +63,7 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetail
 
 // GetServiceDetails returns service details for an id
 func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (*ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceDetailsStore.GetServiceDetails"))
 	id := strings.TrimSpace(serviceID)
 	if id == "" {
 		return nil, errors.New("empty service id not allowed")
@@ -104,6 +106,7 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 
 // GetChildServiceDetailsByParentID returns service details given parent service id
 func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceDetailsStore.GetServiceDetailsByParentID"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"term": map[string]string{"ParentServiceID": parentID},

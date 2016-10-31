@@ -38,7 +38,7 @@ type storeImpl struct {
 //GetConfigFiles returns all Configuration Files in tenant service that have the given service path. The service path
 //is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
 func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetConfigFiles"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFiles"))
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
 		search.Filter().Terms("ServiceTenantID", tenantID),
@@ -54,7 +54,7 @@ func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPa
 }
 
 func (s *storeImpl) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetConfigFile"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFile"))
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
 		search.Filter().Terms("ServiceTenantID", tenantID),

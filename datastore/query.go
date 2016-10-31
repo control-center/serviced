@@ -13,7 +13,9 @@
 
 package datastore
 
-import "errors"
+import (
+	"errors"
+)
 
 // Query is a query used to search for and return entities from a datastore
 type Query interface {
@@ -52,6 +54,7 @@ type query struct {
 }
 
 func (q *query) Execute(query interface{}) (Results, error) {
+	defer q.ctx.Metrics().Stop(q.ctx.Metrics().Start("Query.Execute"))
 	ctx := q.ctx
 	conn, err := ctx.Connection()
 	if err != nil {
