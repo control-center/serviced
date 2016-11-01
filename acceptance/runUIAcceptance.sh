@@ -215,16 +215,11 @@ cp -u `pwd`/../serviced `pwd`/ui
 
 trap 'docker rm -f ui_acceptance' INT
 
-# acceptance tests will fail if the settings file doesn't exist.
-mkdir -p /opt/serviced/etc
-touch /opt/serviced/etc/logconfig-cli.yaml
-
 docker run --rm --name ui_acceptance \
     --add-host=${TARGET_HOST}:${TARGET_HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
-    -v /opt/serviced/etc/logconfig-cli.yaml:/opt/serviced/etc/logconfig-cli.yaml \
     -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
     -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
     ${LIB_DEVMAPPER_MOUNT} \
