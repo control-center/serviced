@@ -28,6 +28,11 @@ func RunTTL(cancel <-chan interface{}, min, max time.Duration) {
 	utils.RunTTL(DockerTTL{}, cancel, min, max)
 }
 
+// Name identifies the TTL instance
+func (ttl DockerTTL) Name() string {
+	return "DockerTTL"
+}
+
 // Purge cleans up old docker containers and returns the time to live til the
 // next purge.
 // Implements utils.TTL

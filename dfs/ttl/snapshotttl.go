@@ -16,13 +16,17 @@ package ttl
 import (
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
 
 const timeFormat = "20060102-150405.000"
+
+// instantiate the package logger
+var plog = logging.PackageLogger()
 
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {
@@ -44,6 +48,11 @@ func RunSnapshotTTL(client SnapshotTTLInterface, cancel <-chan interface{}, min,
 	utils.RunTTL(&SnapshotTTL{client}, cancel, min, max)
 }
 
+// Name identifies the TTL instance
+func (ttl *SnapshotTTL) Name() string {
+	return "SnapshotTTL"
+}
+
 // Purge deletes snapshots as they reach a particular age.  Returns the time to
 // wait til the next snapshot is to be deleted.
 // Implements utils.TTL
@@ -51,18 +60,21 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 	ctx := datastore.Get()
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("SnapshotTTL.Purge"))
 
+	logger := plog.WithField("age", int(age.Minutes()))
+
 	expire := time.Now().Add(-age)
 	var tenantIDs []string
 	var unused struct{}
 	if err := ttl.client.GetTenantIDs(unused, &tenantIDs); err != nil {
-		glog.Errorf("Could not look up services: %s", err)
+		logger.WithError(err).Error("Could not look up tenantIDs")
 		return 0, err
 	}
 
 	for _, tenantID := range tenantIDs {
 		var snapshots []dao.SnapshotInfo
 		if err := ttl.client.ListSnapshots(tenantID, &snapshots); err != nil {
-			glog.Errorf("Could not look up snapshots for tenant service %s: %s", tenantID, err)
+			logger.WithField("tenantid", tenantID).
+				WithError(err).Error("Could not look up snapshots for tenant service")
 			return 0, err
 		}
 		for _, s := range snapshots {
@@ -70,10 +82,15 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 			if len(s.Tags) == 0 {
 				// check the age of the snapshot
 				if timeToLive := s.Created.Sub(expire); timeToLive <= 0 {
+					snapshotLogger := logger.WithFields(log.Fields{
+						"tenantid": tenantID,
+						"snapshotid": s.SnapshotID,
+					})
 					if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
-						glog.Errorf("Could not delete snapshot %s for tenant service %s: %s", s.SnapshotID, tenantID, err)
+						snapshotLogger.WithError(err).Error("Could not delete snapshot")
 						return 0, err
 					}
+					snapshotLogger.Debug("Deleted snapshot")
 				} else if timeToLive < age {
 					// set the new time to live based on the age of the
 					// oldest non-expired snapshot.
@@ -82,6 +99,7 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 			}
 		}
 	}
+	logger.WithField("age", int(age.Minutes())).Debug("Finished Purge")
 
 	return age, nil
 }
