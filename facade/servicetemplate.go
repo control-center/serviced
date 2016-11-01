@@ -15,6 +15,7 @@ package facade
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -195,11 +196,14 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
-// FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
+var deploymentMutex = sync.RWMutex{}
 
 // updateDeployTemplateStatus updates the deployment status of the service being deployed
 func updateDeployTemplateStatus(deploymentID string, status string) {
+	deploymentMutex.Lock()
+	defer deploymentMutex.Unlock()
+
 	if _, ok := deployments[deploymentID]; !ok {
 		deployments[deploymentID] = make(map[string]string)
 	}
@@ -210,6 +214,9 @@ func updateDeployTemplateStatus(deploymentID string, status string) {
 
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
+	deploymentMutex.RLock()
+	defer deploymentMutex.RUnlock()
+
 	// we initialize the data container to something here in case it has not been initialized yet
 	active = make([]map[string]string, 0)
 	for _, v := range deployments {
@@ -221,15 +228,18 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 
 // DeployTemplateStatus sets the status of a deployed service or template
 func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
+
 	status = ""
 	err = nil
 	for {
+		deploymentMutex.Lock()
 		if _, ok := deployments[deploymentID]; ok {
 			if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
 				deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
 				status = deployments[deploymentID]["status"]
 				break
 			} else if deployments[deploymentID]["status"] != "" {
+				deploymentMutex.Unlock()
 				time.Sleep(100 * time.Millisecond)
 			} else {
 				break
@@ -238,6 +248,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err e
 			break
 		}
 	}
+	deploymentMutex.Unlock()
 	return status, err
 }
 
@@ -245,6 +256,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err e
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeployTemplate"))
 	// add an entry for reporting status
+	deploymentMutex.Lock()
 	deployments[deploymentID] = map[string]string{
 		"TemplateID":   templateID,
 		"DeploymentID": deploymentID,
@@ -252,7 +264,12 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		"status":       "Starting",
 		"lastStatus":   "",
 	}
-	defer delete(deployments, deploymentID)
+	deploymentMutex.Unlock()
+	defer func() {
+		deploymentMutex.Lock()
+		delete(deployments, deploymentID)
+		deploymentMutex.Unlock()
+	}()
 
 	updateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
@@ -270,7 +287,9 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 
 	//now that we know the template name, set it in the status
+	deploymentMutex.Lock()
 	deployments[deploymentID]["templateName"] = template.Name
+	deploymentMutex.Unlock()
 
 	updateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
