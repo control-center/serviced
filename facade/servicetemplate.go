@@ -223,16 +223,21 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
 	status = ""
 	err = nil
-	if _, ok := deployments[deploymentID]; ok {
-		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
-			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-			status = deployments[deploymentID]["status"]
-		} else if deployments[deploymentID]["status"] != "" {
-			time.Sleep(100 * time.Millisecond)
-			status, err = f.DeployTemplateStatus(deploymentID)
+	for {
+		if _, ok := deployments[deploymentID]; ok {
+			if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
+				deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
+				status = deployments[deploymentID]["status"]
+				break
+			} else if deployments[deploymentID]["status"] != "" {
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				break
+			}
+		} else {
+			break
 		}
 	}
-
 	return status, err
 }
 
