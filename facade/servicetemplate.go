@@ -105,7 +105,7 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 		return err
 	}
 
-	reloadLogstashConfig := false		// defer reloading until all templates have been updated
+	reloadLogstashConfig := false // defer reloading until all templates have been updated
 	for _, template := range templates {
 		template.DatabaseVersion = 0
 		if _, ok := curtemplates[template.ID]; ok {
@@ -198,8 +198,8 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 // FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
 
-// UpdateDeployTemplateStatus updates the deployment status of the service being deployed
-func UpdateDeployTemplateStatus(deploymentID string, status string) {
+// updateDeployTemplateStatus updates the deployment status of the service being deployed
+func updateDeployTemplateStatus(deploymentID string, status string) {
 	if _, ok := deployments[deploymentID]; !ok {
 		deployments[deploymentID] = make(map[string]string)
 	}
@@ -249,7 +249,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 	defer delete(deployments, deploymentID)
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
@@ -267,7 +267,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	//now that we know the template name, set it in the status
 	deployments[deploymentID]["templateName"] = template.Name
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -344,7 +344,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		return "", err
 	}
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
 	//for each endpoint, evaluate its Application
 	getService := func(serviceID string) (service.Service, error) {
 		s, err := f.GetService(ctx, serviceID)
@@ -368,7 +368,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		tenantID = newsvc.ID
 	}
 	if svcDef.ImageID != "" {
-		UpdateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
+		updateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
 		image, err := f.dfs.Download(svcDef.ImageID, tenantID, false)
 		if err != nil {
 			glog.Errorf("Could not download image %s: %s", svcDef.ImageID, err)
