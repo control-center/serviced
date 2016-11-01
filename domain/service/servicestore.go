@@ -155,7 +155,7 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 
 // GetServices returns all services
 func (s *storeImpl) GetServices(ctx datastore.Context) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServices"))
 	return s.query(ctx, "_exists_:ID")
 }
 

@@ -34,7 +34,7 @@ type ZZK interface {
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error
-	GetActiveHosts(poolID string, hosts *[]string) error
+	GetActiveHosts(ctx datastore.Context, poolID string, hosts *[]string) error
 	IsHostActive(poolID string, hostId string) (bool, error)
 	UpdateResourcePool(_pool *pool.ResourcePool) error
 	RemoveResourcePool(poolID string) error
@@ -47,9 +47,9 @@ type ZZK interface {
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error
 	UnlockServices(svcs []service.Service) error
-	GetServiceStates(poolID, serviceID string) ([]zkservice.State, error)
-	GetHostStates(poolID, hostID string) ([]zkservice.State, error)
-	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice.State, error)
+	GetServiceStates(ctx datastore.Context, poolID, serviceID string) ([]zkservice.State, error)
+	GetHostStates(ctx datastore.Context,poolID, hostID string) ([]zkservice.State, error)
+	GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zkservice.State, error)
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
 	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error

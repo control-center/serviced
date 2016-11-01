@@ -62,7 +62,7 @@ var registryVersionInfos = map[int]registryVersionInfo{
 
 // Backup takes a backup of all installed applications
 func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, snapshotSpacePercent int) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Backup"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Backup"))
 	// Do not DFSLock here, ControlPlaneDao does that
 
 	stime := time.Now()
@@ -119,7 +119,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 
 // BackupInfo returns metadata info about a backup
 func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("BackupInfo"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.BackupInfo"))
 	info, err := f.dfs.BackupInfo(r)
 	if err != nil {
 		glog.Errorf("Could not get info for backup: %s", err)
@@ -130,7 +130,7 @@ func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo
 
 // Commit commits a container to the docker registry and takes a snapshot.
 func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []string, snapshotSpacePercent int) (string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Commit"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Commit"))
 	tenantID, err := f.dfs.Commit(ctrID)
 	if err != nil {
 		glog.Errorf("Could not commit container %s: %s", ctrID, err)
@@ -146,7 +146,7 @@ func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []str
 
 // DeleteSnapshot removes a snapshot from an application.
 func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeleteSnapshot"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeleteSnapshot"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	if err := f.dfs.Delete(snapshotID); err != nil {
 		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
@@ -157,7 +157,7 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 
 // DeleteSnapshots removes all snapshots for an application.
 func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeleteSnapshots"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeleteSnapshots"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	snapshots, err := f.ListSnapshots(ctx, serviceID)
 	if err != nil {
@@ -173,13 +173,13 @@ func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error 
 
 // DFSLock returns the locker for the dfs
 func (f *Facade) DFSLock(ctx datastore.Context) dfs.DFSLocker {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DFSLock"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DFSLock"))
 	return f.dfs
 }
 
 // GetSnapshotInfo returns information about a snapshot.
 func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs.SnapshotInfo, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetSnapshotInfo"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetSnapshotInfo"))
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
@@ -191,7 +191,7 @@ func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs
 // ListSnapshots returns a list of strings that describes the snapshots for the
 // given application.
 func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("ListSnapshots"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ListSnapshots"))
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
@@ -216,7 +216,7 @@ func (f *Facade) TagSnapshot(snapshotID string, tagName string) error {
 
 // RemoveSnapshotTag removes a specific tag from an existing snapshot
 func (f *Facade) RemoveSnapshotTag(ctx datastore.Context, serviceID, tagName string) (string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RemoveSnapshotTag"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveSnapshotTag"))
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
@@ -232,7 +232,7 @@ func (f *Facade) RemoveSnapshotTag(ctx datastore.Context, serviceID, tagName str
 
 // GetSnapshotByServiceIDAndTag finds the existing snapshot for a given service with a specific tag
 func (f *Facade) GetSnapshotByServiceIDAndTag(ctx datastore.Context, serviceID, tagName string) (*dfs.SnapshotInfo, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetSnapshotByServiceIDAndTag"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetSnapshotByServiceIDAndTag"))
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
@@ -248,7 +248,7 @@ func (f *Facade) GetSnapshotByServiceIDAndTag(ctx datastore.Context, serviceID, 
 
 // ResetLock resets locks for a specific tenant
 func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("ResetLock"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetLock"))
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
@@ -264,7 +264,7 @@ func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
 
 // ResetLocks resets all tenant locks
 func (f *Facade) ResetLocks(ctx datastore.Context) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("ResetLocks"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetLocks"))
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
 		glog.Errorf("Could not get tenants: %s", err)
@@ -290,7 +290,7 @@ func (f *Facade) Download(imageID, tenantID string) error {
 // RepairRegistry will load "latest" from the docker registry and save it to the
 // database.
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RepairRegistry"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RepairRegistry"))
 	if err := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); err != nil {
 		glog.Warningf("Cannot reset registry: %s", err)
 		return err
@@ -325,7 +325,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // If force is true for a local registry, upgrade again even if previous upgrade was successful.
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpgradeRegistry"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpgradeRegistry"))
 	if err := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); err != nil {
 		glog.Warningf("Cannot migrate registry: %s", err)
 		return err
@@ -428,7 +428,7 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 
 // Restore restores application data from a backup.
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Restore"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Restore"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning restore from backup")
 	if err := f.dfs.Restore(r, backupInfo.BackupVersion); err != nil {
@@ -459,7 +459,7 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 // Rollback rolls back an application to state described in the provided
 // snapshot.
 func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Rollback"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Rollback"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	glog.Infof("Beginning rollback of snapshot %s", snapshotID)
 	info, err := f.dfs.Info(snapshotID)
@@ -514,7 +514,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 
 // Snapshot takes a snapshot for a particular application.
 func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string, snapshotSpacePercent int) (string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Snapshot"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Snapshot"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
@@ -661,7 +661,7 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 
 // DockerOverride will replace a docker image in the registry with a new image
 func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DockerOverride"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DockerOverride"))
 	return f.dfs.Override(newImageName, oldImageName)
 }
 

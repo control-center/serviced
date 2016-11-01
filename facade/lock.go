@@ -48,6 +48,7 @@ func getTenantLock(tenantID string) (mutex *sync.RWMutex) {
 // lockTenant sets the write lock for a given tenant and locks all services for
 // that tenant
 func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.lockTenant"))
 	mutex := getTenantLock(tenantID)
 	mutex.Lock()
 	defer func() {
@@ -70,6 +71,7 @@ func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) 
 // unlockTenant unsets the write lock for a given tenant and unlocks all
 // services for that tenant
 func (f *Facade) unlockTenant(ctx datastore.Context, tenantID string) (err error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.unlockTenant"))
 	mutex := getTenantLock(tenantID)
 	var svcs []service.Service
 	if svcs, err = f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID}); err != nil {

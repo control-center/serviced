@@ -33,7 +33,7 @@ import (
 // GetServiceInstances returns the state of all instances for a particular
 // service.
 func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, serviceID string) ([]service.Instance, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceInstances"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceInstances"))
 	logger := plog.WithField("serviceid", serviceID)
 
 	// create an instance map to map instances to their memory usage
@@ -64,7 +64,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 		return nil, err
 	}
 
-	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+	states, err := f.zzk.GetServiceStates(ctx, svc.PoolID, svc.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -122,7 +122,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 
 // GetHostInstances returns the state of all instances for a particular host.
 func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID string) ([]service.Instance, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHostInstances"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostInstances"))
 	logger := plog.WithField("hostid", hostID)
 
 	// create an instance map to map instances to their memory usage
@@ -146,7 +146,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 
 	logger.Debug("Loaded host")
 
-	states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
+	states, err := f.zzk.GetHostStates(ctx, hst.PoolID, hst.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -304,7 +304,7 @@ func (f *Facade) getImageUUID(ctx datastore.Context, imageName string) (string, 
 
 // GetAggregateServices returns the aggregated states of a bulk of services
 func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, serviceIDs []string) ([]service.AggregateService, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetAggregateServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetAggregateServices"))
 	logger := plog.WithField("serviceids", strings.Join(serviceIDs, ","))
 
 	// Create an instance map to map instances to their memory usage.  This is
@@ -413,7 +413,7 @@ func (f *Facade) getInstanceHealth(svc *service.Service, instanceID int) map[str
 // GetHostStrategyInstances returns the strategy objects of all the instances
 // running on a host.
 func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...string) ([]service.StrategyInstance, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHostStrategyInstances"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostStrategyInstances"))
 
 	svcMap := make(map[string]service.StrategyInstance)
 	insts := make([]service.StrategyInstance, 0)
@@ -433,7 +433,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 		logger.Debug("Loaded host")
 
-		states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
+		states, err := f.zzk.GetHostStates(ctx, hst.PoolID, hst.ID)
 		if err != nil {
 
 			logger.WithError(err).Debug("Could not look up running instances")
@@ -478,7 +478,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 // StopServiceInstance stops a particular service instance
 func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, instanceID int) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("StopServiceInstance"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopServiceInstance"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -502,7 +502,7 @@ func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, in
 // LocateServiceInstance returns host and container information about a service
 // instance
 func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, instanceID int) (*service.LocationInstance, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("LocateServiceInstance"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.LocateServiceInstance"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -514,7 +514,7 @@ func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, 
 		return nil, err
 	}
 
-	state, err := f.zzk.GetServiceState(svc.PoolID, svc.ID, instanceID)
+	state, err := f.zzk.GetServiceState(ctx, svc.PoolID, svc.ID, instanceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not locate service instance")
 		return nil, err
@@ -530,7 +530,7 @@ func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, 
 
 // SendDockerAction locates a service instance and sends an action to it
 func (f *Facade) SendDockerAction(ctx datastore.Context, serviceID string, instanceID int, action string, args []string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("SendDockerAction"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SendDockerAction"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceID": instanceID,
