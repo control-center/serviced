@@ -25,6 +25,10 @@ type TestTTL struct {
 	errch <-chan error
 }
 
+func (ttl *TestTTL) Name() string {
+	return "TestTTL"
+}
+
 func (ttl *TestTTL) Purge(t time.Duration) (time.Duration, error) {
 	if err := <-ttl.errch; err != nil {
 		return 0, err
