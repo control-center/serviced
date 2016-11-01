@@ -167,6 +167,9 @@ type ControlPlane interface {
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
 
+	// Get a list of tenant IDs
+	GetTenantIDs(unused struct {}, tenantIDs *[]string) error
+
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
 

@@ -95,6 +95,18 @@ func (_m *ControlPlane) GetService(serviceId string, svc *service.Service) error
 
 	return r0
 }
+func (_m *ControlPlane) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+	ret := _m.Called(unused, tenantIDs)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(struct {}, *[]string) error); ok {
+		r0 = rf(unused, tenantIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ControlPlane) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
 	ret := _m.Called(request, services)
 

@@ -70,6 +70,10 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlCenter.GetServiceEndpoints", serviceId, response, 0)
 }
 
+func (s *ControlClient) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+	return s.rpcClient.Call("ControlCenter.GetTenantIDs", unused, tenantIDs, 0)
+}
+
 func (s *ControlClient) GetServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetServices", request, replyServices, 0)
 }

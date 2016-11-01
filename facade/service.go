@@ -1017,6 +1017,21 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 	}
 }
 
+// Get a list of tenant IDs
+func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantIDs"))
+	svcs, err := f.GetServiceDetailsByParentID(ctx, "")
+	if err != nil {
+		plog.WithError(err).Error("Could not get tenant IDs")
+		return nil, err
+	}
+	tenantIDs := []string{}
+	for _, tenant := range(svcs) {
+		tenantIDs = append(tenantIDs, tenant.ID)
+	}
+	return tenantIDs, nil
+}
+
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantID"))
@@ -1758,23 +1773,6 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 		return results, err
 	}
 	return results, nil
-}
-
-// getTenantIDs filters the list of all tenant ids
-func (f *Facade) getTenantIDs(ctx datastore.Context) ([]string, error) {
-	store := f.serviceStore
-	results, err := store.GetServices(ctx)
-	if err != nil {
-		glog.Errorf("Facade.GetServices: %s", err)
-		return nil, err
-	}
-	var svcids []string
-	for _, svc := range results {
-		if svc.ParentServiceID == "" {
-			svcids = append(svcids, svc.ID)
-		}
-	}
-	return svcids, nil
 }
 
 // traverse all the services (including the children of the provided service)

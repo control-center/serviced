@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -27,7 +27,7 @@ const timeFormat = "20060102-150405.000"
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {
 	// GetServices returns all services
-	GetServices(dao.ServiceRequest, *[]service.Service) error
+	GetTenantIDs(struct {}, *[]string) error
 	// ListSnapshots returns the list of all snapshots given a service id
 	ListSnapshots(string, *[]dao.SnapshotInfo) error
 	// DeleteSnapshot deletes a snapshot by SnapshotID
@@ -48,35 +48,36 @@ func RunSnapshotTTL(client SnapshotTTLInterface, cancel <-chan interface{}, min,
 // wait til the next snapshot is to be deleted.
 // Implements utils.TTL
 func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("SnapshotTTL.Purge"))
+
 	expire := time.Now().Add(-age)
-	var svcs []service.Service
-	if err := ttl.client.GetServices(dao.ServiceRequest{}, &svcs); err != nil {
+	var tenantIDs []string
+	var unused struct{}
+	if err := ttl.client.GetTenantIDs(unused, &tenantIDs); err != nil {
 		glog.Errorf("Could not look up services: %s", err)
 		return 0, err
 	}
 
-	for _, svc := range svcs {
-		// find the tenant services
-		if svc.ParentServiceID == "" {
-			var snapshots []dao.SnapshotInfo
-			if err := ttl.client.ListSnapshots(svc.ID, &snapshots); err != nil {
-				glog.Errorf("Could not look up snapshots for tenant service %s (%s): %s", svc.Name, svc.ID, err)
-				return 0, err
-			}
-			for _, s := range snapshots {
-				//ignore snapshots that have any tag
-				if len(s.Tags) == 0 {
-					// check the age of the snapshot
-					if timeToLive := s.Created.Sub(expire); timeToLive <= 0 {
-						if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
-							glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
-							return 0, err
-						}
-					} else if timeToLive < age {
-						// set the new time to live based on the age of the
-						// oldest non-expired snapshot.
-						age = timeToLive
+	for _, tenantID := range tenantIDs {
+		var snapshots []dao.SnapshotInfo
+		if err := ttl.client.ListSnapshots(tenantID, &snapshots); err != nil {
+			glog.Errorf("Could not look up snapshots for tenant service %s: %s", tenantID, err)
+			return 0, err
+		}
+		for _, s := range snapshots {
+			//ignore snapshots that have any tag
+			if len(s.Tags) == 0 {
+				// check the age of the snapshot
+				if timeToLive := s.Created.Sub(expire); timeToLive <= 0 {
+					if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
+						glog.Errorf("Could not delete snapshot %s for tenant service %s: %s", s.SnapshotID, tenantID, err)
+						return 0, err
 					}
+				} else if timeToLive < age {
+					// set the new time to live based on the age of the
+					// oldest non-expired snapshot.
+					age = timeToLive
 				}
 			}
 		}
