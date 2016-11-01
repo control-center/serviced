@@ -45,6 +45,7 @@ Feature: Application Management
       And I select "table://applications/defaultApp/pool"
       And I click "Next"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see "You must provide a Deployment ID."
     When I close the dialog
     Then I should not see "Deployment Wizard"
@@ -67,6 +68,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "2 Results" in the "Applications" table
@@ -95,6 +97,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "2 Results" in the "Applications" table
@@ -118,6 +121,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/app2/id"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/app2/template" in the Applications table
       And I should see "2 Results" in the "Applications" table
@@ -140,6 +144,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see that the application has not been deployed
       And I should see "Internal Server Error: deployment ID"
       And I should see "is already in use"
@@ -163,6 +168,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/app3/id"
       And I click "Deploy"
+      And I wait for the submission to finish
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/app3/template" in the Applications table
       And I should see "3 Results" in the "Applications" table
@@ -176,5 +182,6 @@ Feature: Application Management
     Then I should see "Remove Application"
       And I should see "This action will permanently delete the running application"
     When I click "Remove Application"
+      And I wait for the submission to finish
     Then I should see "Removed App" after waiting no more than "30" seconds
       And I should not see "2 Results" in the "Applications" table

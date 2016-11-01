@@ -114,6 +114,11 @@ Then (/^I should not see "(.*?)" in the "(.*?)" table$/) do |text, table|
     end
 end
 
+When (/^I wait for the submission to finish$/) do
+    expect(page).not_to have_selector(:link_or_button, 'Submitting...')
+end
+
+
 
 def getTableType(table)
     type = ""
