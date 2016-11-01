@@ -15,6 +15,7 @@ package facade
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -105,7 +106,7 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 		return err
 	}
 
-	reloadLogstashConfig := false		// defer reloading until all templates have been updated
+	reloadLogstashConfig := false // defer reloading until all templates have been updated
 	for _, template := range templates {
 		template.DatabaseVersion = 0
 		if _, ok := curtemplates[template.ID]; ok {
@@ -195,11 +196,14 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
-// FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
+var deploymentMutex = sync.RWMutex{}
 
-// UpdateDeployTemplateStatus updates the deployment status of the service being deployed
-func UpdateDeployTemplateStatus(deploymentID string, status string) {
+// updateDeployTemplateStatus updates the deployment status of the service being deployed
+func updateDeployTemplateStatus(deploymentID string, status string) {
+	deploymentMutex.Lock()
+	defer deploymentMutex.Unlock()
+
 	if _, ok := deployments[deploymentID]; !ok {
 		deployments[deploymentID] = make(map[string]string)
 	}
@@ -210,6 +214,9 @@ func UpdateDeployTemplateStatus(deploymentID string, status string) {
 
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
+	deploymentMutex.RLock()
+	defer deploymentMutex.RUnlock()
+
 	// we initialize the data container to something here in case it has not been initialized yet
 	active = make([]map[string]string, 0)
 	for _, v := range deployments {
@@ -221,18 +228,27 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 
 // DeployTemplateStatus sets the status of a deployed service or template
 func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
+
 	status = ""
 	err = nil
-	if _, ok := deployments[deploymentID]; ok {
-		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
-			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-			status = deployments[deploymentID]["status"]
-		} else if deployments[deploymentID]["status"] != "" {
-			time.Sleep(100 * time.Millisecond)
-			status, err = f.DeployTemplateStatus(deploymentID)
+	for {
+		deploymentMutex.Lock()
+		if _, ok := deployments[deploymentID]; ok {
+			if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
+				deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
+				status = deployments[deploymentID]["status"]
+				break
+			} else if deployments[deploymentID]["status"] != "" {
+				deploymentMutex.Unlock()
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				break
+			}
+		} else {
+			break
 		}
 	}
-
+	deploymentMutex.Unlock()
 	return status, err
 }
 
@@ -240,6 +256,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err e
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeployTemplate"))
 	// add an entry for reporting status
+	deploymentMutex.Lock()
 	deployments[deploymentID] = map[string]string{
 		"TemplateID":   templateID,
 		"DeploymentID": deploymentID,
@@ -247,9 +264,14 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		"status":       "Starting",
 		"lastStatus":   "",
 	}
-	defer delete(deployments, deploymentID)
+	deploymentMutex.Unlock()
+	defer func() {
+		deploymentMutex.Lock()
+		delete(deployments, deploymentID)
+		deploymentMutex.Unlock()
+	}()
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
@@ -265,9 +287,11 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 
 	//now that we know the template name, set it in the status
+	deploymentMutex.Lock()
 	deployments[deploymentID]["templateName"] = template.Name
+	deploymentMutex.Unlock()
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -344,7 +368,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		return "", err
 	}
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
 	//for each endpoint, evaluate its Application
 	getService := func(serviceID string) (service.Service, error) {
 		s, err := f.GetService(ctx, serviceID)
@@ -368,7 +392,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		tenantID = newsvc.ID
 	}
 	if svcDef.ImageID != "" {
-		UpdateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
+		updateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
 		image, err := f.dfs.Download(svcDef.ImageID, tenantID, false)
 		if err != nil {
 			glog.Errorf("Could not download image %s: %s", svcDef.ImageID, err)
