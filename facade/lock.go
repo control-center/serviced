@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
@@ -56,12 +55,12 @@ func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) 
 			mutex.Unlock()
 		}
 	}()
-	var svcs []service.Service
-	if svcs, err = f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID}); err != nil {
+	var svcs []service.ServiceDetails
+	if svcs, err = f.GetServiceDetailsByTenantID(ctx, tenantID); err != nil {
 		glog.Errorf("Could not get services for tenant %s: %s", tenantID, err)
 		return
 	}
-	if err = f.zzk.LockServices(svcs); err != nil {
+	if err = f.zzk.LockServices(ctx, svcs); err != nil {
 		glog.Errorf("Could not lock services for tenant %s: %s", tenantID, err)
 		return
 	}
@@ -73,12 +72,12 @@ func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) 
 func (f *Facade) unlockTenant(ctx datastore.Context, tenantID string) (err error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.unlockTenant"))
 	mutex := getTenantLock(tenantID)
-	var svcs []service.Service
-	if svcs, err = f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID}); err != nil {
+	var svcs []service.ServiceDetails
+	if svcs, err = f.GetServiceDetailsByTenantID(ctx, tenantID); err != nil {
 		glog.Errorf("Could not get services for tenant %s: %s", tenantID, err)
 		return
 	}
-	if err = f.zzk.UnlockServices(svcs); err != nil {
+	if err = f.zzk.UnlockServices(ctx, svcs); err != nil {
 		glog.Errorf("Could not unlock services for tenant %s: %s", tenantID, err)
 		return
 	}

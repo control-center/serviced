@@ -447,6 +447,8 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 			inst, ok := svcMap[state.ServiceID]
 			if !ok {
+				// FIXME: replace with new service-strategy-store that
+				// returns service.StrategyInstance instead of a full Service obj
 				s, err := f.serviceStore.Get(ctx, state.ServiceID)
 				if err != nil {
 

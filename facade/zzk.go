@@ -45,10 +45,10 @@ type ZZK interface {
 	SetRegistryImage(rImage *registry.Image) error
 	DeleteRegistryImage(id string) error
 	DeleteRegistryLibrary(tenantID string) error
-	LockServices(svcs []service.Service) error
-	UnlockServices(svcs []service.Service) error
+	LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error
+	UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error
 	GetServiceStates(ctx datastore.Context, poolID, serviceID string) ([]zkservice.State, error)
-	GetHostStates(ctx datastore.Context,poolID, hostID string) ([]zkservice.State, error)
+	GetHostStates(ctx datastore.Context, poolID, hostID string) ([]zkservice.State, error)
 	GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zkservice.State, error)
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
 	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error

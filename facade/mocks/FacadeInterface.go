@@ -94,27 +94,6 @@ func (_m *FacadeInterface) GetServices(ctx datastore.Context, request dao.Entity
 
 	return r0, r1
 }
-func (_m *FacadeInterface) GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error) {
-	ret := _m.Called(ctx, imageID)
-
-	var r0 []service.Service
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.Service); ok {
-		r0 = rf(ctx, imageID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Service)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, imageID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
 func (_m *FacadeInterface) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	ret := _m.Called(ctx, serviceID)
 
@@ -992,6 +971,27 @@ func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, se
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
 		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *FacadeInterface) GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, tenantID)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
+		r0 = rf(ctx, tenantID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, tenantID)
 	} else {
 		r1 = ret.Error(1)
 	}

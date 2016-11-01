@@ -748,28 +748,6 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 	return svc.PoolID, nil
 }
 
-// GetImageIDs returns a list of unique IDs of all the images of all the deployed services.
-func (f *Facade) GetImageIDs(ctx datastore.Context) ([]string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetImageIDs"))
-	store := f.serviceStore
-	svcs, err := store.GetServices(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var imageIDs []string
-	imagemap := make(map[string]struct{})
-	for _, svc := range svcs {
-		if len(svc.ImageID) == 0 {
-			continue
-		}
-		if _, ok := imagemap[svc.ImageID]; !ok {
-			imageIDs = append(imageIDs, svc.ImageID)
-			imagemap[svc.ImageID] = struct{}{}
-		}
-	}
-	return imageIDs, nil
-}
-
 func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]health.HealthCheck, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHealthChecksForService"))
 	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
@@ -779,38 +757,6 @@ func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID stri
 		return nil, err
 	}
 	return svc.HealthChecks, nil
-}
-
-// GetServicesByImage fetches, from Elastic, all services using the supplied image ID.
-// Empty parts of the supplied image ID will not be considered.  For example,
-// "alskdjalskdjas/myImage:latest", "myImage:latest", "myImage"
-func (f *Facade) GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServicesByImage"))
-	img, err := commons.ParseImageID(imageID)
-	if err != nil {
-		return nil, err
-	}
-	svcs, err := f.getServices(ctx)
-	if err != nil {
-		return nil, err
-	}
-	matchingSvcs := make([]service.Service, len(svcs))
-	for _, svc := range svcs {
-		svcImg, err := commons.ParseImageID(svc.ImageID)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse image id for service %s: %s", svc.Name, err)
-		}
-		if img.User != "" && img.User != svcImg.User {
-			continue
-		} else if img.Repo != "" && img.Repo != svcImg.Repo {
-			continue
-		} else if img.Tag != "" && img.Tag != svcImg.Tag {
-			continue
-		} else {
-			matchingSvcs = append(matchingSvcs, svc)
-		}
-	}
-	return matchingSvcs, nil
 }
 
 func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service, error) {
@@ -1176,9 +1122,20 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	})
 	logger.Info("Started Facade.ScheduleService")
 
+	if desiredState.String() == "unknown" {
+		return 0, fmt.Errorf("desired state unknown")
+	}
+
 	// Build a list of services to be scheduled
 	svcs := []service.Service{}
 	visitor := func(svc *service.Service) error {
+		if desiredState != service.SVCStop {
+			// Verify that all of the services are ready to be started
+			if err := f.validateServiceStart(ctx, svc); err != nil {
+				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+				return err
+			}
+		}
 		svcs = append(svcs, *svc)
 		return nil
 	}
@@ -1188,21 +1145,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		return 0, err
 	}
 
-	if desiredState != service.SVCStop {
-		// Verify that all of the services are ready to be started
-		if desiredState.String() == "unknown" {
-			return 0, fmt.Errorf("desired state unknown")
-		}
-		for _, svc := range svcs {
-			if err := f.validateServiceStart(ctx, &svc); err != nil {
-				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
-				return 0, err
-			}
-		}
-	}
-
 	var affected int
-
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
 		// Schedule the services synchronously, calculating the number of affected services as we go
@@ -1731,6 +1674,23 @@ func (f *Facade) filterByTenantID(ctx datastore.Context, matchTenantID string, s
 	return matches, nil
 }
 
+func (f *Facade) filterDetailsByTenantID(ctx datastore.Context, matchTenantID string, services []service.ServiceDetails) ([]service.ServiceDetails, error) {
+	matches := []service.ServiceDetails{}
+	for _, service := range services {
+		localTenantID, err := f.GetTenantID(ctx, service.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		if localTenantID == matchTenantID {
+			glog.V(5).Infof("    Keeping service ID: %v (tenant ID: %v)", service.ID, localTenantID)
+			matches = append(matches, service)
+		}
+	}
+	glog.V(2).Infof("Returning %d services from tenantID: %v", len(matches), matchTenantID)
+	return matches, nil
+}
+
 func filterByNameRegex(nmregex string, services []service.Service) ([]service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
@@ -1991,6 +1951,16 @@ func (f *Facade) GetServiceDetailsAncestry(ctx datastore.Context, serviceID stri
 func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByParentID"))
 	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
+}
+
+// Get the details of all services for the specified tenant
+func (f *Facade) GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByTenantID"))
+	svcs, err := f.serviceStore.GetAllServiceDetails(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return f.filterDetailsByTenantID(ctx, tenantID, svcs)
 }
 
 // Get the monitoring profile of a given service

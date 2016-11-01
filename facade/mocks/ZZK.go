@@ -328,24 +328,24 @@ func (_m *ZZK) DeleteRegistryLibrary(tenantID string) error {
 
 	return r0
 }
-func (_m *ZZK) LockServices(svcs []service.Service) error {
-	ret := _m.Called(svcs)
+func (_m *ZZK) LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	ret := _m.Called(ctx, svcs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service) error); ok {
-		r0 = rf(svcs)
+	if rf, ok := ret.Get(0).(func(datastore.Context, []service.ServiceDetails) error); ok {
+		r0 = rf(ctx, svcs)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ZZK) UnlockServices(svcs []service.Service) error {
-	ret := _m.Called(svcs)
+func (_m *ZZK) UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	ret := _m.Called(ctx, svcs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service) error); ok {
-		r0 = rf(svcs)
+	if rf, ok := ret.Get(0).(func(datastore.Context, []service.ServiceDetails) error); ok {
+		r0 = rf(ctx, svcs)
 	} else {
 		r0 = ret.Error(0)
 	}

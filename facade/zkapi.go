@@ -449,11 +449,13 @@ func (z *zkf) DeleteRegistryLibrary(tenantID string) error {
 	return zkimgregistry.DeleteRegistryImage(conn, tenantID)
 }
 
-func (z *zkf) LockServices(svcs []service.Service) error {
+func (z *zkf) LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.LockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
+	// FIXME: Do we need to lock all of these, or can we just lock the tenant node?
 	nodes := make([]zks.ServiceLockNode, len(svcs))
 	for i, svc := range svcs {
 		nodes[i] = zks.ServiceLockNode{
@@ -464,7 +466,8 @@ func (z *zkf) LockServices(svcs []service.Service) error {
 	return zks.LockServices(conn, nodes)
 }
 
-func (z *zkf) UnlockServices(svcs []service.Service) error {
+func (z *zkf) UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UnlockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
