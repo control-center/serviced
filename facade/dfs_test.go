@@ -149,8 +149,8 @@ func (fdrt *FacadeDfsRegistryTest) setupMockZZK() {
 	fdrt.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
 	fdrt.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
 	fdrt.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
-	fdrt.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
-	fdrt.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
+	fdrt.zzk.On("LockServices", fdrt.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	fdrt.zzk.On("UnlockServices", fdrt.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 }
 
 func (fdrt *FacadeDfsRegistryTest) getOldRegistryContainerName() string {
@@ -230,7 +230,7 @@ func (fdrt *FacadeDfsRegistryTest) addServices(c *gocheck.C) {
 
 // Must be called before calling Facade.UpgradeRegistry()
 func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoint string, force bool) {
-	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[0].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
+	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.ServiceDetails"), dfsRegistrySvcDefs[0].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
 		svcs := args.Get(0).([]service.Service)
 		c.Assert(len(svcs), gocheck.Equals, 1)
 		c.Assert(svcs[0].ID, gocheck.Equals, dfsRegistrySvcDefs[0].ID)
@@ -239,7 +239,7 @@ func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoin
 		c.Assert(svcs[0].ImageID, gocheck.Equals, dfsRegistrySvcDefs[0].ImageID)
 		c.Assert(svcs[0].PoolID, gocheck.Equals, dfsRegistrySvcDefs[0].PoolID)
 	})
-	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.Service"), dfsRegistrySvcDefs[1].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
+	fdrt.dfs.On("UpgradeRegistry", mock.AnythingOfType("[]service.ServiceDetails"), dfsRegistrySvcDefs[1].ID, endpoint, force).Return(nil).Run(func(args mock.Arguments) {
 		svcs := args.Get(0).([]service.Service)
 		c.Assert(len(svcs), gocheck.Equals, 1)
 		c.Assert(svcs[0].ID, gocheck.Equals, dfsRegistrySvcDefs[1].ID)
@@ -251,7 +251,7 @@ func (fdrt *FacadeDfsRegistryTest) verifyAllImagesUpgraded(c *gocheck.C, endpoin
 }
 
 func (fdrt *FacadeDfsRegistryTest) verifyNoImagesUpgraded(c *gocheck.C) {
-	fdrt.dfs.AssertNotCalled(c, "UpgradeRegistry", mock.AnythingOfType("[]service.Service"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
+	fdrt.dfs.AssertNotCalled(c, "UpgradeRegistry", mock.AnythingOfType("[]service.ServiceDetails"), mock.AnythingOfType("string"), mock.AnythingOfType("string"))
 }
 
 func (fdrt *FacadeDfsRegistryTest) markOldRegistryUpgraded(c *gocheck.C) {
