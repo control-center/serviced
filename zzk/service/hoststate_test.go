@@ -277,7 +277,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
 		close(shutdown)
 		c.Fatalf("Host StateId not cleaned up")
 	}
-	timer.Reset(2*time.Second)
+	timer = time.NewTimer(2*time.Second)
 	select {
 		case <-done:
 			c.Logf("Listener shut down")
