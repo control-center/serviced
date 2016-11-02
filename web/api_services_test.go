@@ -18,6 +18,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/stretchr/testify/mock"
@@ -191,9 +192,10 @@ func (s *TestWebSuite) TestRestGetServiceDetailsShouldReturnStatusNotFoundIfNoSe
 	request := s.buildRequest("GET", "http://www.example.com/services/firstservice/services", "")
 	request.PathParams["serviceId"] = "firstservice"
 
+	expectedError := datastore.ErrNoSuchEntity{Key: datastore.NewKey("service", "firstservice")}
 	s.mockFacade.
 		On("GetServiceDetails", s.ctx.getDatastoreContext(), "firstservice").
-		Return(nil, nil)
+		Return(nil, expectedError)
 
 	getServiceDetails(&(s.writer), &request, s.ctx)
 

@@ -20,6 +20,7 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/datastore"
 )
 
 func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
@@ -61,14 +62,12 @@ func getServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 		details, err = c.getFacade().GetServiceDetails(ctx, serviceID)
 	}
 
-	if err != nil {
-		restServerError(w, err)
-		return
-	}
-
-	if details == nil {
+	if datastore.IsErrNoSuchEntity(err) {
 		msg := fmt.Sprintf("Service %v Not Found", serviceID)
 		writeJSON(w, msg, http.StatusNotFound)
+		return
+	} else if err != nil {
+		restServerError(w, err)
 		return
 	}
 

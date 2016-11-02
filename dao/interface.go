@@ -156,6 +156,7 @@ type ControlPlane interface {
 	GetService(serviceId string, svc *service.Service) error
 
 	// Get a list of services from serviced
+	// FIXME - REMOVE ONCE CLI and REST TIER ARE NO LONGER USING THIS METHOD
 	GetServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find a child service with the given name

@@ -129,6 +129,7 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 }
 
 // Get the services (can filter by name and/or tenantID)
+// FIXME - REMOVE ONCE CLI and REST TIER ARE NO LONGER USING THIS METHOD
 func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
 	ctx := datastore.Get()
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetServices"))

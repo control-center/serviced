@@ -118,18 +118,18 @@ func (t TemplateAPITest) CompileServiceTemplate(cfg api.CompileTemplateConfig) (
 	return &tpl, nil
 }
 
-func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) ([]service.Service, error) {
+func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) ([]service.ServiceDetails, error) {
 	tpl, err := t.GetServiceTemplate(cfg.ID)
 	if err != nil {
 		return nil, err
 	} else if tpl == nil {
 		return nil, nil
 	}
-	s := service.Service{
+	s := service.ServiceDetails{
 		ID:     fmt.Sprintf("%s-service", cfg.ID),
 		PoolID: cfg.PoolID,
 	}
-	return []service.Service{s}, nil
+	return []service.ServiceDetails{s}, nil
 }
 
 func TestServicedCLI_CmdTemplateList_one(t *testing.T) {

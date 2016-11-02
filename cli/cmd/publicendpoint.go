@@ -67,8 +67,14 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	var services []service.Service
 
 	if len(ctx.Args()) > 0 {
+		// FIXME: replace with call to Facade method
 		// Provided the service id/name.
-		svc, err := c.searchForService(ctx.Args()[0])
+		svcDetails, err := c.searchForService(ctx.Args()[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		svc, err := c.driver.GetService(svcDetails.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -77,7 +83,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	} else {
 		// Showing all service ports/vhosts.
 		var err error
-		services, err = c.driver.GetServices()
+		services, err = c.driver.GetServicesDeprecated()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to get services: %s\n", err)
 			return

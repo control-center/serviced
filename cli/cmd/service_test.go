@@ -172,11 +172,18 @@ func InitServiceAPITest(args ...string) {
 	c.Run(args)
 }
 
-func (t ServiceAPITest) GetServices() ([]service.Service, error) {
-	if t.errs["GetServices"] != nil {
-		return nil, t.errs["GetServices"]
+func (t ServiceAPITest) GetServicesDeprecated() ([]service.Service, error) {
+	if t.errs["GetServicesDeprecated"] != nil {
+		return nil, t.errs["GetServicesDeprecated"]
 	}
 	return t.services, nil
+}
+
+func (t ServiceAPITest) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+	if t.errs["GetAllServiceDetails"] != nil {
+		return nil, t.errs["GetAllServiceDetails"]
+	}
+	return servicesToServiceDetails(t.services), nil
 }
 
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
@@ -222,7 +229,21 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 	return nil, nil
 }
 
-func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
+func (t ServiceAPITest) GetServiceDetails(id string) (*service.ServiceDetails, error) {
+	if t.errs["GetServiceDetails"] != nil {
+		return nil, t.errs["GetServiceDetails"]
+	}
+
+	for i, s := range t.services {
+		if s.ID == id {
+			details := serviceToServiceDetails(t.services[i])
+			return &details, nil
+		}
+	}
+	return nil, nil
+}
+
+func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.ServiceDetails, error) {
 	if t.errs["AddService"] != nil {
 		return nil, t.errs["AddService"]
 	} else if config.Name == NilService {
@@ -242,12 +263,12 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 		i++
 	}
 
-	s := service.Service{
+	s := service.ServiceDetails{
 		ID:              fmt.Sprintf("%s-%s-%s", config.Name, config.ParentServiceID, config.ImageID),
 		ParentServiceID: config.ParentServiceID,
 		Name:            config.Name,
 		ImageID:         config.ImageID,
-		Endpoints:       endpoints,
+		//Endpoints:       endpoints,
 		Startup:         config.Command,
 		Instances:       1,
 		InstanceLimits:  domain.MinMax{1, 1, 1},
@@ -263,7 +284,7 @@ func (t ServiceAPITest) RemoveService(id string) error {
 	return nil
 }
 
-func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error) {
+func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.ServiceDetails, error) {
 	var svc service.Service
 
 	if err := json.NewDecoder(reader).Decode(&svc); err != nil {
@@ -274,7 +295,37 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 		return nil, err
 	}
 
-	return &svc, nil
+	details := serviceToServiceDetails(svc)
+	return &details, nil
+}
+
+func servicesToServiceDetails(svcs []service.Service) []service.ServiceDetails {
+	detailsList := []service.ServiceDetails{}
+	for _, svc := range(svcs) {
+		details := serviceToServiceDetails(svc)
+		detailsList = append(detailsList, details)
+	}
+	return detailsList
+}
+
+func serviceToServiceDetails(svc service.Service) service.ServiceDetails {
+	details := service.ServiceDetails{
+		ID:              svc.ID,
+		Name:            svc.Name,
+		Description:     svc.Description,
+		PoolID:          svc.PoolID,
+		ImageID:         svc.ImageID,
+		ParentServiceID: svc.ParentServiceID,
+		Instances:       svc.Instances,
+		InstanceLimits:  svc.InstanceLimits,
+		RAMCommitment:   svc.RAMCommitment,
+		Startup:         svc.Startup,
+		//HasChildren:     svc.HasChildren,
+		DeploymentID:    svc.DeploymentID,
+		DesiredState:    svc.DesiredState,
+		Launch:          svc.Launch,
+	}
+	return details
 }
 
 func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
@@ -391,7 +442,7 @@ func TestServicedCLI_CmdServiceList_one(t *testing.T) {
 }
 
 func TestServicedCLI_CmdServiceList_all(t *testing.T) {
-	expected, err := DefaultServiceAPITest.GetServices()
+	expected, err := DefaultServiceAPITest.GetServicesDeprecated()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,8 +470,8 @@ func ExampleServicedCLI_CmdServiceList() {
 }
 
 func ExampleServicedCLI_CmdServiceList_fail() {
-	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
-	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
+	DefaultServiceAPITest.errs["GetAllServiceDetails"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetAllServiceDetails"] = nil }()
 	// Error retrieving service
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list", "test-service-0") })
 	// Error retrieving all services
@@ -447,8 +498,8 @@ func ExampleServicedCLI_CmdServiceList_err() {
 func ExampleServicedCLI_CmdServiceList_complete() {
 	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
 
-	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
-	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
+	DefaultServiceAPITest.errs["GetAllServiceDetails"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetAllServiceDetails"] = nil }()
 	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
 
 	// Output:
@@ -602,8 +653,8 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceEdit_fail() {
-	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
-	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
+	DefaultServiceAPITest.errs["GetAllServiceDetails"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetAllServiceDetails"] = nil }()
 	// Failed to get service
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "edit", "test-service-0") })
 	// TODO: Failed to update service

@@ -107,6 +107,15 @@ type ClientInterface interface {
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
 
+	// GetAllServiceDetails will return a list of all ServiceDetails
+	GetAllServiceDetails() ([]service.ServiceDetails, error)
+
+	// GetServiceDetailsByTenantID will return a list of ServiceDetails for the specified tenant ID
+	GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error)
+
+	// GetServiceDetails will return a ServiceDetails for the specified service
+	GetServiceDetails(serviceID string) (*service.ServiceDetails, error)
+
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
 
@@ -210,4 +219,14 @@ type ClientInterface interface {
 
 	// ReportInstanceDead removes stopped instances from the health check status cache.
 	ReportInstanceDead(serviceID string, instanceID int) error
+
+
+	//--------------------------------------------------------------------------
+	// Debug Management Functions
+
+	// Enable internal metrics collection
+	DebugEnableMetrics() (string, error)
+
+	// Disable internal metrics collection
+	DebugDisableMetrics() (string, error)
 }

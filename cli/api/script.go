@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
 )
@@ -121,21 +120,20 @@ func cliTenantLookup(a *api) script.TenantIDLookup {
 	}
 }
 
+// FIXME: The caller has already called GetAllServiceDetails, so we shouldn't have to repeat another query
+//        for all (or almost all) services
 func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 	return func(tenantID string, svcPath string) (string, error) {
-		client, err := a.connectDAO()
+		client, err := a.connectMaster()
 		if err != nil {
 			return "", err
 		}
-		var svcs []service.Service
-		serviceRequest := dao.ServiceRequest{
-			TenantID: tenantID,
-		}
-		if err := client.GetServices(serviceRequest, &svcs); err != nil {
+		var svcs []service.ServiceDetails
+		if svcs, err = client.GetServiceDetailsByTenantID(tenantID); err != nil {
 			return "", err
 		}
 
-		svcMap := make(map[string]service.Service)
+		svcMap := make(map[string]service.ServiceDetails)
 		for _, svc := range svcs {
 			svcMap[svc.ID] = svc
 		}

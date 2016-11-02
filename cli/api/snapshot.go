@@ -29,7 +29,7 @@ type SnapshotConfig struct {
 
 // Lists all snapshots on the DFS
 func (a *api) GetSnapshots() ([]dao.SnapshotInfo, error) {
-	services, err := a.GetServices()
+	services, err := a.GetAllServiceDetails()
 	if err != nil {
 		return nil, err
 	}
