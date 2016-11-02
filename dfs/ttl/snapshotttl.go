@@ -30,7 +30,7 @@ var plog = logging.PackageLogger()
 
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {
-	// GetServices returns all services
+	// GetTenantIDs returns all tenant IDs
 	GetTenantIDs(struct {}, *[]string) error
 	// ListSnapshots returns the list of all snapshots given a service id
 	ListSnapshots(string, *[]dao.SnapshotInfo) error

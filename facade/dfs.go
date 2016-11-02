@@ -80,7 +80,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		return err
 	}
 	glog.Infof("Loaded resource pools")
-	tenants, err := f.getTenantIDs(ctx)
+	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		glog.Errorf("Could not get tenants: %s", err)
 		return err
@@ -265,7 +265,7 @@ func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
 // ResetLocks resets all tenant locks
 func (f *Facade) ResetLocks(ctx datastore.Context) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetLocks"))
-	tenantIDs, err := f.getTenantIDs(ctx)
+	tenantIDs, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		glog.Errorf("Could not get tenants: %s", err)
 		return err
@@ -297,12 +297,12 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 	}
 	defer f.DFSLock(ctx).Unlock()
 
-	tenantIDs, err := f.getTenantIDs(ctx)
+	tenantIDs, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, tenantID := range tenantIDs {
-		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+		svcs, err := f.GetServiceDetailsByTenantID(ctx, tenantID)
 		if err != nil {
 			return err
 		}
@@ -366,12 +366,12 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string,
 			return nil
 		}
 	}
-	tenantIDs, err := f.getTenantIDs(ctx)
+	tenantIDs, err := f.GetTenantIDs(ctx)
 	if err != nil {
 		return err
 	}
 	for _, tenantID := range tenantIDs {
-		svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+		svcs, err := f.GetServiceDetailsByTenantID(ctx, tenantID)
 		if err != nil {
 			return err
 		}
@@ -473,7 +473,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	}
 	defer f.retryUnlockTenant(ctx, info.TenantID, nil, time.Second)
 	glog.Infof("Checking states for services under %s", info.TenantID)
-	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: info.TenantID})
+	svcs, err := f.GetServiceDetailsByTenantID(ctx, info.TenantID)
 	if err != nil {
 		glog.Errorf("Could not get services under %s: %s", info.TenantID, err)
 		return err

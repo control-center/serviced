@@ -26,8 +26,8 @@ import (
 // error when trying to find image
 func (s *DFSTestSuite) TestUpgradeRegistry_FindImageFail(c *C) {
 	imageName := "unknown/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -41,8 +41,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_FindImageFail(c *C) {
 // image already in registry
 func (s *DFSTestSuite) TestUpgradeRegistry_FindImageSuccess(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -62,7 +62,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_FindImageSuccess(c *C) {
 // image in registry and override enabled
 func (s *DFSTestSuite) TestUpgradeRegistry_OverrideImageFound(c *C) {
 	imageName := "localhost:5000/tenantid/reponame"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "service",
 			ID:      "service_id",
@@ -87,7 +87,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_OverrideImageFound(c *C) {
 // image not in registry and override enabled
 func (s *DFSTestSuite) TestUpgradeRegistry_OverrideImageNotFound(c *C) {
 	imageName := "localhost:5000/tenantid/reponame"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "service",
 			ID:      "service_id",
@@ -106,8 +106,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_OverrideImageNotFound(c *C) {
 // image not present in docker library
 func (s *DFSTestSuite) TestUpgradeRegistry_DockerImageNotFound(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -122,8 +122,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_DockerImageNotFound(c *C) {
 // error when looking for image in docker library
 func (s *DFSTestSuite) TestUpgradeRegistry_DockerFindImageFail(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -138,8 +138,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_DockerFindImageFail(c *C) {
 // error when getting the image hash
 func (s *DFSTestSuite) TestUpgradeRegistry_PushImageNoHash(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -156,8 +156,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageNoHash(c *C) {
 // image successfully pushed to registry index
 func (s *DFSTestSuite) TestUpgradeRegistry_PushImageSuccess(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -175,8 +175,8 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageSuccess(c *C) {
 // error pushing image to registry index
 func (s *DFSTestSuite) TestUpgradeRegistry_PushImageFail(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
-		service.Service{
+	svcs := []service.ServiceDetails{
+		service.ServiceDetails{
 			Name:    "service",
 			ID:      "service_id",
 			ImageID: imageName,
@@ -194,7 +194,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_PushImageFail(c *C) {
 // duplicate images are only migrated once
 func (s *DFSTestSuite) TestUpgradeRegistry_NoDupes(c *C) {
 	imageName := "localhost:5000/goodtenant/repo"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "service",
 			ID:      "service_id",
@@ -217,7 +217,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_NoDupes(c *C) {
 // no image in the old docker registry
 func (s *DFSTestSuite) TestUpgradeRegistry_MigrateNoImage(c *C) {
 	imageName := "test-server:5000/tenantid/reponame"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "servicename",
 			ID:      "serviceid",
@@ -237,7 +237,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_MigrateNoImage(c *C) {
 // could not retag image
 func (s *DFSTestSuite) TestUpgradeRegistry_MigrateTagFail(c *C) {
 	imageName := "test-server:5000/tenantid/reponame"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "servicename",
 			ID:      "serviceid",
@@ -254,7 +254,7 @@ func (s *DFSTestSuite) TestUpgradeRegistry_MigrateTagFail(c *C) {
 // migrate successful
 func (s *DFSTestSuite) TestUpgradeRegistry_MigrateSuccess(c *C) {
 	imageName := "test-server:5000/tenantid/reponame"
-	svcs := []service.Service{
+	svcs := []service.ServiceDetails{
 		{
 			Name:    "servicename",
 			ID:      "serviceid",

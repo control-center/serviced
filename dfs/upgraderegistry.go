@@ -24,7 +24,7 @@ import (
 // UpgradeRegistry loads images for each service into the docker registry
 // index.  Also migrates images from a previous (or V1) registry at
 // registryHost (host:port).
-func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error {
+func (dfs *DistributedFilesystem) UpgradeRegistry(svcs []service.ServiceDetails, tenantID, registryHost string, override bool) error {
 	imageIDs := make(map[string]struct{})
 	for _, svc := range svcs {
 		if svc.ImageID == "" {
