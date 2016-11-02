@@ -205,6 +205,89 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 	handler.AssertExpectations(c)
 }
 
+// Test Case: Missing service state once the hoststate listener is running
+func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	// attached, run, no change
+	ssdat := ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.ServiceState = ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) { containerExit <- time.Now() })
+	listener := NewHostStateListener(handler, hostId)
+	listener.SetConnection(conn)
+
+	// service's stateId must exist
+	done := make(chan struct{})
+	sspth := "/services/serviceid/" + req.StateID()
+	ok, err := conn.Exists(sspth)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+
+	// host's stateId must exist
+	hspth := "/hosts/hostid/instances/"+req.StateID()
+	ok, hsEvt, err := conn.ExistsW(hspth, done)
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+
+	// Run listener
+	shutdown := make(chan interface{})
+	go func() {
+		listener.Spawn(shutdown, req.StateID())
+		close(done)
+	}()
+
+	// Delete service stateId
+	go func() {
+		time.Sleep(2*time.Second) // wait a little to ensure listener is running
+		err = conn.Delete(sspth)
+		c.Assert(err, IsNil)
+	}()
+
+	timer := time.NewTimer(5*time.Second)
+	// Wait for the event indicating service stateId was deleted
+	select {
+	case e := <-hsEvt:
+		c.Assert(e.Type, Equals, client.EventNodeDeleted)
+		ok, err := conn.Exists(sspth)
+		c.Assert(err, IsNil)
+		c.Assert(ok, Equals, false)
+	case <-timer.C:
+		close(shutdown)
+		c.Fatalf("Host StateId not cleaned up")
+	}
+	timer.Reset(2*time.Second)
+	select {
+		case <-done:
+			c.Logf("Listener shut down")
+		case <-timer.C:
+			c.Fatalf("Listener did not shutdown")
+			close(shutdown)
+	}
+	handler.AssertExpectations(c)
+}
+
 // Test Case: Error on attach
 func (t *ZZKTest) TestHostStateListener_Spawn_ErrAttach(c *C) {
 
