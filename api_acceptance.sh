@@ -8,7 +8,7 @@
 # and APPLICATION_PASSWORD before running this script.
 #
 # Any command line arguments passed to the this script will be
-# passed through to acceptance/runAPIacceptance.sh
+# passed through to acceptance/runAPIAcceptance.sh
 #
 #######################################################
 
@@ -44,6 +44,6 @@ cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
 
 # launch cucumber/capybara with colorized output disabled for better readability in Jenkins
-CUCUMBER_OPTS=--no-color ./runAPIacceptance.sh -a https://${HOSTNAME} $*
+CUCUMBER_OPTS=--no-color ./runAPIAcceptance.sh -a https://${HOSTNAME} $*
 
 # "trap cleanup EXIT", above, will handle cleanup
