@@ -21,7 +21,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/domain/host"
-	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/utils"
 )
 
 func (c *ServicedCli) initKey() {
@@ -105,7 +105,7 @@ func (c *ServicedCli) cmdKeyReset(ctx *cli.Context) {
 func (c *ServicedCli) outputDelegateKey(host *host.Host, keyData []byte, keyfileName string, register bool) {
 	writeKeyFile := false
 	if register {
-		prompt := logrus.IsTerminal()
+		prompt := utils.Isatty(os.Stdin)
 		if err := c.driver.RegisterRemoteHost(host, keyData, prompt); err != nil {
 			fmt.Fprintf(os.Stderr, "Error registering host: %s\n", err.Error())
 			writeKeyFile = true
