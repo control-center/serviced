@@ -28,6 +28,7 @@ type ServiceDetails struct {
 	Name            string
 	Description     string
 	PoolID          string
+	ImageID         string
 	ParentServiceID string
 	Parent          *ServiceDetails `json:",omitempty"` // optional, only needed when looking up service ancestry
 	Instances       int
@@ -36,6 +37,8 @@ type ServiceDetails struct {
 	Startup         string
 	HasChildren     bool
 	DeploymentID    string
+	DesiredState    int
+	Launch          string
 	datastore.VersionedEntity
 }
 

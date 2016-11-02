@@ -50,7 +50,7 @@ func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetail
 		}
 
 		parentMap[d.ParentServiceID] = struct{}{}
-
+		s.fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -97,11 +97,12 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 			return nil, err
 		}
 
+		s.fillDetailsVolatileInfo(&details)
 		return &details, nil
 	}
 
-	// no errors but also no results for given id
-	return nil, nil
+	key := datastore.NewKey(kind, serviceID)
+	return nil, datastore.ErrNoSuchEntity{Key: key}
 }
 
 // GetChildServiceDetailsByParentID returns service details given parent service id
@@ -134,6 +135,7 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 			return nil, err
 		}
 
+		s.fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -158,6 +160,16 @@ func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, 
 
 }
 
+func (s *storeImpl) fillDetailsVolatileInfo(d *ServiceDetails) {
+	cacheEntry, ok := s.getVolatileInfo(d.ID) // Uses Mutex RLock
+	if ok {
+		d.DesiredState = cacheEntry.DesiredState
+        } else {
+                // If there's no ZK data, make sure the service is stopped.
+                d.DesiredState = int(SVCStop)
+	}
+}
+
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
 	return elastic.ElasticSearchRequest{
 		Pretty: false,
@@ -176,10 +188,12 @@ var serviceDetailsFields = []string{
 	"Name",
 	"Description",
 	"PoolID",
+	"ImageID",
 	"ParentServiceID",
 	"Instances",
 	"InstanceLimits",
 	"RAMCommitment",
 	"Startup",
 	"DeploymentID",
+	"Launch",
 }
