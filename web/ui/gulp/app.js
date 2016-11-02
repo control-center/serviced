@@ -14,7 +14,7 @@ var gulp = require("gulp"),
 var config = require("./config.js");
 
 var babelConfig = {
-    presets: ["es2015"],
+    presets: ["es2015", "es2017"],
 };
 
 gulp.task("build", cb => {

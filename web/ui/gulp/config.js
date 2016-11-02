@@ -80,6 +80,7 @@ var staticFiles = [
     paths.staticSrc + 'lib/codemirror/lib/*.css',
     paths.staticSrc + 'lib/jquery-ui/themes/base/*.*',
     paths.staticSrc + 'lib/jquery-datetimepicker/*.css',
+    paths.staticSrc + 'lib/babel-polyfill/*',
     paths.staticSrc + 'lib/thirdparty.*',
     paths.staticSrc + 'scripts/**/*.*',
     paths.staticSrc + 'lib/ng-table/ng-table.css'
