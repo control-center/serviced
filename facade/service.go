@@ -841,9 +841,6 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 			return nil, err
 		}
 	}
-	if err = f.fillOutServices(ctx, services); err != nil {
-		return nil, err
-	}
 
 	switch v := request.(type) {
 	case dao.ServiceRequest:
@@ -867,6 +864,9 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 			}
 		}
 
+		if err = f.fillOutServices(ctx, services); err != nil {
+			return nil, err
+		}
 		return services, nil
 	default:
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
@@ -981,7 +981,10 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantID"))
-	glog.V(3).Infof("Facade.GetTenantId: %s", serviceID)
+	logger := plog.WithFields(log.Fields{
+		"serviceID":     serviceID,
+	})
+	logger.Debug("Facade.GetTenantID: looking ...")
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
@@ -991,6 +994,12 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 // Get the exported endpoints for a service
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceEndpoints"))
+	logger := plog.WithFields(log.Fields{
+		"serviceID":     serviceID,
+		"reportImports": reportImports,
+		"reportExports": reportExports,
+	})
+	logger.Debug("Facade.GetServiceEndpoints: looking ...")
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -1084,7 +1093,11 @@ func getEndpointsFromState(state zkservice.State, reportImports, reportExports b
 // if childName matches the service's name. If so, it returns it.
 func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindChildService"))
-	glog.V(3).Infof("Facade.FindChildService")
+	logger := plog.WithFields(log.Fields{
+		"parentServiceID":     parentServiceID,
+		"childName":    childName,
+	})
+	logger.Debug("Facade.FindChildService: looking ...")
 	store := f.serviceStore
 	parentService, err := store.Get(ctx, parentServiceID)
 	if err != nil {
