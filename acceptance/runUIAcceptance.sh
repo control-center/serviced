@@ -17,6 +17,7 @@ DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 TAGS=()
 DATASET=default
+VERSION=$(cat dockerImage/VERSION)
 
 set -e
 
@@ -222,6 +223,7 @@ docker run --rm --name ui_acceptance \
     -v `pwd`/ui:/capybara:rw \
     -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
     -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
+    -v /dev/shm:/dev/shm \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
@@ -236,5 +238,5 @@ docker run --rm --name ui_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.0 \
+    -t zenoss/capybara:${VERSION}-xenial \
     ${CMD}
