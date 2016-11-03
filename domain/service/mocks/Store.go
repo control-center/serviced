@@ -301,15 +301,15 @@ func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 	return r0, r1
 }
 
-func (_m *Store) GetServiceHealth(ctx datastore.Context, serviceID string) (service.ServiceHealth, error) {
+func (_m *Store) GetServiceHealth(ctx datastore.Context, serviceID string) (*service.ServiceHealth, error) {
 	ret := _m.Called(ctx, serviceID)
 
-	var r0 service.ServiceHealth
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) service.ServiceHealth); ok {
+	var r0 *service.ServiceHealth
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceHealth); ok {
 		r0 = rf(ctx, serviceID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(service.ServiceHealth)
+			r0 = ret.Get(0).(*service.ServiceHealth)
 		}
 	}
 
