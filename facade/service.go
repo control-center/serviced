@@ -2156,11 +2156,14 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 		return result, nil
 	}
 
-	parent, current = path.Split(strings.TrimRight(svcPath, "/"))
+	// Clean up trailing slashes and lowercase the requested path
+	svcPath = strings.TrimRight(svcPath, "/")
+	svcPath = strings.ToLower(svcPath)
 
 	// First pass: get all services that match either ID exactly or name by substring.
 	// If it's a single-segment query with a leading slash, it indicates that
 	// prefix matching should be used instead of substring matching.
+	parent, current = path.Split(svcPath)
 	prefix := parent == "/"
 	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, prefix)
 	if err != nil {
@@ -2190,7 +2193,9 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 					break
 				}
 			}
-			// If the current segment
+			// If the parent name at this level matches OR this is the last
+			// segment and it matches the deployment ID, it's considered
+			// a match
 			if (p != nil && p.Name == current) || (isEmptyPath(parent) && d.DeploymentID == current) {
 				filtered = append(filtered, d)
 			}
