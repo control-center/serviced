@@ -28,15 +28,6 @@
             return !$scope.dockerLoggedIn;
         };
 
-        resourcesFactory.v2.getPools().then(data => {
-            $scope.pools = data.map(p => new Pool(p));
-            $scope.poolIds = $scope.pools.map(p => p.id).sort();
-        });
-
-        resourcesFactory.v2.getHosts().then(data => {
-            $scope.hosts = data.map(result => new Host(result));
-        });
-
         var showError = function(message){
             $("#deployWizardNotificationsContent").html(message);
             $("#deployWizardNotifications").removeClass("hide");
@@ -401,16 +392,27 @@
             return deferred.promise;
         };
 
-        let p1 = $scope.refreshAppTemplates()
-            .catch(e => console.warn(`error refreshing app templates: ${e}`));
-        let p2 = resourcesFactory.v2.getHosts()
-            .then(data => {
-                $scope.hosts = data.map(result => new Host(result));
-            })
-            .catch(e => console.warn(`error fetching hosts: ${e}`));
-            
-        $q.all([p1,p2]).finally(resetStepPage);
 
+        function init(){
+            let p1 = $scope.refreshAppTemplates()
+                .catch(e => console.warn(`error refreshing app templates: ${e}`));
+            let p2 = resourcesFactory.v2.getHosts()
+                .then(data => {
+                    $scope.hosts = data.map(result => new Host(result));
+                })
+                .catch(e => console.warn(`error fetching hosts`, e));
+            let p3 = resourcesFactory.v2.getPools()
+                .then(data => {
+                    $scope.pools = data.map(p => new Pool(p));
+                    $scope.poolIds = $scope.pools.map(p => p.id).sort();
+                })
+                .catch(e => console.warn(`error fetching pool`, e));
+
+            return $q.all([p1,p2,p3])
+                .catch(e => console.warn("error initializing DeployWiz", e));
+        }
+
+        init().then(resetStepPage);
 
     }]);
 
