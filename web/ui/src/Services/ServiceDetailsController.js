@@ -472,6 +472,7 @@
                     if (!editableContext) { editableContext = ""; }
                     return editableContext;
                 }
+
                 function makeStorableContext(context) {
                     //turn editableContext into a JSON object
                     var lines = context.split("\n"),
@@ -494,7 +495,6 @@
 
                     return JSON.stringify(storable);
                 }
-
 
                 $scope.clickRemovePublicEndpoint = function (publicEndpoint) {
 
@@ -772,7 +772,12 @@
                         if (service.subservices.length) {
                             $scope.showChildren(service);
                         } else {
+                            // show loading animation row
+                            $scope.currentTreeState[service.id].isLoading = true;
+                            $scope.flattenServicesTree();
                             service.fetchServiceChildren().then(() => {
+                                // remove loading animation row
+                                $scope.currentTreeState[service.id].isLoading = false;
                                 $scope.flattenServicesTree();
                                 $scope.currentService.updateDescendentStatuses();
                                 service.subservices.forEach(sub => {
@@ -796,7 +801,6 @@
 
                     if (service.subservices.length) {
                         service.subservices.forEach(function (child) {
-                            // treeState[child.id].collapsed = true;
                             treeState[child.id].hidden = true;
                             $scope.hideChildren(child);
                         });
@@ -980,8 +984,6 @@
                             };
                         }
                         let rowState = treeState[service.id];
-                        // TODO - merge rather than overwrite to avoid
-                        // causing the entire tree to bounce
                         let rowItem = {
                             service: service,
                             depth: depth,
@@ -989,6 +991,15 @@
                             hidden: rowState.hidden
                         };
                         rows.push(rowItem);
+
+                        // if expanding node, add dummy row for loading animation
+                        if (rowState.isLoading) {
+                            let loaderRow = {
+                                isDummy : true
+                            };
+                            rows.push(loaderRow);
+                        }
+
                         if (service.subservices.length) {
                             $filter('orderBy')(service.subservices, 'name')
                                 .forEach(svc => flatten(svc, depth + 1));
