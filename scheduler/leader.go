@@ -15,14 +15,12 @@ package scheduler
 
 import (
 	"errors"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
@@ -46,7 +44,7 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int) {
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string) {
 
 	// creates a listener for the host registry
 	hreg := zkservice.NewHostRegistryListener(poolID)
@@ -56,11 +54,6 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(poolID, &leader)
-
-	// kicks off the snapshot cleaning goroutine
-	if snapshotTTL > 0 {
-		go ttl.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
-	}
 
 	// starts all of the listeners
 	zzk.Start(shutdown, conn, serviceListener, hreg)
