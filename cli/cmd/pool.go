@@ -196,10 +196,8 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	}
 
 	if ctx.Bool("verbose") {
-		if jsonPool, err := json.MarshalIndent(pools, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal resource pool list: %s", err)
-		} else {
-			fmt.Println(string(jsonPool))
+		for _, p := range pools {
+			fmt.Print(strings.Replace(p.ToString(), "\n", "\n  ", -1))
 		}
 	} else {
 		t := NewTable(ctx.String("show-fields"))
