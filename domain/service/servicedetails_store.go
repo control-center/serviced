@@ -146,7 +146,7 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 // GetServiceDetailsByIDOrName returns the service details for any services
 // whose serviceID matches the query exactly or whose names contain the query
 // as a substring
-func GetServiceDetailsByIDOrName(ctx datastore.Context, query string) ([]ServiceDetails, error) {
+func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string) ([]ServiceDetails, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -158,7 +158,7 @@ func GetServiceDetailsByIDOrName(ctx datastore.Context, query string) ([]Service
 					},
 					map[string]interface{}{
 						"wildcard": map[string]interface{}{
-							"Name": fmt.Sprintf("*%s", query),
+							"Name": fmt.Sprintf("*%s*", query),
 						},
 					},
 				},
