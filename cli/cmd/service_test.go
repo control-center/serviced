@@ -320,7 +320,6 @@ func serviceToServiceDetails(svc service.Service) service.ServiceDetails {
 		InstanceLimits:  svc.InstanceLimits,
 		RAMCommitment:   svc.RAMCommitment,
 		Startup:         svc.Startup,
-		//HasChildren:     svc.HasChildren,
 		DeploymentID:    svc.DeploymentID,
 		DesiredState:    svc.DesiredState,
 		Launch:          svc.Launch,
