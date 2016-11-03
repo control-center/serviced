@@ -131,6 +131,7 @@ type API interface {
 	AddPublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled, restart bool) (*servicedefinition.VHost, error)
 	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
+	GetAllPublicEndpoints() ([]service.PublicEndpoint, error)
 
 	// Service Instances
 	GetServiceInstances(serviceID string) ([]service.Instance, error)

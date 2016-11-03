@@ -14,6 +14,7 @@
 package master
 
 import (
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
@@ -89,4 +90,13 @@ func (c *Client) EnablePublicEndpointVHost(serviceid, endpointName, vhost string
 		IsEnabled:    isEnabled,
 	}
 	return c.call("EnablePublicEndpointVHost", request, nil)
+}
+
+// GetAllPublicEndpoints
+func (c *Client) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	var response []service.PublicEndpoint
+	if err := c.call("GetAllPublicEndpoints", empty, &response); err != nil {
+		return response, err
+	}
+	return response, nil
 }

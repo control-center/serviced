@@ -64,7 +64,8 @@ func (c *ServicedCli) cmdPublicEndpointsListAll(ctx *cli.Context) {
 // Method that executes the serviced service public-endpoints list.  Also called from the
 // port list *, and vhost list * subcommands.
 func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, showPorts bool) {
-	var services []service.Service
+
+	var publicEndpoints []PublicEndpoint
 
 	if len(ctx.Args()) > 0 {
 		// FIXME: replace with call to Facade method
@@ -79,26 +80,25 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		services = []service.Service{*svc}
+		services := []service.Service{*svc}
+
+		publicEndpoints, err = c.createPublicEndpoints(ctx, services, showVHosts, showPorts)
+		// If there was an error getting the endpoints, show the error now.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			return
+		}
 	} else {
 		// Showing all service ports/vhosts.
-		var err error
-		services, err = c.driver.GetServicesDeprecated()
+		peps, err := c.driver.GetAllPublicEndpoints()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to get services: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Unable to get public endpoints: %s\n", err)
 			return
-		} else if services == nil || len(services) == 0 {
+		} else if peps == nil || len(peps) == 0 {
 			fmt.Fprintln(os.Stderr, "no services found")
 			return
 		}
-	}
-
-	// Get the list of public endpoints requested.
-	publicEndpoints, err := c.getPublicEndpoints(ctx, services, showVHosts, showPorts)
-	// If there was an error getting the endpoints, show the error now.
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		return
+		publicEndpoints, err = c.convertPublicEndpoints(peps)
 	}
 
 	// If we're generating JSON..
@@ -150,8 +150,30 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	return
 }
 
+func (c *ServicedCli) convertPublicEndpoints(peps []service.PublicEndpoint) ([]PublicEndpoint, error) {
+
+	result := []PublicEndpoint{}
+	var pepType, proto, pepName string
+	for _, pep := range peps {
+		if pep.VHostName != "" {
+			pepType = "vhost"
+			proto = "https"
+			pepName = pep.VHostName
+		} else if pep.PortAddress != "" {
+			pepType = "port"
+			proto = pep.Protocol
+			pepName = pep.PortAddress
+		}
+
+		npep := NewPublicEndpoint(pep.ServiceName, pep.ServiceID, pep.Application, pepType, proto, pepName, pep.Enabled)
+
+		result = append(result, npep)
+	}
+	return result, nil
+}
+
 // Create a unified list of vhosts and port based public endpoints.
-func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Service,
+func (c *ServicedCli) createPublicEndpoints(ctx *cli.Context, services []service.Service,
 	showVHosts bool, showPorts bool) ([]PublicEndpoint, error) {
 	publicEndpoints := []PublicEndpoint{}
 

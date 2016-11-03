@@ -196,6 +196,8 @@ type ClientInterface interface {
 
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 
+	GetAllPublicEndpoints() ([]service.PublicEndpoint, error)
+
 	//--------------------------------------------------------------------------
 	// User Management Functions
 
@@ -219,7 +221,6 @@ type ClientInterface interface {
 
 	// ReportInstanceDead removes stopped instances from the health check status cache.
 	ReportInstanceDead(serviceID string, instanceID int) error
-
 
 	//--------------------------------------------------------------------------
 	// Debug Management Functions

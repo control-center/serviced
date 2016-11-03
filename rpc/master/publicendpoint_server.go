@@ -14,6 +14,7 @@
 package master
 
 import (
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
@@ -68,4 +69,14 @@ func (s *Server) RemovePublicEndpointVHost(request *PublicEndpointRequest, _ *st
 // Enable/disable a vhost public endpoint for a service.
 func (s *Server) EnablePublicEndpointVHost(request *PublicEndpointRequest, _ *struct{}) error {
 	return s.f.EnablePublicEndpointVHost(s.context(), request.Serviceid, request.EndpointName, request.Name, request.IsEnabled)
+}
+
+// GetAllPublicEndpoints get all public endpoints
+func (s *Server) GetAllPublicEndpoints(empty struct{}, publicEndpoints *[]service.PublicEndpoint) error {
+	peps, err := s.f.GetAllPublicEndpoints(s.context())
+	if err != nil {
+		return err
+	}
+	*publicEndpoints = peps
+	return nil
 }

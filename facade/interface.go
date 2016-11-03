@@ -151,6 +151,8 @@ type FacadeInterface interface {
 
 	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
 
+	GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error)
+
 	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
 
 	GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error)
