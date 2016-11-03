@@ -157,7 +157,12 @@ func initElasticSearch() {
 }
 
 func recoverES(path string) error {
-	return os.Rename(path, path+"-backup")
+	recoveryPath := path + "-backup"
+
+	if _, err := os.Stat(recoveryPath); err == nil {
+		os.RemoveAll(recoveryPath)
+	}
+	return os.Rename(path, recoveryPath)
 }
 
 type esres struct {
