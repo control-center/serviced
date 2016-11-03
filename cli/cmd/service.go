@@ -31,7 +31,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
@@ -715,13 +714,6 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 		} else {
 			servicepath = strings.TrimRight(servicepath, "/")
 			instanceID = num
-		}
-	}
-
-	// is the servicepath a dockerid?
-	if instanceID < 0 {
-		if _, err := docker.FindContainer(servicepath); err == nil {
-			return servicepath, instanceID, nil
 		}
 	}
 

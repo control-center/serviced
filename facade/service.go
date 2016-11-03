@@ -2140,3 +2140,59 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 	}, "descendantStatus")
 	return result, nil
 }
+
+// ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
+// to zero or more service details with their ancestry populated.
+func (f *Facade) ResolveServicePath(ctx datastore.Context, path string) ([]service.ServiceDetails, error) {
+	var (
+		parent      = path
+		current     string
+		servicepath string
+		instanceID  int
+	)
+
+	parent, current = path.Split(parent)
+
+	var result []service.ServiceDetails
+
+	// First pass: get all services that match either ID exactly or name by suffix
+	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate the ancestry for all of the found services, so we can check
+	// their parents
+	for _, detail := range details {
+		d, err := f.GetServiceDetailsAncestry(ctx, detail.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, d)
+	}
+
+	// Now walk up the path, filtering parents as we go
+	level := 1
+	for parent != "" {
+		parent, current = path.Split(parent)
+		current = strings.Trim
+		filtered := make([]service.ServiceDetails, 0)
+		for _, d := range result {
+			p := d
+			for i := 0; i < level; i++ {
+				p = p.Parent
+				if p == nil {
+					break
+				}
+			}
+			if p.Name == current {
+				filtered = append(filtered, d)
+			}
+		}
+		result = filtered
+		level++
+	}
+
+	return result
+
+}

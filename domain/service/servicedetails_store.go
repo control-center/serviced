@@ -15,6 +15,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -136,6 +137,56 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 		}
 
 		s.fillDetailsVolatileInfo(&d)
+		details = append(details, d)
+	}
+
+	return details, nil
+}
+
+// GetServiceDetailsByIDOrName returns the service details for any services
+// whose serviceID matches the query exactly or whose names contain the query
+// as a substring
+func GetServiceDetailsByIDOrName(ctx datastore.Context, query string) ([]ServiceDetails, error) {
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					map[string]interface{}{
+						"ids": map[string]interface{}{
+							"values": []string{query},
+						},
+					},
+					map[string]interface{}{
+						"wildcard": map[string]interface{}{
+							"Name": fmt.Sprintf("*%s", query),
+						},
+					},
+				},
+			},
+		},
+		"fields": serviceDetailsFields,
+		"size":   serviceDetailsLimit,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	details := []ServiceDetails{}
+	for results.HasNext() {
+		var d ServiceDetails
+		err := results.Next(&d)
+		if err != nil {
+			return nil, err
+		}
+
+		if hasChildren, err := s.hasChildren(ctx, d.ID); err == nil {
+			d.HasChildren = hasChildren
+		} else {
+			return nil, err
+		}
+
 		details = append(details, d)
 	}
 
