@@ -158,11 +158,25 @@ func initElasticSearch() {
 
 func recoverES(path string) error {
 	recoveryPath := path + "-backup"
+	log := log.WithFields(logrus.Fields{
+		"basepath":     path,
+		"recoverypath": recoveryPath,
+	})
 
 	if _, err := os.Stat(recoveryPath); err == nil {
+		log.Info("Overwriting existing recovery path")
 		os.RemoveAll(recoveryPath)
+	} else if !os.IsNotExist(err) {
+		log.Debug("Could not stat recovery path")
+		return err
 	}
-	return os.Rename(path, recoveryPath)
+
+	if err := os.Rename(path, recoveryPath); err != nil {
+		log.WithError(err).Debug("Could not recover elasticsearch")
+		return err
+	}
+	log.Info("Moved and reset elasticsearch data")
+	return nil
 }
 
 type esres struct {
