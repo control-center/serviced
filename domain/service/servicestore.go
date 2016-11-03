@@ -83,6 +83,13 @@ type Store interface {
 
 	// GetChildServiceDetails returns the details for the child service of the given parent
 	GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error)
+
+	// GetAllServiceHealth returns all service health
+	GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth, error)
+
+	// GetServiceHealth returns a service health by service id
+	GetServiceHealth(ctx datastore.Context, serviceID string) (*ServiceHealth, error)
+
 }
 
 // NewStore creates a Service store
