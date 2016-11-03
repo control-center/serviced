@@ -124,3 +124,13 @@ func (s *Server) GetTenantID(serviceID string, tenantId *string) error {
 	*tenantId = result
 	return nil
 }
+
+// ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb") to zero or more ServiceDetails.
+func (s *Server) ResolveServicePath(path string, response *[]service.ServiceDetails) error {
+	svcs, err := s.f.ResolveServicePath(s.context(), path)
+	if err != nil {
+		return err
+	}
+	*response = svcs
+	return nil
+}

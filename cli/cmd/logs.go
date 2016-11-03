@@ -78,8 +78,8 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 
 	var serviceIDs []string
 	services := ctx.StringSlice("service")
-        for _, service := range(services) {
-		svc, err := c.searchForService(service)
+	for _, service := range services {
+		svc, _, err := c.searchForService(service)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
