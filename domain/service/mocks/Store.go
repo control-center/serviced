@@ -300,6 +300,51 @@ func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 
 	return r0, r1
 }
+
+func (_m *Store) GetServiceHealth(ctx datastore.Context, serviceID string) (*service.ServiceHealth, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 *service.ServiceHealth
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceHealth); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceHealth)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+func (_m *Store) GetAllServiceHealth(ctx datastore.Context) ([]service.ServiceHealth, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ServiceHealth
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceHealth); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceHealth)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 func (_m *Store) UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error {
 	ret := _m.Called(ctx, serviceID, desiredState)
 

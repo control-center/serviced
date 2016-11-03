@@ -253,6 +253,8 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	}
 	logger.Debug("Calulated service status")
 
+	svch := service.BuildServiceHealth(svc)
+
 	inst := &service.Instance{
 		InstanceID:    state.InstanceID,
 		HostID:        hst.ID,
@@ -263,7 +265,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 		ImageSynced:   imageUUID == state.ImageUUID,
 		DesiredState:  state.DesiredState,
 		CurrentState:  curState,
-		HealthStatus:  f.getInstanceHealth(&svc, state.InstanceID),
+		HealthStatus:  f.getInstanceHealth(svch, state.InstanceID),
 		RAMCommitment: int64(svc.RAMCommitment.Value),
 		Scheduled:     state.Scheduled,
 		Started:       state.Started,
@@ -322,7 +324,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 	for i, serviceID := range serviceIDs {
 		svclog := logger.WithField("serviceid", serviceID)
 
-		svc, err := f.serviceStore.Get(ctx, serviceID)
+		svc, err := f.serviceStore.GetServiceHealth(ctx, serviceID)
 		if datastore.IsErrNoSuchEntity(err) {
 
 			// If the service is not found, set the NotFound boolean to true
@@ -392,11 +394,11 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 }
 
 // getInstanceHealth returns the health of the instance of a given service
-func (f *Facade) getInstanceHealth(svc *service.Service, instanceID int) map[string]health.Status {
+func (f *Facade) getInstanceHealth(svch *service.ServiceHealth, instanceID int) map[string]health.Status {
 	hstats := make(map[string]health.Status)
-	for name := range svc.HealthChecks {
+	for name := range svch.HealthChecks {
 		key := health.HealthStatusKey{
-			ServiceID:       svc.ID,
+			ServiceID:       svch.ID,
 			InstanceID:      instanceID,
 			HealthCheckName: name,
 		}
