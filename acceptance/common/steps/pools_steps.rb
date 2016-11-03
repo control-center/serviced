@@ -156,6 +156,8 @@ end
 
 def clickAddVirtualIpButton()
     CC.UI.PoolsPage.addVirtualIp_button.click()
+    # wait till modal is done loading
+    expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end
 
 def fillInIpField(address)
@@ -172,6 +174,8 @@ end
 
 def addVirtualIpButton()
     CC.UI.PoolsPage.dialogAddVirtualIp_button.click()
+    # wait till modal is done loading
+    expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end
 
 def addVirtualIp(ip, netmask, interface)
