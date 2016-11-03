@@ -1,0 +1,313 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>Adding space to a tenant device</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="task">
+      
+      <meta name="DC.Title" content="Adding space to a tenant device">
+      
+      <meta name="DC.Relation" scheme="URI" content="admin.html">
+      
+      <meta name="prodname" content="Control Center">
+      
+      <meta name="prodname" content="Control Center">
+      
+      <meta name="version" content="1">
+      
+      <meta name="version" content="1">
+      
+      <meta name="release" content="2">
+      
+      <meta name="release" content="2">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="taskid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/manage\/backup-restore.html","previousTopicHref":"feature\/manage\/admin.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-zenoss/js/script.js"></script>
+      </head>
+   <body class="en-us html5-zenoss centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Control Center Reference Guide  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../feature/manage/admin.html" title="Administration reference">Administration reference</a></li>
+                  
+                  <li>Adding space to a tenant device</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" no-child "><a href="../../book/help/front/about.html">About this reference</a></li>
+                     <li class=" collapsible  active"><a href="../../feature/manage/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child  active"><a class="selected" href="../../feature/manage/resize.html">Adding space to a tenant device</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-restore.html">Backing up and restoring</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/backup-restore-best-pract.html">Best practices for backup and restore</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/backup.html">Backing up using the browser interface</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/backup-from-cli.html">Backing up using the CLI</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-all.html">Backing up the entire system</a></li>
+                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-one.html">Exclude one tenant volume from the backup</a></li>
+                                       <li class=" no-child "><a href="../../feature/manage/backup-cli-exclude-mult.html">Exclude multiple tenant volumes from the backup</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../feature/manage/restore.html">Restoring from a backup</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/snapshot-rollback.html">Snapshot and rollback</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/snapshot.html">Creating a snapshot</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/rollback.html">Rolling back to a snapshot</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  collapsed"><a href="../../feature/manage/intro-stop-start.html">Stopping and starting Control Center for maintenance</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../feature/manage/stop-1.html">Stopping Control Center (single-host deployment)</a></li>
+                                 <li class=" no-child "><a href="../../feature/manage/start-1.html">Starting Control Center (single-host deployment)</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../feature/manage/stop-n.html">Stopping Control Center (multi-host deployment)</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../feature/manage/stop-n-master.html">Stopping a master host (multi-host deployment)</a></li>
+                                       <li class=" no-child "><a href="../../feature/manage/stop-n-delegate.html">Stopping a delegate host (multi-host deployment)</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../feature/manage/start-n.html">Starting Control Center (multi-host deployment)</a></li>
+                              </ul>
+                           </li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  collapsed"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-service.html">serviced service</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-snapshot.html">serviced snapshot</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-storage.html">serviced-storage</a></li>
+                           <li class=" no-child "><a href="../../feature/vars/file.html">Control Center configuration file</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/service-template.html">service template</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page task  - topic-topic task-task " id="taskid">
+                        
+                        <h1 class="title topictitle1">Adding space to a tenant device</h1>
+                        <div class="body taskbody">
+                           
+                           <div class="section context"><a name="taskid-d1189e35" id="taskid-d1189e35" class="anchor"></a><span class="ph">Control Center</span> creates one virtual device in its LVM thin pool for each tenant
+                              (application) it manages, and stores tenant data in the virtual device. The initial size of a
+                              tenant virtual device is determined by the value of the
+                              <var class="keyword varname">SERVICED_DM_BASESIZE</var> configuration variable when
+                              <span class="keyword cmdname">serviced</span> is started for the first time. Use this procedure to increase
+                              the size of an existing tenant virtual device.
+                           </div>
+                           
+                           
+                           <ol class="ol steps">
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Log in to the master host <span class="ph">as <samp class="ph codeph">root</samp>, or as a user with superuser privileges</span>.</span>
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Display the amount of space available in the <span class="keyword cmdname">serviced</span>
+                                    thin pool, and then increase it, if necessary.</span>
+                                 
+                                 <div class="itemgroup stepxmp">
+                                    <pre class="pre codeblock">serviced volume status</pre>
+                                    
+                                    </div>
+                                 
+                                 <div class="itemgroup info">The result includes detailed information about the <span class="keyword cmdname">serviced</span>
+                                    thin pool and about each tenant virtual device.
+                                 </div>
+                                 
+                                 <ul class="ul choices">
+                                    
+                                    <li class="li choice">If the thin pool has enough space to support both a larger tenant device and the
+                                       snapshots your environment requires, proceed to the next step.
+                                    </li>
+                                    
+                                    
+                                    <li class="li choice">If the thin pool does not have enough space, perform the 
+                                       following substeps.
+                                    </li>
+                                    
+                                    
+                                 </ul>
+                                 
+                                 
+                                 <ol type="a" class="ol substeps">
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Identify the volume group to which the <span class="keyword cmdname">serviced</span> thin pool belongs.</span>
+                                       
+                                       <div class="itemgroup stepxmp">
+                                          <pre class="pre codeblock">lvs --options=lv_name,vg_name,lv_size</pre>
+                                          
+                                          </div>
+                                       
+                                       <div class="itemgroup stepresult">The volume group associated with <samp class="ph codeph">serviced-pool</samp> 
+                                          contains the <span class="keyword cmdname">serviced</span> thin pool.
+                                       </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Display the amount of unused space in the volume group.</span>
+                                       
+                                       <div class="itemgroup stepxmp">Replace <var class="keyword varname">Volume-Group-Name</var> with the name of the
+                                          volume group that contains the <span class="keyword cmdname">serviced</span> thin pool:
+                                          <pre class="pre codeblock">vgs --no-headings --options=vg_free <var class="keyword varname">Volume-Group-Name</var></pre>
+                                          
+                                          </div>
+                                       
+                                       <div class="itemgroup stepresult">If the volume group contains the amount of free space you wish to add the
+                                          <span class="keyword cmdname">serviced</span> thin pool, proceed to the next substep. Otherwise,
+                                          add physical or logical storage to the volume group.
+                                       </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Add storage to the <span class="keyword cmdname">serviced</span> thin pool.</span>
+                                       
+                                       <div class="itemgroup stepxmp">Replace <var class="keyword varname">Size</var> with the amount of space to 
+                                          add to the <span class="keyword cmdname">serviced</span> thin pool, and replace
+                                          <var class="keyword varname">Volume-Group-Name</var> with the name of the
+                                          volume group that contains the <span class="keyword cmdname">serviced</span> thin pool:
+                                          <pre class="pre codeblock">lvextend -L+<var class="keyword varname">Size</var>G <var class="keyword varname">Volume-Group-Name</var>/serviced-pool</pre>
+                                          
+                                          </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                 </ol>
+                                 
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Increase the size of an existing tenant device.</span>
+                                 
+                                 <ol type="a" class="ol substeps">
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Identify the tenant device to resize.</span>
+                                       
+                                       <div class="itemgroup stepxmp">
+                                          <pre class="pre codeblock">serviced volume status</pre>
+                                          
+                                          </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Increase the size of the tenant device.</span>
+                                       
+                                       
+                                       <div class="itemgroup stepxmp">In the following command:
+                                          
+                                          <ul class="ul">
+                                             
+                                             <li class="li">Replace <var class="keyword varname">Volume-Group-Name</var> with the name of the
+                                                volume group that contains the <span class="keyword cmdname">serviced</span> thin pool.
+                                             </li>
+                                             
+                                             
+                                             <li class="li">Replace <var class="keyword varname">Tenant-Device-ID</var> with the identifier of the tenant
+                                                device.
+                                             </li>
+                                             
+                                             
+                                             <li class="li">Replace <var class="keyword varname">Total-Device-Size</var> with the sum of
+                                                the existing device size plus the space to add to the device, in
+                                                gigabytes.
+                                             </li>
+                                             
+                                             
+                                          </ul>
+                                          
+                                          <pre class="pre codeblock">serviced-storage resize -d /opt/serviced/var/volumes \
+  -o dm.thinpooldev=/dev/mapper/<var class="keyword varname">Volume-Group-Name</var>-serviced--pool \
+  <var class="keyword varname">Tenant-Device-ID</var> <var class="keyword varname">Total-Device-Size</var>G</pre>
+                                          
+                                          </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                 </ol>
+                                 
+                                 
+                              </li>
+                              
+                           </ol>
+                           
+                           
+                        </div>
+                        
+                        <div class="related-links"></div>
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../feature/manage/admin.html" class="previous" rel="internal" title="Administration reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Administration reference</span></a></div>
+                           <div id="footer_next"><a href="../../feature/manage/backup-restore.html" class="next" rel="internal" title="Backing up and restoring"><span class="sr-only">Backing up and restoring</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>
