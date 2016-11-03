@@ -79,6 +79,8 @@ end
 
 When (/^I click the Add Virtual IP button$/) do
     clickAddVirtualIpButton()
+    # wait till modal is done loading
+    expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end
 
 When (/^I add the virtual IP$/) do
