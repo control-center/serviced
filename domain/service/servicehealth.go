@@ -46,13 +46,17 @@ func (sh *ServiceHealth) ValidEntity() error {
 }
 
 func BuildServiceHealth(svc Service) (*ServiceHealth) {
-	svch := &ServiceHealth{
+	sh := &ServiceHealth{
 		ID: svc.ID,
 		Name: svc.Name,
 		PoolID: svc.PoolID,
 		Instances: svc.Instances,
 		DesiredState: svc.DesiredState,
-		HealthChecks: svc.HealthChecks,
 	}
-	return svch
+
+	for key, value := range svc.HealthChecks {
+		sh.HealthChecks[key] = value
+	}
+
+	return sh
 }

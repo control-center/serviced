@@ -54,13 +54,13 @@ func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*Serv
 		return &health, nil
 	}
 
-	// no errors but also no results for given id
-	return nil, nil
+	key := datastore.NewKey(kind, svcId)
+	return nil, datastore.ErrNoSuchEntity{Key: key}
 }
 
 
 func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServiceHealth"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceHealth"))
 	searchRequest := newServiceHealthElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"query_string": map[string]string{
@@ -87,8 +87,7 @@ func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth,
 		health = append(health, sh)
 	}
 
-	// no errors but also no results for given id
-	return nil, nil
+	return health, nil
 }
 
 func (s *storeImpl) fillHealthVolatileInfo(sh *ServiceHealth) {
