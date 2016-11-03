@@ -129,9 +129,24 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 }
 
 // Get the services (can filter by name and/or tenantID)
+// FIXME - REMOVE ONCE CLI and REST TIER ARE NO LONGER USING THIS METHOD
 func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetServices"))
+	if svcs, err := this.facade.GetServices(ctx, request); err == nil {
 		*services = svcs
+		return nil
+	} else {
+		return err
+	}
+}
+
+// Get a list of tenant IDs
+func (this *ControlPlaneDao) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetTenantIDs"))
+	if ids, err := this.facade.GetTenantIDs(ctx); err == nil {
+		*tenantIDs = ids
 		return nil
 	} else {
 		return err
@@ -140,7 +155,9 @@ func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[
 
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
-	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.FindChildService"))
+	svc, err := this.facade.FindChildService(ctx, request.ServiceID, request.ChildName)
 	if err != nil {
 		return err
 	}
@@ -155,7 +172,9 @@ func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, serv
 
 // Get tagged services (can also filter by name and/or tenantID)
 func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetTaggedServices"))
+	if svcs, err := this.facade.GetTaggedServices(ctx, request); err == nil {
 		*services = svcs
 		return nil
 	} else {

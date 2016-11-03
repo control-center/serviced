@@ -41,8 +41,6 @@ type FacadeInterface interface {
 
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
-	GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error)
-
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
 	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error
@@ -146,6 +144,8 @@ type FacadeInterface interface {
 	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
 	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+
+	GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error)
 
 	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
 

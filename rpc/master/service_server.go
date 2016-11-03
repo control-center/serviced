@@ -59,6 +59,36 @@ func (s *Server) WaitService(request *WaitServiceRequest, throwaway *string) err
 	return err
 }
 
+// GetAllServiceDetails will return a list of all ServiceDetails
+func (s *Server) GetAllServiceDetails(unused struct{}, response *[]service.ServiceDetails) error {
+	svcs, err := s.f.GetAllServiceDetails(s.context())
+	if err != nil {
+		return err
+	}
+	*response = svcs
+	return nil
+}
+
+// GetServiceDetails will return a ServiceDetails for the specified service
+func (s *Server) GetServiceDetails(serviceID string, response *service.ServiceDetails) error {
+	svc, err := s.f.GetServiceDetails(s.context(), serviceID)
+	if err != nil {
+		return err
+	}
+	*response = *svc
+	return nil
+}
+
+// GetServiceDetailsByTenantID will return a list of ServiceDetails for the specified tenant ID
+func (s *Server) GetServiceDetailsByTenantID(tenantID string, response *[]service.ServiceDetails) error {
+	svcs, err := s.f.GetServiceDetailsByTenantID(s.context(), tenantID)
+	if err != nil {
+		return err
+	}
+	*response = svcs
+	return nil
+}
+
 // Get a specific service
 func (s *Server) GetService(serviceID string, svc *service.Service) error {
 	sv, err := s.f.GetService(s.context(), serviceID)

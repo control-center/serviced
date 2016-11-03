@@ -20,10 +20,10 @@ import (
 )
 
 // ServiceMap maps services by its service id
-type ServiceMap map[string]service.Service
+type ServiceMap map[string]service.ServiceDetails
 
 // NewServiceMap creates a new service map from a slice of services
-func NewServiceMap(services []service.Service) ServiceMap {
+func NewServiceMap(services []service.ServiceDetails) ServiceMap {
 	var smap = make(ServiceMap)
 	for _, s := range services {
 		smap.Add(s)
@@ -32,10 +32,10 @@ func NewServiceMap(services []service.Service) ServiceMap {
 }
 
 // Get gets a service from the service map identified by its service id
-func (m ServiceMap) Get(serviceID string) service.Service { return m[serviceID] }
+func (m ServiceMap) Get(serviceID string) service.ServiceDetails { return m[serviceID] }
 
 // Add appends a service to the service map
-func (m ServiceMap) Add(service service.Service) error {
+func (m ServiceMap) Add(service service.ServiceDetails) error {
 	if _, ok := m[service.ID]; ok {
 		return fmt.Errorf("service already exists")
 	}
@@ -45,7 +45,7 @@ func (m ServiceMap) Add(service service.Service) error {
 
 // Update updates an existing service within the ServiceMap.  If the service
 // not exist, it gets created.
-func (m ServiceMap) Update(service service.Service) {
+func (m ServiceMap) Update(service service.ServiceDetails) {
 	m[service.ID] = service
 }
 

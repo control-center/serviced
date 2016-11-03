@@ -108,7 +108,7 @@ type logExporter struct {
 	outputFiles []outputFileInfo
 
 	// A list of services used to populate the index file on completion of the export
-	serviceMap map[string]service.Service
+	serviceMap map[string]service.ServiceDetails
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -126,7 +126,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		}
 	}()
 
-	exporter, e = buildExporter(configParam, a.GetServices, a.GetHostMap)
+	exporter, e = buildExporter(configParam, a.GetAllServiceDetails, a.GetHostMap)
 	if e != nil {
 		return e
 	}
@@ -254,7 +254,7 @@ func validateConfiguration(cfg *ExportLogsConfig) error {
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.Service, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
+func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
@@ -297,8 +297,8 @@ func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.S
 	return exporter, nil
 }
 
-func buildServiceMap(getServices func() ([]service.Service, error)) (map[string]service.Service, error) {
-	result := make(map[string]service.Service)
+func buildServiceMap(getServices func() ([]service.ServiceDetails, error)) (map[string]service.ServiceDetails, error) {
+	result := make(map[string]service.ServiceDetails)
 	if serviceArray, err := getServices(); err != nil {
 		return nil, fmt.Errorf("failed to get list of services: %s", err)
 	} else {
@@ -339,14 +339,14 @@ func (exporter *logExporter) cleanup() {
 }
 
 // Builds an ES-logstash query string based on the list of service IDs requested.
-func (exporter *logExporter) buildQuery(getServices func() ([]service.Service, error)) (string, error) {
+func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDetails, error)) (string, error) {
 	query := "*"
 	if len(exporter.ServiceIDs) > 0 {
 		services, e := getServices()
 		if e != nil {
 			return "", e
 		}
-		serviceMap := make(map[string]service.Service)
+		serviceMap := make(map[string]service.ServiceDetails)
 		for _, service := range services {
 			serviceMap[service.ID] = service
 		}

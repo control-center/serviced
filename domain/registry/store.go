@@ -50,6 +50,7 @@ type storeImpl struct {
 
 // Get an image by id.  Return ErrNoSuchEntity if not found
 func (s *storeImpl) Get(ctx datastore.Context, id string) (*Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Get"))
 	image := &Image{}
 	if err := s.ds.Get(ctx, Key(id), image); err != nil {
 		return nil, err
@@ -59,16 +60,19 @@ func (s *storeImpl) Get(ctx datastore.Context, id string) (*Image, error) {
 
 // Put adds/updates an image to the registry
 func (s *storeImpl) Put(ctx datastore.Context, image *Image) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Put"))
 	return s.ds.Put(ctx, image.key(), image)
 }
 
 // Delete removes an image from the registry
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.Delete"))
 	return s.ds.Delete(ctx, Key(id))
 }
 
 // GetImages returns all the images that are in the registry
 func (s *storeImpl) GetImages(ctx datastore.Context) ([]Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.GetImages"))
 	query := search.Query().Search("_exists_:Library")
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	q := datastore.NewQuery(ctx)
@@ -81,6 +85,7 @@ func (s *storeImpl) GetImages(ctx datastore.Context) ([]Image, error) {
 
 // SearchLibraryByTag looks for repos that are registered under a library and tag
 func (s *storeImpl) SearchLibraryByTag(ctx datastore.Context, library, tag string) ([]Image, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ImageRegistryStore.SearchLibraryByTag"))
 	if library = strings.TrimSpace(library); library == "" {
 		return nil, errors.New("empty library not allowed")
 	} else if tag = strings.TrimSpace(tag); tag == "" {

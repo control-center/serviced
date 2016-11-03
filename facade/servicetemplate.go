@@ -31,7 +31,7 @@ var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
 func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddServiceTemplate"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddServiceTemplate"))
 	store := f.templateStore
 	hash, err := serviceTemplate.Hash()
 	if err != nil {
@@ -70,7 +70,7 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 
 //UpdateServiceTemplate updates a service template
 func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpdateServiceTemplate"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateServiceTemplate"))
 	if err := f.templateStore.Put(ctx, template); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicete
 
 //RemoveServiceTemplate removes the service template from the system
 func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RemoveServiceTemplate"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveServiceTemplate"))
 	if _, err := f.templateStore.Get(ctx, id); err != nil {
 		return fmt.Errorf("Unable to find template: %s", id)
 	}
@@ -99,7 +99,7 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 
 // RestoreServiceTemplates restores a service template, typically from a backup
 func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []servicetemplate.ServiceTemplate) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RestoreServiceTemplates"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestoreServiceTemplates"))
 	curtemplates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
 		glog.Errorf("Could not look up service templates: %s", err)
@@ -151,7 +151,7 @@ func (f *Facade) getServiceTemplateByMD5Sum(ctx datastore.Context, md5Sum string
 }
 
 func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceTemplates"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceTemplates"))
 	glog.V(2).Infof("Facade.GetServiceTemplates")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
 	templateMap := make(map[string]servicetemplate.ServiceTemplate)
@@ -166,7 +166,7 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicet
 }
 
 func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicetemplate.ServiceTemplate, []string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceTemplatesAndImages"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceTemplatesAndImages"))
 	glog.V(2).Infof("Facade.GetServiceTemplateImages")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
 	if err != nil {
@@ -254,7 +254,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err e
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeployTemplate"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployTemplate"))
 	// add an entry for reporting status
 	deploymentMutex.Lock()
 	deployments[deploymentID] = map[string]string{
@@ -322,7 +322,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 // a specific service.  If the overwrite option is enabled, existing services
 // with the same name will be overwritten, otherwise services may only be added.
 func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("DeployService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployService"))
 	store := f.serviceStore
 
 	// get the parent service

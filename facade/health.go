@@ -36,7 +36,7 @@ func (f *Facade) ReportInstanceDead(serviceID string, instanceID int) {
 
 // GetServicesHealth returns the status of all services health instances.
 func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServicesHealth"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServicesHealth"))
 	store := f.serviceStore
 	svcs, err := store.GetServices(ctx)
 	if err != nil {
@@ -45,7 +45,7 @@ func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]ma
 	}
 	stats := make(map[string]map[int]map[string]health.HealthStatus)
 	for _, svc := range svcs {
-		if stats[svc.ID], err = f.getServiceHealth(svc); err != nil {
+		if stats[svc.ID], err = f.getServiceHealth(ctx, svc); err != nil {
 			return nil, err
 		}
 	}
@@ -54,18 +54,18 @@ func (f *Facade) GetServicesHealth(ctx datastore.Context) (map[string]map[int]ma
 
 // GetServiceHealth returns the status of all health instances.
 func (f *Facade) GetServiceHealth(ctx datastore.Context, serviceID string) (map[int]map[string]health.HealthStatus, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetServiceHealth"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceHealth"))
 	store := f.serviceStore
 	svc, err := store.Get(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Could not look up service %s: %s", serviceID, err)
 		return nil, err
 	}
-	return f.getServiceHealth(*svc)
+	return f.getServiceHealth(ctx, *svc)
 }
 
-func (f *Facade) getServiceHealth(svc service.Service) (map[int]map[string]health.HealthStatus, error) {
-	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+func (f *Facade) getServiceHealth(ctx datastore.Context, svc service.Service) (map[int]map[string]health.HealthStatus, error) {
+	states, err := f.zzk.GetServiceStates(ctx, svc.PoolID, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err

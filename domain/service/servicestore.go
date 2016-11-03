@@ -102,7 +102,7 @@ type storeImpl struct {
 // Put adds or updates a Service
 func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Put"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.Put"))
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 
 	err := s.ds.Put(ctx, Key(svc.ID), svc)
@@ -124,7 +124,7 @@ func (s *storeImpl) UpdateDesiredState(ctx datastore.Context, serviceID string, 
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
 func (s *storeImpl) Get(ctx datastore.Context, id string) (*Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Get"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.Get"))
 	// Get the service from elastic and fill additional info into the
 	// service object.
 	svc, err := s.get(ctx, id)
@@ -145,7 +145,7 @@ func (s *storeImpl) get(ctx datastore.Context, id string) (*Service, error) {
 
 // Delete removes the a Service if it exists
 func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.Delete"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.Delete"))
 	err := s.ds.Delete(ctx, Key(id))
 	if err == nil {
 		s.removeVolatileInfo(id) // Uses Mutex RLock
@@ -155,13 +155,13 @@ func (s *storeImpl) Delete(ctx datastore.Context, id string) error {
 
 // GetServices returns all services
 func (s *storeImpl) GetServices(ctx datastore.Context) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServices"))
 	return s.query(ctx, "_exists_:ID")
 }
 
 // GetUpdatedServices returns all services updated since "since" time.Duration ago
 func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duration) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetUpdatedServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetUpdatedServices"))
 	q := datastore.NewQuery(ctx)
 	t0 := time.Now().Add(-since)
 	t0s := t0.Format(time.RFC3339)
@@ -182,7 +182,7 @@ func (s *storeImpl) GetUpdatedServices(ctx datastore.Context, since time.Duratio
 
 // GetTaggedServices returns services with the given tags
 func (s *storeImpl) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetTaggedServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetTaggedServices"))
 	if len(tags) == 0 {
 		return nil, errors.New("empty tags not allowed")
 	}
@@ -192,7 +192,7 @@ func (s *storeImpl) GetTaggedServices(ctx datastore.Context, tags ...string) ([]
 
 // GetServicesByPool returns services with the given pool id
 func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServicesByPool"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServicesByPool"))
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
@@ -209,7 +209,7 @@ func (s *storeImpl) GetServicesByPool(ctx datastore.Context, poolID string) ([]S
 
 // GetServicesByDeployment returns services with the given deployment id
 func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetServicesByDeployment"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServicesByDeployment"))
 	id := strings.TrimSpace(deploymentID)
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
@@ -226,7 +226,7 @@ func (s *storeImpl) GetServicesByDeployment(ctx datastore.Context, deploymentID 
 
 // GetChildServices returns services that are children of the given parent service id
 func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.GetChildServices"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetChildServices"))
 	id := strings.TrimSpace(parentID)
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
@@ -242,7 +242,7 @@ func (s *storeImpl) GetChildServices(ctx datastore.Context, parentID string) ([]
 }
 
 func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parentID, serviceName string) (*Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.FindChildService"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.FindChildService"))
 	parentID = strings.TrimSpace(parentID)
 
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
@@ -275,7 +275,7 @@ func (s *storeImpl) FindChildService(ctx datastore.Context, deploymentID, parent
 
 // FindTenantByDeployment returns the tenant service for a given deployment id and service name
 func (s *storeImpl) FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("storeImpl.FindTenantByDeploymentID"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.FindTenantByDeploymentID"))
 	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
 		return nil, errors.New("empty deployment ID not allowed")
 	} else if name = strings.TrimSpace(name); name == "" {
@@ -328,6 +328,9 @@ func (s *storeImpl) fillAdditionalInfo(svc *Service) {
 	cacheEntry, ok := s.getVolatileInfo(svc.ID) // Uses Mutex RLock
 	if ok {
 		s.updateServiceFromVolatileService(svc, cacheEntry)
+	} else {
+		// If there's no ZK data, make sure the service is stopped.
+		svc.DesiredState = int(SVCStop)
 	}
 }
 

@@ -468,7 +468,7 @@ func (c *ServicedCli) initService() {
 
 // Returns a list of all the available service IDs
 func (c *ServicedCli) services() (data []string) {
-	svcs, err := c.driver.GetServices()
+	svcs, err := c.driver.GetAllServiceDetails()
 	if err != nil || svcs == nil || len(svcs) == 0 {
 		return
 	}
@@ -596,8 +596,8 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 }
 
 // buildServicePaths returns a map where map[service.ID] = fullpath
-func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]string, error) {
-	svcMap := make(map[string]service.Service)
+func (c *ServicedCli) buildServicePaths(svcs []service.ServiceDetails) (map[string]string, error) {
+	svcMap := make(map[string]service.ServiceDetails)
 	for _, svc := range svcs {
 		svcMap[svc.ID] = svc
 	}
@@ -610,7 +610,7 @@ func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]stri
 			if _, ok := svcMap[parentID]; ok {
 				break // break from inner for loop
 			}
-			svc, err := c.driver.GetService(parentID)
+			svc, err := c.driver.GetServiceDetails(parentID)
 			if err != nil || svc == nil {
 				return nil, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
 			}
@@ -637,9 +637,10 @@ func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]stri
 	return pathmap, nil
 }
 
+// FIXME: This needs tobe done in the backend
 // searches for service from definitions given keyword
-func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
-	svcs, err := c.driver.GetServices()
+func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, error) {
+	svcs, err := c.driver.GetAllServiceDetails()
 	if err != nil {
 		return nil, err
 	}
@@ -649,7 +650,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
-	var services []service.Service
+	var services []service.ServiceDetails
 	for _, svc := range svcs {
 		poolPath := path.Join(strings.ToLower(svc.PoolID), pathmap[svc.ID])
 		switch strings.ToLower(keyword) {
@@ -725,19 +726,18 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 	}
 
 	// is the servicepath a serviceid?
-	if svc, _ := c.driver.GetService(servicepath); svc != nil {
+	if svc, _ := c.driver.GetServiceDetails(servicepath); svc != nil {
 		return svc.ID, instanceID, nil
 	}
 
 	// try to figure out what service this is
-	// FIXME: this is really expensive
-	svcs, err := c.driver.GetServices()
+	svcs, err := c.driver.GetAllServiceDetails()
 	if err != nil {
 		return "", 0, err
 	}
 
 	// set up a service map
-	svcmap := make(map[string]service.Service)
+	svcmap := make(map[string]service.ServiceDetails)
 	for _, svc := range svcs {
 		svcmap[svc.ID] = svc
 	}
@@ -776,7 +776,7 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 
 	// filter all of the matches
 	servicepath = strings.ToLower(servicepath)
-	matches := []service.Service{}
+	matches := []service.ServiceDetails{}
 	for _, svc := range svcs {
 		if match(svc.ID, servicepath) {
 			matches = append(matches, svc)
@@ -931,7 +931,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		return
 	}
 
-	services, err := c.driver.GetServices()
+	services, err := c.driver.GetAllServiceDetails()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -941,6 +941,10 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	}
 
 	if ctx.Bool("verbose") {
+		if len(services) > 100 {
+			fmt.Fprintf(os.Stderr, "too many services found for verbose mode (%d); no more than 100 allowed\n",len(services))
+			return
+		}
 		if jsonService, err := json.MarshalIndent(services, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal service definitions: %s\n", err)
 		} else {
@@ -1014,7 +1018,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	}
 
 	var (
-		parentService *service.Service
+		parentService *service.ServiceDetails
 		err           error
 	)
 	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
@@ -1098,11 +1102,17 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	service, err := c.searchForService(args[0])
+	svcDetails, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
+
+        service, err := c.driver.GetService(svcDetails.ID)
+        if err != nil {
+                fmt.Fprintln(os.Stderr, err)
+                return
+        }
 
 	jsonService, err := json.MarshalIndent(service, " ", "  ")
 	if err != nil {
@@ -1329,11 +1339,17 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	svc, err := c.searchForService(args[0])
+	svcDetails, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
 	}
+
+        svc, err := c.driver.GetService(svcDetails.ID)
+        if err != nil {
+                fmt.Fprintln(os.Stderr, err)
+                return c.exit(1)
+        }
 
 	if returncode := c.printHelpForRun(svc, args[1]); returncode >= 0 {
 		return c.exit(returncode)

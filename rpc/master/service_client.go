@@ -46,6 +46,27 @@ func (c *Client) WaitService(serviceIDs []string, state service.DesiredState, ti
 	return err
 }
 
+// GetAllServiceDetails will return a list of all ServiceDetails
+func (c *Client) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+	svcs := []service.ServiceDetails{}
+	err := c.call("GetAllServiceDetails", nil, &svcs)
+	return svcs, err
+}
+
+// GetServiceDetailsByTenantID will return a list of ServiceDetails for the specified tenant ID
+func (c *Client) GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error) {
+	svcs := []service.ServiceDetails{}
+	err := c.call("GetServiceDetailsByTenantID", tenantID, &svcs)
+	return svcs, err
+}
+
+// GetServiceDetails will return a ServiceDetails for the specified service
+func (c *Client) GetServiceDetails(serviceID string) (*service.ServiceDetails, error) {
+	svc := &service.ServiceDetails{}
+	err := c.call("GetServiceDetails", serviceID, svc)
+	return svc, err
+}
+
 // GetService returns a service with a particular service id.
 func (c *Client) GetService(serviceID string) (*service.Service, error) {
 	svc := &service.Service{}

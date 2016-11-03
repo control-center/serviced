@@ -431,7 +431,7 @@ func (_m *API) RemoveVirtualIP(_a0 pool.VirtualIP) error {
 
 	return r0
 }
-func (_m *API) GetServices() ([]service.Service, error) {
+func (_m *API) GetServicesDeprecated() ([]service.Service, error) {
 	ret := _m.Called()
 
 	var r0 []service.Service
@@ -494,15 +494,36 @@ func (_m *API) GetService(_a0 string) (*service.Service, error) {
 
 	return r0, r1
 }
-func (_m *API) GetServicesByName(_a0 string) ([]service.Service, error) {
+func (_m *API) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+	ret := _m.Called()
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func() []service.ServiceDetails); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) GetServiceDetails(_a0 string) (*service.ServiceDetails, error) {
 	ret := _m.Called(_a0)
 
-	var r0 []service.Service
-	if rf, ok := ret.Get(0).(func(string) []service.Service); ok {
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(string) *service.ServiceDetails); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Service)
+			r0 = ret.Get(0).(*service.ServiceDetails)
 		}
 	}
 
@@ -515,15 +536,15 @@ func (_m *API) GetServicesByName(_a0 string) ([]service.Service, error) {
 
 	return r0, r1
 }
-func (_m *API) AddService(_a0 api.ServiceConfig) (*service.Service, error) {
+func (_m *API) AddService(_a0 api.ServiceConfig) (*service.ServiceDetails, error) {
 	ret := _m.Called(_a0)
 
-	var r0 *service.Service
-	if rf, ok := ret.Get(0).(func(api.ServiceConfig) *service.Service); ok {
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(api.ServiceConfig) *service.ServiceDetails); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*service.Service)
+			r0 = ret.Get(0).(*service.ServiceDetails)
 		}
 	}
 
@@ -536,15 +557,15 @@ func (_m *API) AddService(_a0 api.ServiceConfig) (*service.Service, error) {
 
 	return r0, r1
 }
-func (_m *API) CloneService(_a0 string, _a1 string) (*service.Service, error) {
+func (_m *API) CloneService(_a0 string, _a1 string) (*service.ServiceDetails, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 *service.Service
-	if rf, ok := ret.Get(0).(func(string, string) *service.Service); ok {
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(string, string) *service.ServiceDetails); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*service.Service)
+			r0 = ret.Get(0).(*service.ServiceDetails)
 		}
 	}
 
@@ -569,15 +590,15 @@ func (_m *API) RemoveService(_a0 string) error {
 
 	return r0
 }
-func (_m *API) UpdateService(_a0 io.Reader) (*service.Service, error) {
+func (_m *API) UpdateService(_a0 io.Reader) (*service.ServiceDetails, error) {
 	ret := _m.Called(_a0)
 
-	var r0 *service.Service
-	if rf, ok := ret.Get(0).(func(io.Reader) *service.Service); ok {
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(io.Reader) *service.ServiceDetails); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*service.Service)
+			r0 = ret.Get(0).(*service.ServiceDetails)
 		}
 	}
 
@@ -942,15 +963,15 @@ func (_m *API) CompileServiceTemplate(_a0 api.CompileTemplateConfig) (*template.
 
 	return r0, r1
 }
-func (_m *API) DeployServiceTemplate(_a0 api.DeployTemplateConfig) ([]service.Service, error) {
+func (_m *API) DeployServiceTemplate(_a0 api.DeployTemplateConfig) ([]service.ServiceDetails, error) {
 	ret := _m.Called(_a0)
 
-	var r0 []service.Service
-	if rf, ok := ret.Get(0).(func(api.DeployTemplateConfig) []service.Service); ok {
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(api.DeployTemplateConfig) []service.ServiceDetails); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Service)
+			r0 = ret.Get(0).([]service.ServiceDetails)
 		}
 	}
 
@@ -1308,6 +1329,48 @@ func (_m *API) GetHostsWithAuthInfo() ([]api.AuthHost, error) {
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]api.AuthHost)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) DebugEnableMetrics() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *API) DebugDisableMetrics() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
 		}
 	}
 

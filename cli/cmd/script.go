@@ -76,7 +76,7 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 		return
 	}
 
-	var svc *service.Service
+	var svc *service.ServiceDetails
 	if svcID := ctx.String("service"); svcID != "" {
 		//verify service or translate to ID
 		var err error

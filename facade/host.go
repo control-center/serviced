@@ -46,7 +46,7 @@ var (
 // AddHost registers a host with serviced. Returns the host's private key.
 // Returns an error if host already exists or if the host's IP is a virtual IP.
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddHost"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddHost"))
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("add host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add host: %s", err)
@@ -148,7 +148,7 @@ func (f *Facade) generateDelegateKey(ctx datastore.Context, entity *host.Host) (
 
 // UpdateHost information for a registered host
 func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("UpdateHost"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateHost"))
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	if err := f.DFSLock(ctx).LockWithTimeout("update host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update host: %s", err)
@@ -189,7 +189,7 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 
 // RemoveHost removes a Host from serviced
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("RemoveHost"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveHost"))
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
 	if err := f.DFSLock(ctx).LockWithTimeout("remove host", userLockTimeout); err != nil {
 		glog.Warningf("Cannot remove host: %s", err)
@@ -261,7 +261,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 
 // GetHost gets a host by id. Returns nil if host not found
 func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHost"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHost"))
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
 
 	var value host.Host
@@ -278,7 +278,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 
 // GetHostKey gets a host key by id. Returns nil if host not found
 func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHostKey"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostKey"))
 	glog.V(2).Infof("Facade.GetHostKey: id=%s", hostID)
 
 	if key, err := f.hostkeyStore.Get(ctx, hostID); err != nil {
@@ -290,7 +290,7 @@ func (f *Facade) GetHostKey(ctx datastore.Context, hostID string) ([]byte, error
 
 // ResetHostKey generates and returns a host key by id. Returns nil if host not found
 func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("ResetHostKey"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetHostKey"))
 	glog.V(2).Infof("Facade.ResetHostKey: id=%s", hostID)
 
 	var value host.Host
@@ -303,24 +303,28 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 // RegisterHost attempts to register a host's keys over ssh, or locally if it's
 // the current host.
 func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte, prompt bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RegisterHostKeys"))
 	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys, prompt)
 }
 
 // SetHostExpiration sets a host's auth token
 // expiration time in the HostExpirationRegistry
 func (f *Facade) SetHostExpiration(ctx datastore.Context, hostid string, expiration int64) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SetHostExpiration"))
 	f.hostRegistry.Set(hostid, expiration)
 }
 
 // RemoveHostExpiration removes a host from the
 // HostExpirationRegistry
 func (f *Facade) RemoveHostExpiration(ctx datastore.Context, hostid string) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveHostExpiration"))
 	f.hostRegistry.Remove(hostid)
 }
 
 // HostIsAuthenticated checks whether a host has authenticated and has an unexpired
 //  token
 func (f *Facade) HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.HostIsAuthenticated"))
 	isExpired, err := f.hostRegistry.IsExpired(hostid)
 	if err != nil {
 		return false, err
@@ -330,13 +334,13 @@ func (f *Facade) HostIsAuthenticated(ctx datastore.Context, hostid string) (bool
 
 // GetHosts returns a list of all registered hosts
 func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHosts"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHosts"))
 	return f.hostStore.GetN(ctx, 10000)
 }
 
 // GetActiveHostIDs returns a list of active host ids
 func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetActiveHostIDs"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetActiveHostIDs"))
 	hostids := []string{}
 	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
@@ -345,7 +349,7 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	}
 	for _, p := range pools {
 		var active []string
-		if err := f.zzk.GetActiveHosts(p.ID, &active); err != nil {
+		if err := f.zzk.GetActiveHosts(ctx, p.ID, &active); err != nil {
 			glog.Errorf("Could not get active host ids for pool: %v", err)
 			return nil, err
 		}
@@ -356,19 +360,19 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 
 // FindHostsInPool returns a list of all hosts with poolID
 func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("FindHostsInPool"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindHostsInPool"))
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }
 
 // GetHostByIP returns the host by IP address
 func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetHostByIP"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostByIP"))
 	return f.hostStore.GetHostByIP(ctx, hostIP)
 }
 
 // GetReadHosts returns list of all hosts using a minimal representation of a host
 func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetReadHosts"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetReadHosts"))
 	hosts, err := f.hostStore.GetN(ctx, 20000)
 	if err != nil {
 		return nil, err
@@ -379,7 +383,7 @@ func (f *Facade) GetReadHosts(ctx datastore.Context) ([]host.ReadHost, error) {
 
 // FindReadHostsInPool returns list of all hosts for a pool using a minimal representation of a host
 func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("FindReadHostsInPool"))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindReadHostsInPool"))
 	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, poolID)
 	if err != nil {
 		return nil, err
@@ -390,6 +394,7 @@ func (f *Facade) FindReadHostsInPool(ctx datastore.Context, poolID string) ([]ho
 
 // GetHostStatuses returns the memory usage and whether or not a host is active
 func (f *Facade) GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostStatuses"))
 	if hostIDs == nil {
 		return []host.HostStatus{}, nil
 	}

@@ -872,3 +872,108 @@ func (_m *ClientInterface) ReportInstanceDead(serviceID string, instanceID int) 
 
 	return r0
 }
+func (_m *ClientInterface) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+	ret := _m.Called()
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func() []service.ServiceDetails); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error) {
+	ret := _m.Called(tenantID)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(string) []service.ServiceDetails); ok {
+		r0 = rf(tenantID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tenantID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) GetServiceDetails(serviceID string) (*service.ServiceDetails, error) {
+	ret := _m.Called(serviceID)
+
+	var r0 *service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(string) *service.ServiceDetails); ok {
+		r0 = rf(serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) DebugEnableMetrics() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *ClientInterface) DebugDisableMetrics() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

@@ -161,6 +161,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 	c.initServer()
 	c.initVolume()
 	c.initKey()
+	c.initDebug()
 
 	return c
 }

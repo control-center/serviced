@@ -173,12 +173,12 @@ func (_m *ZZK) RemoveHost(_host *host.Host) error {
 
 	return r0
 }
-func (_m *ZZK) GetActiveHosts(poolID string, hosts *[]string) error {
-	ret := _m.Called(poolID, hosts)
+func (_m *ZZK) GetActiveHosts(ctx datastore.Context, poolID string, hosts *[]string) error {
+	ret := _m.Called(ctx, poolID, hosts)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]string) error); ok {
-		r0 = rf(poolID, hosts)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, *[]string) error); ok {
+		r0 = rf(ctx, poolID, hosts)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -328,36 +328,36 @@ func (_m *ZZK) DeleteRegistryLibrary(tenantID string) error {
 
 	return r0
 }
-func (_m *ZZK) LockServices(svcs []service.Service) error {
-	ret := _m.Called(svcs)
+func (_m *ZZK) LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	ret := _m.Called(ctx, svcs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service) error); ok {
-		r0 = rf(svcs)
+	if rf, ok := ret.Get(0).(func(datastore.Context, []service.ServiceDetails) error); ok {
+		r0 = rf(ctx, svcs)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ZZK) UnlockServices(svcs []service.Service) error {
-	ret := _m.Called(svcs)
+func (_m *ZZK) UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	ret := _m.Called(ctx, svcs)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service) error); ok {
-		r0 = rf(svcs)
+	if rf, ok := ret.Get(0).(func(datastore.Context, []service.ServiceDetails) error); ok {
+		r0 = rf(ctx, svcs)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ZZK) GetServiceStates(poolID string, serviceID string) ([]zkservice.State, error) {
-	ret := _m.Called(poolID, serviceID)
+func (_m *ZZK) GetServiceStates(ctx datastore.Context, poolID string, serviceID string) ([]zkservice.State, error) {
+	ret := _m.Called(ctx, poolID, serviceID)
 
 	var r0 []zkservice.State
-	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
-		r0 = rf(poolID, serviceID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) []zkservice.State); ok {
+		r0 = rf(ctx, poolID, serviceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]zkservice.State)
@@ -365,20 +365,20 @@ func (_m *ZZK) GetServiceStates(poolID string, serviceID string) ([]zkservice.St
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(poolID, serviceID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, string) error); ok {
+		r1 = rf(ctx, poolID, serviceID)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice.State, error) {
-	ret := _m.Called(poolID, hostID)
+func (_m *ZZK) GetHostStates(ctx datastore.Context, poolID string, hostID string) ([]zkservice.State, error) {
+	ret := _m.Called(ctx, poolID, hostID)
 
 	var r0 []zkservice.State
-	if rf, ok := ret.Get(0).(func(string, string) []zkservice.State); ok {
-		r0 = rf(poolID, hostID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) []zkservice.State); ok {
+		r0 = rf(ctx, poolID, hostID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]zkservice.State)
@@ -386,20 +386,20 @@ func (_m *ZZK) GetHostStates(poolID string, hostID string) ([]zkservice.State, e
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(poolID, hostID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, string) error); ok {
+		r1 = rf(ctx, poolID, hostID)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) (*zkservice.State, error) {
-	ret := _m.Called(poolID, serviceID, instanceID)
+func (_m *ZZK) GetServiceState(ctx datastore.Context, poolID string, serviceID string, instanceID int) (*zkservice.State, error) {
+	ret := _m.Called(ctx, poolID, serviceID, instanceID)
 
 	var r0 *zkservice.State
-	if rf, ok := ret.Get(0).(func(string, string, int) *zkservice.State); ok {
-		r0 = rf(poolID, serviceID, instanceID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string, int) *zkservice.State); ok {
+		r0 = rf(ctx, poolID, serviceID, instanceID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*zkservice.State)
@@ -407,8 +407,8 @@ func (_m *ZZK) GetServiceState(poolID string, serviceID string, instanceID int) 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, string, int) error); ok {
-		r1 = rf(poolID, serviceID, instanceID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, string, int) error); ok {
+		r1 = rf(ctx, poolID, serviceID, instanceID)
 	} else {
 		r1 = ret.Error(1)
 	}

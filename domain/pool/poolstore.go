@@ -47,12 +47,14 @@ type storeImpl struct {
 
 //GetResourcePools Get a list of all the resource pools
 func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePools"))
 	glog.V(3).Infof("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
 func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePoolsByRealm"))
 	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
@@ -70,6 +72,7 @@ func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string)
 
 // HasVirtualIP returns true if there is a virtual ip found for the given pool
 func (s *storeImpl) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.HasVirtualIP"))
 	if poolID = strings.TrimSpace(poolID); poolID == "" {
 		return false, errors.New("empty pool id not allowed")
 	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {

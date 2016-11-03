@@ -64,7 +64,7 @@ type DFS interface {
 	TagInfo(tenantID, tagName string) (*SnapshotInfo, error)
 	// UpgradeRegistry loads images for each service
 	// into the docker registry index
-	UpgradeRegistry(svcs []service.Service, tenantID, registryHost string, override bool) error
+	UpgradeRegistry(svcs []service.ServiceDetails, tenantID, registryHost string, override bool) error
 	// Override replaces an image in the registry with a new image
 	Override(newImage, oldImage string) error
 }

@@ -171,7 +171,9 @@ func testCmdLogExport(t *testing.T, tc LogsCLITestCase) {
 	mockAPI := mocks.API{}
 
 	if tc.Expected_GetServicesCalls > 0 {
-		mockAPI.On("GetServices").Times(tc.Expected_GetServicesCalls).Return(DefaultTestServices, nil) // DefaultTestServices from cmd/service_test.go
+		mockAPI.On("GetAllServiceDetails").
+			Times(tc.Expected_GetServicesCalls).
+			Return(servicesToServiceDetails(DefaultTestServices), nil) // DefaultTestServices from cmd/service_test.go
 	}
 	matcher := makeMatcher(tc.ExpectedExportLogsConfig)
 	mockAPI.On("ExportLogs", mock.MatchedBy(matcher)).Once().Return(nil)

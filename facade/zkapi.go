@@ -45,22 +45,22 @@ type zkf struct {
 }
 
 func getLocalConnection(ctx datastore.Context, path string) (client.Connection, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.getLocalConnection")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.getLocalConnection"))
 	return zzk.GetLocalConnection(path)
 }
 
 func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.syncServiceRegistry")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.syncServiceRegistry"))
 	return zk.SyncServiceRegistry(ctx, tenantID, svc)
 }
 
 func updateService(ctx datastore.Context, poolconn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zks.updateService")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateService"))
 	return zks.UpdateService(poolconn, svc, setLockOnCreate, setLockOnUpdate)
 }
 
 func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request zkr.ServiceRegistrySyncRequest) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zkr.SyncServiceRegistry")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkr.SyncServiceRegistry"))
 	return zkr.SyncServiceRegistry(conn, request)
 }
 
@@ -68,7 +68,7 @@ func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, requ
 // are synced in zookeeper.
 // TODO: we may want to combine these calls into a single transaction
 func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.UpdateService")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateService"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,
@@ -358,7 +358,8 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	return zks.RemoveHost(cancel, conn, "", host.ID)
 }
 
-func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
+func (z *zkf) GetActiveHosts(ctx datastore.Context, poolID string, hosts *[]string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetActiveHosts"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
@@ -448,11 +449,13 @@ func (z *zkf) DeleteRegistryLibrary(tenantID string) error {
 	return zkimgregistry.DeleteRegistryImage(conn, tenantID)
 }
 
-func (z *zkf) LockServices(svcs []service.Service) error {
+func (z *zkf) LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.LockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
+	// FIXME: Do we need to lock all of these, or can we just lock the tenant node?
 	nodes := make([]zks.ServiceLockNode, len(svcs))
 	for i, svc := range svcs {
 		nodes[i] = zks.ServiceLockNode{
@@ -463,7 +466,8 @@ func (z *zkf) LockServices(svcs []service.Service) error {
 	return zks.LockServices(conn, nodes)
 }
 
-func (z *zkf) UnlockServices(svcs []service.Service) error {
+func (z *zkf) UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UnlockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
@@ -479,7 +483,8 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 }
 
 // GetServiceStates returns all running instances for a service
-func (zk *zkf) GetServiceStates(poolID, serviceID string) ([]zks.State, error) {
+func (zk *zkf) GetServiceStates(ctx datastore.Context, poolID, serviceID string) ([]zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetServiceStates"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
@@ -490,7 +495,8 @@ func (zk *zkf) GetServiceStates(poolID, serviceID string) ([]zks.State, error) {
 }
 
 // GetHostStates returns all running instances for a host
-func (zk *zkf) GetHostStates(poolID, hostID string) ([]zks.State, error) {
+func (zk *zkf) GetHostStates(ctx datastore.Context, poolID, hostID string) ([]zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetHostStates"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
@@ -502,7 +508,8 @@ func (zk *zkf) GetHostStates(poolID, hostID string) ([]zks.State, error) {
 
 // GetServiceState returns the state of a service from its service and instance
 // id.
-func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zks.State, error) {
+func (zk *zkf) GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetServiceState"))
 	logger := plog.WithFields(log.Fields{
 		"poolid":     poolID,
 		"serviceid":  serviceID,
@@ -744,7 +751,7 @@ func (ck *zkf) GetServiceNodes() ([]zks.ServiceNode, error) {
 }
 
 func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zk.SyncServiceRegistry")))
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.SyncServiceRegistry"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":    tenantID,
 		"serviceid":   svc.ID,

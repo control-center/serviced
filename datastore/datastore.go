@@ -16,6 +16,7 @@ package datastore
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 var (
@@ -73,6 +74,9 @@ type DataStore struct{}
 
 // Put adds or updates an entity
 func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
+	if ctx.Metrics().Enabled {
+		defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("%s EntityStore.Put", key.Kind())))
+	}
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -103,6 +107,9 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 
 // Get an entity. Return ErrNoSuchEntity if nothing found for the key.
 func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
+	if ctx.Metrics().Enabled {
+		defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("%s EntityStore.Get", key.Kind())))
+	}
 	if ctx == nil {
 		return ErrNilContext
 	}
@@ -131,6 +138,9 @@ func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 
 // Delete removes the entity
 func (ds *DataStore) Delete(ctx Context, key Key) error {
+	if ctx.Metrics().Enabled {
+		defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("%s EntityStore.Delete", key.Kind())))
+	}
 	if ctx == nil {
 		return ErrNilContext
 	}

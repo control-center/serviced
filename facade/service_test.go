@@ -460,7 +460,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t 
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return([]zks.State{}, errorStub)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return([]zks.State{}, errorStub)
 
 	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -488,7 +488,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunnin
 			})
 		}
 	}
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return([]zks.State{state}, nil)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return([]zks.State{state}, nil)
 
 	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -529,7 +529,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t
 		states[i].InstanceID = i
 	}
 
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return(states, nil)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return(states, nil)
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
