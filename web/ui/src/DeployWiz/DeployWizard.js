@@ -401,14 +401,15 @@
             return deferred.promise;
         };
 
-        $scope.refreshAppTemplates()
-            .then(() => {
-                resourcesFactory.v2.getHosts().then(data => {
-                    $scope.hosts = data.map(result => new Host(result));
-                }).finally(resetStepPage);
-            }, e => {
-                log.error(e);
-            });
+        let p1 = $scope.refreshAppTemplates()
+            .catch(e => console.warn(`error refreshing app templates: ${e}`));
+        let p2 = resourcesFactory.v2.getHosts()
+            .then(data => {
+                $scope.hosts = data.map(result => new Host(result));
+            })
+            .catch(e => console.warn(`error fetching hosts: ${e}`));
+            
+        $q.all([p1,p2]).finally(resetStepPage);
 
 
     }]);
