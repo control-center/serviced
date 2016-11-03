@@ -16,8 +16,6 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
@@ -351,29 +349,41 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	c.Assert(s.store.Put(s.ctx, svcdontmatch), IsNil)
 
 	// Get by exact ID should succeed
-	details, err := s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaid")
+	details, err := s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaid", false)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 1)
 	c.Assert(details[0].ID, Equals, "svcaid")
 
 	// Get where substring of query matches a svc ID should fail
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaidnope")
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaidnope", false)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 0)
 
 	// Get where query matches substring of a svc ID should fail
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svca")
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svca", false)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 0)
 
 	// Get where query is a substring of many service names
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_")
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_", false)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 5)
 
 	// Get where query matches both an ID and a service name
-	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_a")
-	fmt.Println(len(details))
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_a", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
+
+	// Get substring vs prefix
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 1)
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", true)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 0)
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_d", true)
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 }

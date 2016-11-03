@@ -16,6 +16,7 @@
 package facade
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/control-center/serviced/dao"
@@ -1121,6 +1122,110 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndp
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
+	svca := service.Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+	}
+	svcb := service.Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "svcaid",
+		DeploymentID:    "deployment_id",
+	}
+	svcc := service.Service{
+		ID:              "svccid",
+		PoolID:          "testPool",
+		Name:            "svc_c",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcd := service.Service{
+		ID:              "svcdid",
+		PoolID:          "testPool",
+		Name:            "svc_d",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcd2 := service.Service{
+		ID:              "svcd2id",
+		PoolID:          "testPool",
+		Name:            "svc_d_2",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svc2d := service.Service{
+		ID:              "svc2did",
+		PoolID:          "testPool",
+		Name:            "2_svc_d",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcdother := service.Service{
+		ID:              "svcdotherid",
+		PoolID:          "testPool",
+		Name:            "svc_d",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id_2",
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcc), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcd), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcd2), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svc2d), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcdother), IsNil)
+
+	ft.assertPathResolvesToServices(c, "/svc_a/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_a/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "/svc_c", svcc)
+
+	ft.assertPathResolvesToServices(c, "/svc_a", svca)
+	ft.assertPathResolvesToServices(c, "svc_a", svca)
+	ft.assertPathResolvesToServices(c, "/svc_b", svcb)
+	ft.assertPathResolvesToServices(c, "svc_b", svcb)
+
+	// Default is substring match
+	ft.assertPathResolvesToServices(c, "svc_d", svcd, svcd2, svc2d, svcdother)
+	ft.assertPathResolvesToServices(c, "2", svcd2, svc2d)
+
+	// Leading slash indicates prefix match
+	ft.assertPathResolvesToServices(c, "/svc_d", svcd, svcd2, svcdother)
+	ft.assertPathResolvesToServices(c, "/vc_d")
+
+	// Must be able to restrict by deployment ID
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_d", svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_d", svcdother)
+
+	// Path has to exist underneath that deployment to match
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_b/svc_d", svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_b/svc_d")
+
+	// Make sure invalid matches don't match
+	ft.assertPathResolvesToServices(c, "notathing")
+	ft.assertPathResolvesToServices(c, "svc_d/svc_b")
+	ft.assertPathResolvesToServices(c, "sv_a")
+
+	// Empty paths shouldn't match anything
+	ft.assertPathResolvesToServices(c, "/")
+	ft.assertPathResolvesToServices(c, "")
+
+}
+
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, false)
 }
@@ -1281,4 +1386,21 @@ func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.Servi
 	}
 
 	return &deployRequest
+}
+
+func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string, services ...service.Service) {
+	details, err := ft.Facade.ResolveServicePath(ft.CTX, path)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, len(services))
+	foundids := make([]string, len(details))
+	for i, d := range details {
+		foundids[i] = d.ID
+	}
+	sort.Strings(foundids)
+	ids := make([]string, len(services))
+	for i, d := range services {
+		ids[i] = d.ID
+	}
+	sort.Strings(ids)
+	c.Assert(foundids, DeepEquals, ids)
 }

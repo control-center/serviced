@@ -94,7 +94,7 @@ type Store interface {
 	// GetServiceDetailsByIDOrName returns the service details for any services
 	// whose serviceID matches the query exactly or whose names contain the
 	// query as a substring
-	GetServiceDetailsByIDOrName(ctx datastore.Context, query string) ([]ServiceDetails, error)
+	GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error)
 }
 
 // NewStore creates a Service store

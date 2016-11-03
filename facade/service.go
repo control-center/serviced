@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -2143,20 +2144,25 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
 // to zero or more service details with their ancestry populated.
-func (f *Facade) ResolveServicePath(ctx datastore.Context, path string) ([]service.ServiceDetails, error) {
+func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]service.ServiceDetails, error) {
 	var (
-		parent      = path
-		current     string
-		servicepath string
-		instanceID  int
+		parent  string
+		current string
+		result  []service.ServiceDetails
 	)
 
-	parent, current = path.Split(parent)
+	// Empty paths match nothing
+	if isEmptyPath(svcPath) {
+		return result, nil
+	}
 
-	var result []service.ServiceDetails
+	parent, current = path.Split(strings.TrimRight(svcPath, "/"))
 
-	// First pass: get all services that match either ID exactly or name by suffix
-	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current)
+	// First pass: get all services that match either ID exactly or name by substring.
+	// If it's a single-segment query with a leading slash, it indicates that
+	// prefix matching should be used instead of substring matching.
+	prefix := parent == "/"
+	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -2168,24 +2174,24 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, path string) ([]servi
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, d)
+		result = append(result, *d)
 	}
 
 	// Now walk up the path, filtering parents as we go
 	level := 1
-	for parent != "" {
-		parent, current = path.Split(parent)
-		current = strings.Trim
+	for !isEmptyPath(parent) {
+		parent, current = path.Split(strings.TrimRight(parent, "/"))
 		filtered := make([]service.ServiceDetails, 0)
 		for _, d := range result {
-			p := d
+			p := &d
 			for i := 0; i < level; i++ {
 				p = p.Parent
 				if p == nil {
 					break
 				}
 			}
-			if p.Name == current {
+			// If the current segment
+			if (p != nil && p.Name == current) || (isEmptyPath(parent) && d.DeploymentID == current) {
 				filtered = append(filtered, d)
 			}
 		}
@@ -2193,6 +2199,9 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, path string) ([]servi
 		level++
 	}
 
-	return result
+	return result, nil
+}
 
+func isEmptyPath(p string) bool {
+	return p == "" || p == "/"
 }
