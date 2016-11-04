@@ -114,8 +114,9 @@
 
                                 removeService(service)
                                     .success(() => {
-                                        $notification.create("Removed App", service.name).success();
-                                        refreshApps();
+                                        refreshApps().then(() => {
+                                            $notification.create("Removed App", service.name).success();
+                                        });
                                         this.close();
                                     })
                                     .error((data, status) => {
