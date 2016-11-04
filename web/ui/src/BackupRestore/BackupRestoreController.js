@@ -184,7 +184,8 @@
             $scope.backupTable = {
                 sorting: {
                     full_path: "asc"
-                }
+                },
+                searchColumns: ['full_path']
             };
 
             //load backup files
