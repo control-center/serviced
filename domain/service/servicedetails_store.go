@@ -252,4 +252,5 @@ var serviceDetailsFields = []string{
 	"Startup",
 	"DeploymentID",
 	"Launch",
+	"Tags",
 }
