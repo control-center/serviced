@@ -1141,7 +1141,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	}
 
 	// Build a list of services to be scheduled
-	svcs := []service.Service{}
+	svcs := []*service.Service{}
 	visitor := func(svc *service.Service) error {
 		if desiredState != service.SVCStop {
 			// Verify that all of the services are ready to be started
@@ -1150,7 +1150,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 				return err
 			}
 		}
-		svcs = append(svcs, *svc)
+		svcs = append(svcs, svc)
 		return nil
 	}
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
@@ -1174,14 +1174,15 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	return affected, err
 }
 
-func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState) (affected int, err error) {
+func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string,
+	desiredState service.DesiredState) (int, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":    serviceID,
-		"tenantid":     tenantID,
-		"desiredstate": desiredState,
+		"parentserviceid": serviceID,
+		"tenantid":        tenantID,
+		"desiredstate":    desiredState,
 	})
 	logger.Debug("Begin scheduleServices")
-	affected = 0
+	servicesToSchedule := make([]*service.Service, 0)
 	for _, svc := range svcs {
 		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
 			continue
@@ -1189,19 +1190,32 @@ func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, 
 			continue
 		}
 
-		err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
+		err := f.updateDesiredState(ctx, tenantID, svc, desiredState)
 		if err != nil {
 			logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
-			return affected, err
+			return 0, err
 		}
-		affected++
+		if err := f.fillServiceAddr(ctx, svc); err != nil {
+			return 0, err
+		}
+		logger.WithFields(log.Fields{
+			"servicename": svc.Name,
+			"serviceid":   svc.ID,
+		}).Info("Scheduled service")
+		servicesToSchedule = append(servicesToSchedule, svc)
 	}
-	logger.WithField("count", affected).Debug("Finished scheduleServices")
-	return affected, nil
+
+	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
+		logger.WithError(err).Error("Could not sync service(s)")
+		return 0, err
+	}
+
+	logger.WithField("count", len(servicesToSchedule)).Debug("Finished scheduleServices")
+	return len(servicesToSchedule), nil
 }
 
-func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleOneService"))
+func (f *Facade) updateDesiredState(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances
@@ -1215,16 +1229,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 
 	// write the service into the database
 	if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
-		glog.Errorf("Facade.scheduleService: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
-	}
-	glog.Infof("Scheduled service %s (%s) to %s", svc.Name, svc.ID, service.DesiredState(svc.DesiredState).String())
-
-	if err := f.fillServiceAddr(ctx, svc); err != nil {
-		return err
-	}
-	if err := f.zzk.UpdateService(ctx, tenantID, svc, false, false); err != nil {
-		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
+		glog.Errorf("Facade.updateDesiredState: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 	return nil

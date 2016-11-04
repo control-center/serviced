@@ -60,14 +60,14 @@ func StrategySelectHost(sn *zkservice.ServiceNode, hosts []host.Host, strat stra
 
 	// Look up all running services for the hosts
 	glog.V(2).Infof("Looking up instances for hosts: %+v", hostids)
-	svcs, err := facade.GetHostStrategyInstances(datastore.Get(), hostids...)
+	svcs, err := facade.GetHostStrategyInstances(datastore.Get(), hosts)
 	if err != nil {
 		return "", err
 	}
 	// Assign the services to the StrategyHosts
 	for _, s := range svcs {
 		if h, ok := hostmap[s.HostID]; ok {
-			h.services = append(h.services, &StrategyRunningService{s})
+			h.services = append(h.services, &StrategyRunningService{*s})
 		}
 	}
 	shosts := []strategy.Host{}
