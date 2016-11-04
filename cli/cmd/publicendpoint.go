@@ -70,7 +70,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	if len(ctx.Args()) > 0 {
 		// FIXME: replace with call to Facade method
 		// Provided the service id/name.
-		svcDetails, err := c.searchForService(ctx.Args()[0])
+		svcDetails, _, err := c.searchForService(ctx.Args()[0])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -283,7 +283,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -312,7 +312,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 	portAddr := ctx.Args()[2]
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -352,7 +352,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -387,7 +387,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -416,7 +416,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	vhostName := ctx.Args()[2]
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -451,7 +451,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

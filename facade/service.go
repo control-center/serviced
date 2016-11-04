@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -972,7 +973,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 		return nil, err
 	}
 	tenantIDs := []string{}
-	for _, tenant := range(svcs) {
+	for _, tenant := range svcs {
 		tenantIDs = append(tenantIDs, tenant.ID)
 	}
 	return tenantIDs, nil
@@ -982,7 +983,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantID"))
 	logger := plog.WithFields(log.Fields{
-		"serviceID":     serviceID,
+		"serviceID": serviceID,
 	})
 	logger.Debug("Facade.GetTenantID: looking ...")
 	gs := func(id string) (service.Service, error) {
@@ -1094,8 +1095,8 @@ func getEndpointsFromState(state zkservice.State, reportImports, reportExports b
 func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindChildService"))
 	logger := plog.WithFields(log.Fields{
-		"parentServiceID":     parentServiceID,
-		"childName":    childName,
+		"parentServiceID": parentServiceID,
+		"childName":       childName,
 	})
 	logger.Debug("Facade.FindChildService: looking ...")
 	store := f.serviceStore
@@ -1140,7 +1141,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	}
 
 	// Build a list of services to be scheduled
-	svcs := []service.Service{}
+	svcs := []*service.Service{}
 	visitor := func(svc *service.Service) error {
 		if desiredState != service.SVCStop {
 			// Verify that all of the services are ready to be started
@@ -1149,7 +1150,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 				return err
 			}
 		}
-		svcs = append(svcs, *svc)
+		svcs = append(svcs, svc)
 		return nil
 	}
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
@@ -1173,14 +1174,15 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	return affected, err
 }
 
-func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState) (affected int, err error) {
+func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string,
+	desiredState service.DesiredState) (int, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":    serviceID,
-		"tenantid":     tenantID,
-		"desiredstate": desiredState,
+		"parentserviceid": serviceID,
+		"tenantid":        tenantID,
+		"desiredstate":    desiredState,
 	})
 	logger.Debug("Begin scheduleServices")
-	affected = 0
+	servicesToSchedule := make([]*service.Service, 0)
 	for _, svc := range svcs {
 		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
 			continue
@@ -1188,19 +1190,32 @@ func scheduleServices(f *Facade, svcs []service.Service, ctx datastore.Context, 
 			continue
 		}
 
-		err := f.scheduleOneService(ctx, tenantID, &svc, desiredState)
+		err := f.updateDesiredState(ctx, tenantID, svc, desiredState)
 		if err != nil {
 			logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
-			return affected, err
+			return 0, err
 		}
-		affected++
+		if err := f.fillServiceAddr(ctx, svc); err != nil {
+			return 0, err
+		}
+		logger.WithFields(log.Fields{
+			"servicename": svc.Name,
+			"serviceid":   svc.ID,
+		}).Info("Scheduled service")
+		servicesToSchedule = append(servicesToSchedule, svc)
 	}
-	logger.WithField("count", affected).Debug("Finished scheduleServices")
-	return affected, nil
+
+	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
+		logger.WithError(err).Error("Could not sync service(s)")
+		return 0, err
+	}
+
+	logger.WithField("count", len(servicesToSchedule)).Debug("Finished scheduleServices")
+	return len(servicesToSchedule), nil
 }
 
-func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleOneService"))
+func (f *Facade) updateDesiredState(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	switch desiredState {
 	case service.SVCRestart:
 		// shutdown all service instances
@@ -1214,16 +1229,7 @@ func (f *Facade) scheduleOneService(ctx datastore.Context, tenantID string, svc 
 
 	// write the service into the database
 	if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
-		glog.Errorf("Facade.scheduleService: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
-	}
-	glog.Infof("Scheduled service %s (%s) to %s", svc.Name, svc.ID, service.DesiredState(svc.DesiredState).String())
-
-	if err := f.fillServiceAddr(ctx, svc); err != nil {
-		return err
-	}
-	if err := f.zzk.UpdateService(ctx, tenantID, svc, false, false); err != nil {
-		glog.Errorf("Facade.scheduleService: Could not sync service %s to the coordinator: %s", svc.ID, err)
+		glog.Errorf("Facade.updateDesiredState: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 	return nil
@@ -2139,4 +2145,80 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 		return nil
 	}, "descendantStatus")
 	return result, nil
+}
+
+// ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
+// to zero or more service details with their ancestry populated.
+func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]service.ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResolveServicePath"))
+	var (
+		parent  string
+		current string
+		result  []service.ServiceDetails
+	)
+	plog := plog.WithFields(log.Fields{
+		"svcpath": svcPath,
+	})
+
+	// Empty paths match nothing
+	if isEmptyPath(svcPath) {
+		plog.Debug("Empty path produced empty result")
+		return result, nil
+	}
+
+	// Clean up trailing slashes and lowercase the requested path
+	svcPath = strings.TrimRight(svcPath, "/")
+	svcPath = strings.ToLower(svcPath)
+
+	// First pass: get all services that match either ID exactly or name by substring.
+	// If it's a single-segment query with a leading slash, it indicates that
+	// prefix matching should be used instead of substring matching.
+	parent, current = path.Split(svcPath)
+	prefix := parent == "/"
+	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, prefix)
+	if err != nil {
+		return nil, err
+	}
+	plog.WithField("matches", len(details)).Debug("Found possible service matches")
+
+	// Populate the ancestry for all of the found services, so we can check
+	// their parents
+	for _, detail := range details {
+		d, err := f.GetServiceDetailsAncestry(ctx, detail.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *d)
+	}
+
+	// Now walk up the path, filtering parents as we go
+	level := 1
+	for !isEmptyPath(parent) {
+		parent, current = path.Split(strings.TrimRight(parent, "/"))
+		filtered := make([]service.ServiceDetails, 0)
+		for _, d := range result {
+			p := &d
+			for i := 0; i < level; i++ {
+				p = p.Parent
+				if p == nil {
+					break
+				}
+			}
+			// If the parent name at this level matches OR this is the last
+			// segment and it matches the deployment ID, it's considered
+			// a match
+			if (p != nil && p.Name == current) || (isEmptyPath(parent) && d.DeploymentID == current) {
+				filtered = append(filtered, d)
+			}
+		}
+		result = filtered
+		level++
+	}
+	plog.WithField("results", len(result)).Debug("Filtered service matches by parent")
+
+	return result, nil
+}
+
+func isEmptyPath(p string) bool {
+	return p == "" || p == "/"
 }

@@ -414,28 +414,16 @@ func (f *Facade) getInstanceHealth(svch *service.ServiceHealth, instanceID int) 
 
 // GetHostStrategyInstances returns the strategy objects of all the instances
 // running on a host.
-func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...string) ([]service.StrategyInstance, error) {
+func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Host) ([]*service.StrategyInstance, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostStrategyInstances"))
 
-	svcMap := make(map[string]service.StrategyInstance)
-	insts := make([]service.StrategyInstance, 0)
+	svcMap := make(map[string]*service.StrategyInstance)
+	insts := make([]*service.StrategyInstance, 0)
 
-	for _, hostID := range hostIDs {
-		logger := plog.WithField("hostid", hostID)
+	for _, host := range hosts {
+		logger := plog.WithField("hostid", host.ID)
 
-		var hst host.Host
-		err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
-		if err != nil {
-
-			logger.WithError(err).Debug("Could not look up host")
-
-			// TODO: expecting wrapped error here
-			return nil, err
-		}
-
-		logger.Debug("Loaded host")
-
-		states, err := f.zzk.GetHostStates(ctx, hst.PoolID, hst.ID)
+		states, err := f.zzk.GetHostStates(ctx, host.PoolID, host.ID)
 		if err != nil {
 
 			logger.WithError(err).Debug("Could not look up running instances")
@@ -461,7 +449,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 					return nil, err
 				}
-				inst = service.StrategyInstance{
+				inst = &service.StrategyInstance{
 					ServiceID:     s.ID,
 					CPUCommitment: int(s.CPUCommitment),
 					RAMCommitment: s.RAMCommitment.Value,

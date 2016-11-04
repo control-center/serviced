@@ -22,8 +22,8 @@ import (
 
 	"time"
 
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 var _ = Suite(&S{
@@ -232,12 +232,12 @@ func setInitialCacheState(s *S, t *C) *Service {
 	// Store svc_name, last updated 10h ago.
 	t.Log("Store svc_test_id with updatedAt 10h ago")
 	svc := &Service{
-		ID: "svc_test_id",
-		Name: "svc_name",
-		PoolID: "testPool",
+		ID:           "svc_test_id",
+		Name:         "svc_name",
+		PoolID:       "testPool",
 		DesiredState: int(SVCStop),
-		Launch: "auto",
-		UpdatedAt: time.Now().Add(-time.Duration(10) * time.Hour),
+		Launch:       "auto",
+		UpdatedAt:    time.Now().Add(-time.Duration(10) * time.Hour),
 	}
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
@@ -286,8 +286,104 @@ func (s *S) Test_GetWithCachedState(t *C) {
 	// Validate that if we query for this service that we'll get the
 	// updated desired state.
 	t.Log("Verify Get() returns a service with cached state SVCRun(1)")
-	svc, err := s.store.Get(s.ctx, svc.ID);
+	svc, err := s.store.Get(s.ctx, svc.ID)
 	t.Assert(err, IsNil)
 	t.Assert(svc, NotNil)
 	t.Assert(svc.DesiredState, Equals, int(SVCRun))
+}
+
+func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
+	svca := &Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+	}
+	svcb := &Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "svc_a",
+		DeploymentID:    "deployment_id",
+	}
+	svcc := &Service{
+		ID:              "svccid",
+		PoolID:          "testPool",
+		Name:            "svc_c",
+		Launch:          "auto",
+		ParentServiceID: "svc_b",
+		DeploymentID:    "deployment_id",
+	}
+	svcd := &Service{
+		ID:              "svcdid",
+		PoolID:          "testPool",
+		Name:            "svc_d",
+		Launch:          "auto",
+		ParentServiceID: "svc_b",
+		DeploymentID:    "deployment_id",
+	}
+	svcd2 := &Service{
+		ID:              "svcd2id",
+		PoolID:          "testPool",
+		Name:            "svc_d_2",
+		Launch:          "auto",
+		ParentServiceID: "svc_b",
+		DeploymentID:    "deployment_id",
+	}
+	svcdontmatch := &Service{
+		ID:              "svc_a",
+		PoolID:          "testPool",
+		Name:            "dontmatch",
+		Launch:          "auto",
+		ParentServiceID: "svc_b",
+		DeploymentID:    "deployment_id",
+	}
+	c.Assert(s.store.Put(s.ctx, svca), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcc), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcd), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcd2), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcdontmatch), IsNil)
+
+	// Get by exact ID should succeed
+	details, err := s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaid", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 1)
+	c.Assert(details[0].ID, Equals, "svcaid")
+
+	// Get where substring of query matches a svc ID should fail
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaidnope", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 0)
+
+	// Get where query matches substring of a svc ID should fail
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svca", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 0)
+
+	// Get where query is a substring of many service names
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 5)
+
+	// Get where query matches both an ID and a service name
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_a", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
+
+	// Get substring vs prefix
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 1)
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "_2", true)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 0)
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc_d", true)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
 }

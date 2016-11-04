@@ -207,7 +207,6 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState(c *C) {
 
 // Test Case: Missing service state once the hoststate listener is running
 func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
-
 	conn := setUpServiceAndHostPaths(c)
 	handler := &mocks.HostStateHandler{}
 
@@ -234,7 +233,6 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
 	containerExit := make(chan time.Time, 1)
 	var retExit <-chan time.Time = containerExit
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
-	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) { containerExit <- time.Now() })
 	listener := NewHostStateListener(handler, hostId)
 	listener.SetConnection(conn)
 
@@ -258,33 +256,31 @@ func (t *ZZKTest) TestHostStateListener_Spawn_ErrServiceState2(c *C) {
 		close(done)
 	}()
 
-	// Delete service stateId
-	go func() {
-		time.Sleep(2*time.Second) // wait a little to ensure listener is running
-		err = conn.Delete(sspth)
-		c.Assert(err, IsNil)
-	}()
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) { containerExit <- time.Now() })
 
-	timer := time.NewTimer(5*time.Second)
-	// Wait for the event indicating service stateId was deleted
+	timer := time.NewTimer(1*time.Second)
 	select {
-	case e := <-hsEvt:
-		c.Assert(e.Type, Equals, client.EventNodeDeleted)
-		ok, err := conn.Exists(sspth)
+	case <-timer.C: // wait for the listener enter its infinite loop
+	case <-done:
+		c.Fatalf("Host StateId not cleaned up")
+	case <-hsEvt:
+		c.Fatalf("Host StateId not cleaned up")
+	}
+
+	// Delete service stateId
+	err = conn.Delete(sspth)
+	c.Assert(err, IsNil)
+
+	timer = time.NewTimer(1*time.Second)
+	select {
+	case <-done: //listener exited
+		ok, err := conn.Exists(hspth)
 		c.Assert(err, IsNil)
 		c.Assert(ok, Equals, false)
 	case <-timer.C:
-		close(shutdown)
-		c.Fatalf("Host StateId not cleaned up")
+		c.Fatalf("Timed out waiting for shutdown")
 	}
-	timer = time.NewTimer(2*time.Second)
-	select {
-		case <-done:
-			c.Logf("Listener shut down")
-		case <-timer.C:
-			c.Fatalf("Listener did not shutdown")
-			close(shutdown)
-	}
+
 	handler.AssertExpectations(c)
 }
 

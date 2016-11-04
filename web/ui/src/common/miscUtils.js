@@ -24,6 +24,32 @@
           };
         }
 
+        // polyfill find so IE doesnt complain :\
+        if (!Array.prototype.find) {
+          Object.defineProperty(Array.prototype, 'find', {
+            value: function(predicate) {
+             if (this === null || this === undefined) {
+               throw new TypeError('Array.prototype.find called on null or undefined');
+             }
+             if (typeof predicate !== 'function') {
+               throw new TypeError('predicate must be a function');
+             }
+             var list = Object(this);
+             var length = list.length >>> 0;
+             var thisArg = arguments[1];
+             var value;
+
+             for (var i = 0; i < length; i++) {
+               value = list[i];
+               if (predicate.call(thisArg, value, i, list)) {
+                 return value;
+               }
+             }
+             return undefined;
+            }
+          });
+        }
+
         // fix for chrome 48 and up, as described here:
         // https://github.com/cpettitt/dagre-d3/issues/202
         SVGElement.prototype.getTransformToElement = SVGElement.prototype.getTransformToElement || function(elem) {

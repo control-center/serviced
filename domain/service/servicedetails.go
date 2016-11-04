@@ -39,6 +39,7 @@ type ServiceDetails struct {
 	DeploymentID    string
 	DesiredState    int
 	Launch          string
+	Tags            []string
 	datastore.VersionedEntity
 }
 

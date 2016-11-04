@@ -116,6 +116,9 @@ type ClientInterface interface {
 	// GetServiceDetails will return a ServiceDetails for the specified service
 	GetServiceDetails(serviceID string) (*service.ServiceDetails, error)
 
+	// ResolveServicePath will return ServiceDetails that match the given path
+	ResolveServicePath(path string) ([]service.ServiceDetails, error)
+
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
 

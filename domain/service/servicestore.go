@@ -25,6 +25,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+<<<<<<< HEAD
+=======
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
+>>>>>>> develop
 )
 
 var (
@@ -92,6 +98,11 @@ type Store interface {
 
 	// GetAllPublicEndpoints returns all public endpoints in the system
 	GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error)
+
+	// GetServiceDetailsByIDOrName returns the service details for any services
+	// whose serviceID matches the query exactly or whose names contain the
+	// query as a substring
+	GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error)
 }
 
 // NewStore creates a Service store
