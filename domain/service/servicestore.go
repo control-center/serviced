@@ -20,12 +20,11 @@ import (
 	"github.com/zenoss/elastigo/search"
 
 	"errors"
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
 	"strings"
 	"sync"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/logging"
 )
 
 var (
@@ -90,6 +89,9 @@ type Store interface {
 
 	// GetServiceHealth returns a service health by service id
 	GetServiceHealth(ctx datastore.Context, serviceID string) (*ServiceHealth, error)
+
+	// GetAllPublicEndpoints returns all public endpoints in the system
+	GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error)
 
 	// GetServiceDetailsByIDOrName returns the service details for any services
 	// whose serviceID matches the query exactly or whose names contain the

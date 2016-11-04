@@ -199,6 +199,8 @@ type ClientInterface interface {
 
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
 
+	GetAllPublicEndpoints() ([]service.PublicEndpoint, error)
+
 	//--------------------------------------------------------------------------
 	// User Management Functions
 

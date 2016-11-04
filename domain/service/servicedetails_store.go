@@ -210,6 +210,48 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	return details, nil
 }
 
+func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error) {
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"should": []map[string]interface{}{
+					map[string]interface{}{
+						"regexp": map[string]interface{}{
+							"Endpoints.VHostList.Name": ".+",
+						},
+					},
+					map[string]interface{}{
+						"regexp": map[string]interface{}{
+							"Endpoints.PortList.PortAddr": ".+",
+						},
+					},
+				},
+			},
+		},
+		"fields": publicEndpointFields,
+		"size":   serviceDetailsLimit,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	peps := []PublicEndpoint{}
+	for results.HasNext() {
+		var result EndpointQueryResult
+		err := results.Next(&result)
+		if err != nil {
+			return nil, err
+		}
+		endpoints := createPublicEndpoints(result)
+		peps = append(peps, endpoints...)
+	}
+
+	return peps, nil
+}
+
+
 func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -238,6 +280,44 @@ func (s *storeImpl) fillDetailsVolatileInfo(d *ServiceDetails) {
 	}
 }
 
+func createPublicEndpoints(result EndpointQueryResult) []PublicEndpoint {
+	pubs := []PublicEndpoint{}
+
+	for _, ep := range result.Endpoints {
+		for _, vhost := range ep.VHostList {
+			pubs = append(pubs, PublicEndpoint{
+				ServiceID:   result.ID,
+				ServiceName: result.Name,
+				Application: ep.Application,
+				Protocol:    "https",
+				VHostName:   vhost.Name,
+				Enabled:     vhost.Enabled,
+			})
+		}
+
+		for _, port := range ep.PortList {
+			pub := PublicEndpoint{
+				ServiceID:   result.ID,
+				ServiceName: result.Name,
+				Application: ep.Application,
+				PortAddress: port.PortAddr,
+				Enabled:     port.Enabled,
+			}
+
+			if strings.HasPrefix(port.Protocol, "http") {
+				pub.Protocol = port.Protocol
+			} else if port.UseTLS {
+				pub.Protocol = "Other, secure (TLS)"
+			} else {
+				pub.Protocol = "Other, non-secure"
+			}
+
+			pubs = append(pubs, pub)
+		}
+	}
+
+	return pubs
+}
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
 	return elastic.ElasticSearchRequest{
 		Pretty: false,
@@ -265,4 +345,23 @@ var serviceDetailsFields = []string{
 	"DeploymentID",
 	"Launch",
 	"Tags",
+}
+
+var publicEndpointFields = []string{
+	"ID",
+	"Name",
+	"Endpoints",
+}
+
+// EndpointQueryResult used for unmarshalling query results
+type EndpointQueryResult struct {
+	ID        string
+	Name      string
+	Endpoints []ServiceEndpoint
+	datastore.VersionedEntity
+}
+
+// ValidEntity for EndpointQueryResult entity
+func (d *EndpointQueryResult) ValidEntity() error {
+	return nil
 }

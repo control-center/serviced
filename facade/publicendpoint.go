@@ -377,3 +377,9 @@ func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, end
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
 	return nil
 }
+
+// GetAllPublicEndpoints returns all the public endpoints in the system
+func (f *Facade) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetAllPublicEndpoints"))
+	return f.serviceStore.GetAllPublicEndpoints(ctx)
+}

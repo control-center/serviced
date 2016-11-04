@@ -14,6 +14,7 @@
 package api
 
 import (
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
@@ -73,4 +74,13 @@ func (a *api) EnablePublicEndpointVHost(serviceid, endpointName, vhost string, i
 	}
 
 	return client.EnablePublicEndpointVHost(serviceid, endpointName, vhost, isEnabled)
+}
+
+func (a *api) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.GetAllPublicEndpoints()
 }

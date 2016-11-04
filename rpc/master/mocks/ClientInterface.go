@@ -345,6 +345,29 @@ func (_m *ClientInterface) GetActiveHostIDs() ([]string, error) {
 	return r0, r1
 }
 
+// GetAllPublicEndpoints provides a mock function with given fields:
+func (_m *ClientInterface) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	ret := _m.Called()
+
+	var r0 []service.PublicEndpoint
+	if rf, ok := ret.Get(0).(func() []service.PublicEndpoint); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.PublicEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetAllServiceDetails provides a mock function with given fields:
 func (_m *ClientInterface) GetAllServiceDetails() ([]service.ServiceDetails, error) {
 	ret := _m.Called()

@@ -446,6 +446,29 @@ func (_m *API) ExportLogs(config api.ExportLogsConfig) error {
 	return r0
 }
 
+// GetAllPublicEndpoints provides a mock function with given fields:
+func (_m *API) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	ret := _m.Called()
+
+	var r0 []service.PublicEndpoint
+	if rf, ok := ret.Get(0).(func() []service.PublicEndpoint); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.PublicEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetAllServiceDetails provides a mock function with given fields:
 func (_m *API) GetAllServiceDetails() ([]service.ServiceDetails, error) {
 	ret := _m.Called()
@@ -1556,3 +1579,4 @@ func (_m *API) WriteDelegateKey(_a0 string, _a1 []byte) error {
 }
 
 var _ api.API = (*API)(nil)
+
