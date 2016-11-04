@@ -60,7 +60,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js serviced serviced-controller tools
+build_TARGETS = build_isvcs serviced serviced-controller tools
 
 # Define GOPATH for containerized builds.
 #

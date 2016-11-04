@@ -25,12 +25,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-<<<<<<< HEAD
-=======
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/logging"
->>>>>>> develop
 )
 
 var (
