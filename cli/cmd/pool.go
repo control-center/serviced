@@ -41,7 +41,7 @@ func (c *ServicedCli) initPool() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "verbose, v",
-						Usage: "Show JSON format",
+						Usage: "Show JSON format. Permissions are as follows; 0 - None, 1 - Admin, 2 - DFS, 3 - All",
 					},
 					cli.StringFlag{
 						Name:  "show-fields",
