@@ -2149,7 +2149,7 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 	var (
 		parent  string
 		current string
-		result  []service.ServiceDetails
+		result  = []service.ServiceDetails{}
 	)
 	plog := plog.WithFields(log.Fields{
 		"svcpath": svcPath,

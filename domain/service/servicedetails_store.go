@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -148,9 +149,20 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 // as a substring
 func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByIDOrName"))
-	newquery := fmt.Sprintf("%s*", query)
+
+	// Because we don't analyze any of our fields, we have to do this extremely
+	// idiotic regular expression to handle service names with mixed case
+	regex := make([]rune, len(query)*4)
+	for i, r := range []rune(query) {
+		idx := i * 4
+		regex[idx] = '['
+		regex[idx+1] = unicode.ToLower(r)
+		regex[idx+2] = unicode.ToUpper(r)
+		regex[idx+3] = ']'
+	}
+	newquery := fmt.Sprintf("%s.*", string(regex))
 	if !prefix {
-		newquery = fmt.Sprintf("*%s", newquery)
+		newquery = fmt.Sprintf(".*%s", newquery)
 	}
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
@@ -162,7 +174,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 						},
 					},
 					map[string]interface{}{
-						"wildcard": map[string]interface{}{
+						"regexp": map[string]interface{}{
 							"Name": newquery,
 						},
 					},
