@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
@@ -35,6 +36,21 @@ type PublicEndpointTest struct {
 	api.API
 	fail  bool
 	ports []servicedefinition.Port
+}
+
+func (t ServiceAPITest) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	if t.errs["GetAllPubliceEndpoints"] != nil {
+		return nil, t.errs["GetAllPubliceEndpoints"]
+	}
+
+	peps := []service.PublicEndpoint{
+		service.PublicEndpoint{Application: "zproxy", Enabled: true, PortAddress: ":22222", ServiceID: "test-service-1", ServiceName: "Zenoss", Protocol: "https"},
+		service.PublicEndpoint{Application: "zproxy", Enabled: true, PortAddress: ":22223", ServiceID: "test-service-1", ServiceName: "Zenoss", Protocol: "http"},
+		service.PublicEndpoint{Application: "zproxy", Enabled: true, PortAddress: ":22224", ServiceID: "test-service-1", ServiceName: "Zenoss", Protocol: "other-tls"},
+		service.PublicEndpoint{Application: "zproxy", Enabled: false, PortAddress: ":22225", ServiceID: "test-service-1", ServiceName: "Zenoss", Protocol: "other"},
+	}
+
+	return peps, nil
 }
 
 func (t ServiceAPITest) AddPublicEndpointPort(serviceID, endpointName, portAddr string,
