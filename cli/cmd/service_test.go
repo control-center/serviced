@@ -186,6 +186,13 @@ func (t ServiceAPITest) GetAllServiceDetails() ([]service.ServiceDetails, error)
 	return servicesToServiceDetails(t.services), nil
 }
 
+func (t ServiceAPITest) ResolveServicePath(name string) ([]service.ServiceDetails, error) {
+	if t.errs["ResolveServicePath"] != nil {
+		return nil, t.errs["ResolveServicePath"]
+	}
+	return serviceDetailsByName(strings.TrimRight(name, "/")), nil
+}
+
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.errs["GetResourcePools"] != nil {
 		return nil, t.errs["GetResourcePools"]
@@ -269,9 +276,9 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.ServiceDe
 		Name:            config.Name,
 		ImageID:         config.ImageID,
 		//Endpoints:       endpoints,
-		Startup:         config.Command,
-		Instances:       1,
-		InstanceLimits:  domain.MinMax{1, 1, 1},
+		Startup:        config.Command,
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
 	}
 
 	return &s, nil
@@ -301,11 +308,20 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.ServiceDetails
 
 func servicesToServiceDetails(svcs []service.Service) []service.ServiceDetails {
 	detailsList := []service.ServiceDetails{}
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		details := serviceToServiceDetails(svc)
 		detailsList = append(detailsList, details)
 	}
 	return detailsList
+}
+
+func serviceDetailsByName(name string) []service.ServiceDetails {
+	for _, svc := range DefaultTestServices {
+		if svc.Name == name || svc.ID == name {
+			return servicesToServiceDetails([]service.Service{svc})
+		}
+	}
+	return []service.ServiceDetails{}
 }
 
 func serviceToServiceDetails(svc service.Service) service.ServiceDetails {
@@ -471,6 +487,8 @@ func ExampleServicedCLI_CmdServiceList() {
 func ExampleServicedCLI_CmdServiceList_fail() {
 	DefaultServiceAPITest.errs["GetAllServiceDetails"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["GetAllServiceDetails"] = nil }()
+	DefaultServiceAPITest.errs["ResolveServicePath"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["ResolveServicePath"] = nil }()
 	// Error retrieving service
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "list", "test-service-0") })
 	// Error retrieving all services
@@ -654,6 +672,8 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 func ExampleServicedCLI_CmdServiceEdit_fail() {
 	DefaultServiceAPITest.errs["GetAllServiceDetails"] = ErrInvalidService
 	defer func() { DefaultServiceAPITest.errs["GetAllServiceDetails"] = nil }()
+	DefaultServiceAPITest.errs["ResolveServicePath"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["ResolveServicePath"] = nil }()
 	// Failed to get service
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "edit", "test-service-0") })
 	// TODO: Failed to update service
@@ -779,12 +799,12 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
-	DefaultServiceAPITest.errs["RestartService"] = ErrStub
-	defer func() { DefaultServiceAPITest.errs["RestartService"] = nil }()
+	DefaultServiceAPITest.errs["ResolveServicePath"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["ResolveServicePath"] = nil }()
 	pipeStderr(func() { InitServiceAPITest("serviced", "service", "restart", "test-service-1") })
 
 	// Output:
-	// stub for facade failed
+	// invalid service
 }
 
 func ExampleServicedCLI_CmdServiceRestart_err() {
