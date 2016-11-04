@@ -41,11 +41,11 @@ func (c *ServicedCli) initPool() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "verbose, v",
-						Usage: "Show JSON format",
+						Usage: "Show JSON format. Permissions are as follows; 0 - None, 1 - Admin, 2 - DFS, 3 - All",
 					},
 					cli.StringFlag{
 						Name:  "show-fields",
-						Value: "ID",
+						Value: "ID,Permissions",
 						Usage: "Comma-delimited list describing which fields to display",
 					},
 				},
@@ -205,8 +205,16 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		t := NewTable(ctx.String("show-fields"))
 		t.Padding = 6
 		for _, p := range pools {
+			perms := make([]string, 0)
+			if p.HasDfsAccess() {
+				perms = append(perms, "DFS")
+			}
+			if p.HasAdminAccess() {
+				perms = append(perms, "Admin")
+			}
 			t.AddRow(map[string]interface{}{
-				"ID": p.ID,
+				"ID":          p.ID,
+				"Permissions": perms,
 			})
 		}
 		t.Print()
