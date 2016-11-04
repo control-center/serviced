@@ -872,7 +872,7 @@ func (_m *ClientInterface) ReportInstanceDead(serviceID string, instanceID int) 
 
 	return r0
 }
-cfunc (_m *ClientInterface) GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error) {
+func (_m *ClientInterface) GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error) {
 	ret := _m.Called(tenantID)
 
 	var r0 []service.ServiceDetails
