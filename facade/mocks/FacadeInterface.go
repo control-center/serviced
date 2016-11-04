@@ -1346,12 +1346,7 @@ func (_m *FacadeInterface) ReloadLogstashConfig(ctx datastore.Context) error {
 
 	return r0
 }
-
-<<<<<<< Updated upstream
-func (_m *FacadeInterface) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
-=======
 func (_m *FacadeInterface) GetAllPublicEndpoints(ctx datastore.Context)  ([]service.PublicEndpoint, error) {
->>>>>>> Stashed changes
 	ret := _m.Called(ctx)
 
 	var r0 []service.PublicEndpoint
