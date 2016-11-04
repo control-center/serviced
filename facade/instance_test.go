@@ -426,13 +426,15 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 	}
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(svc, nil)
 
-	expected := []*service.StrategyInstance{
+	expectedMap := map[string]service.StrategyInstance{
+		hst1.ID: {
 			HostID:        hst1.ID,
 			ServiceID:     svc.ID,
 			CPUCommitment: int(svc.CPUCommitment),
 			RAMCommitment: svc.RAMCommitment.Value,
 			HostPolicy:    svc.HostPolicy,
-		}, {
+		},
+		hst2.ID: {
 			HostID:        hst2.ID,
 			ServiceID:     svc.ID,
 			CPUCommitment: int(svc.CPUCommitment),
@@ -442,5 +444,10 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 	}
 	actual, err := ft.Facade.GetHostStrategyInstances(ft.ctx, []host.Host{hst1, hst2})
 	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, expected)
+	c.Assert(len(actual), Equals, len(expectedMap))
+	for _, result := range(actual) {
+		expected, ok := expectedMap[(*result).HostID]
+		c.Assert(ok, Equals, true)
+		c.Assert(*result, Equals, expected)
+	}
 }
