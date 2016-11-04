@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 
-	"fmt"
 	"reflect"
 	"sort"
 	"time"
@@ -55,45 +54,6 @@ type ResourcePool struct {
 	MonitoringProfile domain.MonitorProfile
 	Permissions       Permission
 	datastore.VersionedEntity
-}
-
-func (p ResourcePool) ToString() string {
-	permissionStr := ""
-	switch p.Permissions {
-	case 0:
-		permissionStr = "No Permissions"
-	case 1:
-		permissionStr = "DFS Permissions Only"
-	case 2:
-		permissionStr = "Admin Permissions Only"
-	case 3:
-		permissionStr = "DFS and Admin Permissions"
-	}
-	pStr := ""
-	pStr += fmt.Sprintf("%s\n", p.ID)
-	pStr += fmt.Sprintf("%-20s%s\n", "Realm:", p.Realm)
-	pStr += fmt.Sprintf("%-20s%s\n", "Description:", p.Description)
-	pStr += fmt.Sprintf("%-20s", "Virtual IPs:")
-	if len(p.VirtualIPs) > 0 {
-		pStr += fmt.Sprintf("\n")
-		for _, vIP := range p.VirtualIPs {
-			pStr += fmt.Sprintf("  %-20s%s\n", "Bind Interface:", vIP.BindInterface)
-			pStr += fmt.Sprintf("  %-20s%s\n", "IP:", vIP.IP)
-			pStr += fmt.Sprintf("  %-20s%s\n", "Netmask:", vIP.Netmask)
-		}
-	} else {
-		pStr += fmt.Sprintf("None\n")
-	}
-	pStr += fmt.Sprintf("%-20s%d\n", "Core Limit:", p.CoreLimit)
-	pStr += fmt.Sprintf("%-20s%d\n", "Memory Limit:", p.MemoryLimit)
-	pStr += fmt.Sprintf("%-20s%d\n", "Core Capacity:", p.CoreCapacity)
-	pStr += fmt.Sprintf("%-20s%d\n", "Memory Capacity:", p.MemoryCapacity)
-	pStr += fmt.Sprintf("%-20s%d\n", "Memory Commitment:", p.MemoryCommitment)
-	pStr += fmt.Sprintf("%-20s%d\n", "Connection Timout:", p.ConnectionTimeout)
-	pStr += fmt.Sprintf("%-20s%s\n", "Created At:", p.CreatedAt)
-	pStr += fmt.Sprintf("%-20s%s\n", "Updated At:", p.UpdatedAt)
-	pStr += fmt.Sprintf("%-20s%s\n", "Permissions:", permissionStr)
-	return pStr
 }
 
 func (p ResourcePool) GetConnectionTimeout() time.Duration {

@@ -197,7 +197,40 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 
 	if ctx.Bool("verbose") {
 		for _, p := range pools {
-			fmt.Print(strings.Replace(p.ToString(), "\n", "\n  ", -1))
+			permissionStr := ""
+			switch p.Permissions {
+			case 0:
+				permissionStr = "No Permissions"
+			case 1:
+				permissionStr = "Admin Permissions Only"
+			case 2:
+				permissionStr = "DFS Permissions Only"
+			case 3:
+				permissionStr = "DFS and Admin Permissions"
+			}
+			fmt.Printf("%s\n", p.ID)
+			fmt.Printf("  %-20s%s\n", "Realm:", p.Realm)
+			fmt.Printf("  %-20s%s\n", "Description:", p.Description)
+			fmt.Printf("  %-20s", "Virtual IPs:")
+			if len(p.VirtualIPs) > 0 {
+				fmt.Printf("\n")
+				for _, vIP := range p.VirtualIPs {
+					fmt.Printf("    %-20s%s\n", "Bind Interface:", vIP.BindInterface)
+					fmt.Printf("    %-20s%s\n", "IP:", vIP.IP)
+					fmt.Printf("    %-20s%s\n", "Netmask:", vIP.Netmask)
+				}
+			} else {
+				fmt.Printf("None\n")
+			}
+			fmt.Printf("  %-20s%d\n", "Core Limit:", p.CoreLimit)
+			fmt.Printf("  %-20s%d\n", "Memory Limit:", p.MemoryLimit)
+			fmt.Printf("  %-20s%d\n", "Core Capacity:", p.CoreCapacity)
+			fmt.Printf("  %-20s%d\n", "Memory Capacity:", p.MemoryCapacity)
+			fmt.Printf("  %-20s%d\n", "Memory Commitment:", p.MemoryCommitment)
+			fmt.Printf("  %-20s%d\n", "Connection Timout:", p.ConnectionTimeout)
+			fmt.Printf("  %-20s%s\n", "Created At:", p.CreatedAt)
+			fmt.Printf("  %-20s%s\n", "Updated At:", p.UpdatedAt)
+			fmt.Printf("  %-20s%s\n", "Permissions:", permissionStr)
 		}
 	} else {
 		t := NewTable(ctx.String("show-fields"))
