@@ -25,7 +25,7 @@ module CCApi
         end
 
         def check_pool_exists(poolName)
-            result = CC.CLI.execute("%{serviced} pool list")
+            result = CC.CLI.execute("%{serviced} pool list --show-fields ID")
             matchData = result.match /^#{poolName}$/
             return matchData != nil
         end
