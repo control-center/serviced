@@ -129,78 +129,87 @@ func GetServiceNodes(conn client.Connection) ([]ServiceNode, error) {
 
 // UpdateService creates the service if it doesn't exist or updates it if it
 // does exist. (uses a pool-based connection)
-func UpdateService(conn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	pth := path.Join("/services", svc.ID)
+func UpdateService(conn client.Connection, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	return UpdateServices(conn, []*service.Service{svc}, setLockOnCreate, setLockOnUpdate)
+}
 
-	logger := plog.WithFields(log.Fields{
-		"poolid":    svc.PoolID,
-		"serviceid": svc.ID,
-		"zkpath":    pth,
+// UpdateServices creates the services if they doesn't exist or updates it if it
+// does exist. (uses a pool-based connection). All svcs MUST be in the same pool
+func UpdateServices(conn client.Connection, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	poolLogger := plog.WithFields(log.Fields{
+		"poolid":    svcs[0].PoolID,
+		"servicecount": len(svcs),
 	})
 
 	// create the /services path if it doesn't exist
 	if err := conn.CreateIfExists("/services", &client.Dir{}); err != nil && err != client.ErrNodeExists {
-		logger.WithError(err).Error("Could not initialize services path in zookeeper")
+		poolLogger.WithError(err).Error("Could not initialize services path in zookeeper")
 		return &ServiceError{
 			Action:    "update",
-			ServiceID: svc.ID,
 			Message:   "could not initialize services path in zookeeper",
 		}
 	}
 
-	// create the service if it doesn't exist
-	// setLockOnCreate sets the lock as the node is created
-	sn, err := NewServiceNodeFromService(&svc)
-	if err != nil {
-		logger.WithError(err).Error("Could not create service node from service")
-		return &ServiceError{
-			Action:    "update",
-			ServiceID: svc.ID,
-			Message:   "could not create service node from service",
-		}
-	}
-
-	sn.Locked = setLockOnCreate
-	if err := conn.CreateIfExists(pth, sn); err == client.ErrNodeExists {
-
-		// the node exists so get it and update it
-		node := &ServiceNode{}
-		if err := conn.Get(pth, node); err != nil && err != client.ErrEmptyNode {
-			logger.WithError(err).Error("Could not get service entry from zookeeper")
+	for _, svc := range(svcs) {
+		pth := path.Join("/services",  svc.ID)
+		logger := poolLogger.WithFields(log.Fields{
+			"zkpath":    pth,
+		})
+		//
+		// create the service if it doesn't exist
+		// setLockOnCreate sets the lock as the node is created
+		sn, err := NewServiceNodeFromService(svc)
+		if err != nil {
+			logger.WithError(err).Error("Could not create service node from service")
 			return &ServiceError{
 				Action:    "update",
 				ServiceID: svc.ID,
-				Message:   "could not get service for update",
+				Message:   "could not create service node from service",
 			}
 		}
 
-		// setLockOnUpdate sets the lock to true if enabled, otherwise it uses
-		// whatever existing value was previously set on the node.
-		if setLockOnUpdate {
-			node.Locked = true
-		}
-		sn.SetVersion(node.Version())
-		if err := conn.Set(pth, sn); err != nil {
-			logger.WithError(err).Error("Could not update service entry in zookeeper")
+		sn.Locked = setLockOnCreate
+		if err := conn.CreateIfExists(pth, sn); err == client.ErrNodeExists {
+
+			// the node exists so get it and update it
+			node := &ServiceNode{}
+			if err := conn.Get(pth, node); err != nil && err != client.ErrEmptyNode {
+				logger.WithError(err).Error("Could not get service entry from zookeeper")
+				return &ServiceError{
+					Action:    "update",
+					ServiceID: svc.ID,
+					Message:   "could not get service for update",
+				}
+			}
+
+			// setLockOnUpdate sets the lock to true if enabled, otherwise it uses
+			// whatever existing value was previously set on the node.
+			if setLockOnUpdate {
+				node.Locked = true
+			}
+			sn.SetVersion(node.Version())
+			if err := conn.Set(pth, sn); err != nil {
+				logger.WithError(err).Error("Could not update service entry in zookeeper")
+				return &ServiceError{
+					Action:    "update",
+					ServiceID: svc.ID,
+					Message:   "could not update service",
+				}
+			}
+
+			logger.Debug("Updated entry for service in zookeeper")
+		} else if err != nil {
+			logger.WithError(err).Error("Could not create service entry in zookeeper")
 			return &ServiceError{
 				Action:    "update",
 				ServiceID: svc.ID,
-				Message:   "could not update service",
+				Message:   "could not create service",
 			}
 		}
 
-		logger.Debug("Updated entry for service in zookeeper")
-		return nil
-	} else if err != nil {
-		logger.WithError(err).Error("Could not create service entry in zookeeper")
-		return &ServiceError{
-			Action:    "update",
-			ServiceID: svc.ID,
-			Message:   "could not create service",
-		}
 	}
 
-	logger.Debug("Created entry for service in zookeeper")
+	poolLogger.Debug("Created entry for service in zookeeper")
 	return nil
 }
 
@@ -279,7 +288,7 @@ func SyncServices(conn client.Connection, svcs []service.Service) error {
 
 	// set the services
 	for _, s := range svcs {
-		if err := UpdateService(conn, s, false, false); err != nil {
+		if err := UpdateService(conn, &s, false, false); err != nil {
 			return err
 		}
 

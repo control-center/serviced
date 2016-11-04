@@ -49,14 +49,19 @@ func getLocalConnection(ctx datastore.Context, path string) (client.Connection, 
 	return zzk.GetLocalConnection(path)
 }
 
-func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
+func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svcs []*service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.syncServiceRegistry"))
-	return zk.SyncServiceRegistry(ctx, tenantID, svc)
+	for _, svc := range(svcs) {
+		if err := zk.SyncServiceRegistry(ctx, tenantID, svc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func updateService(ctx datastore.Context, poolconn client.Connection, svc service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateService"))
-	return zks.UpdateService(poolconn, svc, setLockOnCreate, setLockOnUpdate)
+func updateServices(ctx datastore.Context, poolconn client.Connection, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateServices"))
+	return zks.UpdateServices(poolconn, svcs, setLockOnCreate, setLockOnUpdate)
 }
 
 func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request zkr.ServiceRegistrySyncRequest) error {
@@ -66,33 +71,52 @@ func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, requ
 
 // UpdateService updates the service object and exposed public endpoints that
 // are synced in zookeeper.
-// TODO: we may want to combine these calls into a single transaction
 func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateService"))
-	logger := plog.WithFields(log.Fields{
-		"tenantid":    tenantID,
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"poolid":      svc.PoolID,
-	})
+	svcs := []*service.Service{svc}
+	return zk.UpdateServices(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+}
 
-	if err := zk.syncServiceRegistry(ctx, tenantID, svc); err != nil {
-		logger.WithError(err).Debug("Could not sync public endpoints in zookeeper")
-		return err
+// UpdateServices updates a list of service objects and exposed public endpoints that are
+// synced in zookeeper
+func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateServices"))
+
+	servicesByPool := make(map[string]*[]*service.Service)
+	for _, svc := range(svcs) {
+		if poolSvcs, ok := servicesByPool[svc.PoolID]; ok {
+			*poolSvcs = append(*poolSvcs, svc)
+		} else {
+			poolSvcs = &([]*service.Service{svc})
+			servicesByPool[svc.PoolID] = poolSvcs
+		}
 	}
 
-	// get the pool-based connection to update the service
-	poolconn, err := getLocalConnection(ctx, path.Join("/pools", svc.PoolID))
-	if err != nil {
-		logger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
-		return err
+	for poolID, poolSvcs := range(servicesByPool) {
+		poolLogger := plog.WithFields(log.Fields{
+			"tenantid":     tenantID,
+			"poolid":       poolID,
+			"servicecount": len(*poolSvcs),
+		})
+		// get the pool-based connection to update the service
+		poolconn, err := getLocalConnection(ctx, path.Join("/pools", poolID))
+		if err != nil {
+			poolLogger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
+			return err
+		}
+		if err := zk.syncServiceRegistry(ctx, tenantID, *poolSvcs); err != nil {
+			poolLogger.WithError(err).Debug("Could not sync public endpoints in zookeeper")
+			return err
+		}
+		if err := updateServices(ctx, poolconn, *poolSvcs, setLockOnCreate, setLockOnUpdate); err != nil {
+			poolLogger.WithError(err).Debug("Could not update the services in zookeeper")
+			return err
+		}
+		poolLogger.Debug("Updated the pool service(s) in zookeeper")
 	}
 
-	if err := updateService(ctx, poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
-		logger.WithError(err).Debug("Could not update the service in zookeeper")
-		return err
-	}
-	logger.Debug("Updated the service in zookeeper")
+
+
 	return nil
 }
 

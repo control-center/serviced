@@ -24,6 +24,7 @@ import (
 
 type ZZK interface {
 	UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	UpdateServices(ctx datastore.Context, tenantID string, svc []*service.Service, setLockOnCreate, setLockOnUpdate bool) error
 	SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error
 	RemoveService(poolID, serviceID string) error
 	RemoveServiceEndpoints(serviceID string) error

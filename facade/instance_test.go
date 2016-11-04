@@ -368,14 +368,10 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 }
 
 func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
-	hst1 := &host.Host{
+	hst1 := host.Host{
 		ID:     "testhost1",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost1"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
-		arg := args.Get(2).(*host.Host)
-		*arg = *hst1
-	})
 	states1 := []zkservice.State{
 		{
 			HostID:     "testhost1",
@@ -395,14 +391,10 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 	}
 	ft.zzk.On("GetHostStates", ft.ctx, "default", "testhost1").Return(states1, nil)
 
-	hst2 := &host.Host{
+	hst2 := host.Host{
 		ID:     "testhost2",
 		PoolID: "default",
 	}
-	ft.hostStore.On("Get", ft.ctx, host.HostKey("testhost2"), mock.AnythingOfType("*host.Host")).Return(nil).Run(func(args mock.Arguments) {
-		arg := args.Get(2).(*host.Host)
-		*arg = *hst2
-	})
 	states2 := []zkservice.State{
 		{
 			HostID:     "testhost2",
@@ -434,8 +426,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 	}
 	ft.serviceStore.On("Get", ft.ctx, "testservice").Return(svc, nil)
 
-	expected := []service.StrategyInstance{
-		{
+	expected := []*service.StrategyInstance{
 			HostID:        hst1.ID,
 			ServiceID:     svc.ID,
 			CPUCommitment: int(svc.CPUCommitment),
@@ -449,7 +440,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 			HostPolicy:    svc.HostPolicy,
 		},
 	}
-	actual, err := ft.Facade.GetHostStrategyInstances(ft.ctx, "testhost1", "testhost2")
+	actual, err := ft.Facade.GetHostStrategyInstances(ft.ctx, []host.Host{hst1, hst2})
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 }
