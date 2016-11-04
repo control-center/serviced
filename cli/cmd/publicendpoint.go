@@ -98,7 +98,7 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 			fmt.Fprintln(os.Stderr, "no services found")
 			return
 		}
-		publicEndpoints, err = c.convertPublicEndpoints(peps)
+		publicEndpoints, err = c.convertPublicEndpoints(peps, showVHosts, showPorts)
 	}
 
 	// If we're generating JSON..
@@ -150,24 +150,27 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	return
 }
 
-func (c *ServicedCli) convertPublicEndpoints(peps []service.PublicEndpoint) ([]PublicEndpoint, error) {
+func (c *ServicedCli) convertPublicEndpoints(peps []service.PublicEndpoint, showVHosts bool, showPorts bool) ([]PublicEndpoint, error) {
 
 	result := []PublicEndpoint{}
 	var pepType, proto, pepName string
 	for _, pep := range peps {
-		if pep.VHostName != "" {
+		add := false
+		if showVHosts && pep.VHostName != "" {
 			pepType = "vhost"
 			proto = "https"
 			pepName = pep.VHostName
-		} else if pep.PortAddress != "" {
+			add = true
+		} else if showPorts && pep.PortAddress != "" {
 			pepType = "port"
 			proto = pep.Protocol
 			pepName = pep.PortAddress
+			add = true
 		}
-
-		npep := NewPublicEndpoint(pep.ServiceName, pep.ServiceID, pep.Application, pepType, proto, pepName, pep.Enabled)
-
-		result = append(result, npep)
+		if add {
+			npep := NewPublicEndpoint(pep.ServiceName, pep.ServiceID, pep.Application, pepType, proto, pepName, pep.Enabled)
+			result = append(result, npep)
+		}
 	}
 	return result, nil
 }
