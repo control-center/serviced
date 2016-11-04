@@ -54,7 +54,6 @@ func BuildServiceHealth(svc Service) *ServiceHealth {
 		HealthChecks: make(map[string]health.HealthCheck),
 	}
 
-	sh.HealthChecks = make(map[string]health.HealthCheck)
 	for key, value := range svc.HealthChecks {
 		sh.HealthChecks[key] = value
 	}
