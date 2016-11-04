@@ -973,7 +973,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 		return nil, err
 	}
 	tenantIDs := []string{}
-	for _, tenant := range(svcs) {
+	for _, tenant := range svcs {
 		tenantIDs = append(tenantIDs, tenant.ID)
 	}
 	return tenantIDs, nil
@@ -983,7 +983,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantID"))
 	logger := plog.WithFields(log.Fields{
-		"serviceID":     serviceID,
+		"serviceID": serviceID,
 	})
 	logger.Debug("Facade.GetTenantID: looking ...")
 	gs := func(id string) (service.Service, error) {
@@ -1095,8 +1095,8 @@ func getEndpointsFromState(state zkservice.State, reportImports, reportExports b
 func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindChildService"))
 	logger := plog.WithFields(log.Fields{
-		"parentServiceID":     parentServiceID,
-		"childName":    childName,
+		"parentServiceID": parentServiceID,
+		"childName":       childName,
 	})
 	logger.Debug("Facade.FindChildService: looking ...")
 	store := f.serviceStore
@@ -2145,14 +2145,19 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 // ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
 // to zero or more service details with their ancestry populated.
 func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]service.ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResolveServicePath"))
 	var (
 		parent  string
 		current string
 		result  []service.ServiceDetails
 	)
+	plog := plog.WithFields(log.Fields{
+		"svcpath": svcPath,
+	})
 
 	// Empty paths match nothing
 	if isEmptyPath(svcPath) {
+		plog.Debug("Empty path produced empty result")
 		return result, nil
 	}
 
@@ -2169,6 +2174,7 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 	if err != nil {
 		return nil, err
 	}
+	plog.WithField("matches", len(details)).Debug("Found possible service matches")
 
 	// Populate the ancestry for all of the found services, so we can check
 	// their parents
@@ -2203,6 +2209,7 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 		result = filtered
 		level++
 	}
+	plog.WithField("results", len(result)).Debug("Filtered service matches by parent")
 
 	return result, nil
 }

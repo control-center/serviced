@@ -112,7 +112,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:        "clone",
 				Usage:       "Clones a new service",
-				Description: "serviced service clone { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
+				Description: "serviced service clone { SERVICEID | SERVICENAME | [DEPLOYMENTID/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceClone,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -260,19 +260,19 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "attach",
 				Usage:        "Run an arbitrary command in a running service container",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
-				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
+				Description:  "serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
 			}, {
 				Name:         "logs",
 				Usage:        "Output the logs of a running service container - calls docker logs",
-				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
+				Description:  "serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
 			}, {
@@ -647,9 +647,9 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	}
 }
 
-// searchForService gets the service or docker id and instance id from
-// a provided service string, being either
-// a deploymentPath/servicepath/instanceid or serviceid/instanceid
+// searchForService gets the service and instance id from a provided service
+// string, being either a deploymentPath/servicepath/instanceid or
+// serviceid/instanceid
 func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, int, error) {
 
 	// If the last segment is an integer, it is an instance ID
@@ -1270,7 +1270,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return c.exit(exitcode)
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
+// serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -1305,7 +1305,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	return nil
 }
 
-// serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
+// serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -1350,7 +1350,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service action")
 }
 
-// serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
+// serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }
 func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()

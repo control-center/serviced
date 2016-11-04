@@ -147,6 +147,7 @@ func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID 
 // whose serviceID matches the query exactly or whose names contain the query
 // as a substring
 func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByIDOrName"))
 	newquery := fmt.Sprintf("%s*", query)
 	if !prefix {
 		newquery = fmt.Sprintf("*%s", newquery)
@@ -190,7 +191,7 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 		} else {
 			return nil, err
 		}
-
+		s.fillDetailsVolatileInfo(&d)
 		details = append(details, d)
 	}
 
@@ -219,9 +220,9 @@ func (s *storeImpl) fillDetailsVolatileInfo(d *ServiceDetails) {
 	cacheEntry, ok := s.getVolatileInfo(d.ID) // Uses Mutex RLock
 	if ok {
 		d.DesiredState = cacheEntry.DesiredState
-        } else {
-                // If there's no ZK data, make sure the service is stopped.
-                d.DesiredState = int(SVCStop)
+	} else {
+		// If there's no ZK data, make sure the service is stopped.
+		d.DesiredState = int(SVCStop)
 	}
 }
 
