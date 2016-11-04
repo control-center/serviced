@@ -4,7 +4,6 @@ import addressassignment "github.com/control-center/serviced/domain/addressassig
 import dao "github.com/control-center/serviced/dao"
 import datastore "github.com/control-center/serviced/datastore"
 import domain "github.com/control-center/serviced/domain"
-import facade "github.com/control-center/serviced/facade"
 import health "github.com/control-center/serviced/health"
 import host "github.com/control-center/serviced/domain/host"
 import mock "github.com/stretchr/testify/mock"
@@ -1503,5 +1502,3 @@ func (_m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Des
 
 	return r0
 }
-
-var _ facade.FacadeInterface = (*FacadeInterface)(nil)
