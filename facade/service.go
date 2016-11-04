@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -972,7 +973,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 		return nil, err
 	}
 	tenantIDs := []string{}
-	for _, tenant := range(svcs) {
+	for _, tenant := range svcs {
 		tenantIDs = append(tenantIDs, tenant.ID)
 	}
 	return tenantIDs, nil
@@ -982,7 +983,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantID"))
 	logger := plog.WithFields(log.Fields{
-		"serviceID":     serviceID,
+		"serviceID": serviceID,
 	})
 	logger.Debug("Facade.GetTenantID: looking ...")
 	gs := func(id string) (service.Service, error) {
@@ -1094,8 +1095,8 @@ func getEndpointsFromState(state zkservice.State, reportImports, reportExports b
 func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.FindChildService"))
 	logger := plog.WithFields(log.Fields{
-		"parentServiceID":     parentServiceID,
-		"childName":    childName,
+		"parentServiceID": parentServiceID,
+		"childName":       childName,
 	})
 	logger.Debug("Facade.FindChildService: looking ...")
 	store := f.serviceStore
@@ -2139,4 +2140,80 @@ func (f *Facade) CountDescendantStates(ctx datastore.Context, serviceID string) 
 		return nil
 	}, "descendantStatus")
 	return result, nil
+}
+
+// ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb")
+// to zero or more service details with their ancestry populated.
+func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]service.ServiceDetails, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResolveServicePath"))
+	var (
+		parent  string
+		current string
+		result  []service.ServiceDetails
+	)
+	plog := plog.WithFields(log.Fields{
+		"svcpath": svcPath,
+	})
+
+	// Empty paths match nothing
+	if isEmptyPath(svcPath) {
+		plog.Debug("Empty path produced empty result")
+		return result, nil
+	}
+
+	// Clean up trailing slashes and lowercase the requested path
+	svcPath = strings.TrimRight(svcPath, "/")
+	svcPath = strings.ToLower(svcPath)
+
+	// First pass: get all services that match either ID exactly or name by substring.
+	// If it's a single-segment query with a leading slash, it indicates that
+	// prefix matching should be used instead of substring matching.
+	parent, current = path.Split(svcPath)
+	prefix := parent == "/"
+	details, err := f.serviceStore.GetServiceDetailsByIDOrName(ctx, current, prefix)
+	if err != nil {
+		return nil, err
+	}
+	plog.WithField("matches", len(details)).Debug("Found possible service matches")
+
+	// Populate the ancestry for all of the found services, so we can check
+	// their parents
+	for _, detail := range details {
+		d, err := f.GetServiceDetailsAncestry(ctx, detail.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, *d)
+	}
+
+	// Now walk up the path, filtering parents as we go
+	level := 1
+	for !isEmptyPath(parent) {
+		parent, current = path.Split(strings.TrimRight(parent, "/"))
+		filtered := make([]service.ServiceDetails, 0)
+		for _, d := range result {
+			p := &d
+			for i := 0; i < level; i++ {
+				p = p.Parent
+				if p == nil {
+					break
+				}
+			}
+			// If the parent name at this level matches OR this is the last
+			// segment and it matches the deployment ID, it's considered
+			// a match
+			if (p != nil && p.Name == current) || (isEmptyPath(parent) && d.DeploymentID == current) {
+				filtered = append(filtered, d)
+			}
+		}
+		result = filtered
+		level++
+	}
+	plog.WithField("results", len(result)).Debug("Filtered service matches by parent")
+
+	return result, nil
+}
+
+func isEmptyPath(p string) bool {
+	return p == "" || p == "/"
 }

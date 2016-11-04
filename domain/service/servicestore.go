@@ -21,21 +21,22 @@ import (
 
 	"errors"
 	"strings"
-	"time"
 	"sync"
-	"github.com/control-center/serviced/logging"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/logging"
 )
 
 var (
-	kind     = "service"
+	kind = "service"
 	plog = logging.PackageLogger()
 )
 
 type volatileService struct {
-	ID             string
-	DesiredState   int
-	UpdatedAt      time.Time	// Time when the cached entry was changed, not when elastic was changed
+	ID           string
+	DesiredState int
+	UpdatedAt    time.Time // Time when the cached entry was changed, not when elastic was changed
 }
 
 // Store type for interacting with Service persistent storage
@@ -90,20 +91,24 @@ type Store interface {
 	// GetServiceHealth returns a service health by service id
 	GetServiceHealth(ctx datastore.Context, serviceID string) (*ServiceHealth, error)
 
+	// GetServiceDetailsByIDOrName returns the service details for any services
+	// whose serviceID matches the query exactly or whose names contain the
+	// query as a substring
+	GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]ServiceDetails, error)
 }
 
 // NewStore creates a Service store
 func NewStore() Store {
 	return &storeImpl{
 		serviceCacheLock: &sync.RWMutex{},
-		serviceCache: map[string]volatileService{},
+		serviceCache:     map[string]volatileService{},
 	}
 }
 
 type storeImpl struct {
-	ds datastore.DataStore
+	ds               datastore.DataStore
 	serviceCacheLock *sync.RWMutex
-	serviceCache  map[string]volatileService
+	serviceCache     map[string]volatileService
 }
 
 // Put adds or updates a Service
@@ -122,7 +127,7 @@ func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 // UpdateDesiredState updates the DesiredState for the service by saving the information in volatile storage.
 func (s *storeImpl) UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error {
 	plog.WithFields(log.Fields{
-		"serviceID": serviceID,
+		"serviceID":    serviceID,
 		"desiredState": desiredState,
 	}).Debug("Storing desiredState")
 	s.updateVolatileInfo(serviceID, desiredState, time.Now())
@@ -326,7 +331,7 @@ func (s *storeImpl) query(ctx datastore.Context, query string) ([]Service, error
 // that amends or overrides what was retrieved from elastic
 func (s *storeImpl) fillAdditionalInfo(svc *Service) {
 	plog.WithFields(log.Fields{
-		"serviceId": svc.ID,
+		"serviceId":   svc.ID,
 		"serviceName": svc.Name,
 	}).Debug("Adding additional info to Elastic result")
 	s.fillConfig(svc)
@@ -412,16 +417,16 @@ func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updat
 	// Validate desired state
 	if err := validation.IntIn(desiredState, int(SVCRun), int(SVCStop), int(SVCPause)); err != nil {
 		plog.WithFields(log.Fields{
-			"serviceID": serviceID,
+			"serviceID":    serviceID,
 			"desiredState": desiredState,
 		}).Debug("Invalid Desired State")
 		return err
 	}
 
 	plog.WithFields(log.Fields{
-		"serviceID": serviceID,
+		"serviceID":    serviceID,
 		"desiredState": desiredState,
-		"updatedAt": updatedAt,
+		"updatedAt":    updatedAt,
 	}).Debug("Saving desired state in cache")
 
 	s.serviceCacheLock.Lock()

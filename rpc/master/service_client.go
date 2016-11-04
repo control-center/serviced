@@ -94,3 +94,10 @@ func (c *Client) GetTenantID(serviceID string) (string, error) {
 	err := c.call("GetTenantID", serviceID, &tenantID)
 	return tenantID, err
 }
+
+// ResolveServicePath resolves a service path (e.g., "infrastructure/mariadb") to zero or more ServiceDetails.
+func (c *Client) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+	svcs := []service.ServiceDetails{}
+	err := c.call("ResolveServicePath", path, &svcs)
+	return svcs, err
+}

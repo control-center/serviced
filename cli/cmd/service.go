@@ -31,7 +31,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 )
@@ -113,7 +112,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:        "clone",
 				Usage:       "Clones a new service",
-				Description: "serviced service clone { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
+				Description: "serviced service clone { SERVICEID | SERVICENAME | [DEPLOYMENTID/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceClone,
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -261,19 +260,19 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "attach",
 				Usage:        "Run an arbitrary command in a running service container",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
-				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
+				Description:  "serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
 			}, {
 				Name:         "logs",
 				Usage:        "Output the logs of a running service container - calls docker logs",
-				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
+				Description:  "serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
 			}, {
@@ -637,55 +636,6 @@ func (c *ServicedCli) buildServicePaths(svcs []service.ServiceDetails) (map[stri
 	return pathmap, nil
 }
 
-// FIXME: This needs tobe done in the backend
-// searches for service from definitions given keyword
-func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, error) {
-	svcs, err := c.driver.GetAllServiceDetails()
-	if err != nil {
-		return nil, err
-	}
-
-	pathmap, err := c.buildServicePaths(svcs)
-	if err != nil {
-		return nil, err
-	}
-
-	var services []service.ServiceDetails
-	for _, svc := range svcs {
-		poolPath := path.Join(strings.ToLower(svc.PoolID), pathmap[svc.ID])
-		switch strings.ToLower(keyword) {
-		case svc.ID, strings.ToLower(svc.Name), pathmap[svc.ID], poolPath:
-			services = append(services, svc)
-		default:
-			if keyword == "" {
-				services = append(services, svc)
-			} else if strings.HasSuffix(pathmap[svc.ID], strings.ToLower(keyword)) {
-				services = append(services, svc)
-			}
-		}
-	}
-
-	switch len(services) {
-	case 0:
-		return nil, fmt.Errorf("service not found")
-	case 1:
-		return &services[0], nil
-	}
-
-	t := NewTable("Name,ServiceID,DepID,Pool/Path")
-	t.Padding = 6
-	for _, row := range services {
-		t.AddRow(map[string]interface{}{
-			"Name":      row.Name,
-			"ServiceID": row.ID,
-			"DepID":     row.DeploymentID,
-			"Pool/Path": path.Join(row.PoolID, pathmap[row.ID]),
-		})
-	}
-	t.Print()
-	return nil, fmt.Errorf("multiple results found; select one from list")
-}
-
 // cmdSetTreeCharset sets the default behavior for --ASCII, SERVICED_TREE_ASCII, and stdout pipe
 func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	if ctx.Bool("ascii") {
@@ -697,108 +647,41 @@ func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	}
 }
 
-// parseServiceInstance gets the service or docker id and instance id from a provided
-// service string, being either a deploymentPath/servicepath/instanceid or
-// serviceid/instanceid or dockerid
-func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) {
-	servicepath, name := path.Split(keyword)
+// searchForService gets the service and instance id from a provided service
+// string, being either a deploymentPath/servicepath/instanceid or
+// serviceid/instanceid
+func (c *ServicedCli) searchForService(keyword string) (*service.ServiceDetails, int, error) {
+
+	// If the last segment is an integer, it is an instance ID
+	servicepath, instanceIDString := path.Split(keyword)
 	instanceID := -1
-
-	// if the servicepath is empty, then there is no instance id set for this
-	// service.
-	if servicepath == "" {
-		servicepath = name
+	if num, err := strconv.Atoi(instanceIDString); err != nil {
+		// It's not an integer, so just use the original path
+		servicepath = keyword
 	} else {
-		// check if the name is an instance id
-		if num, err := strconv.Atoi(name); err != nil {
-			servicepath = keyword
-		} else {
-			servicepath = strings.TrimRight(servicepath, "/")
-			instanceID = num
-		}
+		instanceID = num
 	}
 
-	// is the servicepath a dockerid?
-	if instanceID < 0 {
-		if _, err := docker.FindContainer(servicepath); err == nil {
-			return servicepath, instanceID, nil
-		}
-	}
-
-	// is the servicepath a serviceid?
-	if svc, _ := c.driver.GetServiceDetails(servicepath); svc != nil {
-		return svc.ID, instanceID, nil
-	}
-
-	// try to figure out what service this is
-	svcs, err := c.driver.GetAllServiceDetails()
+	matches, err := c.driver.ResolveServicePath(servicepath)
 	if err != nil {
-		return "", 0, err
-	}
-
-	// set up a service map
-	svcmap := make(map[string]service.ServiceDetails)
-	for _, svc := range svcs {
-		svcmap[svc.ID] = svc
-	}
-
-	// do a service lookup for the service path
-	var match func(string, string) bool
-	match = func(serviceID string, servicePath string) bool {
-		// if the servicePath is an empty string, then it is a match
-		if servicePath == "" {
-			return true
-		}
-
-		// get the service
-		svc := svcmap[serviceID]
-		serviceName := strings.ToLower(svc.Name)
-		deploymentID := strings.ToLower(svc.DeploymentID)
-
-		// split the service path and the name
-		pth, name := path.Split(servicePath)
-		pth = strings.TrimRight(pth, "/")
-
-		// does the name match?
-		if name == serviceName {
-			if svc.ParentServiceID == "" {
-				// this is a top level service, so compare the deployment id
-				return strings.HasSuffix(deploymentID, pth)
-			} else {
-				// keep checking the tree
-				return match(svc.ParentServiceID, pth)
-			}
-		}
-
-		// do a fuzzy check on the suffix
-		return strings.HasSuffix(serviceName, servicePath)
-	}
-
-	// filter all of the matches
-	servicepath = strings.ToLower(servicepath)
-	matches := []service.ServiceDetails{}
-	for _, svc := range svcs {
-		if match(svc.ID, servicepath) {
-			matches = append(matches, svc)
-		}
+		return nil, 0, err
 	}
 
 	// check the number of matches
 	if count := len(matches); count == 0 {
-		return "", 0, errors.New("service not found")
+		return nil, 0, errors.New("service not found")
 	} else if count == 1 {
-		return matches[0].ID, instanceID, nil
+		return &matches[0], instanceID, nil
 	}
 
 	// more than one match, display a dialog
-	var svcpath func(string) string
-	svcpath = func(serviceID string) string {
-		svc := svcmap[serviceID]
-		if svc.ParentServiceID == "" {
-			return path.Join(svc.DeploymentID, svc.Name)
-		} else {
-			return path.Join(svcpath(svc.ParentServiceID), svc.Name)
+	var svcpath func(*service.ServiceDetails) string
+	svcpath = func(svc *service.ServiceDetails) string {
+		parent := svc.Parent
+		if parent != nil {
+			return path.Join(svcpath(parent), svc.Name)
 		}
+		return path.Join(svc.DeploymentID, svc.Name)
 	}
 
 	t := NewTable("Name,ServiceID,DepID/Path")
@@ -808,11 +691,11 @@ func (c *ServicedCli) parseServiceInstance(keyword string) (string, int, error) 
 			"Name":       row.Name,
 			"ServiceID":  row.ID,
 			"PoolID":     row.PoolID,
-			"DepID/Path": svcpath(row.ID),
+			"DepID/Path": svcpath(&row),
 		})
 	}
 	t.Print()
-	return "", 0, fmt.Errorf("multiple results found; select one from list")
+	return nil, 0, fmt.Errorf("multiple results found; select one from list")
 }
 
 // serviced service status
@@ -845,12 +728,12 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	showIndividualHealthChecks = strings.Contains(fieldsToShow, "Healthcheck") || strings.Contains(fieldsToShow, "Healthcheck Status")
 
 	if len(ctx.Args()) > 0 {
-		serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+		svc, _, err := c.searchForService(ctx.Args().First())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if states, err = c.driver.GetServiceStatus(serviceID); err != nil {
+		if states, err = c.driver.GetServiceStatus(svc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
@@ -897,14 +780,13 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 // serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		svc, err := c.searchForService(ctx.Args()[0])
+		svc, _, err := c.searchForService(ctx.Args().First())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 
-		serviceID := svc.ID
-		if service, err := c.driver.GetService(serviceID); err != nil {
+		if service, err := c.driver.GetService(svc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "service not found")
@@ -942,7 +824,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 
 	if ctx.Bool("verbose") {
 		if len(services) > 100 {
-			fmt.Fprintf(os.Stderr, "too many services found for verbose mode (%d); no more than 100 allowed\n",len(services))
+			fmt.Fprintf(os.Stderr, "too many services found for verbose mode (%d); no more than 100 allowed\n", len(services))
 			return
 		}
 		if jsonService, err := json.MarshalIndent(services, " ", "  "); err != nil {
@@ -1024,7 +906,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
 		fmt.Fprintln(os.Stderr, "Must specify a parent service ID")
 		return
-	} else if parentService, err = c.searchForService(parentServiceID); err != nil {
+	} else if parentService, _, err = c.searchForService(parentServiceID); err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for parent service: %s", err)
 		return
 	}
@@ -1056,11 +938,12 @@ func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
 		return
 	}
+	serviceID := svc.ID
 
 	if copiedSvc, err := c.driver.CloneService(serviceID, ctx.String("suffix")); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
@@ -1080,11 +963,12 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
+	serviceID := svc.ID
 
 	if err := c.driver.RemoveService(serviceID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", serviceID, err)
@@ -1102,17 +986,17 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	svcDetails, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-        service, err := c.driver.GetService(svcDetails.ID)
-        if err != nil {
-                fmt.Fprintln(os.Stderr, err)
-                return
-        }
+	service, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 
 	jsonService, err := json.MarshalIndent(service, " ", "  ")
 	if err != nil {
@@ -1145,7 +1029,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -1157,7 +1041,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	}
 
 	cfg := api.IPConfig{
-		ServiceID: serviceID,
+		ServiceID: svc.ID,
 		IPAddress: ipAddress,
 	}
 
@@ -1175,13 +1059,13 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already started")
@@ -1199,20 +1083,20 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
 	if instanceID < 0 {
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting %d service(s)\n", affected)
 		}
 	} else {
-		if err := c.driver.StopServiceInstance(serviceID, instanceID); err != nil {
+		if err := c.driver.StopServiceInstance(svc.ID, instanceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting 1 service(s)\n")
@@ -1229,13 +1113,13 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
 		fmt.Println("Service already stopped")
@@ -1261,7 +1145,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		isTTY   bool
 	)
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
@@ -1280,7 +1164,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	}
 
 	config := api.ShellConfig{
-		ServiceID:        serviceID,
+		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
@@ -1339,17 +1223,17 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	svcDetails, err := c.searchForService(args[0])
+	svcDetails, _, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
 	}
 
-        svc, err := c.driver.GetService(svcDetails.ID)
-        if err != nil {
-                fmt.Fprintln(os.Stderr, err)
-                return c.exit(1)
-        }
+	svc, err := c.driver.GetService(svcDetails.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return c.exit(1)
+	}
 
 	if returncode := c.printHelpForRun(svc, args[1]); returncode >= 0 {
 		return c.exit(returncode)
@@ -1386,7 +1270,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return c.exit(exitcode)
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
+// serviced service attach { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -1398,7 +1282,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return nil
 	}
 
-	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1414,14 +1298,14 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	if err := c.driver.AttachServiceInstance(serviceID, instanceID, command, argv); err != nil {
+	if err := c.driver.AttachServiceInstance(svc.ID, instanceID, command, argv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
 	}
 	return nil
 }
 
-// serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
+// serviced service action { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -1433,7 +1317,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		return nil
 	}
 
-	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1441,7 +1325,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 
 	switch len(args) {
 	case 1:
-		actions := c.serviceActions(serviceID)
+		actions := c.serviceActions(svc.ID)
 		if len(actions) > 0 {
 			fmt.Println(strings.Join(actions, "\n"))
 		} else {
@@ -1458,7 +1342,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 			argv = args[2:]
 		}
 
-		if err := c.driver.SendDockerAction(serviceID, instanceID, action, argv); err != nil {
+		if err := c.driver.SendDockerAction(svc.ID, instanceID, action, argv); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -1466,7 +1350,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service action")
 }
 
-// serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
+// serviced service logs { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME/INSTANCE }
 func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -1478,7 +1362,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		return nil
 	}
 
-	serviceID, instanceID, err := c.parseServiceInstance(ctx.Args().First())
+	svc, instanceID, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return err
@@ -1494,7 +1378,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	if err := c.driver.LogsForServiceInstance(serviceID, instanceID, command, argv); err != nil {
+	if err := c.driver.LogsForServiceInstance(svc.ID, instanceID, command, argv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 
@@ -1510,13 +1394,13 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	if snapshots, err := c.driver.GetSnapshotsByServiceID(serviceID); err != nil {
+	if snapshots, err := c.driver.GetSnapshotsByServiceID(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
@@ -1563,7 +1447,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		description = ctx.String("description")
 	}
 
-	serviceID, _, err := c.parseServiceInstance(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
@@ -1574,7 +1458,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	tag := ctx.String("tag")
 
 	cfg := api.SnapshotConfig{
-		ServiceID: serviceID,
+		ServiceID: svc.ID,
 		Message:   description,
 		Tag:       tag,
 	}
@@ -1598,7 +1482,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(ctx.Args().First())
+	svc, _, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
