@@ -14,20 +14,19 @@
 package service
 
 import (
-	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/validation"
 )
-
 
 // a lightweight Service object with enough data to support status polling even if frequent
 type ServiceHealth struct {
-	ID              string
-	Name            string
-	PoolID          string
-	Instances	int
-	DesiredState	int
-	HealthChecks	map[string]health.HealthCheck
+	ID           string
+	Name         string
+	PoolID       string
+	Instances    int
+	DesiredState int
+	HealthChecks map[string]health.HealthCheck
 	datastore.VersionedEntity
 }
 
@@ -45,13 +44,14 @@ func (sh *ServiceHealth) ValidEntity() error {
 	return nil
 }
 
-func BuildServiceHealth(svc Service) (*ServiceHealth) {
+func BuildServiceHealth(svc Service) *ServiceHealth {
 	sh := &ServiceHealth{
-		ID: svc.ID,
-		Name: svc.Name,
-		PoolID: svc.PoolID,
-		Instances: svc.Instances,
+		ID:           svc.ID,
+		Name:         svc.Name,
+		PoolID:       svc.PoolID,
+		Instances:    svc.Instances,
 		DesiredState: svc.DesiredState,
+		HealthChecks: make(map[string]health.HealthCheck),
 	}
 
 	for key, value := range svc.HealthChecks {
