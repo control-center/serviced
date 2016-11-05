@@ -46,41 +46,37 @@ func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *daocl
 	w.WriteJson(&map[string]bool{"dockerLoggedIn": utils.DockerIsLoggedIn()})
 }
 
-func getTaggedServices(client *daoclient.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
-	services := []service.Service{}
+func getTaggedServices(ctx *requestContext, tags, nmregex string, tenantID string) ([]service.Service, error) {
 	tagsSlice := strings.Split(tags, ",")
 	serviceRequest := dao.ServiceRequest{
 		Tags:      tagsSlice,
 		TenantID:  tenantID,
 		NameRegex: nmregex,
 	}
-	if err := client.GetTaggedServices(serviceRequest, &services); err != nil {
-		glog.Errorf("Could not get tagged services: %v", err)
+	if svcs, err := ctx.getFacade().GetTaggedServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
+		glog.V(2).Infof("Returning %d tagged services", len(svcs))
+		return svcs, nil
+	} else {
 		return nil, err
 	}
-
-	glog.V(2).Infof("Returning %d tagged services", len(services))
-	return services, nil
 }
 
-func getNamedServices(client *daoclient.ControlClient, nmregex string, tenantID string) ([]service.Service, error) {
-	services := []service.Service{}
+func getNamedServices(ctx *requestContext, nmregex string, tenantID string) ([]service.Service, error) {
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
 		Tags:      emptySlice,
 		TenantID:  tenantID,
 		NameRegex: nmregex,
 	}
-	if err := client.GetServices(serviceRequest, &services); err != nil {
-		glog.Errorf("Could not get named services: %v", err)
+	if svcs, err := ctx.getFacade().GetServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
+		glog.V(2).Infof("Returning %d named services", len(svcs))
+		return svcs, nil
+	} else {
 		return nil, err
 	}
-
-	return services, nil
 }
 
-func getServices(client *daoclient.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
-	services := []service.Service{}
+func getServices(ctx *requestContext, tenantID string, since time.Duration) ([]service.Service, error) {
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
 		Tags:         emptySlice,
@@ -88,13 +84,12 @@ func getServices(client *daoclient.ControlClient, tenantID string, since time.Du
 		UpdatedSince: since,
 		NameRegex:    "",
 	}
-	if err := client.GetServices(serviceRequest, &services); err != nil {
-		glog.Errorf("Could not get services: %v", err)
+	if svcs, err := ctx.getFacade().GetServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
+		glog.V(2).Infof("Returning %d services", len(svcs))
+		return svcs, nil
+	} else {
 		return nil, err
 	}
-
-	glog.V(2).Infof("Returning %d services", len(services))
-	return services, nil
 }
 
 func getISVCS() []service.Service {
@@ -139,8 +134,11 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 	w.WriteJson(&simpleResponse{"Migrated services.", []link{}})
 }
 
-// DEPRECATED
-func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+// DEPRECATED - This call is SUPER expensive at sites with 1000s of services.
+//              As of 1.2.0, the UI no longer uses this endpoint, but Zenoss and/or
+//              the CC ZenPack may.
+// FIXME: Delete this method as soon as Zenoss and CC ZenPack no longer use this method.
+func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
 	// load the internal monitoring data
 	config, err := getInternalMetrics()
@@ -153,7 +151,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
-		result, err := getTaggedServices(client, tags, nmregex, tenantID)
+		result, err := getTaggedServices(ctx, tags, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
@@ -168,7 +166,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
-		result, err := getNamedServices(client, nmregex, tenantID)
+		result, err := getNamedServices(ctx, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
@@ -194,7 +192,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		}
 		tsince = time.Duration(tint) * time.Millisecond
 	}
-	result, err := getServices(client, tenantID, tsince)
+	result, err := getServices(ctx, tenantID, tsince)
 	if err != nil {
 		restServerError(w, err)
 		return
@@ -301,20 +299,27 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 	w.WriteJson(&simpleResponse{"Marked for death", servicesLinks()})
 }
 
-func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	var allServices []service.Service
+// DEPRECATED - As of 1.2.0, the UI no longer uses this endpoint, but Zenoss and/or
+//              the CC ZenPack may.
+// FIXME: Delete this method as soon as Zenoss and CC ZenPack no longer use this method.
+func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	topServices := []service.Service{}
-	var serviceRequest dao.ServiceRequest
-	err := client.GetServices(serviceRequest, &allServices)
+
+	// Instead of getting all services, get ServiceDetails for just the tenant Apps
+	allTenants, err := ctx.getFacade().GetServiceDetailsByParentID(ctx.getDatastoreContext(), "")
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
 		return
 	}
-	for _, service := range allServices {
-		if len(service.ParentServiceID) == 0 {
-			topServices = append(topServices, service)
+	for _, tenant := range allTenants {
+		service, err := ctx.getFacade().GetService(ctx.getDatastoreContext(), tenant.ID)
+		if err != nil {
+			glog.Errorf("Could not get service %d: %v", tenant.ID, err)
+			restServerError(w, err)
+			return
 		}
+		topServices = append(topServices, *service)
 	}
 	topServices = append(topServices, isvcs.InternalServicesISVC)
 	glog.V(2).Infof("Returning %d services as top services", len(topServices))

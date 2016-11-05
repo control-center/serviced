@@ -17,9 +17,6 @@
 package web
 
 import (
-	"github.com/control-center/serviced/dao"
-	daoclient "github.com/control-center/serviced/dao/client"
-	svc "github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -297,49 +294,4 @@ type virtualHost struct {
 	ServiceName     string
 	ServiceEndpoint string
 	Enabled         bool
-}
-
-// restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	var services []svc.Service
-	var serviceRequest dao.ServiceRequest
-	err := client.GetServices(serviceRequest, &services)
-	if err != nil {
-		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
-		restServerError(w, err)
-		return
-	}
-
-	serviceTree := make(map[string]svc.Service)
-	for _, service := range services {
-		serviceTree[service.ID] = service
-	}
-
-	vhosts := make([]virtualHost, 0)
-	for _, service := range services {
-		if service.Endpoints == nil {
-			continue
-		}
-
-		for _, endpoint := range service.Endpoints {
-			if len(endpoint.VHostList) > 0 {
-				parent, _ := serviceTree[service.ParentServiceID]
-				for ; len(parent.ParentServiceID) != 0; parent, _ = serviceTree[parent.ParentServiceID] {
-				}
-
-				for _, vhost := range endpoint.VHostList {
-					vh := virtualHost{
-						Name:            vhost.Name,
-						Application:     parent.Name,
-						ServiceName:     service.Name,
-						ServiceEndpoint: endpoint.Application,
-						Enabled:         vhost.Enabled,
-					}
-					vhosts = append(vhosts, vh)
-				}
-			}
-		}
-	}
-
-	w.WriteJson(&vhosts)
 }

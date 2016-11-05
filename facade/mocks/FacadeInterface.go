@@ -1024,6 +1024,29 @@ func (_m *FacadeInterface) GetServices(ctx datastore.Context, request dao.Entity
 	return r0, r1
 }
 
+// GetTaggedServices looks up all services with the specified tags. Allows filtering by tenant ID and/or name (regular expression).
+func (_m *FacadeInterface) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 []service.Service
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.EntityRequest) []service.Service); ok {
+		r0 = rf(ctx, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.Service)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, dao.EntityRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetServicesHealth provides a mock function with given fields: ctx
 func (_m *FacadeInterface) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
 	ret := _m.Called(ctx)

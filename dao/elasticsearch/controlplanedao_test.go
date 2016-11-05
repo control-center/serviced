@@ -430,34 +430,6 @@ func (dt *DaoTest) TestDao_GetService(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestDao_GetServices(t *C) {
-	svc, _ := service.NewService()
-	svc.ID = "default"
-	svc.Name = "name"
-	svc.PoolID = "default"
-	svc.DeploymentID = "deployment_id"
-	svc.Launch = "auto"
-	svc.Description = "description"
-	svc.Instances = 0
-
-	err := dt.Dao.AddService(*svc, &id)
-	t.Assert(err, IsNil)
-
-	var result []service.Service
-	var serviceRequest dao.ServiceRequest
-	err = dt.Dao.GetServices(serviceRequest, &result)
-	t.Assert(err, IsNil)
-	t.Assert(len(result), Equals, 1)
-	//XXX the time.Time types fail comparison despite being equal...
-	//	  as far as I can tell this is a limitation with Go
-	result[0].UpdatedAt = svc.UpdatedAt
-	result[0].CreatedAt = svc.CreatedAt
-	if !result[0].Equals(svc) {
-		t.Errorf("expected [%+v] actual=%+v", *svc, result)
-		t.Fail()
-	}
-}
-
 func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	svc := service.Service{
 		ID:             "ParentServiceID",

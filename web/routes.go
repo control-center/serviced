@@ -58,7 +58,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/pools/:poolId/ips", gz(sc.checkAuth(restGetPoolIps))},
 
 		// Services (Apps)
-		rest.Route{"GET", "/services", gz(sc.authorizedClient(restGetAllServices))},
+		rest.Route{"GET", "/services", gz(sc.checkAuth(restGetAllServices))},
 		rest.Route{"GET", "/servicehealth", gz(sc.checkAuth(restGetServicesHealth))},
 		rest.Route{"GET", "/services/:serviceId", gz(sc.authorizedClient(restGetService))},
 		rest.Route{"GET", "/services/:serviceId/running", gz(sc.authorizedClient(restGetRunningForService))},
@@ -76,7 +76,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"POST", "/services/:serviceId/migrate", sc.authorizedClient(restPostServicesForMigration)},
 
 		// Services (Virtual Host)
-		rest.Route{"GET", "/services/vhosts", gz(sc.authorizedClient(restGetVirtualHosts))},
 		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restAddVirtualHost))},
 		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restRemoveVirtualHost))},
 		rest.Route{"POST", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.checkAuth(restVirtualHostEnable))},
@@ -103,7 +102,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"DELETE", "/login", gz(restLogout)},
 
 		// "Misc" stuff
-		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
+		rest.Route{"GET", "/top/services", gz(sc.checkAuth(restGetTopServices))},
 		rest.Route{"GET", "/config", gz(sc.authorizedClient(restGetUIConfig))},
 		rest.Route{"GET", "/servicestatus", gz(sc.checkAuth(restGetConciseServiceStatus))},
 

@@ -64,7 +64,6 @@ type API interface {
 	RemoveVirtualIP(pool.VirtualIP) error
 
 	// Services
-	GetServicesDeprecated() ([]service.Service, error)
 	GetAllServiceDetails() ([]service.ServiceDetails, error)
 	GetServiceDetails(serviceID string) (*service.ServiceDetails, error)
 	GetServiceStatus(string) (map[string]map[string]interface{}, error)

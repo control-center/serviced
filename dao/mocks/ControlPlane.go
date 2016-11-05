@@ -107,36 +107,12 @@ func (_m *ControlPlane) GetTenantIDs(unused struct {}, tenantIDs *[]string) erro
 
 	return r0
 }
-func (_m *ControlPlane) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
-	ret := _m.Called(request, services)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.ServiceRequest, *[]service.Service) error); ok {
-		r0 = rf(request, services)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
 func (_m *ControlPlane) FindChildService(request dao.FindChildRequest, svc *service.Service) error {
 	ret := _m.Called(request, svc)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.FindChildRequest, *service.Service) error); ok {
 		r0 = rf(request, svc)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
-	ret := _m.Called(request, services)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.ServiceRequest, *[]service.Service) error); ok {
-		r0 = rf(request, services)
 	} else {
 		r0 = ret.Error(0)
 	}

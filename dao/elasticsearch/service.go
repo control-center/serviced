@@ -128,19 +128,6 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 	return err
 }
 
-// Get the services (can filter by name and/or tenantID)
-// FIXME - REMOVE ONCE CLI and REST TIER ARE NO LONGER USING THIS METHOD
-func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
-	ctx := datastore.Get()
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetServices"))
-	if svcs, err := this.facade.GetServices(ctx, request); err == nil {
-		*services = svcs
-		return nil
-	} else {
-		return err
-	}
-}
-
 // Get a list of tenant IDs
 func (this *ControlPlaneDao) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
 	ctx := datastore.Get()
@@ -168,18 +155,6 @@ func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, serv
 		glog.Warningf("unable to find child of service: %+v", service)
 	}
 	return nil
-}
-
-// Get tagged services (can also filter by name and/or tenantID)
-func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
-	ctx := datastore.Get()
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetTaggedServices"))
-	if svcs, err := this.facade.GetTaggedServices(ctx, request); err == nil {
-		*services = svcs
-		return nil
-	} else {
-		return err
-	}
 }
 
 // start the provided service
