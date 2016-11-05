@@ -4,6 +4,8 @@
     // share angular services outside of angular context
     let $notification, serviceHealth, $q, resourcesFactory, utils, Instance;
 
+    const MAX_REQUEST_IDS = 15;
+
     controlplane.factory('Service', ServiceFactory);
 
     // DesiredState enum
@@ -247,7 +249,7 @@
                 return acc;
             }, {});
             let ids = Object.keys(eps);
-            return resourcesFactory.v2.getServiceStatuses(ids);
+            return this.getServiceStatuses(ids);
         }
 
         // fetch and update service statuses for all
@@ -256,7 +258,7 @@
             let deferred = $q.defer();
             let descendents = getDescendents({}, this);
             let ids = Object.keys(descendents);
-            resourcesFactory.v2.getServiceStatuses(ids)
+            this.getServiceStatuses(ids)
                 .then(results => {
                     if (results.length) {
                         results.forEach(stat => {
@@ -270,6 +272,40 @@
                     deferred.reject(error);
                 });
             return deferred.promise;
+        }
+
+        // the list of ids can get extrememly long, which
+        // can push the acceptable limits of URL length,
+        // so split the request up
+        getServiceStatuses(ids){
+            let promises = [];
+
+            let count = Math.ceil(ids.length / MAX_REQUEST_IDS);
+            for(let i = 0; i < count; i++){
+                let start = i * MAX_REQUEST_IDS;
+                // either slice to the end of this array, or
+                // the next MAX_REQUEST_IDS elements
+                let end = Math.min(start + MAX_REQUEST_IDS, ids.length);
+                let idsSlice = ids.slice(start, end);
+                promises.push(resourcesFactory.v2.getServiceStatuses(idsSlice));
+            }
+
+            // NOTE - this will cancel all on the first failure
+            // which may not be the desired behavior
+            let all = $q.all(promises).then(results => {
+                // results will be an array of results, one
+                // for each promise. the caller is expecting
+                // a single array of results, so lets squish
+                // em all together
+                let statuses = results.reduce((arr, r) => arr.concat(r), []);
+                return $q.when(statuses);
+            })
+            .catch(err => {
+                console.warn("failure getting service statuses", err);
+            });
+
+            // TODO - optionally return [all, promises]
+            return all;
         }
 
         hasInstances() {
