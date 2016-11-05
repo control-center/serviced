@@ -16,20 +16,21 @@
 package facade
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	zks "github.com/control-center/serviced/zzk/service"
-
-	"errors"
-	"fmt"
 
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
@@ -1224,6 +1225,73 @@ func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 	ft.assertPathResolvesToServices(c, "/")
 	ft.assertPathResolvesToServices(c, "")
 
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
+	svc := service.Service{
+		ID:             "ParentServiceID",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
+		ImageID:        "test/pinger",
+		PoolID:         "default",
+		DeploymentID:   "deployment_id",
+		DesiredState:   int(service.SVCRun),
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+	childService1 := service.Service{
+		ID:              "childService1",
+		Name:            "childservice1",
+		Launch:          "auto",
+		PoolID:          "default",
+		DeploymentID:    "deployment_id",
+		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID: "ParentServiceID",
+	}
+	childService2 := service.Service{
+		ID:              "childService2",
+		Name:            "childservice2",
+		Launch:          "auto",
+		PoolID:          "default",
+		DeploymentID:    "deployment_id",
+		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID: "ParentServiceID",
+	}
+	// add a service with a subservice
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		 c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// start the service
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// stop the parent
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// verify the children have all stopped
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	for _, subService := range services {
+		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == "ParentServiceID" {
+			c.Errorf("Was expecting child services to be stopped %v", subService)
+		}
+	}
 }
 
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
