@@ -62,23 +62,6 @@ type IPConfig struct {
 // Type of method that controls the state of a service
 type ServiceStateController func(SchedulerConfig) (int, error)
 
-// Gets all of the available services
-// FIXME - REMOVE THIS as soon as we cli/cmd/publicendpoint.go stops using it
-func (a *api) GetServicesDeprecated() ([]service.Service, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	var services []service.Service
-	var serviceRequest dao.ServiceRequest
-	if err := client.GetServices(serviceRequest, &services); err != nil {
-		return nil, err
-	}
-
-	return services, nil
-}
-
 func (a *api) GetAllServiceDetails() ([]service.ServiceDetails, error) {
 	client, err := a.connectMaster()
 	if err != nil {

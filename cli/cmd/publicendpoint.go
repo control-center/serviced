@@ -68,7 +68,6 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	var publicEndpoints []PublicEndpoint
 
 	if len(ctx.Args()) > 0 {
-		// FIXME: replace with call to Facade method
 		// Provided the service id/name.
 		svcDetails, _, err := c.searchForService(ctx.Args()[0])
 		if err != nil {

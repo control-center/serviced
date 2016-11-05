@@ -479,25 +479,23 @@ func (d *daemon) startMaster() (err error) {
 	}
 
 	// Create tenant volumes if they do not already exist
-	services, err := d.facade.GetAllServices(d.dsContext)
+	tenantIDs, err := d.facade.GetTenantIDs(d.dsContext)
 	if err != nil {
 		log.WithError(err).Fatal("Unable to get deployed services")
 	}
 
-	for _, s := range services {
-		if s.ParentServiceID == "" {
-			tenantLogger := log.WithField("Tenant ID", s.ID)
-			// This is a tenant and should have a volume
-			_, err := d.disk.Get(s.ID)
-			if err == volume.ErrVolumeNotExists {
-				tenantLogger.Warn("Tenant volume not found")
-				if _, err := d.disk.Create(s.ID); err != nil {
-					tenantLogger.WithError(err).Fatal("Could not re-create tenant volume")
-				}
-				tenantLogger.Warn("Created new tenant volume")
-			} else if err != nil {
-				tenantLogger.WithError(err).Fatal("Could not get volume for tenant")
+	for _, tenantID := range tenantIDs {
+		tenantLogger := log.WithField("tenantid", tenantID)
+		// This is a tenant and should have a volume
+		_, err := d.disk.Get(tenantID)
+		if err == volume.ErrVolumeNotExists {
+			tenantLogger.Warn("Tenant volume not found")
+			if _, err := d.disk.Create(tenantID); err != nil {
+				tenantLogger.WithError(err).Fatal("Could not re-create tenant volume")
 			}
+			tenantLogger.Warn("Created new tenant volume")
+		} else if err != nil {
+			tenantLogger.WithError(err).Fatal("Could not get volume for tenant")
 		}
 	}
 

@@ -66,3 +66,38 @@ func (d *ServiceDetails) ValidEntity() error {
 
 	return nil
 }
+
+// Equals returns true if two instances of ServiceDetails are the same
+func (s *ServiceDetails) Equals(b *ServiceDetails) bool {
+	if s.ID != b.ID {
+		return false
+	}
+	if s.Name != b.Name {
+		return false
+	}
+	if s.Startup != b.Startup {
+		return false
+	}
+	if s.Description != b.Description {
+		return false
+	}
+	if s.Instances != b.Instances {
+		return false
+	}
+	if s.ImageID != b.ImageID {
+		return false
+	}
+	if s.PoolID != b.PoolID {
+		return false
+	}
+	if s.DesiredState != b.DesiredState {
+		return false
+	}
+	if s.Launch != b.Launch {
+		return false
+	}
+	if s.ParentServiceID != b.ParentServiceID {
+		return false
+	}
+	return true
+}

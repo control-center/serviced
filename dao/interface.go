@@ -155,15 +155,8 @@ type ControlPlane interface {
 	// Get a service from serviced
 	GetService(serviceId string, svc *service.Service) error
 
-	// Get a list of services from serviced
-	// FIXME - REMOVE ONCE CLI and REST TIER ARE NO LONGER USING THIS METHOD
-	GetServices(request ServiceRequest, services *[]service.Service) error
-
 	// Find a child service with the given name
 	FindChildService(request FindChildRequest, svc *service.Service) error
-
-	// Get services with the given tag(s)
-	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)

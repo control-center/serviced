@@ -172,13 +172,6 @@ func InitServiceAPITest(args ...string) {
 	c.Run(args)
 }
 
-func (t ServiceAPITest) GetServicesDeprecated() ([]service.Service, error) {
-	if t.errs["GetServicesDeprecated"] != nil {
-		return nil, t.errs["GetServicesDeprecated"]
-	}
-	return t.services, nil
-}
-
 func (t ServiceAPITest) GetAllServiceDetails() ([]service.ServiceDetails, error) {
 	if t.errs["GetAllServiceDetails"] != nil {
 		return nil, t.errs["GetAllServiceDetails"]
@@ -457,12 +450,12 @@ func TestServicedCLI_CmdServiceList_one(t *testing.T) {
 }
 
 func TestServicedCLI_CmdServiceList_all(t *testing.T) {
-	expected, err := DefaultServiceAPITest.GetServicesDeprecated()
+	expected, err := DefaultServiceAPITest.GetAllServiceDetails()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var actual []*service.Service
+	var actual []*service.ServiceDetails
 	output := captureStdout(func() { InitServiceAPITest("serviced", "service", "list", "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)

@@ -823,63 +823,85 @@ func (f *Facade) evaluateService(ctx datastore.Context, svc *service.Service, in
 }
 
 // GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
+// NOTE: Do NOT use this method unless you absolutely, positively need to get a full copy of every service. At sites
+//       with 1000s of services, this can be a really expensive call.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServices"))
-	glog.V(3).Infof("Facade.GetServices")
+	var (
+		serviceRequest dao.ServiceRequest
+		services       []service.Service
+		err            error
+	)
+	switch v := request.(type) {
+	case dao.ServiceRequest:
+		serviceRequest = request.(dao.ServiceRequest)
+	default:
+		err := fmt.Errorf("Bad request type %v: %+v", v, request)
+		plog.Errorf("Facade.GetServices: err=", err)
+		return nil, err
+	}
+	logger := plog.WithFields(log.Fields{
+		"tags": serviceRequest.Tags,
+		"tenantid": serviceRequest.TenantID,
+		"updatedsince": int(serviceRequest.UpdatedSince.Seconds()),
+		"nameregex": serviceRequest.NameRegex,
+	})
+	logger.Debug("Started Facade.GetServices")
+	defer logger.Debug("Finished Facade.GetServices")
+
 	store := f.serviceStore
-	var services []service.Service
-	var err error
-	if request.(dao.ServiceRequest).UpdatedSince != 0 {
-		services, err = store.GetUpdatedServices(ctx, request.(dao.ServiceRequest).UpdatedSince)
+	if serviceRequest.UpdatedSince != 0 {
+		services, err = store.GetUpdatedServices(ctx, serviceRequest.UpdatedSince)
 		if err != nil {
-			glog.Error("Facade.GetServices: err=", err)
+			logger.WithError(err).Error("Unable to get services changed since")
 			return nil, err
 		}
 	} else {
 		services, err = store.GetServices(ctx)
 		if err != nil {
-			glog.Error("Facade.GetServices: err=", err)
+			logger.WithError(err).Error("Unable to get all services")
 			return nil, err
 		}
 	}
 
-	switch v := request.(type) {
-	case dao.ServiceRequest:
-		glog.V(3).Infof("request: %+v", request)
-
-		// filter by the name provided
-		if request.(dao.ServiceRequest).NameRegex != "" {
-			services, err = filterByNameRegex(request.(dao.ServiceRequest).NameRegex, services)
-			if err != nil {
-				glog.Error("Facade.GetServices: err=", err)
-				return nil, err
-			}
-		}
-
-		// filter by the tenantID provided
-		if request.(dao.ServiceRequest).TenantID != "" {
-			services, err = f.filterByTenantID(ctx, request.(dao.ServiceRequest).TenantID, services)
-			if err != nil {
-				glog.Error("Facade.GetServices: err=", err)
-				return nil, err
-			}
-		}
-
-		if err = f.fillOutServices(ctx, services); err != nil {
+	// filter by the name provided
+	if serviceRequest.NameRegex != "" {
+		services, err = filterByNameRegex(serviceRequest.NameRegex, services)
+		if err != nil {
+			logger.WithError(err).Error("Unable to filter services by name")
 			return nil, err
 		}
-		return services, nil
-	default:
-		err := fmt.Errorf("Bad request type %v: %+v", v, request)
-		glog.V(2).Info("Facade.GetServices: err=", err)
+	}
+
+	// filter by the tenantID provided
+	if serviceRequest.TenantID != "" {
+		services, err = f.filterByTenantID(ctx, serviceRequest.TenantID, services)
+		if err != nil {
+			logger.WithError(err).Error("Unable to filter services by tenant ID")
+			return nil, err
+		}
+	}
+
+	if err = f.fillOutServices(ctx, services); err != nil {
 		return nil, err
 	}
+
+	return services, nil
 }
 
 // GetAllServices will get all the services
+// NOTE: Do NOT use this method unless you absolutely, positively need to get a full copy of every service. At sites
+//       with 1000s of services, this can be a really expensive call.
 func (f *Facade) GetAllServices(ctx datastore.Context) ([]service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetAllServices"))
-	svcs, err := f.getServices(ctx)
+	var (
+		err  error
+		svcs []service.Service
+	)
+	plog.Debug("Started Facade.GetAllServices")
+	defer plog.Debug("Finished Facade.GetAllServices")
+
+	svcs, err = f.getServices(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -910,63 +932,74 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]serv
 // GetTaggedServices looks up all services with the specified tags. Allows filtering by tenant ID and/or name (regular expression).
 func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTaggedServices"))
-	glog.V(3).Infof("Facade.GetTaggedServices")
+	var (
+		serviceRequest dao.ServiceRequest
+		tags           []string
+		logger         *log.Entry
+		err            error
+		services       []service.Service
+	)
 
-	store := f.serviceStore
 	switch v := request.(type) {
-	case []string:
-		results, err := store.GetTaggedServices(ctx, v...)
-		if err != nil {
-			glog.Error("Facade.GetTaggedServices: err=", err)
-			return nil, err
-		}
-		if err = f.fillOutServices(ctx, results); err != nil {
-			return nil, err
-		}
-		glog.V(2).Infof("Facade.GetTaggedServices: services=%v", results)
-		return results, nil
 	case dao.ServiceRequest:
-		glog.V(3).Infof("request: %+v", request)
-
-		// Get the tagged services
-		services, err := store.GetTaggedServices(ctx, request.(dao.ServiceRequest).Tags...)
-		if err != nil {
-			glog.Error("Facade.GetTaggedServices: err=", err)
-			return nil, err
-		}
-		if err = f.fillOutServices(ctx, services); err != nil {
-			return nil, err
-		}
-
-		// filter by the name provided
-		if request.(dao.ServiceRequest).NameRegex != "" {
-			services, err = filterByNameRegex(request.(dao.ServiceRequest).NameRegex, services)
-			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
-				return nil, err
-			}
-		}
-
-		// filter by the tenantID provided
-		if request.(dao.ServiceRequest).TenantID != "" {
-			services, err = f.filterByTenantID(ctx, request.(dao.ServiceRequest).TenantID, services)
-			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
-				return nil, err
-			}
-		}
-
-		return services, nil
+		serviceRequest = request.(dao.ServiceRequest)
+		tags = serviceRequest.Tags
+		logger = plog.WithFields(log.Fields{
+			"tags":  tags,
+			"tenantid": serviceRequest.TenantID,
+			"updatedsince": int(serviceRequest.UpdatedSince.Seconds()),
+			"nameregex": serviceRequest.NameRegex,
+		})
+	case []string:
+		tags = request.([]string)
+		logger = plog.WithFields(log.Fields{
+			"tags":  tags,
+		})
 	default:
-		err := fmt.Errorf("Bad request type: %v", v)
-		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
+		err := fmt.Errorf("Bad request type %v: %+v", v, request)
+		plog.WithError(err).Error("GetTaggedServices failed")
 		return nil, err
 	}
+
+	logger.Debug("Started Facade.GetTaggedServices")
+	defer logger.Debug("Finished Facade.GetTaggedServices")
+
+	store := f.serviceStore
+	services, err = store.GetTaggedServices(ctx, tags...)
+	if err != nil {
+		logger.WithError(err).Error("Unable to get tagged services")
+		return nil, err
+	}
+	if err = f.fillOutServices(ctx, services); err != nil {
+		return nil, err
+	}
+
+	// filter by the name provided
+	if serviceRequest.NameRegex != "" {
+		services, err = filterByNameRegex(serviceRequest.NameRegex, services)
+		if err != nil {
+			logger.WithError(err).Error("Unable to filter services by name")
+			return nil, err
+		}
+	}
+
+	// filter by the tenantID provided
+	if serviceRequest.TenantID != "" {
+		services, err = f.filterByTenantID(ctx, serviceRequest.TenantID, services)
+		if err != nil {
+			logger.WithError(err).Error("Unable to filter services by tenant ID")
+			return nil, err
+		}
+	}
+	return services, nil
 }
 
 // Get a list of tenant IDs
 func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetTenantIDs"))
+	plog.Debug("Started Facade.GetTenantIDs")
+	defer plog.Debug("Finished Facade.GetTenantIDs")
+
 	svcs, err := f.GetServiceDetailsByParentID(ctx, "")
 	if err != nil {
 		plog.WithError(err).Error("Could not get tenant IDs")
@@ -985,7 +1018,9 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 	logger := plog.WithFields(log.Fields{
 		"serviceID": serviceID,
 	})
-	logger.Debug("Facade.GetTenantID: looking ...")
+	logger.Debug("Started Facade.GetTenantID")
+	defer logger.Debug("Finished Facade.GetTenantID")
+
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
@@ -1000,7 +1035,9 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, re
 		"reportImports": reportImports,
 		"reportExports": reportExports,
 	})
-	logger.Debug("Facade.GetServiceEndpoints: looking ...")
+	logger.Debug("Started Facade.GetServiceEndpoints")
+	defer logger.Debug("Finished Facade.GetServiceEndpoints")
+
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -1098,7 +1135,9 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 		"parentServiceID": parentServiceID,
 		"childName":       childName,
 	})
-	logger.Debug("Facade.FindChildService: looking ...")
+	logger.Debug("Started Facade.FindChildService")
+	defer logger.Debug("Finished Facade.FindChildService")
+
 	store := f.serviceStore
 	parentService, err := store.Get(ctx, parentServiceID)
 	if err != nil {
@@ -1744,11 +1783,13 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 //and modified config files
 func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.getServices"))
-	glog.V(3).Infof("Facade.GetServices")
+	plog.Debug("Started Facade.getServices")
+	defer plog.Debug("Finished Facade.getServices")
+
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
 	if err != nil {
-		glog.Error("Facade.GetServices: err=", err)
+		plog.WithError(err).Error("Unable to get a list of all services")
 		return results, err
 	}
 	return results, nil

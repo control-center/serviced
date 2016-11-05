@@ -41,6 +41,8 @@ type FacadeInterface interface {
 
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
+	GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
+
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
 	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error

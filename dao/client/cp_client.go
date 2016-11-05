@@ -74,14 +74,6 @@ func (s *ControlClient) GetTenantIDs(unused struct {}, tenantIDs *[]string) erro
 	return s.rpcClient.Call("ControlCenter.GetTenantIDs", unused, tenantIDs, 0)
 }
 
-func (s *ControlClient) GetServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetServices", request, replyServices, 0)
-}
-
-func (s *ControlClient) GetTaggedServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
-	return s.rpcClient.Call("ControlCenter.GetTaggedServices", request, replyServices, 0)
-}
-
 func (s *ControlClient) GetService(serviceId string, service *service.Service) (err error) {
 	return s.rpcClient.Call("ControlCenter.GetService", serviceId, service, 0)
 }

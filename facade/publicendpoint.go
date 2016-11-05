@@ -66,6 +66,8 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	}
 
 	// check other ports for redundancy
+	// FIXME: GetAllServices is really expensive. Can this be replaced
+	//        with a more targeted method like get-all-services with portAddr "blah"?
 	services, err := f.GetAllServices(ctx)
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
@@ -256,6 +258,9 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 
 	// check other virtual hosts for redundancy
 	vhostLowerName := strings.ToLower(vhostName)
+
+	// FIXME: GetAllServices is really expensive. Can this be replaced
+	//        with a more targeted method like get-all-services with vhost "blah"?
 	services, err := f.GetAllServices(ctx)
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)

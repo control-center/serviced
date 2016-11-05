@@ -883,29 +883,6 @@ func (_m *API) GetServiceTemplates() ([]servicetemplate.ServiceTemplate, error) 
 	return r0, r1
 }
 
-// GetServicesDeprecated provides a mock function with given fields:
-func (_m *API) GetServicesDeprecated() ([]service.Service, error) {
-	ret := _m.Called()
-
-	var r0 []service.Service
-	if rf, ok := ret.Get(0).(func() []service.Service); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Service)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetSnapshotByServiceIDAndTag provides a mock function with given fields: _a0, _a1
 func (_m *API) GetSnapshotByServiceIDAndTag(_a0 string, _a1 string) (string, error) {
 	ret := _m.Called(_a0, _a1)
