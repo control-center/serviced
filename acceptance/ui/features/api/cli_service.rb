@@ -15,7 +15,7 @@ module CCApi
             # Make sure one of the lines matches each of the values
             result = CC.CLI.execute("%{serviced} service public-endpoints port list")
             result.each_line do |line|
-                return true if (result =~ /#{service}/) && (result =~ /#{endpoint}/) && (result =~ /#{portAddr}/) && (result =~ /#{protocol}/) && (result =~ /#{enabled}/)
+                return true if (line =~ /#{service}/i) && (line =~ /#{endpoint}/i) && (line =~ /#{portAddr}/i) && (line =~ /#{protocol}/i) && (line =~ /#{enabled}/i)
             end
 
             fail(ArgumentError.new("port #{name} doesn't exist"))
@@ -31,7 +31,7 @@ module CCApi
             # Make sure one of the lines matches each of the values
             result = CC.CLI.execute("%{serviced} service public-endpoints vhost list")
             result.each_line do |line|
-                return true if (result =~ /#{service}/) && (result =~ /#{endpoint}/) && (result =~ /#{vhost}/) && (result =~ /#{enabled}/)
+                return true if (line =~ /#{service}/i) && (line =~ /#{endpoint}/i) && (line =~ /#{vhost}/i) && (line =~ /#{enabled}/i)
             end
 
             fail(ArgumentError.new("vhost #{name} doesn't exist"))
@@ -225,7 +225,7 @@ module CCApi
         def remove_publicendpoint_port(service, endpoint, portAddr)
             CC.CLI.execute("%{serviced} service public-endpoints port rm #{service} #{endpoint} #{portAddr}")
         end
-        
+
         def remove_publicendpoint_vhost(service, endpoint, vhost)
             CC.CLI.execute("%{serviced} service public-endpoints vhost rm #{service} #{endpoint} #{vhost}")
         end
