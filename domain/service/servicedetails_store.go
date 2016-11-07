@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/control-center/serviced/datastore"
@@ -24,14 +25,34 @@ import (
 )
 
 // GetAllServiceDetails returns service details for an id
-func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context) ([]ServiceDetails, error) {
+func (s *storeImpl) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllServiceDetails"))
-	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
-		"query": map[string]interface{}{
-			"query_string": map[string]string{
-				"query": "_exists_:ID",
+	query := map[string]interface{}{}
+	existsQuery := map[string]string{
+		"query": "_exists_:ID",
+	}
+	if since > 0 {
+		t0 := time.Now().Add(-since)
+		query["bool"] = map[string]interface{}{
+			"must": []map[string]interface{}{
+				map[string]interface{}{
+					"query_string": existsQuery,
+				},
+				map[string]interface{}{
+					"range": map[string]interface{}{
+						"UpdatedAt": map[string]string{
+							"gte": t0.Format(time.RFC3339),
+						},
+					},
+				},
 			},
-		},
+		}
+	} else {
+		query["query_string"] = existsQuery
+	}
+
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query":  query,
 		"fields": serviceDetailsFields,
 		"size":   serviceDetailsLimit,
 	})
@@ -108,12 +129,34 @@ func (s *storeImpl) GetServiceDetails(ctx datastore.Context, serviceID string) (
 }
 
 // GetChildServiceDetailsByParentID returns service details given parent service id
-func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]ServiceDetails, error) {
+func (s *storeImpl) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceDetailsByParentID"))
+	query := map[string]interface{}{}
+	termQuery := map[string]string{
+		"ParentServiceID": parentID,
+	}
+	if since > 0 {
+		t0 := time.Now().Add(-since)
+		query["bool"] = map[string]interface{}{
+			"must": []map[string]interface{}{
+				map[string]interface{}{
+					"term": termQuery,
+				},
+				map[string]interface{}{
+					"range": map[string]interface{}{
+						"UpdatedAt": map[string]string{
+							"gte": t0.Format(time.RFC3339),
+						},
+					},
+				},
+			},
+		}
+	} else {
+		query["term"] = termQuery
+	}
+
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
-		"query": map[string]interface{}{
-			"term": map[string]string{"ParentServiceID": parentID},
-		},
+		"query":  query,
 		"fields": serviceDetailsFields,
 		"size":   serviceDetailsLimit,
 	})
@@ -250,7 +293,6 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 
 	return peps, nil
 }
-
 
 func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{

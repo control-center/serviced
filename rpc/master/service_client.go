@@ -47,9 +47,9 @@ func (c *Client) WaitService(serviceIDs []string, state service.DesiredState, ti
 }
 
 // GetAllServiceDetails will return a list of all ServiceDetails
-func (c *Client) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+func (c *Client) GetAllServiceDetails(since time.Duration) ([]service.ServiceDetails, error) {
 	svcs := []service.ServiceDetails{}
-	err := c.call("GetAllServiceDetails", nil, &svcs)
+	err := c.call("GetAllServiceDetails", since, &svcs)
 	return svcs, err
 }
 

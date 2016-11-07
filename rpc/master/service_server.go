@@ -44,6 +44,11 @@ type EvaluateServiceResponse struct {
 	TenantID string
 }
 
+type ServiceDetailsByTenantIDRequest struct {
+	TenantID string
+	Since    time.Duration
+}
+
 // Use a new image for a given service - this will pull the image and tag it
 func (s *Server) ServiceUse(request *ServiceUseRequest, response *string) error {
 	if err := s.f.ServiceUse(s.context(), request.ServiceID, request.ImageID, request.Registry, request.ReplaceImgs, request.NoOp); err != nil {
@@ -60,8 +65,8 @@ func (s *Server) WaitService(request *WaitServiceRequest, throwaway *string) err
 }
 
 // GetAllServiceDetails will return a list of all ServiceDetails
-func (s *Server) GetAllServiceDetails(unused struct{}, response *[]service.ServiceDetails) error {
-	svcs, err := s.f.GetAllServiceDetails(s.context())
+func (s *Server) GetAllServiceDetails(since time.Duration, response *[]service.ServiceDetails) error {
+	svcs, err := s.f.GetAllServiceDetails(s.context(), since)
 	if err != nil {
 		return err
 	}

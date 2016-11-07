@@ -305,8 +305,14 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	topServices := []service.Service{}
 
+	tsince, err := getSinceParameter(r)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
 	// Instead of getting all services, get ServiceDetails for just the tenant Apps
-	allTenants, err := ctx.getFacade().GetServiceDetailsByParentID(ctx.getDatastoreContext(), "")
+	allTenants, err := ctx.getFacade().GetServiceDetailsByParentID(ctx.getDatastoreContext(), "", tsince)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
