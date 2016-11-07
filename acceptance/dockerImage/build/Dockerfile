@@ -22,17 +22,17 @@ RUN /bin/bash -lc "source /usr/local/rvm/scripts/rvm"
 #
 # Install Cucumber, Capybara and the other gems we need
 #
-RUN /bin/bash -lc "gem install cucumber -v 2.3.2"
-RUN /bin/bash -lc "gem install nokogiri -v 1.6.7.2"
-RUN /bin/bash -lc "gem install capybara -v 2.6.2"
-RUN /bin/bash -lc "gem install capybara-screenshot -v 1.0.11"
-RUN /bin/bash -lc "gem install poltergeist -v 1.9.0"
-RUN /bin/bash -lc "gem install rspec -v 3.4.0"
-RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
-RUN /bin/bash -lc "gem install site_prism -v 2.8"
-RUN /bin/bash -lc "gem install headless -v 2.2.2"
-RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
-RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
+RUN /bin/bash -lc "gem install cucumber -v 2.4.0"
+RUN /bin/bash -lc "gem install nokogiri -v 1.6.8.1"
+RUN /bin/bash -lc "gem install capybara -v 2.7.1"
+RUN /bin/bash -lc "gem install capybara-screenshot -v 1.0.14"
+RUN /bin/bash -lc "gem install poltergeist -v 1.11.0"
+RUN /bin/bash -lc "gem install rspec -v 3.5.0"
+RUN /bin/bash -lc "gem install selenium-webdriver -v 3.0.0"
+RUN /bin/bash -lc "gem install site_prism -v 2.9"
+RUN /bin/bash -lc "gem install headless -v 2.3.1"
+RUN /bin/bash -lc "gem install capybara-webkit -v 1.11.1"
+RUN /bin/bash -lc "gem install cucumber-api -v 0.4"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
