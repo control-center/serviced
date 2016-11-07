@@ -84,8 +84,7 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 		cmd := []string{
 			"/usr/bin/ssh",
 			"-t", targetIP, "--",
-			"serviced", "--endpoint", GetOptionsRPCEndpoint(),
-			"service", "attach", fmt.Sprintf("%s", targetContainer),
+			"docker", "exec", "-it", fmt.Sprintf("%s", targetContainer),
 		}
 		cmd = append(cmd, command)
 		cmd = append(cmd, args...)
