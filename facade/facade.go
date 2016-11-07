@@ -54,6 +54,7 @@ func New() *Facade {
 		userStore:     user.NewStore(),
 		serviceCache:  NewServiceCache(),
 		hostRegistry:  auth.NewHostExpirationRegistry(),
+		deployments:   NewPendingDeploymentMgr(),
 		zzk:           getZZK(),
 	}
 }
@@ -75,6 +76,7 @@ type Facade struct {
 	metricsClient MetricsClient
 	serviceCache  *serviceCache
 	hostRegistry  auth.HostExpirationRegistryInterface
+	deployments   *PendingDeploymentMgr
 
 	isvcsPath string
 }
@@ -108,3 +110,5 @@ func (f *Facade) SetIsvcsPath(path string) { f.isvcsPath = path }
 func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegistryInterface) {
 	f.hostRegistry = hostRegistry
 }
+
+func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }

@@ -92,6 +92,14 @@ type PendingDeploymentMgr struct {
 	mutex       sync.RWMutex
 }
 
+// NewPendingDeploymentMgr returns a new PendingDeploymentMgr
+func NewPendingDeploymentMgr() *PendingDeploymentMgr {
+	return &PendingDeploymentMgr{
+		deployments: make(map[string]*PendingDeployment),
+		mutex:       sync.RWMutex{},
+	}
+}
+
 // NewPendingDeployment allocates a new PendingDeployment with the given attributes
 // and associates it with the PendingDeploymentMgr
 func (dm *PendingDeploymentMgr) NewPendingDeployment(deploymentID, templateID, poolID string) (*PendingDeployment, error) {

@@ -15,7 +15,6 @@ package facade
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -196,19 +195,14 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
-var dm = PendingDeploymentMgr{
-	deployments: make(map[string]*PendingDeployment),
-	mutex:       sync.RWMutex{},
-}
-
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
 	// we initialize the data container to something here in case it has not been initialized yet
 	active = make([]map[string]string, 0)
 
-	dm.mutex.RLock()
-	defer dm.mutex.RUnlock()
-	for _, v := range dm.deployments {
+	f.deployments.mutex.RLock()
+	defer f.deployments.mutex.RUnlock()
+	for _, v := range f.deployments.deployments {
 		active = append(active, v.GetInfo())
 	}
 
@@ -222,7 +216,7 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 // immediately even if the status matches; if the timeout is zero then do not
 // timeout.
 func (f *Facade) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (status string, err error) {
-	deployment := dm.GetPendingDeployment(deploymentID)
+	deployment := f.deployments.GetPendingDeployment(deploymentID)
 	if deployment == nil {
 		return "", nil
 	}
@@ -250,8 +244,11 @@ func (f *Facade) DeployTemplateStatus(deploymentID string, lastStatus string, ti
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployTemplate"))
 	// add an entry for reporting status
-	deployment := dm.NewPendingDeployment(deploymentID, templateID, poolID)
-	defer dm.DeletePendingDeployment(deploymentID)
+	deployment, err := f.deployments.NewPendingDeployment(deploymentID, templateID, poolID)
+	if err != nil {
+		return nil, err
+	}
+	defer f.deployments.DeletePendingDeployment(deploymentID)
 
 	deployment.UpdateStatus("deploy_loading_template|" + templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
