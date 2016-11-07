@@ -18,6 +18,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -25,7 +26,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
-
 
 func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	templatesMap, err := ctx.getFacade().GetServiceTemplates(ctx.getDatastoreContext())
@@ -114,8 +114,14 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, ctx *request
 	}
 }
 
+type DeployTemplateStatusRequest struct {
+	DeploymentID string
+	LastStatus   string
+	Timeout      int
+}
+
 func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	var payload servicetemplate.ServiceTemplateDeploymentRequest
+	var payload DeployTemplateStatusRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)
@@ -123,7 +129,8 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, ctx *r
 		return
 	}
 
-	status, err := ctx.getFacade().DeployTemplateStatus(payload.DeploymentID)
+	timeout := time.Duration(payload.Timeout) * time.Millisecond
+	status, err := ctx.getFacade().DeployTemplateStatus(payload.DeploymentID, payload.LastStatus, timeout)
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)

@@ -215,15 +215,35 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 	return active, nil
 }
 
-// DeployTemplateStatus sets the status of a deployed service or template
-func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
+// DeployTemplateStatus returns the current status of a deployed template.
+// If the current status is the same as the value of the lastStatus parameter,
+// block until the status changes, then return the new status.  A timeout may
+// be applied to the status change wait; if the timeout is negative then return
+// immediately even if the status matches; if the timeout is zero then do not
+// timeout.
+func (f *Facade) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (status string, err error) {
 	deployment := dm.GetPendingDeployment(deploymentID)
 	if deployment == nil {
 		return "", nil
 	}
 
-	status, _ := deployment.GetStatus()
-	return status, nil
+	status, statusChanged := deployment.GetStatus()
+	if status != lastStatus || timeout < 0 {
+		return status, nil
+	}
+
+	var timer <-chan time.Time
+	if timeout != 0 {
+		timer = time.After(timeout)
+	}
+
+	select {
+	case <-timer:
+		return status, nil
+	case <-statusChanged:
+		status, _ = deployment.GetStatus()
+		return status, nil
+	}
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service

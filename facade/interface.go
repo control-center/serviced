@@ -71,7 +71,7 @@ type FacadeInterface interface {
 
 	DeployTemplateActive() (active []map[string]string, err error)
 
-	DeployTemplateStatus(deploymentID string) (status string, err error)
+	DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (status string, err error)
 
 	AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error)
 
