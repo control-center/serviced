@@ -2090,37 +2090,41 @@ func (f *Facade) getServiceExportedEndpoints(svc service.Service) []service.Expo
 // children if enabled.
 func (f *Facade) GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServicePublicEndpoints"))
-	svc, err := f.serviceStore.Get(ctx, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	pubeps := f.getServicePublicEndpoints(*svc)
 
+	pubeps := []service.PublicEndpoint{}
 	if children {
-		var setChildrenPublicEndpoints func(serviceID string) error
-
-		setChildrenPublicEndpoints = func(serviceID string) error {
-			svcs, err := f.serviceStore.GetChildServices(ctx, serviceID)
-			if err != nil {
-				return err
-			}
-
-			for _, svc := range svcs {
-				pubeps = append(pubeps, f.getServicePublicEndpoints(svc)...)
-				if err := setChildrenPublicEndpoints(svc.ID); err != nil {
-					return err
+		allPeps, err := f.GetAllPublicEndpoints(ctx)
+		if err != nil {
+			return pubeps, err
+		}
+		for _, pep := range allPeps {
+			if pep.ServiceID == serviceID {
+				pubeps = append(pubeps, pep)
+			} else {
+				// Determine if serviceID is a parent
+				detail, err := f.GetServiceDetailsAncestry(ctx, pep.ServiceID)
+				if err != nil {
+					return pubeps, err
+				}
+				for detail != nil {
+					if detail.ID == serviceID {
+						pubeps = append(pubeps, pep)
+						break
+					}
+					detail = detail.Parent
 				}
 			}
-
-			return nil
 		}
+	} else {
+		svc, err := f.serviceStore.Get(ctx, serviceID)
 
-		if err := setChildrenPublicEndpoints(serviceID); err != nil {
+		if err != nil {
 			return nil, err
 		}
+		pubeps = f.getServicePublicEndpoints(*svc)
 	}
-
 	return pubeps, nil
+
 }
 
 func (f *Facade) getServicePublicEndpoints(svc service.Service) []service.PublicEndpoint {
