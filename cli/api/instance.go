@@ -14,7 +14,6 @@
 package api
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 
@@ -56,26 +55,23 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 		return err
 	}
 
-	// Check to see if serviceID is actually a dockerID
-	_, err = dockerclient.FindContainer(serviceID)
-	if err == nil {
-		targetHost = hostID
-		targetContainer = serviceID
-	} else {
-		client, err := a.connectMaster()
-		if err != nil {
-			return err
-		}
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
 
-		// get the location of the running instance
-		location, err := client.LocateServiceInstance(serviceID, instanceID)
-		if err != nil {
-			return err
-		}
+	// get the location of the running instance
+	location, err := client.LocateServiceInstance(serviceID, instanceID)
+	if err != nil {
+		return err
+	}
 
-		targetHost = location.HostID
-		targetIP = location.HostIP
-		targetContainer = location.ContainerID
+	targetHost = location.HostID
+	targetIP = location.HostIP
+	targetContainer = location.ContainerID
+
+	if command == "" {
+		command = "/bin/bash"
 	}
 
 	// attach to the container
@@ -84,18 +80,14 @@ func (a *api) AttachServiceInstance(serviceID string, instanceID int, command st
 		cmd := []string{
 			"/usr/bin/ssh",
 			"-t", targetIP, "--",
-			"docker", "exec", "-it", fmt.Sprintf("%s", targetContainer),
+			"/usr/bin/docker", "exec", "-it", targetContainer,
 		}
 		cmd = append(cmd, command)
 		cmd = append(cmd, args...)
 		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
 	} else {
-		if command == "" {
-			cmd = append(cmd, "/bin/bash")
-		} else {
-			cmd = append(cmd, command)
-			cmd = append(cmd, args...)
-		}
+		cmd = append(cmd, command)
+		cmd = append(cmd, args...)
 		return utils.AttachAndExec(targetContainer, cmd)
 	}
 }
@@ -125,8 +117,7 @@ func (a *api) LogsForServiceInstance(serviceID string, instanceID int, command s
 		cmd := []string{
 			"/usr/bin/ssh",
 			"-t", location.HostIP, "--",
-			"serviced", "--endpoint", GetOptionsRPCEndpoint(),
-			"service", "logs", fmt.Sprintf("%s/%d", serviceID, instanceID),
+			"/usr/bin/docker", "logs", location.ContainerID,
 		}
 		if command != "" {
 			cmd = append(cmd, command)
