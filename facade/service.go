@@ -841,10 +841,10 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		return nil, err
 	}
 	logger := plog.WithFields(log.Fields{
-		"tags": serviceRequest.Tags,
-		"tenantid": serviceRequest.TenantID,
+		"tags":         serviceRequest.Tags,
+		"tenantid":     serviceRequest.TenantID,
 		"updatedsince": int(serviceRequest.UpdatedSince.Seconds()),
-		"nameregex": serviceRequest.NameRegex,
+		"nameregex":    serviceRequest.NameRegex,
 	})
 	logger.Debug("Started Facade.GetServices")
 	defer logger.Debug("Finished Facade.GetServices")
@@ -945,15 +945,15 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 		serviceRequest = request.(dao.ServiceRequest)
 		tags = serviceRequest.Tags
 		logger = plog.WithFields(log.Fields{
-			"tags":  tags,
-			"tenantid": serviceRequest.TenantID,
+			"tags":         tags,
+			"tenantid":     serviceRequest.TenantID,
 			"updatedsince": int(serviceRequest.UpdatedSince.Seconds()),
-			"nameregex": serviceRequest.NameRegex,
+			"nameregex":    serviceRequest.NameRegex,
 		})
 	case []string:
 		tags = request.([]string)
 		logger = plog.WithFields(log.Fields{
-			"tags":  tags,
+			"tags": tags,
 		})
 	default:
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
@@ -2235,8 +2235,17 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 	// Now walk up the path, filtering parents as we go
 	level := 1
 	for !isEmptyPath(parent) {
+		// Split the path to get the segment at this level
 		parent, current = path.Split(strings.TrimRight(parent, "/"))
+
+		// Technically this won't ever be needed, as it gets lowered in cli/cmd
+		// before it gets here, but for the sake of local clarity...
+		current = strings.ToLower(current)
+
 		filtered := make([]service.ServiceDetails, 0)
+
+		// Walk up parents to the current level and check their names to filter
+		// the list of potentials
 		for _, d := range result {
 			p := &d
 			for i := 0; i < level; i++ {
@@ -2245,10 +2254,11 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 					break
 				}
 			}
+
 			// If the parent name at this level matches OR this is the last
 			// segment and it matches the deployment ID, it's considered
 			// a match
-			if (p != nil && p.Name == current) || (isEmptyPath(parent) && d.DeploymentID == current) {
+			if (p != nil && strings.ToLower(p.Name) == current) || (isEmptyPath(parent) && strings.ToLower(d.DeploymentID) == current) {
 				filtered = append(filtered, d)
 			}
 		}
