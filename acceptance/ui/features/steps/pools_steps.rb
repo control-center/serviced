@@ -150,13 +150,15 @@ end
 
 def fillInResourcePoolField(name)
     val = getTableValue(name)
-    CC.UI.PoolsPage.poolName_input.set val
+    el = CC.UI.PoolsPage.poolName_input
+    fill_in el[:name], :with => val
     expect(CC.UI.PoolsPage.poolName_input.value).to eq val
 end
 
 def fillInDescriptionField(description)
     val = getTableValue(description)
-    CC.UI.PoolsPage.description_input.set val
+    el = CC.UI.PoolsPage.description_input
+    fill_in el[:name], :with => val
     expect(CC.UI.PoolsPage.description_input.value).to eq val
 end
 
@@ -166,19 +168,22 @@ end
 
 def fillInIpField(address)
     val = getTableValue(address)
-    CC.UI.PoolsPage.ip_input.set val
+    el = CC.UI.PoolsPage.ip_input
+    fill_in el[:name], :with => val
     expect(CC.UI.PoolsPage.ip_input.value).to eq val
 end
 
 def fillInNetmaskField(netmask)
     val = getTableValue(netmask)
-    CC.UI.PoolsPage.netmask_input.set val
+    el = CC.UI.PoolsPage.netmask_input
+    fill_in el[:name], :with => val
     expect(CC.UI.PoolsPage.netmask_input.value).to eq val
 end
 
 def fillInInterfaceField(interface)
     val = getTableValue(interface)
-    CC.UI.PoolsPage.interface_input.set val
+    el = CC.UI.PoolsPage.interface_input
+    fill_in el[:name], :with => val
     expect(CC.UI.PoolsPage.interface_input.value).to eq val
 end
 

@@ -140,7 +140,8 @@ end
 
 def fillInDeploymentID(id)
     val = getTableValue(id)
-    CC.UI.ApplicationsPage.deploymentID_field.set val
+    el = CC.UI.ApplicationsPage.deploymentID_field
+    fill_in el[:name], :with => val
     expect(CC.UI.ApplicationsPage.deploymentID_field.value).to eq val
 end
 
