@@ -368,13 +368,13 @@ func (_m *ClientInterface) GetAllPublicEndpoints() ([]service.PublicEndpoint, er
 	return r0, r1
 }
 
-// GetAllServiceDetails provides a mock function with given fields:
-func (_m *ClientInterface) GetAllServiceDetails() ([]service.ServiceDetails, error) {
-	ret := _m.Called()
+// GetAllServiceDetails provides a mock function with given fields: since
+func (_m *ClientInterface) GetAllServiceDetails(since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func() []service.ServiceDetails); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -382,8 +382,8 @@ func (_m *ClientInterface) GetAllServiceDetails() ([]service.ServiceDetails, err
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(time.Duration) error); ok {
+		r1 = rf(since)
 	} else {
 		r1 = ret.Error(1)
 	}
