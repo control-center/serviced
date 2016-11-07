@@ -68,7 +68,7 @@ func (a *api) GetAllServiceDetails() ([]service.ServiceDetails, error) {
 		return nil, err
 	}
 
-	return client.GetAllServiceDetails()
+	return client.GetAllServiceDetails(0)
 }
 
 func (a *api) GetServiceDetails(serviceID string) (*service.ServiceDetails, error) {
@@ -106,7 +106,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			}
 		}
 	} else {
-		svcs, err = masterClient.GetAllServiceDetails()
+		svcs, err = masterClient.GetAllServiceDetails(0)
 		if err != nil {
 			return nil, err
 		}

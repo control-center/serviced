@@ -17,10 +17,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/datastore"
 )
 
 func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestContext) {
@@ -29,10 +31,16 @@ func getAllServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestCon
 	var err error
 	var details []service.ServiceDetails
 
+	tsince, err := getSinceParameter(r)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
 	if _, ok := r.URL.Query()["tenants"]; ok {
-		details, err = c.getFacade().GetServiceDetailsByParentID(ctx, "")
+		details, err = c.getFacade().GetServiceDetailsByParentID(ctx, "", tsince)
 	} else {
-		details, err = c.getFacade().GetAllServiceDetails(ctx)
+		details, err = c.getFacade().GetAllServiceDetails(ctx, tsince)
 	}
 
 	if err != nil {
@@ -86,7 +94,13 @@ func getChildServiceDetails(w *rest.ResponseWriter, r *rest.Request, c *requestC
 
 	ctx := c.getDatastoreContext()
 
-	details, err := c.getFacade().GetServiceDetailsByParentID(ctx, serviceID)
+	tsince, err := getSinceParameter(r)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	details, err := c.getFacade().GetServiceDetailsByParentID(ctx, serviceID, tsince)
 	if err != nil {
 		restServerError(w, err)
 		return
@@ -193,4 +207,19 @@ func putServiceContext(w *rest.ResponseWriter, r *rest.Request, c *requestContex
 	}
 
 	writeJSON(w, "Service Context Updated.", http.StatusOK)
+}
+
+func getSinceParameter(r *rest.Request) (time.Duration, error) {
+	var tsince time.Duration
+	since := r.URL.Query().Get("since")
+	if since == "" {
+		tsince = time.Duration(0)
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+	return tsince, nil
 }

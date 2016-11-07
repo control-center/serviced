@@ -17,6 +17,7 @@ package web
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
@@ -167,7 +168,7 @@ func (s *TestWebSuite) TestRestGetChildServiceDetailsShouldReturnStatusOK(c *C) 
 	request.PathParams["serviceId"] = "tenant"
 
 	s.mockFacade.
-		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "tenant").
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "tenant", time.Duration(0)).
 		Return([]service.ServiceDetails{serviceDetailsTestData.firstService}, nil)
 
 	getChildServiceDetails(&(s.writer), &request, s.ctx)
@@ -206,7 +207,7 @@ func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldReturnStatusOK(c *C) {
 	request := s.buildRequest("GET", "http://www.example.com/services", "")
 
 	s.mockFacade.
-		On("GetAllServiceDetails", s.ctx.getDatastoreContext()).
+		On("GetAllServiceDetails", s.ctx.getDatastoreContext(), time.Duration(0)).
 		Return([]service.ServiceDetails{
 			serviceDetailsTestData.firstService,
 			serviceDetailsTestData.secondService,
@@ -222,7 +223,7 @@ func (s *TestWebSuite) TestRestGetAllServiceDetailsShouldOnlyReturnTenants(c *C)
 	request := s.buildRequest("GET", "http://www.example.com/services?tenants", "")
 
 	s.mockFacade.
-		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "").
+		On("GetServiceDetailsByParentID", s.ctx.getDatastoreContext(), "", time.Duration(0)).
 		Return([]service.ServiceDetails{
 			serviceDetailsTestData.tenant,
 		}, nil)

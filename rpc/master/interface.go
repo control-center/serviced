@@ -108,7 +108,7 @@ type ClientInterface interface {
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
 
 	// GetAllServiceDetails will return a list of all ServiceDetails
-	GetAllServiceDetails() ([]service.ServiceDetails, error)
+	GetAllServiceDetails(since time.Duration) ([]service.ServiceDetails, error)
 
 	// GetServiceDetailsByTenantID will return a list of ServiceDetails for the specified tenant ID
 	GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error)

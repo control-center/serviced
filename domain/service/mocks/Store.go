@@ -106,7 +106,7 @@ func (_m *Store) Get(ctx datastore.Context, id string) (*service.Service, error)
 	return r0, r1
 }
 
-// UpdateDesiredState provides a mock function with given fields: ctx
+// GetAllPublicEndpoints provides a mock function with given fields: ctx
 func (_m *Store) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
 	ret := _m.Called(ctx)
 
@@ -129,13 +129,13 @@ func (_m *Store) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicE
 	return r0, r1
 }
 
-// GetAllServiceDetails provides a mock function with given fields: ctx
-func (_m *Store) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx)
+// GetAllServiceDetails provides a mock function with given fields: ctx, since
+func (_m *Store) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -143,8 +143,8 @@ func (_m *Store) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceD
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
+		r1 = rf(ctx, since)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -244,13 +244,13 @@ func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string
 	return r0, r1
 }
 
-// GetServiceDetailsByParentID provides a mock function with given fields: ctx, parentID
-func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, parentID)
+// GetServiceDetailsByParentID provides a mock function with given fields: ctx, parentID, since
+func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, parentID, since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, parentID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, parentID, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -258,8 +258,8 @@ func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, parentID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, time.Duration) error); ok {
+		r1 = rf(ctx, parentID, since)
 	} else {
 		r1 = ret.Error(1)
 	}

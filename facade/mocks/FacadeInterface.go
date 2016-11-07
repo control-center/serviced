@@ -4,6 +4,7 @@ import addressassignment "github.com/control-center/serviced/domain/addressassig
 import dao "github.com/control-center/serviced/dao"
 import datastore "github.com/control-center/serviced/datastore"
 import domain "github.com/control-center/serviced/domain"
+
 import health "github.com/control-center/serviced/health"
 import host "github.com/control-center/serviced/domain/host"
 import mock "github.com/stretchr/testify/mock"
@@ -403,13 +404,36 @@ func (_m *FacadeInterface) GetAggregateServices(ctx datastore.Context, since tim
 	return r0, r1
 }
 
-// GetAllServiceDetails provides a mock function with given fields: ctx
-func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+// GetAllPublicEndpoints provides a mock function with given fields: ctx
+func (_m *FacadeInterface) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
 	ret := _m.Called(ctx)
 
-	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
+	var r0 []service.PublicEndpoint
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.PublicEndpoint); ok {
 		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.PublicEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAllServiceDetails provides a mock function with given fields: ctx, since
+func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, since)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -417,8 +441,8 @@ func (_m *FacadeInterface) GetAllServiceDetails(ctx datastore.Context) ([]servic
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
+		r1 = rf(ctx, since)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -840,13 +864,13 @@ func (_m *FacadeInterface) GetServiceDetailsAncestry(ctx datastore.Context, serv
 	return r0, r1
 }
 
-// GetServiceDetailsByParentID provides a mock function with given fields: ctx, serviceID
-func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, serviceID)
+// GetServiceDetailsByParentID provides a mock function with given fields: ctx, serviceID, since
+func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, serviceID string, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, serviceID, since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, serviceID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, serviceID, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -854,8 +878,8 @@ func (_m *FacadeInterface) GetServiceDetailsByParentID(ctx datastore.Context, se
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, time.Duration) error); ok {
+		r1 = rf(ctx, serviceID, since)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1024,29 +1048,6 @@ func (_m *FacadeInterface) GetServices(ctx datastore.Context, request dao.Entity
 	return r0, r1
 }
 
-// GetTaggedServices looks up all services with the specified tags. Allows filtering by tenant ID and/or name (regular expression).
-func (_m *FacadeInterface) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
-	ret := _m.Called(ctx, request)
-
-	var r0 []service.Service
-	if rf, ok := ret.Get(0).(func(datastore.Context, dao.EntityRequest) []service.Service); ok {
-		r0 = rf(ctx, request)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.Service)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, dao.EntityRequest) error); ok {
-		r1 = rf(ctx, request)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetServicesHealth provides a mock function with given fields: ctx
 func (_m *FacadeInterface) GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error) {
 	ret := _m.Called(ctx)
@@ -1084,6 +1085,29 @@ func (_m *FacadeInterface) GetSystemUser(ctx datastore.Context) (user.User, erro
 	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
 		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTaggedServices provides a mock function with given fields: ctx, request
+func (_m *FacadeInterface) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 []service.Service
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.EntityRequest) []service.Service); ok {
+		r0 = rf(ctx, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.Service)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, dao.EntityRequest) error); ok {
+		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1524,25 +1548,4 @@ func (_m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Des
 	}
 
 	return r0
-}
-func (_m *FacadeInterface) GetAllPublicEndpoints(ctx datastore.Context)  ([]service.PublicEndpoint, error) {
-	ret := _m.Called(ctx)
-
-	var r0 []service.PublicEndpoint
-	if rf, ok := ret.Get(0).(func(datastore.Context) []service.PublicEndpoint); ok {
-		r0 = rf(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]service.PublicEndpoint)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }

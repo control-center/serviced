@@ -1000,7 +1000,7 @@ func (f *Facade) GetTenantIDs(ctx datastore.Context) ([]string, error) {
 	plog.Debug("Started Facade.GetTenantIDs")
 	defer plog.Debug("Finished Facade.GetTenantIDs")
 
-	svcs, err := f.GetServiceDetailsByParentID(ctx, "")
+	svcs, err := f.GetServiceDetailsByParentID(ctx, "", 0)
 	if err != nil {
 		plog.WithError(err).Error("Could not get tenant IDs")
 		return nil, err
@@ -1977,9 +1977,9 @@ func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metric
 }
 
 // Get all the service details
-func (f *Facade) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
+func (f *Facade) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetAllServiceDetails"))
-	return f.serviceStore.GetAllServiceDetails(ctx)
+	return f.serviceStore.GetAllServiceDetails(ctx, since)
 }
 
 // GetServiceDetails returns the details of a particular service
@@ -2008,15 +2008,15 @@ func (f *Facade) GetServiceDetailsAncestry(ctx datastore.Context, serviceID stri
 }
 
 // Get the details of the child services for the given parent
-func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
+func (f *Facade) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByParentID"))
-	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID)
+	return f.serviceStore.GetServiceDetailsByParentID(ctx, parentID, since)
 }
 
 // Get the details of all services for the specified tenant
 func (f *Facade) GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceDetailsByTenantID"))
-	svcs, err := f.serviceStore.GetAllServiceDetails(ctx)
+	svcs, err := f.serviceStore.GetAllServiceDetails(ctx, 0)
 	if err != nil {
 		return nil, err
 	}

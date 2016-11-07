@@ -292,6 +292,49 @@ func (s *S) Test_GetWithCachedState(t *C) {
 	t.Assert(svc.DesiredState, Equals, int(SVCRun))
 }
 
+func (s *S) Test_GetServiceDetailsWithSince(c *C) {
+	svca := &Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+		UpdatedAt:       time.Now().Add(-time.Minute),
+	}
+	svcb := &Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "svc_a",
+		DeploymentID:    "deployment_id",
+		UpdatedAt:       time.Now().Add(2 * -time.Second),
+	}
+	c.Assert(s.store.Put(s.ctx, svca), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
+
+	// Query for all time, get both
+	details, err := s.store.GetAllServiceDetails(s.ctx, time.Duration(0))
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
+
+	// Query for last hour, get both
+	details, err = s.store.GetAllServiceDetails(s.ctx, time.Hour)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 2)
+
+	// Query for last 30 seconds, get one
+	details, err = s.store.GetAllServiceDetails(s.ctx, 30*time.Second)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 1)
+
+	// Query for last second, get none
+	details, err = s.store.GetAllServiceDetails(s.ctx, time.Second)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 0)
+}
+
 func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	svca := &Service{
 		ID:              "svcaid",
