@@ -47,8 +47,10 @@
     // given a service, accumulate all descendents into
     // a map keyed by service id
     function getDescendents(descendents, service) {
-        service.subservices.forEach(svc => getDescendents(descendents, svc));
-        descendents[service.id] = service;
+        service.subservices.forEach( function(svc) {
+            getDescendents(descendents, svc);
+            descendents[svc.id] = svc;
+        });
         return descendents;
     }
 
