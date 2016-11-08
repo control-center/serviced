@@ -54,8 +54,7 @@ func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc service.Get
 	return cachedSvc.tenantID, nil
 }
 
-// GetServicePath returns the tenant ID and service path for the specified service from the. It assumes that
-// the cache has already been populated by a previous call to serviceCache.GetTenantID.
+// GetServicePath returns the tenant ID and service path for the specified service from the.
 func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc service.GetService) (string, string, error) {
 	if cachedSvc, found := sc.lookUpService(serviceID); found {
 		return cachedSvc.tenantID, cachedSvc.servicePath, nil
@@ -122,6 +121,8 @@ func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePa
 		"serviceid": serviceID,
 	})
 
+	// FIXME: This getServiceFunc method should be replaced with something much lighter, such as GetServiceDetails.
+	//        In fact, there's probably no need at all for the getServiceFunc to be passed into this method.
 	svc, err := getServiceFunc(serviceID)
 	if err != nil {
 		logger.WithError(err).Error("Could not find service")
