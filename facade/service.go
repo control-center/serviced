@@ -1021,8 +1021,8 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 	logger.Debug("Started Facade.GetTenantID")
 	defer logger.Debug("Finished Facade.GetTenantID")
 
-	gs := func(id string) (service.Service, error) {
-		return f.getService(ctx, id)
+	gs := func(id string) (*service.ServiceDetails, error) {
+		return f.GetServiceDetails(ctx, id)
 	}
 	return f.serviceCache.GetTenantID(serviceID, gs)
 }

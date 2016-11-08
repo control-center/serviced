@@ -40,9 +40,11 @@ func NewServiceCache() *serviceCache {
 	}
 }
 
+type GetServiceDetails func(servicedID string) (*service.ServiceDetails, error)
+
 // GetTenantID returns the tenant ID for the specified service from its cache. If the specified service
 // is not in the cache, it uses getServiceFunc to populate the cache (assuming serviceID really exists in the DB).
-func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc service.GetService) (string, error) {
+func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc GetServiceDetails) (string, error) {
 	if cachedSvc, found := sc.lookUpService(serviceID); found {
 		return cachedSvc.tenantID, nil
 	}
@@ -54,9 +56,8 @@ func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc service.Get
 	return cachedSvc.tenantID, nil
 }
 
-// GetServicePath returns the tenant ID and service path for the specified service from the. It assumes that
-// the cache has already been populated by a previous call to serviceCache.GetTenantID.
-func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc service.GetService) (string, string, error) {
+// GetServicePath returns the tenant ID and service path for the specified service from the.
+func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc GetServiceDetails) (string, string, error) {
 	if cachedSvc, found := sc.lookUpService(serviceID); found {
 		return cachedSvc.tenantID, cachedSvc.servicePath, nil
 	}
@@ -101,7 +102,7 @@ func (sc *serviceCache) lookUpService(svcID string) (servicePath, bool) {
 	return cachedSvc, found
 }
 
-func (sc *serviceCache) updateCache(serviceID string, getServiceFunc service.GetService) (servicePath, error) {
+func (sc *serviceCache) updateCache(serviceID string, getServiceFunc GetServiceDetails) (servicePath, error) {
 	sc.mutex.Lock()
 	defer sc.mutex.Unlock()
 
@@ -117,11 +118,13 @@ func (sc *serviceCache) updateCache(serviceID string, getServiceFunc service.Get
 	return cachedSvc, nil
 }
 
-func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePath, getServiceFunc service.GetService) (svcPath servicePath, err error) {
+func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePath, getServiceFunc GetServiceDetails) (svcPath servicePath, err error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid": serviceID,
 	})
 
+	// FIXME: This getServiceFunc method should be replaced with something much lighter, such as GetServiceDetails.
+	//        In fact, there's probably no need at all for the getServiceFunc to be passed into this method.
 	svc, err := getServiceFunc(serviceID)
 	if err != nil {
 		logger.WithError(err).Error("Could not find service")
@@ -137,9 +140,13 @@ func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePa
 		return svcPath, nil
 	}
 
-	parent, err := sc.buildServicePath(svc.ParentServiceID, svcPaths, getServiceFunc)
-	if err != nil {
-		return servicePath{}, err
+	var parent servicePath
+	var parentCached bool
+	if parent, parentCached = sc.paths[svc.ParentServiceID]; !parentCached {
+		parent, err = sc.buildServicePath(svc.ParentServiceID, svcPaths, getServiceFunc)
+		if err != nil {
+			return servicePath{}, err
+		}
 	}
 
 	svcPath = servicePath{

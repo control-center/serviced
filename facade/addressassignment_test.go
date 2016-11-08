@@ -81,11 +81,20 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 		DesiredState:    0,
 		Endpoints: []service.ServiceEndpoint{
 			{
-				Name:        "ep2",
-				Application: "ep2",
+				Name:        "ep2a",
+				Application: "ep2a",
 				Purpose:     "export",
 				AddressConfig: servicedefinition.AddressResourceConfig{
 					Port:     2123,
+					Protocol: "tcp",
+				},
+			},
+			{
+				Name:        "ep2b",
+				Application: "ep2b",
+				Purpose:     "export",
+				AddressConfig: servicedefinition.AddressResourceConfig{
+					Port:     2124,
 					Protocol: "tcp",
 				},
 			},
@@ -132,7 +141,7 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 
 	addrs, err = ft.Facade.GetServiceAddressAssignmentDetails(ft.CTX, "serviceid1", true)
 	c.Assert(err, IsNil)
-	c.Assert(addrs, HasLen, 2)
+	c.Assert(addrs, HasLen, 3)
 	expected = append(expected, service.IPAssignment{
 		ServiceID:   "serviceid2",
 		ServiceName: "svcB",
@@ -142,9 +151,33 @@ func (ft *FacadeIntegrationTest) TestGetServiceAddressAssignmentDetails(c *C) {
 		HostName:    "h1",
 		IPAddress:   "12.27.36.45",
 		Port:        2123,
-		Application: "ep2",
+		Application: "ep2a",
 	})
-	c.Assert(addrs, DeepEquals, expected)
+	expected = append(expected, service.IPAssignment{
+		ServiceID:   "serviceid2",
+		ServiceName: "svcB",
+		PoolID:      "poolid",
+		Type:        "static",
+		HostID:      "deadb11f",
+		HostName:    "h1",
+		IPAddress:   "12.27.36.45",
+		Port:        2124,
+		Application: "ep2b",
+	})
+	for _, assign := range(addrs) {
+		verified := false
+		for _, exp := range(expected) {
+			if assign.ServiceID == exp.ServiceID && assign.Application == exp.Application {
+				verified = true
+				c.Assert(assign, Equals, exp)
+				break
+			}
+		}
+
+		if !verified {
+			c.Errorf("Results did not have assignment for %s-%s", assign.ServiceID, assign.Application)
+		}
+	}
 
 	addrs, err = ft.Facade.GetServiceAddressAssignmentDetails(ft.CTX, "serviceid3", false)
 	c.Assert(err, IsNil)
