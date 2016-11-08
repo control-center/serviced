@@ -145,6 +145,48 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValues(c *C) {
 	t.assertExpectedCacheEntries(c, initialCacheEntries)
 }
 
+func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValuesForParents(c *C) {
+	tenantID := "mockTenantId"
+	childID := "mockChildId"
+	grandchildID := "mockGrandChildId"
+
+	// Load the cache manually
+	initialCacheEntries := []servicePath{
+		servicePath{
+			serviceID:   tenantID,
+			parentID:    "",
+			tenantID:    tenantID,
+			servicePath: "/" + tenantID,
+		},
+		servicePath{
+			serviceID:   childID,
+			parentID:    tenantID,
+			tenantID:    tenantID,
+			servicePath: "/" + tenantID + "/" + childID,
+		},
+	}
+	for _, expected := range initialCacheEntries {
+		t.cache.paths[expected.serviceID] = expected
+	}
+
+	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+
+	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
+	// any calls to t.getService for those entries
+	result, err := t.cache.GetTenantID(grandchildID, t.getService)
+
+	c.Assert(result, Equals, tenantID)
+	c.Assert(err, IsNil)
+	expectedCacheEntries := append(initialCacheEntries, servicePath{
+		serviceID:   grandchildID,
+		parentID:    childID,
+		tenantID:    tenantID,
+		servicePath: "/" + tenantID + "/" + childID + "/" + grandchildID,
+	})
+	t.assertExpectedCacheEntries(c, expectedCacheEntries)
+}
+
 func (t *ServicePathCacheTest) Test_GetTenantID_ReturnsDBError(c *C) {
 	tenantID := "mockTenantId"
 	expectedError := fmt.Errorf("fake DB error")
@@ -264,6 +306,52 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValues(c *C) {
 	c.Assert(pathResult, Equals, expectedPath)
 	c.Assert(err, IsNil)
 	t.assertExpectedCacheEntries(c, initialCacheEntries)
+}
+
+func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValuesForParents(c *C) {
+	tenantID := "mockTenantId"
+	childID := "mockChildId"
+	grandchildID := "mockGrandChildId"
+	expectedPath := "/" + tenantID + "/" + childID + "/" + grandchildID
+
+	// Load the cache manually
+	initialCacheEntries := []servicePath{
+		servicePath{
+			serviceID:   tenantID,
+			parentID:    "",
+			tenantID:    tenantID,
+			servicePath: "/" + tenantID,
+		},
+		servicePath{
+			serviceID:   childID,
+			parentID:    tenantID,
+			tenantID:    tenantID,
+			servicePath: "/" + tenantID + "/" + childID,
+		},
+	}
+	for _, expected := range initialCacheEntries {
+		t.cache.paths[expected.serviceID] = expected
+	}
+
+	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+
+	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
+	// any calls to t.getService for those entries
+	tenantResult, pathResult, err := t.cache.GetServicePath(grandchildID, t.getService)
+
+	c.Assert(tenantResult, Equals, tenantID)
+	c.Assert(pathResult, Equals, expectedPath)
+	c.Assert(err, IsNil)
+
+	expectedCacheEntries := append(initialCacheEntries, servicePath{
+		serviceID:   grandchildID,
+		parentID:    childID,
+		tenantID:    tenantID,
+		servicePath: expectedPath,
+	})
+
+	t.assertExpectedCacheEntries(c, expectedCacheEntries)
 }
 
 func (t *ServicePathCacheTest) Test_GetServicePath_ReturnsDBError(c *C) {

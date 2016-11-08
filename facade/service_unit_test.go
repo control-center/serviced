@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/utils"
-	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
 
@@ -282,11 +281,6 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceFails(c *C) {
 // Test that the 'getService' function defined by facade.evaluateService() works properly on failure
 func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 	parentID := "parentServiceID"
-	parentName := "parentServiceName"
-	parentSvc := service.Service{
-		ID:   parentID,
-		Name: parentName,
-	}
 	childID := "childServiceID"
 	childName := "childServiceName"
 	childSvc := service.Service{
@@ -299,28 +293,8 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 	childServicePath := "/" + parentID + "/" + childID
 	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil).Twice()
 
-	// The following may be a little counter-intuitive.
-	// The goal of this test is to verify that the proper error is returned when the 'getService'
-	// function defined by facade.evaluateService() fails.
-	// The trick is that the call to GetEvaluatedService() below will trigger two calls to get the parent service.
-	// For mocking purposes, we want the first to succeed because it's called as a side-effect of the first
-	// facade.GetService(childID), but we want the second call to fail to exercise the error case of the 'getService'
-	// callback failing.
-	var mockCall *mock.Call
 	expectedError := fmt.Errorf("expected error: oops")
-	parentCount := 0
-	mockCall = ft.serviceStore.On("Get", ft.ctx, parentID).
-		Return(nil, nil).
-		Run(func(args mock.Arguments) {
-			if parentCount == 0 {
-				mockCall.ReturnArguments[0] = &parentSvc
-				mockCall.ReturnArguments[1] = nil
-			} else {
-				mockCall.ReturnArguments[0] = nil
-				mockCall.ReturnArguments[1] = expectedError
-			}
-			parentCount++
-		})
+	ft.serviceStore.On("Get", ft.ctx, parentID).Return(nil, expectedError)
 	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	unused := 0

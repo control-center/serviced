@@ -138,9 +138,13 @@ func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePa
 		return svcPath, nil
 	}
 
-	parent, err := sc.buildServicePath(svc.ParentServiceID, svcPaths, getServiceFunc)
-	if err != nil {
-		return servicePath{}, err
+	var parent servicePath
+	var parentCached bool
+	if parent, parentCached = sc.paths[svc.ParentServiceID]; !parentCached {
+		parent, err = sc.buildServicePath(svc.ParentServiceID, svcPaths, getServiceFunc)
+		if err != nil {
+			return servicePath{}, err
+		}
 	}
 
 	svcPath = servicePath{
