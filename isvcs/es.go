@@ -14,6 +14,7 @@
 package isvcs
 
 import (
+	"io/ioutil"
 	"os"
 
 	"github.com/Sirupsen/logrus"
@@ -138,6 +139,7 @@ func initElasticSearch() {
 			HealthChecks:   healthChecks,
 			Recover:        recoverES,
 			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS) * time.Second,
+			StartupFailed:  getESShardStatus,
 		},
 	)
 	if err != nil {
@@ -185,6 +187,27 @@ type esres struct {
 	err      error
 }
 
+func getESShardStatus() {
+	// try to get more information about how the shards are looking.
+	// If some are 'UNASSIGNED', it may be possible to delete just those and restart
+	host := elasticsearch_logstash.PortBindings[0].HostIp
+	port := elasticsearch_logstash.PortBindings[0].HostPort
+	url := fmt.Sprintf("http://%s:%d/_cat/shards", host, port)
+	resp, err := http.Get(url)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		log.WithError(err).Error("Failed to get ES shard status.")
+	}
+	output, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithError(err).Error("Failed to get ES shard status.")
+	} else {
+		log.Warnf("Shard Status:\n%s", string(output))
+	}
+}
+
 func getESHealth(url string) <-chan esres {
 	esresC := make(chan esres, 1)
 	go func() {
@@ -229,6 +252,15 @@ func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 				if status := GetHealth(r.response.Status); status < minHealth {
 					log.WithFields(logrus.Fields{
 						"reported": r.response.Status,
+						"cluster_name": r.response.ClusterName,
+						"timed_out": r.response.TimedOut,
+						"number_of_nodes": r.response.NumberOfNodes,
+						"number_of_data_nodes": r.response.NumberOfDataNodes,
+						"active_primary_shards": r.response.ActivePrimaryShards,
+						"active_shards": r.response.ActiveShards,
+						"relocating_shards": r.response.RelocatingShards,
+						"initializing_shards": r.response.InitializingShards,
+						"unassigned_shards": r.response.UnassignedShards,
 					}).Warn("Elastic health reported below minimum")
 					break
 				}

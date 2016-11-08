@@ -123,6 +123,7 @@ type IServiceDefinition struct {
 	PreStart       func(*IService) error              // A function to run before the initial start of the service
 	PostStart      func(*IService) error              // A function to run after the initial start of the service
 	Recover        func(path string) error            // A recovery step if the service fails to start
+	StartupFailed  func()			  	  // A clean up step just before the service is stopped
 	HostNetwork    bool                               // enables host network in the container
 	Links          []string                           // List of links to other containers in the form of <name>:<alias>
 	StartGroup     uint16                             // Start up group number
@@ -456,7 +457,9 @@ func (svc *IService) start() (<-chan int, error) {
 
 			// Dump last 10000 lines of container if possible.
 			dockerLogsToFile(ctr.ID, 10000)
-
+			if svc.StartupFailed != nil {
+				svc.StartupFailed()
+			}
 			svc.stop()
 			return nil, err
 		}
