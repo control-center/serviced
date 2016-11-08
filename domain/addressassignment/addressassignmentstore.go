@@ -32,6 +32,18 @@ type Store struct {
 	datastore.DataStore
 }
 
+func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssignment, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetAllAddressAssignments"))
+	q := datastore.NewQuery(ctx)
+	search := search.Search("controlplane").Type(kind).Size("50000")
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
+
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignments"))
 	q := datastore.NewQuery(ctx)
