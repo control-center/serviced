@@ -64,7 +64,7 @@ while (( "$#" )); do
         echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
         echo "    -d driverName         identifies the Capybara driver to use"
-        echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
+        echo "                          (e.g. selenium, selenium_chrome)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"

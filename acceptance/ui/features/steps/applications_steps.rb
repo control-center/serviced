@@ -139,7 +139,10 @@ def visitApplicationsPage()
 end
 
 def fillInDeploymentID(id)
-    CC.UI.ApplicationsPage.deploymentID_field.set getTableValue(id)
+    val = getTableValue(id)
+    el = CC.UI.ApplicationsPage.deploymentID_field
+    fill_in el[:name], :with => val
+    expect(CC.UI.ApplicationsPage.deploymentID_field.value).to eq val
 end
 
 # This method adds a service using the UI, but is called from

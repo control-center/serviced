@@ -4,7 +4,7 @@
 The `ui` subdirectory contains UI functional tests which can be executed in a completely automated fashion using [Capybara](https://github.com/jnicklas/capybara) in a [Docker](http://www.docker.com) container.
 The `api` subdirectory contains a set of tests for v2 of the CC REST API.
 
-The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also includes support for [screenshots](https://github.com/mattheworiordan/capybara-screenshot) of failed tests cases.
+The tests may be run against Firefox or Chrome. It also includes support for [screenshots](https://github.com/mattheworiordan/capybara-screenshot) of failed tests cases.
 
 #Table of Contents
 
@@ -31,7 +31,7 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
 
 ## Overview
 
-The docker image `zenoss/capybara` contains all of the tools and libraries required to run Capybara against Firefox, Chrome or Phantomjs.
+The docker image `zenoss/capybara` contains all of the tools and libraries required to run Capybara against Firefox or Chrome.
 
 The subdirectory `ui` is mounted into the docker container under the directory `/capybara`, giving the tools in the container access to all of the cucumber/capybara test files defined in `ui`.
 
@@ -133,12 +133,6 @@ To run the tests against Firefox, use
 $ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
 ```
 
-To run the tests against Poltergeist/Phantomjs, use
-
-```
-$ ./runUIAcceptance.sh -d poltergeist -a <servicedURL> -u <userID> -p <password>
-```
-
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
 
 #### API acceptance
@@ -166,7 +160,7 @@ The primary variables used by `runUIAcceptance.sh` are:
  * **`APPLICATION_URL`** - the URL of the application under test. You can set this variable with the `-a` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_USERID`** - the user id to login into the application under test. You can set this variable with the `-u` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_PASSWORD`** - the password used to login into the application under test. You can set this variable with the `-p` command line option for `runUIAcceptance.sh`.
- * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium_chrome`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
+ * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), or `selenium_chrome`. The default if not specified is `selenium_chrome`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
  * **`CAPYBARA_TIMEOUT`** - the timeout, in seconds, that Capybara should wait for a page or element. The default is 10 seconds. You can set this variable with the `-t` command line option for `runUIAcceptance.sh`.
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
  * **`DATASET`** - the JSON dataset to use as test input. You can set this variable with the `--dataset` command line option for `runUIAcceptance.sh`.
@@ -278,7 +272,6 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 ## Known Issues
 
  * With upgrade to zenoss/capybara:1.1.0, the --debug option stopped working.
- * Phantomjs does not work. The primary issue is lack of support for the ES 6 `bind()` method which also prevents use of PhantomJS with our unit tests.
  * The tests don't work on Mac OSX for a variety of reasons:
    * The run script makes Linux-specific assumptions about mapping timezone definitions into the container.
    * On Mac OSX with [boot2docker](http://boot2docker.io/), if you have problems reaching archive.ubuntu.com while trying to run `dockerBuild.sh`, refer to the workaround [here](http://stackoverflow.com/questions/26424338/docker-daemon-config-file-on-boot2docker).
@@ -294,7 +287,6 @@ Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
  * [Application Testing with Capybara](https://www.safaribooksonline.com/library/view/application-testing-with/9781783281251/) by Matthew Robbins
  * [Capybara cheat sheet](https://gist.github.com/zhengjia/428105)
  * [Site Prism - A Page Object Model DSL for Capybara](https://github.com/natritmeyer/site_prism)
- * [How to install PhantomJS on Ubuntu](https://gist.github.com/julionc/7476620)
  * [Notes on setting up Xvfb for docker](https://github.com/keyvanfatehi/docker-chrome-xvfb)
  * [How to install Chromedriver on Ubuntu](https://devblog.supportbee.com/2014/10/27/setting-up-cucumber-to-run-with-Chrome-on-Linux/)
  * [How to install Chrome from the command line](http://askubuntu.com/questions/79280/how-to-install-chrome-browser-properly-via-command-line)

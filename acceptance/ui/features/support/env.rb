@@ -8,10 +8,8 @@ require 'fileutils'
 require "capybara"
 require "capybara/cucumber"
 require "capybara/rspec"
-require 'capybara/poltergeist'
 require 'selenium-webdriver'
 require 'capybara-screenshot/cucumber'
-require 'capybara-webkit'
 
 def combineAllDataFiles(dir)
     data = "{"
@@ -124,8 +122,6 @@ if driver_override && driver_override.length > 0
         Capybara.default_driver = :selenium
     elsif driver_override == "selenium_chrome"
         Capybara.default_driver = :selenium_chrome
-    elsif driver_override == "poltergeist"
-        Capybara.default_driver = :poltergeist
     elsif driver_override == "webkit"
         Capybara.default_driver = :webkit
         Capybara.javascript_driver = :webkit
@@ -158,30 +154,6 @@ Capybara.register_driver :selenium_chrome do |app|
                                    :args => ["--no-sandbox", "--ignore-certificate-errors", "--user-data-dir=/tmp"],
                                    :desired_capabilities => caps
     )
-end
-
-#
-# Register poltergeist (headless driver based on phantomjs)
-Capybara.register_driver :poltergeist do |app|
-    options = {
-        :ignore_ssl_errors => true,
-        :js_errors => true,
-        :debug => false,
-        :timeout => 120,
-        :phantomjs_options => ['--load-images=no', '--disk-cache=false', '--ignore-ssl-errors=true'],
-        # FIXME: Write a custom logger that implements the Ruby IO object so that we can cache all of the messages and
-        #        produce scenario-specific reports ala the selenium-chrome driver (see hooks.rb)
-        # Uncomment to get JS console messages written to stdout
-        # :phantomjs_logger => STDOUT,
-        :inspector => true,
-    }
-    Capybara::Poltergeist::Driver.new(app, options)
-end
-
-Capybara::Webkit.configure do |config|
-    # Allow loading of all external URLs
-    config.allow_url("*")
-    config.ignore_ssl_errors = true
 end
 
 Before do

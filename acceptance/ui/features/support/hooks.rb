@@ -81,8 +81,6 @@ After('@screenshot') do |scenario|
       # 1. Using this technique for the FF selenium driver captures lots of log messages, but the none of them
       #    are from the JS console. Apparently, they are from the driver and/or FF itself. Capturing JS console
       #    from FF seems to require some additional FF plugins
-      # 2. Poltergeist logs to stdout. If we installed our own logger which cached a list of messages kind of like
-      #    the chromedriver does. then we could implement a variation of the logic below for poltergeist as well.
       if Capybara.current_driver == :selenium_chrome
         log_path = getLogFilePath(scenario.name)
         embedLinkToConsoleLog(log_path)

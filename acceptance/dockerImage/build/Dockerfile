@@ -22,36 +22,20 @@ RUN /bin/bash -lc "source /usr/local/rvm/scripts/rvm"
 #
 # Install Cucumber, Capybara and the other gems we need
 #
-RUN /bin/bash -lc "gem install cucumber -v 2.3.2"
-RUN /bin/bash -lc "gem install nokogiri -v 1.6.7.2"
-RUN /bin/bash -lc "gem install capybara -v 2.6.2"
-RUN /bin/bash -lc "gem install capybara-screenshot -v 1.0.11"
-RUN /bin/bash -lc "gem install poltergeist -v 1.9.0"
-RUN /bin/bash -lc "gem install rspec -v 3.4.0"
-RUN /bin/bash -lc "gem install selenium-webdriver -v 2.52.0"
-RUN /bin/bash -lc "gem install site_prism -v 2.8"
-RUN /bin/bash -lc "gem install headless -v 2.2.2"
-RUN /bin/bash -lc "gem install capybara-webkit -v 1.8.0"
+RUN /bin/bash -lc "gem install cucumber -v 2.4.0"
+RUN /bin/bash -lc "gem install nokogiri -v 1.6.8.1"
+RUN /bin/bash -lc "gem install capybara -v 2.7.1"
+RUN /bin/bash -lc "gem install capybara-screenshot -v 1.0.14"
+RUN /bin/bash -lc "gem install rspec -v 3.5.0"
+RUN /bin/bash -lc "gem install selenium-webdriver -v 3.0.0"
+RUN /bin/bash -lc "gem install site_prism -v 2.9"
+RUN /bin/bash -lc "gem install headless -v 2.3.1"
 RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
 #
 RUN apt-get update -qq && apt-get install -y -q xvfb
-
-#
-# Install phantomjs (from https://gist.github.com/julionc/7476620)
-#
-RUN apt-get update -qq && apt-get install -y -q build-essential chrpath libssl-dev libxft-dev
-RUN apt-get update -qq && apt-get install -y -q libfreetype6 libfreetype6-dev
-RUN apt-get update -qq && apt-get install -y -q libfontconfig1 libfontconfig1-dev
-RUN wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 -P /usr/local/share
-RUN cd /usr/local/share && tar xvjf phantomjs-2.1.1-linux-x86_64.tar.bz2
-RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/share/phantomjs
-RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin/phantomjs
-RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/bin/phantomjs
-RUN rm -rf /usr/local/share/phantomjs-2.1.1-linux-x86_64.tar.bz2
-RUN rm -rf /usr/local/share/phantomjs-2.1.1-linux-x86_64.tar.bz2
 
 #
 # Install firefox.
