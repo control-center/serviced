@@ -40,9 +40,11 @@ func NewServiceCache() *serviceCache {
 	}
 }
 
+type GetServiceDetails func(servicedID string) (*service.ServiceDetails, error)
+
 // GetTenantID returns the tenant ID for the specified service from its cache. If the specified service
 // is not in the cache, it uses getServiceFunc to populate the cache (assuming serviceID really exists in the DB).
-func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc service.GetService) (string, error) {
+func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc GetServiceDetails) (string, error) {
 	if cachedSvc, found := sc.lookUpService(serviceID); found {
 		return cachedSvc.tenantID, nil
 	}
@@ -55,7 +57,7 @@ func (sc *serviceCache) GetTenantID(serviceID string, getServiceFunc service.Get
 }
 
 // GetServicePath returns the tenant ID and service path for the specified service from the.
-func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc service.GetService) (string, string, error) {
+func (sc *serviceCache) GetServicePath(serviceID string, getServiceFunc GetServiceDetails) (string, string, error) {
 	if cachedSvc, found := sc.lookUpService(serviceID); found {
 		return cachedSvc.tenantID, cachedSvc.servicePath, nil
 	}
@@ -100,7 +102,7 @@ func (sc *serviceCache) lookUpService(svcID string) (servicePath, bool) {
 	return cachedSvc, found
 }
 
-func (sc *serviceCache) updateCache(serviceID string, getServiceFunc service.GetService) (servicePath, error) {
+func (sc *serviceCache) updateCache(serviceID string, getServiceFunc GetServiceDetails) (servicePath, error) {
 	sc.mutex.Lock()
 	defer sc.mutex.Unlock()
 
@@ -116,7 +118,7 @@ func (sc *serviceCache) updateCache(serviceID string, getServiceFunc service.Get
 	return cachedSvc, nil
 }
 
-func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePath, getServiceFunc service.GetService) (svcPath servicePath, err error) {
+func (sc *serviceCache) buildServicePath(serviceID string, svcPaths *[]servicePath, getServiceFunc GetServiceDetails) (svcPath servicePath, err error) {
 	logger := plog.WithFields(log.Fields{
 		"serviceid": serviceID,
 	})

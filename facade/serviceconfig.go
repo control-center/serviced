@@ -165,8 +165,8 @@ func (f *Facade) DeleteServiceConfig(ctx datastore.Context, fileID string) error
 // getServicePath returns the tenantID and the full path of the service
 // TODO: update function to include deploymentID in the service path
 func (f *Facade) getServicePath(ctx datastore.Context, serviceID string) (tenantID string, servicePath string, err error) {
-	gs := func(id string) (service.Service, error) {
-		return f.getService(ctx, id)
+	gs := func(id string) (*service.ServiceDetails, error) {
+		return f.GetServiceDetails(ctx, id)
 	}
 	return f.serviceCache.GetServicePath(serviceID, gs)
 }

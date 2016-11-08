@@ -44,8 +44,8 @@ func (t *ServicePathCacheTest) TearDownTest(c *C) {
 
 func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForTenantService(c *C) {
 	tenantID := "mockTenantId"
-	expectedService := service.Service{ID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(&expectedService, nil)
+	expectedService := service.ServiceDetails{ID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&expectedService, nil)
 
 	result, err := t.cache.GetTenantID(tenantID, t.getService)
 
@@ -69,14 +69,14 @@ func (t *ServicePathCacheTest) Test_GetTenantID_SeedsCacheForNestedServices(c *C
 	childID := "mockChildId"
 	grandchildID := "mockGrandChildId"
 
-	tenant := service.Service{ID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(&tenant, nil)
+	tenant := service.ServiceDetails{ID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&tenant, nil)
 
-	child := service.Service{ID: childID, ParentServiceID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, childID).Return(&child, nil)
+	child := service.ServiceDetails{ID: childID, ParentServiceID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, childID).Return(&child, nil)
 
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	result, err := t.cache.GetTenantID(grandchildID, t.getService)
 
@@ -169,8 +169,8 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValuesForParents(c *C)
 		t.cache.paths[expected.serviceID] = expected
 	}
 
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
 	// any calls to t.getService for those entries
@@ -190,7 +190,7 @@ func (t *ServicePathCacheTest) Test_GetTenantID_UsesCachedValuesForParents(c *C)
 func (t *ServicePathCacheTest) Test_GetTenantID_ReturnsDBError(c *C) {
 	tenantID := "mockTenantId"
 	expectedError := fmt.Errorf("fake DB error")
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(nil, expectedError)
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(nil, expectedError)
 
 	result, err := t.cache.GetTenantID(tenantID, t.getService)
 
@@ -202,8 +202,8 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForTenantService(c 
 	tenantID := "mockTenantId"
 	expectedPath := "/" + tenantID
 
-	expectedService := service.Service{ID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(&expectedService, nil)
+	expectedService := service.ServiceDetails{ID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&expectedService, nil)
 
 	tenantResult, pathResult, err := t.cache.GetServicePath(tenantID, t.getService)
 
@@ -229,14 +229,14 @@ func (t *ServicePathCacheTest) Test_GetServicePath_SeedsCacheForNestedServices(c
 	grandchildID := "mockGrandChildId"
 	expectedPath := "/" + tenantID + "/" + childID + "/" + grandchildID
 
-	tenant := service.Service{ID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(&tenant, nil)
+	tenant := service.ServiceDetails{ID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(&tenant, nil)
 
-	child := service.Service{ID: childID, ParentServiceID: tenantID}
-	t.serviceStore.On("Get", t.unusedCTX, childID).Return(&child, nil)
+	child := service.ServiceDetails{ID: childID, ParentServiceID: tenantID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, childID).Return(&child, nil)
 
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	tenantResult, pathResult, err := t.cache.GetServicePath(grandchildID, t.getService)
 
@@ -333,8 +333,8 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValuesForParents(c 
 		t.cache.paths[expected.serviceID] = expected
 	}
 
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	t.serviceStore.On("Get", t.unusedCTX, grandchildID).Return(&grandchild, nil)
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, grandchildID).Return(&grandchild, nil)
 
 	// NOTE: Since no mock expectations are set for parentID or childID, the test will fail if there
 	// any calls to t.getService for those entries
@@ -357,7 +357,7 @@ func (t *ServicePathCacheTest) Test_GetServicePath_UsesCachedValuesForParents(c 
 func (t *ServicePathCacheTest) Test_GetServicePath_ReturnsDBError(c *C) {
 	tenantID := "mockTenantId"
 	expectedError := fmt.Errorf("fake DB error")
-	t.serviceStore.On("Get", t.unusedCTX, tenantID).Return(nil, expectedError)
+	t.serviceStore.On("GetServiceDetails", t.unusedCTX, tenantID).Return(nil, expectedError)
 
 	tenantResult, pathResult, err := t.cache.GetServicePath(tenantID, t.getService)
 
@@ -516,12 +516,12 @@ func (t *ServicePathCacheTest) Test_Reset_EmptyCache(c *C) {
 	c.Assert(len(t.cache.paths), Equals, 0)
 }
 
-func (t *ServicePathCacheTest) getService(serviceID string) (service.Service, error) {
-	svc, err := t.serviceStore.Get(t.unusedCTX, serviceID)
+func (t *ServicePathCacheTest) getService(serviceID string) (*service.ServiceDetails, error) {
+	svc, err := t.serviceStore.GetServiceDetails(t.unusedCTX, serviceID)
 	if err != nil {
-		return service.Service{}, err
+		return &service.ServiceDetails{}, err
 	}
-	return *svc, nil
+	return svc, nil
 }
 
 func (t *ServicePathCacheTest) assertExpectedCacheEntries(c *C, expectedCacheEntries []servicePath) {

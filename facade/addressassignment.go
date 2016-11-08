@@ -56,8 +56,8 @@ func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, servi
 	// Build a list of service IDs for all child services that have address assignments
 	serviceIDs := make(map[string]string)
 	if children {
-		gs := func(id string) (service.Service, error) {
-			return f.getService(ctx, id)
+		gs := func(id string) (*service.ServiceDetails, error) {
+			return f.GetServiceDetails(ctx, id)
 		}
 
 		for _, addr := range(allAddrs) {

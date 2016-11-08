@@ -28,8 +28,8 @@ import (
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootApp(c *C) {
 	serviceID := getRandomServiceID(c)
-	expectedService := service.Service{ID: serviceID}
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(&expectedService, nil)
+	expectedService := service.ServiceDetails{ID: serviceID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(&expectedService, nil)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
 
@@ -40,7 +40,7 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootApp(c *C) {
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForNoSuchEntity(c *C) {
 	serviceID := getRandomServiceID(c)
 	expectedError := fmt.Errorf("mock DB error")
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, expectedError)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(nil, expectedError)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
 
@@ -52,7 +52,7 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForNoSuchEntity(c *C) {
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForOtherDBError(c *C) {
 	serviceID := getRandomServiceID(c)
 	expectedError := fmt.Errorf("expected error: oops")
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, expectedError)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(nil, expectedError)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
 
@@ -62,8 +62,8 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppFailsForOtherDBError(c *C) {
 
 func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppUsesCache(c *C) {
 	serviceID := getRandomServiceID(c)
-	expectedService := service.Service{ID: serviceID}
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(&expectedService, nil)
+	expectedService := service.ServiceDetails{ID: serviceID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(&expectedService, nil)
 
 	// Do the first lookup to seed the internal cache
 	result, err := ft.Facade.GetTenantID(ft.ctx, serviceID)
@@ -74,7 +74,7 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppUsesCache(c *C) {
 
 	// Change the mock to force an error if the DB is called.
 	// If the cache is working, then this mock should never be invoked
-	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(nil, datastore.ErrEmptyKind)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(nil, datastore.ErrEmptyKind)
 
 	// Do the second lookup to hit the internal cache, but not call the mock
 	result, err = ft.Facade.GetTenantID(ft.ctx, serviceID)
@@ -87,10 +87,10 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForRootAppUsesCache(c *C) {
 func (ft *FacadeUnitTest) Test_GetTenantIDForChildApp(c *C) {
 	parentID := getRandomServiceID(c)
 	childID := getRandomServiceID(c)
-	parent := service.Service{ID: parentID}
-	child := service.Service{ID: childID, ParentServiceID: parentID}
-	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parent, nil)
-	ft.serviceStore.On("Get", ft.ctx, childID).Return(&child, nil)
+	parent := service.ServiceDetails{ID: parentID}
+	child := service.ServiceDetails{ID: childID, ParentServiceID: parentID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&parent, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&child, nil)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, childID)
 
@@ -102,12 +102,12 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForGrandchildApp(c *C) {
 	parentID := getRandomServiceID(c)
 	childID := getRandomServiceID(c)
 	grandchildID := getRandomServiceID(c)
-	parent := service.Service{ID: parentID}
-	child := service.Service{ID: childID, ParentServiceID: parentID}
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parent, nil)
-	ft.serviceStore.On("Get", ft.ctx, childID).Return(&child, nil)
-	ft.serviceStore.On("Get", ft.ctx, grandchildID).Return(&grandchild, nil)
+	parent := service.ServiceDetails{ID: parentID}
+	child := service.ServiceDetails{ID: childID, ParentServiceID: parentID}
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&parent, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&child, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, grandchildID).Return(&grandchild, nil)
 
 	// Do the first lookup to seed the internal cache
 	result, err := ft.Facade.GetTenantID(ft.ctx, grandchildID)
@@ -118,14 +118,14 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForGrandchildApp(c *C) {
 
 	// Change the mock to force an error if the DB is called.
 	// If the cache is working, then this mock should never be invoked
-	ft.serviceStore.On("Get", ft.ctx, parentID).Return(nil, datastore.ErrEmptyKind)
-	ft.serviceStore.On("Get", ft.ctx, childID).Return(nil, datastore.ErrEmptyKind)
-	ft.serviceStore.On("Get", ft.ctx, grandchildID).Return(nil, datastore.ErrEmptyKind)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(nil, datastore.ErrEmptyKind)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(nil, datastore.ErrEmptyKind)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, grandchildID).Return(nil, datastore.ErrEmptyKind)
 
 	// Add a new grandchild that's not in the cache, but shares a parent that should be in the cache.
 	grandchildID2 := getRandomServiceID(c)
-	grandchild2 := service.Service{ID: grandchildID2, ParentServiceID: childID}
-	ft.serviceStore.On("Get", ft.ctx, grandchildID2).Return(&grandchild2, nil)
+	grandchild2 := service.ServiceDetails{ID: grandchildID2, ParentServiceID: childID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, grandchildID2).Return(&grandchild2, nil)
 
 	// Do the second lookup to hit the internal cache, but not call the mock
 	result, err = ft.Facade.GetTenantID(ft.ctx, grandchildID2)
@@ -139,12 +139,12 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForGrandchildAppUsesCache(c *C) {
 	parentID := getRandomServiceID(c)
 	childID := getRandomServiceID(c)
 	grandchildID := getRandomServiceID(c)
-	parent := service.Service{ID: parentID}
-	child := service.Service{ID: childID, ParentServiceID: parentID}
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
-	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parent, nil)
-	ft.serviceStore.On("Get", ft.ctx, childID).Return(&child, nil)
-	ft.serviceStore.On("Get", ft.ctx, grandchildID).Return(&grandchild, nil)
+	parent := service.ServiceDetails{ID: parentID}
+	child := service.ServiceDetails{ID: childID, ParentServiceID: parentID}
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&parent, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&child, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, grandchildID).Return(&grandchild, nil)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, grandchildID)
 
@@ -156,12 +156,12 @@ func (ft *FacadeUnitTest) Test_GetTenantIDForIntermediateParentFails(c *C) {
 	parentID := getRandomServiceID(c)
 	childID := getRandomServiceID(c)
 	grandchildID := getRandomServiceID(c)
-	parent := service.Service{ID: parentID}
-	grandchild := service.Service{ID: grandchildID, ParentServiceID: childID}
+	parent := service.ServiceDetails{ID: parentID}
+	grandchild := service.ServiceDetails{ID: grandchildID, ParentServiceID: childID}
 	expectedError := fmt.Errorf("expected error: oops")
-	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parent, nil)
-	ft.serviceStore.On("Get", ft.ctx, childID).Return(nil, expectedError)
-	ft.serviceStore.On("Get", ft.ctx, grandchildID).Return(&grandchild, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&parent, nil)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(nil, expectedError)
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, grandchildID).Return(&grandchild, nil)
 
 	result, err := ft.Facade.GetTenantID(ft.ctx, grandchildID)
 
@@ -183,6 +183,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceSimple(c *C) {
 		Name:    serviceName,
 		Actions: map[string]string{"name": "{{.Name}}", "instanceID": "{{.InstanceID}}"},
 	}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, serviceID).Return(&service.ServiceDetails{ID: serviceID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, serviceID).Return(&svc, nil)
 	ft.configStore.On("GetConfigFiles", ft.ctx, serviceID, "/"+serviceID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
@@ -289,6 +290,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetParentFails(c *C) {
 		ParentServiceID: parentID,
 		Actions:         map[string]string{"parent": "{{(parent .).ID}}", "instanceID": "{{.InstanceID}}"},
 	}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, childID).Return(&service.ServiceDetails{ID:childID, ParentServiceID:parentID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, childID).Return(&childSvc, nil)
 	childServicePath := "/" + parentID + "/" + childID
 	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, childServicePath).Return([]*serviceconfigfile.SvcConfigFile{}, nil).Twice()
@@ -325,6 +327,7 @@ func (ft *FacadeUnitTest) Test_GetEvaluatedServiceGetChildFails(c *C) {
 		ParentServiceID: parentID,
 		Title:           childTitle,
 	}
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, parentID).Return(&service.ServiceDetails{ID:parentID}, nil)
 	ft.serviceStore.On("Get", ft.ctx, parentID).Return(&parentSvc, nil)
 	ft.configStore.On("GetConfigFiles", ft.ctx, parentID, "/"+parentID).Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
