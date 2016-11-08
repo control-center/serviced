@@ -15,6 +15,15 @@ VERSION := $(shell cat ./VERSION)
 DATE := $(shell date -u '+%a_%b_%d_%H:%M:%S_%Z_%Y')
 GO_VERSION := $(shell go version | awk '{print $$3}')
 
+ifeq ($(OS),)
+OS := $(shell uname -s)
+endif
+
+# Probably not necessary, but you never know
+ifeq ($(OS),"Windows_NT")
+$(error Windows is not supported)
+endif
+
 GIT_COMMIT ?= $(shell ./gitstatus.sh)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 
@@ -120,7 +129,13 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
+ifeq ($(OS),"Linux")
 	cd web/ui && make build
+else
+	# The default JS build runs in a docker container. Launching docker containers and running a build with them on
+	# on OSX has been problematic, so skip it for developer builds running on OSX
+	@echo "\n\nWARNING: Skipping build_js on OSX\n\n"
+endif
 
 .PHONY: mockAgent
 mockAgent:
