@@ -1,20 +1,3 @@
-# FIXME: This step is a lie; need to fix this to actually deploy more than 1 application
-# Otherwise, the application_sorting tests are sorting a list of either 0 or 1 items
-# (depending on previous tests)
-Given (/^(?:|that )multiple applications and application templates have been added$/) do
-    visitApplicationsPage()
-    within(CC.UI.ApplicationsPage.services_table) do
-        if has_text?("1 Result")
-            # add application
-        end
-    end
-    within(CC.UI.ApplicationsPage.templates_table) do
-        if has_text?("0 Results") || has_text?("1 Result")
-            # add application templates
-        end
-    end
-end
-
 Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
     CC.CLI.service.remove_service(app) if CC.CLI.service.check_service_exists(app)
 end
