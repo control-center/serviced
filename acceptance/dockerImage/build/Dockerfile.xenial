@@ -30,7 +30,7 @@ RUN /bin/bash -lc "gem install rspec -v 3.5.0"
 RUN /bin/bash -lc "gem install selenium-webdriver -v 3.0.0"
 RUN /bin/bash -lc "gem install site_prism -v 2.9"
 RUN /bin/bash -lc "gem install headless -v 2.3.1"
-RUN /bin/bash -lc "gem install cucumber-api -v 0.4"
+RUN /bin/bash -lc "gem install cucumber-api -v 0.3"
 
 #
 # Install the xvfb for firefox and chrome so they can run on a headless system
