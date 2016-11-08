@@ -457,7 +457,9 @@ func (svc *IService) start() (<-chan int, error) {
 
 			// Dump last 10000 lines of container if possible.
 			dockerLogsToFile(ctr.ID, 10000)
-			svc.StartupFailed()
+			if svc.StartupFailed != nil {
+				svc.StartupFailed()
+			}
 			svc.stop()
 			return nil, err
 		}
