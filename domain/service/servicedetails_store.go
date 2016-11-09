@@ -253,7 +253,9 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	return details, nil
 }
 
+// GetAllPublicEndpoints returns all the public endpoints in the system
 func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllPublicEndpoints"))
 	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
@@ -292,6 +294,38 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 	}
 
 	return peps, nil
+}
+
+// GetAllExportedEndpoints returns all the exported endpoints in the system
+func (s *storeImpl) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEndpoint, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetAllExportedEndpoints"))
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"term": map[string]interface{}{
+				"Endpoints.Purpose": "export",
+			},
+		},
+		"fields": exportedEndpointFields,
+		"size":   serviceDetailsLimit,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	eps := []ExportedEndpoint{}
+	for results.HasNext() {
+		var result EndpointQueryResult
+		err := results.Next(&result)
+		if err != nil {
+			return nil, err
+		}
+		endpoints := createExportedEndpoints(result)
+		eps = append(eps, endpoints...)
+	}
+
+	return eps, nil
 }
 
 func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
@@ -360,6 +394,24 @@ func createPublicEndpoints(result EndpointQueryResult) []PublicEndpoint {
 
 	return pubs
 }
+
+func createExportedEndpoints(result EndpointQueryResult) []ExportedEndpoint {
+	eps := []ExportedEndpoint{}
+
+	for _, ep := range result.Endpoints {
+		if ep.Purpose == "export" {
+			eps = append(eps, ExportedEndpoint{
+				ServiceID:   result.ID,
+				ServiceName: result.Name,
+				Application: ep.Application,
+				Protocol:    ep.Protocol,
+			})
+		}
+	}
+
+	return eps
+}
+
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
 	return elastic.ElasticSearchRequest{
 		Pretty: false,
@@ -390,6 +442,12 @@ var serviceDetailsFields = []string{
 }
 
 var publicEndpointFields = []string{
+	"ID",
+	"Name",
+	"Endpoints",
+}
+
+var exportedEndpointFields = []string{
 	"ID",
 	"Name",
 	"Endpoints",

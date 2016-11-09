@@ -94,6 +94,9 @@ type Store interface {
 	// GetAllPublicEndpoints returns all public endpoints in the system
 	GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error)
 
+	// GetAllExportedEndpoints returns all the exported endpoints in the system
+	GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEndpoint, error)
+
 	// GetServiceDetailsByIDOrName returns the service details for any services
 	// whose serviceID matches the query exactly or whose names contain the
 	// query as a substring
