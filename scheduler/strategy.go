@@ -107,7 +107,7 @@ func (s *StrategyService) GetServiceID() string {
 }
 
 func (s *StrategyService) RequestedCorePercent() int {
-	return int(s.svc.CPUCommitment)
+	return s.svc.CPUCommitment
 }
 
 func (s *StrategyService) RequestedMemoryBytes() uint64 {

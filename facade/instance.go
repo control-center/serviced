@@ -417,7 +417,7 @@ func (f *Facade) getInstanceHealth(svch *service.ServiceHealth, instanceID int) 
 func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Host) ([]*service.StrategyInstance, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostStrategyInstances"))
 
-	svcMap := make(map[string]*service.StrategyInstance)
+	svcMap := make(map[string]service.StrategyInstance)
 	insts := make([]*service.StrategyInstance, 0)
 
 	for _, host := range hosts {
@@ -449,7 +449,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Ho
 
 					return nil, err
 				}
-				inst = &service.StrategyInstance{
+				inst = service.StrategyInstance{
 					ServiceID:     s.ID,
 					CPUCommitment: int(s.CPUCommitment),
 					RAMCommitment: s.RAMCommitment.Value,
@@ -459,7 +459,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Ho
 			}
 
 			inst.HostID = state.HostID
-			insts = append(insts, inst)
+			insts = append(insts, &inst)
 		}
 
 		logger.Debug("Loaded instances for host")
