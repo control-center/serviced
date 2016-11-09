@@ -262,8 +262,8 @@ func (l *ServiceListener) Sync(isLocked bool, sn *ServiceNode, reqs []StateReque
 // Start schedules a service instance
 func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
 
-	mu.Lock()
-	defer mu.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	logger := plog.WithFields(log.Fields{
 		"serviceid":                   sn.ID,
