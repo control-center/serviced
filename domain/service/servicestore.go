@@ -97,6 +97,9 @@ type Store interface {
 	// GetAllExportedEndpoints returns all the exported endpoints in the system
 	GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEndpoint, error)
 
+	// GetAllIPAssignments returns all IP assignments in the system, including those that may not have address assignments
+	GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignment, error)
+
 	// GetServiceDetailsByIDOrName returns the service details for any services
 	// whose serviceID matches the query exactly or whose names contain the
 	// query as a substring

@@ -273,7 +273,7 @@ func (s *storeImpl) GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoi
 				},
 			},
 		},
-		"fields": publicEndpointFields,
+		"fields": serviceEndpointFields,
 		"size":   serviceDetailsLimit,
 	})
 
@@ -326,6 +326,51 @@ func (s *storeImpl) GetAllExportedEndpoints(ctx datastore.Context) ([]ExportedEn
 	}
 
 	return eps, nil
+}
+
+func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignment, error) {
+	// All services where Endpoints.AddressConfig.Port > 0 and Endpoints.Protocol != ""
+	searchRequest := newServiceDetailsElasticRequest(map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []map[string]interface{}{
+					map[string]interface{}{
+						"range": map[string]interface{}{
+							"Endpoints.AddressConfig.Port":  map[string]interface{}{
+								"gt": 0,
+								"lte": 65535, // largest valid port is 65535 (unsigned 16-bit int)
+							},
+						},
+					},
+					map[string]interface{}{
+						"regexp": map[string]interface{}{
+							"Endpoints.Protocol": ".+",
+						},
+					},
+				},
+			},
+		},
+		"fields": serviceEndpointFields,
+		"size":   serviceDetailsLimit,
+	})
+
+	results, err := datastore.NewQuery(ctx).Execute(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	ipAssignments := []BaseIPAssignment{}
+	for results.HasNext() {
+		var result EndpointQueryResult
+		err := results.Next(&result)
+		if err != nil {
+			return nil, err
+		}
+		assignment := createIPAssignment(result)
+		ipAssignments = append(ipAssignments, assignment...)
+	}
+
+	return ipAssignments, nil
 }
 
 func (s *storeImpl) hasChildren(ctx datastore.Context, serviceID string) (bool, error) {
@@ -411,6 +456,27 @@ func createExportedEndpoints(result EndpointQueryResult) []ExportedEndpoint {
 
 	return eps
 }
+func createIPAssignment(result EndpointQueryResult) []BaseIPAssignment {
+	ipAssignments := []BaseIPAssignment{}
+	for _, ep := range result.Endpoints {
+		if ep.AddressConfig.Port == 0 {
+			continue
+		}
+		assignment := BaseIPAssignment{
+			ServiceID:       result.ID,
+			ParentServiceID: result.ParentServiceID,
+			ServiceName:     result.Name,
+			PoolID:          result.PoolID,
+
+			Application:     ep.Application,
+			EndpointName:    ep.Name,
+			Port:            ep.AddressConfig.Port,
+		}
+		ipAssignments = append(ipAssignments, assignment)
+
+	}
+	return ipAssignments
+}
 
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
 	return elastic.ElasticSearchRequest{
@@ -441,9 +507,11 @@ var serviceDetailsFields = []string{
 	"Tags",
 }
 
-var publicEndpointFields = []string{
+var serviceEndpointFields = []string{
 	"ID",
 	"Name",
+	"PoolID",
+	"ParentServiceID",
 	"Endpoints",
 }
 
@@ -455,9 +523,11 @@ var exportedEndpointFields = []string{
 
 // EndpointQueryResult used for unmarshalling query results
 type EndpointQueryResult struct {
-	ID        string
-	Name      string
-	Endpoints []ServiceEndpoint
+	ID              string
+	Name            string
+	PoolID          string
+	ParentServiceID string
+	Endpoints       []ServiceEndpoint
 	datastore.VersionedEntity
 }
 
