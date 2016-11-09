@@ -383,6 +383,27 @@ func (_m *Store) GetAllExportedEndpoints(ctx datastore.Context) ([]service.Expor
 
 	return r0, r1
 }
+func (_m *Store) GetAllIPAssignments(ctx datastore.Context) ([]service.BaseIPAssignment, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.BaseIPAssignment
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.BaseIPAssignment); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.BaseIPAssignment)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]service.ServiceDetails, error) {
 	ret := _m.Called(ctx, query, prefix)
 

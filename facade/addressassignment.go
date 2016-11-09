@@ -29,115 +29,98 @@ import (
 // for the specified service id as is presented to the front-end.
 func (f *Facade) GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceAddressAssignmentDetails"))
-	return f.getServiceAddressAssignmentDetails(ctx, serviceID, children)
-}
-
-func (f *Facade) getServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error) {
 	logger := plog.WithFields(log.Fields{
 		"parentserviceid":  serviceID,
 		"children":    children,
 	})
-	store := addressassignment.NewStore()
-	allAddrs, err := store.GetAllAddressAssignments(ctx)
+
+	// Get a list of all ip assignments in the entire system based on services with endpoints
+	// (not records in the addressassignment store)
+	allIPs, err := f.serviceStore.GetAllIPAssignments(ctx)
 	if err != nil {
 		logger.WithError(err).Error("Could not look up address assignments")
 		return nil, err
-	} else if len(allAddrs) == 0 {
+	} else if len(allIPs) == 0 {
 		return []service.IPAssignment{}, nil
 	}
 
-	// Build a map of serviceID+endpointName
-	addrMap := make(map[string]addressassignment.AddressAssignment)
-	for _, addr := range(allAddrs) {
-		key := fmt.Sprintf("%s-%s", addr.ServiceID, addr.EndpointName)
-		addrMap[key] = addr
+	// Build a map of those assignments which belong to the specified serviceID or any of its children
+	serviceIPs := make(map[string]service.BaseIPAssignment)
+	gs := func(id string) (*service.ServiceDetails, error) {
+		return f.GetServiceDetails(ctx, id)
 	}
-
-	// Build a list of service IDs for all child services that have address assignments
-	serviceIDs := make(map[string]string)
-	if children {
-		gs := func(id string) (*service.ServiceDetails, error) {
-			return f.GetServiceDetails(ctx, id)
+	for _, ip := range(allIPs) {
+		key := fmt.Sprintf("%s-%s", ip.ServiceID, ip.EndpointName)
+		if _, ok := serviceIPs[key]; ok {
+			continue
 		}
-
-		for _, addr := range(allAddrs) {
-			if _, ok := serviceIDs[addr.ServiceID]; ok {
-				continue
-			}
-			_, servicePath, err := f.serviceCache.GetServicePath(addr.ServiceID, gs)
+		if ip.ServiceID == serviceID {
+			serviceIPs[key] = ip
+		} else if children {
+			_, servicePath, err := f.serviceCache.GetServicePath(ip.ServiceID, gs)
 			if err != nil {
-				logger.WithError(err).WithField("serviceid", addr.ServiceID).Error("Could not find service")
+				logger.WithError(err).WithField("serviceid", ip.ServiceID).Error("Could not find service")
 				return nil, err
 			}
 			if strings.Contains(servicePath, serviceID) {
-				serviceIDs[addr.ServiceID] = addr.ServiceID
+				serviceIPs[key] = ip
 			}
 		}
-	} else {
-		serviceIDs[serviceID] = serviceID
 	}
 
+	// For each service endpoint that needs an address assignement,
+	// 	retrieve the corresponding assignment from the DB
+	store := addressassignment.NewStore()
 	ipAssignments := []service.IPAssignment{}
-	for _, id := range(serviceIDs) {
-		svc, err := f.serviceStore.Get(ctx, id)
+	for _, ip := range(serviceIPs) {
+		servicelogger := logger.WithFields(log.Fields{
+			"serviceid":    ip.ServiceID,
+			"servicename":  ip.ServiceName,
+			"poolid":       ip.PoolID,
+			"endpointname": ip.EndpointName,
+			"children":     children,
+		})
+		ipassignment := service.IPAssignment{
+			BaseIPAssignment: ip,
+		}
+		addr, err := store.FindAssignmentByServiceEndpoint(ctx, ip.ServiceID, ip.EndpointName)
 		if err != nil {
-			logger.WithError(err).WithField("serviceid", id).Error("Could not find service")
+			err := fmt.Errorf("Can not find address assignment")
+			servicelogger.WithFields(log.Fields{
+				"endpointname": ip.EndpointName,
+			}).WithError(err).Error("Address assignment lookup failed")
 			return nil, err
 		}
-		servicelogger := logger.WithFields(log.Fields{
-			"serviceid":   svc.ID,
-			"servicename": svc.Name,
-			"poolid":      svc.PoolID,
-			"children":    children,
-		})
-		assign := service.IPAssignment{
-			ServiceID:   svc.ID,
-			ServiceName: svc.Name,
-			PoolID:      svc.PoolID,
-		}
-		for _, ep := range svc.Endpoints {
-			if ep.AddressConfig.Port > 0 {
-				if assign.IPAddress == "" {
-					key := fmt.Sprintf("%s-%s", svc.ID, ep.Name)
-					addr, ok := addrMap[key]
-					if !ok {
-						err := fmt.Errorf("Can not find address assignment")
-						servicelogger.WithFields(log.Fields{
-							"endpointname": ep.Name,
-						}).WithError(err).Error("Address assignment lookup failed")
-						return nil, err
-					}
-					// Get the host info for the address assignment
-					var hostID, hostName string
-					if addr.AssignmentType == "virtual" {
-						hostID, _ = f.zzk.GetVirtualIPHostID(svc.PoolID, addr.IPAddr)
-					} else {
-						hostID = addr.HostID
-					}
 
-					if hostID != "" {
-						hst := &host.Host{}
-						if err := f.hostStore.Get(ctx, host.HostKey(hostID), hst); err != nil {
-							servicelogger.WithField("hostid", hostID).WithError(err).Debug("Could not look up host for address assignment")
-							return nil, err
-						}
-						hostName = hst.Name
-					}
-
-					assign.Type = addr.AssignmentType
-					assign.HostID = hostID
-					assign.HostName = hostName
-					assign.IPAddress = addr.IPAddr
-					servicelogger.Debug("Set address assignment for service")
-
-				}
-				// Append a new record for the port
-				assign.Port = ep.AddressConfig.Port
-				assign.Application = ep.Application
-				ipAssignments = append(ipAssignments, assign)
-				servicelogger.WithField("port", ep.AddressConfig.Port).Debug("Added port")
+		if addr != nil {
+			// Get the host info for the address assignment
+			var hostID, hostName string
+			if addr.AssignmentType == "virtual" {
+				hostID, _ = f.zzk.GetVirtualIPHostID(ip.PoolID, addr.IPAddr)
+			} else {
+				hostID = addr.HostID
 			}
+
+			if hostID != "" {
+				hst := &host.Host{}
+				if err := f.hostStore.Get(ctx, host.HostKey(hostID), hst); err != nil {
+					servicelogger.WithField("hostid", hostID).WithError(err).Debug("Could not look up host for address assignment")
+					return nil, err
+				}
+				hostName = hst.Name
+			}
+
+			ipassignment.Type = addr.AssignmentType
+			ipassignment.HostID = hostID
+			ipassignment.HostName = hostName
+			ipassignment.IPAddress = addr.IPAddr
+			servicelogger.Debug("Set address assignment for service endpoint")
+		} else {
+			servicelogger.Debug("No address assignment available for service endpoint")
 		}
+
+		// Append a new record for the port
+		ipAssignments = append(ipAssignments, ipassignment)
 	}
 	return ipAssignments, nil
 }
