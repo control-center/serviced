@@ -1123,6 +1123,29 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndp
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint(t *C) {
+	err := ft.setupMigrationTestWithEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	// Create a service which has an endpoint that matches an existing service
+	newSvc := service.Service{}
+	newSvc = *oldSvc
+	newSvc.Name = oldSvc.Name + "_CLONE"
+
+	// Modify the service and make sure it succeeds (no failure on dupe endpoint)
+	request := dao.ServiceMigrationRequest{
+		ServiceID: originalID,
+		Modified:  []*service.Service{&newSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
 	svca := service.Service{
 		ID:              "svcaid",
@@ -1269,7 +1292,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 
 	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
-		 c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
 	}
 	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
 		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
