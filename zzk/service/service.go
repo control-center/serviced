@@ -44,7 +44,7 @@ type ServiceNode struct {
 	HostPolicy                  servicedefinition.HostPolicy
 	Instances                   int
 	RAMCommitment               utils.EngNotation
-	CPUCommitment               uint64
+	CPUCommitment               int
 	ChangeOptions               []string
 	AddressAssignment           addressassignment.AddressAssignment
 	ShouldHaveAddressAssignment bool
@@ -59,8 +59,10 @@ func NewServiceNodeFromService(s *service.Service) (*ServiceNode, error) {
 		Name:          s.Name,
 		DesiredState:  s.DesiredState,
 		Instances:     s.Instances,
+		CPUCommitment: int(s.CPUCommitment),
 		RAMCommitment: s.RAMCommitment,
 		ChangeOptions: s.ChangeOptions,
+		HostPolicy:    s.HostPolicy,
 	}
 
 	// Copy address assignment if it exists. Note whether assignment is expected, so the scheduler can verify it later.
@@ -137,7 +139,7 @@ func UpdateService(conn client.Connection, svc *service.Service, setLockOnCreate
 // does exist. (uses a pool-based connection). All svcs MUST be in the same pool
 func UpdateServices(conn client.Connection, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
 	poolLogger := plog.WithFields(log.Fields{
-		"poolid":    svcs[0].PoolID,
+		"poolid":       svcs[0].PoolID,
 		"servicecount": len(svcs),
 	})
 
@@ -145,15 +147,15 @@ func UpdateServices(conn client.Connection, svcs []*service.Service, setLockOnCr
 	if err := conn.CreateIfExists("/services", &client.Dir{}); err != nil && err != client.ErrNodeExists {
 		poolLogger.WithError(err).Error("Could not initialize services path in zookeeper")
 		return &ServiceError{
-			Action:    "update",
-			Message:   "could not initialize services path in zookeeper",
+			Action:  "update",
+			Message: "could not initialize services path in zookeeper",
 		}
 	}
 
-	for _, svc := range(svcs) {
-		pth := path.Join("/services",  svc.ID)
+	for _, svc := range svcs {
+		pth := path.Join("/services", svc.ID)
 		logger := poolLogger.WithFields(log.Fields{
-			"zkpath":    pth,
+			"zkpath": pth,
 		})
 		//
 		// create the service if it doesn't exist
