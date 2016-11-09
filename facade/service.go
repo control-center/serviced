@@ -621,6 +621,12 @@ func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID strin
 			glog.Errorf("Could not create service %s: %s", sd.Name, err)
 			return nil, err
 		}
+		// Evaluate templated endpoints
+		if err = f.evaluateEndpointTemplates(ctx, svc); err != nil {
+			glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", svc.Name, svc.ParentServiceID, err)
+			return nil, err
+		}
+
 		svcs = append(svcs, *svc)
 		for _, sdSvc := range sd.Services {
 			childsvcs, err := deployServices(svc, &sdSvc)
