@@ -34,18 +34,26 @@ type PublicEndpoint struct {
 	Enabled     bool
 }
 
+// BaseIPAssignment is a minimal service object that describes a service endpoint
+// which may or may not have an address assignment.
+type BaseIPAssignment struct {
+	ServiceID       string
+	ParentServiceID string
+	ServiceName     string
+	PoolID          string
+	Port            uint16
+	Application     string
+	EndpointName    string
+}
+
 // IPAssignment is a minimal service object that describes an address assignment
 // for a service.
 type IPAssignment struct {
-	ServiceID   string
-	ServiceName string
-	PoolID      string
+	BaseIPAssignment
 	HostID      string
 	HostName    string
 	Type        string
 	IPAddress   string
-	Port        uint16
-	Application string
 }
 
 // ExportedEndpoint is a minimal service object that describes exported

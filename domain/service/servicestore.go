@@ -94,6 +94,9 @@ type Store interface {
 	// GetAllPublicEndpoints returns all public endpoints in the system
 	GetAllPublicEndpoints(ctx datastore.Context) ([]PublicEndpoint, error)
 
+	// GetAllIPAssignments returns all IP assignments in the system, including those that may not have address assignments
+	GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignment, error)
+
 	// GetServiceDetailsByIDOrName returns the service details for any services
 	// whose serviceID matches the query exactly or whose names contain the
 	// query as a substring

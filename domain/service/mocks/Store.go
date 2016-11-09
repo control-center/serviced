@@ -129,6 +129,29 @@ func (_m *Store) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicE
 	return r0, r1
 }
 
+// GetAllIPAssignments returns all IP assignments in the system, including those that may not have address assignments
+func (_m *Store) GetAllIPAssignments(ctx datastore.Context) ([]service.BaseIPAssignment, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.BaseIPAssignment
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.BaseIPAssignment); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.BaseIPAssignment)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetAllServiceDetails provides a mock function with given fields: ctx, since
 func (_m *Store) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
 	ret := _m.Called(ctx, since)
