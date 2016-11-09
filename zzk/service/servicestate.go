@@ -15,6 +15,7 @@ package service
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,11 +34,12 @@ type ServiceListener struct {
 	conn    client.Connection
 	handler ServiceHandler
 	poolid  string
+	mu      *sync.Mutex
 }
 
 // NewServiceListener instantiates a new ServiceListener
 func NewServiceListener(poolid string, handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{poolid: poolid, handler: handler}
+	return &ServiceListener{poolid: poolid, handler: handler, mu: &sync.Mutex{}}
 }
 
 // SetConnection implements zzk.Listener
@@ -259,6 +261,9 @@ func (l *ServiceListener) Sync(isLocked bool, sn *ServiceNode, reqs []StateReque
 
 // Start schedules a service instance
 func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
+
+	mu.Lock()
+	defer mu.Unlock()
 
 	logger := plog.WithFields(log.Fields{
 		"serviceid":                   sn.ID,
