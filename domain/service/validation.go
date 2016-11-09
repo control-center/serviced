@@ -20,25 +20,6 @@ import (
 	"github.com/control-center/serviced/validation"
 )
 
-// ServiceEndpointValidator looks for duplicate service endpoints
-type ServiceEndpointValidator map[string]string
-
-func NewServiceEndpointValidator() ServiceEndpointValidator {
-	return ServiceEndpointValidator(make(map[string]string))
-}
-
-func (v ServiceEndpointValidator) IsValid(vErr *validation.ValidationError, svc *Service) {
-	for _, ep := range svc.Endpoints {
-		if ep.Purpose == "export" {
-			if serviceID, ok := v[ep.Application]; ok {
-				vErr.AddViolation(fmt.Sprintf("found duplicate endpoint name %s amongst services %s and %s", ep.Application, svc.ID, serviceID))
-			} else {
-				v[ep.Application] = svc.ID
-			}
-		}
-	}
-}
-
 //ValidEntity validate that Service has all required fields
 func (s *Service) ValidEntity() error {
 

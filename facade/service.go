@@ -36,7 +36,6 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/validation"
 	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"github.com/control-center/serviced/domain/service"
@@ -563,7 +562,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, req dao.ServiceMigration
 		svcAll = append(svcAll, svcs...)
 	}
 	// validate service migration
-	if err := f.validateServiceMigration(ctx, svcAll); err != nil {
+	if err := f.validateServiceMigration(ctx, svcAll, req.ServiceID); err != nil {
 		glog.Errorf("Could not validate migration of services: %s", err)
 		return err
 	}
@@ -637,9 +636,9 @@ func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID strin
 
 // validateServiceMigration makes sure there are no collisions with the added/modified
 // services.
-func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.Service) error {
+func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.Service, tenantID string) error {
 	svcParentMapNameMap := make(map[string]map[string]struct{})
-	endpointMap := make(map[string]struct{})
+	endpointMap := make(map[string]string)
 	for _, svc := range svcs {
 		// check for name uniqueness within the set of new/modified/deployed services
 		if svcNameMap, ok := svcParentMapNameMap[svc.ParentServiceID]; ok {
@@ -656,23 +655,30 @@ func (f *Facade) validateServiceMigration(ctx datastore.Context, svcs []service.
 		for _, ep := range svc.Endpoints {
 			if ep.Purpose == "export" {
 				if _, ok := endpointMap[ep.Application]; ok {
-					glog.Errorf("Endpoint %s in migrated service %s is a duplicate of an endpoint in one of the other migrated services", svc.Name, ep.Application)
+					glog.Errorf("Endpoint %s in migrated service %s is a duplicate of an endpoint in one of the other migrated services", ep.Application, svc.Name)
 					return ErrServiceDuplicateEndpoint
 				}
-				endpointMap[ep.Application] = struct{}{}
+				endpointMap[ep.Application] = svc.ID
 			}
 		}
+	}
 
-		// check for endpoint name uniqueness btwn this migrated service and the services already defined in
-		// the parent application.
-		//
-		// Note - this is not the most performant way to do this, but migration is not a
-		// performance-critical operation, so no-harm/no-foul.
-		if err := f.validateServiceEndpoints(ctx, &svc); err != nil {
-			glog.Errorf("Migrated service %s has a duplicate endpoint: %s", svc.Name, err)
-			return ErrServiceDuplicateEndpoint
+	// check for endpoint name uniqueness btwn the migrated service and the services already defined in
+	// the parent application.
+	alleps, err := f.GetServiceExportedEndpoints(ctx, tenantID, true)
+	if err != nil {
+		glog.Errorf("Error looking up exported endpoints for tenant %s: %s", tenantID, err)
+		return err
+	}
+	for _, ep := range alleps {
+		if _, ok := endpointMap[ep.Application]; ok {
+			if ep.ServiceID != endpointMap[ep.Application] {
+				glog.Errorf("Endpoint %s in migrated service is a duplicate of an endpoint already in the application", ep.Application)
+				return ErrServiceDuplicateEndpoint
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -1876,55 +1882,6 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 				svc.Endpoints[idx].SetAssignment(*assignment)
 			}
 		}
-	}
-	return nil
-}
-
-// validateServiceEndpoints traverses the service tree for given application and checks for duplicate
-// endpoints.
-// WARNING: This code is only used in CC 1.1 in the context of service migrations, but it should be
-//          added back in CC 1.2 in a more general way (see CC-811 for more information)
-func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Service) error {
-	epValidator := service.NewServiceEndpointValidator()
-	vErr := validation.NewValidationError()
-
-	epValidator.IsValid(vErr, svc)
-	if vErr.HasError() {
-		glog.Errorf("Service %s (%s) has duplicate endpoints: %s", svc.Name, svc.ID, vErr)
-		return vErr
-	}
-
-	var tenantID string
-	if svc.ParentServiceID == "" {
-		// this service is a tenant so we don't have to traverse its tree if
-		// it is a new service
-		if _, err := f.serviceStore.Get(ctx, svc.ID); datastore.IsErrNoSuchEntity(err) {
-			return nil
-		} else if err != nil {
-			glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-		tenantID = svc.ID
-	} else {
-		var err error
-		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
-			glog.Errorf("Could not look up tenantID for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-	}
-
-	if err := f.walkServices(ctx, tenantID, true, func(s *service.Service) error {
-		// we can skip this service because we already checked it above
-		if s.ID != svc.ID {
-			epValidator.IsValid(vErr, s)
-		}
-		return nil
-	}, "validateServiceEndpoints"); err != nil {
-		glog.Errorf("Could not walk service tree of %s (%s) with tenant %s: %s", svc.Name, svc.ID, tenantID, err)
-		return err
-	}
-	if vErr.HasError() {
-		return vErr
 	}
 	return nil
 }
