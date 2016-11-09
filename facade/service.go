@@ -2037,53 +2037,45 @@ func (f *Facade) GetServiceMonitoringProfile(ctx datastore.Context, serviceID st
 // and its children if enabled.
 func (f *Facade) GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceExportedEndpoints"))
-	svc, err := f.serviceStore.Get(ctx, serviceID)
+
+	// get all the exported endpoints and map them to their service
+	alleps, err := f.serviceStore.GetAllExportedEndpoints(ctx)
 	if err != nil {
 		return nil, err
 	}
-	eps := f.getServiceExportedEndpoints(*svc)
+	epmap := make(map[string][]service.ExportedEndpoint)
+	for i, ep := range alleps {
+		epmap[ep.ServiceID] = append(epmap[ep.ServiceID], alleps[i])
+	}
+
+	// get all the endpoints for that service
+	result, ok := epmap[serviceID]
+	if ok {
+		delete(epmap, serviceID)
+	}
 
 	if children {
-		var set func(serviceID string) error
-
-		set = func(serviceID string) error {
-			svcs, err := f.serviceStore.GetChildServices(ctx, serviceID)
-			if err != nil {
-				return err
-			}
-
-			for _, svc := range svcs {
-				eps = append(eps, f.getServiceExportedEndpoints(svc)...)
-				if err := set(svc.ID); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-
-		if err := set(serviceID); err != nil {
+		// get the tenant id and service path to the service in order to find
+		// the service's children.
+		tenantID, svcPath, err := f.getServicePath(ctx, serviceID)
+		if err != nil {
 			return nil, err
 		}
-	}
 
-	return eps, nil
-}
-
-func (f *Facade) getServiceExportedEndpoints(svc service.Service) []service.ExportedEndpoint {
-	eps := []service.ExportedEndpoint{}
-
-	for _, ep := range svc.Endpoints {
-		if ep.Purpose == "export" {
-			eps = append(eps, service.ExportedEndpoint{
-				ServiceID:   svc.ID,
-				ServiceName: svc.Name,
-				Application: ep.Application,
-				Protocol:    ep.Protocol,
-			})
+		for id, eps := range epmap {
+			// add the endpoints with the matching tenant id and share the same
+			// path prefix.
+			tid, spth, err := f.getServicePath(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if tid == tenantID && strings.HasPrefix(spth, svcPath+"/") {
+				result = append(result, eps...)
+			}
 		}
 	}
 
-	return eps
+	return result, nil
 }
 
 // GetServicePublicEndpoints returns all the endpoints for a service and its

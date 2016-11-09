@@ -430,3 +430,55 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 2)
 }
+
+func (s *S) Test_GetAllExportedEndpoints(c *C) {
+	svca := &Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+		Endpoints: []ServiceEndpoint{
+			{
+				Application: "application1",
+				Purpose:     "export",
+				Protocol:    "tcp",
+			}, {
+				Application: "application2",
+				Purpose:     "import",
+				Protocol:    "udp",
+			},
+		},
+	}
+
+	svcb := &Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+		Endpoints: []ServiceEndpoint{
+			{
+				Application: "application1",
+				Purpose:     "importall",
+				Protocol:    "tcp",
+			},
+		},
+	}
+
+	c.Assert(s.store.Put(s.ctx, svca), IsNil)
+	c.Assert(s.store.Put(s.ctx, svcb), IsNil)
+
+	// Query to get services with exported endpoints only
+	eps, err := s.store.GetAllExportedEndpoints(s.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(eps, HasLen, 1)
+	c.Assert(eps[0], DeepEquals, ExportedEndpoint{
+		ServiceID:   svca.ID,
+		ServiceName: svca.Name,
+		Application: "application1",
+		Protocol:    "tcp",
+	})
+}
