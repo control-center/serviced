@@ -823,10 +823,6 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	}
 
 	if ctx.Bool("verbose") {
-		if len(services) > 100 {
-			fmt.Fprintf(os.Stderr, "too many services found for verbose mode (%d); no more than 100 allowed\n", len(services))
-			return
-		}
 		if jsonService, err := json.MarshalIndent(services, " ", "  "); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to marshal service definitions: %s\n", err)
 		} else {
