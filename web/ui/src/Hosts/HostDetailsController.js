@@ -178,7 +178,7 @@
                                 classes: "btn-primary",
                                 label: "download",
                                 action: function(){
-                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.id + '/logs/download');
                                 },
                                 icon: "glyphicon-download"
                             }
