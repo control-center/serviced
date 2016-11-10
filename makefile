@@ -180,7 +180,7 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
-BUILD_VERSION = v$(VERSION)-4
+BUILD_VERSION = v$(VERSION)-5
 export BUILD_VERSION
 
 #
