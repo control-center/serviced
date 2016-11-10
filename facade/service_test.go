@@ -980,6 +980,88 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcr
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupeEndpointsWithTemplate(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	// Try to deploy 2 services with the same parent and same templated endpoint
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = "original_service_id_child_1"
+	deployRequest.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	deployRequest2 := ft.createServiceDeploymentRequest(t)
+	deployRequest2.ParentID = "original_service_id_child_1"
+	deployRequest2.Service.Name = "added-service-2"
+	deployRequest2.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest, deployRequest2},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_EndpointsWithTemplate(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	// Deploy 2 services with the same templated endpoint but different parents
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = "original_service_id_child_1"
+	deployRequest.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	deployRequest2 := ft.createServiceDeploymentRequest(t)
+	deployRequest2.ParentID = "original_service_id_child_0"
+	deployRequest2.Service.Name = "added-service-2"
+	deployRequest2.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest, deployRequest2},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndpoint(t *C) {
 	err := ft.setupMigrationTestWithEndpoints(t)
 	t.Assert(err, IsNil)
