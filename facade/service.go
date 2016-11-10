@@ -623,7 +623,6 @@ func (f *Facade) validateServiceDeployment(ctx datastore.Context, parentID strin
 		}
 		// Evaluate templated endpoints
 		if err = f.evaluateEndpointTemplates(ctx, svc); err != nil {
-			glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", svc.Name, svc.ParentServiceID, err)
 			return nil, err
 		}
 
