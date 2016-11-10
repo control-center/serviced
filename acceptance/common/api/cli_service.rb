@@ -145,7 +145,7 @@ module CCApi
         end
 
         def remove_all_services()
-            CC.CLI.execute("%{serviced} service list --show-fields ServiceID 2>&1 | grep -v ServiceID | xargs --no-run-if-empty %{serviced} service rm")
+            CC.CLI.execute("%{serviced} service list --show-fields ServiceID 2>&1 | grep -v ServiceID | xargs -L 1 --no-run-if-empty %{serviced} service rm")
         end
 
         # Looks up the given port from the ports table and enables/disables it.
