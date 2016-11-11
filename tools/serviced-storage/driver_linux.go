@@ -14,12 +14,15 @@
 package main
 
 import (
-// Need to do btrfs driver initializations
+	"fmt"
+
+	// Need to do btrfs driver initializations
 	_ "github.com/control-center/serviced/volume/btrfs"
-// Need to do rsync driver initializations
+	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
-// Need to do devicemapper driver initializations
-	_ "github.com/control-center/serviced/volume/devicemapper"
+
+	"github.com/control-center/serviced/volume/devicemapper"
+	log "github.com/Sirupsen/logrus"
 )
 
 // Execute displays orphaned volumes
