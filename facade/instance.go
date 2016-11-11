@@ -378,7 +378,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 	// look up the metrics of all the instances
 	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
 	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		logger.WithError(err).Debug("Could not look up memory metrics for instances on service")
 	} else {
 		for _, metric := range metricsres {
 			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
