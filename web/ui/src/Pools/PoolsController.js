@@ -159,18 +159,19 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                // add the Permissions field and remove the NgBitset field
-                                modalScope.newPool.Permissions = modalScope.newPool.permissions.val;
-                                delete modalScope.newPool.permissions;
+                                // make a copy of the payload, add the permissions field, and remove the NgBitset
+                                var payload = angular.copy(modalScope.newPool);
+                                payload.Permissions = modalScope.newPool.permissions.val;
+                                delete payload.permissions;
 
-                                resourcesFactory.addPool(modalScope.newPool)
+                                resourcesFactory.addPool(payload)
                                     .success(function(data, status){
                                         this.close();
                                         $notification.create("Added new Pool", data.Detail).success();
                                         modalScope.refreshPools();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        $notification.create("Adding pool failed", data.Detail).error();
+                                        this.createNotification("Adding pool failed", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
