@@ -331,25 +331,12 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	}
 
 	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
-	//for each endpoint, evaluate its Application
-	getService := func(serviceID string) (service.Service, error) {
-		s, err := f.GetService(ctx, serviceID)
-		if err != nil {
-			return service.Service{}, err
-		}
-		return *s, err
-	}
-	findChildService := func(parentID, serviceName string) (service.Service, error) {
-		s, err := f.FindChildService(ctx, parentID, serviceName)
-		if err != nil {
-			return service.Service{}, err
-		}
-		return *s, err
-	}
-	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService); err != nil {
+
+	if err = f.evaluateEndpointTemplates(ctx, newsvc); err != nil {
 		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
+
 	if tenantID == "" {
 		tenantID = newsvc.ID
 	}
@@ -429,4 +416,25 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 		return err
 	}
 	return nil
+}
+
+func (f *Facade) evaluateEndpointTemplates(ctx datastore.Context, newsvc *service.Service) error {
+	//for each endpoint, evaluate its Application
+	getService := func(serviceID string) (service.Service, error) {
+		s, err := f.GetService(ctx, serviceID)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *s, err
+	}
+	findChildService := func(parentID, serviceName string) (service.Service, error) {
+		s, err := f.FindChildService(ctx, parentID, serviceName)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *s, err
+	}
+
+	return newsvc.EvaluateEndpointTemplates(getService, findChildService)
+
 }
