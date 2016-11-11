@@ -435,6 +435,6 @@ func (f *Facade) evaluateEndpointTemplates(ctx datastore.Context, newsvc *servic
 		return *s, err
 	}
 
-	return newsvc.EvaluateEndpointTemplates(getService, findChildService, 0)
+	return newsvc.EvaluateEndpointTemplates(getService, findChildService)
 
 }
