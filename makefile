@@ -20,7 +20,7 @@ OS := $(shell uname -s)
 endif
 
 # Probably not necessary, but you never know
-ifeq ($(OS),"Windows_NT")
+ifeq "$(OS)" "Windows_NT"
 $(error Windows is not supported)
 endif
 
@@ -40,7 +40,7 @@ LDFLAGS = -ldflags " \
 		  -X main.Gitcommit=$(GIT_COMMIT) \
 		  -X main.Gitbranch=$(GIT_BRANCH) \
 		  -X main.Buildtag=$(BUILD_TAG) \
-		  -X main.Date=$(DATE)" 
+		  -X main.Date=$(DATE)"
 
 #---------------------#
 # Macros              #
@@ -129,12 +129,12 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
-ifeq ($(OS),"Linux")
+ifeq "$(OS)" "Linux"
 	cd web/ui && make build
 else
 	# The default JS build runs in a docker container. Launching docker containers and running a build with them on
 	# on OSX has been problematic, so skip it for developer builds running on OSX
-	@echo "\n\nWARNING: Skipping build_js on OSX\n\n"
+	@echo "\n\nWARNING: Skipping build_js on $(OS)\n\n"
 endif
 
 .PHONY: mockAgent
