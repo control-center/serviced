@@ -587,6 +587,85 @@ func (ft *FacadeTest) TestFacade_MigrateServices_Deploy_EndpointsWithTemplate(t 
 	t.Assert(err, IsNil)
 }
 
+func (ft *FacadeTest) createServiceDeploymentRequest(t *C) *dao.ServiceDeploymentRequest {
+	deployRequest := dao.ServiceDeploymentRequest{
+		ParentID: "original_service_id_child_0",
+
+		// A minimally valid ServiceDefinition
+		Service: servicedefinition.ServiceDefinition{
+			Name:    "added-service-name",
+			ImageID: "ubuntu:latest",
+			Launch:  "auto",
+		},
+	}
+
+	return &deployRequest
+}
+
+func (ft *FacadeTest) setupMigrationTestWithoutEndpoints(t *C) error {
+	return ft.setupMigrationTest(t, false)
+}
+
+func (ft *FacadeTest) setupMigrationTestWithEndpoints(t *C) error {
+	return ft.setupMigrationTest(t, true)
+}
+
+func (ft *FacadeTest) setupMigrationTest(t *C, addEndpoint bool) error {
+	tenant := service.Service{
+		ID:           "original_service_id_tenant",
+		Name:         "original_service_name_tenant",
+		DeploymentID: "original_service_deployment_id",
+		PoolID:       "original_service_pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+	}
+	c0 := service.Service{
+		ID:              "original_service_id_child_0",
+		ParentServiceID: "original_service_id_tenant",
+		Name:            "original_service_name_child_0",
+		DeploymentID:    "original_service_deployment_id",
+		PoolID:          "original_service_pool_id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	}
+	c1 := service.Service{
+		ID:              "original_service_id_child_1",
+		ParentServiceID: "original_service_id_tenant",
+		Name:            "original_service_name_child_1",
+		DeploymentID:    "original_service_deployment_id",
+		PoolID:          "original_service_pool_id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+	}
+
+	if addEndpoint {
+		c1.Endpoints = []service.ServiceEndpoint{
+			service.BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
+					Name:        "original_service_endpoint_name_child_1",
+					Application: "original_service_endpoint_application_child_1",
+					Purpose:     "export",
+				},
+			),
+		}
+	}
+
+	if err := ft.Facade.AddService(ft.CTX, tenant); err != nil {
+		t.Errorf("Setup failed; could not add svc %s: %s", tenant.ID, err)
+		return err
+	}
+	if err := ft.Facade.AddService(ft.CTX, c0); err != nil {
+		t.Errorf("Setup failed; could not add svc %s: %s", c0.ID, err)
+		return err
+	}
+	if err := ft.Facade.AddService(ft.CTX, c1); err != nil {
+		t.Errorf("Setup failed; could not add svc %s: %s", c1.ID, err)
+		return err
+	}
+
+	return nil
+}
+
 func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) {
 	svc := service.Service{
 		ID:           "svc1",
