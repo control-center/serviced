@@ -85,5 +85,16 @@ translation_test:
 
 .PHONY: clean
 clean:
-	rm -rf build
-	rm -rf test/results
+	@if [ "$(NODEJS)" ]; then \
+		echo "Using local nodejs to run 'gulp clean'"; \
+		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
+		$(GULP) clean; \
+	else \
+		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp clean'"; \
+		docker run --rm \
+		-v $(PWD):$(docker_working_DIR) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && $(GULP) clean\""; \
+	fi
