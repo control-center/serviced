@@ -113,43 +113,43 @@
             fetch.call(this, "getServiceConfigs", "configs", force);
         }
 
-        async fetchEndpoints(force) {
+        fetchEndpoints(force) {
             let deferred = $q.defer();
             let statuses;
             // kick off request for statuses for public endpoint
             // service statuses
-            let s = await this.getEndpointStatuses();
-            s = s || [];
-            // convert array of endpoint service statuses
-            // to a map of serviceid -> endpoint status
-            statuses = s.reduce((acc, s) => {
-                acc[s.ServiceID] = s;
-                return acc;
-            },{});
-
-            let response = await resourcesFactory.v2.getServicePublicEndpoints(this.id);
-
-            this.publicEndpoints = response.map(ept => {
-                // TODO - dont modify model data :(
-                ept.Value = `${ept.ServiceName} - ${ept.Application}`;
-                // if this endpoint has a service status,
-                // add that service's desiredState so that
-                // the endpoint knows if its accessible or not
-                if(statuses[ept.ServiceID]){
-                    ept.desiredState = statuses[ept.ServiceID].DesiredState;
-                }
-                return ept;
-            });
-
-            deferred.resolve();
-            /*
+            this.getEndpointStatuses()
+                .then(s => {
+                    s = s || [];
+                    // convert array of endpoint service statuses
+                    // to a map of serviceid -> endpoint status
+                    statuses = s.reduce((acc, s) => {
+                        acc[s.ServiceID] = s;
+                        return acc;
+                    },{});
+                })
+                // kick off request for public endpoints
+                .then(() => {
+                    return resourcesFactory.v2.getServicePublicEndpoints(this.id);
+                })
+                .then(response => {
+                    this.publicEndpoints = response.map(ept => {
+                        // TODO - dont modify model data :(
+                        ept.Value = `${ept.ServiceName} - ${ept.Application}`;
+                        // if this endpoint has a service status,
+                        // add that service's desiredState so that
+                        // the endpoint knows if its accessible or not
+                        if(statuses[ept.ServiceID]){
+                            ept.desiredState = statuses[ept.ServiceID].DesiredState;
+                        }
+                        return ept;
+                    });
+                    deferred.resolve();
                 })
                 .catch(error => {
                     console.warn(error);
                     deferred.reject();
                 });
-                */
-
             return deferred.promise;
         }
 
