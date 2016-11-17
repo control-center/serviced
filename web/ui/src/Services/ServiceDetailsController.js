@@ -89,7 +89,7 @@
                         // if invalid characters
                         var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
                         if (!re.test(name)) {
-                            return $translate.instant("vhost_name_invalid") + " " + newPublicEndpoint.name;
+                            return $translate.instant("vhost_name_invalid") + " " + utils.escapeHTML(newPublicEndpoint.name);
                         }
                     };
 
@@ -105,7 +105,7 @@
                         // if invalid characters
                         var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
                         if (!re.test(host)) {
-                            return $translate.instant("host_name_invalid") + ": " + host;
+                            return $translate.instant("host_name_invalid") + ": " + utils.escapeHTML(host);
                         }
 
                         // if no port
