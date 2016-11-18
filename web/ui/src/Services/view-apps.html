@@ -17,12 +17,6 @@
               <span ng-if="service.deploying">{{service.name}}<span class="version" ng-show="service.model.Version"> (v{{service.model.Version}})</span></span>
           </td>
           <td data-title="'deployed_tbl_description'|translate">{{service.model.Description}}</td>
-          <td data-title="'health_check'|translate" sortable="'status.status'" style="text-align:center;">
-              <span ng-if="!service.deploying">
-                  <health-icon data-status="service.status"></health-icon>
-              </span>
-              <span ng-if="service.deploying" class="ntsh"></span>
-          </td>
           <td data-title="'deployed_tbl_deployment_id'|translate" sortable="'model.DeploymentID'">{{service.model.DeploymentID}}</td>
 
           <td data-title="'deployed_tbl_pool'|translate" sortable="model.PoolID">
