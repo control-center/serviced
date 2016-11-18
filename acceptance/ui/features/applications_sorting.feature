@@ -18,16 +18,6 @@ Feature: Application Sorting
       And I sort by "Application" in descending order
     Then the "Application" column should be sorted in descending order
   
-  Scenario: Sort applications by descending status
-    When I am on the applications page
-      And I sort by "Status" in descending order
-    Then the "Status" column should be sorted with active applications on the bottom
-
-  Scenario: Sort applications by ascending status
-    When I am on the applications page
-      And I sort by "Status" in ascending order
-    Then the "Status" column should be sorted with active applications on top
-
   Scenario: Sort applications by ascending deployment ID
     When I am on the applications page
       And I sort by "Deployment ID" in ascending order
