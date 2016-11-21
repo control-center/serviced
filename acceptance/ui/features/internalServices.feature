@@ -9,8 +9,7 @@ Feature: Internal Services
 
   Scenario: Check that Internal Services is active
     When I am on the applications page
-    Then "Internal Services" should be active
-      And I should see "Internal" in the "Deployment ID" column
+    Then I should see "Internal" in the "Deployment ID" column
 
   Scenario: View Internal Services page
     When I am on the applications page
