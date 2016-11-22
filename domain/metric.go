@@ -174,7 +174,7 @@ func (builder *MetricBuilder) Config(ID, Name, Description, Start string) (*Metr
 	//build the query body object
 	bodyBytes, err := json.Marshal(request)
 	if err != nil {
-		plog.WithError(err).Error("Failed to marshal query body")
+		plog.WithError(err).Warn("Failed to marshal query body")
 		return nil, err
 	}
 

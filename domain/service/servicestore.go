@@ -409,7 +409,7 @@ func (s *storeImpl) addUpdatedServicesFromCache(ctx datastore.Context, svcs []Se
 				svcs = append(svcs, *svc)
 			}
 		} else {
-			plog.Debugf("Skipping service %s (already exists in list)", cacheEntry.ID)
+			plog.WithField("serviceid", cacheEntry.ID).Debug("Skipping service because it is already cached")
 		}
 	}
 	return svcs, nil
@@ -470,17 +470,18 @@ func (s *storeImpl) getUpdatedCacheEntries(since time.Time) []volatileService {
 	s.serviceCacheLock.RLock()
 	defer s.serviceCacheLock.RUnlock()
 
-	plog.WithFields(log.Fields{
+	logger := plog.WithFields(log.Fields{
 		"since": since,
-	}).Debugf("Querying services updated since")
+	})
+	logger.Debug("Querying services updated since")
 
 	cacheEntries := []volatileService{}
 	for _, cacheEntry := range s.serviceCache {
 		if cacheEntry.UpdatedAt.After(since) {
-			plog.Debugf("Adding cache entry: %v", cacheEntry)
+			logger.WithField("serviceid", cacheEntry.ID).Debug("Adding cache entry")
 			cacheEntries = append(cacheEntries, cacheEntry)
 		}
 	}
-	plog.Debugf("Returning %d cached entries", len(cacheEntries))
+	logger.WithField("count", len(cacheEntries)).Debug("Returning %d cached entries")
 	return cacheEntries
 }

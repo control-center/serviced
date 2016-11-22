@@ -58,7 +58,7 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-	plog.WithField("endpoint", e).Debug("ServiceEndpoint UnmarshalJSON")
+	logger := plog.WithField("endpointname", e.Name)
 	if len(e.VHostList) > 0 {
 		//VHostList is defined, keep it and unset deprecated field if set
 		e.VHosts = nil
@@ -67,15 +67,15 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
 		if log.GetLevel() == log.DebugLevel {
-			plog.WithField("vhosts", e.VHosts).Warning("ServiceEndpoint VHosts field is deprecated, see VHostList")
+			logger.WithField("vhosts", e.VHosts).Warning("The field named VHosts in ServiceEndpoint is deprecated, see VHostList")
 		}
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, servicedefinition.VHost{Name: vhost, Enabled: true})
 		}
-		plog.WithFields(log.Fields{
+		logger.WithFields(log.Fields{
 			"vhostlist": e.VHostList,
 			"vhosts": e.VHosts,
-		}).Debug("VHostList converted from VHosts")
+		}).Debug("VHostList created from VHosts")
 		e.VHosts = nil
 	}
 	return nil

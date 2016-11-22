@@ -41,7 +41,6 @@ func (a *AddressAssignment) ValidEntity() error {
 	}
 
 	if v.HasError() {
-
 		return v
 	}
 	return nil
