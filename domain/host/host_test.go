@@ -55,7 +55,7 @@ func init() {
 
 	ip, err := utils.GetIPAddress()
 	if err != nil {
-		plog.WithError(err).Error("Could not determine ip")
+		t.Errorf("Could not determine ip: %s", err)
 	}
 
 	validatetable = []validateCase{

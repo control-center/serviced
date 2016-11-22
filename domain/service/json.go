@@ -73,7 +73,7 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 			e.VHostList = append(e.VHostList, servicedefinition.VHost{Name: vhost, Enabled: true})
 		}
 		plog.WithFields(log.Fields{
-			"vhostList": e.VHostList,
+			"vhostlist": e.VHostList,
 			"vhosts": e.VHosts,
 		}).Debug("VHostList converted from VHosts")
 		e.VHosts = nil

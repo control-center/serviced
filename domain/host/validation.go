@@ -43,14 +43,14 @@ func (h *Host) ValidEntity() error {
 
 	if err != nil {
 		plog.WithFields(log.Fields{
-			"hostID": h.ID,
-			"ipAddr": h.IPAddr,
+			"hostid": h.ID,
+			"ipaddr": h.IPAddr,
 		}).WithError(err).Error("Could not resolve value to an ip4 address")
 		violations.Add(err)
 	} else if ipAddr.IP.IsLoopback() {
 		plog.WithFields(log.Fields{
-			"hostID": h.ID,
-			"ipAddr": h.IPAddr,
+			"hostid": h.ID,
+			"ipaddr": h.IPAddr,
 		}).WithError(err).Error("Can not use value as host address because it is a loopback address")
 		violations.Add(errors.New("host ip can not be a loopback address"))
 
@@ -59,9 +59,9 @@ func (h *Host) ValidEntity() error {
 		h.RAMLimit = fmt.Sprintf("%d", h.Memory)
 	} else if err != nil {
 		plog.WithFields(log.Fields{
-			"hostID": h.ID,
-			"RAMLimit": h.RAMLimit,
-			"Memory": h.Memory,
+			"hostid": h.ID,
+			"ramlimit": h.RAMLimit,
+			"memory": h.Memory,
 		}).WithError(err).Error("Can not parse RAM Limit")
 		violations.Add(err)
 	}

@@ -175,8 +175,8 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	url, err := url.Parse("http://localhost/" + requestURI)
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
-			"RequestURI": RequestURI,
-			"Method": Method,
+			"requesturi": RequestURI,
+			"method": Method,
 		}).Error("Invalid URL")
 		return nil, err
 	}
@@ -188,8 +188,8 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	case "POST":
 	default:
 		plog.WithError(err).WithFields(log.Fields{
-			"RequestURI": RequestURI,
-			"Method": Method,
+			"requesturi": RequestURI,
+			"method": Method,
 		}).Error("Invalid HTTP method")
 		return nil, errors.New("invalid method")
 	}

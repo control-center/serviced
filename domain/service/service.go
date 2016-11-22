@@ -493,8 +493,8 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 					portFound = true
 					ep.PortList[i].Enabled = enable
 					plog.WithFields(log.Fields{
-						"portAddr": portAddr,
-						"serviceID": s.ID,
+						"portaddr": portAddr,
+						"serviceid": s.ID,
 						"application": application,
 						"enable": enable,
 					}).Debug("Enable port")
@@ -537,8 +537,8 @@ func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) 
 					vhostFound = true
 					ep.VHostList[i].Enabled = enable
 					plog.WithFields(log.Fields{
-						"vhostName": vhostName,
-						"serviceID": s.ID,
+						"vhostname": vhostName,
+						"serviceid": s.ID,
 						"application": application,
 						"enable": enable,
 					}).Debug("Enable vhost")

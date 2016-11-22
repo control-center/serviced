@@ -195,23 +195,17 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
 			"ip": ip,
-			"rpcPort": rpcPort,
-			"poolID": poolid,
+			"rpcport": rpcPort,
+			"poolid": poolid,
 		}).Debug("currentHost failed")
 		return nil, err
 	}
-	plog.WithFields(log.Fields{
-		"hostID": host.ID,
-		"ipAddr": host.IPAddr,
-		"ipAddrs": ipAddrs,
-		"len(ipAddrs)": len(ipAddrs),
-	}).Info("Building host")
 	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
-			"hostID": host.ID,
-			"ipAddr": host.IPAddr,
-			"ipAddrs": ipAddrs,
+			"hostid": host.ID,
+			"ipaddress": host.IPAddr,
+			"ipaddresses": ipAddrs,
 		}).Debug("currentHost failed")
 		return nil, err
 	}
@@ -228,6 +222,11 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
 	host.ServiceD.Release = servicedversion.Release
+
+	plog.WithFields(log.Fields{
+		"hostid": host.ID,
+		"ipaddress": host.IPAddr,
+	}).Info("Created host")
 
 	return host, nil
 }

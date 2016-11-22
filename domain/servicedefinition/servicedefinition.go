@@ -232,14 +232,14 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
 		if log.GetLevel() == log.DebugLevel {
-			plog.WithField("Vhosts", e.VHosts).Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
+			plog.WithField("vhosts", e.VHosts).Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
 		}
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
 		}
 		plog.WithFields(log.Fields{
-			"VHostList": e.VHostList,
-			"VHosts": e.VHosts,
+			"vhostlist": e.VHostList,
+			"vhosts": e.VHosts,
 		}).Debug("VHostList converted from VHosts")
 		e.VHosts = nil
 	}

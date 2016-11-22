@@ -58,8 +58,8 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
 			"ip": ip,
-			"rpcPort": rpcPort,
-			"poolID": poolID,
+			"rpcport": rpcPort,
+			"poolid": poolID,
 		}).Debug("HostID failed")
 		return nil, err
 	}
@@ -102,8 +102,8 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
 			"ip": ip,
-			"rpcPort": rpcPort,
-			"poolID": poolID,
+			"rpcport": rpcPort,
+			"poolid": poolID,
 		}).Debug("RouteCmd failed")
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 		return nil, err
 	}
 	plog.WithFields(log.Fields{
-		"hostID": hostID,
+		"hostid": hostID,
 		"ifacemap": ifacemap,
 	}).Debug("Interfaces on this host")
 
@@ -158,8 +158,8 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 	hostIPResources := make([]HostIPResource, len(ips))
 	for i, ip := range ips {
 		plog.WithFields(log.Fields{
-			"hostID": hostID,
-			"hostIP": hostIP,
+			"hostid": hostID,
+			"hostip": hostIP,
 			"ip": ip,
 		}).Info("Checking IP")
 		if iface, ok := ifacemap[ip]; ok {

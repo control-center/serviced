@@ -167,7 +167,7 @@ func getFiltersFromDirectory(path string) (filters map[string]string, err error)
 		if !strings.HasSuffix(filterName, ".conf") {
 			plog.WithFields(log.Fields{
 				"path": path,
-				"filterName": filterName,
+				"filtername": filterName,
 			}).Warning("Skipping filter because it doesn't have a .conf extension")
 			continue
 		}
@@ -176,7 +176,7 @@ func getFiltersFromDirectory(path string) (filters map[string]string, err error)
 		contents, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			plog.WithFields(log.Fields{
-				"filePath": filePath,
+				"filepath": filePath,
 			}).Error("Unable to read filter file, skipping")
 			continue
 		}

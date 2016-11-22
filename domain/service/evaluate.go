@@ -73,8 +73,8 @@ func getContext(gs GetService) func(s *runtimeContext, key string) (interface{},
 		err := flattenContext(s.Service, gs, "", &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
-				"serviceName": s.Name,
-				"serviceID": s.ID,
+				"servicename": s.Name,
+				"serviceid": s.ID,
 			}).WithError(err).Error("Flattening context failed")
 		}
 
@@ -88,8 +88,8 @@ func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, err
 		err := flattenContext(s.Service, gs, "", &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
-				"serviceName": s.Name,
-				"serviceID": s.ID,
+				"servicename": s.Name,
+				"serviceid": s.ID,
 			}).WithError(err).Error("Flattening context failed")
 		}
 		return ctx, err
@@ -102,8 +102,8 @@ func contextFilter(gs GetService) func(s *runtimeContext, prefix string) (map[st
 		err := flattenContext(s.Service, gs, prefix, &ctx)
 		if err != nil {
 			plog.WithFields(log.Fields{
-				"serviceName": s.Name,
-				"serviceID": s.ID,
+				"servicename": s.Name,
+				"serviceid": s.ID,
 				"prefix": prefix,
 			}).WithError(err).Error("Flattening context failed")
 		}
@@ -233,9 +233,9 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 // configs. This happens for each LogConfig on the service.
 func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	log.WithFields(log.Fields{
-		"serviceName": service.Name,
-		"serviceID": service.ID,
-		"instanceID": instanceID,
+		"servicename": service.Name,
+		"serviceid": service.ID,
+		"instanceid": instanceID,
 	}).Debug("Evaluating LogConfig Files")
 
 	// evaluate the template for the LogConfig as well as the tags
@@ -276,9 +276,9 @@ func (service *Service) EvaluateLogConfigTemplate(gs GetService, fc FindChildSer
 // ConfigFile on the service.
 func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	log.WithFields(log.Fields{
-		"serviceName": service.Name,
-		"serviceID": service.ID,
-		"instanceID": instanceID,
+		"servicename": service.Name,
+		"serviceid": service.ID,
+		"instanceid": instanceID,
 	}).Debug("Evaluating Config Files")
 
 	for key, configFile := range service.ConfigFiles {
@@ -306,9 +306,9 @@ func (service *Service) EvaluateConfigFilesTemplate(gs GetService, fc FindChildS
 // EvaluatePrereqsTemplate parses and evals the Script field for each Prereq.
 func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	log.WithFields(log.Fields{
-		"serviceName": service.Name,
-		"serviceID": service.ID,
-		"instanceID": instanceID,
+		"servicename": service.Name,
+		"serviceid": service.ID,
+		"instanceid": instanceID,
 	}).Debug("Evaluating Prereq scripts")
 
 	for i, prereq := range service.Prereqs {
@@ -327,9 +327,9 @@ func (service *Service) EvaluatePrereqsTemplate(gs GetService, fc FindChildServi
 // EvaluateHealthCheckTemplate parses and evals the Script field for each HealthCheck.
 func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildService, instanceID int) (err error) {
 	log.WithFields(log.Fields{
-		"serviceName": service.Name,
-		"serviceID": service.ID,
-		"instanceID": instanceID,
+		"servicename": service.Name,
+		"serviceid": service.ID,
+		"instanceid": instanceID,
 	}).Debug("Evaluating HealthCheck scripts")
 
 	for key, healthcheck := range service.HealthChecks {
