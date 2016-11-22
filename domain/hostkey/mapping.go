@@ -19,12 +19,13 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 )
 
 const kind = "keyregistry"
 
 var (
+	plog = logging.PackageLogger()
 	mappingString = fmt.Sprintf(`
 {
     "%s": {
@@ -40,7 +41,7 @@ var (
 
 func init() {
 	if mappingError != nil {
-		glog.Fatalf("error creating rsa key registry mapping: %s", mappingError)
+		plog.WithError(mappingError).Fatal("error creating mapping for rsa key registry")
 	}
 }
 
