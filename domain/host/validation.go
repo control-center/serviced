@@ -19,7 +19,6 @@ import (
 	"net"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/validation"
 )
 
@@ -40,29 +39,15 @@ func (h *Host) ValidEntity() error {
 
 	//TODO: what should we be validating here? It doesn't seem to work for
 	ipAddr, err := net.ResolveIPAddr("ip4", h.IPAddr)
-
 	if err != nil {
-		plog.WithFields(log.Fields{
-			"hostid": h.ID,
-			"ipaddr": h.IPAddr,
-		}).WithError(err).Error("Could not resolve value to an ip4 address")
 		violations.Add(err)
 	} else if ipAddr.IP.IsLoopback() {
-		plog.WithFields(log.Fields{
-			"hostid": h.ID,
-			"ipaddr": h.IPAddr,
-		}).WithError(err).Error("Can not use value as host address because it is a loopback address")
 		violations.Add(errors.New("host ip can not be a loopback address"))
 
 	}
 	if _, err := GetRAMLimit(h.RAMLimit, h.Memory); err == ErrSizeTooBig {
 		h.RAMLimit = fmt.Sprintf("%d", h.Memory)
 	} else if err != nil {
-		plog.WithFields(log.Fields{
-			"hostid": h.ID,
-			"ramlimit": h.RAMLimit,
-			"memory": h.Memory,
-		}).WithError(err).Error("Can not parse RAM Limit")
 		violations.Add(err)
 	}
 	if len(violations.Errors) > 0 {
