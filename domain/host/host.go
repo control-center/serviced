@@ -206,7 +206,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 			"ip": ip,
 			"rpcport": rpcPort,
 			"poolid": poolid,
-		}).Debug("currentHost failed")
+		}).Debug("Unable to build host object")
 		return nil, err
 	}
 	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
@@ -215,7 +215,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 			"hostid": host.ID,
 			"ipaddress": host.IPAddr,
 			"ipaddresses": ipAddrs,
-		}).Debug("currentHost failed")
+		}).Debug("Unable to get IP address(es) for host")
 		return nil, err
 	}
 	host.IPs = hostIPs

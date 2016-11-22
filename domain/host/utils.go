@@ -60,7 +60,7 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 			"ip": ip,
 			"rpcport": rpcPort,
 			"poolid": poolID,
-		}).Debug("HostID failed")
+		}).Debug("Unable to retrieve host ID")
 		return nil, err
 	}
 
@@ -104,7 +104,7 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 			"ip": ip,
 			"rpcport": rpcPort,
 			"poolid": poolID,
-		}).Debug("RouteCmd failed")
+		}).Debug("Unable to get network routes")
 		return nil, err
 	}
 	for _, route := range routes {
@@ -140,9 +140,12 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 	if err != nil {
 		return nil, err
 	}
-	plog.WithFields(log.Fields{
+	hostLogger := plog.WithFields(log.Fields{
 		"hostid": hostID,
-		"ifacemap": ifacemap,
+		"hostip": hostIP,
+	})
+	hostLogger.WithFields(log.Fields{
+		"interfaces": ifacemap,
 	}).Debug("Interfaces on this host")
 
 	// Get a unique list of ips from staticIPs and hostIP.
@@ -157,11 +160,9 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 
 	hostIPResources := make([]HostIPResource, len(ips))
 	for i, ip := range ips {
-		plog.WithFields(log.Fields{
-			"hostid": hostID,
-			"hostip": hostIP,
+		hostLogger.WithFields(log.Fields{
 			"ip": ip,
-		}).Info("Checking IP")
+		}).Debug("Checking IP")
 		if iface, ok := ifacemap[ip]; ok {
 			if isLoopBack(ip) {
 				return nil, IsLoopbackError(ip)
@@ -193,7 +194,7 @@ func getInterfaceMap() (map[string]net.Interface, error) {
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			plog.WithError(err).Error("Unable to read interface addresses")
+			plog.WithField("interface", iface.Name).WithError(err).Error("Unable to read interface addresses")
 			return nil, err
 		}
 		for _, ip := range addrs {
