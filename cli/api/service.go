@@ -48,8 +48,9 @@ type ServiceConfig struct {
 }
 
 type SchedulerConfig struct {
-	ServiceID  string
-	AutoLaunch bool
+	ServiceID   string
+	AutoLaunch  bool
+	Synchronous bool
 }
 
 // IPConfig is the deserialized object from the command-line
@@ -61,20 +62,26 @@ type IPConfig struct {
 // Type of method that controls the state of a service
 type ServiceStateController func(SchedulerConfig) (int, error)
 
-// Gets all of the available services
-func (a *api) GetServices() ([]service.Service, error) {
-	client, err := a.connectDAO()
+func (a *api) GetAllServiceDetails() ([]service.ServiceDetails, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []service.Service
-	var serviceRequest dao.ServiceRequest
-	if err := client.GetServices(serviceRequest, &services); err != nil {
+	return client.GetAllServiceDetails(0)
+}
+
+func (a *api) GetServiceDetails(serviceID string) (*service.ServiceDetails, error) {
+	client, err := a.connectMaster()
+	if err != nil {
 		return nil, err
 	}
 
-	return services, nil
+	if svc, err := client.GetServiceDetails(serviceID); err != nil {
+		return nil, err
+	} else {
+		return svc, nil
+	}
 }
 
 func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interface{}, error) {
@@ -82,20 +89,25 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 	if err != nil {
 		return nil, err
 	}
+	masterClient, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
 
 	// get services
-	var svcs []service.Service
+	var svcs []service.ServiceDetails
 	if serviceID = strings.TrimSpace(serviceID); serviceID != "" {
 		for serviceID != "" {
-			var svc service.Service
-			if err := client.GetService(serviceID, &svc); err != nil {
+			if svc, err := masterClient.GetServiceDetails(serviceID); err != nil {
 				return nil, err
+			} else {
+				svcs = append(svcs, *svc)
+				serviceID = svc.ParentServiceID
 			}
-			svcs = append(svcs, svc)
-			serviceID = svc.ParentServiceID
 		}
 	} else {
-		if err := client.GetServices(dao.ServiceRequest{}, &svcs); err != nil {
+		svcs, err = masterClient.GetAllServiceDetails(0)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -221,7 +233,7 @@ func (a *api) GetEndpoints(serviceID string, reportImports, reportExports, valid
 	}
 }
 
-// Gets the service definition identified by its service ID
+// Gets the service definition identified by its service ID. This is the full service object
 func (a *api) GetService(id string) (*service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
@@ -236,25 +248,8 @@ func (a *api) GetService(id string) (*service.Service, error) {
 	return &s, nil
 }
 
-// Gets the service definition identified by its service Name
-func (a *api) GetServicesByName(name string) ([]service.Service, error) {
-	allServices, err := a.GetServices()
-	if err != nil {
-		return nil, err
-	}
-
-	var services []service.Service
-	for i, s := range allServices {
-		if s.Name == name || s.ID == name {
-			services = append(services, allServices[i])
-		}
-	}
-
-	return services, nil
-}
-
 // Adds a new service
-func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
+func (a *api) AddService(config ServiceConfig) (*service.ServiceDetails, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -287,11 +282,11 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	return a.GetService(serviceID)
+	return a.GetServiceDetails(serviceID)
 }
 
 // CloneService copies an existing service
-func (a *api) CloneService(serviceID string, suffix string) (*service.Service, error) {
+func (a *api) CloneService(serviceID string, suffix string) (*service.ServiceDetails, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -302,7 +297,7 @@ func (a *api) CloneService(serviceID string, suffix string) (*service.Service, e
 	if err := client.CloneService(request, &clonedServiceID); err != nil {
 		return nil, fmt.Errorf("copy service failed: %s", err)
 	}
-	return a.GetService(clonedServiceID)
+	return a.GetServiceDetails(clonedServiceID)
 }
 
 // RemoveService removes an existing service
@@ -319,7 +314,7 @@ func (a *api) RemoveService(id string) error {
 }
 
 // UpdateService updates an existing service
-func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
+func (a *api) UpdateService(reader io.Reader) (*service.ServiceDetails, error) {
 	// Unmarshal JSON from the reader
 	var s service.Service
 	if err := json.NewDecoder(reader).Decode(&s); err != nil {
@@ -337,7 +332,7 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 		return nil, err
 	}
 
-	return a.GetService(s.ID)
+	return a.GetServiceDetails(s.ID)
 }
 
 // StartService starts a service
@@ -348,7 +343,7 @@ func (a *api) StartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 
@@ -360,7 +355,7 @@ func (a *api) RestartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 
@@ -372,7 +367,7 @@ func (a *api) StopService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 
@@ -406,4 +401,12 @@ func (a *api) GetHostMap() (map[string]host.Host, error) {
 		hostmap[host.ID] = host
 	}
 	return hostmap, nil
+}
+
+func (a *api) ResolveServicePath(path string) ([]service.ServiceDetails, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.ResolveServicePath(path)
 }

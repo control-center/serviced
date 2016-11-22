@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/queue"
+	"github.com/zenoss/glog"
 )
 
 // Item wrapper type for items stored in pool
@@ -167,7 +168,7 @@ func (p *itemPool) Remove(item *Item) error {
 	if err == nil {
 		p.itemQ.Offer(item)
 	} else {
-		fmt.Printf("Remove error %v\n", err)
+		glog.Errorf("Remove failed to create a new, replacement item: %s", err)
 	}
 	return nil
 }

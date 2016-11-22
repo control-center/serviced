@@ -64,35 +64,40 @@ func (c *ServicedCli) cmdPublicEndpointsListAll(ctx *cli.Context) {
 // Method that executes the serviced service public-endpoints list.  Also called from the
 // port list *, and vhost list * subcommands.
 func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, showPorts bool) {
-	var services []service.Service
+
+	var publicEndpoints []PublicEndpoint
 
 	if len(ctx.Args()) > 0 {
 		// Provided the service id/name.
-		svc, err := c.searchForService(ctx.Args()[0])
+		svcDetails, _, err := c.searchForService(ctx.Args()[0])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		services = []service.Service{*svc}
+		svc, err := c.driver.GetService(svcDetails.ID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		services := []service.Service{*svc}
+
+		publicEndpoints, err = c.createPublicEndpoints(ctx, services, showVHosts, showPorts)
+		// If there was an error getting the endpoints, show the error now.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			return
+		}
 	} else {
 		// Showing all service ports/vhosts.
-		var err error
-		services, err = c.driver.GetServices()
+		peps, err := c.driver.GetAllPublicEndpoints()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to get services: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Unable to get public endpoints: %s\n", err)
 			return
-		} else if services == nil || len(services) == 0 {
+		} else if peps == nil || len(peps) == 0 {
 			fmt.Fprintln(os.Stderr, "no services found")
 			return
 		}
-	}
-
-	// Get the list of public endpoints requested.
-	publicEndpoints, err := c.getPublicEndpoints(ctx, services, showVHosts, showPorts)
-	// If there was an error getting the endpoints, show the error now.
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		return
+		publicEndpoints, err = c.convertPublicEndpoints(peps, showVHosts, showPorts)
 	}
 
 	// If we're generating JSON..
@@ -144,8 +149,33 @@ func cmdPublicEndpointsList(c *ServicedCli, ctx *cli.Context, showVHosts bool, s
 	return
 }
 
+func (c *ServicedCli) convertPublicEndpoints(peps []service.PublicEndpoint, showVHosts bool, showPorts bool) ([]PublicEndpoint, error) {
+
+	result := []PublicEndpoint{}
+	var pepType, proto, pepName string
+	for _, pep := range peps {
+		add := false
+		if showVHosts && pep.VHostName != "" {
+			pepType = "vhost"
+			proto = "https"
+			pepName = pep.VHostName
+			add = true
+		} else if showPorts && pep.PortAddress != "" {
+			pepType = "port"
+			proto = pep.Protocol
+			pepName = pep.PortAddress
+			add = true
+		}
+		if add {
+			npep := NewPublicEndpoint(pep.ServiceName, pep.ServiceID, pep.Application, pepType, proto, pepName, pep.Enabled)
+			result = append(result, npep)
+		}
+	}
+	return result, nil
+}
+
 // Create a unified list of vhosts and port based public endpoints.
-func (c *ServicedCli) getPublicEndpoints(ctx *cli.Context, services []service.Service,
+func (c *ServicedCli) createPublicEndpoints(ctx *cli.Context, services []service.Service,
 	showVHosts bool, showPorts bool) ([]PublicEndpoint, error) {
 	publicEndpoints := []PublicEndpoint{}
 
@@ -255,7 +285,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortAdd(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -284,7 +314,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortRemove(ctx *cli.Context) {
 	portAddr := ctx.Args()[2]
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -324,7 +354,7 @@ func (c *ServicedCli) cmdPublicEndpointsPortEnable(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -359,7 +389,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostAdd(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -388,7 +418,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostRemove(ctx *cli.Context) {
 	vhostName := ctx.Args()[2]
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -423,7 +453,7 @@ func (c *ServicedCli) cmdPublicEndpointsVHostEnable(ctx *cli.Context) {
 	}
 
 	// We need the serviceid, but they may have provided the service id or name.
-	svc, err := c.searchForService(serviceid)
+	svc, _, err := c.searchForService(serviceid)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

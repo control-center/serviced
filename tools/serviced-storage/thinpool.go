@@ -14,10 +14,8 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -25,6 +23,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/utils"
+	"github.com/docker/go-units"
 )
 
 type ThinPoolCreate struct {
@@ -32,6 +31,7 @@ type ThinPoolCreate struct {
 		Purpose string   `description:"Purpose of the thin pool (docker|serviced)"`
 		Devices []string `description:"Block devices to use" required:"1"`
 	} `positional-args:"yes" required:"yes"`
+	Size string `short:"s" long:"size" default:"90%" description:"Size of the thin pool to be created. May be specified either as a fixed amount (e.g., \"20G\") or a percentage of the free space in the volume group (e.g., \"90%\")"`
 }
 
 type LogicalVolumeInfo struct {
@@ -72,61 +72,145 @@ func (c *ThinPoolCreate) Execute(args []string) error {
 	App.initializeLogging()
 	purpose := c.Args.Purpose
 	devices := c.Args.Devices
+	size := c.Size
 	logger := log.WithFields(log.Fields{
 		"purpose": purpose,
 		"devices": devices,
 	})
+
+	// Validate the purpose
 	if purpose != "serviced" && purpose != "docker" {
 		logger.Fatal("Purpose must be one of (docker, serviced)")
 	}
 
-	logger.Info("Creating thin-pool")
-	thinPoolName, err := createThinPool(purpose, devices)
-	if err != nil {
-		logger.Fatal(err)
+	// Validate the devices
+	if len(devices) == 0 {
+		logger.Fatal("Must specify devices or a volume group in which to create a pool")
 	}
 
-	fmt.Printf("Created thin-pool device '%s'\n", thinPoolName)
+	// Validate the size
+	if _, err := strconv.Atoi(strings.TrimSuffix(size, "%")); err != nil {
+		if _, err := units.RAMInBytes(size); err != nil {
+			logger.WithField("size", size).Fatal("Invalid size. Please specify size either in bytes (e.g. \"60GB\") or as a percentage of free space in the volume group (e.g. \"90%\")")
+		}
+	}
 
+	var vg string
+	if len(devices) > 1 || !IsVolumeGroup(devices[0]) {
+		if err := createVolumeGroup(purpose, devices); err != nil {
+			logger.WithError(err).Fatal("Unable to create volume group")
+		}
+		vg = purpose
+		logger = log.WithField("volumegroup", purpose)
+		logger.Info("Created volume group")
+	} else {
+		vg = devices[0]
+		logger = log.WithField("volumegroup", vg)
+		logger.Info("Using specified volume group")
+	}
+
+	thinPoolName, err := createThinPool(purpose, vg, c.Size)
+	if err != nil {
+		logger.WithError(err).Fatal("Unable to create thin pool")
+	}
+
+	logger.WithField("thinpool", thinPoolName).Info("Created thin pool")
+
+	// Output to stdout for scriptability
+	fmt.Println(thinPoolName)
 	return nil
 }
 
-func createThinPool(purpose string, devices []string) (string, error) {
-
+func createVolumeGroup(name string, devices []string) error {
+	// Make sure we don't create a volume group on top of LVs
 	if err := EnsureNotLogicalVolumes(devices); err != nil {
-		return "", err
+		return err
 	}
 
+	// Make sure we can create LVM2 PVs from the devices passed in
 	if err := EnsurePhysicalDevices(devices); err != nil {
-		return "", err
+		return err
 	}
 
-	volumeGroup := purpose
-	if err := CreateVolumeGroup(volumeGroup, devices); err != nil {
-		return "", err
+	// Create the volume group
+	if err := CreateVolumeGroup(name, devices); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getMetadataSize(purpose string, dataSize int64) int64 {
+	// The default metadata calculation used by lvcreate is, very roughly,
+	//
+	//     metadataSize = floor(dataSize/4) / 1024
+	//
+	// We want to pad that number by a considerable margin, depending on
+	// whether the pool being created is for docker or serviced.
+	// We'll use the default for pools less than 25GB, then ~1% for serviced
+	// pools, ~2% for Docker pools.
+	if dataSize <= 25*units.GiB {
+		return -1
 	}
 
-	// TODO: Rather than creating separate data and metadata volumes, then
-	//  converting the data volume to a thin pool, we should simplify and use
-	//  a single command to do it all:
-	//     sudo lvcreate --type thin-pool -L 20G --poolmetadatasize 1G vg0/tp1
-	// http://man7.org/linux/man-pages/man7/lvmthin.7.html
-	metadataVolume, err := CreateMetadataVolume(volumeGroup)
+	var ds int64
+	if purpose == "docker" {
+		ds = dataSize / 50
+	} else {
+		ds = dataSize / 100
+	}
+	return (ds + 511) &^ 511
+}
+
+func createThinPool(purpose, volumeGroup, size string) (string, error) {
+	logger := log.WithFields(log.Fields{
+		"purpose":     purpose,
+		"volumegroup": volumeGroup,
+		"size":        size,
+	})
+
+	args := []string{"lvcreate", "-T"}
+
+	vgSize, err := getVolumeGroupSize(volumeGroup, "b")
 	if err != nil {
 		return "", err
 	}
 
-	dataVolume, err := CreateDataVolume(volumeGroup)
-	if err != nil {
+	var dataSize int64
+
+	if strings.HasSuffix(size, "%") {
+		// Size is a percentage of free space
+		percentage, err := strconv.Atoi(strings.TrimSuffix(size, "%"))
+		if err != nil {
+			return "", err
+		}
+		dataSize = int64(vgSize) * int64(percentage) / 100
+		args = append(args, "-l", fmt.Sprintf("%sFREE", size))
+	} else {
+		// Size is an absolute amount
+		dataSize, _ = units.RAMInBytes(size)
+		args = append(args, "-L", size)
+
+	}
+
+	mdbytes := getMetadataSize(purpose, dataSize)
+	if mdbytes > -1 {
+		args = append(args, "--poolmetadatasize", fmt.Sprintf("%dB", mdbytes))
+	}
+
+	poolName := fmt.Sprintf("%s-pool", purpose)
+	fullName := fmt.Sprintf("%s/%s", volumeGroup, poolName)
+	args = append(args, fullName)
+
+	logger.WithFields(log.Fields{
+		"command": strings.Join(args, " "),
+		"pool":    fullName,
+	}).Debug("Creating thin pool")
+	cmd := exec.Command(args[0], args[1:]...)
+	if _, _, err := checkCommand(cmd); err != nil {
 		return "", err
 	}
 
-	err = ConvertToThinPool(volumeGroup, dataVolume, metadataVolume)
-	if err != nil {
-		return "", err
-	}
-
-	lvInfo, err := GetInfoForLogicalVolume(dataVolume)
+	lvInfo, err := GetInfoForLogicalVolume(poolName)
 	if err != nil {
 		return "", err
 	}
@@ -139,6 +223,12 @@ func createThinPool(purpose string, devices []string) (string, error) {
 	return thinPoolName, nil
 }
 
+func IsVolumeGroup(device string) bool {
+	cmd := exec.Command("vgs", device)
+	_, _, rc, _ := runCommand(cmd)
+	return rc == 0
+}
+
 func EnsureNotLogicalVolumes(devices []string) error {
 	for _, device := range devices {
 		args := []string{
@@ -149,7 +239,6 @@ func EnsureNotLogicalVolumes(devices []string) error {
 			"lv_name,vg_name",
 			device,
 		}
-		log.Info(strings.Join(args, " "))
 		cmd := exec.Command(args[0], args[1:]...)
 		stdout, _, _ := checkCommand(cmd)
 		lvsCheck := strings.Split(strings.Trim(stdout, " "), ",")
@@ -172,85 +261,22 @@ func EnsurePhysicalDevices(devices []string) error {
 		}
 
 		args := []string{"pvcreate", device}
-		log.Info(strings.Join(args, " "))
 		cmd = exec.Command(args[0], args[1:]...)
-		stdout, _, err := checkCommand(cmd)
+		_, _, err = checkCommand(cmd)
 		if err != nil {
 			return err
 		}
-		log.Info(stdout)
 	}
 	return nil
 }
 
 func CreateVolumeGroup(volumeGroup string, devices []string) error {
 	args := append([]string{"vgcreate", volumeGroup}, devices...)
-	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	_, _, err := checkCommand(cmd)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func CreateMetadataVolume(volumeGroup string) (string, error) {
-	units := "s" // volume size will be measured in sectors
-	totalSize, err := getVolumeGroupSize(volumeGroup, units)
-	if err != nil {
-		return "", err
-	}
-	metadataSize := (totalSize + 999) / 1000
-	metadataName := volumeGroup + "-meta"
-
-	args := []string{"lvcreate",
-		"--size", fmt.Sprintf("%d%s", metadataSize, units),
-		"--name", metadataName,
-		volumeGroup}
-	log.Info(strings.Join(args, " "))
-	cmd := exec.Command(args[0], args[1:]...)
-	stdout, _, err := checkCommand(cmd)
-	if err != nil {
-		return "", err
-	}
-	log.Info(stdout)
-	return metadataName, err
-}
-
-func CreateDataVolume(volumeGroup string) (string, error) {
-	units := "b" // volume size will be measured in bytes
-	totalSize, err := getVolumeGroupSize(volumeGroup, units)
-	dataSize := (totalSize*90/100 + 511) &^ 511
-	dataName := volumeGroup + "-pool"
-
-	args := []string{"lvcreate",
-		"--size", fmt.Sprintf("%d%s", dataSize, units),
-		"--name", dataName,
-		volumeGroup}
-	log.Info(strings.Join(args, " "))
-	cmd := exec.Command(args[0], args[1:]...)
-	stdout, _, err := checkCommand(cmd)
-	if err != nil {
-		return "", err
-	}
-	log.Info(stdout)
-	return dataName, err
-}
-
-func ConvertToThinPool(volumeGroup, dataVolume string, metadataVolume string) error {
-	args := []string{"lvconvert",
-		"-y",
-		"--zero", "n",
-		"--thinpool", fmt.Sprintf("%s/%s", volumeGroup, dataVolume),
-		"--poolmetadata", fmt.Sprintf("%s/%s", volumeGroup, metadataVolume),
-	}
-	log.Info(strings.Join(args, " "))
-	cmd := exec.Command(args[0], args[1:]...)
-	stdout, _, err := checkCommand(cmd)
-	if err != nil {
-		return err
-	}
-	log.Info(stdout)
 	return nil
 }
 
@@ -285,7 +311,6 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 		"--nameprefixes",
 		"--options", "lv_name,vg_name,lv_kernel_major,lv_kernel_minor",
 	}
-	log.Info(strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	stdout, _, err := checkCommand(cmd)
 	if err != nil {
@@ -348,30 +373,9 @@ func GetInfoForLogicalVolume(logicalVolume string) (LogicalVolumeInfo, error) {
 }
 
 func (info *LogicalVolumeInfo) GetThinpoolName() (string, error) {
-	filename := fmt.Sprintf("/sys/dev/block/%d:%d/dm/name",
-		info.KernelMajor, info.KernelMinor)
-	contents, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", fmt.Errorf("Error reading %s: %s", filename, err)
-	}
-	// Get the base name
-	basename := strings.TrimSpace(string(contents))
-	// Now figure out if it's the pool itself or a subdevice called -tpool
-	out, err := exec.Command("dmsetup", "ls", "--target", "thin-pool").CombinedOutput()
+	out, err := exec.Command("dmsetup", "info", "-c", "-j", fmt.Sprintf("%d", info.KernelMajor), "-m", fmt.Sprintf("%d", info.KernelMinor), "-o", "name", "--noheadings").CombinedOutput()
 	if err != nil {
 		return "", err
 	}
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	var devname string
-	for scanner.Scan() {
-		s := scanner.Text()
-		if strings.HasPrefix(s, basename) {
-			devname = strings.Fields(s)[0]
-			break
-		}
-	}
-	if devname == "" {
-		return "", fmt.Errorf("Unable to determine thin pool name")
-	}
-	return "/dev/mapper/" + devname, nil
+	return fmt.Sprintf("/dev/mapper/%s", bytes.TrimSpace(out)), nil
 }

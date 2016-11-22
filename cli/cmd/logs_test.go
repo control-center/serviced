@@ -25,9 +25,9 @@ import (
 )
 
 type LogsCLITestCase struct {
-	Args                      []string
-	ExpectedExportLogsConfig  api.ExportLogsConfig
-	Expected_GetServicesCalls int
+	Args                             []string
+	ExpectedExportLogsConfig         api.ExportLogsConfig
+	Expected_ResolveServicePathCalls []string
 }
 
 func ExampleServicedCLI_CmdLogExport_usage() {
@@ -59,7 +59,7 @@ func TestLogsCLI_CmdLogExport_SingleServiceName(t *testing.T) {
 		ExpectedExportLogsConfig: api.ExportLogsConfig{
 			ServiceIDs: []string{"test-service-3"},
 		},
-		Expected_GetServicesCalls: 1,
+		Expected_ResolveServicePathCalls: []string{"zencommand"},
 	}
 	testCmdLogExport(t, testCase)
 }
@@ -70,7 +70,7 @@ func TestLogsCLI_CmdLogExport_MultipleServiceNames(t *testing.T) {
 		ExpectedExportLogsConfig: api.ExportLogsConfig{
 			ServiceIDs: []string{"test-service-3", "test-service-2"},
 		},
-		Expected_GetServicesCalls: 2,
+		Expected_ResolveServicePathCalls: []string{"Zope", "zencommand"},
 	}
 	testCmdLogExport(t, testCase)
 }
@@ -83,7 +83,7 @@ func TestLogsCLI_CmdLogExport_FromToDate(t *testing.T) {
 			FromDate:   "2001.05.01",
 			ToDate:     "2010.06.27",
 		},
-		Expected_GetServicesCalls: 1,
+		Expected_ResolveServicePathCalls: []string{"test-service-3"},
 	}
 	testCmdLogExport(t, testCase)
 }
@@ -170,8 +170,9 @@ func makeMatcher(c api.ExportLogsConfig) func(api.ExportLogsConfig) bool {
 func testCmdLogExport(t *testing.T, tc LogsCLITestCase) {
 	mockAPI := mocks.API{}
 
-	if tc.Expected_GetServicesCalls > 0 {
-		mockAPI.On("GetServices").Times(tc.Expected_GetServicesCalls).Return(DefaultTestServices, nil) // DefaultTestServices from cmd/service_test.go
+	for _, name := range tc.Expected_ResolveServicePathCalls {
+		mockAPI.On("ResolveServicePath", name).
+			Return(serviceDetailsByName(name), nil)
 	}
 	matcher := makeMatcher(tc.ExpectedExportLogsConfig)
 	mockAPI.On("ExportLogs", mock.MatchedBy(matcher)).Once().Return(nil)
@@ -180,7 +181,7 @@ func testCmdLogExport(t *testing.T, tc LogsCLITestCase) {
 }
 
 func runLogsAPITest(driver api.API, args ...string) {
-	c := New(driver, utils.TestConfigReader(make(map[string]string)))
+	c := New(driver, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }

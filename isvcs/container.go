@@ -17,6 +17,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	dfsdocker "github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
@@ -30,7 +31,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -123,6 +123,7 @@ type IServiceDefinition struct {
 	PreStart       func(*IService) error              // A function to run before the initial start of the service
 	PostStart      func(*IService) error              // A function to run after the initial start of the service
 	Recover        func(path string) error            // A recovery step if the service fails to start
+	StartupFailed  func()			  	  // A clean up step just before the service is stopped
 	HostNetwork    bool                               // enables host network in the container
 	Links          []string                           // List of links to other containers in the form of <name>:<alias>
 	StartGroup     uint16                             // Start up group number
@@ -255,20 +256,9 @@ func (svc *IService) Exec(command []string) ([]byte, error) {
 }
 
 func (svc *IService) getResourcePath(p string) string {
-	const defaultdir string = "isvcs"
-
 	if svc.root == "" {
-		if p := strings.TrimSpace(os.Getenv("SERVICED_VARPATH")); p != "" {
-			svc.root = filepath.Join(p, defaultdir)
-		} else if p := strings.TrimSpace(os.Getenv("SERVICED_HOME")); p != "" {
-			svc.root = filepath.Join(p, "var", defaultdir)
-		} else if user, err := user.Current(); err == nil {
-			svc.root = filepath.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username), "var", defaultdir)
-		} else {
-			svc.root = filepath.Join(os.TempDir(), "serviced", "var", defaultdir)
-		}
+		svc.root = config.GetOptions().IsvcsPath
 	}
-
 	return filepath.Join(svc.root, svc.Name, p)
 }
 
@@ -467,7 +457,9 @@ func (svc *IService) start() (<-chan int, error) {
 
 			// Dump last 10000 lines of container if possible.
 			dockerLogsToFile(ctr.ID, 10000)
-
+			if svc.StartupFailed != nil {
+				svc.StartupFailed()
+			}
 			svc.stop()
 			return nil, err
 		}

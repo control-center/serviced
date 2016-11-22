@@ -19,5 +19,6 @@ input {
 output {
 	elasticsearch {
 		hosts => "elasticsearch:9100"
+		template_overwrite => true
 	}
 }

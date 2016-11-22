@@ -46,6 +46,7 @@ var (
 
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddResourcePool"))
 	if err := f.DFSLock(ctx).LockWithTimeout("add resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot add resource pool: %s", err)
 		return err
@@ -92,6 +93,7 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 // UpdateResourcePool updates an existing resource pool
 func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateResourcePool"))
 	if err := f.DFSLock(ctx).LockWithTimeout("update resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot update resource pool: %s", err)
 		return err
@@ -114,28 +116,30 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 		currentVIPs[vip.IP] = vip
 	}
 
-	var newVIPs []pool.VirtualIP
+	vips := []pool.VirtualIP{}
 
 	// Add the virtual ips that do not already exist
 	for _, vip := range entity.VirtualIPs {
-		if _, ok := currentVIPs[vip.IP]; ok {
-			delete(currentVIPs, vip.IP)
-		} else if err := f.addVirtualIP(ctx, &vip); err != nil {
-			glog.Warningf("Could not add virtual ip %s: %s", vip.IP, err)
+		if _, ok := currentVIPs[vip.IP]; !ok {
+			if err := f.addVirtualIP(ctx, &vip); err != nil {
+				glog.Warningf("Could not add virtual ip %s: %s", vip.IP, err)
+				continue
+			}
 		} else {
-			newVIPs = append(newVIPs, vip)
+			delete(currentVIPs, vip.IP)
 		}
+		vips = append(vips, vip)
 	}
 
 	// Delete the remaining virtual ips
 	for _, vip := range currentVIPs {
 		if err := f.removeVirtualIP(ctx, vip.PoolID, vip.IP); err != nil {
 			glog.Warningf("Could not remove virtual ip %s: %s", vip.IP, err)
-			newVIPs = append(newVIPs, vip)
+			vips = append(vips, vip)
 		}
 	}
 
-	entity.VirtualIPs = newVIPs
+	entity.VirtualIPs = vips
 	entity.UpdatedAt = time.Now()
 
 	evtctx := newEventCtx()
@@ -149,11 +153,35 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 		return err
 	}
 
+	// Update dfs permissions of the hosts that belong to the pool if
+	// the pool's dfs permissions have changed
+	if entity.HasDfsAccess() != current.HasDfsAccess() {
+		dfsClients, err := f.FindHostsInPool(ctx, entity.ID)
+		if err != nil {
+			msg := "Error retrieving pool's hosts"
+			plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+		} else {
+			var clientsError error
+			if entity.HasDfsAccess() { // Enable dfs access
+				plog.WithField("poolID", entity.ID).Debug("DFS Access enabled for pool")
+				clientsError = f.zzk.RegisterDfsClients(dfsClients...)
+			} else { // Disable dfs access
+				plog.WithField("poolID", entity.ID).Debug("DFS Access disabled for pool")
+				clientsError = f.zzk.UnregisterDfsClients(dfsClients...)
+			}
+			if clientsError != nil {
+				msg := "Could not update dfs clients in zk after changing pool permissions"
+				plog.WithError(err).WithField("poolID", entity.ID).Warning(msg)
+			}
+		}
+	}
+
 	return nil
 }
 
 // RestoreResourcePools restores a bulk of resource pools, usually from a backup.
 func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestoreResourcePools"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	for _, pool := range pools {
 		pool.DatabaseVersion = 0
@@ -174,6 +202,7 @@ func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.Resour
 
 // HasIP checks if a pool uses a particular IP address
 func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.HasIP"))
 	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
 		glog.Errorf("Could not look up ip %s for pool %s: %s", ipAddr, poolID, err)
 		return false, err
@@ -193,6 +222,7 @@ func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (boo
 
 // AddVirtualIP adds a virtual IP to a pool
 func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddVirtualIP"))
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
 		return err
@@ -250,6 +280,7 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 
 // RemoveVirtualIP removes a virtual IP from a pool
 func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveVirtualIP"))
 	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
 		return err
@@ -313,6 +344,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 
 // RemoveResourcePool removes a resource pool
 func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveResourcePool"))
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
 	if err := f.DFSLock(ctx).LockWithTimeout("remove resource pool", userLockTimeout); err != nil {
 		glog.Warningf("Cannot remove resource pool: %s", err)
@@ -347,6 +379,7 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 
 // GetResourcePools returns a list of all resource pools
 func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetResourcePools"))
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
 	if err != nil {
@@ -363,6 +396,7 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, e
 
 // GetResourcePoolsByRealm returns a list of all resource pools by Realm
 func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]pool.ResourcePool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetResourcePoolsByRealm"))
 	pools, err := f.poolStore.GetResourcePoolsByRealm(ctx, realm)
 
 	if err != nil {
@@ -379,6 +413,7 @@ func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([
 
 // GetResourcePool returns a resource pool, or nil if not found
 func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetResourcePool"))
 	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
 	var entity pool.ResourcePool
 	err := f.poolStore.Get(ctx, pool.Key(id), &entity)
@@ -396,6 +431,7 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 
 // CreateDefaultPool creates the default pool if it does not exist. It is idempotent.
 func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.CreateDefaultPool"))
 	entity, err := f.GetResourcePool(ctx, id)
 	if err != nil {
 		return fmt.Errorf("could not create default pool %s: %v", id, err)
@@ -409,6 +445,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
 	entity.Description = "Default Pool"
+	entity.Permissions = pool.DFSAccess + pool.AdminAccess
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
 	}
@@ -454,6 +491,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 
 // GetPoolIPs gets all IPs available to a resource pool
 func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*pool.PoolIPs, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetPoolIPs"))
 	glog.V(0).Infof("Facade.GetPoolIPs: %+v", poolID)
 	hosts, err := f.FindHostsInPool(ctx, poolID)
 	if err != nil {
@@ -486,6 +524,7 @@ var defaultRealm = "default"
 
 // GetReadPools returns a list of simplified resource pools
 func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetReadPools"))
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
 	if err != nil {
@@ -507,6 +546,7 @@ func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 			MemoryCapacity:    pools[i].MemoryCapacity,
 			MemoryCommitment:  pools[i].MemoryCommitment,
 			ConnectionTimeout: pools[i].ConnectionTimeout,
+			Permissions:       pools[i].Permissions,
 		})
 	}
 

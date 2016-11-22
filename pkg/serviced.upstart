@@ -19,7 +19,6 @@ end script
 
 script
     export SERVICED_HOME=/opt/serviced
-    export SERVICED_AGENT=1
     export SERVICED_MASTER=1
     export TZ=UTC
     export HOME=/root
@@ -34,7 +33,7 @@ script
         done
     fi
 
-    cd $SERVICED_HOME 
+    cd $SERVICED_HOME
     exec ./bin/serviced $SERVICED_OPTS server
 
 end script
@@ -63,4 +62,3 @@ post-stop script
     echo "$(date): serviced is now stopped - done with post-stop"
     echo ""  # annoying, but this line ensures above echo is in upstart serviced log
 end script
-

@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -90,9 +89,16 @@ func convertInstancesToMetric(instances []dao.RunningService) []metrics.ServiceI
 	return svcInstances
 }
 
-func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServiceStatus, err error) {
+func getAllServiceStatuses(ctx *requestContext) (statuses []*ConciseServiceStatus, err error) {
 	// Get all running service instances
 	glog.V(2).Info("Retrieving statuses, memory and health checks for running services")
+
+	client, err := ctx.sc.getClient()
+	if err != nil {
+		glog.Errorf("Unable to acquire client: %v", err)
+		return nil, err
+	}
+
 	var instances []dao.RunningService
 	if err := client.GetRunningServices(&empty, &instances); err != nil {
 		return nil, err
@@ -128,8 +134,8 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	// Look up health check statuses
 	healthChecks := make(map[memorykey]map[string]health.HealthStatus)
 	if len(instances) > 0 {
-		results := make(map[string]map[int]map[string]health.HealthStatus)
-		if err := client.GetServicesHealth(0, &results); err != nil {
+		results, err := ctx.getFacade().GetServicesHealth(ctx.getDatastoreContext())
+		if err != nil {
 			glog.Errorf("Unable to look up health check results (%s)", err)
 		}
 		for svcid, insts := range results {
@@ -186,9 +192,9 @@ func getAllServiceStatuses(client *node.ControlClient) (statuses []*ConciseServi
 	return
 }
 
-func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func restGetConciseServiceStatus(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	f := func() ([]byte, error) {
-		statuses, err := getAllServiceStatuses(client)
+		statuses, err := getAllServiceStatuses(ctx)
 		if err != nil {
 			glog.V(2).Infof("Error retrieving service statuses: (%s)", err)
 			return nil, err

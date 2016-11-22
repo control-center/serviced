@@ -6,37 +6,106 @@
 (function() {
     'use strict';
 
-    // Pool object constructor takes a pool object (backend pool object)
-    // and wraps it with extra functionality and info
-    function Pool(pool){
-        this.id = pool.ID;
-        this.model = Object.freeze(pool);
-    }
+    let resourcesFactory, authService, $modalService, $translate, $notification,
+        areUIReady, $interval, servicedConfig, log, permissions, utils,
+        Pool, $q;
 
-    controlplane.controller("PoolsController", ["$scope", "$routeParams",
-        "resourcesFactory", "authService", "$modalService", "$translate",
-        "$notification", "areUIReady", "$interval", "servicedConfig", "log",
-    function($scope, $routeParams, resourcesFactory, authService, $modalService,
-             $translate, $notification, areUIReady, $interval, servicedConfig, log){
+    class PoolsController {
 
-        // Ensure logged in
-        authService.checkLogin($scope);
+        constructor ($scope)
+        {
+            authService.checkLogin(this);
 
+            this.name = "pools";
 
+            this.refreshPools().then(() => $scope.$emit("ready"));
 
+            this.updateFrequency = 3000;
+            servicedConfig.getConfig()
+                .then(config => {
+                    this.updateFrequency = config.PollFrequency * 1000;
+                }).catch(err => {
+                    let errMessage = err.data ? err.data.Detail : err.statusText;
+                    log.error("could not load serviced config:", errMessage);
+                });
 
-        $scope.click_pool = function(id) {
-            resourcesFactory.routeToPool(id);
-        };
+            $scope.poolsTable = {
+                sorting: { id: "asc" },
+                watchExpression: () => this.lastUpdate,
+                searchColumns: ['id','model.CoreCapacity']
+            };
 
-        // Function to remove a pool
-        $scope.clickRemovePool = function(poolID) {
-            if ($scope.isDefaultPool(poolID)) {
-              return;
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_pools', itemClass: 'active' }
+            ];
+
+            this.startPolling();
+
+            $scope.$on("$destroy", () => this.stopPolling());
+
+            // New scopes are created to use as models for the modals dialogs.
+            // They require some additional methods that are on the global
+            // scope.  Since we want to keep $scope limited to just the constructor,
+            // this method can be used to create new scopes for modals.
+            this.newScope = () => $scope.$new(true);
+        }
+
+        touch() {
+            this.lastUpdate = new Date().getTime();
+        }
+
+        isDefaultPool(id) {
+            return id  === "default";
+        }
+
+        refreshPools() {
+            let deferred = $q.defer();
+            resourcesFactory.v2.getPools()
+                .success(data => {
+                    this.pools = data.map(result => new Pool(result));
+                    this.totalPoolCount = data.length;
+                    this.touch();
+                    deferred.resolve();
+                })
+                .error(data => {
+                    let message = (data && data.Detail) || "";
+                    console.warn("Unable to load pools.", message);
+                    deferred.reject();
+                });
+            return deferred.promise;
+        }
+
+        startPolling() {
+            if (!this.updatePromise) {
+                this.updatePromise = $interval(
+                    () => this.refreshPools(),
+                    this.updateFrequency
+                );
             }
+        }
+
+        stopPolling() {
+            if (this.updatePromise) {
+                $interval.cancel(this.updatePromise);
+                this.updatePromise = null;
+            }
+        }
+
+        clickPool(id) {
+            resourcesFactory.routeToPool(id);
+        }
+
+        clickRemovePool(id) {
+            if (this.isDefaultPool(id)) {
+                return;
+            }
+
+            let modalScope = this.newScope();
+            modalScope.refreshPools = () => this.refreshPools();
+
             $modalService.create({
-                template: $translate.instant("confirm_remove_pool") + "<strong>"+ poolID +"</strong>",
-                model: $scope,
+                template: $translate.instant("confirm_remove_pool") + "<strong>"+ id +"</strong>",
+                model: modalScope,
                 title: "remove_pool",
                 actions: [
                     {
@@ -46,13 +115,14 @@
                         label: "remove_pool",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.removePool(poolID)
+                            resourcesFactory.removePool(id)
                                 .success(function(data) {
-                                    $notification.create("Removed Pool", poolID).success();
-                                    updatePools();
+                                    $notification.create("Removed Pool", id).success();
+                                    modalScope.refreshPools();
                                 })
                                 .error(data => {
-                                    $notification.create("Remove Pool failed", data.Detail).error();
+                                    let message = (data && data.Detail) || "";
+                                    $notification.create("Remove Pool failed", message).error();
                                 });
 
                             this.close();
@@ -60,40 +130,45 @@
                     }
                 ]
             });
-        };
+        }
 
-        // Function for opening add pool modal
-        $scope.modalAddPool = function() {
+        clickAddPool() {
+            let modalScope = this.newScope();
+            modalScope.refreshPools = () => this.refreshPools();
+            modalScope.permissions = permissions;
+            modalScope.newPool = {
+                permissions: new utils.NgBitset(permissions.length, 3)
+            };
+
             areUIReady.lock();
-            $scope.newPool = {};
             $modalService.create({
                 templateUrl: "add-pool.html",
-                model: $scope,
+                model: modalScope,
                 title: "add_pool",
                 actions: [
                     {
                         role: "cancel",
-                        action: function(){
-                            $scope.newPool = {};
+                        action: function() {
                             this.close();
                         }
                     },{
                         role: "ok",
                         label: "add_pool",
-                        action: function(){
-                            if(this.validate()){
+                        action: function() {
+                            if(this.validate()) {
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                resourcesFactory.addPool($scope.newPool)
+                                // make a copy of the payload, add the permissions field, and remove the NgBitset
+                                var payload = angular.copy(modalScope.newPool);
+                                payload.Permissions = modalScope.newPool.permissions.val;
+                                delete payload.permissions;
+
+                                resourcesFactory.addPool(payload)
                                     .success(function(data, status){
-                                        $notification.create("Added new Pool", data.Detail).success();
-                                        updatePools();
-
-                                        // Reset for another add
-                                        $scope.newPool = {};
-
                                         this.close();
+                                        $notification.create("Added new Pool", data.Detail).success();
+                                        modalScope.refreshPools();
                                     }.bind(this))
                                     .error(function(data, status){
                                         this.createNotification("Adding pool failed", data.Detail).error();
@@ -103,92 +178,33 @@
                         }
                     }
                 ],
-                onShow: () => {
-                    areUIReady.unlock();
-                }
+                onShow: () => areUIReady.unlock()
             });
-        };
-
-        $scope.isDefaultPool = function(poolID) {
-          return poolID === "default";
-        };
-
-		// Setup polling to update the pools list if it has changed.
-
-        var lastUpdate;
-        var updateFrequency = 3000;
-        var updatePromise;
-        
-		servicedConfig.getConfig()
-            .then(config => {
-                updateFrequency = config.PollFrequency * 1000;
-            }).catch(err => {
-				let errMessage = err.data ? err.data.Detail : err.statusText;
-                log.error("could not load serviced config:", errMessage);
-            });
-
-        function updatePools(){
-            resourcesFactory.getV2Pools()
-                .success(data => {
-                    $scope.pools = data.results.map(result => new Pool(result));
-                    $scope.totalPoolCount = data.total;
-                })
-                .error(data => {
-                    $notification.create("Unable to load pools.", data.Detail).error();
-                })
-                .finally(() => {
-                    // notify the first request is complete
-                    if (!lastUpdate) {
-                        $scope.$emit("ready");
-                    }
-
-                    lastUpdate = new Date().getTime();
-                });
         }
+    }
 
-        function startPolling(){
-            if(!updatePromise){
-                updatePromise = $interval(() => updatePools(), updateFrequency);
-            }
-        }
+    controlplane.controller("PoolsController", ["$scope", "resourcesFactory", "authService",
+        "$modalService", "$translate", "$notification", "areUIReady", "$interval",
+        "servicedConfig", "log","POOL_PERMISSIONS", "miscUtils", "Pool", "$q",
+        function($scope, _resourcesFactory, _authService, _$modalService, _$translate,
+        _$notification, _areUIReady, _$interval, _servicedConfig, _log, _POOL_PERMISSIONS,
+        _miscUtils, _Pool, _$q) {
 
-        function stopPolling(){
-            if(updatePromise){
-                $interval.cancel(updatePromise);
-                updatePromise = null;
-            }
-        }
+            resourcesFactory = _resourcesFactory;
+            authService = _authService;
+            $modalService = _$modalService;
+            $translate = _$translate;
+            $notification = _$notification;
+            areUIReady = _areUIReady;
+            $interval = _$interval;
+            servicedConfig = _servicedConfig;
+            log = _log;
+            permissions = _POOL_PERMISSIONS;
+            utils = _miscUtils;
+            Pool = _Pool;
+            $q = _$q;
 
-        function init(){
-            $scope.name = "pools";
-            $scope.params = $routeParams;
-            $scope.newPool = {};
-
-            $scope.breadcrumbs = [
-                { label: 'breadcrumb_pools', itemClass: 'active' }
-            ];
-
-            startPolling();
-
-            updatePools();
-
-            $scope.poolsTable = {
-                sorting: {
-                    id: "asc"
-                },
-                watchExpression: function(){
-                    return lastUpdate;
-                }
-            };
-        }
-
-        init();
-
-        $scope.$on("$destroy", function(){
-            stopPolling();
-        });
+        return new PoolsController($scope);
 
     }]);
-
-
 })();

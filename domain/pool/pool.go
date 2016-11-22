@@ -34,6 +34,13 @@ type VirtualIP struct {
 	BindInterface string
 }
 
+type Permission uint
+
+const (
+	AdminAccess Permission = 1 << iota
+	DFSAccess
+)
+
 // ResourcePool A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	ID                string      // Unique identifier for resource pool, eg "default"
@@ -49,6 +56,7 @@ type ResourcePool struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	MonitoringProfile domain.MonitorProfile
+	Permissions       Permission
 	datastore.VersionedEntity
 }
 
@@ -136,4 +144,12 @@ func New(id string) *ResourcePool {
 	pool.ID = id
 
 	return pool
+}
+
+func (a *ResourcePool) HasDfsAccess() bool {
+	return a.Permissions&DFSAccess != 0
+}
+
+func (a *ResourcePool) HasAdminAccess() bool {
+	return a.Permissions&AdminAccess != 0
 }

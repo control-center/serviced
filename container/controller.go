@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2014-2016 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,16 +14,17 @@
 package container
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -62,13 +63,19 @@ var (
 	ErrNoServiceEndpoints = errors.New("container: unable to retrieve service endpoints")
 )
 
-// containerEnvironmentFile writes out all the environment variables passed to the container so
-// that programs that switch users can access those environment strings
-const containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+const (
+	// containerEnvironmentFile writes out all the environment variables passed to the container so
+	// that programs that switch users can access those environment strings
+	containerEnvironmentFile = "/etc/profile.d/controlcenter.sh"
+	// ContainerKeysDir holds the delegate's private key and auth token
+	containerDelegateKeyFile = "/etc/serviced/delegate.keys"
+	containerTokenFile       = "/etc/serviced/auth.token"
+)
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServicedEndpoint string
+	RPCDisableTLS    bool
 	Service          struct {
 		ID          string   // The uuid of the service to launch
 		InstanceID  string   // The running instance ID
@@ -78,7 +85,7 @@ type ControllerOptions struct {
 	Mux struct { // TCPMUX configuration: RFC 1078
 		Enabled     bool   // True if muxing is used
 		Port        int    // the TCP port to use
-		TLS         bool   // True if TLS is used
+		DisableTLS  bool   // True if TLS is disabled
 		KeyPEMFile  string // Path to the key file when TLS is used
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
@@ -114,6 +121,8 @@ type Controller struct {
 	PIDFile            string
 	exitStatus         int
 	endpoints          *ContainerEndpoints
+	healthChecks       map[string]health.HealthCheck
+	ccApiProxy         *servicedApiProxy
 }
 
 // Close shuts down the controller
@@ -124,44 +133,24 @@ func (c *Controller) Close() error {
 }
 
 // getService retrieves a service
-func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, error) {
+func getService(lbClientPort string, serviceID string, instanceID int) (*service.Service, string, error) {
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return nil, err
+		return nil, "", err
 	}
 	defer client.Close()
 
-	var svc service.Service
-	err = client.GetServiceInstance(node.ServiceInstanceRequest{serviceID, instanceID}, &svc)
+	var evaluatedServiceResponse node.EvaluateServiceResponse
+	err = client.GetEvaluatedService(node.EvaluateServiceRequest{serviceID, instanceID}, &evaluatedServiceResponse)
 
 	if err != nil {
 		glog.Errorf("Error getting service %s  error: %s", serviceID, err)
-		return nil, err
+		return nil, "", err
 	}
 
-	glog.V(1).Infof("getService: service id=%s: %+v", serviceID, svc)
-	return &svc, nil
-}
-
-// getServiceTenantID retrieves a service's tenantID
-func getServiceTenantID(lbClientPort string, serviceID string) (string, error) {
-	client, err := node.NewLBClient(lbClientPort)
-	if err != nil {
-		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
-		return "", err
-	}
-	defer client.Close()
-
-	var tenantID string
-	err = client.GetTenantId(serviceID, &tenantID)
-	if err != nil {
-		glog.Errorf("Error getting service %s's tenantID, error: %s", serviceID, err)
-		return "", err
-	}
-
-	glog.V(1).Infof("getServiceTenantID: service id=%s: %s", serviceID, tenantID)
-	return tenantID, nil
+	glog.V(2).Infof("getService: serviceID=%s, tenantID=%s: %+v", serviceID, evaluatedServiceResponse.TenantID, evaluatedServiceResponse.Service)
+	return &evaluatedServiceResponse.Service, evaluatedServiceResponse.TenantID, nil
 }
 
 // getAgentHostID retrieves the agent's host id
@@ -288,18 +277,39 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return nil, ErrInvalidEndpoint
 	}
 
+	// Load keys
+	keyshutdown := make(chan interface{})
+	go func() {
+		// This is a ridiculous shutdown pattern I'll follow for the sake of
+		// not destabilizing the controller this late in a release.
+		// TODO: Make this not stupid
+		errc := <-c.closing
+		close(keyshutdown)
+		errc <- nil
+	}()
+
+	go auth.WatchDelegateKeyFile(containerDelegateKeyFile, keyshutdown)
+	go auth.WatchTokenFile(containerTokenFile, keyshutdown)
+
+	// Load the delegate keys and auth tokens first so there's no race btwn starting the watcher routines
+	//    and making the first RPC call in getService()
+	<-auth.WaitForDelegateKeys(nil)
+	<-auth.WaitForAuthToken(nil)
+
 	// get service
 	instanceID, err := strconv.Atoi(options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 		return c, fmt.Errorf("Invalid instance from instanceID:%s", options.Service.InstanceID)
 	}
-	service, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
+	service, tenantID, err := getService(options.ServicedEndpoint, options.Service.ID, instanceID)
 	if err != nil {
 		glog.Errorf("%+v", err)
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+	c.healthChecks = service.HealthChecks
+	c.tenantID = tenantID
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -319,13 +329,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
 		return c, fmt.Errorf("container: invalid ConfigFiles error:%s", err)
-	}
-
-	// get service tenantID
-	c.tenantID, err = getServiceTenantID(options.ServicedEndpoint, options.Service.ID)
-	if err != nil {
-		glog.Errorf("Invalid tenantID from serviceID:%s", options.Service.ID)
-		return c, ErrInvalidTenantID
 	}
 
 	// get host id
@@ -418,13 +421,16 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		InstanceID:           instanceID,
 		IsShell:              os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true",
 		TCPMuxPort:           uint16(options.Mux.Port),
-		UseTLS:               options.Mux.TLS,
+		UseTLS:               !options.Mux.DisableTLS,
 		VirtualAddressSubnet: options.VirtualAddressSubnet,
 	}
 	c.endpoints, err = NewContainerEndpoints(service, opts)
 	if err != nil {
 		return c, err
 	}
+
+	// CC Rest API proxy
+	c.ccApiProxy = newServicedApiProxy()
 
 	// check command
 	glog.Infof("command: %v [%d]", options.Service.Command, len(options.Service.Command))
@@ -498,11 +504,25 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 	}
 	go func() {
 		var ts time.Time
+		retries := 3
+		failures := 0
 		for {
-			err := client.Ping(time.Minute, &ts)
+			err := client.Ping(2 * time.Second, &ts)
 			if err != nil {
-				close(gone)
-				return
+				failures++
+				glog.Warningf("RPC Server healthcheck ping to delegate failed. Error: %v", err)
+				if failures == retries {
+					glog.Error("RPC Server healthcheck retries exhausted, marking it dead and closing channel.")
+					close(gone)
+					return
+				}
+			} else {
+				failures = 0
+			}
+			select {
+			case <-time.After(10 * time.Second):
+				continue
+
 			}
 		}
 	}()
@@ -625,6 +645,9 @@ func (c *Controller) Run() (err error) {
 	endpointExit := make(chan struct{})
 	c.endpoints.Run(endpointExit)
 
+	// Start CC Rest API Proxy
+	go c.ccApiProxy.run()
+
 	// HACK: I guess this is how it used to work?  This code is horrible.
 	go func() {
 		errc := <-c.closing
@@ -728,7 +751,7 @@ func (c *Controller) Run() (err error) {
 	}
 	defer client.Close()
 	c.Close()
-	req := dao.ServiceInstanceRequest{
+	req := master.ServiceInstanceRequest{
 		ServiceID:  c.options.Service.ID,
 		InstanceID: instID,
 	}
@@ -778,20 +801,13 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 		return
 	}
 	defer client.Close()
-	var healthChecks map[string]health.HealthCheck
 
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
 		return
 	}
-	err = client.GetHealthCheck(node.HealthCheckRequest{
-		c.options.Service.ID, instanceID}, &healthChecks)
-	if err != nil {
-		glog.Errorf("Error getting health checks: %s", err)
-		return
-	}
-	for name, hc := range healthChecks {
+	for name, hc := range c.healthChecks {
 		glog.Infof("Kicking off health check %s.", name)
 		glog.Infof("Setting up health check: %s", hc.Script)
 		key := health.HealthStatusKey{
@@ -806,7 +822,7 @@ func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 
 func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStatusKey, hc health.HealthCheck) {
 	hc.Ping(cancel, func(stat health.HealthStatus) {
-		req := dao.HealthStatusRequest{
+		req := master.HealthStatusRequest{
 			Key:     key,
 			Value:   stat,
 			Expires: hc.Expires(),
@@ -823,7 +839,7 @@ func (c *Controller) doHealthCheck(cancel <-chan struct{}, key health.HealthStat
 
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// this function is currently needed to handle special control center imports
-	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
+	// from GetISvcEndpoints() that do not exist in endpoints from getServiceState
 	// get service endpoints
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -831,24 +847,20 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		return err
 	}
 	defer client.Close()
-	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
-	//       that returns only special "controlplane" imported endpoints
-	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
-	//		We should rename it and clean up the filtering code below.
 
 	epchan := make(chan map[string][]applicationendpoint.ApplicationEndpoint)
 	timeout := make(chan struct{})
 
 	go func(c *node.LBClient, svcid string, epc chan map[string][]applicationendpoint.ApplicationEndpoint, timeout chan struct{}) {
 		var endpoints map[string][]applicationendpoint.ApplicationEndpoint
-	RetryGetServiceEndpoints:
+	RetryGetISvcEndpoints:
 		for {
-			err = c.GetServiceEndpoints(svcid, &endpoints)
+			err = c.GetISvcEndpoints(svcid, &endpoints)
 			if err != nil {
 				select {
 				case <-time.After(1 * time.Second):
 					glog.V(3).Info("Couldn't retrieve service endpoints, trying again")
-					continue RetryGetServiceEndpoints
+					continue RetryGetISvcEndpoints
 				case <-timeout:
 					glog.V(3).Info("Timed out trying to retrieve service endpoints")
 					return
@@ -858,7 +870,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 
 		// deal with the race between the one minute timeout in handleControlCenterImports() and the
-		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
+		// call to GetISvcEndpoints() - the timeout may happen between GetISvcEndpoints() completing
 		// and sending the result via the epc channel.
 		select {
 		case _, ok := <-epc:
@@ -887,14 +899,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
-	for key, eps := range endpoints {
-		if len(endpoints) == 0 {
-			glog.Warningf("ignoring key: %s with empty endpointList", key)
-			continue
-		} else if !strings.HasPrefix(eps[0].Application, "controlplane") {
-			// ignore endpoints that are not special controlplane imports
-			continue
-		}
+	for _, eps := range endpoints {
 		bind := zkservice.ImportBinding{
 			Application:    eps[0].Application,
 			Purpose:        "import", // Punting on control center dynamic imports for now

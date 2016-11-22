@@ -16,6 +16,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -28,7 +29,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *TestAPISuite) testConvertOffsets(c *C, received []string, expected []uint64) {
+func (s *TestAPISuite) testConvertOffsets(c *C, received []json.Number, expected []uint64) {
 	converted, err := convertOffsets(received)
 	if err != nil {
 		c.Fatalf("unexpected error converting offsets: %s", err)
@@ -58,8 +59,8 @@ func (s *TestAPISuite) testGenerateOffsets(c *C, inMessages []string, inOffsets,
 }
 
 func (s *TestAPISuite) TestLogs_Offsets(c *C) {
-	s.testConvertOffsets(c, []string{"123", "456", "789"}, []uint64{123, 456, 789})
-	s.testConvertOffsets(c, []string{"456", "123", "789"}, []uint64{456, 123, 789})
+	s.testConvertOffsets(c, []json.Number{"123", "456", "789"}, []uint64{123, 456, 789})
+	s.testConvertOffsets(c, []json.Number{"456", "123", "789"}, []uint64{456, 123, 789})
 
 	s.testUint64sAreSorted(c, []uint64{123, 124, 125}, true)
 	s.testUint64sAreSorted(c, []uint64{123, 125, 124}, false)
@@ -74,11 +75,11 @@ func (s *TestAPISuite) TestLogs_Offsets(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
+	getServices := func() ([]service.ServiceDetails, error) {
 		c.Fatalf("GetServices called when it should not have been")
-		return []service.Service{}, nil
+		return []service.ServiceDetails{}, nil
 	}
 
 	query, err := exporter.buildQuery(getServices)
@@ -89,38 +90,38 @@ func (s *TestAPISuite) TestLogs_BuildQuery_AllServices(c *C) {
 
 // If the DB has no services, we will at least query for the specified serviceID (e.g. could be logs from a deleted service)
 func (s *TestAPISuite) TestLogs_BuildQuery_DBEmpty(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		return []service.Service{}, nil
+	getServices := func() ([]service.ServiceDetails, error) {
+		return []service.ServiceDetails{}, nil
 	}
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"servicedID1\")")
+	c.Assert(query, Equals, "fields.service:(\"servicedID1\")")
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_OneService(c *C) {
 	serviceID := "someServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{serviceID}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{serviceID}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		return []service.Service{{ID: serviceID}}, nil
+	getServices := func() ([]service.ServiceDetails, error) {
+		return []service.ServiceDetails{{ID: serviceID}}, nil
 	}
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, fmt.Sprintf("service:(\"%s\")", serviceID))
+	c.Assert(query, Equals, fmt.Sprintf("fields.service:(\"%s\")", serviceID))
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 	parentServiceID := "parentServiceID"
-	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{parentServiceID}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		services := []service.Service{
+	getServices := func() ([]service.ServiceDetails, error) {
+		services := []service.ServiceDetails{
 			{ID: parentServiceID},
 			{ID: "child1", ParentServiceID: parentServiceID},
 			{ID: "child2", ParentServiceID: parentServiceID},
@@ -130,15 +131,15 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ServiceWithChildren(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, fmt.Sprintf("service:(\"child1\" OR \"child2\" OR \"%s\")", parentServiceID))
+	c.Assert(query, Equals, fmt.Sprintf("fields.service:(\"child1\" OR \"child2\" OR \"%s\")", parentServiceID))
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		services := []service.Service{
+	getServices := func() ([]service.ServiceDetails, error) {
+		services := []service.ServiceDetails{
 			{ID: "service1"},
 			{ID: "service2"},
 			{ID: "service3"},
@@ -148,15 +149,15 @@ func (s *TestAPISuite) TestLogs_BuildQuery_MultipleServices(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
+	c.Assert(query, Equals, "fields.service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"service1", "service2", "service3"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		services := []service.Service{
+	getServices := func() ([]service.ServiceDetails, error) {
+		services := []service.ServiceDetails{
 			{ID: "service1"},
 			{ID: "service2", ParentServiceID: "service1"},
 			{ID: "service3", ParentServiceID: "service1"},
@@ -166,15 +167,15 @@ func (s *TestAPISuite) TestLogs_BuildQuery_ChildrenAreNotDuplicated(c *C) {
 
 	query, err := exporter.buildQuery(getServices)
 
-	c.Assert(query, Equals, "service:(\"service1\" OR \"service2\" OR \"service3\")")
+	c.Assert(query, Equals, "fields.service:(\"service1\" OR \"service2\" OR \"service3\")")
 	c.Assert(err, IsNil)
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 	expectedError := fmt.Errorf("GetServices failed")
-	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"servicedID1"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
+	getServices := func() ([]service.ServiceDetails, error) {
 		return nil, expectedError
 	}
 
@@ -185,10 +186,10 @@ func (s *TestAPISuite) TestLogs_BuildQuery_DBFails(c *C) {
 }
 
 func (s *TestAPISuite) TestLogs_BuildQuery_InvalidServiceIDs(c *C) {
-	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}, Debug:true}
+	config := ExportLogsConfig{ServiceIDs: []string{"!@#$%^&*()"}, Debug: true}
 	exporter := logExporter{ExportLogsConfig: config}
-	getServices := func() ([]service.Service, error) {
-		return []service.Service{}, nil
+	getServices := func() ([]service.ServiceDetails, error) {
+		return []service.ServiceDetails{}, nil
 	}
 
 	query, err := exporter.buildQuery(getServices)
@@ -203,7 +204,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 	fromDate := "2015.01.01"
 	toDate := "2015.01.01"
 	exporter, mockLogDriver, err := setupRetrieveLogTest(logstashDays, serviceIDs, fromDate, toDate)
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -223,7 +224,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_NoDateMatch(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -244,7 +245,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_StartSearchFails(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -264,7 +265,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchHasNoHits(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -274,9 +275,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -309,7 +310,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithOneScroll(c *
 //     more than one call to ScrollSearch()
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -319,9 +320,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -355,7 +356,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsOneFileWithTwoScrolls(c 
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -365,9 +366,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -382,8 +383,8 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 		ScrollId: "lastSearch",
 		Hits: core.Hits{
 			Total: 1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`), },
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container2", "ccWorkerID": "hostID2", "file": "file2", "message": "message1", "service": "ServiceID1"}`)},
 			},
 		},
 	}
@@ -416,7 +417,7 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_SearchFindsTwoFiles(c *C) {
 
 func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	exporter, mockLogDriver, err := setupSimpleRetrieveLogTest()
-	defer func () {
+	defer func() {
 		if exporter != nil {
 			exporter.cleanup()
 		}
@@ -426,9 +427,9 @@ func (s *TestAPISuite) TestLogs_RetrieveLogs_ScrollFails(c *C) {
 	searchStart := core.SearchResult{
 		ScrollId: "search1",
 		Hits: core.Hits{
-			Total:    1,
-			Hits:  []core.Hit{
-				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`),},
+			Total: 1,
+			Hits: []core.Hit{
+				core.Hit{Source: []byte(`{"host": "container1", "file": "file1", "message": "message1", "service": "ServiceID"}`)},
 			},
 		},
 	}
@@ -462,10 +463,10 @@ func setupRetrieveLogTest(logstashDays, serviceIDs []string, fromDate, toDate st
 		Driver:     mockLogDriver,
 		Debug:      true,
 	}
-	getServices := func() ([]service.Service, error) {
-		return []service.Service{}, nil
+	getServices := func() ([]service.ServiceDetails, error) {
+		return []service.ServiceDetails{}, nil
 	}
-	getHostMap := func()(map[string]host.Host, error) {
+	getHostMap := func() (map[string]host.Host, error) {
 		return make(map[string]host.Host), nil
 	}
 

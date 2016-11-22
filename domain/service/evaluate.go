@@ -346,11 +346,11 @@ func (service *Service) EvaluateHealthCheckTemplate(gs GetService, fc FindChildS
 }
 
 func percentScale(x uint64, percentage float64) uint64 {
-	return uint64(round(float64(x) * percentage))
+	return uint64(Round(float64(x) * percentage))
 }
 
 func bytesToMB(x uint64) uint64 {
-	return uint64(round(float64(x) / (1048576.0))) // 1024.0 * 1024
+	return uint64(Round(float64(x) / (1048576.0))) // 1024.0 * 1024
 }
 
 func each(n int) []int {
@@ -370,7 +370,7 @@ func uintToInt(a uint64) int {
 }
 
 // round value - convert to int64
-func round(value float64) int64 {
+func Round(value float64) int64 {
 	if value < 0.0 {
 		value -= 0.5
 	} else {

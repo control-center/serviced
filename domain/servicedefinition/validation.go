@@ -61,6 +61,11 @@ func (sd *ServiceDefinition) validate(context *validationContext) error {
 	}
 	//TODO: validate LogConfigs
 
+	// validate Monitoring Profile
+	if err := sd.MonitoringProfile.ValidEntity(); err != nil {
+		return fmt.Errorf("service definition %v: invalid monitoring profile %s", sd.Name, err)
+	}
+
 	return validServiceDefinitions(&sd.Services, context)
 }
 

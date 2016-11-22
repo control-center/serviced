@@ -25,12 +25,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain/applicationendpoint"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
+)
+
+const (
+	SERVICED_UI_ENDPOINT       = 5443
+	SERVICED_UI_ENDPOINT_PROXY = 443
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -56,7 +59,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetISvcEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
@@ -68,81 +71,20 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 	return nil
 }
 
-func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
-	*response = service.Service{}
+func (a *HostAgent) GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) (err error) {
+	logger := plog.WithFields(log.Fields{
+		"serviceID":  request.ServiceID,
+		"instanceID": request.InstanceID,
+	})
 
-	controlClient, err := NewControlClient(a.master)
+	svc, tenantID, err := a.serviceCache.GetEvaluatedService(request.ServiceID, request.InstanceID)
 	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return nil
-	}
-	defer controlClient.Close()
-
-	err = controlClient.GetService(serviceID, response)
-	if response == nil {
-		*response = service.Service{}
-	}
-	if err != nil {
+		logger.WithError(err).Error("Failed to get service")
 		return err
 	}
-
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-
-	return response.Evaluate(getSvc, findChild, 0)
-}
-
-func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
-	*response = service.Service{}
-
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return nil
-	}
-	defer controlClient.Close()
-
-	err = controlClient.GetService(req.ServiceID, response)
-	if response == nil {
-		*response = service.Service{}
-	}
-	if err != nil {
-		return err
-	}
-
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-
-	return response.Evaluate(getSvc, findChild, req.InstanceID)
-}
-
-// Call the master's to retrieve its tenant id
-func (a *HostAgent) GetTenantId(serviceId string, tenantId *string) error {
-	client, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer client.Close()
-	return client.GetTenantId(serviceId, tenantId)
+	response.Service = *svc
+	response.TenantID = tenantID
+	return nil
 }
 
 // GetProxySnapshotQuiece blocks until there is a snapshot request to the service
@@ -158,73 +100,26 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 	return errors.New("unimplemented")
 }
 
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]health.HealthCheck) error {
-	glog.V(4).Infof("ControlCenterAgent.GetHealthCheck()")
-	*healthChecks = make(map[string]health.HealthCheck, 0)
-
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-
-	var svc service.Service
-	err = controlClient.GetService(req.ServiceID, &svc)
-	if err != nil {
-		return err
-	}
-	getSvc := func(svcID string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.GetService(svcID, &svc)
-		return svc, err
-	}
-
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc := service.Service{}
-		err := controlClient.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
-		return svc, err
-	}
-	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
-	if svc.HealthChecks != nil {
-		*healthChecks = svc.HealthChecks
-	}
-	return nil
-}
-
-// LogHealthCheck proxies RegisterHealthCheck.
-func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start Control Center client %v", err)
-		return err
-	}
-	defer controlClient.Close()
-	err = controlClient.LogHealthCheck(result, unused)
-	return err
-}
-
 // ReportHealthStatus proxies ReportHealthStatus to the master server.
-func (a *HostAgent) ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error {
-	client, err := NewControlClient(a.master)
+func (a *HostAgent) ReportHealthStatus(req master.HealthStatusRequest, unused *int) error {
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client: %s", err)
 		return err
 	}
-	defer client.Close()
-	return client.ReportHealthStatus(req, unused)
+	defer masterClient.Close()
+	return masterClient.ReportHealthStatus(req.Key, req.Value, req.Expires)
 }
 
 // ReportInstanceDead proxies ReportInstanceDead to the master server.
-func (a *HostAgent) ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error {
-	client, err := NewControlClient(a.master)
+func (a *HostAgent) ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error {
+	masterClient, err := master.NewClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start Control Center client; %s", err)
 		return err
 	}
-	defer client.Close()
-	return client.ReportInstanceDead(req, unused)
+	defer masterClient.Close()
+	return masterClient.ReportInstanceDead(req.ServiceID, req.InstanceID)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control center api
@@ -240,8 +135,10 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationen
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
-	//control center should always be reachable on port 443 in a container
-	endpoint.ProxyPort = uint16(443)
+	// control center should always be reachable in a container on
+	// port SERVICED_UI_ENDPOINT_PROXY via http. SERVICED_UI_ENDPOINT_PROXY
+	// proxies to SERVICED_UI_ENDPOINT via https
+	endpoint.ProxyPort = uint16(SERVICED_UI_ENDPOINT)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
@@ -341,15 +238,12 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 	glog.V(4).Infof("ControlCenterAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
 	*bindmounts = make(map[string]string, 0)
 
-	var tenantID string
-	if err := a.GetTenantId(serviceID, &tenantID); err != nil {
+	var evaluatedServiceResponse EvaluateServiceResponse
+	if err := a.GetEvaluatedService(EvaluateServiceRequest{ServiceID: serviceID, InstanceID: 0}, &evaluatedServiceResponse); err != nil {
 		return err
 	}
-
-	var service service.Service
-	if err := a.GetService(serviceID, &service); err != nil {
-		return err
-	}
+	service := evaluatedServiceResponse.Service
+	tenantID := evaluatedServiceResponse.TenantID
 
 	response := map[string]string{}
 	for _, volume := range service.Volumes {

@@ -25,17 +25,16 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/config"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
@@ -104,6 +103,11 @@ type DaoTest struct {
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
+
+	config.LoadOptions(config.Options{
+		IsvcsPath: c.MkDir(),
+	})
+
 	dt.Port = 9202
 	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS, "json-file", map[string]string{"max-file": "5", "max-size": "10m"}, nil)
 	isvcs.Mgr.SetVolumesDir(c.MkDir())
@@ -165,7 +169,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	}
 
 	// create the account credentials
-	if err := createSystemUser(dt.Dao); err != nil {
+	if err := dt.Facade.CreateSystemUser(dt.CTX); err != nil {
 		c.Fatalf("could not create systemuser: %s", err)
 	}
 }
@@ -425,105 +429,6 @@ func (dt *DaoTest) TestDao_GetService(t *C) {
 	}
 }
 
-func (dt *DaoTest) TestDao_GetServices(t *C) {
-	svc, _ := service.NewService()
-	svc.ID = "default"
-	svc.Name = "name"
-	svc.PoolID = "default"
-	svc.DeploymentID = "deployment_id"
-	svc.Launch = "auto"
-	svc.Description = "description"
-	svc.Instances = 0
-
-	err := dt.Dao.AddService(*svc, &id)
-	t.Assert(err, IsNil)
-
-	var result []service.Service
-	var serviceRequest dao.ServiceRequest
-	err = dt.Dao.GetServices(serviceRequest, &result)
-	t.Assert(err, IsNil)
-	t.Assert(len(result), Equals, 1)
-	//XXX the time.Time types fail comparison despite being equal...
-	//	  as far as I can tell this is a limitation with Go
-	result[0].UpdatedAt = svc.UpdatedAt
-	result[0].CreatedAt = svc.CreatedAt
-	if !result[0].Equals(svc) {
-		t.Errorf("expected [%+v] actual=%+v", *svc, result)
-		t.Fail()
-	}
-}
-
-func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
-	svc := service.Service{
-		ID:             "ParentServiceID",
-		Name:           "ParentService",
-		Startup:        "/usr/bin/ping -c localhost",
-		Description:    "Ping a remote host a fixed number of times",
-		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1, 1},
-		ImageID:        "test/pinger",
-		PoolID:         "default",
-		DeploymentID:   "deployment_id",
-		DesiredState:   int(service.SVCRun),
-		Launch:         "auto",
-		Endpoints:      []service.ServiceEndpoint{},
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	}
-	childService1 := service.Service{
-		ID:              "childService1",
-		Name:            "childservice1",
-		Launch:          "auto",
-		PoolID:          "default",
-		DeploymentID:    "deployment_id",
-		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
-		ParentServiceID: "ParentServiceID",
-	}
-	childService2 := service.Service{
-		ID:              "childService2",
-		Name:            "childservice2",
-		Launch:          "auto",
-		PoolID:          "default",
-		DeploymentID:    "deployment_id",
-		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
-		ParentServiceID: "ParentServiceID",
-	}
-	// add a service with a subservice
-	id := "ParentServiceID"
-	var err error
-	if err = dt.Dao.AddService(svc, &id); err != nil {
-		glog.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
-	}
-
-	childService1Id := "childService1"
-	childService2Id := "childService2"
-	if err = dt.Dao.AddService(childService1, &childService1Id); err != nil {
-		glog.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
-	}
-	if err = dt.Dao.AddService(childService2, &childService2Id); err != nil {
-		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
-	}
-
-	// start the service
-	var affected int
-	if err = dt.Dao.StartService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
-	}
-	// stop the parent
-	if err = dt.Dao.StopService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
-		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
-	}
-	// verify the children have all stopped
-	var services []service.Service
-	var serviceRequest dao.ServiceRequest
-	err = dt.Dao.GetServices(serviceRequest, &services)
-	for _, subService := range services {
-		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == id {
-			t.Errorf("Was expecting child services to be stopped %v", subService)
-		}
-	}
-}
-
 func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()
@@ -572,7 +477,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	t.Assert(err, IsNil)
 
 	var affected int
-	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true}, &affected); err != nil {
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true, true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 
@@ -598,67 +503,6 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	dt.Dao.GetService("02", &svc)
 	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 02 not requested to run: %+v", svc)
-		t.Fail()
-	}
-}
-
-func (dt *DaoTest) TestDao_GetTenantId(t *C) {
-	var err error
-	var tenantId string
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err == nil {
-		t.Errorf("Expected failure for getting tenantId for 0")
-		t.Fail()
-	}
-
-	s0, _ := service.NewService()
-	s0.Name = "name0"
-	s0.PoolID = "default"
-	s0.Launch = "auto"
-	s0.ID = "0"
-	s0.DeploymentID = "deployment_id"
-
-	s01, _ := service.NewService()
-	s01.ID = "01"
-	s01.ParentServiceID = "0"
-	s01.Name = "name1"
-	s01.PoolID = "default"
-	s01.Launch = "auto"
-	s01.DeploymentID = "deployment_id"
-
-	s011, _ := service.NewService()
-	s011.ID = "011"
-	s011.ParentServiceID = "01"
-	s011.Name = "name2"
-	s011.PoolID = "default"
-	s011.Launch = "auto"
-	s011.DeploymentID = "deployment_id"
-
-	err = dt.Dao.AddService(*s0, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s01, &id)
-	t.Assert(err, IsNil)
-	err = dt.Dao.AddService(*s011, &id)
-	t.Assert(err, IsNil)
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("0", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("01", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
-		t.Fail()
-	}
-
-	tenantId = ""
-	err = dt.Dao.GetTenantId("011", &tenantId)
-	if err != nil || tenantId != "0" {
-		t.Errorf("Failure getting tenantId for 0, err=%s, tenantId=%s", err, tenantId)
 		t.Fail()
 	}
 }
@@ -692,7 +536,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 	assignIPsHost.ID = HOSTID
 	assignIPsHost.IPs = assignIPsHostIPResources
-	err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
+	_, err = dt.Facade.AddHost(dt.CTX, assignIPsHost)
 	if err != nil {
 		t.Fatalf("Failure creating resource host %-v with error: %s", assignIPsHost, err)
 	}
@@ -728,8 +572,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []addressassignment.AddressAssignment{}
-	err = dt.Facade.GetServiceAddressAssignments(dt.CTX, testService.ID, &assignments)
+	assignments, err := dt.Facade.GetServiceAddressAssignments(dt.CTX, testService.ID)
 	if err != nil {
 		t.Errorf("GetServiceAddressAssignments failed: %v", err)
 	}
@@ -798,84 +641,4 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	glog.V(0).Infof("successfully created 2nd snapshot with label:%s", id)
 
 	time.Sleep(10 * time.Second)
-}
-
-func (dt *DaoTest) TestUser_UserOperations(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-
-	newUser := userdomain.User{}
-	err = dt.Dao.GetUser("Pepe", &newUser)
-	if err != nil {
-		t.Fatalf("Failure getting user %s", err)
-	}
-
-	// make sure they are the same user
-	if newUser.Name != user.Name {
-		t.Fatalf("Retrieved an unexpected user %v", newUser)
-	}
-
-	// make sure the password was hashed
-	if newUser.Password == "Pepe" {
-		t.Fatalf("Did not hash the password %+v", user)
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-}
-
-func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
-	user := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	id := "Pepe"
-	err := dt.Dao.AddUser(user, &id)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	var isValid bool
-	attemptUser := userdomain.User{
-		Name:     "Pepe",
-		Password: "Pepe",
-	}
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
-
-	if !isValid {
-		t.Fatalf("Unable to authenticate user credentials")
-	}
-
-	unused := 0
-	err = dt.Dao.RemoveUser("Pepe", &unused)
-	if err != nil {
-		t.Fatalf("Failure removing user %s", err)
-	}
-
-	// update the user
-	user.Password = "pepe2"
-	err = dt.Dao.UpdateUser(user, &unused)
-	if err != nil {
-		t.Fatalf("Failure creating a user %s", err)
-	}
-	attemptUser.Password = "Pepe2"
-	// make sure we can validate against the updated credentials
-	err = dt.Dao.ValidateCredentials(attemptUser, &isValid)
-
-	if err != nil {
-		t.Fatalf("Failure authenticating credentials %s", err)
-	}
 }

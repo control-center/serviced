@@ -16,19 +16,21 @@
 package facade
 
 import (
+	"errors"
+	"fmt"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	zks "github.com/control-center/serviced/zzk/service"
-
-	"errors"
-	"fmt"
 
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
@@ -241,65 +243,6 @@ func (ft *FacadeIntegrationTest) TestFacade_validateService_badServiceID(t *C) {
 	t.Assert(err, ErrorMatches, "No such entity {kind:service, id:badID}")
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *C) {
-	svc := service.Service{
-		ID:           "svc1",
-		Name:         "TestFacade_validateServiceEndpoints",
-		DeploymentID: "deployment_id",
-		PoolID:       "pool_id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
-		},
-	}
-
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
-	t.Assert(err, IsNil)
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t *C) {
-	svc := service.Service{
-		ID:           "svc1",
-		Name:         "TestFacade_validateServiceEndpoints",
-		DeploymentID: "deployment_id",
-		PoolID:       "pool_id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
-		},
-	}
-
-	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
-		return
-	}
-
-	childSvc := service.Service{
-		ID:              "svc2",
-		ParentServiceID: svc.ID,
-		Name:            "TestFacade_validateServiceEndpoints_child",
-		DeploymentID:    "deployment_id",
-		PoolID:          "pool_id",
-		Launch:          "auto",
-		DesiredState:    int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}),
-		},
-	}
-	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
-		return
-	}
-
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
-	t.Assert(err, IsNil)
-}
-
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePublicEndpoint(t *C) {
 	svc := service.Service{
 		ID:           "svc1",
@@ -348,67 +291,6 @@ func (ft *FacadeIntegrationTest) TestFacade_validateServiceAdd_EnableDuplicatePu
 	svc.Endpoints[0].VHostList[0].Enabled = true
 
 	t.Assert(ft.Facade.UpdateService(ft.CTX, svc), NotNil)
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C) {
-	svc := service.Service{
-		ID:           "svc1",
-		Name:         "TestFacade_validateServiceEndpoints",
-		DeploymentID: "deployment_id",
-		PoolID:       "pool_id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-		},
-	}
-
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
-	t.Check(err, NotNil)
-	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
-}
-
-func (ft *FacadeIntegrationTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C) {
-	svc := service.Service{
-		ID:           "svc1",
-		Name:         "TestFacade_validateServiceEndpoints",
-		DeploymentID: "deployment_id",
-		PoolID:       "pool_id",
-		Launch:       "auto",
-		DesiredState: int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
-		},
-	}
-
-	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
-		return
-	}
-
-	childSvc := service.Service{
-		ID:              "svc2",
-		ParentServiceID: svc.ID,
-		Name:            "TestFacade_validateServiceEndpoints_child",
-		DeploymentID:    "deployment_id",
-		PoolID:          "pool_id",
-		Launch:          "auto",
-		DesiredState:    int(service.SVCStop),
-		Endpoints: []service.ServiceEndpoint{
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
-			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
-		},
-	}
-	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
-		return
-	}
-
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
-	t.Check(err, NotNil)
-	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
@@ -460,7 +342,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t 
 	svc, err := ft.setupServiceWithEndpoints(t)
 	t.Assert(err, IsNil)
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return([]zks.State{}, errorStub)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return([]zks.State{}, errorStub)
 
 	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -488,7 +370,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceNotRunnin
 			})
 		}
 	}
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return([]zks.State{state}, nil)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return([]zks.State{state}, nil)
 
 	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
@@ -529,7 +411,7 @@ func (ft *FacadeIntegrationTest) TestFacade_GetServiceEndpoints_ServiceRunning(t
 		states[i].InstanceID = i
 	}
 
-	ft.zzk.On("GetServiceStates", svc.PoolID, svc.ID).Return(states, nil)
+	ft.zzk.On("GetServiceStates", ft.CTX, svc.PoolID, svc.ID).Return(states, nil)
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
@@ -1098,6 +980,88 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeEndpointsAcr
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_FailDupeEndpointsWithTemplate(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	// Try to deploy 2 services with the same parent and same templated endpoint
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = "original_service_id_child_1"
+	deployRequest.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	deployRequest2 := ft.createServiceDeploymentRequest(t)
+	deployRequest2.ParentID = "original_service_id_child_1"
+	deployRequest2.Service.Name = "added-service-2"
+	deployRequest2.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest, deployRequest2},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_Deploy_EndpointsWithTemplate(t *C) {
+	err := ft.setupMigrationTestWithoutEndpoints(t)
+	t.Assert(err, IsNil)
+
+	// Deploy 2 services with the same templated endpoint but different parents
+	deployRequest := ft.createServiceDeploymentRequest(t)
+	deployRequest.ParentID = "original_service_id_child_1"
+	deployRequest.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	deployRequest2 := ft.createServiceDeploymentRequest(t)
+	deployRequest2.ParentID = "original_service_id_child_0"
+	deployRequest2.Service.Name = "added-service-2"
+	deployRequest2.Service.Endpoints = []servicedefinition.EndpointDefinition{
+		servicedefinition.EndpointDefinition{
+			Name:        "original_service_endpoint_name_child_1",
+			Application: "{{(parent .).Name}}_original_service_endpoint_application_child_1",
+			Purpose:     "export",
+		},
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID: "original_service_id_tenant",
+		Deploy:    []*dao.ServiceDeploymentRequest{deployRequest, deployRequest2},
+	}
+
+	ft.dfs.On("Download",
+		deployRequest.Service.ImageID,
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("bool"),
+	).Return("mockImageId", nil)
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndpoint(t *C) {
 	err := ft.setupMigrationTestWithEndpoints(t)
 	t.Assert(err, IsNil)
@@ -1119,6 +1083,200 @@ func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_FailDupeExistingEndp
 
 	err = ft.Facade.MigrateServices(ft.CTX, request)
 	t.Assert(err, Equals, ErrServiceDuplicateEndpoint)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_MigrateServices_ModifiedWithEndpoint(t *C) {
+	err := ft.setupMigrationTestWithEndpoints(t)
+	t.Assert(err, IsNil)
+
+	originalID := "original_service_id_child_1"
+	oldSvc, err := ft.Facade.GetService(ft.CTX, originalID)
+	t.Assert(err, IsNil)
+
+	// Create a service which has an endpoint that matches an existing service
+	newSvc := service.Service{}
+	newSvc = *oldSvc
+	newSvc.Name = oldSvc.Name + "_CLONE"
+
+	// Modify the service and make sure it succeeds (no failure on dupe endpoint)
+	request := dao.ServiceMigrationRequest{
+		ServiceID: originalID,
+		Modified:  []*service.Service{&newSvc},
+	}
+
+	err = ft.Facade.MigrateServices(ft.CTX, request)
+	t.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_ResolveServicePath(c *C) {
+	svca := service.Service{
+		ID:              "svcaid",
+		PoolID:          "testPool",
+		Name:            "svc_a",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id",
+	}
+	svcb := service.Service{
+		ID:              "svcbid",
+		PoolID:          "testPool",
+		Name:            "svc_b",
+		Launch:          "auto",
+		ParentServiceID: "svcaid",
+		DeploymentID:    "deployment_id",
+	}
+	svcc := service.Service{
+		ID:              "svccid",
+		PoolID:          "testPool",
+		Name:            "svc_c",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcd := service.Service{
+		ID:              "svcdid",
+		PoolID:          "testPool",
+		Name:            "svc_d",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcd2 := service.Service{
+		ID:              "svcd2id",
+		PoolID:          "testPool",
+		Name:            "svc_d_2",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svc2d := service.Service{
+		ID:              "svc2did",
+		PoolID:          "testPool",
+		Name:            "2_svc_d",
+		Launch:          "auto",
+		ParentServiceID: "svcbid",
+		DeploymentID:    "deployment_id",
+	}
+	svcdother := service.Service{
+		ID:              "svcdotherid",
+		PoolID:          "testPool",
+		Name:            "svc_d",
+		Launch:          "auto",
+		ParentServiceID: "",
+		DeploymentID:    "deployment_id_2",
+	}
+	c.Assert(ft.Facade.AddService(ft.CTX, svca), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcb), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcc), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcd), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcd2), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svc2d), IsNil)
+	c.Assert(ft.Facade.AddService(ft.CTX, svcdother), IsNil)
+
+	ft.assertPathResolvesToServices(c, "/svc_a/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_a/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "/svc_b/svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "svc_c", svcc)
+	ft.assertPathResolvesToServices(c, "/svc_c", svcc)
+
+	ft.assertPathResolvesToServices(c, "/svc_a", svca)
+	ft.assertPathResolvesToServices(c, "svc_a", svca)
+	ft.assertPathResolvesToServices(c, "/svc_b", svcb)
+	ft.assertPathResolvesToServices(c, "svc_b", svcb)
+
+	// Default is substring match
+	ft.assertPathResolvesToServices(c, "svc_d", svcd, svcd2, svc2d, svcdother)
+	ft.assertPathResolvesToServices(c, "2", svcd2, svc2d)
+
+	// Leading slash indicates prefix match
+	ft.assertPathResolvesToServices(c, "/svc_d", svcd, svcd2, svcdother)
+	ft.assertPathResolvesToServices(c, "/vc_d")
+
+	// Must be able to restrict by deployment ID
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_d", svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_d", svcdother)
+
+	// Path has to exist underneath that deployment to match
+	ft.assertPathResolvesToServices(c, "deployment_id/svc_b/svc_d", svcd, svcd2, svc2d)
+	ft.assertPathResolvesToServices(c, "deployment_id_2/svc_b/svc_d")
+
+	// Make sure invalid matches don't match
+	ft.assertPathResolvesToServices(c, "notathing")
+	ft.assertPathResolvesToServices(c, "svc_d/svc_b")
+	ft.assertPathResolvesToServices(c, "sv_a")
+
+	// Empty paths shouldn't match anything
+	ft.assertPathResolvesToServices(c, "/")
+	ft.assertPathResolvesToServices(c, "")
+
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
+	svc := service.Service{
+		ID:             "ParentServiceID",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
+		ImageID:        "test/pinger",
+		PoolID:         "default",
+		DeploymentID:   "deployment_id",
+		DesiredState:   int(service.SVCRun),
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+	childService1 := service.Service{
+		ID:              "childService1",
+		Name:            "childservice1",
+		Launch:          "auto",
+		PoolID:          "default",
+		DeploymentID:    "deployment_id",
+		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID: "ParentServiceID",
+	}
+	childService2 := service.Service{
+		ID:              "childService2",
+		Name:            "childservice2",
+		Launch:          "auto",
+		PoolID:          "default",
+		DeploymentID:    "deployment_id",
+		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID: "ParentServiceID",
+	}
+	// add a service with a subservice
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// start the service
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// stop the parent
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+	// verify the children have all stopped
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	for _, subService := range services {
+		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == "ParentServiceID" {
+			c.Errorf("Was expecting child services to be stopped %v", subService)
+		}
+	}
 }
 
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
@@ -1281,4 +1439,21 @@ func (ft *FacadeIntegrationTest) createServiceDeploymentRequest(t *C) *dao.Servi
 	}
 
 	return &deployRequest
+}
+
+func (ft *FacadeIntegrationTest) assertPathResolvesToServices(c *C, path string, services ...service.Service) {
+	details, err := ft.Facade.ResolveServicePath(ft.CTX, path)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, len(services))
+	foundids := make([]string, len(details))
+	for i, d := range details {
+		foundids[i] = d.ID
+	}
+	sort.Strings(foundids)
+	ids := make([]string, len(services))
+	for i, d := range services {
+		ids[i] = d.ID
+	}
+	sort.Strings(ids)
+	c.Assert(foundids, DeepEquals, ids)
 }

@@ -13,14 +13,22 @@
 
 package dao
 
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+//               **** USE OF THE METHODS IN THIS FILE IS DEPRECATED ****
+//
+// THAT MEANS DO NOT ADD MORE METHODS TO dao.ControlPlane
+//
+// Instead of adding new RPC calls via dao.ControlPlane, new RPCs should be added
+// rpc/master.ClientInterface
+// --------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------
+
 import (
 	"time"
 
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/user"
-	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 )
 
@@ -62,8 +70,9 @@ type ServiceStateRequest struct {
 }
 
 type ScheduleServiceRequest struct {
-	ServiceID  string
-	AutoLaunch bool
+	ServiceID   string
+	AutoLaunch  bool
+	Synchronous bool
 }
 
 type WaitServiceRequest struct {
@@ -125,9 +134,6 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	//for a service, get it's tenant Id
-	GetTenantId(serviceId string, tenantId *string) error
-
 	// Add a new service
 	AddService(svc service.Service, serviceId *string) error
 
@@ -149,17 +155,14 @@ type ControlPlane interface {
 	// Get a service from serviced
 	GetService(serviceId string, svc *service.Service) error
 
-	// Get a list of services from serviced
-	GetServices(request ServiceRequest, services *[]service.Service) error
-
 	// Find a child service with the given name
 	FindChildService(request FindChildRequest, svc *service.Service) error
 
-	// Get services with the given tag(s)
-	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
-
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
+
+	// Get a list of tenant IDs
+	GetTenantIDs(unused struct {}, tenantIDs *[]string) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -211,31 +214,6 @@ type ControlPlane interface {
 
 	// Get service memory stats for a particular service instance
 	GetInstanceMemoryStats(req MetricRequest, stats *[]metrics.MemoryUsageStats) error
-
-	//---------------------------------------------------------------------------
-	// Service CRUD
-
-	//GetSystemUser retrieves the credentials for the system_user account
-	GetSystemUser(unused int, usr *user.User) error
-
-	//ValidateCredentials verifies if the passed in user has the correct username and password
-	ValidateCredentials(usr user.User, result *bool) error
-
-	// Register a health check result
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
-
-	// Check the health of control center
-	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
-
-	// ReportHealthStatus reports the status of a health check to the health
-	// status cache.
-	ReportHealthStatus(req HealthStatusRequest, unused *int) error
-
-	// ReportInstanceDead reports the status of a service instance as dead.
-	ReportInstanceDead(req ServiceInstanceRequest, unused *int) error
-
-	// GetServicesHealth returns all health checks for all services
-	GetServicesHealth(unused int, results *map[string]map[int]map[string]health.HealthStatus) error
 
 	// -----------------------------------------------------------------------
 	// Filesystem CRUD

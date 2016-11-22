@@ -62,7 +62,7 @@ type TemplateAPITest struct {
 }
 
 func InitTemplateAPITest(args ...string) {
-	New(DefaultTemplateAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
+	New(DefaultTemplateAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{}).Run(args)
 }
 
 func (t TemplateAPITest) GetServiceTemplates() ([]template.ServiceTemplate, error) {
@@ -118,18 +118,18 @@ func (t TemplateAPITest) CompileServiceTemplate(cfg api.CompileTemplateConfig) (
 	return &tpl, nil
 }
 
-func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) ([]service.Service, error) {
+func (t TemplateAPITest) DeployServiceTemplate(cfg api.DeployTemplateConfig) ([]service.ServiceDetails, error) {
 	tpl, err := t.GetServiceTemplate(cfg.ID)
 	if err != nil {
 		return nil, err
 	} else if tpl == nil {
 		return nil, nil
 	}
-	s := service.Service{
+	s := service.ServiceDetails{
 		ID:     fmt.Sprintf("%s-service", cfg.ID),
 		PoolID: cfg.PoolID,
 	}
-	return []service.Service{s}, nil
+	return []service.ServiceDetails{s}, nil
 }
 
 func TestServicedCLI_CmdTemplateList_one(t *testing.T) {
@@ -141,7 +141,7 @@ func TestServicedCLI_CmdTemplateList_one(t *testing.T) {
 	}
 
 	var actual template.ServiceTemplate
-	output := pipe(InitTemplateAPITest, "serviced", "template", "list", templateID)
+	output := captureStdout(func() { InitTemplateAPITest("serviced", "template", "list", templateID) })
 
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
@@ -160,7 +160,7 @@ func TestServicedCLI_CmdTemplateList_all(t *testing.T) {
 	}
 
 	var actual []*template.ServiceTemplate
-	output := pipe(InitTemplateAPITest, "serviced", "template", "list", "--verbose")
+	output := captureStdout(func() { InitTemplateAPITest("serviced", "template", "list", "--verbose") })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -185,9 +185,9 @@ func ExampleServicedCLI_CmdTemplateList_fail() {
 	DefaultTemplateAPITest.fail = true
 	defer func() { DefaultTemplateAPITest.fail = false }()
 	// Error retrieving template
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "list", "test-template-1")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "list", "test-template-1") })
 	// Error retrieving all templates
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "list")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "list") })
 
 	// Output:
 	// invalid template
@@ -198,9 +198,9 @@ func ExampleServicedCLI_CmdTemplateList_err() {
 	DefaultTemplateAPITest.templates = nil
 	defer func() { DefaultTemplateAPITest.templates = DefaultTestTemplates }()
 	// template not found
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "list", "test-template-0")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "list", "test-template-0") })
 	// no templates found
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "list")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "list") })
 
 	// Output:
 	// template not found
@@ -245,7 +245,7 @@ func ExampleServicedCLI_CmdTemplateRemove_usage() {
 }
 
 func ExampleServicedCLI_CmdTemplateRemove_err() {
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "remove", "test-template-0")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "remove", "test-template-0") })
 
 	// Output:
 	// test-template-0: no templates found
@@ -280,7 +280,9 @@ func ExampleServicedCLI_CmdTemplateDeploy_usage() {
 func ExampleServicedCLI_CmdTemplateDeploy_fail() {
 	DefaultTemplateAPITest.fail = true
 	defer func() { DefaultTemplateAPITest.fail = false }()
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
+	pipeStderr(func() {
+		InitTemplateAPITest("serviced", "template", "deploy", "test-template-1", "test-pool", "deployment-id")
+	})
 
 	// Output:
 	// Deploying template - please wait...
@@ -288,7 +290,9 @@ func ExampleServicedCLI_CmdTemplateDeploy_fail() {
 }
 
 func ExampleServicedCLI_CmdTemplateDeploy_err() {
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "deploy", NilTemplate, "test-pool", "deployment-id")
+	pipeStderr(func() {
+		InitTemplateAPITest("serviced", "template", "deploy", NilTemplate, "test-pool", "deployment-id")
+	})
 
 	// Output:
 	// Deploying template - please wait...
@@ -304,7 +308,7 @@ func TestServicedCLI_CmdTemplateCompile(t *testing.T) {
 	}
 
 	var actual template.ServiceTemplate
-	output := pipe(InitTemplateAPITest, "serviced", "template", "compile", dir)
+	output := captureStdout(func() { InitTemplateAPITest("serviced", "template", "compile", dir) })
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
 	}
@@ -337,14 +341,14 @@ func ExampleServicedCLI_CmdTemplateCompile_usage() {
 func ExampleServicedCLI_CmdTemplateCompile_fail() {
 	DefaultTemplateAPITest.fail = true
 	defer func() { DefaultTemplateAPITest.fail = false }()
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "compile", "/path/to/template")
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "compile", "/path/to/template") })
 
 	// Output:
 	// invalid template
 }
 
 func ExampleServicedCLI_CmdTemplateCompile_err() {
-	pipeStderr(InitTemplateAPITest, "serviced", "template", "compile", NilTemplate)
+	pipeStderr(func() { InitTemplateAPITest("serviced", "template", "compile", NilTemplate) })
 
 	// Output:
 	// received nil template

@@ -178,6 +178,15 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 		}
 		isRunning := len(ch) > 0
 
+		eventLogger := plog.WithFields(log.Fields{
+			"poolid":    h.poolid,
+			"hostid":    hostid,
+			"isonline":  isOnline,
+			"islocked":  isLocked,
+			"isrunning": isRunning,
+		})
+		eventLogger.Debug("Waiting for host event")
+
 		if isOnline {
 
 			if !isLocked {

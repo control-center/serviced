@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -62,32 +62,32 @@ var UnknownHealthStatus = domain.HealthCheckStatus{
 	Failure:   "",
 }
 
-var DefaultTestHealthCheckResults = []dao.IServiceHealthResult{
-	dao.IServiceHealthResult{
+var DefaultTestHealthCheckResults = []isvcs.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-1",
 		ContainerName:  "container-1",
 		ContainerID:    "id1",
 		HealthStatuses: []domain.HealthCheckStatus{DefaultHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-2",
 		ContainerName:  "container-2",
 		ContainerID:    "id2",
 		HealthStatuses: []domain.HealthCheckStatus{DefaultHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-failed",
 		ContainerName:  "container-failed",
 		ContainerID:    "id-failed",
 		HealthStatuses: []domain.HealthCheckStatus{FailedHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-stopped",
 		ContainerName:  "container-stopped",
 		ContainerID:    "id-stopped",
 		HealthStatuses: []domain.HealthCheckStatus{StoppedHealthStatus},
 	},
-	dao.IServiceHealthResult{
+	isvcs.IServiceHealthResult{
 		ServiceName:    "test-iservice-unknown",
 		ContainerName:  "container-unknown",
 		ContainerID:    "id-unknown",
@@ -97,17 +97,17 @@ var DefaultTestHealthCheckResults = []dao.IServiceHealthResult{
 
 type HealthCheckAPITest struct {
 	api.API
-	apiResults []dao.IServiceHealthResult
+	apiResults []isvcs.IServiceHealthResult
 }
 
 func InitHealthCheckAPITest(args ...string) {
-	c := New(DefaultHealthCheckAPITest, utils.TestConfigReader(make(map[string]string)))
+	c := New(DefaultHealthCheckAPITest, utils.TestConfigReader(make(map[string]string)), MockLogControl{})
 	c.exitDisabled = true
 	c.Run(args)
 }
 
-func (t HealthCheckAPITest) ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error) {
-	mockResults := make([]dao.IServiceHealthResult, 0)
+func (t HealthCheckAPITest) ServicedHealthCheck(IServiceNames []string) ([]isvcs.IServiceHealthResult, error) {
+	mockResults := make([]isvcs.IServiceHealthResult, 0)
 	for _, serviceName := range IServiceNames {
 		found := false
 		for _, result := range t.apiResults {
@@ -143,7 +143,7 @@ func ExampleServicedCLI_CmdHealthCheck_twoServices() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_undefinedService() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "undefined-iservice")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "undefined-iservice") })
 
 	// Output:
 	// could not find isvc "undefined-iservice"
@@ -151,7 +151,7 @@ func ExampleServicedCLI_CmdHealthCheck_undefinedService() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-failed")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-failed") })
 
 	// Output:
 	// Service Name          Container Name    Container ID  Health Check  Status
@@ -160,7 +160,7 @@ func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_stoppedStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-stopped")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-stopped") })
 
 	// Output:
 	// Service Name           Container Name     Container ID  Health Check  Status
@@ -169,7 +169,7 @@ func ExampleServicedCLI_CmdHealthCheck_stoppedStatus() {
 }
 
 func ExampleServicedCLI_CmdHealthCheck_unknownStatus() {
-	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-unknown")
+	pipeStderr(func() { InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-unknown") })
 
 	// Output:
 	// Service Name           Container Name     Container ID  Health Check  Status

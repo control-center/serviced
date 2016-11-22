@@ -37,7 +37,12 @@ type StateError struct {
 }
 
 func (err StateError) Error() string {
-	return fmt.Sprintf("could not %s instance %d from service %s on host %s: %s", err.Operation, err.Request.InstanceID, err.Request.ServiceID, err.Request.ServiceID, err.Message)
+	return fmt.Sprintf("could not %s instance %d from service %s on host %s: %s",
+		err.Operation,
+		err.Request.InstanceID,
+		err.Request.ServiceID,
+		err.Request.HostID,
+		err.Message)
 }
 
 // ErrInvalidStateID is an error that is returned when a state id value is not
@@ -47,7 +52,7 @@ var ErrInvalidStateID = errors.New("invalid state id")
 // ServiceState provides information of a service state
 type ServiceState struct {
 	ContainerID string
-	ImageID     string
+	ImageUUID   string
 	Paused      bool
 	PrivateIP   string
 	HostIP      string
@@ -555,8 +560,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	// Delete the host instance
 	hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 	if ok, err := conn.Exists(hspth); err != nil {
-
 		logger.WithError(err).Debug("Could not look up host state")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",
@@ -571,8 +580,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	// Delete the service instance
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	if ok, err := conn.Exists(sspth); err != nil {
-
 		logger.WithError(err).Debug("Could not look up service state")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",
@@ -585,8 +598,12 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 	}
 
 	if err := t.Commit(); err != nil {
-
 		logger.WithError(err).Debug("Could not commit transaction")
+
+		// CC-2853: only wrap errors that are NOT of type client.ErrNoServer
+		if err == client.ErrNoServer {
+			return err
+		}
 		return &StateError{
 			Request:   req,
 			Operation: "delete",

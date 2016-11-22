@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
@@ -107,7 +108,7 @@ type logExporter struct {
 	outputFiles []outputFileInfo
 
 	// A list of services used to populate the index file on completion of the export
-	serviceMap map[string]service.Service
+	serviceMap map[string]service.ServiceDetails
 }
 
 // ExportLogs exports logs from ElasticSearch.
@@ -125,7 +126,7 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 		}
 	}()
 
-	exporter, e = buildExporter(configParam, a.GetServices, a.GetHostMap)
+	exporter, e = buildExporter(configParam, a.GetAllServiceDetails, a.GetHostMap)
 	if e != nil {
 		return e
 	}
@@ -193,18 +194,18 @@ func (a *api) ExportLogs(configParam ExportLogsConfig) (err error) {
 	return nil
 }
 
-func validateConfiguration(config *ExportLogsConfig) error {
-	if config.Driver == nil {
-		config.Driver = &elastigoLogDriver{}
+func validateConfiguration(cfg *ExportLogsConfig) error {
+	if cfg.Driver == nil {
+		cfg.Driver = &elastigoLogDriver{}
 	}
 
-	err := config.Driver.SetLogstashInfo(options.LogstashES)
+	err := cfg.Driver.SetLogstashInfo(config.GetOptions().LogstashES)
 	if err != nil {
 		return err
 	}
 
 	// make sure we can write to outfile
-	if config.OutFileName == "" {
+	if cfg.OutFileName == "" {
 		pwd, e := os.Getwd()
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
@@ -212,48 +213,48 @@ func validateConfiguration(config *ExportLogsConfig) error {
 		now := time.Now().UTC()
 		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
 		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
-		config.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
+		cfg.OutFileName = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
 	}
-	fp, e := filepath.Abs(config.OutFileName)
+	fp, e := filepath.Abs(cfg.OutFileName)
 	if e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.OutFileName, e)
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", cfg.OutFileName, e)
 	}
-	config.OutFileName = filepath.Clean(fp)
+	cfg.OutFileName = filepath.Clean(fp)
 
 	// Create the file in exclusive mode to avoid race with a concurrent invocation
 	// of the same command on the same node
-	config.outFile, e = os.OpenFile(config.OutFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
+	cfg.outFile, e = os.OpenFile(cfg.OutFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
 	if e != nil {
-		return fmt.Errorf("Could not create backup for %s: %s", config.OutFileName, e)
+		return fmt.Errorf("Could not create backup for %s: %s", cfg.OutFileName, e)
 	}
 
 	// Validate and normalize the date range filter attributes "from" and "to"
-	if config.FromDate == "" && config.ToDate == "" {
-		config.ToDate = time.Now().UTC().Format("2006.01.02")
-		config.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
+	if cfg.FromDate == "" && cfg.ToDate == "" {
+		cfg.ToDate = time.Now().UTC().Format("2006.01.02")
+		cfg.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
 	}
-	if config.FromDate != "" {
-		if config.FromDate, e = NormalizeYYYYMMDD(config.FromDate); e != nil {
+	if cfg.FromDate != "" {
+		if cfg.FromDate, e = NormalizeYYYYMMDD(cfg.FromDate); e != nil {
 			return e
 		}
 	}
-	if config.ToDate != "" {
-		if config.ToDate, e = NormalizeYYYYMMDD(config.ToDate); e != nil {
+	if cfg.ToDate != "" {
+		if cfg.ToDate, e = NormalizeYYYYMMDD(cfg.ToDate); e != nil {
 			return e
 		}
 	}
 
-	if config.Debug {
+	if cfg.Debug {
 		log.WithFields(logrus.Fields{
-			"from": config.FromDate,
-			"to":   config.ToDate,
+			"from": cfg.FromDate,
+			"to":   cfg.ToDate,
 		}).Info("Normalized date range")
 	}
 	return nil
 }
 
 // Builds an instance of logExporter to use for the current export operation.
-func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.Service, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
+func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.ServiceDetails, error), getHostMap func() (map[string]host.Host, error)) (exporter *logExporter, err error) {
 	exporter = &logExporter{ExportLogsConfig: configParam}
 	exporter.query, err = exporter.buildQuery(getServices)
 	if err != nil {
@@ -296,8 +297,8 @@ func buildExporter(configParam ExportLogsConfig, getServices func() ([]service.S
 	return exporter, nil
 }
 
-func buildServiceMap(getServices func() ([]service.Service, error)) (map[string]service.Service, error) {
-	result := make(map[string]service.Service)
+func buildServiceMap(getServices func() ([]service.ServiceDetails, error)) (map[string]service.ServiceDetails, error) {
+	result := make(map[string]service.ServiceDetails)
 	if serviceArray, err := getServices(); err != nil {
 		return nil, fmt.Errorf("failed to get list of services: %s", err)
 	} else {
@@ -338,14 +339,14 @@ func (exporter *logExporter) cleanup() {
 }
 
 // Builds an ES-logstash query string based on the list of service IDs requested.
-func (exporter *logExporter) buildQuery(getServices func() ([]service.Service, error)) (string, error) {
+func (exporter *logExporter) buildQuery(getServices func() ([]service.ServiceDetails, error)) (string, error) {
 	query := "*"
 	if len(exporter.ServiceIDs) > 0 {
 		services, e := getServices()
 		if e != nil {
 			return "", e
 		}
-		serviceMap := make(map[string]service.Service)
+		serviceMap := make(map[string]service.ServiceDetails)
 		for _, service := range services {
 			serviceMap[service.ID] = service
 		}
@@ -381,7 +382,7 @@ func (exporter *logExporter) buildQuery(getServices func() ([]service.Service, e
 		// sort the query parts for predictable testability of the query string
 		sort.Sort(sort.StringSlice(queryParts))
 
-		query = fmt.Sprintf("service:(%s)", strings.Join(queryParts, " OR "))
+		query = fmt.Sprintf("fields.service:(%s)", strings.Join(queryParts, " OR "))
 	}
 	if exporter.Debug {
 		log.WithFields(logrus.Fields{
@@ -555,23 +556,23 @@ func (exporter *logExporter) getServiceName(serviceID string) string {
 //       In later releases of CC, we added the field 'ccWorkerID' to have the hostID of the docker host. This
 //       means that some installations may have older log messages with no 'ccWorkerID' field.
 type logSingleLine struct {
-	HostID      string    `json:"ccWorkerID"`
-	ContainerID string    `json:"host"`
-	File        string    `json:"file"`
-	Timestamp   time.Time `json:"@timestamp"`
+	HostID      string      `json:"ccWorkerID"`
+	ContainerID string      `json:"host"`
+	File        string      `json:"file"`
+	Timestamp   time.Time   `json:"@timestamp"`
 	Offset      json.Number `json:"offset"`
-	Message     string    `json:"message"`
-	ServiceID   string    `json:"service"`
+	Message     string      `json:"message"`
+	ServiceID   string      `json:"service"`
 }
 
 type logMultiLine struct {
-	HostID      string    `json:"ccWorkerID"`
-	ContainerID string    `json:"host"`
-	File        string    `json:"file"`
-	Timestamp   time.Time `json:"@timestamp"`
-	Offset      []string  `json:"offset"`
-	Message     string    `json:"message"`
-	ServiceID   string    `json:"service"`
+	HostID      string        `json:"ccWorkerID"`
+	ContainerID string        `json:"host"`
+	File        string        `json:"file"`
+	Timestamp   time.Time     `json:"@timestamp"`
+	Offset      []json.Number `json:"offset"`
+	Message     string        `json:"message"`
+	ServiceID   string        `json:"service"`
 }
 
 type compactLogLine struct {
@@ -604,14 +605,14 @@ type outputFileInfo struct {
 var newline = regexp.MustCompile("\\r?\\n")
 
 // convertOffsets converts a list of strings into a list of uint64s
-func convertOffsets(offsets []string) ([]uint64, error) {
+func convertOffsets(offsets []json.Number) ([]uint64, error) {
 	result := make([]uint64, len(offsets))
-	for i, offsetString := range offsets {
-		offset, e := strconv.ParseUint(offsetString, 10, 64)
+	for i, offset := range offsets {
+		offsetUint, e := strconv.ParseUint(string(offset), 10, 64)
 		if e != nil {
-			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, offsetString, offsets, e)
+			return result, fmt.Errorf("failed to parse offset[%d] \"%s\" in \"%s\": %s", i, string(offset), offsets, e)
 		}
-		result[i] = offset
+		result[i] = offsetUint
 	}
 
 	return result, nil

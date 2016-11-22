@@ -62,35 +62,3 @@ func (s *TestWebSuite) TestRestGetPoolsShouldReturnStatusOK(c *C) {
 
 	c.Assert(s.recorder.Code, Equals, http.StatusOK)
 }
-
-func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectValueForTotal(c *C) {
-	request := s.buildRequest("GET", "/pools", "")
-
-	s.mockFacade.
-		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{apiPoolsTestData.firstPool, apiPoolsTestData.secondPool}, nil)
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	response := poolsResponse{}
-	s.getResult(c, &response)
-
-	c.Assert(response.Total, Equals, 2)
-}
-
-func (s *TestWebSuite) TestRestGetPoolsShouldReturnCorrectLinkValues(c *C) {
-	request := s.buildRequest("GET", "http://www.example.com/pools", "")
-
-	s.mockFacade.
-		On("GetReadPools", s.ctx.getDatastoreContext()).
-		Return([]pool.ReadPool{apiPoolsTestData.firstPool, apiPoolsTestData.secondPool}, nil)
-
-	getPools(&(s.writer), &request, s.ctx)
-
-	response := poolsResponse{}
-	s.getResult(c, &response)
-
-	c.Assert(response.Links[0].HRef, Equals, "/pools")
-	c.Assert(response.Links[0].Rel, Equals, "self")
-	c.Assert(response.Links[0].Method, Equals, "GET")
-}

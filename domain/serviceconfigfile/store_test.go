@@ -38,7 +38,7 @@ var _ = Suite(&S{
 type S struct {
 	elastic.ElasticTest
 	ctx datastore.Context
-	ps  *Store
+	ps  Store
 }
 
 func (s *S) SetUpTest(c *C) {
@@ -81,6 +81,24 @@ func (s *S) Test_ConfigFileCRUD(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
+}
+
+func (s *S) Test_GetConfigFile(t *C) {
+	configFile, err := New("tenant_id", "/testpath", servicedefinition.ConfigFile{Content: "Test content", Filename: "testname"})
+	t.Assert(err, IsNil)
+
+	f, err := s.ps.GetConfigFile(s.ctx, "tenant_id", "/testpath", "testname")
+	t.Assert(err, IsNil)
+	t.Assert(f, IsNil)
+
+	err = s.ps.Put(s.ctx, Key(configFile.ID), configFile)
+	if err != nil {
+		t.Errorf("Unexpected failure creating configFile %-v", configFile)
+	}
+
+	f, err = s.ps.GetConfigFile(s.ctx, "tenant_id", "/testpath", "testname")
+	t.Assert(err, IsNil)
+	t.Assert(f.ConfFile, DeepEquals, configFile.ConfFile)
 }
 
 func (s *S) Test_GetConfigFiles(t *C) {

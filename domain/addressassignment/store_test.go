@@ -37,18 +37,18 @@ var _ = Suite(&S{
 type S struct {
 	elastic.ElasticTest
 	ctx datastore.Context
-	ps  *Store
+	store  *Store
 }
 
 func (s *S) SetUpTest(c *C) {
 	s.ElasticTest.SetUpTest(c)
 	datastore.Register(s.Driver())
 	s.ctx = datastore.Get()
-	s.ps = NewStore()
+	s.store = NewStore()
 }
 
 func (s *S) Test_AddressAssignmentCRUD(t *C) {
-	defer s.ps.Delete(s.ctx, Key("testid"))
+	defer s.store.Delete(s.ctx, Key("testID"))
 
 	assignment := &AddressAssignment{
 		ID:             "testID",
@@ -61,19 +61,19 @@ func (s *S) Test_AddressAssignmentCRUD(t *C) {
 	}
 	assignment2 := AddressAssignment{}
 
-	if err := s.ps.Get(s.ctx, Key(assignment.ID), &assignment2); !datastore.IsErrNoSuchEntity(err) {
+	if err := s.store.Get(s.ctx, Key(assignment.ID), &assignment2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
 
-	err := s.ps.Put(s.ctx, Key(assignment.ID), assignment)
+	err := s.store.Put(s.ctx, Key(assignment.ID), assignment)
 	t.Assert(err, IsNil)
 
 	//Test update
 	assignment.EndpointName = "BLAM"
-	err = s.ps.Put(s.ctx, Key(assignment.ID), assignment)
+	err = s.store.Put(s.ctx, Key(assignment.ID), assignment)
 	t.Assert(err, IsNil)
 
-	err = s.ps.Get(s.ctx, Key(assignment.ID), &assignment2)
+	err = s.store.Get(s.ctx, Key(assignment.ID), &assignment2)
 	t.Assert(err, IsNil)
 
 	if assignment.EndpointName != assignment2.EndpointName {
@@ -81,47 +81,78 @@ func (s *S) Test_AddressAssignmentCRUD(t *C) {
 	}
 
 	//test delete
-	err = s.ps.Delete(s.ctx, Key(assignment.ID))
+	err = s.store.Delete(s.ctx, Key(assignment.ID))
 	t.Assert(err, IsNil)
-	err = s.ps.Get(s.ctx, Key(assignment.ID), &assignment2)
+	err = s.store.Get(s.ctx, Key(assignment.ID), &assignment2)
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 }
 
-//func (s *S) Test_GetAddressAssignments(t *C) {
-//
-//	assignments, err := s.ps.GetResourcePools(s.ctx)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	} else if len(assignments) != 0 {
-//		t.Errorf("Expected %v results, got %v :%#v", 0, len(assignments), assignments)
-//	}
-//
-//	assignment := New("Test_GetPools1")
-//	err = s.ps.Put(s.ctx, Key(assignment.ID), assignment)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	}
-//	assignments, err = s.ps.GetResourcePools(s.ctx)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	} else if len(assignments) != 1 {
-//		t.Errorf("Expected %v results, got %v :%v", 1, len(assignments), assignments)
-//	}
-//
-//	assignment.ID = "Test_GetHosts2"
-//	err = s.ps.Put(s.ctx, Key(assignment.ID), assignment)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	}
-//
-//	assignments, err = s.ps.GetResourcePools(s.ctx)
-//	if err != nil {
-//		t.Errorf("Unexpected error: %v", err)
-//	} else if len(assignments) != 2 {
-//		t.Errorf("Expected %v results, got %v :%v", 2, len(assignments), assignments)
-//	}
-//
-//}
+
+func (s *S) Test_GetAllAddressAssignments(t *C) {
+	defer s.store.Delete(s.ctx, Key("testID1"))
+	defer s.store.Delete(s.ctx, Key("testID2"))
+	defer s.store.Delete(s.ctx, Key("testID3"))
+
+	assignment1 := AddressAssignment{
+		ID:             "testID1",
+		AssignmentType: "static",
+		ServiceID:      "svcID1",
+		EndpointName:   "epname1",
+		IPAddr:         "10.0.1.5",
+		HostID:         "hostid",
+		Port:           500,
+	}
+	assignment2 := assignment1
+	assignment2.ID = "testID2"
+	assignment2.ServiceID = "svcID2"
+	assignment3 := assignment1
+	assignment3.ID = "testID3"
+	assignment3.ServiceID = "svcID3"
+	assignment3.EndpointName = "epname2"
+
+	// Verify get-all on an empty DB returns correct values
+	addrs, err := s.store.GetAllAddressAssignments(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(addrs), Equals, 0)
+
+	err = s.store.Put(s.ctx, Key(assignment1.ID), &assignment1)
+	t.Assert(err, IsNil)
+
+	// Verify get-all on a db w/just 1 entry is correct
+	addrs, err = s.store.GetAllAddressAssignments(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(addrs), Equals, 1)
+	assignment1.DatabaseVersion = 1
+	t.Assert(addrs[0], Equals, assignment1)
+
+	err = s.store.Put(s.ctx, Key(assignment2.ID), &assignment2)
+	t.Assert(err, IsNil)
+	err = s.store.Put(s.ctx, Key(assignment3.ID), &assignment3)
+	t.Assert(err, IsNil)
+
+	// Verify get-all on a db w/multiple entries is correct
+	addrs, err = s.store.GetAllAddressAssignments(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(addrs), Equals, 3)
+
+	addrMap := make(map[string]AddressAssignment)
+	for _, addr := range(addrs) {
+		addrMap[addr.ID] = addr
+	}
+	result, ok := addrMap[assignment1.ID]
+	t.Assert(ok, Equals, true)
+	t.Assert(result, Equals, assignment1)
+
+	assignment2.DatabaseVersion = 1
+	result, ok = addrMap[assignment2.ID]
+	t.Assert(ok, Equals, true)
+	t.Assert(result, Equals, assignment2)
+
+	assignment3.DatabaseVersion = 1
+	result, ok = addrMap[assignment3.ID]
+	t.Assert(ok, Equals, true)
+	t.Assert(result, Equals, assignment3)
+}

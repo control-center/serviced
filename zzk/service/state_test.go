@@ -963,7 +963,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	state, err := GetState(conn, req)
 	c.Assert(err, IsNil)
 	c.Check(state.ContainerID, Equals, "")
-	c.Check(state.ImageID, Equals, "")
+	c.Check(state.ImageUUID, Equals, "")
 	c.Check(state.Paused, Equals, false)
 	c.Check(startTime.Before(state.Started), Equals, false)
 	c.Check(startTime.Before(state.Terminated), Equals, false)
@@ -978,7 +978,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 		s.DesiredState = service.SVCPause
 		s.ServiceState = ServiceState{
 			ContainerID: "dockerid",
-			ImageID:     "imageid",
+			ImageUUID:   "imageid",
 			Paused:      true,
 			Started:     time.Now(),
 		}
@@ -989,7 +989,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
 	c.Check(state.ContainerID, Equals, "")
-	c.Check(state.ImageID, Equals, "")
+	c.Check(state.ImageUUID, Equals, "")
 	c.Check(state.Paused, Equals, false)
 	c.Check(startTime.Before(state.Started), Equals, false)
 	c.Check(startTime.Before(state.Terminated), Equals, false)
@@ -1004,7 +1004,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 		s.DesiredState = service.SVCPause
 		s.ServiceState = ServiceState{
 			ContainerID: "dockerid",
-			ImageID:     "imageid",
+			ImageUUID:   "imageid",
 			Paused:      true,
 			Started:     time.Now(),
 		}
@@ -1015,7 +1015,7 @@ func (t *ZZKTest) TestCRUDState(c *C) {
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
 	c.Check(state.ContainerID, Equals, "dockerid")
-	c.Check(state.ImageID, Equals, "imageid")
+	c.Check(state.ImageUUID, Equals, "imageid")
 	c.Check(state.Paused, Equals, true)
 	c.Check(startTime.Before(state.Started), Equals, true)
 	c.Check(startTime.Before(state.Terminated), Equals, false)

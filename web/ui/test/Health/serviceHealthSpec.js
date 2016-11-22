@@ -28,19 +28,18 @@ describe('serviceHealth', function() {
         return {
             id: id,
             name: "mockservice" + id,
-            model: {
-                DesiredState: STOPPED
-            },
+            desiredState: STOPPED,
             instances: [],
-            getServiceInstances: function(){return this.instances;}
+            fetchInstances: function(){}
         };
     }
     function createMockInstance(serviceID){
         return {
             id: Math.floor(Math.random() * 10000),
+            healthChecks: {},
+            status: {},
             model: {
                 ServiceID: serviceID,
-                HealthChecks: {}
             }
         };
     }
@@ -57,7 +56,7 @@ describe('serviceHealth', function() {
 
         // create service
         var mockService = createMockService(id);
-        mockService.model.DesiredState = desiredState;
+        mockService.desiredState = desiredState;
 
         // attach instance
         mockService.instances = [mockInstance];
@@ -82,7 +81,7 @@ describe('serviceHealth', function() {
     // should be running, but no healthchecks yet. Probably starting up
     it("marks a started service with no health check as unknown", function(){
         var mockService = createMockService();
-        mockService.model.DesiredState = STARTED;
+        mockService.desiredState = STARTED;
         var mockServiceList = {};
         mockServiceList[mockService.id] = mockService;
         var statuses = serviceHealth.update(mockServiceList);

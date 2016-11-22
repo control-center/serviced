@@ -5,21 +5,63 @@
     angular.module('modalService', []).
     factory("$modalService", [
         "$rootScope", "$templateCache", "$http", "$interpolate", "$compile", "$translate", "$notification",
-        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification){
+        "miscUtils", "CCUIState",
+        function($rootScope, $templateCache, $http, $interpolate, $compile, $translate, $notification,
+        utils, CCUIState){
 
-            var defaultModalTemplate = '<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">\
-                <div class="modal-dialog {{bigModal}}">\
-                    <div class="modal-content">\
-                        <div class="modal-header">\
-                            <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>\
-                            <span class="modal-title">{{title}}</span>\
-                        </div>\
-                        <div class="modal-notify"></div>\
-                        <div class="modal-body">{{template}}</div>\
-                        <div class="modal-footer"></div>\
-                    </div>\
-                </div>\
-            </div>';
+            // accessing certain properties forces a DOM reflow,
+            // which is useful if you want some CSS changes to
+            // be applied to force the next CSS change to trigger
+            // a transition
+            function pokeDOM(){
+                return document.body.scrollTop;
+            }
+
+            // global, reusable, handy-dandy modal
+            // backdrop element, guaranteed to reduce all
+            // other content down to about 50% of its original
+            // brightness or your money back!
+            class ModalDarkener{
+                constructor(){
+                    this.el = document.createElement("div");
+                    this.el.className = "modal-darkener";
+                    document.body.appendChild(this.el);
+                }
+
+                show(){
+                    this.el.style.display = "block";
+                    pokeDOM();
+                    this.el.classList.add("show");
+                }
+
+                hide(){
+                    this.el.classList.remove("show");
+                    // TODO - css transition end
+                    setTimeout(() => {
+                        this.el.style.display = "none";
+                    }, 250);
+                }
+            }
+            var darkener = new ModalDarkener();
+
+            var defaultModalTemplate = function(model){
+                return `
+                    <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog ${model.bigModal}">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    ${model.unclosable ?
+                                        `` :
+                                        `<button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>`}
+                                    <span class="modal-title">${model.title}</span>
+                                </div>
+                                <div class="modal-notify"></div>
+                                <div class="modal-body">${model.template}</div>
+                                <div class="modal-footer"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            };
 
             var actionButtonTemplate = '<button type="button" class="btn {{classes}}"><span ng-show="icon" class="glyphicon {{icon}}"></span> {{label}}</button>';
 
@@ -49,14 +91,26 @@
                 var $modalFooter;
 
                 // inject user provided template into modal template
-                var modalTemplate = $interpolate(defaultModalTemplate)({
+                var modalTemplate = defaultModalTemplate({
                     template: template,
                     title: $translate.instant(config.title),
-                    bigModal: config.bigModal ? "big" : ""
+                    bigModal: config.bigModal ? "big" : "",
+                    unclosable: config.unclosable
                 });
 
+                let bootstrapModalConfig = {
+                    backdrop: false,
+                    keyboard: !config.unclosable
+                };
+
                 // bind user provided model to final modal template
-                this.$el = $($compile(modalTemplate)(model)).modal();
+                this.$el = $($compile(modalTemplate)(model)).modal(bootstrapModalConfig);
+
+                // enforce disabling animation on modals if necessary
+                if(CCUIState.get().disableAnimation){
+                    console.log("disabling animation");
+                    this.$el.removeClass("fade");
+                }
 
                 $modalFooter = this.$el.find(".modal-footer");
                 // cache a reference to the notification holder
@@ -91,18 +145,32 @@
                 // listen for hide event and completely remove modal
                 // after it is hidden
                 this.$el.on("hidden.bs.modal", function(){
+                    darkener.hide();
                     this.destroy();
                 }.bind(this));
+
+                // NOTE - internal boostrap modal event that we need
+                // to hook into to hide the modal if the darkener is clicked
+                this.$el.on("click.dismiss.modal", (e) => {
+                    // if clicking the backdrop or clicking an element
+                    // marked with class "close", close things
+                    if(e.target === e.currentTarget || e.target.classList.contains("close")){
+                        this.destroy();
+                        darkener.hide();
+                    }
+                });
             }
 
             Modal.prototype = {
                 constructor: Modal,
                 close: function(){
                     this.$el.modal("hide");
+                    darkener.hide();
                 },
                 show: function(){
                     this.$el.modal("show");
                     this.disableScroll();
+                    darkener.show();
                 },
                 validate: function(args){
                     return this.validateFn(args);
@@ -118,12 +186,10 @@
 
                 disableScroll(){
                     var bodyEl = $("body");
-                    this.bodyOverflowProp = bodyEl.css("overflow");
                     bodyEl.css("overflow", "hidden");
                 },
                 enableScroll(){
-                    var prop = this.bodyOverflowProp || "scroll";
-                    $("body").css("overflow", prop);
+                    $("body").css("overflow", "scroll");
                 },
 
                 // convenience method to disable the default ok/submit button
@@ -166,8 +232,6 @@
                     };
                 }
             };
-
-
 
 
             var modalsPath = "/static/partials/",
@@ -225,7 +289,12 @@
                 // perform onShow function after modal is visible
                 modal.$el.one("shown.bs.modal.", function(){
                     // search for and autofocus the focusme element
-                    modal.$el.find("[focusme]").first().focus();
+                    // unless disableAnimation is set, which probably
+                    // indicates this is an acceptance test is horrendously
+                    // slow and prone to breaking
+                    if(!CCUIState.get().disableAnimation){
+                        modal.$el.find("[focusme]").first().focus();
+                    }
 
                     // call user provided onShow function
                     setTimeout(() => {
@@ -237,8 +306,136 @@
 
             }
 
+            let displayHostKeys = function(keys, registered, name) {
+                let model = $rootScope.$new(true);
+                model.keys = keys;
+                model.name = name;
+                model.registered = registered;
+
+                create({
+                    templateUrl: "display-host-keys.html",
+                    model: model,
+                    title: $translate.instant("title_host_keys"),
+                    actions: [
+                        {
+                            label: $translate.instant("btn_download_keys"),
+                            action: function(){
+                                utils.downloadText(name + ".keys", keys);
+                            },
+                            icon: "glyphicon-download"
+                        },{
+                            role: "ok"
+                        }
+                    ],
+                    onShow: function(){
+                        // TODO - dont touch the DOM!
+                        let keysWrapEl = this.$el.find(".keys-wrap"),
+                            keysEl = keysWrapEl.find(".keys");
+                        if (model.registered) {
+                            this.createNotification("", "Host keys registered automatically").success();
+                        }
+                        keysWrapEl.on("click", e => {
+                            // TODO - if already selected, this deselects
+                            keysEl.select();
+                            try {
+                                let success = document.execCommand('copy');
+                                if(success){
+                                    this.createNotification("", "Keys copied to clipboard").info();
+                                } else {
+                                    this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                                }
+                            } catch(err) {
+                                this.createNotification("", "Press Ctrl+C or Cmd+C to copy keys").info();
+                            }
+                        });
+                    }
+                });
+            };
+
+            let oneMoment = function(message) {
+                let model = $rootScope.$new(true);
+                model.message = message || $translate.instant("one_moment");
+                let html = `
+                    <div style="width: 100%; text-align: center;">
+                        <img src="static/img/loading.gif">
+                        <div style="max-width: 75%; margin: 10px auto;">${model.message}</div>
+                    </div>`;
+
+                create({
+                    template: html,
+                    model: model,
+                    title: $translate.instant("one_moment"),
+                    unclosable: true
+                });
+            };
+
+            let confirmServiceStateChange = function(service, state, childCount, onStartService, onStartServiceAndChildren){
+                let manyTemplate = function(model){
+                    return `
+                        <h4>${$translate.instant("choose_services_" + model.state)}</h4>
+                        <ul>
+                            <li>${$translate.instant(state + "_service_name", { name: "<strong>" + model.service.name + "</strong>" })}</li>
+                            <li>${$translate.instant(state + "_service_name_and_children", {
+                                 name: `<strong>${model.service.name}</strong>`,
+                                 count: `<strong>${model.childCount}</strong>` }
+                            )}</li>
+                        </ul>`;
+                };
+
+                let singleTemplate = function(model){
+                    return $translate.instant(
+                        "service_will_" + model.state,
+                        {name: `<strong>${model.service.name}</strong>`});
+                };
+                
+                let model = $rootScope.$new(true);
+                model = angular.extend(model, {service, state, childCount});
+                let html;
+                // button actions for the modal
+                let actions = [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        classes: " ",
+                        label: $translate.instant(state + "_service"),
+                        action: function () {
+                            onStartService(this);
+                        }
+                    }
+                ];
+
+                // if multiple services will be affected by this change,
+                // modify the model to explain that
+                if(childCount > 1) {
+                    html = manyTemplate(model);
+                    actions.push({
+                        role: "ok",
+                        label: $translate.instant(state + "_service_and_children", { count: childCount }),
+                        action: function () {
+                            onStartServiceAndChildren(this);
+                        }
+                    });
+                } else {
+                     html = singleTemplate(model);
+                }
+
+                create({
+                    template: html,
+                    model: model,
+                    title: $translate.instant(state + "_service"),
+                    actions: actions
+                });
+            };
+
             return {
-                create: create
+                create: create,
+                // some shared modals that anyone can enjoy!
+                modals: {
+                    displayHostKeys,
+                    oneMoment,
+                    confirmServiceStateChange
+                }
             };
 
         }

@@ -1,0 +1,6 @@
+{
+  "S1.service.version": "3.0.2",
+  "global.conf.foo": "mysql",
+  "global.conf.bar": "127.0.0.1 ",
+  "global.conf.baz": "3306"
+}

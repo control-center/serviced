@@ -1,16 +1,3 @@
-// Copyright 2016 The Serviced Authors.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package mocks
 
 import "github.com/control-center/serviced/domain/service"
@@ -63,6 +50,18 @@ func (_m *Store) Delete(ctx datastore.Context, id string) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(datastore.Context, string) error); ok {
 		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *Store) UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error {
+	ret := _m.Called(ctx, serviceID, desiredState)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, int) error); ok {
+		r0 = rf(ctx, serviceID, desiredState)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -237,12 +236,12 @@ func (_m *Store) FindTenantByDeploymentID(ctx datastore.Context, deploymentID st
 
 	return r0, r1
 }
-func (_m *Store) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx)
+func (_m *Store) GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceDetails); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -250,8 +249,8 @@ func (_m *Store) GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceD
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
+		r1 = rf(ctx, since)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -279,12 +278,12 @@ func (_m *Store) GetServiceDetails(ctx datastore.Context, serviceID string) (*se
 
 	return r0, r1
 }
-func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string) ([]service.ServiceDetails, error) {
-	ret := _m.Called(ctx, parentID)
+func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID string, since time.Duration) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, parentID, since)
 
 	var r0 []service.ServiceDetails
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) []service.ServiceDetails); ok {
-		r0 = rf(ctx, parentID)
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, time.Duration) []service.ServiceDetails); ok {
+		r0 = rf(ctx, parentID, since)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.ServiceDetails)
@@ -292,8 +291,134 @@ func (_m *Store) GetServiceDetailsByParentID(ctx datastore.Context, parentID str
 	}
 
 	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, time.Duration) error); ok {
+		r1 = rf(ctx, parentID, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetAllServiceHealth(ctx datastore.Context) ([]service.ServiceHealth, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ServiceHealth
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ServiceHealth); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceHealth)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetServiceHealth(ctx datastore.Context, serviceID string) (*service.ServiceHealth, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 *service.ServiceHealth
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) *service.ServiceHealth); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*service.ServiceHealth)
+		}
+	}
+
+	var r1 error
 	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, parentID)
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.PublicEndpoint
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.PublicEndpoint); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.PublicEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetAllExportedEndpoints(ctx datastore.Context) ([]service.ExportedEndpoint, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.ExportedEndpoint
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.ExportedEndpoint); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ExportedEndpoint)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetAllIPAssignments(ctx datastore.Context) ([]service.BaseIPAssignment, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []service.BaseIPAssignment
+	if rf, ok := ret.Get(0).(func(datastore.Context) []service.BaseIPAssignment); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.BaseIPAssignment)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Store) GetServiceDetailsByIDOrName(ctx datastore.Context, query string, prefix bool) ([]service.ServiceDetails, error) {
+	ret := _m.Called(ctx, query, prefix)
+
+	var r0 []service.ServiceDetails
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, bool) []service.ServiceDetails); ok {
+		r0 = rf(ctx, query, prefix)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.ServiceDetails)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string, bool) error); ok {
+		r1 = rf(ctx, query, prefix)
 	} else {
 		r1 = ret.Error(1)
 	}

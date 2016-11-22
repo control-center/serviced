@@ -136,7 +136,7 @@ func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.Se
 }
 
 // DeployTemplate deploys a template given its template ID
-func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Service, error) {
+func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.ServiceDetails, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
@@ -153,9 +153,9 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Serv
 		return nil, err
 	}
 
-	svcs := make([]service.Service, len(ids))
+	svcs := make([]service.ServiceDetails, len(ids))
 	for i, id := range ids {
-		s, err := a.GetService(id)
+		s, err := a.GetServiceDetails(id)
 		if err != nil {
 			return nil, err
 		}

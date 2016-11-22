@@ -7,7 +7,7 @@ class Hosts < SitePrism::Page
 
     section :navbar, NavBarSection, ".navbar-collapse"
 
-    element :addHost_button, "[ng-click='modalAddHost()']"
+    element :addHost_button, ".add-host-button"
     element :hostHost_input, "#new_host_name"
     element :rpcPort_input, "#new_host_port"
     element :resourcePool_input, "[name='new_host_parent']"

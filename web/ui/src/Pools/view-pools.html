@@ -1,24 +1,30 @@
-<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
+<div ng-show="poolsVM.loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
 <h3 class="pull-left" translate>pools</h3>
 
 <div class="control-buttons pull-right">
     <span class="add-control">
-    <button class="btn-link" ng-click="modalAddPool()">
+    <button class="btn-link add-pool-button" ng-click="poolsVM.clickAddPool()">
       <span class="glyphicon glyphicon-plus-sign"></span>
     <span translate>pool</span>
     </button>
     </span>
 </div>
 
-<table jelly-table data-data="pools" data-config="poolsTable" class="table">
+<table jelly-table data-data="poolsVM.pools" data-config="poolsTable" class="table">
   <tr ng-repeat="pool in $data">
-    <td data-title="'pools_tbl_id'|translate" sortable="'id'" ng-click="click_pool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
+    <td data-title="'pools_tbl_id'|translate" sortable="'id'" ng-click="poolsVM.clickPool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
     <td data-title="'core_capacity'|translate" sortable="'model.CoreCapacity'">{{pool.model.CoreCapacity}}</td>
-    <td data-title="'memory_usage'|translate" sortable="'model.MemoryCommitment'"><span ng-class="{error: pool.model.MemoryCommitment>pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}</td>
-    <td data-title="'pools_tbl_created_at'|translate" sortable="'model.CreatedAt'">{{pool.model.CreatedAt | date : 'medium'}}</td>
-    <td data-title="'updated_at'|translate" sortable="'model.UpdatedAt'">{{pool.model.UpdatedAt | date : 'medium'}}</td>
-    <td data-title="'pools_tbl_actions'|translate"><button ng-click="clickRemovePool(pool.id)" ng-class="{disabled: isDefaultPool(pool.id)}" class="btn btn-link action" name="{{pool.id}}">
+    <td data-title="'memory_usage'|translate" sortable="'model.MemoryCommitment'">
+        <span ng-class="{error: pool.model.MemoryCommitment > pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}
+    </td>
+    <td data-title="'permissions'|translate">
+        <span ng-repeat="permission in pool.permissions" class="permission-tag" title="{{permission.description}}">
+            {{permission.label}}
+        </span>
+    </td>
+    <td data-title="'pools_tbl_actions'|translate"><button ng-click="poolsVM.clickRemovePool(pool.id)"
+        ng-class="{disabled: poolsVM.isDefaultPool(pool.id)}" class="btn btn-link action" name="{{pool.id}}">
           <i class="glyphicon glyphicon-remove-sign"></i>
           <span translate>delete</span>
       </button></td>

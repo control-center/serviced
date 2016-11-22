@@ -21,6 +21,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
@@ -41,39 +43,22 @@ func (s *S) TestAddVirtualHost(t *C) {
 		},
 	}
 
-	var err error
-	if _, err = svc.AddVirtualHost("empty_server", "name", true); err == nil {
-		t.Errorf("Expected error adding vhost")
-	}
+	_, err := svc.AddVirtualHost("empty_server", "name", true)
+	t.Assert(err, NotNil) // "Expected error adding vhost"
 
-	if _, err = svc.AddVirtualHost("server", "name.something", true); err == nil {
-		t.Errorf("Expected error adding vhost with '.'")
-	}
-
-	if _, err = svc.AddVirtualHost("server", "name", true); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
+	_, err = svc.AddVirtualHost("server", "name.something", true)
+	t.Assert(err, IsNil) // "Unexpected error adding vhost with '.'
 
 	//no duplicate hosts can be added... hostnames are case-insensitive
-	if _, err = svc.AddVirtualHost("server", "NAME", true); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
+	_, err = svc.AddVirtualHost("server", "NAME.SOMETHING", true)
+	t.Assert(err, IsNil)
+	t.Assert(len(svc.Endpoints[0].VHostList), Equals, 1)
+	t.Assert(svc.Endpoints[0].VHostList[0].Name, Equals, "name.something")
+	t.Assert(svc.Endpoints[0].VHostList[0].Enabled, Equals, true)
 
-	if len(svc.Endpoints[0].VHostList) != 1 && (svc.Endpoints[0].VHostList)[0].Name != "name" {
-		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHostList)
-	}
-
-	if svc.Endpoints[0].VHostList[0].Enabled != true {
-		t.Errorf("Virtualhost %s should be enabled", svc.Endpoints[0].VHostList[0].Name)
-	}
-
-	if _, err = svc.AddVirtualHost("server", "name2", false); err != nil {
-		t.Errorf("Unexpected error adding vhost: %v", err)
-	}
-	
-	if svc.Endpoints[0].VHostList[1].Enabled != false {
-		t.Errorf("Virtualhost %s should be disabled", svc.Endpoints[0].VHostList[1].Name)
-	}
+	_, err = svc.AddVirtualHost("server", "name2", false)
+	t.Assert(err, IsNil) // "Unexpected error adding second vhost
+	t.Assert(svc.Endpoints[0].VHostList[1].Enabled, Equals, false)
 }
 
 func (s *S) TestRemoveVirtualHost(t *C) {
@@ -83,23 +68,25 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 				servicedefinition.EndpointDefinition{
 					Purpose:     "export",
 					Application: "server",
-					VHostList:   []servicedefinition.VHost{servicedefinition.VHost{Name: "name0"}, servicedefinition.VHost{Name: "name1"}},
+					VHostList: []servicedefinition.VHost{
+						servicedefinition.VHost{
+							Name: "name0",
+						},
+						servicedefinition.VHost{
+							Name: "name1",
+						},
+					},
 				}),
 		},
 	}
 
-	var err error
-	if err = svc.RemoveVirtualHost("server", "name0"); err != nil {
-		t.Errorf("Unexpected error removing vhost: %v", err)
-	}
+	err := svc.RemoveVirtualHost("server", "name0")
+	t.Assert(err, IsNil) // "Unexpected error removing vhost: %v"
+	t.Assert(len(svc.Endpoints[0].VHostList), Equals, 1)
+	t.Assert(svc.Endpoints[0].VHostList[0].Name, Equals, "name1")
 
-	if len(svc.Endpoints[0].VHostList) != 1 && svc.Endpoints[0].VHostList[0].Name != "name1" {
-		t.Errorf("Virtualhost incorrect, %+v should contain one host", svc.Endpoints[0].VHostList)
-	}
-
-	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {
-		t.Errorf("Expected error removing vhost")
-	}
+	err = svc.RemoveVirtualHost("server", "name0")
+	t.Assert(err, NotNil) // "Expected error removing vhost"
 }
 
 func (s *S) TestAddPort(t *C) {
@@ -114,38 +101,23 @@ func (s *S) TestAddPort(t *C) {
 		},
 	}
 
-	var err error
-	if _, err = svc.AddPort("empty_server", ":1234", false, "http", true); err == nil {
-		t.Errorf("Expected error adding port")
-	}
+	_, err := svc.AddPort("empty_server", ":1234", false, "http", true)
+	t.Assert(err, NotNil) // Expected error adding port with bad application
 
-	if _, err = svc.AddPort("server", ":1234", false, "http", true); err != nil {
-		t.Errorf("Unexpected error adding port: %v", err)
-	}
+	_, err = svc.AddPort("server", ":1234", false, "http", true)
+	t.Assert(err, IsNil) // "Unexpected error adding port: %v"
 
 	//no duplicate ports can be added
-	if _, err = svc.AddPort("server", "1234", false, "http", true); err != nil {
-		t.Errorf("Unexpected error adding port: %v", err)
-	}
+	_, err = svc.AddPort("server", "1234", false, "http", true)
+	t.Assert(err, IsNil)
+	t.Assert(len(svc.Endpoints[0].PortList), Equals, 1)
+	t.Assert(svc.Endpoints[0].PortList[0].PortAddr, Equals, ":1234")
+	t.Assert(svc.Endpoints[0].PortList[0].Enabled, Equals, true)
 
-	// TODO: More tests for proper port range, etc, need to be added
-	// once the code is added to the facade/cli.
-
-	if len(svc.Endpoints[0].PortList) != 1 && (svc.Endpoints[0].PortList)[0].PortAddr != ":1234" {
-		t.Errorf("Public port incorrect, %+v should contain port address", svc.Endpoints[0].PortList)
-	}
-
-	if svc.Endpoints[0].PortList[0].Enabled != true {
-		t.Errorf("Port %s should be enabled", svc.Endpoints[0].PortList[0].PortAddr)
-	}
-
-	if _, err = svc.AddPort("server", ":12345", false, "http", false); err != nil {
-		t.Errorf("Unexpected error adding port: %v", err)
-	}
-
-	if svc.Endpoints[0].PortList[1].Enabled != false {
-		t.Errorf("Port %s should be disabled", svc.Endpoints[0].PortList[0].PortAddr)
-	}
+	// Add a port that's disabled.
+	_, err = svc.AddPort("server", ":12345", false, "http", false)
+	t.Assert(err, IsNil)
+	t.Assert(svc.Endpoints[0].PortList[1].Enabled, Equals, false)
 }
 
 func (s *S) TestRemovePort(t *C) {
@@ -155,27 +127,109 @@ func (s *S) TestRemovePort(t *C) {
 				servicedefinition.EndpointDefinition{
 					Purpose:     "export",
 					Application: "server",
-					PortList:    []servicedefinition.Port{servicedefinition.Port{PortAddr: ":1234"}, servicedefinition.Port{PortAddr: "128.0.0.1:1234"}},
+					PortList: []servicedefinition.Port{
+						servicedefinition.Port{
+							PortAddr: ":1234",
+						},
+						servicedefinition.Port{
+							PortAddr: "128.0.0.1:1234",
+						},
+					},
 				}),
 		},
 	}
 
-	var err error
-	if err = svc.RemovePort("server", ":1234"); err != nil {
-		t.Errorf("Unexpected error removing port: %v", err)
+	err := svc.RemovePort("server", ":1234")
+	t.Assert(err, IsNil)
+	t.Assert(len(svc.Endpoints[0].PortList), Equals, 1)
+	t.Assert(svc.Endpoints[0].PortList[0].PortAddr, Equals, "128.0.0.1:1234")
+
+	err = svc.RemoveVirtualHost("server", ":1234")
+	t.Assert(err, NotNil)
+}
+
+func (s *S) TestCloneService(t *C) {
+	svc := &Service{
+		ID:           "testserviceidwithatleasttwelvecharacters",
+		Name:         "testservice",
+		DesiredState: int(SVCRun),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		Endpoints: []ServiceEndpoint{
+			{
+				Name:        "ep",
+				Purpose:     "export",
+				Protocol:    "tcp",
+				PortNumber:  8000,
+				Application: "ep",
+			},
+		},
+		Volumes: []servicedefinition.Volume{
+			{
+				Owner:         "root",
+				Permission:    "0777",
+				ResourcePath:  "data",
+				ContainerPath: "data",
+				Type:          "dfs",
+			},
+		},
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				{
+					ID:          "test-service-metric",
+					Name:        "test metric",
+					Description: "this is a test",
+					Metrics: []domain.Metric{
+						{
+							ID:      "internal",
+							BuiltIn: true,
+						}, {
+							ID:      "external",
+							BuiltIn: false,
+						},
+					},
+				}, {
+					ID: "metrics",
+				},
+			},
+			GraphConfigs: []domain.GraphConfig{
+				{
+					ID:      "internal",
+					BuiltIn: true,
+				}, {
+					ID:      "external",
+					BuiltIn: false,
+				},
+			},
+		},
 	}
 
-	if len(svc.Endpoints[0].PortList) != 1 && svc.Endpoints[0].PortList[0].PortAddr != "128.0.0.1:1234" {
-		t.Errorf("PortList incorrect, %+v should contain 128.0.0.1:1234", svc.Endpoints[0].PortList)
-	}
+	suffix := "tester"
+	clonedSvc, err := CloneService(svc, suffix)
+	t.Assert(err, IsNil)
 
-	if err = svc.RemoveVirtualHost("server", ":1234"); err == nil {
-		t.Errorf("Expected error removing port")
-	}
+	t.Check(clonedSvc.ID, Not(Equals), svc.ID)
+	t.Check(clonedSvc.DesiredState, Equals, int(SVCStop))
+	t.Check(clonedSvc.CreatedAt.Equal(svc.CreatedAt), Equals, false)
+	t.Check(clonedSvc.UpdatedAt.Equal(svc.UpdatedAt), Equals, false)
+	t.Check(clonedSvc.Name, Equals, svc.Name+suffix)
+
+	actualEp0 := clonedSvc.Endpoints[0]
+	t.Check(actualEp0.Name, Equals, "eptester")
+	t.Check(actualEp0.Application, Equals, "eptester")
+	t.Check(actualEp0.ApplicationTemplate, Equals, "tester")
+
+	profile := clonedSvc.MonitoringProfile
+
+	t.Check(profile.MetricConfigs, HasLen, 1)
+	t.Check(profile.MetricConfigs[0].ID, Equals, "test-service-metric")
+	t.Check(profile.MetricConfigs[0].Metrics, HasLen, 1)
+	t.Check(profile.MetricConfigs[0].Metrics[0].ID, Equals, "external")
+	t.Check(profile.GraphConfigs, HasLen, 1)
+	t.Check(profile.GraphConfigs[0].ID, Equals, "external")
 }
 
 func TestBuildServiceBuildsMetricConfigs(t *testing.T) {
-
 	sd := servicedefinition.ServiceDefinition{
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{

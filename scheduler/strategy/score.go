@@ -47,7 +47,7 @@ func (l scoredHostList) Less(i, j int) bool {
 func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHost) {
 
 	glog.V(2).Infof("Scoring %d hosts for service %s", len(hosts), service.GetServiceID())
-	glog.V(2).Infof("Service %s is requesting %s memory and %s percent CPU", service.GetServiceID(), service.RequestedMemoryBytes(), service.RequestedCorePercent())
+	glog.V(2).Infof("Service %s is requesting %d memory and %d percent CPU", service.GetServiceID(), service.RequestedMemoryBytes(), service.RequestedCorePercent())
 
 	undersubscribed := scoredHostList{}
 	oversubscribed := scoredHostList{}
@@ -59,7 +59,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		totalMem := host.TotalMemory()
 		totalCpu := host.TotalCores()
 
-		glog.V(2).Infof("Host %s has %s memory and %s cores", host.HostID(), totalMem, totalCpu)
+		glog.V(2).Infof("Host %s has %d memory and %d cores", host.HostID(), totalMem, totalCpu)
 
 		var (
 			usedCpu  int
@@ -70,7 +70,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 
 		// Calculate used resources for the host
 		for _, svc := range host.RunningServices() {
-			glog.V(2).Infof("Host %s is running service %s (%s/%s)", host.HostID(), svc.GetServiceID(), svc.RequestedCorePercent(), svc.RequestedMemoryBytes())
+			glog.V(2).Infof("Host %s is running service %s (%d/%d)", host.HostID(), svc.GetServiceID(), svc.RequestedCorePercent(), svc.RequestedMemoryBytes())
 			usedCpu += svc.RequestedCorePercent()
 			usedMem += svc.RequestedMemoryBytes()
 			// Increment a counter of number of instances, for later strategies to use

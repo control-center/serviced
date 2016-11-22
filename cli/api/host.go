@@ -16,10 +16,12 @@ package api
 import (
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -34,6 +36,56 @@ type HostConfig struct {
 type HostUpdateConfig struct {
 	HostID string
 	Memory string
+}
+
+type AuthHost struct {
+	host.Host
+	Authenticated bool
+}
+
+func getAuthInfo(client master.ClientInterface, hosts []host.Host) ([]AuthHost, error) {
+	hostIDs := []string{}
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+	authHosts, err := client.HostsAuthenticated(hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	hostsWithAuth := []AuthHost{}
+	for _, h := range hosts {
+		hostsWithAuth = append(hostsWithAuth, AuthHost{h, authHosts[h.ID]})
+	}
+	return hostsWithAuth, nil
+}
+
+// Get host information by its id
+func (a *api) GetHostWithAuthInfo(id string) (*AuthHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	h, err := client.GetHost(id)
+	if err != nil {
+		return nil, err
+	}
+	hostsWithAuth, err := getAuthInfo(client, []host.Host{*h})
+	if err != nil {
+		return nil, err
+	}
+	return &hostsWithAuth[0], nil
+}
+
+func (a *api) GetHostsWithAuthInfo() ([]AuthHost, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	hosts, err := client.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	return getAuthInfo(client, hosts)
 }
 
 // Returns a list of all hosts
@@ -76,10 +128,10 @@ func (a *api) GetHostMemory(id string) (*metrics.MemoryUsageStats, error) {
 }
 
 // Adds a new host
-func (a *api) AddHost(config HostConfig) (*host.Host, error) {
+func (a *api) AddHost(config HostConfig) (*host.Host, []byte, error) {
 	agentClient, err := a.connectAgent(config.Address.String())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req := agent.BuildHostRequest{
@@ -91,19 +143,24 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 
 	h, err := agentClient.BuildHost(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	masterClient, err := a.connectMaster()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := masterClient.AddHost(*h); err != nil {
-		return nil, err
+	var privateKey []byte
+	if privateKey, err = masterClient.AddHost(*h); err != nil {
+		return nil, nil, err
 	}
 
-	return a.GetHost(h.ID)
+	if host_, err := a.GetHost(h.ID); err != nil {
+		return nil, nil, err
+	} else {
+		return host_, privateKey, nil
+	}
 }
 
 // Removes an existing host by its id
@@ -131,4 +188,44 @@ func (a *api) SetHostMemory(config HostUpdateConfig) error {
 	}
 	h.RAMLimit = config.Memory
 	return client.UpdateHost(*h)
+}
+
+func (a *api) AuthenticateHost(hostID string) (string, int64, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return "", 0, err
+	}
+	return client.AuthenticateHost(hostID)
+}
+
+// Retrieve host's public key
+func (a *api) GetHostPublicKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.GetHostPublicKey(id)
+}
+
+// Reset a host's key
+func (a *api) ResetHostKey(id string) ([]byte, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return nil, err
+	}
+	return client.ResetHostKey(id)
+}
+
+// Write delegate keys to disk
+func (a *api) RegisterHost(keydata []byte) error {
+	return auth.RegisterLocalHost(keydata)
+}
+
+func (a *api) RegisterRemoteHost(h *host.Host, keyData []byte, prompt bool) error {
+	return auth.RegisterRemoteHost(h.ID, h.IPAddr, keyData, prompt)
+}
+
+// Output a delegate key file to a given location on disk
+func (a *api) WriteDelegateKey(filename string, data []byte) error {
+	return auth.WriteKeyToFile(filename, data)
 }

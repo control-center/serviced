@@ -7,13 +7,13 @@ class Pools < SitePrism::Page
 
     section :navbar, NavBarSection, ".navbar-collapse"
 
-    element :addPool_button, "[ng-click='modalAddPool()']"
+    element :addPool_button, ".add-pool-button"
     element :poolName_input, "input[name='new_pool_name']"
     element :description_input, "input[name='new_pool_description']"
     element :addVirtualIp_button, "[ng-click='modalAddVirtualIp(currentPool)']"
-    element :ip_input, "[ng-model='add_virtual_ip.IP']"
-    element :netmask_input, "[ng-model='add_virtual_ip.Netmask']"
-    element :interface_input, "[ng-model='add_virtual_ip.BindInterface']"
+    element :ip_input, "input[name='ip']"
+    element :netmask_input, "input[name='netmask']"
+    element :interface_input, "input[name='interface']"
     element :dialogAddVirtualIp_button, "button[class='btn btn-primary submit']"
     element :virtualIps_table, "table[data-config='virtualIPsTable']"
     elements :pool_names, "td[data-title-text='Resource Pool']"

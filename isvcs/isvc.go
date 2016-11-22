@@ -16,6 +16,7 @@ package isvcs
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/utils"
 
@@ -29,10 +30,17 @@ var (
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v47"
+	IMAGE_TAG     = "v52"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
-	ZK_IMAGE_TAG  = "v7"
+	ZK_IMAGE_TAG  = "v8"
 )
+
+type IServiceHealthResult struct {
+	ServiceName    string
+	ContainerName  string
+	ContainerID    string
+	HealthStatuses []domain.HealthCheckStatus
+}
 
 func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig map[string]string, dockerAPI docker.Docker) {
 	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
@@ -68,12 +76,6 @@ func Init(esStartupTimeoutInSeconds int, dockerLogDriver string, dockerLogConfig
 	if err := Mgr.Register(opentsdb); err != nil {
 		log.WithFields(logrus.Fields{
 			"isvc": "opentsdb",
-		}).WithError(err).Fatal("Unable to register internal service")
-	}
-	celery.docker = dockerAPI
-	if err := Mgr.Register(celery); err != nil {
-		log.WithFields(logrus.Fields{
-			"isvc": "celery",
 		}).WithError(err).Fatal("Unable to register internal service")
 	}
 	dockerRegistry.docker = dockerAPI

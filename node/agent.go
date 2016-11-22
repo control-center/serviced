@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -32,21 +31,17 @@ import (
 	"sync"
 	"time"
 
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/iptables"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -76,6 +71,7 @@ type HostAgent struct {
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
 	rpcport              string               // the rpc port to serviced (default is 4979)
+	rpcDisableTLS        bool                 // true of TLS should be disabled for RPC
 	hostID               string               // the hostID of the current host
 	dockerDNS            []string             // docker dns addresses
 	storage              volume.Driver        // driver supporting the application data
@@ -83,7 +79,8 @@ type HostAgent struct {
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
-	useTLS               bool // Whether the mux uses TLS
+	muxport              string // the mux port to serviced (default is 22250)
+	useTLS               bool   // true if TLS should be enabled for MUX
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
@@ -95,6 +92,9 @@ type HostAgent struct {
 	dockerLogConfig      map[string]string
 	pullreg              registry.Registry
 	zkSessionTimeout     int
+	delegateKeyFile      string
+	tokenFile            string
+	serviceCache         *ServiceCache
 }
 
 func getZkDSN(zookeepers []string, timeout int) string {
@@ -114,12 +114,14 @@ type AgentOptions struct {
 	Master               string
 	UIPort               string
 	RPCPort              string
+	RPCDisableTLS        bool // true if TLS should be disabled for RPC
 	DockerDNS            []string
 	VolumesPath          string
 	Mount                []string
 	FSType               volume.DriverType
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
+	MuxPort              string
 	UseTLS               bool
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
@@ -129,6 +131,8 @@ type AgentOptions struct {
 	DockerLogDriver      string
 	DockerLogConfig      map[string]string
 	ZKSessionTimeout     int
+	DelegateKeyFile      string
+	TokenFile            string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -140,9 +144,11 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.master = options.Master
 	agent.uiport = options.UIPort
 	agent.rpcport = options.RPCPort
+	agent.rpcDisableTLS = options.RPCDisableTLS
 	agent.dockerDNS = options.DockerDNS
 	agent.mount = options.Mount
 	agent.mux = options.Mux
+	agent.muxport = options.MuxPort
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
@@ -152,6 +158,9 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.dockerLogDriver = options.DockerLogDriver
 	agent.dockerLogConfig = options.DockerLogConfig
 	agent.zkSessionTimeout = options.ZKSessionTimeout
+	agent.delegateKeyFile = options.DelegateKeyFile
+	agent.tokenFile = options.TokenFile
+	agent.serviceCache = NewServiceCache(options.Master)
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers, agent.zkSessionTimeout)
@@ -169,26 +178,6 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	agent.pullreg = reg
 	return agent, err
-}
-
-// evaluateService translates the service template fields
-func (a *HostAgent) evaluateService(client dao.ControlPlane, svc *service.Service, instanceID int) error {
-
-	// service lookup
-	getService := func(id string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.GetService(id, &svc)
-		return svc, err
-	}
-
-	// service child lookup
-	getServiceChild := func(id, name string) (service.Service, error) {
-		svc := service.Service{}
-		err := client.FindChildService(dao.FindChildRequest{id, name}, &svc)
-		return svc, err
-	}
-
-	return svc.Evaluate(getService, getServiceChild, instanceID)
 }
 
 func attachAndRun(dockerID, command string) error {
@@ -275,267 +264,6 @@ func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *ad
 		"-j", "DNAT",
 		"--to-destination", fmt.Sprintf("%s:%d", ctr.NetworkSettings.IPAddress, endpoint.PortNumber),
 	).Run()
-}
-
-// setupContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
-// that are used to create and start a container respectively. The information used to populate the structures is pulled from
-// the service, serviceState, and conn values that are passed into setupContainer.
-func (a *HostAgent) setupContainer(client dao.ControlPlane, svc *service.Service, instanceID int) (*dockerclient.Config, *dockerclient.HostConfig, error) {
-
-	// Evaluate service template fields
-	if err := a.evaluateService(client, svc, instanceID); err != nil {
-		glog.Errorf("Could not evaluate service %s (%s) templates: %s", svc.Name, svc.ID, err)
-		return nil, nil, err
-	}
-
-	cfg := &dockerclient.Config{}
-	hcfg := &dockerclient.HostConfig{}
-
-	//get this service's tenantId for volume mapping
-	var tenantID string
-	if err := client.GetTenantId(svc.ID, &tenantID); err != nil {
-		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
-		return nil, nil, err
-	}
-
-	// get the system user
-	unused := 0
-	systemUser := user.User{}
-	if err := client.GetSystemUser(unused, &systemUser); err != nil {
-		glog.Errorf("Unable to get system user account for agent %s", err)
-		return nil, nil, err
-	}
-	glog.V(1).Infof("System User %v", systemUser)
-
-	cfg.User = "root"
-	cfg.WorkingDir = "/"
-	cfg.Image = svc.ImageID
-
-	// get the endpoints
-	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
-	hcfg.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
-
-	if svc.Endpoints != nil {
-		glog.V(1).Info("Endpoints for service: ", svc.Endpoints)
-		for _, endpoint := range svc.Endpoints {
-			if endpoint.Purpose == "export" { // only expose remote endpoints
-				var p string
-				switch endpoint.Protocol {
-				case commons.UDP:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "udp")
-				default:
-					p = fmt.Sprintf("%d/%s", endpoint.PortNumber, "tcp")
-				}
-				cfg.ExposedPorts[dockerclient.Port(p)] = struct{}{}
-				hcfg.PortBindings[dockerclient.Port(p)] = append(hcfg.PortBindings[dockerclient.Port(p)], dockerclient.PortBinding{})
-			}
-		}
-	}
-
-	if len(tenantID) == 0 && len(svc.Volumes) > 0 {
-		// FIXME: find a better way of handling this error condition
-		glog.Fatalf("Could not get tenant ID and need to mount a volume, service state: %d, service id: %s", instanceID, svc.ID)
-	}
-
-	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
-
-	// iterate svc.Volumes - create bindings for non-dfs volumes
-	for _, volume := range svc.Volumes {
-		if volume.Type != "" && volume.Type != "dfs" {
-			continue
-		}
-
-		resourcePath, err := a.setupVolume(tenantID, svc, volume)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		resourcePath = strings.TrimSpace(resourcePath)
-		containerPath := strings.TrimSpace(volume.ContainerPath)
-		bindsMap[containerPath] = resourcePath
-	}
-
-	// mount serviced path
-	dir, _, err := ExecPath()
-	if err != nil {
-		glog.Errorf("Error getting exec path: %v", err)
-		return nil, nil, err
-	}
-
-	dir, binary := filepath.Split(a.controllerBinary)
-	resourcePath := strings.TrimSpace(dir)
-	containerPath := strings.TrimSpace("/serviced")
-	bindsMap[containerPath] = resourcePath
-
-	// bind mount everything we need for filebeat
-	if len(svc.LogConfigs) != 0 {
-		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
-		logstashPath := utils.ResourcesDir() + "/logstash"
-		resourcePath := strings.TrimSpace(logstashPath)
-		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		bindsMap[containerPath] = resourcePath
-		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
-	}
-
-	// specify temporary volume paths for docker to create
-	tmpVolumes := []string{"/tmp"}
-	for _, volume := range svc.Volumes {
-		if volume.Type == "tmp" {
-			tmpVolumes = append(tmpVolumes, volume.ContainerPath)
-		}
-	}
-	for _, path := range tmpVolumes {
-		glog.V(4).Infof("added temporary docker container path: %s", path)
-	}
-
-	// add arguments to mount requested directory (if requested)
-	glog.V(2).Infof("Checking Mount options for service %#v", svc)
-	for _, bindMountString := range a.mount {
-		glog.V(2).Infof("bindmount is  %#v", bindMountString)
-		splitMount := strings.Split(bindMountString, ",")
-		numMountArgs := len(splitMount)
-
-		if numMountArgs == 2 || numMountArgs == 3 {
-
-			requestedImage := splitMount[0]
-			glog.V(2).Infof("mount requestedImage %#v", requestedImage)
-			hostPath := splitMount[1]
-			glog.V(2).Infof("mount hostPath %#v", hostPath)
-			// assume the container path is going to be the same as the host path
-			containerPath := hostPath
-
-			// if the container path is provided, use it
-			if numMountArgs > 2 {
-				containerPath = splitMount[2]
-			}
-			glog.V(2).Infof("mount containerPath %#v", containerPath)
-
-			// insert tenantId into requestedImage - see facade.DeployService
-			matchedRequestedImage := false
-			if requestedImage == "*" {
-				matchedRequestedImage = true
-			} else {
-				imageID, err := commons.ParseImageID(requestedImage)
-				if err != nil {
-					glog.Errorf("error parsing imageid %v: %v", requestedImage, err)
-					continue
-				}
-				svcImageID, err := commons.ParseImageID(svc.ImageID)
-				if err != nil {
-					glog.Errorf("error parsing service imageid %v; %v", svc.ImageID, err)
-					continue
-				}
-				glog.V(2).Infof("mount checking %#v and %#v ", imageID, svcImageID)
-				matchedRequestedImage = (imageID.Repo == svcImageID.Repo)
-			}
-
-			if matchedRequestedImage {
-				hostPath = strings.TrimSpace(hostPath)
-				containerPath = strings.TrimSpace(containerPath)
-				bindsMap[containerPath] = hostPath
-			}
-		} else {
-			glog.Warningf("Could not bind mount the following: %s", bindMountString)
-		}
-	}
-
-	// transfer bindsMap to hcfg.Binds
-	hcfg.Binds = []string{}
-	for containerPath, hostPath := range bindsMap {
-		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
-		hcfg.Binds = append(hcfg.Binds, binding)
-	}
-
-	// Get host IP
-	ips, err := utils.GetIPv4Addresses()
-	if err != nil {
-		glog.Errorf("Error getting host IP addresses: %v", err)
-		return nil, nil, err
-	}
-
-	// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
-	count := rand.Intn(128)
-	fix := ""
-	for i := 0; i < count; i++ {
-		fix += "."
-	}
-	// End temp fix part 1. See immediately below for part 2.
-
-	// add arguments for environment variables
-	cfg.Env = append(svc.Environment,
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_USER=%s", systemUser.Name),
-		fmt.Sprintf("CONTROLPLANE_SYSTEM_PASSWORD=%s", systemUser.Password),
-		fmt.Sprintf("CONTROLPLANE_HOST_IPS='%s'", strings.Join(ips, " ")),
-		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", a.virtualAddressSubnet),
-		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
-		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
-		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
-		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
-		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
-		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
-		//The SERVICED_UI_PORT environment variable is deprecated and services should always use port 443 to contact serviced from inside a container
-		"SERVICED_UI_PORT=443",
-		fmt.Sprintf("SERVICED_MASTER_IP=%s", strings.Split(a.master, ":")[0]),
-		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
-		// XXX: Hopefully temp fix for CC-1384 & CC-1631 (docker/docker issue 14203).
-		fmt.Sprintf("DOCKER_14203_FIX='%s'", fix),
-		// End temp fix part 2. See immediately above for part 1.
-	)
-
-	// add dns values to setup
-	for _, addr := range a.dockerDNS {
-		_addr := strings.TrimSpace(addr)
-		if len(_addr) > 0 {
-			cfg.DNS = append(cfg.DNS, addr)
-		}
-	}
-
-	// Add hostname if set
-	if svc.Hostname != "" {
-		cfg.Hostname = svc.Hostname
-	}
-
-	cmd := []string{filepath.Join("/serviced", binary)}
-
-	// Flag TLS for the mux if it's disabled
-	if !a.useTLS {
-		cmd = append(cmd, "--mux-disable-tls")
-	}
-
-	cfg.Cmd = append(cmd,
-		svc.ID,
-		strconv.Itoa(instanceID),
-		svc.Startup)
-
-	if svc.Privileged {
-		hcfg.Privileged = true
-	}
-
-	// Memory and CpuShares should never be negative
-	if svc.MemoryLimit < 0 {
-		cfg.Memory = 0
-	} else {
-		cfg.Memory = int64(svc.MemoryLimit)
-	}
-
-	if svc.CPUShares < 0 {
-		cfg.CPUShares = 0
-	} else {
-		cfg.CPUShares = svc.CPUShares
-	}
-
-	hcfg.LogConfig.Type = a.dockerLogDriver
-	hcfg.LogConfig.Config = a.dockerLogConfig
-
-	// CC-1848: set core ulimit to 0
-	hcfg.Ulimits = []dockerclient.ULimit{
-		{
-			Name: "core",
-			Soft: 0,
-			Hard: 0,
-		},
-	}
-	return cfg, hcfg, nil
 }
 
 // setupVolume
@@ -679,8 +407,12 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		case <-startExit:
 			glog.Infof("Host Agent restarting")
 			close(unregister)
-			unregister = make(chan interface{})
 			rwg.Wait()
+
+			// The unregister var is used directly in the goroutine that calls
+			// RegisterHost above. Always wait for rwg before re-assigning it.
+			unregister = make(chan interface{})
+
 		case <-shutdown:
 			glog.Infof("Host Agent shutting down")
 

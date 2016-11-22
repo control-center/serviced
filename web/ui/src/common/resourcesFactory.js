@@ -51,9 +51,9 @@
                 method: GET,
                 url: "/pools",
             },
-			getV2Pools: {
+            getPool: {
                 method: GET,
-                url: "/api/v2/pools",
+                url: id => `/pools/${id}`
             },
             getPoolIPs: {
                 method: GET,
@@ -190,10 +190,18 @@
                 url: "/hosts/add",
                 payload: host => host
             },
+            getHost: {
+                method: GET,
+                url: id => `/hosts/${id}`
+            },
             updateHost: {
                 method: PUT,
                 url: id => `/hosts/${id}`,
                 payload: (id, host) => host
+            },
+            resetHostKeys: {
+                method: POST,
+                url: id => `/hosts/${id}/key`
             },
             removeHost: {
                 method: DELETE,
@@ -292,6 +300,138 @@
             }
         };
 
+        var v2MethodConfigs = {
+            getPools: {
+                method: GET,
+                url: () => `/api/v2/pools`,
+            },
+            getPoolHosts: {
+                method: GET,
+                url: id => `/api/v2/pools/${id}/hosts`
+            },
+            getHosts: {
+                method: GET,
+                url: () => `/api/v2/hosts`,
+            },
+            getHostInstances: {
+                method: GET,
+                url: id => `/api/v2/hosts/${id}/instances`,
+            },
+            getHostStatuses: {
+                method: GET,
+                url: ids => ids ? `/api/v2/hoststatuses?hostId=` + ids.join("&hostId=") : `/api/v2/hoststatuses`,
+                ignorePending: true
+            },
+            getService: {
+                method: GET,
+                url: id => `/api/v2/services/${id}`,
+            },
+            getTenants: {
+                method: GET,
+                url: id => `/api/v2/services?tenants`,
+            },
+            updateService: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}`,
+                payload: (id, service) => service
+            },
+            getServiceAncestors: {
+                method: GET,
+                url: id => `/api/v2/services/${id}?ancestors`,
+            },
+            getServiceChildren: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/services`,
+            },
+            getServiceConfig: {
+                method: GET,
+                url: id => `/api/v2/serviceconfigs/${id}`,
+            },
+            updateServiceConfig: {
+                method: PUT,
+                url: (id) => `/api/v2/serviceconfigs/${id}`,
+                payload: (id, cfg) => {return JSON.stringify({
+                    'Filename':    cfg.Filename,
+                    'Owner':       cfg.Owner,
+                    'Permissions': cfg.Permissions,
+                    'Content':     cfg.Content
+                });}
+            },
+            getServiceConfigs: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/serviceconfigs`,
+            },
+            getServiceContext: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/context`,
+            },
+            updateServiceContext: {
+                method: PUT,
+                url: id => `/api/v2/services/${id}/context`,
+                payload: (id, ctx) => ctx
+            },
+            getServiceInstances: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/instances`,
+                ignorePending: true
+            },
+            getServiceIpAssignments: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/ipassignments?includeChildren`,
+            },
+            getServiceMonitoringProfile: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/monitoringprofile`,
+            },
+            getServicePublicEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/publicendpoints?includeChildren`,
+            },
+            getServiceChildPublicEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/publicendpoints`,
+            },
+            getServiceExportEndpoints: {
+                method: GET,
+                url: id => `/api/v2/services/${id}/exportendpoints?includeChildren`,
+            },
+            getServices: {
+                method: GET,
+                url: since => `/api/v2/services${ since ? "?since="+ since : ""}`,
+            },
+            getInternalServices: {
+                method: GET,
+                url: () => `/api/v2/internalservices`,
+            },
+            getInternalService: {
+                method: GET,
+                url: id => `/api/v2/internalservices/${id}`,
+            },
+            getInternalServiceInstances: {
+                method: GET,
+                url: id => `/api/v2/internalservices/${id}/instances`,
+            },
+            getInternalServiceStatuses: {
+                method: GET,
+                url: ids => ids ? `/api/v2/internalservicestatuses?${ids.map(id => `id=${id}`).join('&')}` : '/api/v2/internalservicestatuses',
+            },
+            getServiceStatus: {
+                method: GET,
+                url: id => `/api/v2/statuses?serviceId=${id}`,
+                ignorePending: true
+            },
+            getServiceStatuses: {
+                method: GET,
+                url: ids => `/api/v2/statuses?${ids.map(id => `serviceId=${id}`).join('&')}`,
+                ignorePending: true
+            },
+            getDescendantCounts: {
+              method: GET,
+              url: id => `/api/v2/services/${id}/descendantstates`,
+              ignorePending: true
+            }
+        };
+
         // adds success and error functions
         // to regular promise ala $http
         function httpify(deferred){
@@ -340,7 +480,9 @@
                 // theres already a pending request to
                 // this endpoint, so fail!
                 if(method === GET && pendingGETRequests[resourceName]){
-                    deferred.reject(`a request to ${resourceName} is pending`);
+                    let message = `a request to ${resourceName} is pending`;
+                    let data = { Detail: message };
+                    deferred.reject(data);
                     return deferred.promise;
                 }
 
@@ -374,7 +516,7 @@
                 });
 
                 // NOTE: only limits GET requests
-                if(method === GET){
+                if(method === GET && !config.ignorePending){
                     pendingGETRequests[resourceName] = deferred;
                 }
 
@@ -430,13 +572,30 @@
             // redirect to specific host
             routeToHost: function(id) {
                 $location.path('/hosts/' + id);
-            }
+            },
+
+            // redirect to specific internal service details
+            routeToInternalService: function(id) {
+                $location.path('/internalservices/' + id);
+            },
+
+            // redirect to internal service page
+            routeToInternalServices: function() {
+                $location.path('/internalservices');
+            },
         };
 
         // generate additional methods and attach
         // to interface
         for(var name in methodConfigs){
             resourcesFactoryInterface[name] = generateMethod(methodConfigs[name]);
+        }
+
+        // generate Version 2 API methods and attach
+        // to interface
+        resourcesFactoryInterface.v2 = {};
+        for(var name in v2MethodConfigs){
+            resourcesFactoryInterface.v2[name] = generateMethod(v2MethodConfigs[name]);
         }
 
         return resourcesFactoryInterface;

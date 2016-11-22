@@ -40,7 +40,7 @@ func (c *ServicedCli) initDocker() {
 				Action:      c.cmdResetRegistry,
 			}, {
 				Name:        "migrate-registry",
-				Usage:       "service docker migrate-registry",
+				Usage:       "serviced docker migrate-registry",
 				Description: "Upgrades the docker registry from an older or remote registry",
 				Action:      c.cmdMigrateRegistry,
 				Flags: []cli.Flag{

@@ -16,15 +16,21 @@ package api
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/auth"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/dao/client"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
+
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
@@ -35,6 +41,8 @@ type api struct {
 	docker *dockerclient.Client
 	dao    dao.ControlPlane // Deprecated
 }
+
+var hostAuthenticated bool
 
 func New() API {
 	// let lazy init populate each interface as necessary
@@ -48,6 +56,7 @@ func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockercl
 
 // Starts the agent or master services on this host
 func (a *api) StartServer() error {
+	options := config.GetOptions()
 	configureLoggingForLogstash(options.LogstashURL)
 	log := log.WithFields(logrus.Fields{
 		"staticips": options.StaticIPs,
@@ -107,7 +116,7 @@ func (a *api) StartServer() error {
 		defer pprof.StopCPUProfile()
 	}
 
-	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID)
+	d, err := newDaemon(options.Endpoint, options.StaticIPs, options.MasterPoolID, time.Duration(options.TokenExpiration)*time.Second)
 	if err != nil {
 		return err
 	}
@@ -127,10 +136,11 @@ func configureLoggingForLogstash(logstashURL string) {
 func (a *api) connectMaster() (master.ClientInterface, error) {
 	if a.master == nil {
 		var err error
-		a.master, err = master.NewClient(options.Endpoint)
+		a.master, err = master.NewClient(config.GetOptions().Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the master: %s", err)
 		}
+		a.authenticateHost()
 	}
 	return a.master, nil
 }
@@ -143,6 +153,7 @@ func (a *api) connectAgent(address string) (*agent.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}
+		a.authenticateHost()
 	}
 	return a.agent, nil
 }
@@ -163,10 +174,55 @@ func (a *api) connectDocker() (*dockerclient.Client, error) {
 func (a *api) connectDAO() (dao.ControlPlane, error) {
 	if a.dao == nil {
 		var err error
-		a.dao, err = node.NewControlClient(options.Endpoint)
+		a.dao, err = client.NewControlClient(config.GetOptions().Endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("could not create a client to the agent: %s", err)
 		}
+		a.authenticateHost()
 	}
 	return a.dao, nil
+}
+
+
+// This will authenticate the host once to get a valid token for any CLI commands
+//  that require it.
+func (a *api) authenticateHost() error {
+	if hostAuthenticated {
+		return nil
+	}
+
+	options := config.GetOptions()
+
+	// Try to load the master keys, fail silently if they don't exist
+	masterKeyFile := filepath.Join(options.IsvcsPath, auth.MasterKeyFileName)
+	if err := auth.LoadMasterKeyFile(masterKeyFile); err != nil {
+		log.WithError(err).Debug("Unable to load master keys")
+	}
+
+	// Load the delegate keys
+	delegateKeyFile := filepath.Join(options.EtcPath, auth.DelegateKeyFileName)
+	if err := auth.LoadDelegateKeysFromFile(delegateKeyFile); err != nil {
+		return err
+	}
+
+	// Get our host ID
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	} else if err := validation.ValidHostID(myHostID); err != nil {
+		return err
+	}
+
+	// Load an auth token once
+	tokenFile := filepath.Join(options.EtcPath, auth.TokenFileName)
+	getToken := func() (string, int64, error) {
+		return a.AuthenticateHost(myHostID)
+	}
+
+	if _, err := auth.RefreshToken(getToken, tokenFile); err != nil {
+		return err
+	}
+
+	hostAuthenticated = true
+	return nil
 }

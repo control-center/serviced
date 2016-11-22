@@ -13,18 +13,6 @@
 
 package master
 
-// UpgradeDockerRequest are options for upgrading/migrating the docker registry.
-type UpgradeDockerRequest struct {
-	Endpoint string
-	Override bool
-}
-
-// DockerOverrideRequest are options for replacing an image in the docker registry
-type DockerOverrideRequest struct {
-	OldImage string
-	NewImage string
-}
-
 // ResetRegistry pulls latest from the running docker registry and updates the
 // index.
 func (c *Client) ResetRegistry() error {

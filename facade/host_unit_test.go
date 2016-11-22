@@ -16,12 +16,20 @@
 package facade_test
 
 import (
+	"errors"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/hostkey"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
+)
+
+var (
+	ErrTestHost = errors.New("Host test error")
 )
 
 func (ft *FacadeUnitTest) Test_GetHost(c *C) {
@@ -122,9 +130,119 @@ func (ft *FacadeUnitTest) Test_FindReadHostsInPoolShouldReturnCorrectValues(c *C
 	c.Assert(h.UpdatedAt, TimeEqual, expectedHost.UpdatedAt)
 }
 
+func (ft *FacadeUnitTest) Test_AddHost_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(datastore.ErrNoSuchEntity{})
+	ft.poolStore.On("Get", ft.ctx, pool.Key(h.PoolID), mock.AnythingOfType("*pool.ResourcePool")).Return(nil).Run(
+		func(args mock.Arguments) {
+			args.Get(2).(*pool.ResourcePool).ID = h.PoolID
+		})
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, h.PoolID).Return(nil, nil)
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+		func(args mock.Arguments) {
+			// The hostkey PEM is an RSA public key
+			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
+			c.Assert(err, IsNil)
+		})
+	ft.hostStore.On("Put", ft.ctx, host.HostKey(h.ID), &h).Return(nil)
+	ft.zzk.On("AddHost", &h).Return(nil)
+
+	result, err := ft.Facade.AddHost(ft.ctx, &h)
+
+	c.Assert(err, IsNil)
+	c.Assert(result, Not(IsNil))
+	ft.hostStore.AssertExpectations(c)
+	ft.poolStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+	ft.zzk.AssertExpectations(c)
+	ft.dfs.AssertExpectations(c)
+
+	// The return value is a public/private key package
+	_, _, err = auth.LoadRSAKeyPairPackage(result)
+	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
+}
+
+func (ft *FacadeUnitTest) Test_RemoveHost_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+		func(args mock.Arguments) {
+			*args.Get(2).(*host.Host) = h
+		})
+	ft.zzk.On("RemoveHost", &h).Return(nil)
+	ft.zzk.On("UnregisterDfsClients", []host.Host{h}).Return(nil)
+	ft.hostkeyStore.On("Delete", ft.ctx, h.ID).Return(nil)
+	ft.hostStore.On("Delete", ft.ctx, host.HostKey(h.ID)).Return(nil)
+
+	err := ft.Facade.RemoveHost(ft.ctx, h.ID)
+
+	c.Assert(err, IsNil)
+	ft.hostStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+	ft.zzk.AssertExpectations(c)
+}
+
+func (ft *FacadeUnitTest) Test_ResetHostKey_HappyPath(c *C) {
+	h := getTestHost()
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(h.ID), mock.AnythingOfType("*host.Host")).Return(nil).Run(
+		func(args mock.Arguments) {
+			*args.Get(2).(*host.Host) = h
+		})
+	ft.hostkeyStore.On("Put", ft.ctx, h.ID, mock.AnythingOfType("*hostkey.HostKey")).Return(nil, nil).Run(
+		func(args mock.Arguments) {
+			// The hostkey PEM is an RSA public key
+			hostkeyPEM := args.Get(2).(*hostkey.HostKey).PEM
+			_, err := auth.RSAPublicKeyFromPEM([]byte(hostkeyPEM))
+			c.Assert(err, IsNil)
+		})
+
+	result, err := ft.Facade.ResetHostKey(ft.ctx, h.ID)
+
+	c.Assert(err, IsNil)
+	c.Assert(result, Not(IsNil))
+	ft.hostStore.AssertExpectations(c)
+	ft.hostkeyStore.AssertExpectations(c)
+
+	// The return value is a public/private key package
+	_, _, err = auth.LoadRSAKeyPairPackage(result)
+	c.Assert(err, IsNil)
+
+	// Make sure we reset the auth registry
+	ft.hostauthregistry.AssertCalled(c, "Remove", h.ID)
+}
+
+func (ft *FacadeUnitTest) Test_HostIsAuthenticated(c *C) {
+	h := getTestHost()
+
+	// Not expired, should return true
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(false, nil).Once()
+	result, err := ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, IsNil)
+	c.Assert(result, Equals, true)
+
+	// Expired, should return false
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(true, nil).Once()
+	result, err = ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, IsNil)
+	c.Assert(result, Equals, false)
+
+	// Error should return error
+	ft.hostauthregistry.On("IsExpired", h.ID).Return(false, ErrTestHost).Once()
+	result, err = ft.Facade.HostIsAuthenticated(ft.ctx, h.ID)
+	c.Assert(err, Equals, ErrTestHost)
+
+}
+
 func getTestHost() host.Host {
 	return host.Host{
 		ID:            "expectedHost",
+		IPAddr:        "123.45.67.89",
 		Name:          "ExpectedHost",
 		PoolID:        "Pool",
 		Cores:         12,

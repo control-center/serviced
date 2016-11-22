@@ -23,11 +23,10 @@ package node
 import (
 	"time"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/rpc/master"
 )
 
 // Network protocol type.
@@ -98,12 +97,22 @@ type HealthCheckRequest struct {
 	InstanceID int
 }
 
+type EvaluateServiceRequest struct {
+	ServiceID  string
+	InstanceID int
+}
+
+type EvaluateServiceResponse struct {
+	Service  service.Service
+	TenantID string
+}
+
 // The API for a service proxy.
 type LoadBalancer interface {
 	// SendLogMessage allows the proxy to send messages/logs to the master (to be displayed on the serviced master)
 	SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) error
 
-	GetServiceEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error
+	GetISvcEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error
 
 	// GetProxySnapshotQuiece blocks until there is a snapshot request
 	GetProxySnapshotQuiece(serviceId string, snapshotId *string) error
@@ -112,26 +121,15 @@ type LoadBalancer interface {
 	// shown the service is quieced; the agent returns a response when the snapshot is complete
 	AckProxySnapshotQuiece(snapshotId string, unused *interface{}) error
 
-	// GetTenantId retrieves a service's tenant id
-	GetTenantId(serviceId string, tenantId *string) error
-
-	GetHealthCheck(req HealthCheckRequest, healthCheck *map[string]health.HealthCheck) error
-
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
-
 	// ReportHealthStatus writes the health check status to the cache
-	ReportHealthStatus(req dao.HealthStatusRequest, unused *int) error
+	ReportHealthStatus(req master.HealthStatusRequest, unused *int) error
 
 	// ReportInstanceDead removes all health checks for the provided instance from the
 	// cache.
-	ReportInstanceDead(req dao.ServiceInstanceRequest, unused *int) error
+	ReportInstanceDead(req master.ServiceInstanceRequest, unused *int) error
 
-	// GetService retrieves a service object with templates evaluated.
-	GetService(serviceId string, response *service.Service) error
-
-	// GetServiceInstance retrieves a service object with templates evaluated using a
-	// given instance ID.
-	GetServiceInstance(req ServiceInstanceRequest, response *service.Service) error
+	// GetEvaluatedService returns a service where an evaluation has been executed against all templated properties.
+	GetEvaluatedService(request EvaluateServiceRequest, response *EvaluateServiceResponse) error
 
 	// Ping waits for the specified time then returns the server time
 	Ping(waitFor time.Duration, timestamp *time.Time) error

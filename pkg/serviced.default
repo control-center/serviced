@@ -10,11 +10,14 @@
 # Set the number of processors used by serviced
 # GOMAXPROCS=2
 
-# Set enable/disable the agent role, set to 1/0, respectively
-# SERVICED_AGENT=1
-
 # Set enable/disable the master role, set to 1/0, respectively
 # SERVICED_MASTER=1
+
+# The default ip address used whe connecting to SERVICED_STATS_PORT, SERVICED_LOGSTASH_ES, and SERVICED_LOG_ADDRESS
+# SERVICED_MASTER_IP=127.0.0.1
+
+# The default resource pool for the serviced master
+# SERVICED_MASTER_POOLID=default
 
 # Set the the zookeeper ensemble, multiple masters should be comma separated
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
@@ -37,7 +40,7 @@
 # Set the RPC port to listen on
 # SERVICED_RPC_PORT=4979
 
-# Enable server certificate verifcation for TLS RPC request
+# Enable server certificate verification for TLS RPC request
 # SERVICED_RPC_CERT_VERIFY=false
 
 # Disable TLS for RPC connection, TLS is enabled by default
@@ -86,10 +89,32 @@
 # SERVICED_TLS_MIN_VERSION=VersionTLS10
 
 # Set the supported TLS ciphers for HTTP connections
-# SERVICED_TLS_CIPHERS=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_3DES_EDE_CBC_SHA
+# SERVICED_TLS_CIPHERS=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_3DES_EDE_CBC_SHA,TLS_RSA_WITH_RC4_128_SHA,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,TLS_ECDHE_RSA_WITH_RC4_128_SHA
 
 # Set the driver type on the master for the distributed file system (rsync/btrfs/devicemapper)
 # SERVICED_FS_TYPE=devicemapper
+
+# Additional device mapper storage arguments
+# SERVICED_DM_ARGS=
+# Device mapper dm.basesize parameter.  Specifies the size to use when creating the base device.  Note that
+# the device created is a sparse device.
+# SERVICED_DM_BASESIZE=100G
+
+# Device mapper dm.loopdatasize parameter.  Specifies the size to use when creating the loopback file for
+# the “data” device which is used for the thin pool.  The default size is 100G.  The file is sparse, so
+# it will not initially take up this much space.
+# SERVICED_DM_LOOPDATASIZE=100G
+
+# Device mapper dm.loopmetadatasize parameter.  Specifies the size to use when creating the loopback file
+# for the “metadata” device which is used for the thin pool. The default size is 2G.  The file is sparse,
+# so it will not initially take up this much space.
+# SERVICED_DM_LOOPMETADATASIZE=2G
+
+# Device mapper dm.thinpooldev parameter.  Specifies a custom block storage device to use for the thin pool.
+# SERVICED_DM_THINPOOLDEV=
+
+# The frequency (in seconds) that low level device mapper storage stats should be refreshed
+# SERVICED_STORAGE_STATS_UPDATE_INTERVAL=300
 
 # Set to true to allow use of loopback files (instead of thin pools) with devicemapper for serviced storage.
 # NOTE: This is not recommended for production use.
@@ -156,10 +181,6 @@
 # To disable snapshot removal, set the value to 0.
 # SERVICED_SNAPSHOT_TTL=12
 
-# The interval, in seconds, at which low-level storage stats will be pulled and
-# analyzed from the devicemapper kernel driver table.
-# SERVICED_STORAGE_STATS_UPDATE_INTERVAL=300
-
 # Set to 0 in order to prevent this host from attempting to mount the DFS
 # Default: 1
 # SERVICED_NFS_CLIENT=1
@@ -187,6 +208,9 @@
 # of SERVICED_DOCKER_LOG_CONFIG and the system will use the defaults for that type of log driver.
 # SERVICED_DOCKER_LOG_CONFIG=max-file=5,max-size=10m
 
+# Docker DNS configuration used for running containers.  Multiple values should be comma separated.
+# SERVICED_DOCKER_DNS=
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
 
@@ -196,3 +220,28 @@
 
 # Timeout in seconds for a zookeeper connection to timeout.  Defaults to 15.
 # SERVICED_ZK_SESSION_TIMEOUT=15
+
+# Time (in seconds) to wait for elastic search to start
+# SERVICED_ES_STARTUP_TIMEOUT=240
+
+# The timeout for performing a DFS snapshot (in seconds)
+# SERVICED_MAX_DFS_TIMEOUT=300
+
+# The timeout for creating rpc connections (in seconds)
+# SERVICED_RPC_DIAL_TIMEOUT=30
+
+# Expiration time in seconds for delegate authentication tokens.  Defaults to 1 hour.
+# SERVICED_AUTH_TOKEN_EXPIRATION=3600
+
+# The path to the serviced controller binary.
+# SERVICED_CONTROLLER_BINARY=/opt/serviced/bin/serviced-controller
+
+# The default home directory.  This is the directory relative to which serviced will put files/directories/etc.
+# SERVICED_HOME=/opt/serviced
+
+# The default path for configuration files.  If not set, this will be the path given for SERVICED_HOME
+# followed by /etc
+# SERVICED_ETC_PATH=/opt/serviced/etc
+
+# A list of alias for this host, e.g., localhost.  Multiple values should be comma separated.
+# SERVICED_VHOST_ALIASES=

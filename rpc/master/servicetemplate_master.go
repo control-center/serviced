@@ -19,7 +19,8 @@ import (
 
 // Add a new service template
 func (s *Server) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, response *string) error  {
-	templateID, err := s.f.AddServiceTemplate(s.context(), serviceTemplate)
+	reloadLogstashConfig := true
+	templateID, err := s.f.AddServiceTemplate(s.context(), serviceTemplate, reloadLogstashConfig)
 	if err != nil {
 		return err
 	}

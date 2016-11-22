@@ -58,7 +58,7 @@ func (s *Statuses) GetAllStatuses() map[string]Status {
 	return result
 }
 
-// GetStatus retrieves the status for the volumeNames passed in. If volumeNames is empty, it getst all statuses.
+// GetStatus retrieves the status for the volumeNames passed in. If volumeNames is empty, it gets all statuses.
 func GetStatus() *Statuses {
 	result := &Statuses{}
 	result.DeviceMapperStatusMap = make(map[string]*DeviceMapperStatus)

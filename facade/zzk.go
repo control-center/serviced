@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -22,7 +23,9 @@ import (
 )
 
 type ZZK interface {
-	UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	UpdateServices(ctx datastore.Context, tenantID string, svc []*service.Service, setLockOnCreate, setLockOnUpdate bool) error
+	SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error
 	RemoveService(poolID, serviceID string) error
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
@@ -32,26 +35,27 @@ type ZZK interface {
 	AddHost(_host *host.Host) error
 	UpdateHost(_host *host.Host) error
 	RemoveHost(_host *host.Host) error
-	GetActiveHosts(poolID string, hosts *[]string) error
+	GetActiveHosts(ctx datastore.Context, poolID string, hosts *[]string) error
+	IsHostActive(poolID string, hostId string) (bool, error)
 	UpdateResourcePool(_pool *pool.ResourcePool) error
 	RemoveResourcePool(poolID string) error
 	AddVirtualIP(vip *pool.VirtualIP) error
 	RemoveVirtualIP(vip *pool.VirtualIP) error
+	GetVirtualIPHostID(poolID, ip string) (string, error)
 	GetRegistryImage(id string) (*registry.Image, error)
 	SetRegistryImage(rImage *registry.Image) error
 	DeleteRegistryImage(id string) error
 	DeleteRegistryLibrary(tenantID string) error
-	LockServices(svcs []service.Service) error
-	UnlockServices(svcs []service.Service) error
-	GetServiceStates(poolID, serviceID string) ([]zkservice.State, error)
-	GetHostStates(poolID, hostID string) ([]zkservice.State, error)
-	GetServiceState(poolID, serviceID string, instanceID int) (*zkservice.State, error)
+	LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error
+	UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error
+	GetServiceStates(ctx datastore.Context, poolID, serviceID string) ([]zkservice.State, error)
+	GetHostStates(ctx datastore.Context, poolID, hostID string) ([]zkservice.State, error)
+	GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zkservice.State, error)
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
-	StopServiceInstances(poolID, serviceID string) error
+	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
-}
-
-func GetFacadeZZK(f *Facade) ZZK {
-	return &zkf{f: f}
+	GetServiceNodes() ([]zkservice.ServiceNode, error)
+	RegisterDfsClients(clients ...host.Host) error
+	UnregisterDfsClients(clients ...host.Host) error
 }

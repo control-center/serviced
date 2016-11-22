@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
 
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -26,6 +27,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 )
 
 // The FacadeInterface is the API for a Facade
@@ -34,17 +36,22 @@ type FacadeInterface interface {
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
 
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(ctx datastore.Context, servicedID string, instanceID int) (*service.Service, error)
+
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
-	GetServicesByImage(ctx datastore.Context, imageID string) ([]service.Service, error)
+	GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
+
+	SyncServiceRegistry(ctx datastore.Context, svc *service.Service) error
 
 	MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
+	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
@@ -52,13 +59,13 @@ type FacadeInterface interface {
 
 	AssignIPs(ctx datastore.Context, assignmentRequest addressassignment.AssignmentRequest) (err error)
 
-	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error)
+	AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error)
 
 	GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error)
 
 	RemoveServiceTemplate(ctx datastore.Context, templateID string) error
 
-	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error
+	UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error
 
 	DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error)
 
@@ -66,11 +73,23 @@ type FacadeInterface interface {
 
 	DeployTemplateStatus(deploymentID string) (status string, err error)
 
-	AddHost(ctx datastore.Context, entity *host.Host) error
+	AddHost(ctx datastore.Context, entity *host.Host) ([]byte, error)
 
 	GetHost(ctx datastore.Context, hostID string) (*host.Host, error)
 
 	GetHosts(ctx datastore.Context) ([]host.Host, error)
+
+	GetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
+	ResetHostKey(ctx datastore.Context, hostID string) ([]byte, error)
+
+	RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte, prompt bool) error
+
+	SetHostExpiration(ctx datastore.Context, hostID string, expiration int64)
+
+	RemoveHostExpiration(ctx datastore.Context, hostID string)
+
+	HostIsAuthenticated(ctx datastore.Context, hostid string) (bool, error)
 
 	GetActiveHostIDs(ctx datastore.Context) ([]string, error)
 
@@ -120,9 +139,59 @@ type FacadeInterface interface {
 
 	FindReadHostsInPool(ctx datastore.Context, poolID string) ([]host.ReadHost, error)
 
-	GetAllServiceDetails(ctx datastore.Context) ([]service.ServiceDetails, error)
+	GetAllServiceDetails(ctx datastore.Context, since time.Duration) ([]service.ServiceDetails, error)
 
 	GetServiceDetails(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
 
-	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string) ([]service.ServiceDetails, error)
+	GetServiceDetailsAncestry(ctx datastore.Context, serviceID string) (*service.ServiceDetails, error)
+
+	GetServiceDetailsByParentID(ctx datastore.Context, serviceID string, since time.Duration) ([]service.ServiceDetails, error)
+
+	GetServiceDetailsByTenantID(ctx datastore.Context, tenantID string) ([]service.ServiceDetails, error)
+
+	GetServiceMonitoringProfile(ctx datastore.Context, serviceID string) (*domain.MonitorProfile, error)
+
+	GetServicePublicEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.PublicEndpoint, error)
+
+	GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error)
+
+	GetServiceAddressAssignmentDetails(ctx datastore.Context, serviceID string, children bool) ([]service.IPAssignment, error)
+
+	GetServiceExportedEndpoints(ctx datastore.Context, serviceID string, children bool) ([]service.ExportedEndpoint, error)
+
+	AddUser(ctx datastore.Context, newUser user.User) error
+
+	GetUser(ctx datastore.Context, userName string) (user.User, error)
+
+	UpdateUser(ctx datastore.Context, u user.User) error
+
+	RemoveUser(ctx datastore.Context, userName string) error
+
+	GetSystemUser(ctx datastore.Context) (user.User, error)
+
+	ValidateCredentials(ctx datastore.Context, u user.User) (bool, error)
+
+	GetServicesHealth(ctx datastore.Context) (map[string]map[int]map[string]health.HealthStatus, error)
+
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration)
+
+	ReportInstanceDead(serviceID string, instanceID int)
+
+	GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error)
+
+	GetServiceConfig(ctx datastore.Context, fileID string) (*servicedefinition.ConfigFile, error)
+
+	AddServiceConfig(ctx datastore.Context, serviceID string, conf servicedefinition.ConfigFile) error
+
+	UpdateServiceConfig(ctx datastore.Context, fileID string, conf servicedefinition.ConfigFile) error
+
+	DeleteServiceConfig(ctx datastore.Context, fileID string) error
+
+	GetHostStatuses(ctx datastore.Context, hostIDs []string, since time.Time) ([]host.HostStatus, error)
+
+	UpdateServiceCache(ctx datastore.Context) error
+
+	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
+
+	ReloadLogstashConfig(ctx datastore.Context) error
 }

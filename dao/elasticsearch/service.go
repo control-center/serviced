@@ -128,10 +128,12 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 	return err
 }
 
-// Get the services (can filter by name and/or tenantID)
-func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
-		*services = svcs
+// Get a list of tenant IDs
+func (this *ControlPlaneDao) GetTenantIDs(unused struct {}, tenantIDs *[]string) error {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.GetTenantIDs"))
+	if ids, err := this.facade.GetTenantIDs(ctx); err == nil {
+		*tenantIDs = ids
 		return nil
 	} else {
 		return err
@@ -140,7 +142,9 @@ func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[
 
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
-	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("dao.FindChildService"))
+	svc, err := this.facade.FindChildService(ctx, request.ServiceID, request.ChildName)
 	if err != nil {
 		return err
 	}
@@ -151,26 +155,6 @@ func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, serv
 		glog.Warningf("unable to find child of service: %+v", service)
 	}
 	return nil
-}
-
-// Get tagged services (can also filter by name and/or tenantID)
-func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
-		*services = svcs
-		return nil
-	} else {
-		return err
-	}
-}
-
-// The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
-func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) error {
-	if tid, err := this.facade.GetTenantID(datastore.Get(), serviceID); err == nil {
-		*tenantId = tid
-		return nil
-	} else {
-		return err
-	}
 }
 
 // start the provided service

@@ -39,15 +39,15 @@ type HostStateHandler interface {
 	// StartContainer creates and starts a new container for the given service
 	// instance.  It returns relevant information about the container and a
 	// channel that triggers when the container has stopped.
-	StartContainer(cancel <-chan interface{}, svc *service.Service, instanceID int) (*ServiceState, <-chan time.Time, error)
+	StartContainer(cancel <-chan interface{}, serviceID string, instanceID int) (*ServiceState, <-chan time.Time, error)
 
 	// ResumeContainer resumes a paused container.  Returns nil if the
 	// container has stopped or if it doesn't exist.
-	ResumeContainer(svc *service.Service, instanceID int) error
+	ResumeContainer(serviceID string, instanceID int) error
 
 	// PauseContainer pauses a running container.  Returns nil if the container
 	// has stopped or if it doesn't exist.
-	PauseContainer(svc *service.Service, instanceID int) error
+	PauseContainer(serviceID string, instanceID int) error
 }
 
 // HostStateListener is the listener for monitoring service instances
@@ -132,15 +132,46 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		}
 
 		// delete the state from the coordinator
-		if err := DeleteState(l.conn, req); err != nil {
-			logger.WithError(err).Warn("Could not delete state")
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+
+		for {
+			if err := DeleteState(l.conn, req); err == client.ErrNoServer {
+				logger.WithError(err).Warn("Server not found, attempting to retry updating service")
+				select {
+				case <-t.C:
+					select {
+					case <-shutdown:
+						return
+					default:
+					}
+				case <-shutdown:
+					return
+				}
+				continue
+			} else if err != nil {
+				logger.WithError(err).Error("Could not delete state for stopped container")
+			}
+			return
 		}
 	}()
 
-	done := make(chan struct{})
-	defer func() { close(done) }()
-	for {
+	// load the service state node
+	sspth := path.Join("/services", serviceID, stateID)
+	ssdat := &ServiceState{}
+	if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
+		return
+	} else if err != nil {
+		logger.WithError(err).Error("Could not load service state")
+		return
+	}
 
+	done := make(chan struct{})
+	defer func() {
+		close(done)
+	}()
+
+	for {
 		// set up a listener on the host state node
 		hspth := l.GetPath(stateID)
 		hsdat := &HostState{}
@@ -154,26 +185,14 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			logger.WithError(err).Error("Could not watch host state")
 			return
 		}
-
-		// load the service state node
-		sspth := path.Join("/services", serviceID, stateID)
-		ssdat := &ServiceState{}
-		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
-
-			logger.Debug("Service state was removed, exiting")
-			return
-		} else if err != nil {
-
-			logger.WithError(err).Error("Could not load service state")
+		// set up a listener on the service state node
+		ok, ssevt, err := l.conn.ExistsW(sspth, done)
+		if err != nil {
+			logger.WithError(err).Error("Could not watch service state")
 			return
 		}
-
-		// load the service
-		spth := path.Join("/services", serviceID)
-		sdat := &ServiceNode{Service: &service.Service{}}
-		if err := l.conn.Get(spth, sdat); err != nil {
-
-			logger.WithError(err).Error("Could not load service")
+		if !ok {
+			logger.Debug("Service state was removed, exiting")
 			return
 		}
 
@@ -193,7 +212,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if containerExit == nil {
 
 				// container is detached because it doesn't exist
-				ssdat, containerExit, err = l.handler.StartContainer(shutdown, sdat.Service, instanceID)
+				ssdat, containerExit, err = l.handler.StartContainer(shutdown, serviceID, instanceID)
 				if err != nil {
 
 					logger.WithError(err).Error("Could not start container")
@@ -214,7 +233,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			} else if ssdat.Paused {
 
 				// resume paused container
-				if err := l.handler.ResumeContainer(sdat.Service, instanceID); err != nil {
+				if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
 
 					logger.WithError(err).Error("Could not resume container")
 					return
@@ -223,6 +242,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				// set the service state in zookeeper
 				if err := UpdateState(l.conn, req, func(s *State) bool {
 					s.Paused = false
+					*ssdat = s.ServiceState
 					return true
 				}); err != nil {
 
@@ -237,7 +257,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if containerExit != nil && !ssdat.Paused {
 
 				// container is attached and not paused, so pause the container
-				if err := l.handler.PauseContainer(sdat.Service, instanceID); err != nil {
+				if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
 
 					logger.WithError(err).Error("Could not pause container")
 					return
@@ -246,6 +266,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				// set the service state in zookeeper
 				if err := UpdateState(l.conn, req, func(s *State) bool {
 					s.Paused = true
+					*ssdat = s.ServiceState
 					return true
 				}); err != nil {
 
@@ -263,23 +284,22 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 			logger.Debug("Could not process desired state for instance")
 		}
-
+		logger.Debug("Waiting for state events")
 		select {
 		case <-hsevt:
-		case time := <-containerExit:
-
-			logger.WithField("terminated", time).Warn("Container exited unexpectedly, restarting")
+		case <-ssevt:
+		case timeExit := <-containerExit:
+			logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
 			containerExit = nil
 			if err := UpdateState(l.conn, req, func(s *State) bool {
-				s.Terminated = time
+				s.Terminated = timeExit
+				*ssdat = s.ServiceState
 				return true
 			}); err != nil {
-
-				logger.WithError(err).Error("Could not update state for stopped container")
+				logger.WithError(err).Error("Could not update state for stopped container, shutting down")
 				return
 			}
 		case <-shutdown:
-
 			logger.Debug("Host state listener received signal to shut down")
 			return
 		}

@@ -15,15 +15,13 @@ package scheduler
 
 import (
 	"errors"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs/ttl"
-	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
@@ -46,7 +44,7 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int) {
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string) {
 
 	// creates a listener for the host registry
 	hreg := zkservice.NewHostRegistryListener(poolID)
@@ -57,11 +55,6 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(poolID, &leader)
 
-	// kicks off the snapshot cleaning goroutine
-	if snapshotTTL > 0 {
-		go ttl.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
-	}
-
 	// starts all of the listeners
 	zzk.Start(shutdown, conn, serviceListener, hreg)
 }
@@ -70,36 +63,48 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 // service has an address assignment the host will already be selected. If not
 // the host with the least amount of memory committed to running containers will
 // be chosen.  Returns the hostid, hostip (if it has an address assignment).
-func (l *leader) SelectHost(s *service.Service) (string, error) {
+func (l *leader) SelectHost(sn *zkservice.ServiceNode) (string, error) {
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   s.ID,
-		"servicename": s.Name,
-		"poolid":      s.PoolID,
+		"serviceid":   sn.ID,
+		"servicename": sn.Name,
 	})
+
 	plog.Debug("Looking for available hosts in resource pool")
-	hosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
+	reghosts, err := l.hreg.GetRegisteredHosts(l.shutdown)
 	if err != nil {
 		plog.WithError(err).Debug("Could not get available hosts from resource pool")
 		return "", err
 	}
 
 	// if no hosts are returned, then a shutdown has been triggered
-	if len(hosts) == 0 {
+	if len(reghosts) == 0 {
 		plog.Debug("Scheduler is shutting down")
 		return "", errors.New("scheduler is shutting down")
 	}
 
-	// make sure all of the applicable endpoints have address assignments
-	var assignment addressassignment.AddressAssignment
-	for _, ep := range s.Endpoints {
-		if ep.IsConfigurable() {
-			if ep.AddressAssignment.IPAddr != "" {
-				assignment = ep.AddressAssignment
-			} else {
-				plog.WithField("endpoint", ep.Name).Debug("Service is missing an address assignment")
-				return "", errors.New("service is missing an address assignment")
-			}
+	// filter out hosts that have not been authenticated
+	hosts := []host.Host{}
+	for _, h := range reghosts {
+		hlogger := logger.WithField("hostid", h.ID)
+		isAuthenticated, err := l.facade.HostIsAuthenticated(datastore.Get(), h.ID)
+		if err != nil {
+			hlogger.WithError(err).Debug("Unable to check if host is authenticated")
+		} else if !isAuthenticated {
+			hlogger.Debug("Host not authenticated")
+		} else {
+			hosts = append(hosts, h)
 		}
+	}
+
+	//  Are there any hosts left?
+	if len(hosts) == 0 {
+		return "", ErrNoAuthenticatedHosts
+	}
+
+	assignment := sn.AddressAssignment
+	if sn.ShouldHaveAddressAssignment && assignment.IPAddr == "" {
+		plog.WithField("endpoint", sn.Name).Debug("Service is missing an address assignment")
+		return "", errors.New("service is missing an address assignment")
 	}
 
 	if assignment.IPAddr != "" {
@@ -126,11 +131,11 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 			}
 		}
 
-		logger.WithField("hostid", hostID).Warn("Could not assign service to ip address.  Check to see if host is running or reassign ips")
+		logger.WithField("hostid", hostID).Warn("Could not assign service to ip address.  Check to see if host is running and registered or reassign ips")
 		return "", errors.New("assigned ip is not available")
 	}
 
-	hp := s.HostPolicy
+	hp := sn.HostPolicy
 	if hp == "" {
 		hp = servicedefinition.Balance
 	}
@@ -139,5 +144,5 @@ func (l *leader) SelectHost(s *service.Service) (string, error) {
 		return "", err
 	}
 
-	return StrategySelectHost(s, hosts, strat, l.facade)
+	return StrategySelectHost(sn, hosts, strat, l.facade)
 }

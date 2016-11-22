@@ -127,7 +127,7 @@
                 // poll again
                 setTimeout(function(){
                     pollBackupStatus(notification);
-                }, 1);
+                }, 3000);
 
             })
             .error(function(data, status){
@@ -153,7 +153,7 @@
                 // poll again
                 setTimeout(function(){
                     pollRestoreStatus(notification);
-                }, 1);
+                }, 3000);
 
             })
             .error(function(data, status){
@@ -184,7 +184,8 @@
             $scope.backupTable = {
                 sorting: {
                     full_path: "asc"
-                }
+                },
+                searchColumns: ['full_path']
             };
 
             //load backup files

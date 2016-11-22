@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/domain"
@@ -49,7 +48,6 @@ type ServiceDefinition struct {
 	Context           map[string]interface{} // Context information for the service
 	Endpoints         []EndpointDefinition   // Comms endpoints used by the service
 	Services          []ServiceDefinition    // Supporting subservices
-	Tasks             []Task                 // Scheduled tasks for celery to find
 	LogFilters        map[string]string      // map of log filter name to log filter definitions
 	Volumes           []Volume               // list of volumes to bind into containers
 	LogConfigs        []LogConfig
@@ -103,15 +101,6 @@ type Port struct {
 	Enabled  bool   // whether the port should be enabled or disabled.
 	UseTLS   bool   // Does this port endpoint use tls.
 	Protocol string // What protocol (if any) does the endpoind use.
-}
-
-// Task A scheduled task
-type Task struct {
-	Name          string
-	Schedule      string
-	Command       string
-	LastRunAt     time.Time
-	TotalRunCount int
 }
 
 // Volume import defines a file system directory underneath an export directory

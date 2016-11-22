@@ -16,6 +16,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
@@ -45,6 +46,7 @@ var _ = gocheck.Suite(&FacadeIntegrationTest{})
 
 //SetUpSuite sets up test suite
 func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
+
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
 	if ft.Mappings == nil {
@@ -67,6 +69,10 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockDFS()
+
+	// Create a master key pair
+	pub, priv, _ := auth.GenerateRSAKeyPairPEM(nil)
+	auth.LoadMasterKeysFromPEM(pub, priv)
 }
 
 func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
@@ -89,16 +95,17 @@ func (ft *FacadeIntegrationTest) setupMockZZK() {
 	ft.zzk.On("AddHost", mock.AnythingOfType("*host.Host")).Return(nil)
 	ft.zzk.On("UpdateHost", mock.AnythingOfType("*host.Host")).Return(nil)
 	ft.zzk.On("RemoveHost", mock.AnythingOfType("*host.Host")).Return(nil)
-	ft.zzk.On("UpdateService", mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	ft.zzk.On("RemoveService", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("RemoveServiceEndpoints", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("RemoveTenantExports", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
 	ft.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
-	ft.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
-	ft.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
-
+	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UnregisterDfsClients", mock.AnythingOfType("[]host.Host")).Return(nil)
 }
 
 func (ft *FacadeIntegrationTest) setupMockDFS() {

@@ -1,5 +1,7 @@
 <div><i translate>context_directions</i></div>
-<div ng-hide="codemirrorRefresh" style="text-align: center;"><img src="/static/img/loading.gif"></div>
-<div ng-hide="!editableContext === undefined"> 
-    <textarea id="editContext" ui-codemirror ui-codemirror-opts="codemirrorOpts" ui-refresh="codemirrorRefresh" ng-model="editableContext" style="min-height: 400px;"></textarea>
+<div class="modal-context">
+	<div ng-hide="codemirrorRefresh" class="codemirrorLoader"></div>
+	<textarea ng-hide="!codemirrorRefresh" ui-codemirror
+		 ui-codemirror-opts="codemirrorOpts" ui-refresh="codemirrorRefresh"
+         id="editContext" ng-model="Context"></textarea>
 </div>

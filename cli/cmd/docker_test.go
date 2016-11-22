@@ -37,7 +37,7 @@ type DockerAPITest struct {
 }
 
 func InitDockerAPITest(args ...string) {
-	New(DefaultDockerAPITest, utils.TestConfigReader{}).Run(args)
+	New(DefaultDockerAPITest, utils.TestConfigReader{}, MockLogControl{}).Run(args)
 }
 
 func (t DockerAPITest) DockerOverride(newImage, oldImage string) error {
@@ -68,7 +68,7 @@ func ExampleServicedCLI_CmdDockerOverride_usage() {
 }
 
 func ExampleServicedCli_cmdDockerOverride_fail() {
-	pipeStderr(InitDockerAPITest, "serviced", "docker", "override", "anything", OverrideFail)
+	pipeStderr(func() { InitDockerAPITest("serviced", "docker", "override", "anything", OverrideFail) })
 
 	// Output:
 	// override failed

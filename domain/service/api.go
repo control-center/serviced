@@ -21,3 +21,53 @@ type AggregateService struct {
 	Status       []StatusInstance
 	NotFound     bool
 }
+
+// PublicEndpoint is a minimal service object that describes a public endpoint
+// for a service
+type PublicEndpoint struct {
+	ServiceID   string
+	ServiceName string
+	Application string
+	Protocol    string
+	VHostName   string `json:",omitempty"`
+	PortAddress string `json:",omitempty"`
+	Enabled     bool
+}
+
+// BaseIPAssignment is a minimal service object that describes a service endpoint
+// which may or may not have an address assignment.
+type BaseIPAssignment struct {
+	ServiceID       string
+	ParentServiceID string
+	ServiceName     string
+	PoolID          string
+	Port            uint16
+	Application     string
+	EndpointName    string
+}
+
+// IPAssignment is a minimal service object that describes an address assignment
+// for a service.
+type IPAssignment struct {
+	BaseIPAssignment
+	HostID      string
+	HostName    string
+	Type        string
+	IPAddress   string
+}
+
+// ExportedEndpoint is a minimal service object that describes exported
+// endpoints for a service.
+// NOTE: Could add booleans for ip assignment, vhost, and ports
+type ExportedEndpoint struct {
+	ServiceID   string
+	ServiceName string
+	Application string
+	Protocol    string
+}
+
+// Config displays the most basic information about a service config file
+type Config struct {
+	ID       string
+	Filename string
+}

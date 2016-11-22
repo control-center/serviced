@@ -22,6 +22,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -45,7 +48,7 @@ type ClientInterface interface {
 	GetActiveHostIDs() ([]string, error)
 
 	// AddHost adds a Host
-	AddHost(h host.Host) error
+	AddHost(h host.Host) ([]byte, error)
 
 	// UpdateHost updates a host
 	UpdateHost(h host.Host) error
@@ -55,6 +58,18 @@ type ClientInterface interface {
 
 	// FindHostsInPool returns all hosts in a pool
 	FindHostsInPool(poolID string) ([]host.Host, error)
+
+	// Authenticate a host and receive an identity token and expiration
+	AuthenticateHost(hostID string) (string, int64, error)
+
+	// Get hostID's public key
+	GetHostPublicKey(hostID string) ([]byte, error)
+
+	// Reset hostID's private key
+	ResetHostKey(hostID string) ([]byte, error)
+
+	// HostsAuthenticated returns if the hosts passed are authenticated or not
+	HostsAuthenticated(hostIDs []string) (map[string]bool, error)
 
 	//--------------------------------------------------------------------------
 	// Pool Management Functions
@@ -92,11 +107,29 @@ type ClientInterface interface {
 	// WaitService will wait for the specified services to reach the specified state, within the given timeout
 	WaitService(serviceIDs []string, state service.DesiredState, timeout time.Duration, recursive bool) error
 
+	// GetAllServiceDetails will return a list of all ServiceDetails
+	GetAllServiceDetails(since time.Duration) ([]service.ServiceDetails, error)
+
+	// GetServiceDetailsByTenantID will return a list of ServiceDetails for the specified tenant ID
+	GetServiceDetailsByTenantID(tenantID string) ([]service.ServiceDetails, error)
+
+	// GetServiceDetails will return a ServiceDetails for the specified service
+	GetServiceDetails(serviceID string) (*service.ServiceDetails, error)
+
+	// ResolveServicePath will return ServiceDetails that match the given path
+	ResolveServicePath(path string) ([]service.ServiceDetails, error)
+
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
 
 	// GetServiceInstances returns all running instances of a service
 	GetServiceInstances(serviceID string) ([]service.Instance, error)
+
+	// Get a service from serviced where all templated properties have been evaluated
+	GetEvaluatedService(serviceID string, instanceID int) (*service.Service, string, error)
+
+	// Get the tenant ID for a service
+	GetTenantID(serviceID string) (string, error)
 
 	// StopServiceInstance stops a single service instance
 	StopServiceInstance(serviceID string, instanceID int) error
@@ -152,6 +185,7 @@ type ClientInterface interface {
 	// DockerOverride replaces an image in the docker registry with a new image
 	DockerOverride(newImage, oldImage string) error
 
+	//--------------------------------------------------------------------------
 	// Public Endpoint Management Functions
 	AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error)
 
@@ -164,4 +198,39 @@ type ClientInterface interface {
 	RemovePublicEndpointVHost(serviceid, endpointName, vhost string) error
 
 	EnablePublicEndpointVHost(serviceid, endpointName, vhost string, isEnabled bool) error
+
+	GetAllPublicEndpoints() ([]service.PublicEndpoint, error)
+
+	//--------------------------------------------------------------------------
+	// User Management Functions
+
+	// Get the system user record
+	GetSystemUser() (user.User, error)
+
+	// Validate the credentials of the specified user
+	ValidateCredentials(user user.User) (bool, error)
+
+	//--------------------------------------------------------------------------
+	// Healthcheck Management Functions
+
+	// GetISvcsHealth returns health status for a list of isvcs
+	GetISvcsHealth(IServiceNames []string) ([]isvcs.IServiceHealthResult, error)
+
+	// GetServicesHealth returns health checks for all services.
+	GetServicesHealth() (map[string]map[int]map[string]health.HealthStatus, error)
+
+	// ReportHealthStatus sends an update to the health check status cache.
+	ReportHealthStatus(key health.HealthStatusKey, value health.HealthStatus, expires time.Duration) error
+
+	// ReportInstanceDead removes stopped instances from the health check status cache.
+	ReportInstanceDead(serviceID string, instanceID int) error
+
+	//--------------------------------------------------------------------------
+	// Debug Management Functions
+
+	// Enable internal metrics collection
+	DebugEnableMetrics() (string, error)
+
+	// Disable internal metrics collection
+	DebugDisableMetrics() (string, error)
 }

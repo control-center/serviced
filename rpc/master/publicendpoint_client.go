@@ -14,19 +14,9 @@
 package master
 
 import (
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
-
-// Defines a request to add a port public endpoints to a service
-type PublicEndpointRequest struct {
-	Serviceid    string
-	EndpointName string
-	Name         string
-	UseTLS       bool
-	Protocol     string
-	IsEnabled    bool
-	Restart      bool
-}
 
 // Adds a port public endpoint to a service.
 func (c *Client) AddPublicEndpointPort(serviceid, endpointName, portAddr string, usetls bool,
@@ -100,4 +90,13 @@ func (c *Client) EnablePublicEndpointVHost(serviceid, endpointName, vhost string
 		IsEnabled:    isEnabled,
 	}
 	return c.call("EnablePublicEndpointVHost", request, nil)
+}
+
+// GetAllPublicEndpoints
+func (c *Client) GetAllPublicEndpoints() ([]service.PublicEndpoint, error) {
+	var response []service.PublicEndpoint
+	if err := c.call("GetAllPublicEndpoints", empty, &response); err != nil {
+		return response, err
+	}
+	return response, nil
 }

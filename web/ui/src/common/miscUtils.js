@@ -24,11 +24,72 @@
           };
         }
 
+        // polyfill find so IE doesnt complain :\
+        if (!Array.prototype.find) {
+          Object.defineProperty(Array.prototype, 'find', {
+            value: function(predicate) {
+             if (this === null || this === undefined) {
+               throw new TypeError('Array.prototype.find called on null or undefined');
+             }
+             if (typeof predicate !== 'function') {
+               throw new TypeError('predicate must be a function');
+             }
+             var list = Object(this);
+             var length = list.length >>> 0;
+             var thisArg = arguments[1];
+             var value;
+
+             for (var i = 0; i < length; i++) {
+               value = list[i];
+               if (predicate.call(thisArg, value, i, list)) {
+                 return value;
+               }
+             }
+             return undefined;
+            }
+          });
+        }
+
         // fix for chrome 48 and up, as described here:
         // https://github.com/cpettitt/dagre-d3/issues/202
         SVGElement.prototype.getTransformToElement = SVGElement.prototype.getTransformToElement || function(elem) {
             return elem.getScreenCTM().inverse().multiply(this.getScreenCTM());
         };
+
+        // creates a biset of specified size and
+        // sets the value to to val. Also attaches
+        // getter/setter functions angular can bind
+        // to to toggle fields
+        class NgBitset {
+            constructor(size, val){
+                this.val = val;
+                this.size = size;
+
+                // create angular getterSetters so that
+                // this bitset can bind to checkboxes in the UI
+                for(let i = 0; i < (1 << size); i = 1 << i){
+                    this[i] = (val) => {
+                        // if val, toggle the bit
+                        // TODO - act based on val?
+                        if(val !== undefined){
+                            this.toggle(i);
+                        }
+                        return this.isSet(i);
+                    };
+                }
+            }
+
+            isSet(i){
+                return (this.val & i) !== 0;
+            }
+
+            toggle(i){
+                this.val = this.val ^ i;
+            }
+
+            // TODO - set/unset
+        }
+
 
         var utils = {
 
@@ -47,6 +108,17 @@
             downloadFile: function(url){
                 window.location = url;
             },
+
+            // http://stackoverflow.com/a/18197341
+			downloadText(filename, text) {
+				var element = document.createElement('a');
+				element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+				element.setAttribute('download', filename);
+				element.style.display = 'none';
+				document.body.appendChild(element);
+				element.click();
+				document.body.removeChild(element);
+			},
 
             getModeFromFilename: function(filename){
                 var re = /(?:\.([^.]+))?$/;
@@ -328,6 +400,12 @@
 
                 }
                 return null;
+            },
+
+            NgBitset: NgBitset,
+
+            arrayEmpty: function(array) {
+                return typeof array === "undefined" || array === null || array.length <= 0;
             }
        };
 

@@ -316,11 +316,11 @@ func (_m *DFS) TagInfo(tenantID string, tagName string) (*dfs.SnapshotInfo, erro
 }
 
 // UpgradeRegistry provides a mock function with given fields: svcs, tenantID, registryHost, override
-func (_m *DFS) UpgradeRegistry(svcs []service.Service, tenantID string, registryHost string, override bool) error {
+func (_m *DFS) UpgradeRegistry(svcs []service.ServiceDetails, tenantID string, registryHost string, override bool) error {
 	ret := _m.Called(svcs, tenantID, registryHost, override)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]service.Service, string, string, bool) error); ok {
+	if rf, ok := ret.Get(0).(func([]service.ServiceDetails, string, string, bool) error); ok {
 		r0 = rf(svcs, tenantID, registryHost, override)
 	} else {
 		r0 = ret.Error(0)

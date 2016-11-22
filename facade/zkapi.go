@@ -20,6 +20,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/storage"
+	"github.com/control-center/serviced/datastore"
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -33,89 +36,87 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func getZZK(f *Facade) ZZK {
-	return &zkf{f}
+func getZZK() ZZK {
+	return &zkf{NewServiceRegistryCache()}
 }
 
 type zkf struct {
-	f *Facade
+	svcRegistry *serviceRegistryCache
+}
+
+func getLocalConnection(ctx datastore.Context, path string) (client.Connection, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.getLocalConnection"))
+	return zzk.GetLocalConnection(path)
+}
+
+func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svcs []*service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.syncServiceRegistry"))
+	for _, svc := range(svcs) {
+		if err := zk.SyncServiceRegistry(ctx, tenantID, svc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateServices(ctx datastore.Context, poolconn client.Connection, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zks.updateServices"))
+	return zks.UpdateServices(poolconn, svcs, setLockOnCreate, setLockOnUpdate)
+}
+
+func zkr_SyncServiceRegistry(ctx datastore.Context, conn client.Connection, request zkr.ServiceRegistrySyncRequest) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zkr.SyncServiceRegistry"))
+	return zkr.SyncServiceRegistry(conn, request)
 }
 
 // UpdateService updates the service object and exposed public endpoints that
 // are synced in zookeeper.
-// TODO: we may want to combine these calls into a single transaction
-func (zk *zkf) UpdateService(tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
-	logger := plog.WithFields(log.Fields{
-		"tenantid":    tenantID,
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"poolid":      svc.PoolID,
-	})
+func (zk *zkf) UpdateService(ctx datastore.Context, tenantID string, svc *service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateService"))
+	svcs := []*service.Service{svc}
+	return zk.UpdateServices(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+}
 
-	// get the root-based connection to update the service's endpoints
-	rootconn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
-		return err
-	}
+// UpdateServices updates a list of service objects and exposed public endpoints that are
+// synced in zookeeper
+func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*service.Service, setLockOnCreate, setLockOnUpdate bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateServices"))
 
-	// map all the public endpoints on the service
-	pubmap := make(map[zkr.PublicPortKey]zkr.PublicPort)
-	vhmap := make(map[zkr.VHostKey]zkr.VHost)
-
-	for _, ep := range svc.Endpoints {
-		// map the public ports
-		for _, p := range ep.PortList {
-			key := zkr.PublicPortKey{
-				HostID:      "master",
-				PortAddress: p.PortAddr,
-			}
-			pub := zkr.PublicPort{
-				TenantID:    tenantID,
-				Application: ep.Application,
-				ServiceID:   svc.ID,
-				Enabled:     p.Enabled,
-				Protocol:    p.Protocol,
-				UseTLS:      p.UseTLS,
-			}
-			pubmap[key] = pub
-		}
-
-		// map the vhosts
-		for _, v := range ep.VHostList {
-			key := zkr.VHostKey{
-				HostID:    "master",
-				Subdomain: v.Name,
-			}
-			vh := zkr.VHost{
-				TenantID:    tenantID,
-				Application: ep.Application,
-				ServiceID:   svc.ID,
-				Enabled:     v.Enabled,
-			}
-			vhmap[key] = vh
+	servicesByPool := make(map[string]*[]*service.Service)
+	for _, svc := range(svcs) {
+		if poolSvcs, ok := servicesByPool[svc.PoolID]; ok {
+			*poolSvcs = append(*poolSvcs, svc)
+		} else {
+			poolSvcs = &([]*service.Service{svc})
+			servicesByPool[svc.PoolID] = poolSvcs
 		}
 	}
 
-	// sync the registry
-	if err := zkr.SyncServiceRegistry(rootconn, svc.ID, pubmap, vhmap); err != nil {
-		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
-		return err
+	for poolID, poolSvcs := range(servicesByPool) {
+		poolLogger := plog.WithFields(log.Fields{
+			"tenantid":     tenantID,
+			"poolid":       poolID,
+			"servicecount": len(*poolSvcs),
+		})
+		// get the pool-based connection to update the service
+		poolconn, err := getLocalConnection(ctx, path.Join("/pools", poolID))
+		if err != nil {
+			poolLogger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
+			return err
+		}
+		if err := zk.syncServiceRegistry(ctx, tenantID, *poolSvcs); err != nil {
+			poolLogger.WithError(err).Debug("Could not sync public endpoints in zookeeper")
+			return err
+		}
+		if err := updateServices(ctx, poolconn, *poolSvcs, setLockOnCreate, setLockOnUpdate); err != nil {
+			poolLogger.WithError(err).Debug("Could not update the services in zookeeper")
+			return err
+		}
+		poolLogger.Debug("Updated the pool service(s) in zookeeper")
 	}
-	logger.Debug("Updated the service's public endpoints in zookeeper")
 
-	// get the pool-based connection to update the service
-	poolconn, err := zzk.GetLocalConnection(path.Join("/pools", svc.PoolID))
-	if err != nil {
-		logger.WithError(err).Debug("Could not acquire a pool-based connection to update the service in zookeeper")
-		return err
-	}
 
-	if err := zks.UpdateService(poolconn, *svc, setLockOnCreate, setLockOnUpdate); err != nil {
-		logger.WithError(err).Debug("Could not update the service in zookeeper")
-		return err
-	}
-	logger.Debug("Updated the service in zookeeper")
+
 	return nil
 }
 
@@ -153,14 +154,41 @@ func (zk *zkf) RemoveServiceEndpoints(serviceID string) error {
 		return err
 	}
 
-	// delete the public endpoints for this service
-	pubs := make(map[zkr.PublicPortKey]zkr.PublicPort)
-	vhosts := make(map[zkr.VHostKey]zkr.VHost)
+	zk.svcRegistry.Lock()
+	defer zk.svcRegistry.Unlock()
+	if zk.svcRegistry.registry == nil {
+		err = zk.buildServiceRegistryCache(rootconn)
+		if err != nil {
+			logger.WithError(err).Debug("Could not build cache of the service registry")
+			return err
+		}
+	}
 
-	if err := zkr.SyncServiceRegistry(rootconn, serviceID, pubs, vhosts); err != nil {
+	// delete the public endpoints for this service
+	syncRequest := zkr.ServiceRegistrySyncRequest{
+		ServiceID:       serviceID,
+		PortsToPublish:  make(map[zkr.PublicPortKey]zkr.PublicPort),
+		PortsToDelete:   []zkr.PublicPortKey{},
+		VHostsToPublish: make(map[zkr.VHostKey]zkr.VHost),
+		VHostsToDelete:  []zkr.VHostKey{},
+	}
+
+	serviceRegistry := zk.svcRegistry.GetRegistryForService(serviceID)
+	for key, _ := range serviceRegistry.PublicPorts {
+		syncRequest.PortsToDelete = append(syncRequest.PortsToDelete, key)
+	}
+	for key, _ := range serviceRegistry.VHosts {
+		syncRequest.VHostsToDelete = append(syncRequest.VHostsToDelete, key)
+	}
+
+	// sync the registry
+	if err := zkr.SyncServiceRegistry(rootconn, syncRequest); err != nil {
 		logger.WithError(err).Debug("Could not delete the service's public endpoints in zookeeper")
 		return err
 	}
+
+	// Update our local cache now that we know that ZK was updated successfully
+	zk.svcRegistry.UpdateRegistry(serviceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
 	logger.Debug("Deleted the service's public endpoints in zookeeper")
 	return nil
 }
@@ -354,13 +382,22 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	return zks.RemoveHost(cancel, conn, "", host.ID)
 }
 
-func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
+func (z *zkf) GetActiveHosts(ctx datastore.Context, poolID string, hosts *[]string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetActiveHosts"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
 	*hosts, err = zks.GetCurrentHosts(conn, poolID)
 	return err
+}
+
+func (z *zkf) IsHostActive(poolID string, hostID string) (bool, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return false, err
+	}
+	return zks.IsHostOnline(conn, poolID, hostID)
 }
 
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
@@ -393,6 +430,14 @@ func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
 		return err
 	}
 	return zkvirtualip.RemoveVirtualIP(conn, virtualIP.IP)
+}
+
+func (z *zkf) GetVirtualIPHostID(poolID, ip string) (string, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return "", err
+	}
+	return zkvirtualip.GetHostID(conn, poolID, ip)
 }
 
 func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
@@ -428,11 +473,13 @@ func (z *zkf) DeleteRegistryLibrary(tenantID string) error {
 	return zkimgregistry.DeleteRegistryImage(conn, tenantID)
 }
 
-func (z *zkf) LockServices(svcs []service.Service) error {
+func (z *zkf) LockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.LockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
+	// FIXME: Do we need to lock all of these, or can we just lock the tenant node?
 	nodes := make([]zks.ServiceLockNode, len(svcs))
 	for i, svc := range svcs {
 		nodes[i] = zks.ServiceLockNode{
@@ -443,7 +490,8 @@ func (z *zkf) LockServices(svcs []service.Service) error {
 	return zks.LockServices(conn, nodes)
 }
 
-func (z *zkf) UnlockServices(svcs []service.Service) error {
+func (z *zkf) UnlockServices(ctx datastore.Context, svcs []service.ServiceDetails) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UnlockServices"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
@@ -459,7 +507,8 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 }
 
 // GetServiceStates returns all running instances for a service
-func (zk *zkf) GetServiceStates(poolID, serviceID string) ([]zks.State, error) {
+func (zk *zkf) GetServiceStates(ctx datastore.Context, poolID, serviceID string) ([]zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetServiceStates"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
@@ -470,7 +519,8 @@ func (zk *zkf) GetServiceStates(poolID, serviceID string) ([]zks.State, error) {
 }
 
 // GetHostStates returns all running instances for a host
-func (zk *zkf) GetHostStates(poolID, hostID string) ([]zks.State, error) {
+func (zk *zkf) GetHostStates(ctx datastore.Context, poolID, hostID string) ([]zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetHostStates"))
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could not get connection to zookeeper: %s", err)
@@ -482,7 +532,8 @@ func (zk *zkf) GetHostStates(poolID, hostID string) ([]zks.State, error) {
 
 // GetServiceState returns the state of a service from its service and instance
 // id.
-func (zk *zkf) GetServiceState(poolID, serviceID string, instanceID int) (*zks.State, error) {
+func (zk *zkf) GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zks.State, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.GetServiceState"))
 	logger := plog.WithFields(log.Fields{
 		"poolid":     poolID,
 		"serviceid":  serviceID,
@@ -588,14 +639,15 @@ func (zk *zkf) StopServiceInstance(poolID, serviceID string, instanceID int) err
 }
 
 // StopServiceInstances stops all instances for a service
-func (zk *zkf) StopServiceInstances(poolID, serviceID string) error {
+func (zk *zkf) StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.StopServiceInstances")))
 	logger := plog.WithFields(log.Fields{
 		"poolid":    poolID,
 		"serviceid": serviceID,
 	})
 
 	// get the root-based connection to stop the service instance
-	conn, err := zzk.GetLocalConnection("/")
+	conn, err := getLocalConnection(ctx, "/")
 	if err != nil {
 		logger.WithError(err).Debug("Could not acquire root-based connection")
 		return err
@@ -709,4 +761,121 @@ func (zk *zkf) GetServiceStateIDs(poolID, serviceID string) ([]zks.StateRequest,
 	}
 
 	return zks.GetServiceStateIDs(conn, poolID, serviceID)
+}
+
+func (ck *zkf) GetServiceNodes() ([]zks.ServiceNode, error) {
+	// get the root-based connection to look up the service nodes
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		plog.WithError(err).Debug("Could not acquire root-based connection")
+		return nil, err
+	}
+
+	return zks.GetServiceNodes(conn)
+}
+
+func (zk *zkf) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.SyncServiceRegistry"))
+	logger := plog.WithFields(log.Fields{
+		"tenantid":    tenantID,
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+	})
+
+	// get the root-based connection to update the service's endpoints
+	rootconn, err := getLocalConnection(ctx, "/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire a root-based connection to update the service's public endpoints in zookeeper")
+		return err
+	}
+
+	zk.svcRegistry.Lock()
+	defer zk.svcRegistry.Unlock()
+	if zk.svcRegistry == nil {
+		err = zk.buildServiceRegistryCache(rootconn)
+		if err != nil {
+			logger.WithError(err).Debug("Could not build cache of the service registry")
+			return err
+		}
+	}
+
+	// sync the registry
+	syncRequest := zk.svcRegistry.BuildSyncRequest(tenantID, svc)
+	if err := zkr_SyncServiceRegistry(ctx, rootconn, syncRequest); err != nil {
+		logger.WithError(err).Debug("Could not update the service's public endpoints in zookeeper")
+		return err
+	}
+
+	// Update our local cache now that we know that ZK was updated successfully
+	zk.svcRegistry.UpdateRegistry(syncRequest.ServiceID, syncRequest.PortsToPublish, syncRequest.VHostsToPublish)
+
+	logger.Debug("Updated the service's public endpoints in zookeeper")
+	return nil
+}
+
+// buildServiceRegistryCache builds the cache of public endpoints based on data in zookeeper
+func (zk *zkf) buildServiceRegistryCache(conn client.Connection) error {
+	publicPorts, err := zkr.GetPublicPorts(conn)
+	if err != nil {
+		return err
+	}
+	vhosts, err := zkr.GetVHosts(conn)
+	if err != nil {
+		return err
+	}
+	zk.svcRegistry.BuildCache(publicPorts, vhosts)
+	return nil
+}
+
+func updateDfsClientInTransaction(tx client.Transaction, client *host.Host, delete bool) {
+	if delete {
+		tx.Delete(client.IPAddr)
+	} else {
+		node := &storage.Node{
+			Host: *client,
+		}
+		tx.Create(client.IPAddr, node)
+	}
+}
+
+func updateDfsClients(clients []host.Host, delete bool) error {
+	// Get a connection to /storage/clients
+	conn, err := zzk.GetLocalConnection(storage.ZkStorageClientsPath)
+	if err != nil {
+		return err
+	}
+	// Get current dfs clients and put them in a map
+	currentClients, err := conn.Children("")
+	if err != nil {
+		return err
+	}
+	currentClientsMap := make(map[string]bool)
+	for _, c := range currentClients {
+		currentClientsMap[c] = true
+	}
+	// Create a transaction
+	tx := conn.NewTransaction()
+	// Update clients
+	for _, c := range clients {
+		_, exists := currentClientsMap[c.IPAddr]
+		if delete && exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		} else if !delete && !exists {
+			updateDfsClientInTransaction(tx, &c, delete)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (zk *zkf) UnregisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, true)
+}
+
+func (zk *zkf) RegisterDfsClients(clients ...host.Host) error {
+	return updateDfsClients(clients, false)
 }

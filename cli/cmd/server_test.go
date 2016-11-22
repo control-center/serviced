@@ -34,13 +34,13 @@ func (t ServerAPITest) StartServer() error {
 }
 
 func InitServerAPITest(args ...string) {
-	New(DefaultServerAPITest, utils.TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultServerAPITest, utils.TestConfigReader(map[string]string{}), MockLogControl{}).Run(args)
 }
 
 func ExampleSerivcedCLI_CmdServer_good() {
 	InitServerAPITest("serviced", "--master", "--allow-loop-back=true", "server")
-	InitServerAPITest("serviced", "--agent", "--endpoint", "10.20.30.40", "server")
-	InitServerAPITest("serviced", "--agent", "--master", "--allow-loop-back=true", "server")
+	InitServerAPITest("serviced", "--endpoint", "10.20.30.40", "server")
+	InitServerAPITest("serviced", "--master", "--allow-loop-back=true", "server")
 
 	// Output:
 	// starting server

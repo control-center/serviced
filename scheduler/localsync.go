@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
-	zkr "github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
@@ -44,17 +43,19 @@ func (s *scheduler) localSync(shutdown <-chan interface{}, rootConn client.Conne
 }
 
 func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
+	ctx := datastore.Get()
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("scheduler.doSync"))
 	// SyncRegistryImages performs its own DFSLock, so run it before locking in here
-	if err := s.facade.SyncRegistryImages(datastore.Get(), false); err != nil {
+	if err := s.facade.SyncRegistryImages(ctx, false); err != nil {
 		glog.Errorf("%s", err)
 		return time.After(minWait)
 	}
 
-	if err := s.facade.DFSLock(datastore.Get()).LockWithTimeout("zookeeper sync", lockBlock); err != nil {
+	if err := s.facade.DFSLock(ctx).LockWithTimeout("zookeeper sync", lockBlock); err != nil {
 		glog.Infof("Could not lock DFS (%s), will retry later", err)
 		return time.After(noLockWait)
 	}
-	defer s.facade.DFSLock(datastore.Get()).Unlock()
+	defer s.facade.DFSLock(ctx).Unlock()
 
 	pools, err := s.GetResourcePools()
 	if err != nil {
@@ -90,52 +91,7 @@ func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
 			return time.After(minWait)
 		} else {
 			for _, svc := range svcs {
-				tenantID, err := s.facade.GetTenantID(datastore.Get(), svc.ID)
-				if err != nil {
-					glog.Errorf("Could not check tenant of service %s (%s): %s", svc.Name, svc.ID, err)
-					return time.After(minWait)
-				}
-
-				// map all the public endpoints on the service
-				pubmap := make(map[zkr.PublicPortKey]zkr.PublicPort)
-				vhmap := make(map[zkr.VHostKey]zkr.VHost)
-
-				for _, ep := range svc.Endpoints {
-					// map the public ports
-					for _, p := range ep.PortList {
-						key := zkr.PublicPortKey{
-							HostID:      "master",
-							PortAddress: p.PortAddr,
-						}
-						pub := zkr.PublicPort{
-							TenantID:    tenantID,
-							Application: ep.Application,
-							ServiceID:   svc.ID,
-							Enabled:     p.Enabled,
-							Protocol:    p.Protocol,
-							UseTLS:      p.UseTLS,
-						}
-						pubmap[key] = pub
-					}
-
-					// map the vhosts
-					for _, v := range ep.VHostList {
-						key := zkr.VHostKey{
-							HostID:    "master",
-							Subdomain: v.Name,
-						}
-						vh := zkr.VHost{
-							TenantID:    tenantID,
-							Application: ep.Application,
-							ServiceID:   svc.ID,
-							Enabled:     v.Enabled,
-						}
-						vhmap[key] = vh
-					}
-				}
-
-				// sync the registry
-				if err := zkr.SyncServiceRegistry(rootConn, svc.ID, pubmap, vhmap); err != nil {
+				if err := s.facade.SyncServiceRegistry(ctx, &svc); err != nil {
 					glog.Errorf("Could not sync public endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 					return time.After(minWait)
 				}

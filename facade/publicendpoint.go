@@ -30,6 +30,7 @@ var vhostNameRegex = regexp.MustCompile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*
 // Adds a port public endpoint to a service
 func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpointName, portAddr string,
 	usetls bool, protocol string, isEnabled bool, restart bool) (*servicedefinition.Port, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddPublicEndpointPort"))
 
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
@@ -65,6 +66,8 @@ func (f *Facade) AddPublicEndpointPort(ctx datastore.Context, serviceID, endpoin
 	}
 
 	// check other ports for redundancy
+	// FIXME: GetAllServices is really expensive. Can this be replaced
+	//        with a more targeted method like get-all-services with portAddr "blah"?
 	services, err := f.GetAllServices(ctx)
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
@@ -132,6 +135,7 @@ func checkPort(network string, laddr string) error {
 
 // Remove the port public endpoint from a service.
 func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointPort"))
 
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
@@ -164,6 +168,7 @@ func (f *Facade) RemovePublicEndpointPort(ctx datastore.Context, serviceid, endp
 
 // Enable/Disable a port public endpoint.
 func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endpointName, portAddr string, isEnabled bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EnablePublicEndpointPort"))
 
 	// Scrub the port for all checks, as this is what gets stored against the service.
 	portAddr = service.ScrubPortString(portAddr)
@@ -235,6 +240,7 @@ func (f *Facade) EnablePublicEndpointPort(ctx datastore.Context, serviceid, endp
 
 // Adds a vhost public endpoint to a service
 func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhostName string, isEnabled, restart bool) (*servicedefinition.VHost, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddPublicEndpointVHost"))
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -252,6 +258,9 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 
 	// check other virtual hosts for redundancy
 	vhostLowerName := strings.ToLower(vhostName)
+
+	// FIXME: GetAllServices is really expensive. Can this be replaced
+	//        with a more targeted method like get-all-services with vhost "blah"?
 	services, err := f.GetAllServices(ctx)
 	if err != nil {
 		err = fmt.Errorf("Could not get the list of services: %s", err)
@@ -302,6 +311,7 @@ func (f *Facade) AddPublicEndpointVHost(ctx datastore.Context, serviceid, endpoi
 
 // Remove the vhost public endpoint from a service.
 func (f *Facade) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemovePublicEndpointVHost"))
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -329,6 +339,7 @@ func (f *Facade) RemovePublicEndpointVHost(ctx datastore.Context, serviceid, end
 }
 
 func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, endpointName, vhost string, isEnabled bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EnablePublicEndpointVHost"))
 	// Get the service for this service id.
 	svc, err := f.GetService(ctx, serviceid)
 	if err != nil {
@@ -370,4 +381,10 @@ func (f *Facade) EnablePublicEndpointVHost(ctx datastore.Context, serviceid, end
 
 	glog.V(2).Infof("Service (%s) updated", svc.Name)
 	return nil
+}
+
+// GetAllPublicEndpoints returns all the public endpoints in the system
+func (f *Facade) GetAllPublicEndpoints(ctx datastore.Context) ([]service.PublicEndpoint, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("GetAllPublicEndpoints"))
+	return f.serviceStore.GetAllPublicEndpoints(ctx)
 }

@@ -54,7 +54,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 		Description: "test template",
 	}
 
-	if newTemplateId, e := ft.Facade.AddServiceTemplate(ft.CTX, template); e != nil {
+	if newTemplateId, e := ft.Facade.AddServiceTemplate(ft.CTX, template, false); e != nil {
 		t.Fatalf("Failure adding service template %+v with error: %s", template, e)
 	} else {
 		templateId = newTemplateId
@@ -75,7 +75,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 	}
 	template.ID = templateId
 	template.Description = "test_template_modified"
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template); e != nil {
+	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
 		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
 	}
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)
@@ -105,7 +105,7 @@ func (ft *FacadeIntegrationTest) TestFacadeServiceTemplate(t *C) {
 	if len(templates) != 0 {
 		t.Fatalf("Expected zero templates. Found %d", len(templates))
 	}
-	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template); e != nil {
+	if e := ft.Facade.UpdateServiceTemplate(ft.CTX, template, false); e != nil {
 		t.Fatalf("Failure updating service template %+v with error: %s", template, e)
 	}
 	templates, e = ft.Facade.GetServiceTemplates(ft.CTX)

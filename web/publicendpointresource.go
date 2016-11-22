@@ -17,9 +17,6 @@
 package web
 
 import (
-	"github.com/control-center/serviced/dao"
-	svc "github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -28,6 +25,11 @@ import (
 	"strconv"
 	"strings"
 )
+
+type errInvalidVhostUsedCCHostname struct{}
+func (e errInvalidVhostUsedCCHostname) Error() string {
+	return "cannot add a vhost using the Control Center host name"
+}
 
 // json payload object for adding/removing/enabling a public endpoint
 // with a service. other properties are retrieved from the url
@@ -45,6 +47,13 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	serviceid, application, vhostname, err := getVHostContext(r)
 	if err != nil {
 		restServerError(w, err)
+		return
+	}
+
+	// Disallow adding a vhost with the same name as the hostname being used
+	// to view CC (do not lock them out of the CC ui from this hostname)
+	if strings.Compare(strings.ToLower(r.Host), strings.ToLower(vhostname)) == 0 {
+		restServerError(w, errInvalidVhostUsedCCHostname{})
 		return
 	}
 
@@ -285,49 +294,4 @@ type virtualHost struct {
 	ServiceName     string
 	ServiceEndpoint string
 	Enabled         bool
-}
-
-// restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
-func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []svc.Service
-	var serviceRequest dao.ServiceRequest
-	err := client.GetServices(serviceRequest, &services)
-	if err != nil {
-		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
-		restServerError(w, err)
-		return
-	}
-
-	serviceTree := make(map[string]svc.Service)
-	for _, service := range services {
-		serviceTree[service.ID] = service
-	}
-
-	vhosts := make([]virtualHost, 0)
-	for _, service := range services {
-		if service.Endpoints == nil {
-			continue
-		}
-
-		for _, endpoint := range service.Endpoints {
-			if len(endpoint.VHostList) > 0 {
-				parent, _ := serviceTree[service.ParentServiceID]
-				for ; len(parent.ParentServiceID) != 0; parent, _ = serviceTree[parent.ParentServiceID] {
-				}
-
-				for _, vhost := range endpoint.VHostList {
-					vh := virtualHost{
-						Name:            vhost.Name,
-						Application:     parent.Name,
-						ServiceName:     service.Name,
-						ServiceEndpoint: endpoint.Application,
-						Enabled:         vhost.Enabled,
-					}
-					vhosts = append(vhosts, vh)
-				}
-			}
-		}
-	}
-
-	w.WriteJson(&vhosts)
 }

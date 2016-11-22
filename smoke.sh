@@ -1,3 +1,4 @@
+#!/bin/bash
 #######################################################
 #
 # Control Center Smoke Test
@@ -6,108 +7,13 @@
 #
 #######################################################
 
-START_TIMEOUT=300
-DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED=$(which serviced)
-if [ -z "${SERVICED}" ]; then
-    echo "ERROR: Can not find a serviced binary"
-    exit 1
-fi
-
-SERVICED_STORAGE=$(which serviced-storage)
-if [ -z "${SERVICED_STORAGE}" ]; then
-    echo "ERROR: Can not find a serviced-storage binary"
-    exit 1
-fi
-
 # Use a directory unique to this test to avoid collisions with other kinds of tests
-SERVICED_VARPATH=/tmp/serviced-smoke/var
-IP=$(ip addr show docker0 | grep -w inet | awk {'print $2'} | cut -d/ -f1)
-HOSTNAME=$(hostname)
-
-succeed() {
-    echo ===== SUCCESS =====
-    echo $@
-    echo ===================
-}
-
-fail() {
-    echo ====== FAIL ======
-    echo $@
-    echo ==================
-    exit 1
-}
-
-# install prereqs
-install_prereqs() {
-    local wget_image="zenoss/ubuntu:wget"
-    if ! docker inspect "${wget_image}" >/dev/null; then
-        docker pull "${wget_image}"
-       if ! docker inspect "${wget_image}" >/dev/null; then
-            fail "ERROR: docker inspect "${wget_image}" is not available - wget tests will fail"
-       fi
-    fi
-}
-
-# Add the vhost to /etc/hosts so we can resolve it for the test
-add_to_etc_hosts() {
-    if [ -z "$(grep -e "^${IP} websvc.${HOSTNAME}" /etc/hosts)" ]; then
-        sudo /bin/bash -c "echo ${IP} websvc.${HOSTNAME} >> /etc/hosts"
-    fi
-}
-
-cleanup() {
-    # remove the service to free up the disk space allocated in the devicemapper pool
-    echo "Removing testsvc (if any) ..."
-    sudo ${SERVICED} service remove testsvc
-
-    echo "Stopping serviced ..."
-    sudo pkill -9 serviced
-
-    echo "Removing all docker containers ..."
-    docker ps -qa | xargs --no-run-if-empty docker rm -fv
-
-    # Get a list of mounted volumes before 'set -e' because the grep exits with 1
-    # in scenarios where nothing is mounted.
-    MOUNTED_VOLUMES=`cat /proc/mounts | grep ${SERVICED_VARPATH}/volumes 2>/dev/null`
-
-    # By default, exit on the first error
-    if [ "$1" != "--ignore-errors" ]; then
-        set -e
-    fi
-
-    # Unmount all of the devicemapper volumes so that the mount points can be deleted
-    if [ ! -z "${MOUNTED_VOLUMES}" ]; then
-        echo "Unmounting ${SERVICED_VARPATH}/volumes/* ..."
-        sudo umount -f ${SERVICED_VARPATH}/volumes/* 2>/dev/null
-    fi
-
-    # Disable the DM device so that the space for the loopback device is really freed
-    # when we remove SERVICED_VARPATH/volumes
-    echo "Cleaning up serviced storage ..."
-    sudo ${SERVICED_STORAGE} -v disable ${SERVICED_VARPATH}/volumes
-
-    echo "Removing up ${SERVICED_VARPATH} ..."
-    sudo rm -rf ${SERVICED_VARPATH}
-}
-trap cleanup EXIT
-
-
-start_serviced() {
-    # Note that we have to set SERVICED_MASTER instead of using the -master command line arg
-    #   all of to force the proper subdirectories to be created under SERVICED_VARPATH
-    echo "Starting serviced..."
-    mkdir -p ${SERVICED_VARPATH}
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_VARPATH=${SERVICED_VARPATH} SERVICED_MASTER=1 ${SERVICED} --allow-loop-back=true --agent server &
-
-    echo "Waiting $START_TIMEOUT seconds for serviced to start..."
-    retry $START_TIMEOUT wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
-    return $?
-}
+TEST_VAR_PATH=/tmp/serviced-smoke/var
+. test_lib.sh
 
 # Add a host
 add_host() {
-    HOST_ID=$(${SERVICED} host add "${IP}:4979" default)
+    HOST_ID=$(sudo ${SERVICED} host add "${IP}:4979" default --register | tail -n 1)
     sleep 1
     [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
     return 0
@@ -131,16 +37,16 @@ deploy_service() {
 }
 
 start_service() {
-    ${SERVICED} service start ${SERVICE_ID}
+    ${SERVICED} service start --sync ${SERVICE_ID}
     sleep 5
-    [[ "1" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "1" == $(${SERVICED} service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
 stop_service() {
-    ${SERVICED} service stop ${SERVICE_ID}
+    ${SERVICED} service stop --sync ${SERVICE_ID}
     sleep 10
-    [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    [[ "0" == $(${SERVICED} service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
@@ -151,17 +57,25 @@ test_started() {
 }
 
 test_vhost() {
-    wget --no-check-certificate -qO- https://websvc.${HOSTNAME} &>/dev/null || return 1
+    echo "Testing vhost"
+    wget --no-check-certificate --content-on-error -O- https://websvc.${HOSTNAME} || return 1
     return 0
 }
 
-test_service_port() {
+test_service_port_http() {
+    wget --no-check-certificate --content-on-error -O- http://${HOSTNAME}:1235 || return 1
+}
 
-    # make sure it is accessible
-    wget -qO- http://${HOSTNAME}:1234 || return 1
+test_service_port_tcp() {
+    wget --no-check-certificate --content-on-error -O- http://${HOSTNAME}:1237 || return 1
+}
 
-    # make sure it is accessible via ipv6
-    # wget --no-check-certificate -qO- http://[${IP6}]:1234 || return 1
+test_service_port_https() {
+    wget --no-check-certificate --content-on-error -O- https://${HOSTNAME}:1234 || return 1
+}
+
+test_service_port_tcp_tls() {
+    wget --no-check-certificate --content-on-error -O- https://${HOSTNAME}:1236 || return 1
 }
 
 test_assigned_ip() {
@@ -305,19 +219,44 @@ test_service_run_command() {
     set +x
 }
 
-retry() {
-    TIMEOUT=$1
-    shift
-    COMMAND="$@"
-    DURATION=0
-    until [ ${DURATION} -ge ${TIMEOUT} ]; do
-        TRY_COUNTDOWN=$[${TIMEOUT} - ${DURATION}]
-        ${COMMAND}; RESULT=$?; [ ${RESULT} = 0 ] && break
-        DURATION=$[$DURATION+1]
-        sleep 1
-    done
-    return ${RESULT}
+# Whitelist serviced.default values that don't need to be documented in the
+# defaults file.
+# Note: SERVICE_D_ISVCS_ENV_0 exists and is parsed as a list of entries.
+#       SERVICED_LOG_CONFIG documentation has been deferred as per Ian.
+whitelisted() {
+    grep -Fqx "$1" <<EOF
+SERVICED_ISVCS_ENV
+SERVICED_LOG_CONFIG
+EOF
 }
+
+# Make sure all config values from 'serviced config' are documented in the
+# serviced.default file.
+test_config_defaults() {
+    CONFIGS=`${SERVICED} config | cut -d\= -f1`
+    result=0
+
+    for cfg in ${CONFIGS}
+    do
+        if ! whitelisted "${cfg}"; then
+            grep " ${cfg}=" pkg/serviced.default >/dev/null 2>&1
+            if [ $? -eq 1 ]
+            then
+                echo "Could not find $cfg in pkg/serviced.default"
+                result=1
+            fi
+        fi
+    done
+    return ${result}
+}
+
+###############################################################################
+###############################################################################
+#
+# Test execution starts here
+#
+trap cleanup EXIT
+print_env_info
 
 # Force a clean environment
 echo "Starting Pre-test cleanup ..."
@@ -331,6 +270,9 @@ add_to_etc_hosts
 
 # Run all the tests
 start_serviced             && succeed "Serviced has started within timeout"      || fail "serviced failed to start within $START_TIMEOUT seconds."
+
+echo "SERVICED=${SERVICED}"
+
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
@@ -350,6 +292,16 @@ retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly"
 test_snapshot              && succeed "Created snapshot"                           || fail "Unable to create snapshot"
 test_snapshot_errs         && succeed "Snapshot errs returned expected err code"   || fail "Snapshot errs did not return expected err code"
 test_service_shell         && succeed "Service shell ran successfully"             || fail "Unable to run service shell"
-test_service_port          && succeed "Accessing public endpoint via port success" || fail "Unable to access public endpoint via port"
+
+test_service_port_http     && succeed "Accessing public endpoint via HTTP port success"    || fail "Unable to access public endpoint via HTTP port"
+test_service_port_https    && succeed "Accessing public endpoint via HTTPS port success"   || fail "Unable to access public endpoint via HTTPS port"
+test_service_port_tcp      && succeed "Accessing public endpoint via TCP port success"     || fail "Unable to access public endpoint via TCP port"
+test_service_port_tcp_tls  && succeed "Accessing public endpoint via TCP/TLS port success" || fail "Unable to access public endpoint via TCP/TLS port"
+
+test_config_defaults       && succeed "Defaults in serviced.default exist"         || fail "Missing defaults in serviced.default"
+
 stop_service               && succeed "Stopped service"                            || fail "Unable to stop service"
+
+echo "ALL TESTS PASSED"
+
 # "trap cleanup EXIT", above, will handle cleanup

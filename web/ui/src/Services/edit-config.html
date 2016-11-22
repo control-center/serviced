@@ -1,2 +1,6 @@
-<div ng-hide="codemirrorRefresh" style="text-align: center;"><img src="/static/img/loading.gif"></div>
-<textarea ng-hide="!codemirrorRefresh" ui-codemirror ui-codemirror-opts="codemirrorOpts" ui-refresh="codemirrorRefresh" id="editConfig" ng-model="editableService.ConfigFiles[selectedConfig].Content"></textarea>
+<div class="modal-context">
+	<div ng-hide="codemirrorRefresh" class="codemirrorLoader"></div>
+    <textarea ng-hide="!codemirrorRefresh" ui-codemirror
+        ui-codemirror-opts="codemirrorOpts" ui-refresh="codemirrorRefresh"
+        id="editConfig" ng-model="Content"></textarea>
+</div>

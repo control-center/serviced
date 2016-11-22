@@ -41,11 +41,11 @@ func (c *ServicedCli) initPool() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "verbose, v",
-						Usage: "Show JSON format",
+						Usage: "Show JSON format. Permissions are as follows; 0 - None, 1 - Admin, 2 - DFS, 3 - All",
 					},
 					cli.StringFlag{
 						Name:  "show-fields",
-						Value: "ID",
+						Value: "ID,Permissions",
 						Usage: "Comma-delimited list describing which fields to display",
 					},
 				},
@@ -56,6 +56,16 @@ func (c *ServicedCli) initPool() {
 				Description:  "serviced pool add POOLID",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "dfs",
+						Usage: "Allow pool to mount DFS",
+					},
+					cli.BoolFlag{
+						Name:  "admin",
+						Usage: "Allow pool to use administrative functions",
+					},
+				},
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
@@ -98,6 +108,22 @@ func (c *ServicedCli) initPool() {
 				Description:  "serviced pool set-conn-timeout POOLID TIMEOUT",
 				BashComplete: c.printPoolsFirst,
 				Action:       c.cmdSetConnTimeout,
+			}, {
+				Name:         "set-permission",
+				Usage:        "Set permission flags for hosts in a pool",
+				Description:  "serviced pool set-permission [FLAGS] POOLID",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdSetPermission,
+				Flags: []cli.Flag{
+					cli.BoolFlag{
+						Name:  "dfs",
+						Usage: "Control permission to mount DFS",
+					},
+					cli.BoolFlag{
+						Name:  "admin",
+						Usage: "Control permission to use administrative functions",
+					},
+				},
 			},
 		},
 	})
@@ -179,8 +205,16 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		t := NewTable(ctx.String("show-fields"))
 		t.Padding = 6
 		for _, p := range pools {
+			perms := make([]string, 0)
+			if p.HasDfsAccess() {
+				perms = append(perms, "DFS")
+			}
+			if p.HasAdminAccess() {
+				perms = append(perms, "Admin")
+			}
 			t.AddRow(map[string]interface{}{
-				"ID": p.ID,
+				"ID":          p.ID,
+				"Permissions": perms,
 			})
 		}
 		t.Print()
@@ -218,6 +252,14 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 		cfg.Realm = args[2]
 	}
 	*/
+
+	updatePerms := func(param string, flag pool.Permission) {
+		if ctx.Bool(param) {
+			cfg.Permissions |= flag
+		}
+	}
+	updatePerms("dfs", pool.DFSAccess)
+	updatePerms("admin", pool.AdminAccess)
 
 	if pool, err := c.driver.AddResourcePool(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -356,6 +398,48 @@ func (c *ServicedCli) cmdSetConnTimeout(ctx *cli.Context) {
 
 	pool.ConnectionTimeout = int(connTimeout.Seconds() * 1000)
 	if err := c.driver.UpdateResourcePool(*pool); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+}
+
+func (c *ServicedCli) cmdSetPermission(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) != 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "set-permission")
+		return
+	}
+
+	p, err := c.driver.GetResourcePool(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else if p == nil {
+		fmt.Fprintln(os.Stderr, "pool not found")
+		return
+	}
+
+	// Accumulate the desired permissions from the command arguments
+	var perm_mask pool.Permission = 0
+	var perm_val pool.Permission = 0
+	updatePerms := func(param string, flag pool.Permission) {
+		if ctx.IsSet(param) {
+			perm_mask |= flag
+			if ctx.Bool(param) {
+				perm_val |= flag
+			}
+		}
+	}
+	updatePerms("dfs", pool.DFSAccess)
+	updatePerms("admin", pool.AdminAccess)
+
+	// Fold the accumulated permissions into the current permissions
+	p.Permissions &^= perm_mask
+	p.Permissions |= perm_val
+
+	// Update the pool
+	if err := c.driver.UpdateResourcePool(*p); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}

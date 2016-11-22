@@ -15,27 +15,23 @@ package facade
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/control-center/serviced/isvcs"
 )
-
-type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
-
-var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
 var getDockerClient = func() (*dockerclient.Client, error) { return dockerclient.NewClient("unix:///var/run/docker.sock") }
 
 //AddServiceTemplate  adds a service template to the system. Returns the id of the template added
-func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate) (string, error) {
+func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servicetemplate.ServiceTemplate, reloadLogstashConfig bool) (string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddServiceTemplate"))
 	store := f.templateStore
 	hash, err := serviceTemplate.Hash()
 	if err != nil {
@@ -63,27 +59,36 @@ func (f *Facade) AddServiceTemplate(ctx datastore.Context, serviceTemplate servi
 		glog.Errorf("Could not add template at %s: %s", hash, err)
 		return "", err
 	}
+
+	glog.Infof("Added template %s (%s)", serviceTemplate.Name, serviceTemplate.ID)
 	// This takes a while so don't block the main thread
-	go LogstashContainerReloader(ctx, f)
+	if reloadLogstashConfig {
+		go LogstashContainerReloader(ctx, f)
+	}
 	return hash, err
 }
 
 //UpdateServiceTemplate updates a service template
-func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate) error {
+func (f *Facade) UpdateServiceTemplate(ctx datastore.Context, template servicetemplate.ServiceTemplate, reloadLogstashConfig bool) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpdateServiceTemplate"))
 	if err := f.templateStore.Put(ctx, template); err != nil {
 		return err
 	}
-	go LogstashContainerReloader(ctx, f) // don't block the main thread
+	glog.Infof("Updated template %s (%s)", template.Name, template.ID)
+	if reloadLogstashConfig {
+		go LogstashContainerReloader(ctx, f) // don't block the main thread
+	}
 	return nil
 }
 
 //RemoveServiceTemplate removes the service template from the system
 func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveServiceTemplate"))
 	if _, err := f.templateStore.Get(ctx, id); err != nil {
 		return fmt.Errorf("Unable to find template: %s", id)
 	}
 
-	glog.V(2).Infof("Facade.RemoveServiceTemplate: %s", id)
+	glog.Infof("Removed template: %s", id)
 	if err := f.templateStore.Delete(ctx, id); err != nil {
 		return err
 	}
@@ -94,27 +99,32 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 
 // RestoreServiceTemplates restores a service template, typically from a backup
 func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []servicetemplate.ServiceTemplate) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestoreServiceTemplates"))
 	curtemplates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
 		glog.Errorf("Could not look up service templates: %s", err)
 		return err
 	}
 
+	reloadLogstashConfig := false // defer reloading until all templates have been updated
 	for _, template := range templates {
 		template.DatabaseVersion = 0
 		if _, ok := curtemplates[template.ID]; ok {
-			if err := f.UpdateServiceTemplate(ctx, template); err != nil {
+			if err := f.UpdateServiceTemplate(ctx, template, reloadLogstashConfig); err != nil {
 				glog.Errorf("Could not update service template %s: %s", template.ID, err)
 				return err
 			}
 		} else {
 			template.ID = ""
-			if _, err := f.AddServiceTemplate(ctx, template); err != nil {
+			if _, err := f.AddServiceTemplate(ctx, template, reloadLogstashConfig); err != nil {
 				glog.Errorf("Could not add service template %s: %s", template.ID, err)
 				return err
 			}
 		}
 	}
+
+	// Now that all templates ahve been update, we need to update the logstash configuration
+	go LogstashContainerReloader(ctx, f)
 	return nil
 }
 
@@ -141,6 +151,7 @@ func (f *Facade) getServiceTemplateByMD5Sum(ctx datastore.Context, md5Sum string
 }
 
 func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceTemplates"))
 	glog.V(2).Infof("Facade.GetServiceTemplates")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
 	templateMap := make(map[string]servicetemplate.ServiceTemplate)
@@ -155,6 +166,7 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicet
 }
 
 func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicetemplate.ServiceTemplate, []string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceTemplatesAndImages"))
 	glog.V(2).Infof("Facade.GetServiceTemplateImages")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
 	if err != nil {
@@ -184,11 +196,14 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
-// FIXME: Potential race if multiple clients are deploying apps and checking deployment status
 var deployments = make(map[string]map[string]string)
+var deploymentMutex = sync.RWMutex{}
 
-// UpdateDeployTemplateStatus updates the deployment status of the service being deployed
-func UpdateDeployTemplateStatus(deploymentID string, status string) {
+// updateDeployTemplateStatus updates the deployment status of the service being deployed
+func updateDeployTemplateStatus(deploymentID string, status string) {
+	deploymentMutex.Lock()
+	defer deploymentMutex.Unlock()
+
 	if _, ok := deployments[deploymentID]; !ok {
 		deployments[deploymentID] = make(map[string]string)
 	}
@@ -199,6 +214,9 @@ func UpdateDeployTemplateStatus(deploymentID string, status string) {
 
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
+	deploymentMutex.RLock()
+	defer deploymentMutex.RUnlock()
+
 	// we initialize the data container to something here in case it has not been initialized yet
 	active = make([]map[string]string, 0)
 	for _, v := range deployments {
@@ -210,24 +228,35 @@ func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) 
 
 // DeployTemplateStatus sets the status of a deployed service or template
 func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
+
 	status = ""
 	err = nil
-	if _, ok := deployments[deploymentID]; ok {
-		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
-			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-			status = deployments[deploymentID]["status"]
-		} else if deployments[deploymentID]["status"] != "" {
-			time.Sleep(100 * time.Millisecond)
-			status, err = f.DeployTemplateStatus(deploymentID)
+	for {
+		deploymentMutex.Lock()
+		if _, ok := deployments[deploymentID]; ok {
+			if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
+				deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
+				status = deployments[deploymentID]["status"]
+				break
+			} else if deployments[deploymentID]["status"] != "" {
+				deploymentMutex.Unlock()
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				break
+			}
+		} else {
+			break
 		}
 	}
-
+	deploymentMutex.Unlock()
 	return status, err
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployTemplate"))
 	// add an entry for reporting status
+	deploymentMutex.Lock()
 	deployments[deploymentID] = map[string]string{
 		"TemplateID":   templateID,
 		"DeploymentID": deploymentID,
@@ -235,9 +264,14 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		"status":       "Starting",
 		"lastStatus":   "",
 	}
-	defer delete(deployments, deploymentID)
+	deploymentMutex.Unlock()
+	defer func() {
+		deploymentMutex.Lock()
+		delete(deployments, deploymentID)
+		deploymentMutex.Unlock()
+	}()
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
@@ -253,9 +287,11 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 
 	//now that we know the template name, set it in the status
+	deploymentMutex.Lock()
 	deployments[deploymentID]["templateName"] = template.Name
+	deploymentMutex.Unlock()
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -286,6 +322,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 // a specific service.  If the overwrite option is enabled, existing services
 // with the same name will be overwritten, otherwise services may only be added.
 func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployService"))
 	store := f.serviceStore
 
 	// get the parent service
@@ -331,31 +368,18 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		return "", err
 	}
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
-	//for each endpoint, evaluate its Application
-	getService := func(serviceID string) (service.Service, error) {
-		s, err := f.GetService(ctx, serviceID)
-		if err != nil {
-			return service.Service{}, err
-		}
-		return *s, err
-	}
-	findChildService := func(parentID, serviceName string) (service.Service, error) {
-		s, err := f.FindChildService(ctx, parentID, serviceName)
-		if err != nil {
-			return service.Service{}, err
-		}
-		return *s, err
-	}
-	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService, 0); err != nil {
+	updateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
+
+	if err = f.evaluateEndpointTemplates(ctx, newsvc); err != nil {
 		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
+
 	if tenantID == "" {
 		tenantID = newsvc.ID
 	}
 	if svcDef.ImageID != "" {
-		UpdateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
+		updateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
 		image, err := f.dfs.Download(svcDef.ImageID, tenantID, false)
 		if err != nil {
 			glog.Errorf("Could not download image %s: %s", svcDef.ImageID, err)
@@ -398,36 +422,22 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	return newsvc.ID, nil
 }
 
-// writeLogstashConfiguration takes all the available
-// services and writes out the filters section for logstash.
-// This is required before logstash startsup
-func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
-	// FIXME: eventually this file should live in the DFS or the config should
-	// live in zookeeper to allow the agents to get to this
-	if err := dao.WriteConfigurationFile(templates); err != nil {
-		return err
+func (f *Facade) evaluateEndpointTemplates(ctx datastore.Context, newsvc *service.Service) error {
+	//for each endpoint, evaluate its Application
+	getService := func(serviceID string) (service.Service, error) {
+		s, err := f.GetService(ctx, serviceID)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *s, err
 	}
-	return nil
-}
+	findChildService := func(parentID, serviceName string) (service.Service, error) {
+		s, err := f.FindChildService(ctx, parentID, serviceName)
+		if err != nil {
+			return service.Service{}, err
+		}
+		return *s, err
+	}
 
-// Anytime the available service definitions are modified
-// we need to restart the logstash container so it can write out
-// its new filter set.
-// This method depends on the elasticsearch container being up and running.
-func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
-	templates, err := f.GetServiceTemplates(ctx)
-	if err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	if err := writeLogstashConfiguration(templates); err != nil {
-		glog.Errorf("Could not write logstash configuration: %s", err)
-		return err
-	}
-	glog.V(2).Infof("Starting logstash container")
-	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Errorf("Could not start logstash container: %s", err)
-		return err
-	}
-	return nil
+	return newsvc.EvaluateEndpointTemplates(getService, findChildService, 0)
 }

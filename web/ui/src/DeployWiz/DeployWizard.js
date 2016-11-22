@@ -6,8 +6,13 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "$q", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory", "log",
-    function($scope, $notification, $translate, $q, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory, log){
+    controlplane.controller("DeployWizard", [
+    "$scope", "$rootScope", "$notification", "$translate",
+    "$q", "resourcesFactory", "servicesFactory", "miscUtils",
+    "log", "Pool", "Host",
+    function($scope, $rootScope, $notification, $translate,
+    $q, resourcesFactory, servicesFactory, utils,
+    log, Pool, Host){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -127,12 +132,12 @@
 
             // if there is not at least one host, add an
             // "add host" step to the wizard
-            if(hostsFactory.hostList.length === 0){
+            if($scope.hosts.length === 0){
                 $scope.newHost = {
                     port: $translate.instant('placeholder_port')
                 };
-                if ($scope.pools.length > 0){
-                    $scope.newHost.PoolID = $scope.pools[0].id;
+                if ($scope.poolIds.length > 0){
+                    $scope.newHost.PoolID = $scope.poolIds[0];
                 }
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
@@ -223,8 +228,8 @@
             $scope.newHost = {
                 port: $translate.instant('placeholder_port')
             };
-            if ($scope.pools.length > 0){
-                $scope.newHost.PoolID = $scope.pools[0].id;
+            if ($scope.poolIds.length > 0){
+                $scope.newHost.PoolID = $scope.poolIds[0];
             }
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
         };
@@ -291,6 +296,7 @@
                 $("#deploy-save-button").removeClass('active');
                 resetStepPage();
                 resetError();
+                $rootScope.$emit("wizard.deployed");
             };
 
             nextClicked = true;
@@ -386,16 +392,28 @@
             return deferred.promise;
         };
 
-        $scope.refreshAppTemplates()
-            .then(() => {
-                hostsFactory.update().finally(resetStepPage);
-            }, e => {
-                log.error(e);
-            });
 
-        poolsFactory.update()
-            .finally(() => {
-                $scope.pools = poolsFactory.poolList;
-            });
+        function init(){
+            let p1 = $scope.refreshAppTemplates()
+                .catch(e => console.warn(`error refreshing app templates: ${e}`));
+            let p2 = resourcesFactory.v2.getHosts()
+                .then(data => {
+                    $scope.hosts = data.map(result => new Host(result));
+                })
+                .catch(e => console.warn(`error fetching hosts`, e));
+            let p3 = resourcesFactory.v2.getPools()
+                .then(data => {
+                    $scope.pools = data.map(p => new Pool(p));
+                    $scope.poolIds = $scope.pools.map(p => p.id).sort();
+                })
+                .catch(e => console.warn(`error fetching pool`, e));
+
+            return $q.all([p1,p2,p3])
+                .catch(e => console.warn("error initializing DeployWiz", e));
+        }
+
+        init().then(resetStepPage);
+
     }]);
+
 })();

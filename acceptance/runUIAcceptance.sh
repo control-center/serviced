@@ -17,6 +17,7 @@ DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 TAGS=()
 DATASET=default
+VERSION=$(cat dockerImage/VERSION)
 
 set -e
 
@@ -63,7 +64,7 @@ while (( "$#" )); do
         echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
         echo "    -d driverName         identifies the Capybara driver to use"
-        echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
+        echo "                          (e.g. selenium, selenium_chrome)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
@@ -92,6 +93,22 @@ if [ -z "${APPLICATION_PASSWORD-}" ]; then
     echo "ERROR: password undefined. You must either set the environment variable"
     echo "       APPLICATION_PASSWORD, or specify it with the -p command line arg"
     exit 1
+fi
+
+if [ -z "${SERVICED_ETC_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ETC_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ETC_PATH=${SERVICED_HOME}/etc
+fi
+
+if [ -z "${SERVICED_ISVCS_PATH}" ]; then
+    if [ -z "${SERVICED_HOME}" ]; then
+        echo "ERROR: Both SERVICED_HOME and SERVICED_ISVCS_PATH are undefined."
+        exit 1
+    fi
+    SERVICED_ISVCS_PATH=${SERVICED_HOME}/var/isvcs
 fi
 
 #
@@ -204,6 +221,9 @@ docker run --rm --name ui_acceptance \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     ${DEBUG_OPTION} \
     -v `pwd`/ui:/capybara:rw \
+    -v ${SERVICED_ETC_PATH}:/opt/serviced/etc \
+    -v ${SERVICED_ISVCS_PATH}:/opt/serviced/var/isvcs \
+    -v /dev/shm:/dev/shm \
     ${LIB_DEVMAPPER_MOUNT} \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
@@ -218,5 +238,5 @@ docker run --rm --name ui_acceptance \
     -e HOST_IP=${HOST_IP} \
     -e TARGET_HOST=${TARGET_HOST} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.1.0 \
+    -t zenoss/capybara:${VERSION}-xenial \
     ${CMD}

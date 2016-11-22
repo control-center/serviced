@@ -33,6 +33,7 @@ import (
 // GetServiceInstances returns the state of all instances for a particular
 // service.
 func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, serviceID string) ([]service.Instance, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetServiceInstances"))
 	logger := plog.WithField("serviceid", serviceID)
 
 	// create an instance map to map instances to their memory usage
@@ -50,9 +51,20 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 		return nil, err
 	}
 
+	logger = logger.WithFields(log.Fields{
+		"servicename": svc.Name,
+		"poolid":      svc.PoolID,
+		"imageid":     svc.ImageID,
+	})
 	logger.Debug("Loaded service")
 
-	states, err := f.zzk.GetServiceStates(svc.PoolID, svc.ID)
+	// get the hash of the service image
+	imageUUID, err := f.getImageUUID(ctx, svc.ImageID)
+	if err != nil {
+		return nil, err
+	}
+
+	states, err := f.zzk.GetServiceStates(ctx, svc.PoolID, svc.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -79,7 +91,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 			hostMap[state.HostID] = hst
 		}
 
-		inst, err := f.getInstance(ctx, hst, *svc, state)
+		inst, err := f.getInstance(ctx, hst, *svc, imageUUID, state)
 		if err != nil {
 			return nil, err
 		}
@@ -89,15 +101,17 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	}
 
 	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
@@ -108,6 +122,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 
 // GetHostInstances returns the state of all instances for a particular host.
 func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID string) ([]service.Instance, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostInstances"))
 	logger := plog.WithField("hostid", hostID)
 
 	// create an instance map to map instances to their memory usage
@@ -115,6 +130,9 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 
 	// keep track of the services previously looked up
 	svcMap := make(map[string]service.Service)
+
+	// keep track of the images previously looked up
+	imgMap := make(map[string]string)
 
 	var hst host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
@@ -128,7 +146,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 
 	logger.Debug("Loaded host")
 
-	states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
+	states, err := f.zzk.GetHostStates(ctx, hst.PoolID, hst.ID)
 	if err != nil {
 
 		logger.WithError(err).Debug("Could not look up running instances")
@@ -143,23 +161,32 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 	insts := make([]service.Instance, len(states))
 	for i, state := range states {
 
+		st8log := logger.WithFields(log.Fields{
+			"serviceid":  state.ServiceID,
+			"instanceid": state.InstanceID,
+		})
+
 		svc, ok := svcMap[state.ServiceID]
 		if !ok {
 			s, err := f.serviceStore.Get(ctx, state.ServiceID)
 			if err != nil {
-
-				logger.WithFields(log.Fields{
-					"serviceid":  state.ServiceID,
-					"instanceid": state.InstanceID,
-				}).WithError(err).Debug("Could not look up service for instance")
-
+				st8log.WithError(err).Debug("Could not look up service for instance")
 				return nil, err
 			}
 			svc = *s
 			svcMap[state.ServiceID] = svc
 		}
 
-		inst, err := f.getInstance(ctx, hst, svc, state)
+		imageUUID, ok := imgMap[svc.ImageID]
+		if !ok {
+			imageUUID, err = f.getImageUUID(ctx, svc.ImageID)
+			if err != nil {
+				return nil, err
+			}
+			imgMap[svc.ImageID] = imageUUID
+		}
+
+		inst, err := f.getInstance(ctx, hst, svc, imageUUID, state)
 		if err != nil {
 			return nil, err
 		}
@@ -168,16 +195,18 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 		instanceMap[fmt.Sprintf("%s-%d", inst.ServiceID, inst.InstanceID)] = &insts[i].MemoryUsage
 	}
 
-	// look up the metrics of all the instances
-	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
-	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
-	} else {
-		for _, metric := range metricsres {
-			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
-				Cur: metric.Last,
-				Max: metric.Max,
-				Avg: metric.Average,
+	if len(metricsreq) > 0 {
+		// look up the metrics of all the instances
+		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
+		if err != nil {
+			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		} else {
+			for _, metric := range metricsres {
+				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
+					Cur: metric.Last,
+					Max: metric.Max,
+					Avg: metric.Average,
+				}
 			}
 		}
 	}
@@ -187,42 +216,12 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 }
 
 // getInstance calculates the fields of the service instance object.
-func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, state zkservice.State) (*service.Instance, error) {
+func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.Service, imageUUID string, state zkservice.State) (*service.Instance, error) {
 	logger := plog.WithFields(log.Fields{
 		"hostid":     state.HostID,
 		"serviceid":  state.ServiceID,
 		"instanceid": state.InstanceID,
 	})
-
-	// check the image
-	imageSynced, err := func(imageName, imageUUID string) (bool, error) {
-		imgLogger := logger.WithField("imagename", imageName)
-
-		imageID, err := commons.ParseImageID(imageName)
-		if err != nil {
-
-			imgLogger.WithError(err).Debug("Could not parse service image")
-			return false, err
-		}
-		imgLogger.Debug("Parsed service image")
-
-		imageID.Tag = docker.Latest
-		imageData, err := f.registryStore.Get(ctx, imageID.String())
-		if err != nil {
-
-			imgLogger.WithError(err).Debug("Could not look up service image in registry")
-
-			// TODO: expecting wrapped error here
-			return false, err
-		}
-		imgLogger.Debug("Loaded service image from registry")
-
-		return imageData.UUID == imageUUID, nil
-	}(svc.ImageID, state.ImageID)
-
-	if err != nil {
-		return nil, err
-	}
 
 	// get the current state
 	var curState service.CurrentState
@@ -254,28 +253,60 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	}
 	logger.Debug("Calulated service status")
 
+	svch := service.BuildServiceHealth(svc)
+
 	inst := &service.Instance{
-		InstanceID:   state.InstanceID,
-		HostID:       hst.ID,
-		HostName:     hst.Name,
-		ServiceID:    svc.ID,
-		ServiceName:  svc.Name,
-		ContainerID:  state.ContainerID,
-		ImageSynced:  imageSynced,
-		DesiredState: state.DesiredState,
-		CurrentState: curState,
-		HealthStatus: f.getInstanceHealth(&svc, state.InstanceID),
-		Scheduled:    state.Scheduled,
-		Started:      state.Started,
-		Terminated:   state.Terminated,
+		InstanceID:    state.InstanceID,
+		HostID:        hst.ID,
+		HostName:      hst.Name,
+		ServiceID:     svc.ID,
+		ServiceName:   svc.Name,
+		ContainerID:   state.ContainerID,
+		ImageSynced:   imageUUID == state.ImageUUID,
+		DesiredState:  state.DesiredState,
+		CurrentState:  curState,
+		HealthStatus:  f.getInstanceHealth(svch, state.InstanceID),
+		RAMCommitment: int64(svc.RAMCommitment.Value),
+		Scheduled:     state.Scheduled,
+		Started:       state.Started,
+		Terminated:    state.Terminated,
 	}
 	logger.Debug("Loaded service instance")
 
 	return inst, nil
 }
 
+// getImageUUID returns the hash of the latest image given the name
+func (f *Facade) getImageUUID(ctx datastore.Context, imageName string) (string, error) {
+	logger := plog.WithField("imagename", imageName)
+
+	if imageName == "" {
+		logger.Debug("Image name not specified")
+		return "", nil
+	}
+
+	imageID, err := commons.ParseImageID(imageName)
+	if err != nil {
+		logger.WithError(err).Debug("Could not parse service image")
+		return "", err
+	}
+	imageID.Tag = docker.Latest
+	logger = logger.WithField("imagename", imageID.String())
+	logger.Debug("Parsed service image")
+
+	imageData, err := f.registryStore.Get(ctx, imageID.String())
+	if err != nil {
+		logger.WithError(err).Debug("Could not look up service image in image registry")
+		return "", err
+	}
+
+	logger.WithField("imageuuid", imageData.UUID).Debug("Loaded image uuid")
+	return imageData.UUID, nil
+}
+
 // GetAggregateServices returns the aggregated states of a bulk of services
 func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, serviceIDs []string) ([]service.AggregateService, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetAggregateServices"))
 	logger := plog.WithField("serviceids", strings.Join(serviceIDs, ","))
 
 	// Create an instance map to map instances to their memory usage.  This is
@@ -293,7 +324,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 	for i, serviceID := range serviceIDs {
 		svclog := logger.WithField("serviceid", serviceID)
 
-		svc, err := f.serviceStore.Get(ctx, serviceID)
+		svc, err := f.serviceStore.GetServiceHealth(ctx, serviceID)
 		if datastore.IsErrNoSuchEntity(err) {
 
 			// If the service is not found, set the NotFound boolean to true
@@ -329,8 +360,8 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 
 			// report the instance id and the health
 			results[i].Status[j] = service.StatusInstance{
-				InstanceID: stateID.InstanceID,
-				Health:     f.getInstanceHealth(svc, stateID.InstanceID),
+				InstanceID:   stateID.InstanceID,
+				HealthStatus: f.getInstanceHealth(svc, stateID.InstanceID),
 			}
 
 			// append a request to the metrics query for this instance
@@ -347,7 +378,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 	// look up the metrics of all the instances
 	metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
 	if err != nil {
-		logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+		logger.WithError(err).Debug("Could not look up memory metrics for instances on service")
 	} else {
 		for _, metric := range metricsres {
 			*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
@@ -363,11 +394,11 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 }
 
 // getInstanceHealth returns the health of the instance of a given service
-func (f *Facade) getInstanceHealth(svc *service.Service, instanceID int) map[string]health.Status {
+func (f *Facade) getInstanceHealth(svch *service.ServiceHealth, instanceID int) map[string]health.Status {
 	hstats := make(map[string]health.Status)
-	for name := range svc.HealthChecks {
+	for name := range svch.HealthChecks {
 		key := health.HealthStatusKey{
-			ServiceID:       svc.ID,
+			ServiceID:       svch.ID,
 			InstanceID:      instanceID,
 			HealthCheckName: name,
 		}
@@ -383,27 +414,16 @@ func (f *Facade) getInstanceHealth(svc *service.Service, instanceID int) map[str
 
 // GetHostStrategyInstances returns the strategy objects of all the instances
 // running on a host.
-func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...string) ([]service.StrategyInstance, error) {
+func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hosts []host.Host) ([]*service.StrategyInstance, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostStrategyInstances"))
 
 	svcMap := make(map[string]service.StrategyInstance)
-	insts := make([]service.StrategyInstance, 0)
+	insts := make([]*service.StrategyInstance, 0)
 
-	for _, hostID := range hostIDs {
-		logger := plog.WithField("hostid", hostID)
+	for _, host := range hosts {
+		logger := plog.WithField("hostid", host.ID)
 
-		var hst host.Host
-		err := f.hostStore.Get(ctx, host.HostKey(hostID), &hst)
-		if err != nil {
-
-			logger.WithError(err).Debug("Could not look up host")
-
-			// TODO: expecting wrapped error here
-			return nil, err
-		}
-
-		logger.Debug("Loaded host")
-
-		states, err := f.zzk.GetHostStates(hst.PoolID, hst.ID)
+		states, err := f.zzk.GetHostStates(ctx, host.PoolID, host.ID)
 		if err != nil {
 
 			logger.WithError(err).Debug("Could not look up running instances")
@@ -417,6 +437,8 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 			inst, ok := svcMap[state.ServiceID]
 			if !ok {
+				// FIXME: replace with new service-strategy-store that
+				// returns service.StrategyInstance instead of a full Service obj
 				s, err := f.serviceStore.Get(ctx, state.ServiceID)
 				if err != nil {
 
@@ -437,7 +459,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 			}
 
 			inst.HostID = state.HostID
-			insts = append(insts, inst)
+			insts = append(insts, &inst)
 		}
 
 		logger.Debug("Loaded instances for host")
@@ -448,6 +470,7 @@ func (f *Facade) GetHostStrategyInstances(ctx datastore.Context, hostIDs ...stri
 
 // StopServiceInstance stops a particular service instance
 func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, instanceID int) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopServiceInstance"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -471,6 +494,7 @@ func (f *Facade) StopServiceInstance(ctx datastore.Context, serviceID string, in
 // LocateServiceInstance returns host and container information about a service
 // instance
 func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, instanceID int) (*service.LocationInstance, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.LocateServiceInstance"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceid": instanceID,
@@ -482,7 +506,7 @@ func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, 
 		return nil, err
 	}
 
-	state, err := f.zzk.GetServiceState(svc.PoolID, svc.ID, instanceID)
+	state, err := f.zzk.GetServiceState(ctx, svc.PoolID, svc.ID, instanceID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not locate service instance")
 		return nil, err
@@ -498,6 +522,7 @@ func (f *Facade) LocateServiceInstance(ctx datastore.Context, serviceID string, 
 
 // SendDockerAction locates a service instance and sends an action to it
 func (f *Facade) SendDockerAction(ctx datastore.Context, serviceID string, instanceID int, action string, args []string) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.SendDockerAction"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":  serviceID,
 		"instanceID": instanceID,

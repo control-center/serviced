@@ -48,6 +48,14 @@ type VHostKey struct {
 	Subdomain string
 }
 
+type ServiceRegistrySyncRequest struct {
+	ServiceID       string
+	PortsToDelete   []PublicPortKey
+	PortsToPublish  map[PublicPortKey]PublicPort
+	VHostsToDelete  []VHostKey
+	VHostsToPublish map[VHostKey]VHost
+}
+
 // DeleteExports deletes all export data for a tenant id
 func DeleteExports(conn client.Connection, tenantID string) error {
 	pth := path.Join("/net/export", tenantID)
@@ -100,6 +108,72 @@ func GetPublicPort(conn client.Connection, key PublicPortKey) (string, string, e
 	return pub.ServiceID, pub.Application, nil
 }
 
+func GetPublicPorts(conn client.Connection) (map[PublicPortKey]PublicPort, error) {
+	ports := make(map[PublicPortKey]PublicPort, 0)
+
+	pth := "/net/pub"
+	logger := plog.WithField("zkpath", pth)
+
+	hostIDs, err := conn.Children(pth)
+	if err == client.ErrNoNode {
+		conn.CreateDir(pth)
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up public port path")
+		return nil, &RegistryError{
+			Action:  "get",
+			Path:    pth,
+			Message: "could not look up public ports path",
+		}
+	}
+
+	// get all the public ports for each host
+	for _, hostID := range hostIDs {
+		hostpth := path.Join(pth, hostID)
+		hostLogger := logger.WithFields(log.Fields{
+			"hostid": hostID,
+			"zkpath": hostpth,
+		})
+
+		portAddrs, err := conn.Children(hostpth)
+		if err == client.ErrNoNode {
+			hostLogger.Debug("Host has been deleted for public ports")
+		} else if err != nil {
+			hostLogger.WithError(err).Debug("Could not look up public ports for host id")
+			return nil, &RegistryError{
+				Action:  "get",
+				Path:    hostpth,
+				Message: "could not look up public ports for host id",
+			}
+		}
+
+		for _, portAddr := range portAddrs {
+			addrpth := path.Join(hostpth, portAddr)
+			addrLogger := hostLogger.WithFields(log.Fields{
+				"portaddress": portAddr,
+				"zkpath":    addrpth,
+			})
+
+			pub := &PublicPort{}
+			if err := conn.Get(addrpth, pub); err == client.ErrNoNode {
+				addrLogger.Debug("Port address has been deleted for public port")
+				continue
+			} else if err != nil {
+				addrLogger.WithError(err).Debug("could not look up public port")
+				return nil, &RegistryError{
+					Action:  "get",
+					Path:    addrpth,
+					Message: "could not look up public port address",
+				}
+			}
+
+			key := PublicPortKey{HostID: hostID, PortAddress: portAddr}
+			ports[key] = *pub
+		}
+	}
+
+	return ports, nil
+}
+
 // GetVHost returns the service id and application of the vhost
 func GetVHost(conn client.Connection, key VHostKey) (string, string, error) {
 	pth := path.Join("/net/vhost", key.HostID, key.Subdomain)
@@ -132,156 +206,25 @@ func GetVHost(conn client.Connection, key VHostKey) (string, string, error) {
 	return vhost.ServiceID, vhost.Application, nil
 }
 
-// SyncServiceRegistry syncs all vhosts and public ports to those of a matching
-// service.
-// FIXME: need to optimize
-func SyncServiceRegistry(conn client.Connection, serviceID string, pubs map[PublicPortKey]PublicPort, vhosts map[VHostKey]VHost) error {
-	logger := plog.WithField("serviceid", serviceID)
+func GetVHosts(conn client.Connection) (map[VHostKey]VHost, error) {
+	vhosts := make(map[VHostKey]VHost, 0)
 
-	tx := conn.NewTransaction()
-
-	if err := syncServicePublicPorts(conn, tx, serviceID, pubs); err != nil {
-		return err
-	}
-
-	if err := syncServiceVHosts(conn, tx, serviceID, vhosts); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		logger.WithError(err).Debug("Could not sync registry for service")
-
-		// TODO: wrap error?
-		return err
-	}
-
-	logger.Debug("Updated registry for service")
-	return nil
-}
-
-// syncServicePublicPorts updates the transaction to include public port updates
-func syncServicePublicPorts(conn client.Connection, tx client.Transaction, serviceID string, pubs map[PublicPortKey]PublicPort) error {
-	logger := plog.WithField("serviceid", serviceID)
-
-	// pull all the hosts of all the public ports
-	pth := "/net/pub"
-	logger = logger.WithField("zkpath", pth)
-
-	hostIDs, err := conn.Children(pth)
-	if err == client.ErrNoNode {
-		conn.CreateDir(pth)
-	} else if err != nil {
-		logger.WithError(err).Debug("Could not look up public ports path")
-		return &RegistryError{
-			Action:  "sync",
-			Path:    pth,
-			Message: "could not look up public ports path",
-		}
-	}
-
-	// get all the public ports for each host
-	for _, hostID := range hostIDs {
-		hostpth := path.Join(pth, hostID)
-		hostLogger := logger.WithFields(log.Fields{
-			"hostid": hostID,
-			"zkpath": hostpth,
-		})
-
-		portAddrs, err := conn.Children(hostpth)
-		if err == client.ErrNoNode {
-			hostLogger.Debug("Host has been deleted for public ports")
-		} else if err != nil {
-			hostLogger.WithError(err).Debug("Could not look up public ports for host id")
-			return &RegistryError{
-				Action:  "sync",
-				Path:    hostpth,
-				Message: "could not look up public ports for host id",
-			}
-		}
-
-		for _, portAddr := range portAddrs {
-			key := PublicPortKey{HostID: hostID, PortAddress: portAddr}
-			addrpth := path.Join(hostpth, portAddr)
-			addrLogger := hostLogger.WithFields(log.Fields{
-				"portaddress": portAddr,
-				"zkpath":      addrpth,
-			})
-
-			pub := &PublicPort{}
-			if err := conn.Get(addrpth, pub); err == client.ErrNoNode {
-				addrLogger.Debug("Port address has been deleted for public port")
-				continue
-			} else if err != nil {
-				addrLogger.WithError(err).Debug("could not look up public port address")
-				return &RegistryError{
-					Action:  "sync",
-					Path:    addrpth,
-					Message: "could not look up public port address",
-				}
-			}
-
-			// Update the public address if the service matches and there is a
-			// key reference.  Otherwise, delete the public address if the
-			// service matches.
-			val, ok := pubs[key]
-			if ok {
-				delete(pubs, key)
-			}
-
-			if pub.ServiceID == serviceID {
-				if val.Enabled {
-					addrLogger.Debug("Updating public port address")
-					val.SetVersion(pub.Version())
-					tx.Set(addrpth, &val)
-				} else {
-					addrLogger.Debug("Deleting public port address")
-					tx.Delete(addrpth)
-				}
-			}
-		}
-	}
-
-	// create the remaining public ports if the ports are enabled
-	for key := range pubs {
-		val := pubs[key]
-		if val.Enabled {
-			conn.CreateDir(path.Join(pth, key.HostID))
-			addrpth := path.Join(pth, key.HostID, key.PortAddress)
-			val.SetVersion(nil)
-			logger.WithFields(log.Fields{
-				"hostid":      key.HostID,
-				"portaddress": key.PortAddress,
-				"zkpath":      addrpth,
-			}).Debug("Creating public port address")
-			tx.Create(addrpth, &val)
-		}
-	}
-
-	logger.Debug("Updated transaction to sync public ports for service")
-	return nil
-}
-
-// syncServiceVHosts updates the transaction to include virtual host updates
-func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID string, vhosts map[VHostKey]VHost) error {
-	logger := plog.WithField("serviceid", serviceID)
-
-	// pull all the hosts of all the virtual hosts
 	pth := "/net/vhost"
-	logger = logger.WithField("zkpath", pth)
+	logger := plog.WithField("zkpath", pth)
 
 	hostIDs, err := conn.Children(pth)
 	if err == client.ErrNoNode {
 		conn.CreateDir(pth)
 	} else if err != nil {
 		logger.WithError(err).Debug("Could not look up virtual hosts path")
-		return &RegistryError{
-			Action:  "sync",
+		return nil, &RegistryError{
+			Action:  "get",
 			Path:    pth,
 			Message: "could not look up virtual hosts path",
 		}
 	}
 
-	// get all the virtual host subdomains for each host
+	// get all the public ports for each host
 	for _, hostID := range hostIDs {
 		hostpth := path.Join(pth, hostID)
 		hostLogger := logger.WithFields(log.Fields{
@@ -294,15 +237,14 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 			hostLogger.Debug("Host has been deleted for virtual hosts")
 		} else if err != nil {
 			hostLogger.WithError(err).Debug("Could not look up virtual hosts for host id")
-			return &RegistryError{
-				Action:  "sync",
+			return nil, &RegistryError{
+				Action:  "get",
 				Path:    hostpth,
 				Message: "could not look up virtual hosts for host id",
 			}
 		}
 
 		for _, subdomain := range subdomains {
-			key := VHostKey{HostID: hostID, Subdomain: subdomain}
 			addrpth := path.Join(hostpth, subdomain)
 			addrLogger := hostLogger.WithFields(log.Fields{
 				"subdomain": subdomain,
@@ -311,53 +253,239 @@ func syncServiceVHosts(conn client.Connection, tx client.Transaction, serviceID 
 
 			vhost := &VHost{}
 			if err := conn.Get(addrpth, vhost); err == client.ErrNoNode {
-				addrLogger.Debug("Subdomain has been deleted for virtual host")
+				addrLogger.Debug("Port address has been deleted for virtual host")
 				continue
 			} else if err != nil {
-				addrLogger.WithError(err).Debug("could not look up virtual host subdomain")
-				return &RegistryError{
-					Action:  "sync",
+				addrLogger.WithError(err).Debug("could not look up virtaul host")
+				return nil, &RegistryError{
+					Action:  "get",
 					Path:    addrpth,
-					Message: "could not look up virtual host subdomain",
+					Message: "could not look up virtual host subdomaion",
 				}
 			}
 
-			// update the virtual host if there is a key reference and the
-			// services match, otherwise delete it if the service matches.
-			val, ok := vhosts[key]
-			if ok {
-				delete(vhosts, key)
-			}
-
-			if vhost.ServiceID == serviceID {
-				if val.Enabled {
-					addrLogger.Debug("Updating virtual host subdomain")
-					val.SetVersion(vhost.Version())
-					tx.Set(addrpth, &val)
-				} else {
-					addrLogger.Debug("Deleting virtual host subdomain")
-					tx.Delete(addrpth)
-				}
-			}
+			key := VHostKey{HostID: hostID, Subdomain: subdomain}
+			vhosts[key] = *vhost
 		}
 	}
 
-	// create the remaining public ports if they are enabled
-	for key := range vhosts {
-		val := vhosts[key]
-		if val.Enabled {
-			conn.CreateDir(path.Join(pth, key.HostID))
-			addrpth := path.Join(pth, key.HostID, key.Subdomain)
-			val.SetVersion(nil)
-			logger.WithFields(log.Fields{
-				"hostid":    key.HostID,
-				"subdomain": key.Subdomain,
-				"zkpath":    addrpth,
-			}).Debug("Creating virtual address subdomain")
-			tx.Create(addrpth, &val)
+	return vhosts, nil
+}
+
+// SyncServiceRegistry syncs all vhosts and public ports to those of a matching
+// service.
+func SyncServiceRegistry(conn client.Connection, request ServiceRegistrySyncRequest) error {
+	logger := plog.WithField("serviceid", request.ServiceID)
+
+	if len(request.PortsToDelete) == 0 &&
+	   len(request.PortsToPublish) == 0 &&
+	   len(request.VHostsToDelete) == 0 &&
+	   len(request.VHostsToPublish) == 0 {
+		// Don't even create a transaction if there's nothing to do (which is typical for many kinds of services)
+		return nil
+	}
+
+	tx := conn.NewTransaction()
+
+	if err := syncServicePublicPorts(conn, tx, request); err != nil {
+		logger.WithError(err).Debug("Could not sync public ports for service")
+		return err
+	}
+	if err := syncServiceVHosts(conn, tx, request); err != nil {
+		logger.WithError(err).Debug("Could not sync virtual hosts for service")
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		logger.WithError(err).Debug("Could not sync registry for service")
+		// TODO: wrap error?
+		return err
+	}
+
+	logger.Debug("Updated registry for service")
+	return nil
+}
+
+// syncServicePublicPorts updates the transaction to include public port updates
+func syncServicePublicPorts(conn client.Connection, tx client.Transaction, request ServiceRegistrySyncRequest) error {
+	logger := plog.WithField("serviceid", request.ServiceID)
+	pth := "/net/pub"
+
+	for _, pubKey := range request.PortsToDelete {
+		addrpth := path.Join(pth, pubKey.HostID, pubKey.PortAddress)
+		addrLogger := logger.WithFields(log.Fields{
+			"hostid":      pubKey.HostID,
+			"portaddress": pubKey.PortAddress,
+			"zkpath":      addrpth,
+		})
+		tx.Delete(addrpth)
+		addrLogger.Debug("Deleted public port address")
+	}
+
+	// Build a list of unique parent directory paths which need to be created
+	pathsToBuild := map[string]string{}
+	for pubKey, _ := range request.PortsToPublish {
+		if _, ok := pathsToBuild[pubKey.HostID]; ok {
+			continue
+		}
+		hostpth := path.Join(pth, pubKey.HostID)
+		ok, err := conn.Exists(hostpth)
+		if err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not read parent path for public port address",
+			}
+		} else if !ok {
+			pathsToBuild[pubKey.HostID] = hostpth
+		}
+	}
+
+	// Build any missing parent directory paths
+	if err := buildParentPaths(logger, conn, pathsToBuild); err != nil {
+		err.Message = "could not register public port address"
+		return err
+	}
+
+	for pubKey, pubValue := range request.PortsToPublish {
+		addrpth := path.Join(pth, pubKey.HostID, pubKey.PortAddress)
+		addrLogger := logger.WithFields(log.Fields{
+			"hostid":      pubKey.HostID,
+			"portaddress": pubKey.PortAddress,
+			"zkpath":      addrpth,
+		})
+
+		ok, err := conn.Exists(addrpth)
+		if err != nil {
+			addrLogger.WithError(err).Debug("skipped public port address because of an unexpected error")
+			return &RegistryError{
+				Action:  "sync",
+				Path:   addrpth,
+				Message: "could not register public port address",
+			}
+		}
+
+		publicPort := pubValue
+		if !ok {
+			publicPort.SetVersion(nil)
+			tx.Create(addrpth, &publicPort)
+			addrLogger.Debug("Created public port address")
+		} else {
+			existingPub := &PublicPort{}
+			if err := conn.Get(addrpth, existingPub); err != nil {
+				return &RegistryError{
+					Action:  "sync",
+					Path:    addrpth,
+					Message: "could not read current public port address",
+				}
+			}
+			publicPort.SetVersion(existingPub.Version())
+			tx.Set(addrpth, &publicPort)
+			addrLogger.Debug("Updated public port address")
+		}
+	}
+
+	logger.Debug("Updated transaction to sync public ports for service")
+	return nil
+}
+
+// syncServiceVHosts updates the transaction to include virtual host updates
+func syncServiceVHosts(conn client.Connection, tx client.Transaction, request ServiceRegistrySyncRequest) error {
+	logger := plog.WithField("serviceid", request.ServiceID)
+	pth := "/net/vhost"
+
+	for _, vhostKey := range request.VHostsToDelete {
+		addrpth := path.Join(pth, vhostKey.HostID, vhostKey.Subdomain)
+		addrLogger := logger.WithFields(log.Fields{
+			"hostid":    vhostKey.HostID,
+			"subdomain": vhostKey.Subdomain,
+			"zkpath":    addrpth,
+		})
+		tx.Delete(addrpth)
+		addrLogger.Debug("Deleted virtual host")
+	}
+
+	// Build a list of unique parent directory paths which need to be created
+	pathsToBuild := map[string]string{}
+	for vhostKey, _ := range request.VHostsToPublish {
+		if _, ok := pathsToBuild[vhostKey.HostID]; ok {
+			continue
+		}
+		hostpth := path.Join(pth, vhostKey.HostID)
+		ok, err := conn.Exists(hostpth)
+		if err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+				Message: "could not read parent path for virtual host address",
+			}
+		} else if !ok {
+			pathsToBuild[vhostKey.HostID] = hostpth
+		}
+	}
+
+	// Build any missing parent directory paths
+	if err := buildParentPaths(logger, conn, pathsToBuild); err != nil {
+		err.Message = "could not register virtual host address"
+		return err
+	}
+
+	for vhostKey, vhostValue := range request.VHostsToPublish {
+		addrpth := path.Join(pth, vhostKey.HostID, vhostKey.Subdomain)
+		addrLogger := logger.WithFields(log.Fields{
+			"hostid":    vhostKey.HostID,
+			"subdomain": vhostKey.Subdomain,
+			"zkpath":    addrpth,
+		})
+
+		ok, err := conn.Exists(addrpth)
+		if err != nil {
+			addrLogger.WithError(err).Debug("skipped virtual host address because of an unexpected error")
+			return &RegistryError{
+				Action:  "sync",
+				Path:   addrpth,
+				Message: "could not register virtual host address",
+			}
+		}
+
+		vhost := vhostValue
+		if !ok {
+			vhost.SetVersion(nil)
+			tx.Create(addrpth, &vhost)
+			addrLogger.Debug("Created virtual host address")
+		} else {
+			existingVHost := &VHost{}
+			if err := conn.Get(addrpth, existingVHost); err != nil {
+				return &RegistryError{
+					Action:  "sync",
+					Path:    addrpth,
+					Message: "could not read current virtual host",
+				}
+			}
+			vhost.SetVersion(existingVHost.Version())
+			tx.Set(addrpth, &vhost)
+			addrLogger.Debug("Updated virtual host")
 		}
 	}
 
 	logger.Debug("Updated transaction to sync virtual hosts for service")
+	return nil
+}
+
+// Build any missing parent directory paths
+func buildParentPaths(logger *log.Entry, conn client.Connection, pathsToBuild map[string]string) *RegistryError {
+	for hostID, hostpth := range pathsToBuild {
+		hostLogger := logger.WithFields(log.Fields{
+			"hostid":     hostID,
+			"zkpath":      hostpth,
+		})
+		if err := conn.CreateDir(hostpth); err != nil {
+			return &RegistryError{
+				Action:  "sync",
+				Path:    hostpth,
+			}
+		}
+		hostLogger.Debug("Created path for parent host")
+	}
 	return nil
 }

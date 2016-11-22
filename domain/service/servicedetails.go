@@ -14,6 +14,8 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
@@ -26,23 +28,76 @@ type ServiceDetails struct {
 	Name            string
 	Description     string
 	PoolID          string
+	ImageID         string
 	ParentServiceID string
+	Parent          *ServiceDetails `json:",omitempty"` // optional, only needed when looking up service ancestry
 	Instances       int
 	InstanceLimits  domain.MinMax
 	RAMCommitment   utils.EngNotation
 	Startup         string
+	HasChildren     bool
+	DeploymentID    string
+	DesiredState    int
+	Launch          string
+	Tags            []string
 	datastore.VersionedEntity
 }
 
 // Validation for Service ServiceDetails entity
 func (d *ServiceDetails) ValidEntity() error {
 	violations := validation.NewValidationError()
-	violations.Add(validation.NotEmpty("ServiceDetails.ID", d.ID))
-	violations.Add(validation.NotEmpty("ServiceDetails.Name", d.Name))
+	violations.Add(validation.NotEmpty("ID", d.ID))
+	violations.Add(validation.NotEmpty("Name", d.Name))
+	violations.Add(validation.NotEmpty("PoolID", d.PoolID))
+	violations.Add(d.InstanceLimits.Validate())
+	if d.Instances != 0 {
+		if d.InstanceLimits.Max != 0 {
+			if d.Instances < d.InstanceLimits.Min || d.Instances > d.InstanceLimits.Max {
+				violations.Add(fmt.Errorf("Instance count (%d) must be in InstanceLimits range [%d-%d]", d.Instances, d.InstanceLimits.Min, d.InstanceLimits.Max))
+			}
+		} else if d.Instances < d.InstanceLimits.Min {
+			violations.Add(fmt.Errorf("Instance count (%d) must be greater than InstanceLimits min %d", d.Instances, d.InstanceLimits.Min))
+		}
+	}
 
 	if len(violations.Errors) > 0 {
 		return violations
 	}
 
 	return nil
+}
+
+// Equals returns true if two instances of ServiceDetails are the same
+func (s *ServiceDetails) Equals(b *ServiceDetails) bool {
+	if s.ID != b.ID {
+		return false
+	}
+	if s.Name != b.Name {
+		return false
+	}
+	if s.Startup != b.Startup {
+		return false
+	}
+	if s.Description != b.Description {
+		return false
+	}
+	if s.Instances != b.Instances {
+		return false
+	}
+	if s.ImageID != b.ImageID {
+		return false
+	}
+	if s.PoolID != b.PoolID {
+		return false
+	}
+	if s.DesiredState != b.DesiredState {
+		return false
+	}
+	if s.Launch != b.Launch {
+		return false
+	}
+	if s.ParentServiceID != b.ParentServiceID {
+		return false
+	}
+	return true
 }

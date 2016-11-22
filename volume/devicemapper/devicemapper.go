@@ -137,7 +137,7 @@ func (d *DeviceMapperDriver) cleanUpSnapshots() {
 
 		glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
 		v.driver.DeviceSet.Lock()
-		if err := v.driver.deactivateDevice(deviceHash); err != nil {
+		if err := v.driver.DeactivateDevice(deviceHash); err != nil {
 			glog.Errorf("Error deactivating device (%s): %s", deviceHash, err)
 			continue
 		}
@@ -461,6 +461,9 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	vol, err := d.getVolume(volumeName, false)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
+		if err == ErrNoMetadata {
+			err = volume.ErrVolumeNotExists
+		}
 		return nil, err
 	}
 	if mounted, _ := devmapper.Mounted(vol.Path()); !mounted {
@@ -547,7 +550,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 			continue
 		}
 
-		// Perversely, deactivateDevice() will not actually work unless the device is activated.
+		// Perversely, DeactivateDevice() will not actually work unless the device is activated.
 		// GetDeviceStatus() will both verify that device is valid, and it has the side-effect of activating
 		// the device if the device is not active.
 		if status, err := d.DeviceSet.GetDeviceStatus(deviceHash); err != nil {
@@ -561,7 +564,7 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 
 		glog.V(1).Infof("Deactivating device (%s)", deviceHash)
 		d.DeviceSet.Lock()
-		err := d.deactivateDevice(deviceHash)
+		err := d.DeactivateDevice(deviceHash)
 		d.DeviceSet.Unlock()
 		if err != nil {
 			glog.Errorf("Error removing device %q for volume %s: %s", deviceHash, volumeName, err)
@@ -618,9 +621,9 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 }
 
 // Issues the underlying dm remove operation.
-func (d *DeviceMapperDriver) deactivateDevice(deviceHash string) error {
-	glog.V(2).Infof("deactivateDevice START(%s)", deviceHash)
-	defer glog.V(2).Infof("deactivateDevice END(%s)", deviceHash)
+func (d *DeviceMapperDriver) DeactivateDevice(deviceHash string) error {
+	glog.V(2).Infof("DeactivateDevice START(%s)", deviceHash)
+	defer glog.V(2).Infof("DeactivateDevice END(%s)", deviceHash)
 
 	var err error
 
@@ -654,7 +657,7 @@ func (d *DeviceMapperDriver) unmountDevice(deviceHash, mountpoint string) {
 		glog.V(2).Infof("Error unmounting %s (device: %s): %s", mountpoint, deviceHash, err)
 	}
 	d.DeviceSet.Lock()
-	if err := d.deactivateDevice(deviceHash); err != nil {
+	if err := d.DeactivateDevice(deviceHash); err != nil {
 		glog.V(2).Infof("Error deactivating device %s: %s", deviceHash, err)
 	}
 	d.DeviceSet.Unlock()
@@ -940,6 +943,7 @@ func (v *DeviceMapperVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, e
 func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) error {
 	glog.V(2).Infof("Snapshot() (%s) START", v.name)
 	defer glog.V(2).Infof("Snapshot() (%s) END", v.name)
+
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
@@ -959,6 +963,7 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	v.Lock()
 	defer v.Unlock()
 	// Create a new device based on the current one
+	v.driver.DeviceSet.CheckTransactionID()
 	activeDeviceHash := v.deviceHash()
 	snapshotDeviceHash, err := v.driver.addDevice(activeDeviceHash)
 	if err != nil {
@@ -1095,6 +1100,20 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
+
+	// Delete the device itself first, so we retain our internal snapshot entry
+	// (metadata.json) in the event of a failure on this step
+	glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
+	v.driver.DeviceSet.Lock()
+	if err := v.driver.DeactivateDevice(deviceHash); err != nil {
+		glog.V(2).Infof("Error deactivating device (%s): %s", deviceHash, err)
+	}
+	v.driver.DeviceSet.Unlock()
+	if err := v.driver.deleteDevice(deviceHash, false); err != nil {
+		glog.Errorf("Error removing snapshot: %v", err)
+		return volume.ErrRemovingSnapshot
+	}
+
 	// Remove the snapshot info from the volume metadata
 	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
@@ -1103,17 +1122,6 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	// Remove the snapshot-specific metadata directory
 	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), rawLabel)); err != nil {
 		return err
-	}
-	// Delete the device itself
-	glog.V(2).Infof("Deactivating snapshot device %s", deviceHash)
-	v.driver.DeviceSet.Lock()
-	if err := v.driver.deactivateDevice(deviceHash); err != nil {
-		glog.V(2).Infof("Error deactivating device (%s): %s", deviceHash, err)
-	}
-	v.driver.DeviceSet.Unlock()
-	if err := v.driver.deleteDevice(deviceHash, false); err != nil {
-		glog.Errorf("Error removing snapshot: %v", err)
-		return volume.ErrRemovingSnapshot
 	}
 	return nil
 }
@@ -1161,7 +1169,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 
 	// Clean up the old device
 	v.driver.DeviceSet.Lock()
-	if err := v.driver.deactivateDevice(curDeviceHash); err != nil {
+	if err := v.driver.DeactivateDevice(curDeviceHash); err != nil {
 		glog.V(2).Infof("Could not remove device: %s", err)
 	} else {
 		glog.V(2).Infof("Deactivated old head device %s", curDeviceHash)
@@ -1205,7 +1213,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer, excl
 			glog.V(2).Infof("Error unmounting %s (device: %s): %s", mountpoint, deviceHash, err)
 		}
 		d.DeviceSet.Lock()
-		if err := d.deactivateDevice(deviceHash); err != nil {
+		if err := d.DeactivateDevice(deviceHash); err != nil {
 			glog.V(2).Infof("Error deactivating device %s: %s", deviceHash, err)
 		}
 		d.DeviceSet.Unlock()
@@ -1502,7 +1510,7 @@ func (v *DeviceMapperVolume) loadSnapshotImport(reader io.Reader, label, deviceH
 			glog.V(2).Infof("Error unmounting %s (device: %s): %s", mountpoint, deviceHash, err)
 		}
 		d.DeviceSet.Lock()
-		if err := d.deactivateDevice(deviceHash); err != nil {
+		if err := d.DeactivateDevice(deviceHash); err != nil {
 			glog.V(2).Infof("Error deactivating device %s: %s", deviceHash, err)
 		}
 		d.DeviceSet.Unlock()

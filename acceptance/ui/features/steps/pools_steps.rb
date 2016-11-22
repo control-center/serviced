@@ -79,6 +79,8 @@ end
 
 When (/^I click the Add Virtual IP button$/) do
     clickAddVirtualIpButton()
+    # wait till modal is done loading
+    expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end
 
 When (/^I add the virtual IP$/) do
@@ -147,11 +149,17 @@ def clickAddPoolButton()
 end
 
 def fillInResourcePoolField(name)
-    CC.UI.PoolsPage.poolName_input.set getTableValue(name)
+    val = getTableValue(name)
+    el = CC.UI.PoolsPage.poolName_input
+    fill_in el[:name], :with => val
+    expect(CC.UI.PoolsPage.poolName_input.value).to eq val
 end
 
 def fillInDescriptionField(description)
-    CC.UI.PoolsPage.description_input.set getTableValue(description)
+    val = getTableValue(description)
+    el = CC.UI.PoolsPage.description_input
+    fill_in el[:name], :with => val
+    expect(CC.UI.PoolsPage.description_input.value).to eq val
 end
 
 def clickAddVirtualIpButton()
@@ -159,15 +167,24 @@ def clickAddVirtualIpButton()
 end
 
 def fillInIpField(address)
-    CC.UI.PoolsPage.ip_input.set getTableValue(address)
+    val = getTableValue(address)
+    el = CC.UI.PoolsPage.ip_input
+    fill_in el[:name], :with => val
+    expect(CC.UI.PoolsPage.ip_input.value).to eq val
 end
 
 def fillInNetmaskField(netmask)
-    CC.UI.PoolsPage.netmask_input.set getTableValue(netmask)
+    val = getTableValue(netmask)
+    el = CC.UI.PoolsPage.netmask_input
+    fill_in el[:name], :with => val
+    expect(CC.UI.PoolsPage.netmask_input.value).to eq val
 end
 
 def fillInInterfaceField(interface)
-    CC.UI.PoolsPage.interface_input.set getTableValue(interface)
+    val = getTableValue(interface)
+    el = CC.UI.PoolsPage.interface_input
+    fill_in el[:name], :with => val
+    expect(CC.UI.PoolsPage.interface_input.value).to eq val
 end
 
 def addVirtualIpButton()

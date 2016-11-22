@@ -14,13 +14,16 @@
 package scheduler
 
 import (
+	"errors"
 	"sync"
+	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	imgreg "github.com/control-center/serviced/dfs/registry"
+	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/zzk"
@@ -31,7 +34,11 @@ import (
 
 var plog = logging.PackageLogger()
 
-type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
+var (
+	ErrNoAuthenticatedHosts = errors.New("no authenticated hosts found")
+)
+
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string)
 
 type scheduler struct {
 	sync.Mutex                     // only one process can stop and start the scheduler at a time
@@ -184,6 +191,16 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		stopped <- struct{}{}
 	}()
 
+	// kicks off the snapshot cleaning goroutine
+	if s.snapshotTTL > 0 {
+		wg.Add(1)
+		go func() {
+			defer glog.Infof("Stopping snapshot ttl")
+			defer wg.Done()
+			ttl.RunSnapshotTTL(s.cpDao, _shutdown, time.Minute, time.Duration(s.snapshotTTL)*time.Hour)
+		}()
+	}
+
 	// wait for something to happen
 	for {
 		select {
@@ -238,5 +255,5 @@ func (s *scheduler) Done() {
 
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
-	s.zkleaderFunc(shutdown, s.conn, s.cpDao, s.facade, poolID, s.snapshotTTL)
+	s.zkleaderFunc(shutdown, s.conn, s.cpDao, s.facade, poolID)
 }

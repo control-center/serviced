@@ -14,13 +14,10 @@
 package isvcs
 
 import (
-	"archive/tar"
-	"compress/gzip"
+	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/elastigo/cluster"
 
 	"encoding/json"
@@ -142,6 +139,7 @@ func initElasticSearch() {
 			HealthChecks:   healthChecks,
 			Recover:        recoverES,
 			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS) * time.Second,
+			StartupFailed:  getESShardStatus,
 		},
 	)
 	if err != nil {
@@ -154,44 +152,32 @@ func initElasticSearch() {
 	// /etc/default/serviced
 	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
-		clusterArg := ""
-		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
-			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
-		}
-		return fmt.Sprintf(`exec /opt/elasticsearch-logstash/bin/elasticsearch -Des.insecure.allow.root=true -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
+		nodeName := elasticsearch_logstash.Name
+		clusterName := elasticsearch_logstash.Configuration["cluster"]
+		return fmt.Sprintf("exec /opt/elasticsearch-logstash/bin/es-logstash-start.sh %s %s", nodeName, clusterName)
 	}
 }
 
 func recoverES(path string) error {
+	recoveryPath := path + "-backup"
 	log := log.WithFields(logrus.Fields{
-		"path": path,
+		"basepath":     path,
+		"recoverypath": recoveryPath,
 	})
-	if err := func() error {
-		file, err := os.Create(path + "-backup.tgz")
-		if err != nil {
-			log.WithError(err).Debug("Unable to create backup")
-			return err
-		}
-		defer file.Close()
-		gz := gzip.NewWriter(file)
-		defer gz.Close()
-		tarfile := tar.NewWriter(gz)
-		defer tarfile.Close()
-		if err := volume.ExportDirectory(tarfile, path, filepath.Base(path)); err != nil {
-			log.WithError(err).Debug("Unable to back up")
-			return err
-		}
-		if err := volume.ExportFile(tarfile, path+".clustername", filepath.Base(path)+".clustername"); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
+
+	if _, err := os.Stat(recoveryPath); err == nil {
+		log.Info("Overwriting existing recovery path")
+		os.RemoveAll(recoveryPath)
+	} else if !os.IsNotExist(err) {
+		log.Debug("Could not stat recovery path")
 		return err
 	}
-	if err := os.RemoveAll(path); err != nil {
-		log.WithError(err).Debug("Unable to remove backup")
+
+	if err := os.Rename(path, recoveryPath); err != nil {
+		log.WithError(err).Debug("Could not recover elasticsearch")
 		return err
 	}
+	log.Info("Moved and reset elasticsearch data")
 	return nil
 }
 
@@ -199,6 +185,27 @@ type esres struct {
 	url      string
 	response *cluster.ClusterHealthResponse
 	err      error
+}
+
+func getESShardStatus() {
+	// try to get more information about how the shards are looking.
+	// If some are 'UNASSIGNED', it may be possible to delete just those and restart
+	host := elasticsearch_logstash.PortBindings[0].HostIp
+	port := elasticsearch_logstash.PortBindings[0].HostPort
+	url := fmt.Sprintf("http://%s:%d/_cat/shards", host, port)
+	resp, err := http.Get(url)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		log.WithError(err).Error("Failed to get ES shard status.")
+	}
+	output, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.WithError(err).Error("Failed to get ES shard status.")
+	} else {
+		log.Warnf("Shard Status:\n%s", string(output))
+	}
 }
 
 func getESHealth(url string) <-chan esres {
@@ -245,6 +252,15 @@ func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 				if status := GetHealth(r.response.Status); status < minHealth {
 					log.WithFields(logrus.Fields{
 						"reported": r.response.Status,
+						"cluster_name": r.response.ClusterName,
+						"timed_out": r.response.TimedOut,
+						"number_of_nodes": r.response.NumberOfNodes,
+						"number_of_data_nodes": r.response.NumberOfDataNodes,
+						"active_primary_shards": r.response.ActivePrimaryShards,
+						"active_shards": r.response.ActiveShards,
+						"relocating_shards": r.response.RelocatingShards,
+						"initializing_shards": r.response.InitializingShards,
+						"unassigned_shards": r.response.UnassignedShards,
 					}).Warn("Elastic health reported below minimum")
 					break
 				}

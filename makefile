@@ -86,7 +86,7 @@ IN_DOCKER = 0
 GO        = go
 
 # Verify that we are running with the right go version
-MIN_GO_VERSION ?= go1.6
+MIN_GO_VERSION ?= go1.7
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
 #
@@ -161,12 +161,12 @@ serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
-	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced $(GOBIN)/serviced; fi
 
 serviced-controller: $(GO)
 serviced-controller: FORCE
 	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
 
 
 tools: serviced-storage
@@ -174,12 +174,12 @@ tools: serviced-storage
 serviced-storage: $(GO)
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
+	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
-BUILD_VERSION = v$(VERSION)-3
+BUILD_VERSION = v$(VERSION)-4
 export BUILD_VERSION
 
 #
@@ -267,6 +267,8 @@ $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS       = pkg/serviced-fstrim:serviced-fstrim
 $(_DESTDIR)$(sysconfdir)/cron.weekly_TARGETS      += pkg/serviced-zenossdbpack:serviced-zenossdbpack
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
+$(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-cli.yaml:logconfig-cli.yaml
+$(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logconfig-server.yaml:logconfig-server.yaml
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += serviced-controller/serviced-controller:serviced-controller
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += tools/serviced-storage/serviced-storage:serviced-storage

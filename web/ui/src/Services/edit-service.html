@@ -2,35 +2,35 @@
   <label for="new_service_name">
       <span translate>label_service_name</span>:
   </label>
-  <input class="form-control" focusme id="new_service_name" type="text" placeholder="{{'placeholder_service_name'|translate}}" ng-model="editableService.Name">
+  <input class="form-control" focusme id="new_service_name" type="text" placeholder="{{'placeholder_service_name'|translate}}" ng-model="model.Name">
 </div>
 
 <div class="form-group">
     <label for="new_service_description">
         <span translate>label_service_description</span>:
     </label>
-    <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="editableService.Description"></textarea>
+    <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="model.Description"></textarea>
 </div>
 
 <div class="form-group">
     <label for="edit_instances">
         <span translate>label_service_instances</span>:
     </label>
-    <input class="form-control" id="edit_instances" type="number" min="{{editableService.InstanceLimits.Min ? editableService.InstanceLimits.Min : 0}}" max="{{editableService.InstanceLimits.Max ? editableService.InstanceLimits.Max : undefined}}" style="width: 75px;" ng-model="editableService.Instances">
+    <input class="form-control" id="edit_instances" type="number" min="{{model.InstanceLimits.Min ? model.InstanceLimits.Min : 0}}" max="{{model.InstanceLimits.Max ? model.InstanceLimits.Max : undefined}}" style="width: 75px;" ng-model="model.Instances">
 </div>
 
 <div class="form-group">
   <label for="new_service_ram_commitment">
       <span translate>ram_commitment</span> (eg 256M): <span class="warningMessage">*</span>
   </label>
-  <input class="form-control" id="new_service_ram_commitment" type="text" placeholder="256M" ng-model="editableService.RAMCommitment">
+  <input class="form-control" id="new_service_ram_commitment" type="text" placeholder="256M" ng-model="model.RAMCommitment">
 </div>
 
 <div class="form-group">
     <label for="edit_service_pool">
         <span translate>label_service_pool</span>: <span class="warningMessage">*</span>
     </label>
-    <select class="form-control" name="edit_service_pool" id="new_host_parent" ng-model="editableService.PoolID"
+    <select class="form-control" name="edit_service_pool" id="new_host_parent" ng-model="model.PoolID"
         ng-options="pool.id as pool.id for pool in pools">
     </select>
 </div>
@@ -39,7 +39,7 @@
   <label for="new_service_startup">
       <span translate>label_service_startup</span>: <span class="warningMessage">*</span>
   </label>
-  <input class="form-control" id="new_service_startup" type="text" placeholder="{{'placeholder_service_startup'|translate}}" ng-model="editableService.Startup">
+  <input class="form-control" id="new_service_startup" type="text" placeholder="{{'placeholder_service_startup'|translate}}" ng-model="model.Startup">
 </div>
 
 <br>

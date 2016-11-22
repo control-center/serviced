@@ -20,6 +20,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
@@ -73,33 +74,87 @@ func GetCertFiles(certFile, keyFile string) (string, string) {
 	return certFile, keyFile
 }
 
+// Dialer interface to make getRemoteConnection testable.
+type dialerInterface interface {
+	Dial(string, string) (net.Conn, error)
+}
+
+type netDialer struct{}
+
+func (d *netDialer) Dial(network, address string) (net.Conn, error) {
+	return net.Dial(network, address)
+}
+
+func newNetDialer() dialerInterface {
+	return &netDialer{}
+}
+
+type tlsDialer struct {
+	config *tls.Config
+}
+
+func (d *tlsDialer) Dial(network, address string) (net.Conn, error) {
+	return tls.Dial(network, address, d.config)
+}
+
+func newTlsDialer(config *tls.Config) dialerInterface {
+	return &tlsDialer{config: config}
+}
+
 // GetRemoteConnection returns a connection to a remote address
 func GetRemoteConnection(useTLS bool, export *registry.ExportDetails) (remote net.Conn, err error) {
-	isLocalAddress := IsLocalAddress(export.PrivateIP)
-
-	if isLocalAddress {
-		// if the address is local return the connection
-		address := fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
-		return net.Dial("tcp4", address)
-	}
-
-	// set up the remote address
-	remoteAddress := fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
-	if useTLS {
+	var dialer dialerInterface
+	if useTLS && !IsLocalAddress(export.HostIP) {
 		config := tls.Config{InsecureSkipVerify: true}
-		remote, err = tls.Dial("tcp4", remoteAddress, &config)
+		dialer = newTlsDialer(&config)
 	} else {
-		remote, err = net.Dial("tcp4", remoteAddress)
+		dialer = newNetDialer()
+	}
+	return getRemoteConnection(export, dialer)
+}
+
+func getRemoteConnection(export *registry.ExportDetails, dialer dialerInterface) (net.Conn, error) {
+	// If the exported endpoint is on this Host, we don't go through the mux.
+	if IsLocalAddress(export.HostIP) {
+		// if the address is local return a connection directly to the container
+		address := fmt.Sprintf("%s:%d", export.PrivateIP, export.PortNumber)
+		return dialer.Dial("tcp4", address)
 	}
 
-	// set the muxHeader on the remote connection
-	muxHeader, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
+	// Set up the remote address for the mux
+	remoteAddress := fmt.Sprintf("%s:%d", export.HostIP, export.MuxPort)
+	remote, err := dialer.Dial("tcp4", remoteAddress)
+
+	// Prevent a panic if we couldn't connect to the mux.
 	if err != nil {
 		return nil, err
 	}
-	remote.Write(muxHeader)
 
-	return
+	// Set the muxHeader on the remote connection so it knows what service to
+	// proxy the connection to.
+	muxAddr, err := utils.PackTCPAddress(export.PrivateIP, export.PortNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		token        string
+		tokenTimeout = 30 * time.Second
+	)
+
+	select {
+	case token = <-auth.AuthToken(nil):
+	case <-time.After(tokenTimeout):
+		plog.WithField("timeout", "30s").Error("Unable to retrieve authentication token within the timeout")
+		return nil, err
+	}
+
+	if err := auth.AddSignedMuxHeader(remote, muxAddr, token); err != nil {
+		plog.WithError(err).Error("Unable to send authenticated mux header")
+		return nil, err
+	}
+
+	return remote, nil
 }
 
 // TCPKeepAliveListener keeps a listener connection alive for the duration

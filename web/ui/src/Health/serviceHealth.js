@@ -43,20 +43,24 @@
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
-                    service.model.DesiredState);
+                    service.desiredState);
 
                 // refresh list of instances
-                service.getServiceInstances();
+                // TODO - this "if" is a workaround for old servicesFactory
+                // services and should be removed along with servicesFactory
+                if(service.fetchInstances){
+                    service.fetchInstances();
+                }
 
                 // if this service has instances, evaluate their health
                 service.instances.forEach(instance => {
 
                     // create a new status rollup for this instance
-                    instanceUniqueId = serviceId +"."+ instance.id;
+                    instanceUniqueId = serviceId +"."+ instance.model.InstanceID;
                     instanceStatus = new Status(
                         instanceUniqueId,
-                        service.name +" "+ instance.id,
-                        service.model.DesiredState);
+                        service.name +" "+ instance.model.InstanceID,
+                        service.desiredState);
 
                     // evalute instance healthchecks and roll em up
                     instanceStatus.evaluateHealthChecks(instance.healthChecks);
@@ -77,6 +81,41 @@
             }
 
             return statuses;
+        }
+
+        function evaluate(service, instances){
+
+            instances = instances || [];
+
+            let status;
+
+            status = new Status(
+                service.id,
+                service.name,
+                service.desiredState);
+
+            // if instances were provided, evaluate their health
+            instances.forEach(instance => {
+                let instanceUniqueId = service.id +"."+ instance.model.InstanceID;
+                let instanceStatus = new Status(
+                    instanceUniqueId,
+                    service.name +" "+ instance.model.InstanceID,
+                    service.desiredState);
+
+                // evalute instance healthchecks and roll em up
+                instanceStatus.evaluateHealthChecks(instance.healthChecks);
+                // store resulting status on instance
+                instance.status = instanceStatus;
+
+                // add this guy's status to his parent
+                status.children.push(instanceStatus);
+            });
+
+            // now that this services instances have been evaluated,
+            // evaluate the status of this service
+            status.evaluateChildren();
+
+            return status;
         }
 
         // used by Status to examine children and figure
@@ -217,7 +256,8 @@
         };
 
         return {
-            update: update,
+            update,
+            evaluate,
             get: function(id){
                 var status = statuses[id];
 

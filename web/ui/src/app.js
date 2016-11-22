@@ -27,7 +27,7 @@ var controlplane = angular.module('controlplane', [
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'publicEndpointLink',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
     'ngTable', 'jellyTable', 'ngLocationUpdate', 'CCUIState', 'servicedConfig', 'areUIReady', 'log',
-    'LogSearch'
+    'LogSearch', 'hostIcon'
 ]);
 
 controlplane.
@@ -47,13 +47,16 @@ controlplane.
                 controller: "AppsController"}).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: "HostsController"}).
+                controller: "HostsController",
+                controllerAs: "hostsVM"}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
-                controller: "HostDetailsController"}).
+                controller: "HostDetailsController",
+                controllerAs: "hostDetailsVM"}).
             when('/pools', {
                 templateUrl: '/static/partials/view-pools.html',
-                controller: "PoolsController"}).
+                controller: "PoolsController",
+                controllerAs: "poolsVM"}).
             when('/pools/:poolID', {
                 templateUrl: '/static/partials/view-pool-details.html',
                 controller: "PoolDetailsController"}).
@@ -62,18 +65,25 @@ controlplane.
                 controller: "StatusController"}).
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
-                controller: "BackupRestoreController"
-            }).
+                controller: "BackupRestoreController"}).
+            when('/internalservices', {
+                templateUrl: '/static/partials/view-internal-services.html',
+                controller: "InternalServicesController",
+                controllerAs: "internalServicesVM"}).
+            when('/internalservices/:id', {
+                templateUrl: '/static/partials/view-internal-service-details.html',
+                controller: "InternalServiceDetailsController",
+                controllerAs: "internalServiceDetailsVM"}).
             otherwise({redirectTo: '/apps'});
     }]).
     config(['$translateProvider', function($translateProvider) {
         $translateProvider.useStaticFilesLoader({
             prefix: '/static/i18n/',
             suffix: '.json'
-        });
+       });
         $translateProvider.preferredLanguage('en_US');
         $translateProvider.fallbackLanguage('en_US');
-        $translateProvider.useSanitizeValueStrategy('sanitize');
+        $translateProvider.useSanitizeValueStrategy('sanitizeParameters');
     }]).
     config(['CacheFactoryProvider', function(CacheFactoryProvider){
         angular.extend(CacheFactoryProvider.defaults, {
@@ -162,21 +172,21 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(["$rootScope", "$window", "$location", "areUIReady", "log",
-    function($rootScope, $window, $location, areUIReady, log){
+    .run(["$rootScope", "$window", "$location", "areUIReady", "log", "CCUIState",
+    function($rootScope, $window, $location, areUIReady, log, CCUIState){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
         });
 
         var queryParams = $location.search(),
-            disableAnimation = false;
+            config = CCUIState.get();
 
         // option to disable animation for
         // acceptance tests
         if(queryParams["disable-animation"] === "true"){
-            disableAnimation = true;
             $("body").addClass("no-animation");
+            config.disableAnimation = true;
         }
 
         // set log level
@@ -197,7 +207,7 @@ controlplane.
 
             setTimeout(function(){
                 if(!isCleared){
-                    if(disableAnimation){
+                    if(config.disableAnimation){
                         clearLoader();
                     } else {
                         loaderEl.addClass("hide_it").one("transitionend", clearLoader);

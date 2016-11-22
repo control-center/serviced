@@ -14,22 +14,24 @@
 package master
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 )
 
 // NewServer creates a new serviced master rpc server
-func NewServer(f *facade.Facade) *Server {
-	return &Server{f}
+func NewServer(f *facade.Facade, tokenExpiration time.Duration) *Server {
+	return &Server{f, tokenExpiration}
 }
 
 // Server is the RPC type for the master(s)
 type Server struct {
-	f *facade.Facade
+	f          *facade.Facade
+	expiration time.Duration
 }
 
 func (s *Server) context() datastore.Context {
 	//here in case we ever need to create a per request context
 	return datastore.Get()
-
 }

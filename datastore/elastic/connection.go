@@ -14,31 +14,48 @@
 package elastic
 
 import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/logging"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
 	"github.com/zenoss/elastigo/indices"
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
-
-	"encoding/json"
-	"fmt"
-	"reflect"
+	"github.com/zenoss/logri"
 )
 
 type elasticConnection struct {
 	index string
 }
 
-func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
-	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
+var (
+	plog = logging.PackageLogger() // the standard package logger
+	traceLogger  *logri.Logger // a 'trace' logger for an additional level of debug messages
+)
 
-	glog.V(4).Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
+func init() {
+	traceLoggerName := plog.Name + ".trace"
+	traceLogger = logri.GetLogger(traceLoggerName)
+}
+
+func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) error {
+	logger := plog.WithFields(log.Fields{
+		"kind":  key.Kind(),
+		"id":  key.ID(),
+	})
+	logger.Debug("Put")
+	traceLogger.WithField("payload", string(msg.Bytes())).Debug("Put")
+
+	//func Index(pretty bool, index string, _type string, id string, data interface{}) (api.BaseResponse, error) {
 	var raw json.RawMessage
 	raw = msg.Bytes()
 	resp, err := core.IndexWithParameters(false, ec.index, key.Kind(), key.ID(), "", msg.Version(), "", "", "", 0, "", "", false, &raw)
 	if err != nil {
-		glog.Errorf("Put err: %+v", err)
+		logger.WithError(err).Error("Put failed")
 		if eserr, iseserror := err.(api.ESError); iseserror && eserr.Code == 409 {
 			// Conflict
 			return fmt.Errorf("Your changes conflict with those made by another user. Please reload and try your changes again.")
@@ -46,7 +63,7 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 		return err
 	}
 	indices.Refresh(ec.index)
-	glog.V(4).Infof("Put response: %v", resp)
+	traceLogger.WithField("response", resp).Debug("Put")
 	if !resp.Ok {
 		return fmt.Errorf("non OK response: %v", resp)
 	}
@@ -54,16 +71,22 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 }
 
 func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, error) {
+	logger := plog.WithFields(log.Fields{
+		"kind":  key.Kind(),
+		"id":  key.ID(),
+	})
+	logger.Debug("Get")
+	traceLogger.Debug("Get")
+
 	//	func Get(pretty bool, index string, _type string, id string) (api.BaseResponse, error) {
-	glog.V(4).Infof("Get for {kind:%v, id:%v}", key.Kind(), key.ID())
 	//	err := core.GetSource(ec.index, key.Kind(), key.ID(), &bytes)
 	response, err := elasticGet(false, ec.index, key.Kind(), key.ID())
 	if err != nil {
-		glog.Errorf("Error is %v", err)
+		logger.WithError(err).Error("Get failed")
 		return nil, err
 	}
 	if !response.Exists {
-		glog.V(4).Infof("Entity not found for {kind:%s, id:%s}", key.Kind(), key.ID())
+		logger.Debug("Entity not found")
 		return nil, datastore.ErrNoSuchEntity{Key: key}
 	}
 	bytes := response.Source
@@ -72,10 +95,16 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 }
 
 func (ec *elasticConnection) Delete(key datastore.Key) error {
+	logger := plog.WithFields(log.Fields{
+		"kind":  key.Kind(),
+		"id":  key.ID(),
+	})
+	logger.Debug("Delete")
+
 	//func Delete(pretty bool, index string, _type string, id string, version int, routing string) (api.BaseResponse, error) {
 	resp, err := core.Delete(false, ec.index, key.Kind(), key.ID(), 0, "")
 	indices.Refresh(ec.index)
-	glog.V(4).Infof("Delete response: %v", resp)
+	traceLogger.WithField("response", resp).Debug("Delete")
 	if err != nil {
 		return err
 	}
@@ -88,7 +117,7 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 		resp, err := s.Result()
 		if err != nil {
 			err = fmt.Errorf("error executing query %v", err)
-			glog.Errorf("%v", err)
+			plog.WithError(err).Error("error executing query")
 			return nil, err
 		}
 		return toJSONMessages(resp), nil
@@ -113,11 +142,18 @@ func (ec *elasticConnection) Query(query interface{}) ([]datastore.JSONMessage, 
 
 // convert search result of json host to dao.Host array
 func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
-	glog.V(4).Infof("Converting results %v", result)
 	var total = len(result.Hits.Hits)
 	var msgs = make([]datastore.JSONMessage, total)
+
+	logger := plog.WithField("total", total)
+	if total > 0 {
+		// Note that while it's possible for queries to span types, the vast majority of CC use cases (all?)
+		//   only query a single type at a time, so it's sufficient to get the type of the first hit
+		logger.WithField("type", result.Hits.Hits[0].Type)
+	}
+	logger.Debug("Query finished")
+
 	for i := 0; i < total; i++ {
-		glog.V(4).Infof("Adding result %s", string(result.Hits.Hits[i].Source))
 		src := result.Hits.Hits[i].Source
 		fields := result.Hits.Hits[i].Fields
 		var data []byte

@@ -26,10 +26,12 @@ type ControllerOptions struct {
 	Command                 []string // The command to launch
 	MuxPort                 int      // the TCP port for the remote mux
 	Mux                     bool     // True if a remote mux is used
-	TLS                     bool     // True if TLS should be used on the mux
+	MUXDisableTLS           bool     // True if TLS should be disabled on the mux
 	KeyPEMFile              string   // path to the KeyPEMfile
 	CertPEMFile             string   // path to the CertPEMfile
 	ServicedEndpoint        string
+	RPCPort                 int      // the TCP port for the RPC to the agent
+	RPCDisableTLS           bool     // True if TLS should be disabled on RPC connections
 	Autorestart             bool
 	MetricForwarderPort     string // port to which container processes send performance data to
 	Logstash                bool
@@ -44,13 +46,14 @@ type ControllerOptions struct {
 
 func (c ControllerOptions) toContainerControllerOptions() (options container.ControllerOptions, err error) {
 	options.ServicedEndpoint = c.ServicedEndpoint
+	options.RPCDisableTLS = c.RPCDisableTLS
 	options.Service.Autorestart = c.Autorestart
 	options.Service.InstanceID = c.InstanceID
 	options.Service.ID = c.ServiceID
 	options.Service.Command = c.Command
 	options.Mux.Port = c.MuxPort
 	options.Mux.Enabled = c.Mux
-	options.Mux.TLS = c.TLS
+	options.Mux.DisableTLS = c.MUXDisableTLS
 	options.Mux.KeyPEMFile = c.KeyPEMFile
 	options.Mux.CertPEMFile = c.CertPEMFile
 	options.Logforwarder.Enabled = c.Logstash

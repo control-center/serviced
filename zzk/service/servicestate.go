@@ -15,6 +15,7 @@ package service
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -25,7 +26,7 @@ import (
 
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
-	SelectHost(*service.Service) (string, error)
+	SelectHost(*ServiceNode) (string, error)
 }
 
 // ServiceListener is the listener for /services
@@ -33,11 +34,12 @@ type ServiceListener struct {
 	conn    client.Connection
 	handler ServiceHandler
 	poolid  string
+	mu      *sync.Mutex
 }
 
 // NewServiceListener instantiates a new ServiceListener
 func NewServiceListener(poolid string, handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{poolid: poolid, handler: handler}
+	return &ServiceListener{poolid: poolid, handler: handler, mu: &sync.Mutex{}}
 }
 
 // SetConnection implements zzk.Listener
@@ -75,9 +77,12 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	defer func() { close(done) }()
 
 	for {
-
 		// set up a watch on the service
-		sDat := &ServiceNode{Service: &service.Service{}}
+		sDat, err := NewServiceNodeFromService(&service.Service{})
+		if err != nil {
+			logger.WithError(err).Debug("Could not create service node from service")
+			return
+		}
 		sEvt, err := l.conn.GetW(l.GetPath(serviceID), sDat, done)
 		if err == client.ErrNoNode {
 
@@ -127,7 +132,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 
 			// Synchronize the number of service states
-			if _, ok := l.Sync(sDat.Locked, sDat.Service, reqs); !ok {
+			if _, ok := l.Sync(sDat.Locked, sDat, reqs); !ok {
 				timer.Reset(time.Second)
 			}
 
@@ -195,21 +200,21 @@ func (l *ServiceListener) getStateRequests(logger *log.Entry, stateIDs []string)
 
 // Sync synchronizes the number of running service states and returns the delta
 // of added (>0) or deleted (<0) instances.
-func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []StateRequest) (int, bool) {
+func (l *ServiceListener) Sync(isLocked bool, sn *ServiceNode, reqs []StateRequest) (int, bool) {
 	ok := true
 	count := len(reqs)
 
 	// If the service has a change option for restart all on changed, stop all
 	// instances and wait for the nodes to stop.  Once all service instances
 	// have been stopped (deleted), then go ahead and start the instances.
-	if utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
-		if count != 0 && count != svc.Instances {
-			svc.Instances = 0 // NOTE: this will not update the node in zk or elastic
+	if utils.StringInSlice("restartAllOnInstanceChanged", sn.ChangeOptions) {
+		if count != 0 && count != sn.Instances {
+			sn.Instances = 0 // NOTE: this will not update the node in zk or elastic
 		}
 	}
 
 	// Do not create instances if service is locked
-	if isLocked && count < svc.Instances {
+	if isLocked && count < sn.Instances {
 		return 0, ok
 	}
 
@@ -219,7 +224,7 @@ func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []State
 	// Start instances if there is a deficit
 	delta := 0
 	i := -1
-	for ; count < svc.Instances; count++ {
+	for ; count < sn.Instances; count++ {
 		// Assuming that instanceIDs are gte 0 and that all instance IDs are
 		// unique for a service, find the first index that does not match the
 		// instanceID value.
@@ -231,7 +236,7 @@ func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []State
 		}
 
 		// Create the instance if the service is not locked
-		if !l.Start(svc, i) {
+		if !l.Start(sn, i) {
 			return delta, false
 		}
 		delta++
@@ -246,8 +251,8 @@ func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []State
 	}
 
 	// Stop instances if there is a surplus
-	if count > svc.Instances {
-		delta, pass := l.Stop(reqs[svc.Instances:])
+	if count > sn.Instances {
+		delta, pass := l.Stop(reqs[sn.Instances:])
 		return -delta, ok && pass
 	}
 
@@ -255,16 +260,20 @@ func (l *ServiceListener) Sync(isLocked bool, svc *service.Service, reqs []State
 }
 
 // Start schedules a service instance
-func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
+func (l *ServiceListener) Start(sn *ServiceNode, instanceID int) bool {
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	logger := plog.WithFields(log.Fields{
-		"serviceid":   svc.ID,
-		"servicename": svc.Name,
-		"instanceid":  instanceID,
+		"serviceid":                   sn.ID,
+		"servicename":                 sn.Name,
+		"shouldhaveaddressassignment": sn.ShouldHaveAddressAssignment,
+		"instanceid":                  instanceID,
 	})
 
 	// pick a host
-	hostID, err := l.handler.SelectHost(svc)
+	hostID, err := l.handler.SelectHost(sn)
 	if err != nil {
 
 		logger.WithError(err).Warn("Could not select host")
@@ -275,7 +284,7 @@ func (l *ServiceListener) Start(svc *service.Service, instanceID int) bool {
 	req := StateRequest{
 		PoolID:     l.poolid,
 		HostID:     hostID,
-		ServiceID:  svc.ID,
+		ServiceID:  sn.ID,
 		InstanceID: instanceID,
 	}
 

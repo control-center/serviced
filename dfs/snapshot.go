@@ -14,11 +14,10 @@
 package dfs
 
 import (
-	"time"
-
-	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/volume"
 	"errors"
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
+	"time"
 )
 
 const (
@@ -125,7 +124,7 @@ func ensureFreeSpace(vol volume.Volume, dfs *DistributedFilesystem, snapshotSpac
 	for i := 0; i < len(statusMap.Tenants); i++ {
 		currentTenant := statusMap.Tenants[i]
 		if currentTenant.TenantID == vol.Tenant() {
-			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent / 100)
+			amountNeeded = float64(currentTenant.FilesystemUsed) * float64(snapshotSpacePercent/100)
 			foundTenant = true
 		}
 	}

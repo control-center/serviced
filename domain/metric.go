@@ -18,12 +18,14 @@ package domain
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/validation"
 )
 
 // Metric defines the meta-data for a single metric
@@ -76,6 +78,24 @@ type MetricConfig struct {
 	Description string      // a description of the metrics
 	Query       QueryConfig // the http query to request metrics
 	Metrics     []Metric    // meta-data describing all metrics
+}
+
+// ValidEntity ensures the metric config is not named "metrics"
+func (config MetricConfig) ValidEntity() error {
+	if config.ID == "metrics" {
+		return fmt.Errorf("'metrics' is a reserved word")
+	}
+
+	violations := validation.NewValidationError()
+	for _, m := range config.Metrics {
+		if m.BuiltIn {
+			violations.AddViolation(fmt.Sprintf("config %s: metric %s cannot have BuiltIn set to true", config.ID, m.ID))
+		}
+	}
+	if violations.HasError() {
+		return violations
+	}
+	return nil
 }
 
 // Equals equality test for MetricConfig
