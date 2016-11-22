@@ -48,14 +48,12 @@ type storeImpl struct {
 //GetResourcePools Get a list of all the resource pools
 func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePools"))
-	plog.Debug("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
 func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePoolsByRealm"))
-	plog.WithField("realml", realm).Debug("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
 		return nil, errors.New("empty realm not allowed")
