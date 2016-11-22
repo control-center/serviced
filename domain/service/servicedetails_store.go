@@ -196,14 +196,26 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	// Because we don't analyze any of our fields, we have to do this extremely
 	// idiotic regular expression to handle service names with mixed case
 	regex := make([]rune, len(query)*4)
-	for i, r := range []rune(query) {
-		idx := i * 4
-		regex[idx] = '['
-		regex[idx+1] = unicode.ToLower(r)
-		regex[idx+2] = unicode.ToUpper(r)
-		regex[idx+3] = ']'
+	idx := 0
+	for _, r := range []rune(query) {
+		if unicode.IsLetter(r) {
+			regex[idx] = '['
+			regex[idx + 1] = unicode.ToLower(r)
+			regex[idx + 2] = unicode.ToUpper(r)
+			regex[idx + 3] = ']'
+			idx += 4
+		} else if isRegexReservedChar(r) {
+			// Escape all reserved characters
+			regex[idx] = '\\'
+			regex[idx + 1] = r
+			idx += 2
+		} else {
+			// anything else should be usable as is
+			regex[idx] = r
+			idx += 1
+		}
 	}
-	newquery := fmt.Sprintf("%s.*", string(regex))
+	newquery := fmt.Sprintf("%s.*", string(regex[:idx]))
 	if !prefix {
 		newquery = fmt.Sprintf(".*%s", newquery)
 	}
@@ -476,6 +488,17 @@ func createIPAssignment(result EndpointQueryResult) []BaseIPAssignment {
 
 	}
 	return ipAssignments
+}
+
+// isRegexReservedChar returns true if r is one of the reserved characters for Elasticsearch's
+// regular expression syntax. See the following for more info:
+// https://www.elastic.co/guide/en/elasticsearch/reference/2.0/query-dsl-regexp-query.html#regexp-syntax
+func isRegexReservedChar(r rune) bool {
+	const reservedList = ".?+*|{}[]()\"\\#@&<>~"
+	if strings.IndexRune(reservedList, r) == -1 {
+		return false
+	}
+	return true
 }
 
 func newServiceDetailsElasticRequest(query interface{}) elastic.ElasticSearchRequest {
