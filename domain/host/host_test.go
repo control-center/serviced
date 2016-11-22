@@ -55,7 +55,9 @@ func init() {
 
 	ip, err := utils.GetIPAddress()
 	if err != nil {
-		t.Errorf("Could not determine ip: %s", err)
+		// TODO: We could fail more gracefully with something like c.Errorf() if we were doing this check
+		//       in a gochk setup method, but since we're in an init() we should just bail.
+		plog.Fatalf("Could not determine ip: %s", err)
 	}
 
 	validatetable = []validateCase{
