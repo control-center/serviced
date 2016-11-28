@@ -102,6 +102,8 @@ func (l *HostStateListener) Done() {
 func (l *HostStateListener) PostProcess(p map[string]struct{}) {
 	// We are running all of the containers we are supposed to, now
 	// shut down any containers we are not supposed to be running
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	stateIDs := l.getExistingStateIDs()
 	for _, s := range stateIDs {
 		if _, ok := p[s]; !ok {
@@ -152,7 +154,9 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 	}
 
 	// reattach to orphaned container
+	l.mu.RLock()
 	ssdat, containerExit := l.getExistingState(stateID)
+	l.mu.RUnlock()
 	// TODO: Should we go ahead and pull the service state node from zk and make sure it matches?
 
 	sspth := path.Join("/services", serviceID, stateID)
@@ -179,7 +183,9 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 		hsevt, err := l.conn.GetW(hspth, hsdat, done)
 		if err == client.ErrNoNode {
 			logger.Debug("Host state was removed, exiting")
+			l.mu.Lock()
 			l.cleanUpContainer(stateID)
+			l.mu.Unlock()
 			return
 		} else if err != nil {
 			logger.WithError(err).Error("Could not watch host state")
@@ -193,109 +199,146 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 			return
 		} else if !ok {
 			logger.Debug("Service state was removed, exiting")
+			l.mu.Lock()
 			l.cleanUpContainer(stateID)
+			l.mu.Unlock()
 			return
-		}
-
-		// attach to the container if not already attached
-		if containerExit == nil {
-			containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
-			if err != nil {
-				logger.WithError(err).Error("Could not attach to container")
-				// TODO: there is a problem with docker here. How do we handle
-				// this behavior?  For now just shut down and clean up nodes
-				l.cleanUpContainer(stateID)
-				return
-			}
-			l.setExistingState(stateID, ssdat, containerExit)
 		}
 
 		// set the state of this instance
-		switch hsdat.DesiredState {
-		case service.SVCRun:
+		setInstanceState := func() bool {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+
+			// Don't do anything if we are shutting down
+			select {
+			case <-l.shutdown:
+				return false
+			default:
+			}
+			// attach to the container if not already attached
 			if containerExit == nil {
-				// container is detached because it doesn't exist
-				ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
+				containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
 				if err != nil {
-					logger.WithError(err).Error("Could not start container")
-					// TODO: there is a problem with docker here.  How do we
-					// handle this behavior? For now just shut down and clean up nodes
+					logger.WithError(err).Error("Could not attach to container")
+					// TODO: there is a problem with docker here. How do we handle
+					// this behavior?  For now just shut down and clean up nodes
 					l.cleanUpContainer(stateID)
-					return
+					return false
 				}
-
-				// set the service state
 				l.setExistingState(stateID, ssdat, containerExit)
-				logger.Debug("Started container")
-
-				if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-					logger.WithError(err).Error("Could not set state for started container")
-					return
-				}
-			} else if ssdat.Paused {
-				// resume paused container
-				if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
-					logger.WithError(err).Error("Could not resume container")
-					// TODO: there is a problem with docker here. How do we
-					// handle this behavior? For now just shut down and clean up nodes
-					l.cleanUpContainer(stateID)
-					return
-				}
-
-				// update the service state
-				ssdat.Paused = false
-				l.setExistingState(stateID, ssdat, containerExit)
-
-				if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-					logger.WithError(err).Error("Could not set state for resumed container")
-					return
-				}
-
-				logger.Debug("Resumed paused container")
 			}
-		case service.SVCPause:
-			if containerExit != nil && !ssdat.Paused {
-				// container is attached and not paused, so pause the container
-				if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
-					logger.WithError(err).Error("Could not pause container")
-					// TODO: there is a problem with docker here.  How do we
-					// handle this behavior? For now just shut down and clean up nodes
-					l.cleanUpContainer(stateID)
-					return
-				}
 
-				// update the service state
-				ssdat.Paused = true
-				l.setExistingState(stateID, ssdat, containerExit)
-				if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-					logger.WithError(err).Error("Could not set state for resumed container")
-					return
-				}
+			switch hsdat.DesiredState {
+			case service.SVCRun:
+				if containerExit == nil {
+					// container is detached because it doesn't exist
+					ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
+					if err != nil {
+						logger.WithError(err).Error("Could not start container")
+						// TODO: there is a problem with docker here.  How do we
+						// handle this behavior? For now just shut down and clean up nodes
+						l.cleanUpContainer(stateID)
+						return false
+					}
 
-				logger.Debug("Paused running container")
+					// set the service state
+					l.setExistingState(stateID, ssdat, containerExit)
+					logger.Debug("Started container")
+
+					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+						logger.WithError(err).Error("Could not set state for started container")
+						return false
+					}
+
+					return true
+				} else if ssdat.Paused {
+					// resume paused container
+					if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
+						logger.WithError(err).Error("Could not resume container")
+						// TODO: there is a problem with docker here. How do we
+						// handle this behavior? For now just shut down and clean up nodes
+						l.cleanUpContainer(stateID)
+						return false
+					}
+
+					// update the service state
+					ssdat.Paused = false
+					l.setExistingState(stateID, ssdat, containerExit)
+
+					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+						logger.WithError(err).Error("Could not set state for resumed container")
+						return false
+					}
+
+					logger.Debug("Resumed paused container")
+				}
+			case service.SVCPause:
+				if containerExit != nil && !ssdat.Paused {
+					// container is attached and not paused, so pause the container
+					if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
+						logger.WithError(err).Error("Could not pause container")
+						// TODO: there is a problem with docker here.  How do we
+						// handle this behavior? For now just shut down and clean up nodes
+						l.cleanUpContainer(stateID)
+						return false
+					}
+
+					// update the service state
+					ssdat.Paused = true
+					l.setExistingState(stateID, ssdat, containerExit)
+					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+						logger.WithError(err).Error("Could not set state for resumed container")
+						return false
+					}
+
+					logger.Debug("Paused running container")
+				}
+			case service.SVCStop:
+				// shut down the container and clean up nodes
+				l.cleanUpContainer(stateID)
+				return false
+			default:
+				logger.Debug("Could not process desired state for instance")
 			}
-		case service.SVCStop:
-			// shut down the container and clean up nodes
-			l.cleanUpContainer(stateID)
-			return
-		default:
-			logger.Debug("Could not process desired state for instance")
+			return true
 		}
+
+		if !setInstanceState() {
+			return
+		}
+
 		logger.Debug("Waiting for event on host state")
 		select {
 		case <-hsevt:
 		case <-ssevt:
 		case timeExit := <-containerExit:
-			// set the service state
-			ssdat.Terminated = timeExit
-			containerExit = nil
-			l.setExistingState(stateID, ssdat, containerExit)
-			logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+			handleContainerExit := func() bool {
+				l.mu.Lock()
+				defer l.mu.Unlock()
 
-			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-				logger.WithError(err).Error("Could not set state for stopped container")
-				// TODO: we currently don't support containers restarting if
-				// shut down during an outage, so don't bother
+				// Don't do anything if we are shutting down, the shutdown cleanup will handle it
+				select {
+				case <-l.shutdown:
+					return false
+				default:
+				}
+
+				// set the service state
+				ssdat.Terminated = timeExit
+				containerExit = nil
+				l.setExistingState(stateID, ssdat, containerExit)
+				logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+
+				if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+					logger.WithError(err).Error("Could not set state for stopped container")
+					// TODO: we currently don't support containers restarting if
+					// shut down during an outage, so don't bother
+					return false
+				}
+				return true
+			}
+			if !handleContainerExit() {
 				return
 			}
 		case <-cancel:
@@ -312,9 +355,9 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 	}
 }
 
+// Gets a list of state IDs for all existing threads
+//  Call l.mu.RLock() first
 func (l *HostStateListener) getExistingStateIDs() []string {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
 	stateIds := make([]string, len(l.threads))
 	i := 0
 	for s := range l.threads {
@@ -324,24 +367,24 @@ func (l *HostStateListener) getExistingStateIDs() []string {
 	return stateIds
 }
 
+// Gets the ServiceState for an existing thread
+//  Call l.mu.RLock() first
 func (l *HostStateListener) getExistingState(stateID string) (*ServiceState, <-chan time.Time) {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
 	if thread, ok := l.threads[stateID]; ok {
 		return thread.data, thread.exited
 	}
 	return nil, nil
 }
 
+// Adds a state to the internal thread list.
+//  Call l.mu.Lock() first
 func (l *HostStateListener) setExistingState(stateID string, data *ServiceState, containerExit <-chan time.Time) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.threads[stateID] = hostStateThread{data, containerExit}
 }
 
+// Removes a state from the internal thread list
+//  Call l.mu.Lock() first
 func (l *HostStateListener) removeExistingState(stateID string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	delete(l.threads, stateID)
 }
 
@@ -352,6 +395,8 @@ func (l *HostStateListener) updateServiceStateInZK(data *ServiceState, req State
 	})
 }
 
+// Stops the running container, cleans up zk nodes, and removes the thread from the thread list
+//  Call l.mu.Lock() first.
 func (l *HostStateListener) cleanUpContainer(stateID string) {
 	logger := plog.WithFields(log.Fields{
 		"hostID":  l.hostID,
@@ -400,15 +445,10 @@ func (l *HostStateListener) cleanUpContainer(stateID string) {
 
 func (l *HostStateListener) watchForShutdown() {
 	<-l.shutdown
-	for stateIDs := l.getExistingStateIDs(); len(stateIDs) > 0; stateIDs = l.getExistingStateIDs() {
-		wg := sync.WaitGroup{}
-		for _, s := range stateIDs {
-			wg.Add(1)
-			go func(sid string) {
-				defer wg.Done()
-				l.cleanUpContainer(sid)
-			}(s)
-		}
-		wg.Wait()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	stateIDs := l.getExistingStateIDs()
+	for _, s := range stateIDs {
+		l.cleanUpContainer(s)
 	}
 }
