@@ -115,7 +115,7 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 	logger := plog.WithFields(log.Fields{
-		"hostID":  l.hostID,
+		"hostid":  l.hostID,
 		"stateid": stateID,
 	})
 
@@ -399,7 +399,7 @@ func (l *HostStateListener) updateServiceStateInZK(data *ServiceState, req State
 //  Call l.mu.Lock() first.
 func (l *HostStateListener) cleanUpContainer(stateID string) {
 	logger := plog.WithFields(log.Fields{
-		"hostID":  l.hostID,
+		"hostid":  l.hostID,
 		"stateid": stateID,
 	})
 
