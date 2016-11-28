@@ -51,7 +51,7 @@ type HostStateHandler interface {
 	PauseContainer(serviceID string, instanceID int) error
 }
 
-type HostStateThread struct {
+type hostStateThread struct {
 	data   *ServiceState
 	exited <-chan time.Time
 }
@@ -63,7 +63,7 @@ type HostStateListener struct {
 	hostID   string
 	shutdown <-chan interface{}
 	mu       *sync.RWMutex
-	threads  map[string]HostStateThread
+	threads  map[string]hostStateThread
 }
 
 // NewHostStateListener instantiates a HostStateListener object
@@ -73,7 +73,7 @@ func NewHostStateListener(handler HostStateHandler, hostID string, shutdown <-ch
 		hostID:   hostID,
 		shutdown: shutdown,
 		mu:       &sync.RWMutex{},
-		threads:  make(map[string]HostStateThread),
+		threads:  make(map[string]hostStateThread),
 	}
 	go l.watchForShutdown()
 	return l
@@ -336,7 +336,7 @@ func (l *HostStateListener) getExistingState(stateID string) (*ServiceState, <-c
 func (l *HostStateListener) setExistingState(stateID string, data *ServiceState, containerExit <-chan time.Time) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.threads[stateID] = HostStateThread{data, containerExit}
+	l.threads[stateID] = hostStateThread{data, containerExit}
 }
 
 func (l *HostStateListener) removeExistingState(stateID string) {
