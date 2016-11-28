@@ -22,7 +22,7 @@ GOBUILD_TAGS  ?= $(shell bash build-tags.sh)
 GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 
 GOVETTARGETS := $(shell go list -f '{{.Dir}}' ./... | grep -v /vendor/ | grep -v '/serviced$$')
-GOSOURCEFILES := $(shell find `go list -f '{{.Dir}}' ./... | grep -v /vendor/` -maxdepth 1 -name *.go)
+GOSOURCEFILES := $(shell find `go list -f '{{.Dir}}' ./... | grep -v /vendor/` -maxdepth 1 -name \*.go)
 
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
@@ -147,7 +147,7 @@ $(GOBIN)/serviced: $(GOSOURCEFILES) | $(GOBIN)
 $(GOBIN)/serviced-controller: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./serviced-controller
 
-$(GOBIN)/serviced-storage: $(GOSOURCEFILES )| $(GOBIN)
+$(GOBIN)/serviced-storage: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-storage
 
 .PHONY: serviced
@@ -492,6 +492,9 @@ clean_serviced:
                 fi ;\
         done
 	-$(GO) clean
+	rm -rf $(GOBIN)/serviced
+	rm -rf $(GOBIN)/serviced-storage
+	rm -rf $(GOBIN)/serviced-controller
 
 .PHONY: clean_pkg
 clean_pkg:
