@@ -394,7 +394,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 1) has a connection
 		// 2) its node is registered
 		// 3) receives signal to shutdown or breaks
-		hsListener := zkservice.NewHostStateListener(a, a.hostID)
+		hsListener := zkservice.NewHostStateListener(a, a.hostID, shutdown)
 
 		startExit := make(chan struct{})
 		go func() {
