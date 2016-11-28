@@ -109,6 +109,7 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {
 	for _, s := range stateIDs {
 		if _, ok := p[s]; !ok {
 			l.cleanUpContainer(s)
+			plog.WithField("stateid", s).Info("Cleaned up orphaned container")
 		}
 	}
 }
