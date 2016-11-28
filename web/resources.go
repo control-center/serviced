@@ -321,7 +321,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	for _, tenant := range allTenants {
 		service, err := ctx.getFacade().GetService(ctx.getDatastoreContext(), tenant.ID)
 		if err != nil {
-			glog.Errorf("Could not get service %d: %v", tenant.ID, err)
+			glog.Errorf("Could not get service %s: %v", tenant.ID, err)
 			restServerError(w, err)
 			return
 		}

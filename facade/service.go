@@ -848,7 +848,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		serviceRequest = request.(dao.ServiceRequest)
 	default:
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
-		plog.Errorf("Facade.GetServices: err=", err)
+		plog.Error("Facade.GetServices: err=", err)
 		return nil, err
 	}
 	logger := plog.WithFields(log.Fields{
