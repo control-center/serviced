@@ -121,7 +121,7 @@ func getServiceDefinition(path string) (serviceDef *ServiceDefinition, err error
 				plog.WithError(err).WithFields(log.Fields{
 					"path": path,
 					"subpath": subpath.Name(),
-				}).Error("rror fetching filters")
+				}).Error("Unable to fetch filters")
 			} else {
 				svc.LogFilters = filters
 			}

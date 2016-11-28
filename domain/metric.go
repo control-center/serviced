@@ -174,7 +174,7 @@ func (builder *MetricBuilder) Config(ID, Name, Description, Start string) (*Metr
 	//build the query body object
 	bodyBytes, err := json.Marshal(request)
 	if err != nil {
-		plog.WithError(err).Warn("Failed to marshal query body")
+		plog.WithError(err).WithField("query", fmt.Sprintf("%-.48s", request)).Warn("Failed to marshal query body")
 		return nil, err
 	}
 
@@ -191,13 +191,15 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 		requestURI = RequestURI[1:]
 	}
 
+	logger := plog.WithFields(log.Fields{
+		"url": RequestURI,
+		"method": Method,
+	})
+
 	//use url.Parse to ensure proper RequestURI. 'http://localhost' is removed when Config is built
 	url, err := url.Parse("http://localhost/" + requestURI)
 	if err != nil {
-		plog.WithError(err).WithFields(log.Fields{
-			"requesturi": RequestURI,
-			"method": Method,
-		}).Error("Invalid URL")
+		logger.WithError(err).Debug("Invalid URL")
 		return nil, err
 	}
 
@@ -207,10 +209,7 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	case "PUT":
 	case "POST":
 	default:
-		plog.WithError(err).WithFields(log.Fields{
-			"requesturi": RequestURI,
-			"method": Method,
-		}).Error("Invalid HTTP method")
+		logger.WithError(err).Debug("Invalid HTTP method")
 		return nil, errors.New("invalid method")
 	}
 

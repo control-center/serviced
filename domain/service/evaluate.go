@@ -459,49 +459,48 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.
 func (service *Service) Evaluate(getSvc GetService, findChild FindChildService, instanceID int) (err error) {
-	logger := plog.WithError(err)
 	if err = service.EvaluateEndpointTemplates(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateLogConfigTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateConfigFilesTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateStartupTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateRunsTemplate(getSvc, findChild); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateActionsTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateHostnameTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateVolumesTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluatePrereqsTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateHealthCheckTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	if err = service.EvaluateEnvironmentTemplate(getSvc, findChild, instanceID); err != nil {
-		logger.Error()
+		plog.WithError(err).Error()
 		return err
 	}
 	return nil

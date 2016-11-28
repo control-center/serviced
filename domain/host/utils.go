@@ -186,7 +186,7 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 func getInterfaceMap() (map[string]net.Interface, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		plog.WithError(err).Error("Unable to read network interfaces")
+		plog.WithError(err).Debug("Unable to read network interfaces")
 		return nil, err
 	}
 	//make a  of all ipaddresses to interface
@@ -194,7 +194,7 @@ func getInterfaceMap() (map[string]net.Interface, error) {
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			plog.WithField("interface", iface.Name).WithError(err).Error("Unable to read interface addresses")
+			plog.WithField("interface", iface.Name).WithError(err).Debug("Unable to read interface addresses")
 			return nil, err
 		}
 		for _, ip := range addrs {
@@ -214,7 +214,7 @@ func normalizeIP(ip string) string {
 func ipExists(ip string) bool {
 	interfaces, err := getInterfaceMap()
 	if err != nil {
-		plog.WithError(err).Error("Unable to get network interface map")
+		plog.WithError(err).Debug("Unable to get network interface map")
 		return false
 	}
 	normalIP := normalizeIP(ip)
