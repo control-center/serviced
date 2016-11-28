@@ -230,6 +230,9 @@
 # The timeout for creating rpc connections (in seconds)
 # SERVICED_RPC_DIAL_TIMEOUT=30
 
+# The timeout for calling GetRunningServices (in seconds)
+# SERVICED_GETSERVICES_TIMEOUT=10
+
 # Expiration time in seconds for delegate authentication tokens.  Defaults to 1 hour.
 # SERVICED_AUTH_TOKEN_EXPIRATION=3600
 
