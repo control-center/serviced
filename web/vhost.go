@@ -166,6 +166,8 @@ func (h *VHostHandler) Handle(useTLS bool, w http.ResponseWriter, r *http.Reques
 		r.Header.Set("X-Forwarded-Proto", "https")
 	}
 
+	w.Header().Add("Strict-Transport-Security","max-age=31536000")
 	rp.ServeHTTP(w, r)
+
 	return true
 }
