@@ -207,97 +207,7 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 		}
 
 		// set the state of this instance
-		setInstanceState := func() bool {
-			l.mu.Lock()
-			defer l.mu.Unlock()
-
-			// Don't do anything if we are shutting down
-			select {
-			case <-l.shutdown:
-				return false
-			default:
-			}
-			// attach to the container if not already attached
-			if containerExit == nil {
-				containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
-				if err != nil {
-					logger.WithError(err).Error("Could not attach to container")
-					l.cleanUpContainer(stateID)
-					return false
-				}
-				l.setExistingState(stateID, ssdat, containerExit)
-			}
-
-			switch hsdat.DesiredState {
-			case service.SVCRun:
-				if containerExit == nil {
-					// container is detached because it doesn't exist
-					ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
-					if err != nil {
-						logger.WithError(err).Error("Could not start container")
-						l.cleanUpContainer(stateID)
-						return false
-					}
-
-					// set the service state
-					l.setExistingState(stateID, ssdat, containerExit)
-					logger.Debug("Started container")
-
-					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-						logger.WithError(err).Error("Could not set state for started container")
-						return false
-					}
-
-					return true
-				} else if ssdat.Paused {
-					// resume paused container
-					if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
-						logger.WithError(err).Error("Could not resume container")
-						l.cleanUpContainer(stateID)
-						return false
-					}
-
-					// update the service state
-					ssdat.Paused = false
-					l.setExistingState(stateID, ssdat, containerExit)
-
-					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-						logger.WithError(err).Error("Could not set state for resumed container")
-						return false
-					}
-
-					logger.Debug("Resumed paused container")
-				}
-			case service.SVCPause:
-				if containerExit != nil && !ssdat.Paused {
-					// container is attached and not paused, so pause the container
-					if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
-						logger.WithError(err).Error("Could not pause container")
-						l.cleanUpContainer(stateID)
-						return false
-					}
-
-					// update the service state
-					ssdat.Paused = true
-					l.setExistingState(stateID, ssdat, containerExit)
-					if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-						logger.WithError(err).Error("Could not set state for resumed container")
-						return false
-					}
-
-					logger.Debug("Paused running container")
-				}
-			case service.SVCStop:
-				// shut down the container and clean up nodes
-				l.cleanUpContainer(stateID)
-				return false
-			default:
-				logger.Debug("Could not process desired state for instance")
-			}
-			return true
-		}
-
-		if !setInstanceState() {
+		if !l.setInstanceState(containerExit, ssdat, hsdat, stateID, serviceID, instanceID, req, logger) {
 			return
 		}
 
@@ -306,34 +216,10 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 		case <-hsevt:
 		case <-ssevt:
 		case timeExit := <-containerExit:
-			handleContainerExit := func() bool {
-				l.mu.Lock()
-				defer l.mu.Unlock()
-
-				// Don't do anything if we are shutting down, the shutdown cleanup will handle it
-				select {
-				case <-l.shutdown:
-					return false
-				default:
-				}
-
-				// set the service state
-				ssdat.Terminated = timeExit
-				containerExit = nil
-				l.setExistingState(stateID, ssdat, containerExit)
-				logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
-
-				if err := l.updateServiceStateInZK(ssdat, req); err != nil {
-					logger.WithError(err).Error("Could not set state for stopped container")
-					// TODO: we currently don't support containers restarting if
-					// shut down during an outage, so don't bother
-					return false
-				}
-				return true
-			}
-			if !handleContainerExit() {
+			if !l.handleContainerExit(timeExit, ssdat, stateID, req, logger) {
 				return
 			}
+			containerExit = nil
 		case <-cancel:
 			logger.Debug("Host state listener received signal to cancel listening")
 			return
@@ -346,6 +232,127 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 		close(done)
 		done = make(chan struct{})
 	}
+}
+
+func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssdat *ServiceState, hsdat *HostState,
+	stateID, serviceID string, instanceID int, req StateRequest, logger *log.Entry) bool {
+
+	var err error
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	// Don't do anything if we are shutting down
+	select {
+	case <-l.shutdown:
+		return false
+	default:
+	}
+	// attach to the container if not already attached
+	if containerExit == nil {
+		containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
+		if err != nil {
+			logger.WithError(err).Error("Could not attach to container")
+			l.cleanUpContainer(stateID)
+			return false
+		}
+		l.setExistingState(stateID, ssdat, containerExit)
+	}
+
+	switch hsdat.DesiredState {
+	case service.SVCRun:
+		if containerExit == nil {
+			// container is detached because it doesn't exist
+			ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
+			if err != nil {
+				logger.WithError(err).Error("Could not start container")
+				l.cleanUpContainer(stateID)
+				return false
+			}
+
+			// set the service state
+			l.setExistingState(stateID, ssdat, containerExit)
+			logger.Debug("Started container")
+
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for started container")
+				return false
+			}
+
+			return true
+		} else if ssdat.Paused {
+			// resume paused container
+			if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Could not resume container")
+				l.cleanUpContainer(stateID)
+				return false
+			}
+
+			// update the service state
+			ssdat.Paused = false
+			l.setExistingState(stateID, ssdat, containerExit)
+
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for resumed container")
+				return false
+			}
+
+			logger.Debug("Resumed paused container")
+		}
+	case service.SVCPause:
+		if containerExit != nil && !ssdat.Paused {
+			// container is attached and not paused, so pause the container
+			if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Could not pause container")
+				l.cleanUpContainer(stateID)
+				return false
+			}
+
+			// update the service state
+			ssdat.Paused = true
+			l.setExistingState(stateID, ssdat, containerExit)
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for resumed container")
+				return false
+			}
+
+			logger.Debug("Paused running container")
+		}
+	case service.SVCStop:
+		// shut down the container and clean up nodes
+		l.cleanUpContainer(stateID)
+		return false
+	default:
+		logger.Debug("Could not process desired state for instance")
+	}
+	return true
+}
+
+func (l *HostStateListener) handleContainerExit(timeExit time.Time, ssdat *ServiceState, stateID string,
+	req StateRequest, logger *log.Entry) bool {
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	// Don't do anything if we are shutting down, the shutdown cleanup will handle it
+	select {
+	case <-l.shutdown:
+		return false
+	default:
+	}
+
+	// set the service state
+	ssdat.Terminated = timeExit
+	l.setExistingState(stateID, ssdat, nil)
+	logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+
+	if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+		logger.WithError(err).Error("Could not set state for stopped container")
+		// TODO: we currently don't support containers restarting if
+		// shut down during an outage, so don't bother
+		return false
+	}
+	return true
 }
 
 // Gets a list of state IDs for all existing threads
