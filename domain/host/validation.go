@@ -14,20 +14,16 @@
 package host
 
 import (
-	"fmt"
-
-	"github.com/control-center/serviced/validation"
-	"github.com/zenoss/glog"
-
 	"errors"
+	"fmt"
 	"net"
 	"strings"
+
+	"github.com/control-center/serviced/validation"
 )
 
 //ValidEntity validates Host fields
 func (h *Host) ValidEntity() error {
-	glog.V(4).Info("Validating host")
-
 	//if err := validation.ValidHostID(entity.ID); err != nil {
 	//	return fmt.Errorf("invalid hostid:'%s' for host Name:'%s' IP:%s", entity.ID, entity.Name, entity.IPAddr)
 	//}
@@ -42,21 +38,16 @@ func (h *Host) ValidEntity() error {
 	violations.Add(validation.IsIP(h.IPAddr))
 
 	//TODO: what should we be validating here? It doesn't seem to work for
-	glog.V(4).Infof("Validating IPAddr %v for host %s", h.IPAddr, h.ID)
 	ipAddr, err := net.ResolveIPAddr("ip4", h.IPAddr)
-
 	if err != nil {
-		glog.Errorf("Could not resolve: %s to an ip4 address: %v", h.IPAddr, err)
 		violations.Add(err)
 	} else if ipAddr.IP.IsLoopback() {
-		glog.Errorf("Can not use %s as host address because it is a loopback address", h.IPAddr)
 		violations.Add(errors.New("host ip can not be a loopback address"))
 
 	}
 	if _, err := GetRAMLimit(h.RAMLimit, h.Memory); err == ErrSizeTooBig {
 		h.RAMLimit = fmt.Sprintf("%d", h.Memory)
 	} else if err != nil {
-		glog.Errorf("Can not parse RAM Limit: %s", err)
 		violations.Add(err)
 	}
 	if len(violations.Errors) > 0 {

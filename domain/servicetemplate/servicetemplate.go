@@ -21,8 +21,12 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/logging"
 )
 
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {

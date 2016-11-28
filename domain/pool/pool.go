@@ -14,14 +14,18 @@
 package pool
 
 import (
-	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/host"
-
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/logging"
+	"github.com/control-center/serviced/domain/host"
 )
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 type VirtualIP struct {
 	PoolID        string

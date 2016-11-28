@@ -14,17 +14,16 @@
 package host
 
 import (
-	"github.com/control-center/serviced/servicedversion"
-	"github.com/control-center/serviced/utils"
-	"github.com/kr/pretty"
-	"github.com/zenoss/glog"
-
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 // IsLoopbackError is an error type for IP addresses that are loopback.
@@ -57,7 +56,11 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	host.Name = hostname
 	hostidStr, err := utils.HostID()
 	if err != nil {
-		glog.V(2).Infof("HostID failed: %s", err)
+		plog.WithError(err).WithFields(log.Fields{
+			"ip": ip,
+			"rpcport": rpcPort,
+			"poolid": poolID,
+		}).Debug("Unable to retrieve host ID")
 		return nil, err
 	}
 
@@ -97,7 +100,11 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 
 	routes, err := utils.RouteCmd()
 	if err != nil {
-		glog.V(2).Infof("RouteCmd failed: %s", err)
+		plog.WithError(err).WithFields(log.Fields{
+			"ip": ip,
+			"rpcport": rpcPort,
+			"poolid": poolID,
+		}).Debug("Unable to get network routes")
 		return nil, err
 	}
 	for _, route := range routes {
@@ -133,7 +140,13 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 	if err != nil {
 		return nil, err
 	}
-	glog.V(3).Infof("Interfaces on this host %s: %+v", hostID, ifacemap)
+	hostLogger := plog.WithFields(log.Fields{
+		"hostid": hostID,
+		"hostip": hostIP,
+	})
+	hostLogger.WithFields(log.Fields{
+		"interfaces": ifacemap,
+	}).Debug("Interfaces on this host")
 
 	// Get a unique list of ips from staticIPs and hostIP.
 	ips := func() []string {
@@ -147,7 +160,9 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 
 	hostIPResources := make([]HostIPResource, len(ips))
 	for i, ip := range ips {
-		glog.Infof("Checking IP '%s'", ip)
+		hostLogger.WithFields(log.Fields{
+			"ip": ip,
+		}).Debug("Checking IP")
 		if iface, ok := ifacemap[ip]; ok {
 			if isLoopBack(ip) {
 				return nil, IsLoopbackError(ip)
@@ -171,7 +186,7 @@ func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIP
 func getInterfaceMap() (map[string]net.Interface, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		glog.Error("Problem reading interfaces: ", err)
+		plog.WithError(err).Debug("Unable to read network interfaces")
 		return nil, err
 	}
 	//make a  of all ipaddresses to interface
@@ -179,7 +194,7 @@ func getInterfaceMap() (map[string]net.Interface, error) {
 	for _, iface := range interfaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
-			glog.Error("Problem reading interfaces: ", err)
+			plog.WithField("interface", iface.Name).WithError(err).Debug("Unable to read interface addresses")
 			return nil, err
 		}
 		for _, ip := range addrs {
@@ -198,9 +213,8 @@ func normalizeIP(ip string) string {
 
 func ipExists(ip string) bool {
 	interfaces, err := getInterfaceMap()
-	glog.V(5).Infof("looking for %s in %#", ip, pretty.Formatter(interfaces))
 	if err != nil {
-		glog.Error("Problem reading interfaces: ", err)
+		plog.WithError(err).Debug("Unable to get network interface map")
 		return false
 	}
 	normalIP := normalizeIP(ip)

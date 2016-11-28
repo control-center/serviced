@@ -21,14 +21,15 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
+
 
 // Desired states of services.
 type DesiredState int
@@ -507,7 +508,12 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 				if port.PortAddr == portAddr {
 					portFound = true
 					ep.PortList[i].Enabled = enable
-					glog.V(1).Infof("Enable port %s for %s %s set to %v", portAddr, s.ID, application, enable)
+					plog.WithFields(log.Fields{
+						"portaddr": portAddr,
+						"serviceid": s.ID,
+						"application": application,
+						"enable": enable,
+					}).Debug("Enable port")
 				}
 			}
 		}
@@ -546,7 +552,12 @@ func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) 
 				if vhost.Name == vhostName {
 					vhostFound = true
 					ep.VHostList[i].Enabled = enable
-					glog.V(1).Infof("enable vhost %s for %s %s set to %v", vhostName, s.ID, application, enable)
+					plog.WithFields(log.Fields{
+						"vhostname": vhostName,
+						"serviceid": s.ID,
+						"application": application,
+						"enable": enable,
+					}).Debug("Enable vhost")
 				}
 			}
 		}

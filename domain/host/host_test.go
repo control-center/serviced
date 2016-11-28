@@ -16,12 +16,11 @@
 package host
 
 import (
-	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/validation"
-	"github.com/zenoss/glog"
-
 	"strings"
 	"testing"
+
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 )
 
 func containsAll(ve *validation.ValidationError, errStrings ...string) bool {
@@ -56,7 +55,9 @@ func init() {
 
 	ip, err := utils.GetIPAddress()
 	if err != nil {
-		glog.Errorf("Could not determine ip %v", err)
+		// TODO: We could fail more gracefully with something like c.Errorf() if we were doing this check
+		//       in a gochk setup method, but since we're in an init() we should just bail.
+		plog.Fatalf("Could not determine ip: %s", err)
 	}
 
 	validatetable = []validateCase{
@@ -139,7 +140,6 @@ func Test_Build(t *testing.T) {
 
 	empty := make([]string, 0)
 	host, err := Build("", "65535", "test_pool", "", empty...)
-	glog.Infof("build  error %v", err)
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -210,5 +210,5 @@ func Test_getOSKernelData(t *testing.T) {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	glog.Infof("Kernel Version:  %v Kernel Release: %v", kernelVersion, kernelRelease)
+	t.Logf("Kernel Version:  %v Kernel Release: %v", kernelVersion, kernelRelease)
 }

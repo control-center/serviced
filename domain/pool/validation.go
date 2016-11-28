@@ -15,16 +15,13 @@ package pool
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/control-center/serviced/validation"
-	"github.com/zenoss/glog"
-
-	"strings"
 )
 
 //ValidEntity validates Host fields
 func (p *ResourcePool) ValidEntity() error {
-	glog.V(4).Info("Validating ResourcePool")
 
 	trimmedID := strings.TrimSpace(p.ID)
 	violations := validation.NewValidationError()

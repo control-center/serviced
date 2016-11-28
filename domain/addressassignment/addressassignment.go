@@ -13,7 +13,10 @@
 
 package addressassignment
 
-import "github.com/control-center/serviced/datastore"
+import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/logging"
+)
 
 //AddressAssignment is used to track Ports that have been assigned to a Service.
 type AddressAssignment struct {
@@ -34,6 +37,9 @@ type AssignmentRequest struct {
 	IPAddress      string
 	AutoAssignment bool
 }
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 // EqualIP verifies the address assignment is the same by IP ONLY
 func (assign AddressAssignment) EqualIP(b AddressAssignment) bool {

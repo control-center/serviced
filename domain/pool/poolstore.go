@@ -1,4 +1,5 @@
 // Copyright 2014 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -19,7 +20,6 @@ import (
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
 )
 
 //NewStore creates a ResourcePool store
@@ -48,14 +48,12 @@ type storeImpl struct {
 //GetResourcePools Get a list of all the resource pools
 func (ps *storeImpl) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePools"))
-	glog.V(3).Infof("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
 func (s *storeImpl) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("PoolStore.GetResourcePoolsByRealm"))
-	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
 		return nil, errors.New("empty realm not allowed")

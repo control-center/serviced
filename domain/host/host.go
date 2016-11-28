@@ -21,13 +21,18 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
 )
+
+
+// initialize the package logger
+var plog = logging.PackageLogger()
 
 var ErrSizeTooBig = errors.New("calculated memory exceeds base value")
 
@@ -197,13 +202,20 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	}
 	host, err := currentHost(ip, rpcPort, poolid)
 	if err != nil {
-		glog.V(2).Infof("currentHost failed: %s", err)
+		plog.WithError(err).WithFields(log.Fields{
+			"ip": ip,
+			"rpcport": rpcPort,
+			"poolid": poolid,
+		}).Debug("Unable to build host object")
 		return nil, err
 	}
-	glog.Infof("Building host %s (%s) with ipsAddrs: %v [%d]", host.ID, host.IPAddr, ipAddrs, len(ipAddrs))
 	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
 	if err != nil {
-		glog.V(2).Infof("getIPResources failed: %s", err)
+		plog.WithError(err).WithFields(log.Fields{
+			"hostid": host.ID,
+			"ipaddress": host.IPAddr,
+			"ipaddresses": ipAddrs,
+		}).Debug("Unable to get IP address(es) for host")
 		return nil, err
 	}
 	host.IPs = hostIPs
@@ -219,6 +231,11 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
 	host.ServiceD.Release = servicedversion.Release
+
+	plog.WithFields(log.Fields{
+		"hostid": host.ID,
+		"ipaddress": host.IPAddr,
+	}).Info("Created host")
 
 	return host, nil
 }
