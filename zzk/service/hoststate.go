@@ -157,15 +157,15 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 	l.mu.RLock()
 	ssdat, containerExit := l.getExistingState(stateID)
 	l.mu.RUnlock()
-	// TODO: Should we go ahead and pull the service state node from zk and make sure it matches?
 
 	sspth := path.Join("/services", serviceID, stateID)
 	// load the service state node
 	if ssdat == nil {
 		ssdat = &ServiceState{}
 		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
-			// TODO: mismatched data so shut down container and clean up nodes
-			//  Unless we address the TODO above, there is no container running here
+			l.mu.Lock()
+			l.cleanUpContainer(stateID)
+			l.mu.Unlock()
 			return
 		} else if err != nil {
 			logger.WithError(err).Error("Could not load service state")
@@ -221,8 +221,6 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 				containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
 				if err != nil {
 					logger.WithError(err).Error("Could not attach to container")
-					// TODO: there is a problem with docker here. How do we handle
-					// this behavior?  For now just shut down and clean up nodes
 					l.cleanUpContainer(stateID)
 					return false
 				}
@@ -236,8 +234,6 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 					ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
 					if err != nil {
 						logger.WithError(err).Error("Could not start container")
-						// TODO: there is a problem with docker here.  How do we
-						// handle this behavior? For now just shut down and clean up nodes
 						l.cleanUpContainer(stateID)
 						return false
 					}
@@ -256,8 +252,6 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 					// resume paused container
 					if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
 						logger.WithError(err).Error("Could not resume container")
-						// TODO: there is a problem with docker here. How do we
-						// handle this behavior? For now just shut down and clean up nodes
 						l.cleanUpContainer(stateID)
 						return false
 					}
@@ -278,8 +272,6 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 					// container is attached and not paused, so pause the container
 					if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
 						logger.WithError(err).Error("Could not pause container")
-						// TODO: there is a problem with docker here.  How do we
-						// handle this behavior? For now just shut down and clean up nodes
 						l.cleanUpContainer(stateID)
 						return false
 					}
