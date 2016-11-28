@@ -14,6 +14,7 @@
 package service
 
 import (
+	"errors"
 	"path"
 	"time"
 
@@ -322,9 +323,14 @@ func (h *HostRegistryListener) getTimeout() time.Duration {
 func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]host.Host, error) {
 	logger := plog.WithField("poolid", h.poolid)
 
+	var conn client.Connection
+	if conn = h.conn; conn == nil {
+		return nil, errors.New("connection is not initialized")
+	}
+
 	hosts := []host.Host{}
 	for {
-		hostids, err := GetCurrentHosts(h.conn, h.poolid)
+		hostids, err := GetCurrentHosts(conn, h.poolid)
 		if err != nil {
 			return nil, err
 		}
@@ -333,7 +339,7 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 			hstlog := logger.WithField("hostid", hostid)
 
 			// only return hosts that are not locked
-			ch, err := h.conn.Children(h.GetPath(hostid, "locked"))
+			ch, err := conn.Children(h.GetPath(hostid, "locked"))
 			if err != nil && err != client.ErrNoNode {
 
 				hstlog.WithError(err).Debug("Could not check if host is locked")
@@ -345,7 +351,7 @@ func (h *HostRegistryListener) GetRegisteredHosts(cancel <-chan interface{}) ([]
 			isLocked := len(ch) > 0
 			if !isLocked {
 				hdat := host.Host{}
-				err := h.conn.Get(h.GetPath(hostid), &HostNode{Host: &hdat})
+				err := conn.Get(h.GetPath(hostid), &HostNode{Host: &hdat})
 				if err == client.ErrNoNode {
 					continue
 				} else if err != nil {
