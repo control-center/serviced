@@ -376,6 +376,14 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 		ParentServiceID: "svc_b",
 		DeploymentID:    "deployment_id",
 	}
+	svce := &Service{
+		ID:              "svceid",
+		PoolID:          "testPool",
+		Name:            "svc-e",
+		Launch:          "auto",
+		ParentServiceID: "svc_b",
+		DeploymentID:    "deployment_id",
+	}
 	svcdontmatch := &Service{
 		ID:              "svc_a",
 		PoolID:          "testPool",
@@ -389,6 +397,7 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	c.Assert(s.store.Put(s.ctx, svcc), IsNil)
 	c.Assert(s.store.Put(s.ctx, svcd), IsNil)
 	c.Assert(s.store.Put(s.ctx, svcd2), IsNil)
+	c.Assert(s.store.Put(s.ctx, svce), IsNil)
 	c.Assert(s.store.Put(s.ctx, svcdontmatch), IsNil)
 
 	// Get by exact ID should succeed
@@ -396,6 +405,11 @@ func (s *S) Test_GetServiceDetailsByIDOrName(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(details, HasLen, 1)
 	c.Assert(details[0].ID, Equals, "svcaid")
+
+	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svc-e", false)
+	c.Assert(err, IsNil)
+	c.Assert(details, HasLen, 1)
+	c.Assert(details[0].ID, Equals, "svceid")
 
 	// Get where substring of query matches a svc ID should fail
 	details, err = s.store.GetServiceDetailsByIDOrName(s.ctx, "svcaidnope", false)

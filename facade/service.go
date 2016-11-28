@@ -2178,7 +2178,12 @@ func (f *Facade) ResolveServicePath(ctx datastore.Context, svcPath string) ([]se
 	if err != nil {
 		return nil, err
 	}
-	plog.WithField("matches", len(details)).Debug("Found possible service matches")
+	plog.WithFields(log.Fields{
+		"svcPath": svcPath,
+		"current": current,
+		"prefix":  prefix,
+		"matches": len(details),
+	}).Debug("Found possible service matches")
 
 	// Populate the ancestry for all of the found services, so we can check
 	// their parents
