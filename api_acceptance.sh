@@ -44,6 +44,6 @@ cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
 
 # launch cucumber/capybara with colorized output disabled for better readability in Jenkins
-CUCUMBER_OPTS=--no-color ./runAPIAcceptance.sh -a https://${HOSTNAME} $*
+SERVICED_BINARY=${SERVICED_BINARY} CUCUMBER_OPTS=--no-color ./runAPIAcceptance.sh -a https://${HOSTNAME} $*
 
 # "trap cleanup EXIT", above, will handle cleanup

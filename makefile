@@ -30,6 +30,9 @@ GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 GOBUILD_TAGS  ?= $(shell bash build-tags.sh)
 GOBUILD_FLAGS ?= -tags "$(GOBUILD_TAGS)"
 
+GOVETTARGETS := $(shell go list -f '{{.Dir}}' ./... | grep -v /vendor/ | grep -v '/serviced$$')
+GOSOURCEFILES := $(shell find `go list -f '{{.Dir}}' ./... | grep -v /vendor/` -maxdepth 1 -name \*.go)
+
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
 
@@ -69,7 +72,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js serviced serviced-controller tools
+build_TARGETS = build_isvcs build_js $(GOBIN)/serviced $(GOBIN)/serviced-storage $(GOBIN)/serviced-controller
 
 # Define GOPATH for containerized builds.
 #
@@ -80,6 +83,7 @@ docker_GOPATH = /go
 serviced_SRC            = github.com/control-center/serviced
 docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
 docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
+docker_SRC 				= github.com/docker/docker
 
 ifeq "$(GOPATH)" ""
     $(warning "GOPATH not set. Ok to ignore for containerized builds.")
@@ -92,7 +96,7 @@ endif
 # Avoid the inception problem of building from a container within a container.
 IN_DOCKER = 0
 
-GO        = go
+GO        = $(shell which go)
 
 # Verify that we are running with the right go version
 MIN_GO_VERSION ?= go1.7
@@ -115,7 +119,10 @@ endif
 # Build targets       #
 #---------------------#
 .PHONY: default build all
-default build all: goversion $(build_TARGETS)
+default build all: $(build_TARGETS) govet
+
+.PHONY: FORCE
+FORCE:
 
 .PHONY: goversion
 goversion:
@@ -141,55 +148,34 @@ endif
 mockAgent:
 	cd acceptance/mockAgent && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
-GOVET     = $(GOBIN)/govet
-GOTOOLS_SRC = golang.org/x/tools
-
-GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/ vendor/
-GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
+.PHONY: govet
 govet:
-	GOSRC=$(GOSRC) GOTOOLS_SRC=$(GOTOOLS_SRC) ./get_govet.sh
-	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
-	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+	@echo go tool vet -printf=false -composites=false DIRS...
+	@go tool vet -printf=false -composites=false $(GOVETTARGETS)
+
+$(GOBIN):
+	@mkdir -p $@
+
+$(GOBIN)/serviced: $(GOSOURCEFILES) | $(GOBIN)
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ .
+
+$(GOBIN)/serviced-controller: $(GOSOURCEFILES) | $(GOBIN)
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./serviced-controller
+
+$(GOBIN)/serviced-storage: $(GOSOURCEFILES) | $(GOBIN)
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-storage
+
+.PHONY: serviced
+serviced: $(GOBIN)/serviced
+
+.PHONY: serviced-controller
+serviced-controller: $(GOBIN)/serviced-controller
+
+.PHONY: serviced-storage
+serviced-storage: $(GOBIN)/serviced-storage
 
 .PHONY: go
-go:
-	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-
-# As a dev convenience, we call both 'go build' and 'go install'
-# so the current directory and $GOPATH/bin are updated
-# with the built target.  This allows dev's to reference the target out
-# of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
-
-docker_SRC = github.com/docker/docker
-
-
-# https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
-#
-# Force our go recipes to always fire since make doesn't
-# understand all of the target's *.go dependencies.  In this case let
-# '$(GO) build' determine if the target needs to be rebuilt.
-FORCE:
-
-serviced: $(GO)
-serviced: FORCE
-	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	make govet
-	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced $(GOBIN)/serviced; fi
-
-serviced-controller: $(GO)
-serviced-controller: FORCE
-	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
-
-
-tools: serviced-storage
-
-serviced-storage: $(GO)
-serviced-storage: FORCE
-	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
+go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
@@ -521,6 +507,9 @@ clean_serviced:
                 fi ;\
         done
 	-$(GO) clean
+	rm -rf $(GOBIN)/serviced
+	rm -rf $(GOBIN)/serviced-storage
+	rm -rf $(GOBIN)/serviced-controller
 
 .PHONY: clean_pkg
 clean_pkg:
