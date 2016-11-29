@@ -193,7 +193,7 @@ if [ -z "$JOB_NAME" ]; then
     JOB_NAME="serviced-api-acceptance"
 fi
 
-cp -u `pwd`/../serviced `pwd`/api
+cp -u "${SERVICED_BINARY}" "${PWD}/api"
 trap 'docker rm -f api_acceptance' INT
 
 docker run --rm --name api_acceptance \
