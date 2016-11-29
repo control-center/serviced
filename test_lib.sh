@@ -15,6 +15,7 @@ if [ -z "${SERVICED}" ]; then
     echo "ERROR: Can not find a serviced binary"
     exit 1
 fi
+SERVICED_BINARY="${SERVICED}"
 SERVICED_STORAGE=$(PATH=${GOPATH}/bin:${PATH} which serviced-storage)
 if [ -z "${SERVICED_STORAGE}" ]; then
     echo "ERROR: Can not find a serviced-storage binary"
