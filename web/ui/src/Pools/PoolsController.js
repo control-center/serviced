@@ -104,7 +104,7 @@
             modalScope.refreshPools = () => this.refreshPools();
 
             $modalService.create({
-                template: $translate.instant("confirm_remove_pool") + "<strong>"+ id +"</strong>",
+                template: $translate.instant("confirm_remove_pool") + "<strong>"+ utils.escapeHTML(id) +"</strong>",
                 model: modalScope,
                 title: "remove_pool",
                 actions: [
@@ -117,12 +117,12 @@
                         action: function(){
                             resourcesFactory.removePool(id)
                                 .success(function(data) {
-                                    $notification.create("Removed Pool", id).success();
+                                    $notification.create("Removed Pool", utils.escapeHTML(id)).success();
                                     modalScope.refreshPools();
                                 })
                                 .error(data => {
                                     let message = (data && data.Detail) || "";
-                                    $notification.create("Remove Pool failed", message).error();
+                                    $notification.create("Remove Pool failed", utils.escapeHTML(message)).error();
                                 });
 
                             this.close();
@@ -167,11 +167,11 @@
                                 resourcesFactory.addPool(payload)
                                     .success(function(data, status){
                                         this.close();
-                                        $notification.create("Added new Pool", data.Detail).success();
+                                        $notification.create("Added new Pool", utils.escapeHTML(data.Detail)).success();
                                         modalScope.refreshPools();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Adding pool failed", data.Detail).error();
+                                        this.createNotification("Adding pool failed", utils.escapeHTML(data.Detail)).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
