@@ -19,6 +19,8 @@ import argparse
 import sys
 import time
 
+from distutils.spawn import find_executable
+
 
 def Try(f, times, sleep=2):
     ex = None
@@ -77,9 +79,18 @@ class ServicedTest(object):
                 print "svc %s was not found to be running" % (svc["ID"])
                 sys.exit(1)
 
+
+def default_serviced_binary():
+    serviced = find_executable("serviced")
+    if not serviced:
+        # Fall back to local binary, which may not exist
+        serviced = "./serviced"
+    return serviced
+
+
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="smoke tests for serviced")
-    parser.add_argument("--path", help="serviced path", default="./serviced")
+    parser.add_argument("--path", help="serviced path", default=default_serviced_binary())
     parser.add_argument("action")
     args = parser.parse_args()
 

@@ -162,6 +162,15 @@ fi
 echo "Using HOST_IP=$HOST_IP"
 
 #
+# Attempt to find the serviced binary, making sure to check $GOPATH/bin
+#
+SERVICED_BINARY="$(PATH=${GOPATH}/bin:${PATH} which serviced)"
+if [ -z "${SERVICED_BINARY}" ]; then
+	echo "ERROR: Unable to locate serviced binary" 1>&2
+	exit 1
+fi
+
+#
 # If we're not running on Ubuntu 14.04 (the same version as the zenoss/capybara image), then
 # we need to mount the host's libdevmapper into the container since the container
 # doesn't have a compatible library
@@ -178,7 +187,7 @@ fi
 
 LIB_DEVMAPPER_MOUNT=""
 if [ "$MOUNT_DEVMAPPER" == "true" ]; then
-    LIBDEVMAPPER_SOURCE=`ldd ../serviced | grep libdevmapper | awk '{print $3}'`
+    LIBDEVMAPPER_SOURCE=`ldd ${SERVICED_BINARY} | grep libdevmapper | awk '{print $3}'`
     LIBDEVMAPPER_TARGET=`echo $LIBDEVMAPPER_SOURCE | rev | cut -d '/' -f1 | rev`
     LIB_DEVMAPPER_MOUNT="-v ${LIBDEVMAPPER_SOURCE}:/lib/x86_64-linux-gnu/${LIBDEVMAPPER_TARGET}"
 fi
