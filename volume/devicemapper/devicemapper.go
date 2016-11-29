@@ -678,6 +678,13 @@ func (d *DeviceMapperDriver) readDeviceInfo(deviceHash string, devInfo *devInfo)
 	return nil
 }
 
+// invalidateDeviceInfo clears the device
+func (d *DeviceMapperDriver) invalidateDeviceInfo(deviceHash string) {
+	d.DeviceSet.Lock()
+	defer d.DeviceSet.Unlock()
+	delete(d.DeviceSet.Devices, deviceHash)
+}
+
 // writeDeviceInfo performs an atomic write to the device metadata file
 func (d *DeviceMapperDriver) writeDeviceInfo(deviceHash string, devInfo devInfo) error {
 	devInfoPath := d.deviceInfoPath(deviceHash)
@@ -695,6 +702,8 @@ func (d *DeviceMapperDriver) writeDeviceInfo(deviceHash string, devInfo devInfo)
 		glog.Errorf("Could not update info for device %s: %s", deviceHash, err)
 		return err
 	}
+	// Clear the cached device info for the set
+	invalidateDeviceInfo(deviceHash)
 	return nil
 }
 
