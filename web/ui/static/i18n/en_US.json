@@ -68,7 +68,7 @@
     "confirm_remove_virtual_host": "This action will permanently delete the virtual host ",
     "confirm_remove_virtual_ip": "This action will permanently delete the virtual IP ",
     "confirm_start_app": "This will start all child services.",
-    "confirm_start_backup": "The backup process may take a while. You will <b>not</b> be able to start or deploy new services during backup.",
+    "confirm_start_backup": "The backup process may take a while.",
     "confirm_start_restore": "The restore process cannot be reversed.",
     "confirm_stop_app": "This will stop all child services.",
     "container_down": "Not Started",
