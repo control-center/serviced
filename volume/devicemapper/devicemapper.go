@@ -703,7 +703,7 @@ func (d *DeviceMapperDriver) writeDeviceInfo(deviceHash string, devInfo devInfo)
 		return err
 	}
 	// Clear the cached device info for the set
-	invalidateDeviceInfo(deviceHash)
+	d.invalidateDeviceInfo(deviceHash)
 	return nil
 }
 
