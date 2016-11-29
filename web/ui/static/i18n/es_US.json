@@ -68,7 +68,7 @@
     "confirm_remove_virtual_host": "Esto eliminar\u00e1 el siguiente Servidor Virtual, esta acci\u00f3n no podra ser revertida.:",
     "confirm_remove_virtual_ip": "Esto eliminar\u00e1 la siguiente IP virtual, esta acci\u00f3n no podra ser revertida.:",
     "confirm_start_app": "Esto iniciar\u00e1 todos los servicios hijos.",
-    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco. No podrá arrancar o desplegar ningún servicio durante el proceso de copia de seguridad.",
+    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco.",
     "confirm_start_restore": "El proceso de restauraci\u00f3n no se puede revertir.",
     "confirm_stop_app": "Esto detendr\u00e1 todos los servicios hijos.",
     "container_down": "No iniciado",
