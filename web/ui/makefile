@@ -21,6 +21,8 @@ controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
 docker_working_DIR = /mnt
 
+GULP ?= /usr/bin/gulp
+
 .PHONY: default
 default: build
 
@@ -48,7 +50,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp release'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
-		gulp release; \
+		$(GULP) release; \
 	else \
 		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp release'"; \
 		docker run --rm \
@@ -57,7 +59,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 		-e GID_X=$(GID) \
 		$(USER_ARGS) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && $(GULP) release\""; \
 	fi
 
 .PHONY: test
@@ -65,7 +67,7 @@ test: build translation_test
 	@if [ "$(NODEJS)" ]; then \
 		echo "Using local nodejs to run 'gulp test'"; \
 		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
-		gulp test; \
+		$(GULP) test; \
 	else \
 		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp test'"; \
 		docker run --rm \
@@ -73,7 +75,7 @@ test: build translation_test
 		-e UID_X=$(UID) \
 		-e GID_X=$(GID) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && $(GULP) test\""; \
 	fi
 
 .PHONY: translation_test
@@ -83,5 +85,16 @@ translation_test:
 
 .PHONY: clean
 clean:
-	rm -rf build
-	rm -rf test/results
+	@if [ "$(NODEJS)" ]; then \
+		echo "Using local nodejs to run 'gulp clean'"; \
+		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
+		$(GULP) clean; \
+	else \
+		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp clean'"; \
+		docker run --rm \
+		-v $(PWD):$(docker_working_DIR) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && $(GULP) clean\""; \
+	fi

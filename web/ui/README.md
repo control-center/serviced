@@ -22,23 +22,14 @@ The following is a partial illustration of the subdirectory structure for the pa
  ```
 
 ## Build Setup
-Nothing special is required to build the code in `serviced/web`. The toplevel
-makefile for serviced calls the `serviced/web/ui/makefile`to build the UI code
-By default, the `serviced/web/ui/makefile` uses the Docker container
-`zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch
-the UI portion of the build. This image contains all of the tools required to build the UI.
+Nothing special is required to build the code in `serviced/web`. The toplevel makefile for serviced calls the `serviced/web/ui/makefile`to build the UI code By default, the `serviced/web/ui/makefile` uses the Docker container `zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch the UI portion of the build. This image contains all of the tools required to build the UI.
 
-If you have node.js installed locally, then the first time the build is executed a number of
-additional third-party UI build tools will be automatically downloaded and cached locally.
-This may take a few minutes. However, after the tools are cached
-locally, subsequent builds will not repeat those downloads.
+If you have node.js installed locally, then the first time the build is executed a number of additional third-party UI build tools will be automatically downloaded and cached locally. This may take a few minutes. However, after the tools are cached locally, subsequent builds will not repeat those downloads.
 
-If you do not have node.js installed locally, these tools are included in the Docker
-image `zenoss/serviced-build`.
+If you do not have node.js installed locally, these tools are included in the Docker image `zenoss/serviced-build`.
 
 ### Primary make targets
-The three primary make targets are `build`, `test`, and `clean`. All of these targets perform the corresponding
-action on the Javascript code. Developers who want to build/test/clean _only_ the Go code or _only_ the Javascript code should use the native build tools for those languages directly rather than make. For Javascript, the primary build tool is [gulp](http://gulpjs.com/).
+The three primary make targets are `build`, `test`, and `clean`. All of these targets perform the corresponding action on the Javascript code. Developers who want to build/test/clean _only_ the Go code or _only_ the Javascript code should use the native build tools for those languages directly rather than make. For Javascript, the primary build tool is [gulp](http://gulpjs.com/).
 
 ### Installing dev tools locally
 
@@ -55,15 +46,15 @@ make sure you have build tools (for native npm modules)
 
 install a few global npm packages
 
-    sudo npm install --global gulp jshint 6to5
+    sudo npm install --global gulp jshint babel yarn
 
 navigate to the `web/ui` directory and remove `node_modules` if present
 
     rm -rf node_modules
 
-install CC UI dev dependencies
+install CC UI dev dependencies using yarn
 
-    npm install
+    yarn install --pure-lockfile
 
 use our local npm repo by adding the following line to your `$HOME/.npmrc`:
 
@@ -71,9 +62,11 @@ use our local npm repo by adding the following line to your `$HOME/.npmrc`:
 
 And now you're all set to develop the CC UI app locally. The previous steps are all (mostly) one-time setup. To develop the web app, open either Chrome (recommended) or Firefox's dev tools, make sure caching is off (you should be able to specifically disable caching when dev tools is open), and run the following in a terminal:
 
-    gulp && gulp watch
+    gulp watch
 
 Now whenever changes are made to the source html, css, or js, the web app will be rebuilt on the fly. Refresh the page in the browser and you will see your changes right away. Boom! Now learn to use Chrome's dev tools! They're amazing!
+
+NOTE: `gulp watch` will not transpile javascript, which means you need to keep your browser up to date to use this feature. If this is not possible, manually run `gulp` each time a change is made to the javascript source and gulp will build AND transpile the code to work on all supported browsers (IE10+).
 
 ### Installing dev tools locally - the longer version
 It is recommended (but not required) that developers working on the UI code install the Javascript build tools directly.
@@ -96,42 +89,37 @@ The pre-requisite tools are ones which must be pre-installed. The `zenoss/servic
 If you want to install them locally, refer to the commands in [`serviced/build/Dockerfile`](../../build/Dockerfile) for the following packages:
   * [Node.js](http://nodejs.org) - a Javascript application platform
   * [npm](https://www.npmjs.com/) - the node package manager. npm is bundled with the Windows and Mac distros of node.js, but has to be installed separately for Linux
+  * [yarn](https://yarnpkg.com/) - an alternate package manager that provides reproducible builds and quicker dependency resolution
   * [gulp](http://gulpjs.com/) - a Javascript build tool
-  * [6to5](https://6to5.org/) - a Javascript 6 to 5 cross compiler
+  * [babeljs](https://babeljs.io/) - a Javascript transpiler that converts modern js into more broadly compatible js
 
-Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by npm based on the definitions in [`serviced/web/ui/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `npm install` once to download the rest of the tool chain.
+Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by npm based on the definitions in [`serviced/web/ui/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `yarn install --pure-lockfile` once to download the rest of the tool chain.
 
-**NOTE:** npm will cache everything it downloads in `serviced/web/ui/node_modules`.  In the unlikely event, you encounter a problem with
-incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
+**NOTE:** yarn will cache everything it downloads in `serviced/web/ui/node_modules`.  In the unlikely event, you encounter a problem with
+incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `yarn install --pure-lockfile` if you have installed yarn on your local).
 
 
 ### Updating dev tool versions
-To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.
+To change a version of one of the prerequisite tools (node.js, npm, yarn, gulp or babeljs), you must edit [`serviced/build/Dockerfile`](../../build/Dockerfile) to include the necessary changes.
 Be sure that your `$HOME/.npmrc` file is pointed at `http://nexus.zendev.org:8081/nexus/content/repositories/npm`
 Be sure to test with a clean build, removing `serviced/web/ui/node_modules` just to be safe.
 
 To change a version of one of the other tools, edit [`serviced/web/ui/package.json`](./package.json).
 
-**NOTE:** The npm ecosystem implements semantic versioning, but the npm packages tend to be very lenient on what they include, often using "latest" versions of their own dependencies.
-To have reproducible builds, we must ensure that dependency (and sub-dependency, etc) version numbers are locked down. Npm packages installed via Dockerfile and `package.json` use explicit versions, however to ensure that sub-dependencies don't ever default to "latest", we use the npm 'shrinkwrap' feature.
-
-**If a change is made to `serviced/web/ui/package.json`, `npm-shrinkwrap.json` *must* be updated as well.** Use the following procedure to ensure newly installed dependencies are locked down:
+**If a change is made to `serviced/web/ui/package.json`, `yarn.lock` *must* be updated as well.** Use the following procedure to ensure newly installed dependencies are locked down:
 
 ```
 $ cd web/ui
-$ rm npm-shrinkwrap.json
 $ rm -rf node_modules
 
 << make your changes to package.json >>
 
-$ npm install
+$ yarn install
 
 << build/test with the new changes>>
-
-$ npm shrinkwrap --dev
-
-<< commit changes to package.json and npm-shrinkwrap.json >>
+<< commit changes to package.json and yarn.lock >>
 ```
+
 Verify a local build works with your changes. Assuming it does, then you need to refresh the `zenoss/serviced-build`
 Docker image to include your changes so everyone who does NOT have node.js installed will use them also.
 

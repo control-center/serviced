@@ -180,7 +180,7 @@ go: $(GOBIN)/serviced $(GOBIN)/serviced-controller $(GOBIN)/serviced-storage
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
-BUILD_VERSION = v$(VERSION)-4
+BUILD_VERSION = v$(VERSION)-7
 export BUILD_VERSION
 
 #
@@ -191,7 +191,7 @@ export BUILD_VERSION
 #
 buildServicedBuildImage: docker_ok buildServicedBuildImage_ok
 	cp web/ui/package.json build
-	cp web/ui/npm-shrinkwrap.json build
+	cp web/ui/yarn.lock build
 	docker build -t zenoss/serviced-build:$(BUILD_VERSION) build
 
 #

@@ -36,9 +36,12 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'src/**/*.js': ['6to5', 'coverage']
+        'src/**/*.js': ['babel', 'coverage']
     },
 
+    bablePreprocessor: {
+        options: ["es2015"]
+    },
 
     // test results reporter to use
     // possible values: 'dots', 'progress', 'html', 'junit', 'coverage'
@@ -62,10 +65,16 @@ module.exports = function(config) {
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
 
+    customLaunchers: {
+      chrome_no_sandbox: {
+        base: 'Chrome',
+        flags: ['--no-sandbox']
+      }
+    },
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['Chrome', 'Firefox', 'PhantomJS'],
+    browsers: ['chrome_no_sandbox', 'Chrome'],
 
 
     // Continuous Integration mode
@@ -76,7 +85,9 @@ module.exports = function(config) {
     // Junit-style reports that can be displayed in Jenkins
     // For more info, see https://www.npmjs.com/package/karma-junit-reporter
     junitReporter: {
-      outputFile: 'test/results/results.xml',
+      outputDir: 'test/results',
+      outputFile: 'results.xml',
+      useBrowserName: false,
       suite: ''
     },
 
@@ -95,10 +106,10 @@ module.exports = function(config) {
     // Code coverage results below these thresholds will trigger a build failure
     // For more info, see https://www.npmjs.com/package/karma-threshold-reporter
     thresholdReporter: {
-      statements: 20,
-      branches: 15,
+      statements: 17,
+      branches: 14,
       functions: 15,
-      lines: 20
+      lines: 17
     }
   });
 };
