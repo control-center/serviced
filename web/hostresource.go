@@ -403,6 +403,19 @@ func restGetAggregateServices(w *rest.ResponseWriter, r *rest.Request, ctx *requ
 
 	facade := ctx.getFacade()
 	dataCtx := ctx.getDatastoreContext()
+
+	if len(serviceIDs) == 0 {
+		details, err := facade.GetAllServiceDetails(dataCtx, time.Duration(0))
+		if err != nil {
+			glog.Error("Could not look up aggregate service instances:", err)
+			restServerError(w, err)
+			return
+		}
+		for _, d := range details {
+			serviceIDs = append(serviceIDs, d.ID)
+		}
+	}
+
 	aggServices, err := facade.GetAggregateServices(dataCtx, time.Now().Add(-tsince), serviceIDs)
 	if err != nil {
 		glog.Error("Could not look up aggregate service instances:", err)
