@@ -65,10 +65,16 @@ module.exports = function(config) {
     // enable / disable watching file and executing tests whenever any file changes
     autoWatch: false,
 
+    customLaunchers: {
+      chrome_no_sandbox: {
+        base: 'Chrome',
+        flags: ['--no-sandbox']
+      }
+    },
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
-    browsers: ['Chrome', 'Firefox', 'PhantomJS'],
+    browsers: ['chrome_no_sandbox', 'Chrome'],
 
 
     // Continuous Integration mode

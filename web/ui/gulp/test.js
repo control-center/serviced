@@ -58,7 +58,7 @@ gulp.task('test', function (done) {
         configFile: path.resolve("karma.conf.js"),
         singleRun: true,
         logLevel: "debug",
-        browsers: ["Chrome"],
+        browsers: ["chrome_no_sandbox"],
         reporters: ["progress","junit","coverage","threshold"],
     }, function(exitStatus) {
         var err = exitStatus ? new gutil.PluginError('test', 'There are failing unit tests') : undefined;
