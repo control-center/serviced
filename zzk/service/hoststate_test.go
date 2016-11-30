@@ -95,7 +95,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_BadStateID(c *C) {
 	case <-timer.C:
 		c.Fatalf("Listener took too long")
 	}
-	
+
 	handler.AssertExpectations(c)
 }
 
@@ -1044,8 +1044,9 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 
 	done := make(chan struct{})
 
-	_, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdat, done)
+	ok, err := conn.Exists("/services/serviceid/" + req.StateID())
 	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
 	go func() {
 		listener.Spawn(cancel, req.StateID())
 		close(done)
@@ -1074,4 +1075,382 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachStop(c *C) {
 	}
 
 	handler.AssertExpectations(c)
+}
+
+// Test Case: Post-Process stops unnecessary containers
+func (t *ZZKTest) TestHostStateListener_PostProcess(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	done := make(chan struct{})
+
+	ok, err := conn.Exists("/services/serviceid/")
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+	}
+
+	// Cancel the listener, this won't stop the container or clean up the node
+	close(cancel)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Logf("Listener exit, checking that node still exists")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, true)
+	case <-timer.C:
+		c.Fatalf("Listener took too long to exit")
+	}
+
+	// Call post-process with an empty map, this WILL stop the container and clean up nodes
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	}).Once()
+
+	threadMap := make(map[string]struct{})
+	ppdone := make(chan struct{})
+	go func() {
+		listener.PostProcess(threadMap)
+		close(ppdone)
+	}()
+
+	timer.Reset(5 * time.Second)
+	select {
+	case <-ppdone:
+		c.Logf("PostProcess done, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		c.Fatalf("Post process took too long")
+	}
+
+	// Make sure StopContainer was called
+	handler.AssertExpectations(c)
+
+	// shutdown
+	shutdowndone := listener.GetShutdownComplete()
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+}
+
+// Test Case: Re-attach to existing container after cancel
+func (t *ZZKTest) TestHostStateListener_Spawn_Cancel_ReSpawn(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	done := make(chan struct{})
+
+	ok, err := conn.Exists("/services/serviceid/")
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+	}
+
+	// Cancel the listener, this won't stop the container or clean up the node
+	close(cancel)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Logf("Listener exit, checking that node still exists")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, true)
+	case <-timer.C:
+		c.Fatalf("Listener took too long to exit")
+	}
+
+	// Call spawn again, no need to re-attach
+	cancel = make(chan interface{})
+	done = make(chan struct{})
+
+	ok, err = conn.Exists("/services/serviceid/")
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	// Wait for spawn to stabilize
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+	}
+
+	// Call shutdown without canceling, should still clean up
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	}).Once()
+	shutdowndone := listener.GetShutdownComplete()
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		c.Fatalf("Listener shut down took too long")
+	}
+
+	// Make sure spawn thread exited
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Logf("Spawn thread exited")
+	case <-timer.C:
+		c.Fatalf("Spawn thread did not exit")
+	}
+
+	handler.AssertExpectations(c)
+}
+
+// Test Case: shutdown and cancel at the same time
+func (t *ZZKTest) TestHostStateListener_Spawn_Cancel_Shutdown(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(retExit, nil).Once()
+	done := make(chan struct{})
+
+	ok, err := conn.Exists("/services/serviceid/")
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+	}
+
+	// Shutdown and cancel at the same time
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	}).Once()
+	shutdowndone := listener.GetShutdownComplete()
+
+	go close(shutdown)
+	close(cancel)
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		c.Fatalf("Listener shut down took too long")
+	}
+
+	// Make sure spawn thread exited
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Logf("Spawn thread exited")
+	case <-timer.C:
+		c.Fatalf("Spawn thread did not exit")
+	}
+
+	handler.AssertExpectations(c) //this makes sure StopContainer was called
+}
+
+// Test Case: spawn after shutdown does nothing
+func (t *ZZKTest) TestHostStateListener_Shutdown_Spawn(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	// set up a running container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		s.ServiceState = *ssdat
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	done := make(chan struct{})
+	ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+	c.Assert(err, IsNil)
+	c.Assert(ok, Equals, true)
+
+	// Close shutdown before spawning
+	shutdowndone := listener.GetShutdownComplete()
+	close(shutdown)
+
+	// Spawn should exit immediately
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Logf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long to exit")
+	}
+
+	// Wait for shutdown to complete
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down")
+	case <-timer.C:
+		c.Fatalf("Listener shut down took too long")
+	}
+
+	handler.AssertExpectations(c) //this makes sure StopContainer was called
+
+	// Clean up the node we created
+	err = conn.Delete("/services/serviceid/" + req.StateID())
+	c.Assert(err, IsNil)
 }
