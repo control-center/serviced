@@ -85,7 +85,9 @@ module.exports = function(config) {
     // Junit-style reports that can be displayed in Jenkins
     // For more info, see https://www.npmjs.com/package/karma-junit-reporter
     junitReporter: {
-      outputFile: 'test/results/results.xml',
+      outputDir: 'test/results',
+      outputFile: 'results.xml',
+      useBrowserName: false,
       suite: ''
     },
 
