@@ -63,6 +63,9 @@ gulp.task('test', function (done) {
     }, function(exitStatus) {
         var err = exitStatus ? new gutil.PluginError('test', 'There are failing unit tests') : undefined;
         done(err);
+        // HACK - karma hangs indefinitely on a singleRun, 
+        // so forcefully end the process
+        process.exit(exitStatus);
     });
 
     server.start();
