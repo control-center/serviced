@@ -144,6 +144,7 @@ def clickAddPoolButton()
     CC.UI.PoolsPage.addPool_button.click()
     # wait till modal is done loading
     expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
+    find("#formWait") # wait until the angular binds are done. see add-pool.html
 end
 
 def fillInResourcePoolField(name)
@@ -158,6 +159,7 @@ def clickAddVirtualIpButton()
     CC.UI.PoolsPage.addVirtualIp_button.click()
     # wait till modal is done loading
     expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
+    find("#formWait") # wait until the angular binds are done. see pool-add-virtualip.html
 end
 
 def fillInIpField(address)
@@ -173,7 +175,7 @@ def fillInInterfaceField(interface)
 end
 
 def addVirtualIpButton()
-    CC.UI.PoolsPage.dialogAddVirtualIp_button.click()
+    CC.UI.PoolsPage.dialogAddVirtualIp_button.click() # this is the submit for a new virtual ip
     # wait till modal is done loading
     expect(CC.UI.PoolsPage).to have_no_css(".uilock", :visible => true)
 end

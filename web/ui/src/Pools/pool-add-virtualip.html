@@ -1,4 +1,5 @@
 <form name="addVirtualIP">
+<span id="formWait" ng-if="add_virtual_ip">
     <!-- IP -->
     <div class="form-group">
       <label for="new_pool_virtual_ip" translate>label_ip</label>
@@ -20,4 +21,5 @@
       <label for="new_pool_virtual_ip" translate>label_bind_interface</label>
       <input class="form-control" name="interface" id="interface" type="text" ng-model="add_virtual_ip.BindInterface" />
     </div>
+</span>
 </form>

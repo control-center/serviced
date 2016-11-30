@@ -1,8 +1,9 @@
+<span id="formWait" ng-if="newPool">
 <div class="form-group">
     <label for="new_pool_name">
         <span translate>label_pool_name</span>:
     </label>
-    <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text" 
+    <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text"
            placeholder="{{'placeholder_pool_name'|translate}}" maxlength=100 ng-model="newPool.ID">
 </div>
 
@@ -10,7 +11,7 @@
     <label for="new_pool_description">
         <span translate>label_pool_description</span>:
     </label>
-    <input class="form-control" name="new_pool_description" id="new_pool_description" type="text" 
+    <input class="form-control" name="new_pool_description" id="new_pool_description" type="text"
            placeholder="{{'placeholder_pool_description'|translate}}" ng-model="newPool.Description">
 </div>
 
@@ -31,7 +32,7 @@
         </label><br>
     </div>
 </div>
-
+</span>
 
 <!-- Disabled until enforced. See ZEN-11450
 <label for="new_pool_core_limit">{{'label_pool_core_limit'|translate}}:</label>
