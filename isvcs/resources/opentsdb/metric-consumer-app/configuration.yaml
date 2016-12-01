@@ -1,0 +1,72 @@
+authEnabled: false
+
+logging:
+    level: INFO
+
+http:
+  port: 8443
+  adminPort: 58443
+  connectorType: nonblocking
+  ssl:
+      keyStore: etc/metric-consumer-app/cert/ssl.pfx
+      keyStorePassword: zapp_pass
+      keyStoreType:     pkcs12
+  requestLog:
+    console:
+      enabled: false
+
+webSocketConfiguration:
+    maxTextMessageSize: 10485760
+
+metricService:
+    jobSize: 1000
+    highCollisionMark: 2000000
+    lowCollisionMark: 1000000
+    perClientMaxBacklogSize: 500000
+    perClientMaxPercentOfFairBacklogSize: 100
+    maxClientWaitTime: 1000
+    minTimeBetweenBroadcast: 100
+    minTimeBetweenNotification: 100
+    tsdbWriterThreads: 1
+    maxIdleTime: 10000
+    maxConnectionBackOff: 5000
+    minConnectionBackOff: 100
+    openTsdbClientPool:
+      maxKeepAliveTime: 300000
+      minTestTime:       60000
+      clientBufferSize:  65536
+      clients:
+        - {host: localhost, port: 4242}
+
+      clientFactory:
+        keepAlive:          true
+        connectTimeout:     1000
+        soTimeout:          1000
+
+managedReporter:
+    defaultMetricTags:
+      controlplane_service_id: "$env[CONTROLPLANE_SERVICE_ID]"
+
+    metricReporters:
+      - {posterType: bean, beanName: metric-service-poster}
+
+# tagWhiteList:
+#   - my_allowed_tag
+#   - my_other_allowed_tag
+#
+# tagWhiteListPrefixes:
+#   - my_allowed_tag_prefix
+#   - my_other_allowed_tag_prefix
+httpParameterTags:
+  - controlplane
+
+tagWhiteList:
+  - controlplane_service_id
+  - controlplane_tenant_id
+  - controlplane_host_id
+  - controlplane_instance_id
+  - daemon
+  - internal
+
+tagWhiteListPrefixes:
+  - controlplane_
