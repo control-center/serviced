@@ -66,6 +66,7 @@ class Service < SitePrism::Page
         self.addPublicEndpoint_button.click
         # wait till modal is done loading
         expect(self).to have_no_css(".uilock", :visible => true)
+        find("#formWait") # wait until the angular binds are done. see add-public-endpoint.html
     end
 
     def check_endpoint_unique_column?(ctitle, cvalue)

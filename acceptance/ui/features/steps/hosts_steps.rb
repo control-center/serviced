@@ -124,6 +124,7 @@ def clickAddHostButton()
     CC.UI.HostsPage.addHost_button.click
     # wait till modal is done loading
     expect(CC.UI.HostsPage).to have_no_css(".uilock", :visible => true)
+    find("#formWait") # wait until the angular binds are done. see add-host.html
 end
 
 def addHostUI(name, port, pool, commitment)
