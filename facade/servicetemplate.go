@@ -15,7 +15,6 @@ package facade
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -196,82 +195,62 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	return templates, images, nil
 }
 
-var deployments = make(map[string]map[string]string)
-var deploymentMutex = sync.RWMutex{}
-
-// updateDeployTemplateStatus updates the deployment status of the service being deployed
-func updateDeployTemplateStatus(deploymentID string, status string) {
-	deploymentMutex.Lock()
-	defer deploymentMutex.Unlock()
-
-	if _, ok := deployments[deploymentID]; !ok {
-		deployments[deploymentID] = make(map[string]string)
-	}
-
-	deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-	deployments[deploymentID]["status"] = status
-}
-
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive() (active []map[string]string, err error) {
-	deploymentMutex.RLock()
-	defer deploymentMutex.RUnlock()
-
 	// we initialize the data container to something here in case it has not been initialized yet
 	active = make([]map[string]string, 0)
-	for _, v := range deployments {
-		active = append(active, v)
+
+	f.deployments.mutex.RLock()
+	defer f.deployments.mutex.RUnlock()
+	for _, v := range f.deployments.deployments {
+		active = append(active, v.GetInfo())
 	}
 
 	return active, nil
 }
 
-// DeployTemplateStatus sets the status of a deployed service or template
-func (f *Facade) DeployTemplateStatus(deploymentID string) (status string, err error) {
-
-	status = ""
-	err = nil
-	for {
-		deploymentMutex.Lock()
-		if _, ok := deployments[deploymentID]; ok {
-			if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
-				deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
-				status = deployments[deploymentID]["status"]
-				break
-			} else if deployments[deploymentID]["status"] != "" {
-				deploymentMutex.Unlock()
-				time.Sleep(100 * time.Millisecond)
-			} else {
-				break
-			}
-		} else {
-			break
-		}
+// DeployTemplateStatus returns the current status of a deployed template.
+// If the current status is the same as the value of the lastStatus parameter,
+// block until the status changes, then return the new status.  A timeout may
+// be applied to the status change wait; if the timeout is negative then return
+// immediately even if the status matches; if the timeout is zero then do not
+// timeout.
+func (f *Facade) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (status string, err error) {
+	deployment := f.deployments.GetPendingDeployment(deploymentID)
+	if deployment == nil {
+		return "", nil
 	}
-	deploymentMutex.Unlock()
-	return status, err
+
+	status, statusChanged := deployment.GetStatus()
+	if status != lastStatus || timeout < 0 {
+		return status, nil
+	}
+
+	var timer <-chan time.Time
+	if timeout != 0 {
+		timer = time.After(timeout)
+	}
+
+	select {
+	case <-timer:
+		return status, nil
+	case <-statusChanged:
+		status, _ = deployment.GetStatus()
+		return status, nil
+	}
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeployTemplate"))
 	// add an entry for reporting status
-	deploymentMutex.Lock()
-	deployments[deploymentID] = map[string]string{
-		"TemplateID":   templateID,
-		"DeploymentID": deploymentID,
-		"PoolID":       poolID,
-		"status":       "Starting",
-		"lastStatus":   "",
+	deployment, err := f.deployments.NewPendingDeployment(deploymentID, templateID, poolID)
+	if err != nil {
+		return nil, err
 	}
-	deploymentMutex.Unlock()
-	defer func() {
-		deploymentMutex.Lock()
-		delete(deployments, deploymentID)
-		deploymentMutex.Unlock()
-	}()
+	defer f.deployments.DeletePendingDeployment(deploymentID)
 
-	updateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
+	deployment.UpdateStatus("deploy_loading_template|" + templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
@@ -287,11 +266,9 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 
 	//now that we know the template name, set it in the status
-	deploymentMutex.Lock()
-	deployments[deploymentID]["templateName"] = template.Name
-	deploymentMutex.Unlock()
+	deployment.SetTemplateName(template.Name)
 
-	updateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
+	deployment.UpdateStatus("deploy_loading_resource_pool|" + poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -301,10 +278,14 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		return nil, fmt.Errorf("poolid %s not found", poolID)
 	}
 
+	var statusUpdater = func(status string) {
+		deployment.UpdateStatus(status)
+	}
+
 	tenantIDs := make([]string, len(template.Services))
 	for i, sd := range template.Services {
 		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
-		tenantID, err := f.deployService(ctx, "", "", deploymentID, poolID, false, sd)
+		tenantID, err := f.deployService(ctx, "", "", deploymentID, poolID, false, sd, statusUpdater)
 		if err != nil {
 			glog.Errorf("Could not deploy application %s to %s: %s", sd.Name, deploymentID, err)
 			return nil, err
@@ -357,10 +338,11 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 		}
 	}
 
-	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
+	var statusUpdater = func(status string) {}
+	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef, statusUpdater)
 }
 
-func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition, updateStatus func(string)) (string, error) {
 	// create the new service object
 	newsvc, err := service.BuildService(svcDef, parentServiceID, poolID, int(service.SVCStop), deploymentID)
 	if err != nil {
@@ -368,8 +350,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		return "", err
 	}
 
-	updateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
-
+	updateStatus("deploy_loading_service|" + newsvc.Name)
 	if err = f.evaluateEndpointTemplates(ctx, newsvc); err != nil {
 		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
@@ -379,7 +360,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		tenantID = newsvc.ID
 	}
 	if svcDef.ImageID != "" {
-		updateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
+		updateStatus("deploy_loading_image|" + newsvc.Name)
 		image, err := f.dfs.Download(svcDef.ImageID, tenantID, false)
 		if err != nil {
 			glog.Errorf("Could not download image %s: %s", svcDef.ImageID, err)
@@ -414,7 +395,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 
 	// walk child services
 	for _, sd := range svcDef.Services {
-		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd); err != nil {
+		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd, updateStatus); err != nil {
 			glog.Errorf("Error while trying to deploy %s at %s (%s): %s", sd.Name, newsvc.Name, newsvc.ID, err)
 			return newsvc.ID, err
 		}

@@ -264,19 +264,19 @@ func (_m *FacadeInterface) DeployTemplateActive() ([]map[string]string, error) {
 }
 
 // DeployTemplateStatus provides a mock function with given fields: deploymentID
-func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string) (string, error) {
-	ret := _m.Called(deploymentID)
+func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (string, error) {
+	ret := _m.Called(deploymentID, lastStatus, timeout)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(deploymentID)
+	if rf, ok := ret.Get(0).(func(string, string, time.Duration) string); ok {
+		r0 = rf(deploymentID, lastStatus, timeout)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(deploymentID)
+	if rf, ok := ret.Get(1).(func(string, string, time.Duration) error); ok {
+		r1 = rf(deploymentID, lastStatus, timeout)
 	} else {
 		r1 = ret.Error(1)
 	}

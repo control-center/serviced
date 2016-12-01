@@ -330,14 +330,20 @@
                 });
 
             //now that we have started deploying our app, we poll for status
+            var deployStatusRequest = {
+                DeploymentID: $scope.install.deploymentID,
+                LastStatus: "initial status that won't match anything",
+                Timeout: 3000
+            };
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    resourcesFactory.getDeployStatus(deploymentDefinition)
+                    resourcesFactory.getDeployStatus(deployStatusRequest)
                         .success(function(data){
-                            if(data.Detail === "timeout"){
+                            if(data.Detail === deployStatusRequest.lastStatus){
                                 $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
                             }else{
+                                deployStatusRequest.LastStatus = data.Detail;
                                 var parts = data.Detail.split("|");
                                 if(parts[1]){
                                     $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);

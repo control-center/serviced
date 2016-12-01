@@ -22,6 +22,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"time"
 
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -213,10 +214,18 @@ func (s *TestWebSuite) TestRestDeployAppTemplateFailsForBadJSON(c *C) {
 func (s *TestWebSuite) TestRestDeployAppTemplateStatus(c *C) {
 	expectedResult := "ok"
 	deploymentID := "someDeploymentID"
-	requestJSON := `{"DeploymentID": "` + deploymentID + `"}`
+	lastStatus := "foo"
+	timeout := 1000
+	payload := DeployTemplateStatusRequest{
+		DeploymentID: deploymentID,
+		LastStatus:   lastStatus,
+		Timeout:      timeout,
+	}
+	jsonPayload, _ := json.Marshal(&payload)
+	requestJSON := string(jsonPayload)
 	request := s.buildRequest("POST", "/templates/deploy/status", requestJSON)
 	s.mockFacade.
-		On("DeployTemplateStatus", deploymentID).
+		On("DeployTemplateStatus", deploymentID, lastStatus, time.Duration(timeout)*time.Millisecond).
 		Return(expectedResult, nil)
 
 	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
@@ -228,12 +237,21 @@ func (s *TestWebSuite) TestRestDeployAppTemplateStatus(c *C) {
 func (s *TestWebSuite) TestRestDeployAppTemplateStatusFails(c *C) {
 	expectedError := fmt.Errorf("mock DeployTemplateStatus failed")
 	deploymentID := "someDeploymentID"
-	requestJSON := `{"DeploymentID": "` + deploymentID + `"}`
+	lastStatus := "foo"
+	timeout := 1000
+	payload := DeployTemplateStatusRequest{
+		DeploymentID: deploymentID,
+		LastStatus:   lastStatus,
+		Timeout:      timeout,
+	}
+	jsonPayload, _ := json.Marshal(&payload)
+	requestJSON := string(jsonPayload)
 	request := s.buildRequest("POST", "/templates/deploy/status", requestJSON)
 	s.mockFacade.
-		On("DeployTemplateStatus", deploymentID).
+		On("DeployTemplateStatus", deploymentID, lastStatus, time.Duration(timeout)*time.Millisecond).
 		Return("", expectedError)
 
+	fmt.Printf("%+x\n%s\n%+x\n", payload, requestJSON, request)
 	restDeployAppTemplateStatus(&(s.writer), &request, s.ctx)
 
 	s.assertAltServerError(c, expectedError)
