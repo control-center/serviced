@@ -17,6 +17,7 @@ package service
 // status information
 type AggregateService struct {
 	ServiceID    string
+	Name	     string
 	DesiredState DesiredState
 	Status       []StatusInstance
 	NotFound     bool
