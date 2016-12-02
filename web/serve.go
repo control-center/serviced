@@ -141,8 +141,12 @@ func ServeHTTP(cancel <-chan struct{}, address, protocol string, listener net.Li
 		if _, found := r.Header["X-Forwarded-Proto"]; !found {
 			r.Header.Set("X-Forwarded-Proto", protocol)
 		}
-
+		
+		if tlsConfig != nil {
+			w.Header().Add("Strict-Transport-Security","max-age=31536000")
+		}
 		rp.ServeHTTP(w, r)
+
 		return
 	}
 

@@ -148,6 +148,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 
 		logger.Debug("Calling CC uiHandler")
+		w.Header().Add("Strict-Transport-Security","max-age=31536000")
+		
 		if r.TLS == nil {
 			// bindPort has already been validated, so the Split/access below won't break.
 			http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, strings.Split(sc.bindPort, ":")[1]), http.StatusMovedPermanently)
