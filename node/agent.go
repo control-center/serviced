@@ -347,6 +347,9 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	unregister := make(chan interface{})
 	stop := make(chan interface{})
 
+	// Create the host state listener here, so it keeps its state
+	hsListener := zkservice.NewHostStateListener(a, a.hostID, shutdown)
+
 	for {
 		// handle shutdown if we are waiting for a zk connection
 		var conn coordclient.Connection
@@ -394,8 +397,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 1) has a connection
 		// 2) its node is registered
 		// 3) receives signal to shutdown or breaks
-		hsListener := zkservice.NewHostStateListener(a, a.hostID)
-
 		startExit := make(chan struct{})
 		go func() {
 			defer close(startExit)
