@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/zenoss/glog"
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -91,7 +91,7 @@ func NewRunner(r io.Reader, config *Config) (Runner, error) {
 	}
 	if len(pctx.errors) > 0 {
 		for _, e := range pctx.errors {
-			glog.Errorf("%v", e)
+			plog.WithError(e).Debug("Unable to build script runner due to one or more errors")
 		}
 
 		return nil, errors.New("error parsing script")
@@ -121,7 +121,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		svcUse:          config.SvcUse,
 	}
 	if config.NoOp {
-		glog.Infof("creatng no op runner")
+		plog.Info("creatng no op runner")
 		r.execCommand = noOpExec
 		r.restore = noOpRestore
 		r.snapshot = noOpSnapshot
@@ -148,26 +148,31 @@ func (r *runner) evalNodes(nodes []node, stop <-chan struct{}) error {
 
 	failed := true
 	defer func() {
-		glog.Infof("Executing exit functions")
+		plog.Debug("Executing exit functions")
 		for _, ef := range r.exitFunctions {
 			ef(failed)
 		}
 	}()
 
 	for i, n := range nodes {
+		logger := plog.WithFields(log.Fields{
+			"step": i,
+			"line": n.line,
+			"command": n.cmd,
+		})
 		if f, found := cmdEval[n.cmd]; found {
-			glog.Infof("executing step %d: %s", i, n.line)
+			logger.Info("executing step")
 			if err := f(r, n); err != nil {
-				glog.Errorf("error executing step %d: %s: %s", i, n.cmd, err)
+				logger.WithError(err).Error("Unable to execute step")
 				return err
 			}
 		} else {
-			glog.Infof("skipping step %d unknown function: %s", i, n.line)
+			logger.Info("skipping step because of unknown function")
 		}
 
 		select {
 		case <-stop:
-			glog.Infof("Received signal, stopping script evaluation")
+			logger.Info("Received signal, stopping script evaluation")
 			return fmt.Errorf("received stop signal, error executing step %d: %s", i, n.cmd)
 		default:
 		}

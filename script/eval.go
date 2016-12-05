@@ -10,17 +10,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/zenoss/glog"
+	log "github.com/Sirupsen/logrus"
 )
 
 func evalEmpty(r *runner, n node) error {
-	glog.V(1).Infof("nothing to eval: %s", n.line)
+	plog.WithField("line", n.line).Debug("nothing to eval")
 	return nil
 }
 func evalSnapshot(r *runner, n node) error {
-	glog.V(0).Info("performing snapshot")
-
 	tagName := ""
 
 	if len(n.args) == 1 {
@@ -44,15 +41,16 @@ func evalSnapshot(r *runner, n node) error {
 		return err
 	}
 	r.snapshotID = mySnapshotID //keep track of the latest snapshot to rollback to
-	glog.V(0).Infof("snapshot id: %s", mySnapshotID)
+	logger := plog.WithField("snapshotid", mySnapshotID)
+	logger.Debug("performing snapshot")
 
 	exitFunc := func(failed bool) {
 		if failed && r.snapshotID == mySnapshotID {
-			glog.Infof("restoring snapshot %s", mySnapshotID)
 			if err := r.restore(mySnapshotID, true); err != nil {
-				glog.Errorf("failed restoring snapshot %s: %v", mySnapshotID, err)
+				logger.WithError(err).Error("Unable to restore snapshot")
 
 			}
+			logger.Info("Restored snapshot")
 		}
 	}
 	r.addExitFunction(exitFunc)
@@ -67,7 +65,8 @@ func evalUSE(r *runner, n node) error {
 	if len(n.args) > 1 {
 		replaceImgs = n.args[1:]
 	}
-	glog.V(0).Infof("preparing to use image: %s", imageName)
+	logger := plog.WithField("imagename", imageName)
+	logger.Debug("Preparing to use image")
 	svcID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", USE)
@@ -76,7 +75,7 @@ func evalUSE(r *runner, n node) error {
 	if err != nil {
 		return err
 	}
-	glog.Infof("Successfully pulled and tagged new image %s", imageName)
+	logger.Info("Successfully pulled and tagged new image")
 	return nil
 }
 
@@ -138,11 +137,11 @@ func evalSvcWait(r *runner, n node) error {
 
 	}
 
-	plural := ""
-	if stateIdx > 1 {
-		plural = "s"
-	}
-	glog.Infof("waiting %d for service%s %s to be %s", timeout, plural, strings.Join(n.args[:stateIdx], ", "), state)
+	plog.WithFields(log.Fields{
+		"timeout": timeout,
+		"services": strings.Join(n.args[:stateIdx], ", "),
+		"targetstate": state,
+	}).Info("Waiting for service(s) to reach target state")
 	if err := r.svcWait(svcIDs, state, timeout, recursive); err != nil {
 		return err
 	}
@@ -178,7 +177,10 @@ func evalSvcStart(r *runner, n node) error {
 		recursive = true
 	}
 
-	glog.Infof("starting service %s %s", svcPath, svcID)
+	plog.WithFields(log.Fields{
+		"servicepath": svcPath,
+		"serviceid": svcID,
+	}).Info("Starting service")
 	if err := r.svcStart(svcID, recursive); err != nil {
 		return err
 	}
@@ -214,7 +216,10 @@ func evalSvcStop(r *runner, n node) error {
 		recursive = true
 	}
 
-	glog.Infof("stopping service %s %s", svcPath, svcID)
+	plog.WithFields(log.Fields{
+		"servicepath": svcPath,
+		"serviceid": svcID,
+	}).Info("Stopping service")
 	if err := r.svcStop(svcID, recursive); err != nil {
 		return err
 	}
@@ -250,7 +255,10 @@ func evalSvcRestart(r *runner, n node) error {
 		recursive = true
 	}
 
-	glog.Infof("restarting service %s %s", svcPath, svcID)
+	plog.WithFields(log.Fields{
+		"servicepath": svcPath,
+		"serviceid": svcID,
+	}).Info("Restarting service")
 	if err := r.svcRestart(svcID, recursive); err != nil {
 		return err
 	}
@@ -278,7 +286,7 @@ func evalSvcRun(r *runner, n node) error {
 
 	n.args[0] = svcID
 
-	glog.V(0).Infof("running: serviced service run %s", strings.Join(n.args, " "))
+	plog.Debugf("Running: serviced service run %s", strings.Join(n.args, " "))
 	args := []string{"service", "run"}
 	args = append(args, n.args...)
 	if err := r.execCommand("serviced", args...); err != nil {
@@ -309,8 +317,11 @@ func evalSvcExec(r *runner, n node) error {
 	n.args[1] = svcID
 	// "HMS-YMD_svcID" will be the name of the container
 	containerName := time.Now().Format("150405-20060102") + "_" + svcID
-
-	glog.V(0).Infof("running: serviced service shell -s %s %s", containerName, strings.Join(n.args[1:], " "))
+	logger := plog.WithFields(log.Fields{
+		"serviceid": svcID,
+		"containername": containerName,
+	})
+	logger.Debugf("Running: serviced service shell %s", strings.Join(n.args[1:], " "))
 	args := []string{"service", "shell", "-s", containerName}
 	args = append(args, n.args[1:]...)
 	if err := r.execCommand("serviced", args...); err != nil {
@@ -320,16 +331,17 @@ func evalSvcExec(r *runner, n node) error {
 	// Now commit the container (if 'COMMIT' was specified)
 	switch n.args[0] {
 	case "COMMIT":
-		glog.V(0).Infof("committing container %s", containerName)
+		logger.Debug("committing container")
 		var snapshotID string
 		if snapshotID, err = r.commitContainer(containerName); err != nil {
 			return err
 		}
 		exitFunc := func(failed bool) {
 			if !failed {
-				glog.V(1).Infof("cleaning up snapshot %s", snapshotID)
 				if err := r.execCommand("serviced", "snapshot", "remove", snapshotID); err != nil {
-					glog.Errorf("failed deleting snapshot %s: %v", snapshotID, err)
+					logger.WithError(err).
+					  WithField("snapshotid", snapshotID).
+					  Warning("Unable to delete snapshot")
 				}
 			}
 		}
@@ -339,8 +351,7 @@ func evalSvcExec(r *runner, n node) error {
 }
 
 func evalDependency(r *runner, n node) error {
-	glog.V(0).Infof("checking serviced dependency: %s", n.args[0])
-	glog.V(0).Info("dependency check for serviced not implemented, skipping...")
+	plog.Debug("Dependency check for serviced not implemented, skipping...")
 	return nil
 }
 
@@ -348,17 +359,18 @@ func evalRequireSvc(r *runner, n node) error {
 	if r.tenantIDLookup == nil {
 		return fmt.Errorf("no tenant lookup function provided for %s", REQUIRE_SVC)
 	}
-	glog.V(0).Infof("checking service requirement")
 	if r.config.ServiceID == "" {
 		return errors.New("no service id specified")
 	}
-	glog.V(0).Infof("verifying service %s", r.config.ServiceID)
 	//lookup tenant id for service
 	tID, err := r.tenantIDLookup(r.config.ServiceID)
 	if err != nil {
 		return err
 	}
-	glog.V(0).Infof("found %s tenant id for service %s", tID, r.config.ServiceID)
+	plog.WithFields(log.Fields{
+		"tenantid": tID,
+		"serviceid": r.config.ServiceID,
+	}).Debug("found tenant for service")
 	r.env["TENANT_ID"] = tID
 	return nil
 }
