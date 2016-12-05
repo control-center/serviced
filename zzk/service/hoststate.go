@@ -108,19 +108,17 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	stateIDs := l.getExistingThreadStateIDs()
-	orphanedStates := make([]string, len(stateIDs))
-	i := 0
+	var orphanedStates []string
 	for _, s := range stateIDs {
 		if _, ok := p[s]; !ok {
-			orphanedStates[i] = s
-			i++
+			orphanedStates = append(orphanedStates, s)
 			plog.WithField("stateid", s).Info("Detected orphaned container")
 		}
 	}
 
-	if i > 0 {
-		l.cleanUpContainers(orphanedStates[:i], false)
-		plog.WithField("count", i).Info("Cleaned up all orphaned containers")
+	if len(orphanedStates) > 0 {
+		l.cleanUpContainers(orphanedStates, false)
+		plog.WithField("count", len(orphanedStates)).Info("Cleaned up all orphaned containers")
 	}
 }
 
@@ -253,15 +251,10 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			l.cleanUpContainers([]string{stateID}, true)
 			return nil, false
 		}
-		l.mu.Lock()
-		if l.isShuttingDown() {
-			l.mu.Unlock()
-			return nil, false
-		} else {
-			l.setExistingThread(stateID, ssdat, containerExit)
-			l.mu.Unlock()
-		}
 
+		if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+			return nil, false
+		}
 	}
 
 	switch hsdat.DesiredState {
@@ -276,13 +269,8 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			}
 
 			// set the service state
-			l.mu.Lock()
-			if l.isShuttingDown() {
-				l.mu.Unlock()
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
 				return nil, false
-			} else {
-				l.setExistingThread(stateID, ssdat, containerExit)
-				l.mu.Unlock()
 			}
 
 			logger.Debug("Started container")
@@ -302,13 +290,8 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 
 			// update the service state
 			ssdat.Paused = false
-			l.mu.Lock()
-			if l.isShuttingDown() {
-				l.mu.Unlock()
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
 				return nil, false
-			} else {
-				l.setExistingThread(stateID, ssdat, containerExit)
-				l.mu.Unlock()
 			}
 
 			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
@@ -329,13 +312,8 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 
 			// update the service state
 			ssdat.Paused = true
-			l.mu.Lock()
-			if l.isShuttingDown() {
-				l.mu.Unlock()
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
 				return nil, false
-			} else {
-				l.setExistingThread(stateID, ssdat, containerExit)
-				l.mu.Unlock()
 			}
 
 			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
@@ -410,6 +388,23 @@ func (l *HostStateListener) setExistingThread(stateID string, data *ServiceState
 		data   *ServiceState
 		exited <-chan time.Time
 	}{data, containerExit}
+}
+
+// If we are NOT shutting down, adds a state to the internal thread list.
+//  Returns true if the state was set, false if not (i.e. we are shutting down)
+//  Acquires a lock, do NOT call l.mu.Lock() first
+func (l *HostStateListener) setExistingThreadOrShutdown(stateID string, data *ServiceState, containerExit <-chan time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	select {
+	case <-l.shutdown:
+		return false
+	default:
+		l.setExistingThread(stateID, data, containerExit)
+	}
+
+	return true
 }
 
 // Removes a state from the internal thread list
@@ -509,15 +504,6 @@ func (l *HostStateListener) watchForShutdown() {
 	stateIDs := l.getExistingThreadStateIDs()
 	l.cleanUpContainers(stateIDs, false)
 	close(l.shutdowncomplete)
-}
-
-func (l *HostStateListener) isShuttingDown() bool {
-	select {
-	case <-l.shutdown:
-		return true
-	default:
-		return false
-	}
 }
 
 // Used by tests, returns a channel that will be closed when shutdown is complete
