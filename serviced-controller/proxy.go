@@ -20,10 +20,14 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/container"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
+	log "github.com/Sirupsen/logrus"
 )
+
+var plog = logging.PackageLogger()
 
 func CmdServiceProxy(ctx *cli.Context) {
 	args := ctx.Args()
@@ -85,9 +89,12 @@ func StartProxy(options ControllerOptions) error {
 		return err
 	}
 
-	glog.V(2).Infof("Starting container proxy: muxPort=%d, MuxDisableTLS=%s, servicedEndpoint=%s, RPCDisableTLS=%s",
-		o.Mux.Port, strconv.FormatBool(o.Mux.DisableTLS),
-		o.ServicedEndpoint, strconv.FormatBool(o.RPCDisableTLS))
+	plog.WithFields(log.Fields{
+		"muxport": o.Mux.Port,
+		"muxdisabletls": strconv.FormatBool(o.Mux.DisableTLS),
+		"serviceendpoint": o.ServicedEndpoint,
+		"rpcdeisabletls": strconv.FormatBool(o.RPCDisableTLS),
+	}).Debug("Starting container proxy")
 	c, err := container.NewController(o)
 	if err != nil {
 		return err
