@@ -30,7 +30,7 @@ var (
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v53"
+	IMAGE_TAG     = "v54"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v8"
 )
