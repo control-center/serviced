@@ -15,6 +15,7 @@ package service
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -52,17 +53,33 @@ type HostStateHandler interface {
 
 // HostStateListener is the listener for monitoring service instances
 type HostStateListener struct {
-	conn    client.Connection
-	handler HostStateHandler
-	hostID  string
+	conn     client.Connection
+	handler  HostStateHandler
+	hostID   string
+	shutdown <-chan interface{}
+	mu       *sync.RWMutex
+	threads  map[string]struct {
+		data   *ServiceState
+		exited <-chan time.Time
+	}
+	shutdowncomplete chan interface{}
 }
 
-// NewHostListener instantiates a HostListener object
-func NewHostStateListener(handler HostStateHandler, hostID string) *HostStateListener {
-	return &HostStateListener{
-		handler: handler,
-		hostID:  hostID,
+// NewHostStateListener instantiates a HostStateListener object
+func NewHostStateListener(handler HostStateHandler, hostID string, shutdown <-chan interface{}) *HostStateListener {
+	l := &HostStateListener{
+		handler:  handler,
+		hostID:   hostID,
+		shutdown: shutdown,
+		mu:       &sync.RWMutex{},
+		threads: make(map[string]struct {
+			data   *ServiceState
+			exited <-chan time.Time
+		}),
+		shutdowncomplete: make(chan interface{}),
 	}
+	go l.watchForShutdown()
+	return l
 }
 
 // GetConnection implements zzk.Listener
@@ -79,19 +96,46 @@ func (l *HostStateListener) Ready() error {
 	return nil
 }
 
-// Done removes the ephemeral node from the host registry
+// Done implements zzk.Listener
 func (l *HostStateListener) Done() {
 }
 
 // PostProcess implements zzk.Listener
-func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
+// This is always called after all threads have been spawned
+func (l *HostStateListener) PostProcess(p map[string]struct{}) {
+	// We are running all of the containers we are supposed to, now
+	// shut down any containers we are not supposed to be running
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	stateIDs := l.getExistingThreadStateIDs()
+	var orphanedStates []string
+	for _, s := range stateIDs {
+		if _, ok := p[s]; !ok {
+			orphanedStates = append(orphanedStates, s)
+			plog.WithField("stateid", s).Info("Detected orphaned container")
+		}
+	}
+
+	if len(orphanedStates) > 0 {
+		l.cleanUpContainers(orphanedStates, false)
+		plog.WithField("count", len(orphanedStates)).Info("Cleaned up all orphaned containers")
+	}
+}
 
 // Spawn listens for changes in the host state and manages running instances
-func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
+func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 	logger := plog.WithFields(log.Fields{
 		"hostid":  l.hostID,
 		"stateid": stateID,
 	})
+
+	// If we are shutting down, just return
+	select {
+	case <-l.shutdown:
+		logger.Debug("Will not spawn, shutting down")
+		return
+	default:
+	}
 
 	// check if the state id is valid
 	hostID, serviceID, instanceID, err := ParseStateID(stateID)
@@ -119,57 +163,26 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		InstanceID: instanceID,
 	}
 
-	var containerExit <-chan time.Time
-	defer func() {
+	// reattach to orphaned container
+	l.mu.RLock()
+	ssdat, containerExit := l.getExistingThread(stateID)
+	l.mu.RUnlock()
 
-		// stop the container
-		if err := l.handler.StopContainer(serviceID, instanceID); err != nil {
-			logger.WithError(err).Error("Could not stop container")
-		} else if containerExit != nil {
-			// wait for the container to exit
-			time := <-containerExit
-			logger.WithField("terminated", time).Debug("Container exited")
-		}
-
-		// delete the state from the coordinator
-		t := time.NewTicker(time.Second)
-		defer t.Stop()
-
-		for {
-			if err := DeleteState(l.conn, req); err == client.ErrNoServer {
-				logger.WithError(err).Warn("Server not found, attempting to retry updating service")
-				select {
-				case <-t.C:
-					select {
-					case <-shutdown:
-						return
-					default:
-					}
-				case <-shutdown:
-					return
-				}
-				continue
-			} else if err != nil {
-				logger.WithError(err).Error("Could not delete state for stopped container")
-			}
+	sspth := path.Join("/services", serviceID, stateID)
+	// load the service state node
+	if ssdat == nil {
+		ssdat = &ServiceState{}
+		if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
+			l.cleanUpContainers([]string{stateID}, true)
+			return
+		} else if err != nil {
+			logger.WithError(err).Error("Could not load service state")
 			return
 		}
-	}()
-
-	// load the service state node
-	sspth := path.Join("/services", serviceID, stateID)
-	ssdat := &ServiceState{}
-	if err := l.conn.Get(sspth, ssdat); err == client.ErrNoNode {
-		return
-	} else if err != nil {
-		logger.WithError(err).Error("Could not load service state")
-		return
 	}
 
 	done := make(chan struct{})
-	defer func() {
-		close(done)
-	}()
+	defer func() { close(done) }()
 
 	for {
 		// set up a listener on the host state node
@@ -177,134 +190,323 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		hsdat := &HostState{}
 		hsevt, err := l.conn.GetW(hspth, hsdat, done)
 		if err == client.ErrNoNode {
-
 			logger.Debug("Host state was removed, exiting")
+			l.cleanUpContainers([]string{stateID}, true)
 			return
 		} else if err != nil {
-
 			logger.WithError(err).Error("Could not watch host state")
 			return
 		}
-		// set up a listener on the service state node
+
+		// set up a listener on the service state node, to ensure the node's existence
 		ok, ssevt, err := l.conn.ExistsW(sspth, done)
 		if err != nil {
 			logger.WithError(err).Error("Could not watch service state")
 			return
-		}
-		if !ok {
+		} else if !ok {
 			logger.Debug("Service state was removed, exiting")
+			l.cleanUpContainers([]string{stateID}, true)
 			return
-		}
-
-		// attach to the container if not already attached
-		if containerExit == nil {
-			containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
-			if err != nil {
-
-				logger.WithError(err).Error("Could not attach to container")
-				return
-			}
 		}
 
 		// set the state of this instance
-		switch hsdat.DesiredState {
-		case service.SVCRun:
-			if containerExit == nil {
-
-				// container is detached because it doesn't exist
-				ssdat, containerExit, err = l.handler.StartContainer(shutdown, serviceID, instanceID)
-				if err != nil {
-
-					logger.WithError(err).Error("Could not start container")
-					return
-				}
-
-				// set the service state in zookeeper
-				if err := UpdateState(l.conn, req, func(s *State) bool {
-					s.ServiceState = *ssdat
-					return true
-				}); err != nil {
-
-					logger.WithError(err).Error("Could not set state for started container")
-					return
-				}
-
-				logger.Debug("Started container")
-			} else if ssdat.Paused {
-
-				// resume paused container
-				if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
-
-					logger.WithError(err).Error("Could not resume container")
-					return
-				}
-
-				// set the service state in zookeeper
-				if err := UpdateState(l.conn, req, func(s *State) bool {
-					s.Paused = false
-					*ssdat = s.ServiceState
-					return true
-				}); err != nil {
-
-					logger.WithError(err).Error("Could not set state for resumed container")
-					return
-				}
-
-				logger.Debug("Resumed paused container")
-			}
-
-		case service.SVCPause:
-			if containerExit != nil && !ssdat.Paused {
-
-				// container is attached and not paused, so pause the container
-				if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
-
-					logger.WithError(err).Error("Could not pause container")
-					return
-				}
-
-				// set the service state in zookeeper
-				if err := UpdateState(l.conn, req, func(s *State) bool {
-					s.Paused = true
-					*ssdat = s.ServiceState
-					return true
-				}); err != nil {
-
-					logger.WithError(err).Error("Could not set state for paused container")
-					return
-				}
-
-				logger.Debug("Paused running container")
-			}
-		case service.SVCStop:
-
-			logger.Debug("Stopping running container")
+		containerExit, ok = l.setInstanceState(containerExit, ssdat, hsdat, stateID, serviceID, instanceID, req, logger)
+		if !ok {
 			return
-		default:
-
-			logger.Debug("Could not process desired state for instance")
 		}
-		logger.Debug("Waiting for state events")
+
+		logger.Debug("Waiting for event on host state")
 		select {
 		case <-hsevt:
 		case <-ssevt:
 		case timeExit := <-containerExit:
-			logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
-			containerExit = nil
-			if err := UpdateState(l.conn, req, func(s *State) bool {
-				s.Terminated = timeExit
-				*ssdat = s.ServiceState
-				return true
-			}); err != nil {
-				logger.WithError(err).Error("Could not update state for stopped container, shutting down")
+			if !l.handleContainerExit(timeExit, ssdat, stateID, req, logger) {
 				return
 			}
-		case <-shutdown:
-			logger.Debug("Host state listener received signal to shut down")
+			containerExit = nil
+		case <-cancel:
+			logger.Debug("Host state listener received signal to cancel listening")
+			return
+		case <-l.shutdown:
+			logger.Debug("Host state listener received signal to shutdown")
+			// Container shutdown will be handled by the HostStateListener for all containers during shutdown
 			return
 		}
 
 		close(done)
 		done = make(chan struct{})
 	}
+}
+
+func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssdat *ServiceState, hsdat *HostState,
+	stateID, serviceID string, instanceID int, req StateRequest, logger *log.Entry) (<-chan time.Time, bool) {
+
+	var err error
+
+	// attach to the container if not already attached
+	if containerExit == nil {
+		containerExit, err = l.handler.AttachContainer(ssdat, serviceID, instanceID)
+		if err != nil {
+			logger.WithError(err).Error("Could not attach to container")
+			l.cleanUpContainers([]string{stateID}, true)
+			return nil, false
+		}
+
+		if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+			return nil, false
+		}
+	}
+
+	switch hsdat.DesiredState {
+	case service.SVCRun:
+		if containerExit == nil {
+			// container is detached because it doesn't exist
+			ssdat, containerExit, err = l.handler.StartContainer(l.shutdown, serviceID, instanceID)
+			if err != nil {
+				logger.WithError(err).Error("Could not start container")
+				l.cleanUpContainers([]string{stateID}, true)
+				return nil, false
+			}
+
+			// set the service state
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+				return nil, false
+			}
+
+			logger.Debug("Started container")
+
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for started container")
+				return nil, false
+			}
+
+		} else if ssdat.Paused {
+			// resume paused container
+			if err := l.handler.ResumeContainer(serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Could not resume container")
+				l.cleanUpContainers([]string{stateID}, true)
+				return nil, false
+			}
+
+			// update the service state
+			ssdat.Paused = false
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+				return nil, false
+			}
+
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for resumed container")
+				return nil, false
+			}
+
+			logger.Debug("Resumed paused container")
+		}
+	case service.SVCPause:
+		if containerExit != nil && !ssdat.Paused {
+			// container is attached and not paused, so pause the container
+			if err := l.handler.PauseContainer(serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Could not pause container")
+				l.cleanUpContainers([]string{stateID}, true)
+				return nil, false
+			}
+
+			// update the service state
+			ssdat.Paused = true
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+				return nil, false
+			}
+
+			if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+				logger.WithError(err).Error("Could not set state for resumed container")
+				return nil, false
+			}
+
+			logger.Debug("Paused running container")
+		}
+	case service.SVCStop:
+		// shut down the container and clean up nodes
+		l.cleanUpContainers([]string{stateID}, true)
+		return nil, false
+	default:
+		logger.Debug("Could not process desired state for instance")
+	}
+	return containerExit, true
+}
+
+func (l *HostStateListener) handleContainerExit(timeExit time.Time, ssdat *ServiceState, stateID string,
+	req StateRequest, logger *log.Entry) bool {
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	// Don't do anything if we are shutting down, the shutdown cleanup will handle it
+	select {
+	case <-l.shutdown:
+		return false
+	default:
+	}
+
+	// set the service state
+	ssdat.Terminated = timeExit
+	l.setExistingThread(stateID, ssdat, nil)
+	logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+
+	if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+		logger.WithError(err).Error("Could not set state for stopped container")
+		// TODO: we currently don't support containers restarting if
+		// shut down during an outage, so don't bother
+		return false
+	}
+	return true
+}
+
+// Gets a list of state IDs for all existing threads
+//  Call l.mu.RLock() first
+func (l *HostStateListener) getExistingThreadStateIDs() []string {
+	stateIds := make([]string, len(l.threads))
+	i := 0
+	for s := range l.threads {
+		stateIds[i] = s
+		i++
+	}
+	return stateIds
+}
+
+// Gets the ServiceState for an existing thread
+//  Call l.mu.RLock() first
+func (l *HostStateListener) getExistingThread(stateID string) (*ServiceState, <-chan time.Time) {
+	if thread, ok := l.threads[stateID]; ok {
+		return thread.data, thread.exited
+	}
+	return nil, nil
+}
+
+// Adds a state to the internal thread list.
+//  Call l.mu.Lock() first
+func (l *HostStateListener) setExistingThread(stateID string, data *ServiceState, containerExit <-chan time.Time) {
+	l.threads[stateID] = struct {
+		data   *ServiceState
+		exited <-chan time.Time
+	}{data, containerExit}
+}
+
+// If we are NOT shutting down, adds a state to the internal thread list.
+//  Returns true if the state was set, false if not (i.e. we are shutting down)
+//  Acquires a lock, do NOT call l.mu.Lock() first
+func (l *HostStateListener) setExistingThreadOrShutdown(stateID string, data *ServiceState, containerExit <-chan time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	select {
+	case <-l.shutdown:
+		return false
+	default:
+		l.setExistingThread(stateID, data, containerExit)
+	}
+
+	return true
+}
+
+// Removes a state from the internal thread list
+//  Call l.mu.Lock() first
+func (l *HostStateListener) removeExistingThread(stateID string) {
+	delete(l.threads, stateID)
+}
+
+func (l *HostStateListener) updateServiceStateInZK(data *ServiceState, req StateRequest) error {
+	return UpdateState(l.conn, req, func(s *State) bool {
+		s.ServiceState = *data
+		return true
+	})
+}
+
+// Stops the running containers, cleans up zk nodes, and removes the threads from the thread list
+//  Blocks until all containers are stopped
+//  Call l.mu.Lock() first OR pass getLock=true
+func (l *HostStateListener) cleanUpContainers(stateIDs []string, getLock bool) {
+	// Start shutting down all of the containers in parallel
+	wg := &sync.WaitGroup{}
+	for _, s := range stateIDs {
+		_, containerExit := l.getExistingThread(s)
+		wg.Add(1)
+		go func(stateID string, cExit <-chan time.Time) {
+			defer wg.Done()
+			l.shutDownContainer(stateID, cExit)
+		}(s, containerExit)
+	}
+
+	// Remove the threads from our internal thread list
+	// Need to get the lock here if we don't already have it
+	func() {
+		if getLock {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+		}
+		for _, s := range stateIDs {
+			l.removeExistingThread(s)
+		}
+	}()
+
+	// Wait for all containers to shut down
+	wg.Wait()
+}
+
+// Shuts down a running container and removes the state from zookeeper
+//  Blocks until the container is stopped
+//  Does NOT require a lock.  Does NOT remove the thread from the internal thread list
+func (l *HostStateListener) shutDownContainer(stateID string, containerExit <-chan time.Time) {
+	logger := plog.WithFields(log.Fields{
+		"hostid":  l.hostID,
+		"stateid": stateID,
+	})
+
+	// Parse the stateID
+	hostID, serviceID, instanceID, err := ParseStateID(stateID)
+	if err != nil || hostID != l.hostID {
+		logger.WithField("hostidmatch", hostID == l.hostID).WithError(err).Warn("Could not clean up container: Invalid state id")
+		return
+	}
+
+	logger = logger.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	// stop the container
+	if err := l.handler.StopContainer(serviceID, instanceID); err != nil {
+		logger.WithError(err).Error("Could not stop container")
+	} else if containerExit != nil {
+		// wait for the container to exit
+		time := <-containerExit
+		logger.WithField("terminated", time).Debug("Container exited")
+	}
+
+	// delete the state from the coordinator
+	req := StateRequest{
+		PoolID:     "",
+		HostID:     hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+	if err := DeleteState(l.conn, req); err != nil {
+		logger.WithError(err).Warn("Could not delete state for stopped container")
+		return
+	}
+}
+
+func (l *HostStateListener) watchForShutdown() {
+	<-l.shutdown
+	plog.Info("Received shutdown")
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	stateIDs := l.getExistingThreadStateIDs()
+	l.cleanUpContainers(stateIDs, false)
+	close(l.shutdowncomplete)
+}
+
+// Used by tests, returns a channel that will be closed when shutdown is complete
+func (l *HostStateListener) GetShutdownComplete() <-chan interface{} {
+	return l.shutdowncomplete
 }
