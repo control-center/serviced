@@ -427,7 +427,14 @@ func (l *HostStateListener) cleanUpContainers(stateIDs []string, getLock bool) {
 	// Start shutting down all of the containers in parallel
 	wg := &sync.WaitGroup{}
 	for _, s := range stateIDs {
-		_, containerExit := l.getExistingThread(s)
+		containerExit := func() <-chan time.Time {
+			if getLock {
+				l.mu.RLock()
+				defer l.mu.RUnlock()
+			}
+			_, cExit := l.getExistingThread(s)
+			return cExit
+		}()
 		wg.Add(1)
 		go func(stateID string, cExit <-chan time.Time) {
 			defer wg.Done()
