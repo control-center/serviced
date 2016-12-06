@@ -26,7 +26,7 @@ import (
 
 func TestCache(t *testing.T) {
 
-	clock := utils.NewTestClock()
+	clock := utils.NewBufferedTestClock()
 
 	cache := MemoryUsageCache{
 		Usages: make(map[string]*MemoryUsageItem),
@@ -83,15 +83,7 @@ func TestCache(t *testing.T) {
 		t.Errorf("Cache did not return the correct item")
 	}
 
-	// Force expiration
-	// I know this seems crazy, but go clock.Fire() may not trigger before
-	// cache.Get is called.
-	done := make(chan struct{})
-	go func() {
-		close(done)
-		clock.Fire()
-	}()
-	<-done
+	clock.Fire()
 
 	// Cache should no longer have a value for key, try with different getter
 	x, err = cache.Get("first", getter2)
