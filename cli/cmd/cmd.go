@@ -281,8 +281,6 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
 	// zendev, we need to double-check the environment variables for Master/Agent after all option
-
-
 	// initialization has been done
 	if cfg.StringVal("MASTER", "") == "1" {
 		options.Master = true
