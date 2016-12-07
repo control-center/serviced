@@ -281,6 +281,8 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
 	// zendev, we need to double-check the environment variables for Master/Agent after all option
+
+
 	// initialization has been done
 	if cfg.StringVal("MASTER", "") == "1" {
 		options.Master = true
@@ -410,10 +412,12 @@ func setLogging(options *config.Options, ctx *cli.Context, logControl logging.Lo
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {
 			<-signalChan
-			verbosity := 0
+			// set up debug settings
+			verbosity := 2
 			level := logrus.DebugLevel
-			if logControl.GetVerbosity() == 0 {
-				verbosity = 2
+			// if we're already not at Info, reset to Info
+			if logControl.GetVerbosity() != 0 {
+				verbosity = 0
 				level = logrus.InfoLevel
 			}
 			logControl.SetVerbosity(verbosity)
