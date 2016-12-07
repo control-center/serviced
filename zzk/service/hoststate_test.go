@@ -1454,3 +1454,177 @@ func (t *ZZKTest) TestHostStateListener_Shutdown_Spawn(c *C) {
 	err = conn.Delete("/services/serviceid/" + req.StateID())
 	c.Assert(err, IsNil)
 }
+
+// CC-3102
+// Test Case: Start a container, pause it, then resume
+func (t *ZZKTest) TestHostStateListener_Spawn_StartPauseStart(c *C) {
+
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	// Start a container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	var retShutdown <-chan interface{} = shutdown
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil).Once()
+	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil).Once()
+
+	done := make(chan struct{})
+	ssdatResult := &ServiceState{}
+	ev, err := conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+		// Make sure we set the service state appropriately
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+		c.Assert(err, IsNil)
+
+		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
+		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
+		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Paused, Equals, ssdat.Paused)
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// Pause the container
+	handler.On("PauseContainer", serviceId, 1).Return(nil)
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCPause
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	timer.Reset(time.Second)
+	select {
+	case <-ev:
+		// make sure the state is paused
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+		c.Assert(err, IsNil)
+
+		// may have been triggered by event to update desired state
+		if !ssdatResult.Paused {
+			timer.Reset(time.Second)
+			select {
+			case <-ev:
+				ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+				c.Assert(err, IsNil)
+			case <-done:
+				c.Fatalf("Listener exit")
+			case <-timer.C:
+				c.Fatalf("Listener took too long")
+			}
+		}
+		// Make sure the zk data is correct
+		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
+		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
+		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Paused, Equals, true)
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// Resume the container
+	handler.On("ResumeContainer", serviceId, 1).Return(nil)
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRun
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	timer.Reset(time.Second)
+	select {
+	case <-ev:
+		// make sure the state is NOT paused
+		ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+		c.Assert(err, IsNil)
+
+		// may have been triggered by event to update desired state
+		if ssdatResult.Paused {
+			timer.Reset(time.Second)
+			select {
+			case <-ev:
+				ev, err = conn.GetW("/services/serviceid/"+req.StateID(), ssdatResult, done)
+				c.Assert(err, IsNil)
+			case <-done:
+				c.Fatalf("Listener exit")
+			case <-timer.C:
+				c.Fatalf("Listener took too long")
+			}
+		}
+		// Make sure the zk data is correct
+		c.Assert(ssdatResult.ContainerID, Equals, ssdat.ContainerID)
+		c.Assert(ssdatResult.ImageUUID, Equals, ssdat.ImageUUID)
+		c.Assert(ssdatResult.Started, Equals, ssdat.Started)
+		c.Assert(ssdatResult.Paused, Equals, false)
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// cancel
+	close(cancel)
+	timer = time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Logf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// shutdown
+	shutdowndone := listener.GetShutdownComplete()
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	}).Once()
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	handler.AssertExpectations(c)
+}
