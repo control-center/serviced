@@ -284,6 +284,8 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 		}
 	}
 
+	f.poolCache.SetDirty()
+
 	// sync the service with the coordinator
 	if err := f.syncService(ctx, tenantID, svc.ID, setLockOnUpdate, setLockOnUpdate); err != nil {
 		glog.Errorf("Could not sync service %s (%s): %s", svc.Name, svc.ID, err)
@@ -743,6 +745,8 @@ func (f *Facade) removeService(ctx datastore.Context, id string) error {
 			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
+
+		f.poolCache.SetDirty()
 
 		f.serviceCache.RemoveIfParentChanged(svc.ID, svc.ParentServiceID)
 		return nil

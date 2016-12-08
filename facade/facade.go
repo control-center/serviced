@@ -53,6 +53,7 @@ func New() *Facade {
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
 		serviceCache:  NewServiceCache(),
+		poolCache:     NewPoolCache(),
 		hostRegistry:  auth.NewHostExpirationRegistry(),
 		deployments:   NewPendingDeploymentMgr(),
 		zzk:           getZZK(),
@@ -75,6 +76,7 @@ type Facade struct {
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
 	serviceCache  *serviceCache
+	poolCache     *poolCache
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 
