@@ -51,3 +51,9 @@ func NewTestClock() TestClock {
 		AfterChan: make(chan time.Time),
 	}
 }
+
+func NewBufferedTestClock() TestClock {
+	return TestClock{
+		AfterChan: make(chan time.Time, 1),
+	}
+}

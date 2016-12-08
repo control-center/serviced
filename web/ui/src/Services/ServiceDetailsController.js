@@ -906,6 +906,11 @@
                             if (modalModel.model.InstanceLimits.Min > modalModel.model.Instances || modalModel.model.Instances === undefined) {
                                 return false;
                             }
+                            var err = utils.validateRAMLimit(modalModel.model.RAMCommitment, modalModel.model.MemoryLimit);
+                            if(err){
+                                this.createNotification("Error", err).error();
+                                return false;
+                            }
 
                             return true;
                         }

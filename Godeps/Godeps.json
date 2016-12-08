@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
-	"GoVersion": "go1.7.1",
+	"GoVersion": "go1.7.4",
 	"Deps": [
 		{
 			"ImportPath": "github.com/hashicorp/golang-lru",

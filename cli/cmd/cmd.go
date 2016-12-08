@@ -410,10 +410,12 @@ func setLogging(options *config.Options, ctx *cli.Context, logControl logging.Lo
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {
 			<-signalChan
-			verbosity := 0
+			// set up debug settings
+			verbosity := 2
 			level := logrus.DebugLevel
-			if logControl.GetVerbosity() == 0 {
-				verbosity = 2
+			// if we're already not at Info, reset to Info
+			if logControl.GetVerbosity() != 0 {
+				verbosity = 0
 				level = logrus.InfoLevel
 			}
 			logControl.SetVerbosity(verbosity)
