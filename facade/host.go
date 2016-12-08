@@ -105,7 +105,9 @@ func (f *Facade) addHost(ctx datastore.Context, entity *host.Host) ([]byte, erro
 	}
 	err = f.zzk.AddHost(entity)
 
-	return delegatePEMBlock, nil
+	f.poolCache.SetDirty()
+
+	return delegatePEMBlock, err
 }
 
 // Generate and store an RSA key for the host
@@ -184,6 +186,9 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	}
 
 	err = f.zzk.UpdateHost(entity)
+
+	f.poolCache.SetDirty()
+
 	return err
 }
 
@@ -255,6 +260,8 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	if err != nil {
 		glog.Warningf("Could not disable dfs for deleted host %s: %s", _host.ID, err)
 	}
+
+	f.poolCache.SetDirty()
 
 	return nil
 }

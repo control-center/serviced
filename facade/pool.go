@@ -88,6 +88,9 @@ func (f *Facade) addResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		entity.VirtualIPs = vips
 		return f.UpdateResourcePool(ctx, entity)
 	}
+
+	f.poolCache.SetDirty()
+
 	return nil
 }
 
@@ -175,6 +178,8 @@ func (f *Facade) updateResourcePool(ctx datastore.Context, entity *pool.Resource
 			}
 		}
 	}
+
+	f.poolCache.SetDirty()
 
 	return nil
 }
@@ -374,6 +379,8 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return err
 	}
 
+	f.poolCache.SetDirty()
+
 	return f.zzk.RemoveResourcePool(id)
 }
 
@@ -525,30 +532,34 @@ var defaultRealm = "default"
 // GetReadPools returns a list of simplified resource pools
 func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetReadPools"))
-	pools, err := f.poolStore.GetResourcePools(ctx)
 
-	if err != nil {
-		return nil, fmt.Errorf("Could not load pools: %v", err)
+	var getPoolsFunc GetPoolsFunc = func() ([]pool.ReadPool, error) {
+		pools, err := f.poolStore.GetResourcePools(ctx)
+
+		if err != nil {
+			return nil, fmt.Errorf("Could not load pools: %v", err)
+		}
+
+		readPools := []pool.ReadPool{}
+
+		for i := range pools {
+			f.calcPoolCapacity(ctx, &pools[i])
+			f.calcPoolCommitment(ctx, &pools[i])
+
+			readPools = append(readPools, pool.ReadPool{
+				ID:                pools[i].ID,
+				Description:       pools[i].Description,
+				CreatedAt:         pools[i].CreatedAt,
+				UpdatedAt:         pools[i].UpdatedAt,
+				CoreCapacity:      pools[i].CoreCapacity,
+				MemoryCapacity:    pools[i].MemoryCapacity,
+				MemoryCommitment:  pools[i].MemoryCommitment,
+				ConnectionTimeout: pools[i].ConnectionTimeout,
+				Permissions:       pools[i].Permissions,
+			})
+		}
+		return readPools, nil
 	}
 
-	readPools := []pool.ReadPool{}
-
-	for i := range pools {
-		f.calcPoolCapacity(ctx, &pools[i])
-		f.calcPoolCommitment(ctx, &pools[i])
-
-		readPools = append(readPools, pool.ReadPool{
-			ID:                pools[i].ID,
-			Description:       pools[i].Description,
-			CreatedAt:         pools[i].CreatedAt,
-			UpdatedAt:         pools[i].UpdatedAt,
-			CoreCapacity:      pools[i].CoreCapacity,
-			MemoryCapacity:    pools[i].MemoryCapacity,
-			MemoryCommitment:  pools[i].MemoryCommitment,
-			ConnectionTimeout: pools[i].ConnectionTimeout,
-			Permissions:       pools[i].Permissions,
-		})
-	}
-
-	return readPools, err
+	return f.poolCache.GetPools(getPoolsFunc)
 }
