@@ -462,7 +462,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
 	hosts, err := f.hostStore.FindHostsWithPoolID(ctx, pool.ID)
 	if err != nil {
-		// FIXME: this error shouldn't be ignored. Either log it and/or have the caller fail and return the error
+		glog.Errorf("Unable to find hosts in %s: %v", pool.ID, err)
 		return err
 	}
 
@@ -482,7 +482,7 @@ func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool
 func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePool) error {
 	services, err := f.serviceStore.GetServicesByPool(ctx, pool.ID)
 	if err != nil {
-		// FIXME: this error shouldn't be ignored. Either log it and/or have the caller fail and return the error
+		glog.Errorf("Unable to find services on %s: %v", pool.ID, err)
 		return err
 	}
 

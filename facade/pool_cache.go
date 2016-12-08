@@ -18,14 +18,18 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 )
 
+// poolCache is a simple in-memory cache for storing ReadPools.
+// The dirty flag should be set when changes are made that affect a ReadPool.
 type poolCache struct {
 	mutex sync.RWMutex
 	dirty bool
 	pools []pool.ReadPool
 }
 
+// GetPoolsFunc should return an up-to-date slice of ReadPools.
 type GetPoolsFunc func() ([]pool.ReadPool, error)
 
+// NewPoolCache creates a new poolCache, which is dirty and empty by default
 func NewPoolCache() *poolCache {
 	return &poolCache{
 		mutex: sync.RWMutex{},
@@ -34,6 +38,8 @@ func NewPoolCache() *poolCache {
 	}
 }
 
+// GetPools caches the result of getPoolsFunc if the cache is dirty
+// then returns the cached ReadPools.
 func (pc *poolCache) GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error) {
 	var err error
 	if pc.dirty {
@@ -47,6 +53,8 @@ func (pc *poolCache) GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error
 	return pc.pools, err
 }
 
+// SetDirty sets poolCache.dirty to true, meaning it will call a GetPoolsFunc
+// next time GetPools is called.
 func (pc *poolCache) SetDirty() {
 	pc.mutex.Lock()
 	defer pc.mutex.Unlock()
