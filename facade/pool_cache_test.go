@@ -30,6 +30,7 @@ import (
 
 func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	fmt.Println("\033[2J-----------Starting Test_PoolCache---------")
+
 	ft.setupMockDFSLocking()
 
 	resourcePool := pool.ResourcePool{
@@ -75,13 +76,13 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 		Run(func(args mock.Arguments) { fmt.Printf("Calling mock FindHostsWithPoolID at %v\n", time.Now()) }).
 		Return([]host.Host{firstHost, secondHost}, nil)
 
-	ft.poolStore.On("GetResourcePools", ft.ctx).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetResourcePools at %v\n", time.Now()) }).
-		Return([]pool.ResourcePool{resourcePool}, nil)
+	ft.poolStore.On("GetResourcePools", ft.ctx).Run(func(args mock.Arguments) {
+		fmt.Printf("Calling mock GetResourcePools at %v\n", time.Now())
+	}).Return([]pool.ResourcePool{resourcePool}, nil)
 
 	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
 		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServicesByPool at %v\n", time.Now()) }).
-		Return([]service.Service{firstService, secondService}, nil)
+		Return([]service.Service{firstService, secondService}, nil).Once()
 
 	ft.serviceStore.On("GetServiceDetails", ft.ctx, firstService.ID).
 		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServiceDetails at %v\n", time.Now()) }).
@@ -113,6 +114,7 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	c.Assert(len(pools), Equals, 1)
 
 	p := pools[0]
+
 	fmt.Printf("after getreadpools: p created at: %v\n", p.CreatedAt)
 	fmt.Printf("after getreadpools: resourcePool created at: %v\n", resourcePool.CreatedAt)
 
@@ -121,14 +123,19 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
 	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
 	c.Assert(p.ConnectionTimeout, Equals, 10)
-	//c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
-	//c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
+	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
 	c.Assert(p.Permissions, Equals, resourcePool.Permissions)
 
 	firstService.RAMCommitment = utils.EngNotation{
 		Value: uint64(2000),
 	}
+
 	ft.Facade.UpdateService(ft.ctx, firstService)
+
+	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
+		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServicesByPool at %v\n", time.Now()) }).
+		Return([]service.Service{firstService, secondService}, nil).Once()
 
 	pools, err = ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)
@@ -141,7 +148,7 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
 	c.Assert(p.MemoryCommitment, Equals, uint64(4000))
 	c.Assert(p.ConnectionTimeout, Equals, 10)
-	//c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
-	//c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
+	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
 	c.Assert(p.Permissions, Equals, resourcePool.Permissions)
 }
