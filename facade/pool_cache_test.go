@@ -242,8 +242,8 @@ func (ft *FacadeUnitTest) Test_PoolCacheHostChange(c *C) {
 	p = pools[0]
 	c.Assert(p.ID, Equals, resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 6)
-	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
-	c.Assert(p.MemoryCommitment, Equals, uint64(4000))
+	c.Assert(p.MemoryCapacity, Equals, uint64(12000))
+	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
 	c.Assert(p.ConnectionTimeout, Equals, 10)
 	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
 	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
