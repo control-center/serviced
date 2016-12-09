@@ -536,8 +536,6 @@ func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 	var getPoolsFunc GetPoolsFunc = func() ([]pool.ReadPool, error) {
 		pools, err := f.poolStore.GetResourcePools(ctx)
 
-		fmt.Printf("in GetPoolsFunc begin CreatedAt: %v\n", pools[0].CreatedAt)
-
 		if err != nil {
 			return nil, fmt.Errorf("Could not load pools: %v", err)
 		}
@@ -559,8 +557,6 @@ func (f *Facade) GetReadPools(ctx datastore.Context) ([]pool.ReadPool, error) {
 				ConnectionTimeout: pools[i].ConnectionTimeout,
 				Permissions:       pools[i].Permissions,
 			})
-			fmt.Printf("in GetPoolsFunc end CreatedAt: %v\n", pools[i].CreatedAt)
-			fmt.Printf("in GetPoolsFunc end MemoryCommitment: %v\n", pools[i].MemoryCommitment)
 		}
 		return readPools, nil
 	}

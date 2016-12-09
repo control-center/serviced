@@ -16,7 +16,6 @@
 package facade_test
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/control-center/serviced/domain/host"
@@ -28,9 +27,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
-	fmt.Println("\033[2J-----------Starting Test_PoolCache---------")
-
+func (ft *FacadeUnitTest) Test_PoolCacheServiceChange(c *C) {
 	ft.setupMockDFSLocking()
 
 	resourcePool := pool.ResourcePool{
@@ -70,53 +67,40 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 			Value: uint64(2000),
 		},
 	}
-	fmt.Printf("after creation: resourcePool created at: %v\n", resourcePool.CreatedAt)
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, resourcePool.ID).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock FindHostsWithPoolID at %v\n", time.Now()) }).
 		Return([]host.Host{firstHost, secondHost}, nil)
 
-	ft.poolStore.On("GetResourcePools", ft.ctx).Run(func(args mock.Arguments) {
-		fmt.Printf("Calling mock GetResourcePools at %v\n", time.Now())
-	}).Return([]pool.ResourcePool{resourcePool}, nil)
+	ft.poolStore.On("GetResourcePools", ft.ctx).
+		Return([]pool.ResourcePool{resourcePool}, nil)
 
 	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServicesByPool at %v\n", time.Now()) }).
 		Return([]service.Service{firstService, secondService}, nil).Once()
 
 	ft.serviceStore.On("GetServiceDetails", ft.ctx, firstService.ID).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServiceDetails at %v\n", time.Now()) }).
 		Return(&service.ServiceDetails{
 			ID:            firstService.ID,
 			RAMCommitment: firstService.RAMCommitment,
 		}, nil)
 
 	ft.serviceStore.On("Get", ft.ctx, firstService.ID).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock Get at %v\n", time.Now()) }).
 		Return(&firstService, nil)
 
 	ft.serviceStore.On("Put", ft.ctx, mock.AnythingOfType("*service.Service")).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock Put at %v\n", time.Now()) }).
 		Return(nil)
 
 	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetConfigFiles at %v\n", time.Now()) }).
 		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	ft.zzk.On("UpdateService", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), false, false).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock UpdateService at %v\n", time.Now()) }).
 		Return(nil)
 
-	fmt.Printf("calling getreadpools: resourcePool created at: %v\n", resourcePool.CreatedAt)
 	pools, err := ft.Facade.GetReadPools(ft.ctx)
 	c.Assert(err, IsNil)
 	c.Assert(pools, Not(IsNil))
 	c.Assert(len(pools), Equals, 1)
 
 	p := pools[0]
-
-	fmt.Printf("after getreadpools: p created at: %v\n", p.CreatedAt)
-	fmt.Printf("after getreadpools: resourcePool created at: %v\n", resourcePool.CreatedAt)
 
 	c.Assert(p.ID, Equals, resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 14)
@@ -134,7 +118,6 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	ft.Facade.UpdateService(ft.ctx, firstService)
 
 	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
-		Run(func(args mock.Arguments) { fmt.Printf("Calling mock GetServicesByPool at %v\n", time.Now()) }).
 		Return([]service.Service{firstService, secondService}, nil).Once()
 
 	pools, err = ft.Facade.GetReadPools(ft.ctx)
@@ -145,6 +128,120 @@ func (ft *FacadeUnitTest) Test_PoolCache(c *C) {
 	p = pools[0]
 	c.Assert(p.ID, Equals, resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 14)
+	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
+	c.Assert(p.MemoryCommitment, Equals, uint64(4000))
+	c.Assert(p.ConnectionTimeout, Equals, 10)
+	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
+	c.Assert(p.Permissions, Equals, resourcePool.Permissions)
+}
+
+func (ft *FacadeUnitTest) Test_PoolCacheHostChange(c *C) {
+	ft.setupMockDFSLocking()
+
+	resourcePool := pool.ResourcePool{
+		ID:                "firstPool",
+		Description:       "The first pool",
+		MemoryCapacity:    0,
+		MemoryCommitment:  0,
+		CoreCapacity:      0,
+		ConnectionTimeout: 10,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		Permissions:       pool.DFSAccess,
+	}
+
+	firstHost := host.Host{
+		ID:     "firstHost",
+		Cores:  6,
+		Memory: 12000,
+	}
+
+	secondHost := host.Host{
+		ID:     "secondHost",
+		Cores:  8,
+		Memory: 10000,
+	}
+
+	firstService := service.Service{
+		ID: "firstService",
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(1000),
+		},
+	}
+
+	secondService := service.Service{
+		ID: "secondService",
+		RAMCommitment: utils.EngNotation{
+			Value: uint64(2000),
+		},
+	}
+
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, resourcePool.ID).
+		Return([]host.Host{firstHost, secondHost}, nil).Once()
+
+	ft.poolStore.On("GetResourcePools", ft.ctx).
+		Return([]pool.ResourcePool{resourcePool}, nil)
+
+	ft.serviceStore.On("GetServicesByPool", ft.ctx, resourcePool.ID).
+		Return([]service.Service{firstService, secondService}, nil)
+
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, firstService.ID).
+		Return(&service.ServiceDetails{
+			ID:            firstService.ID,
+			RAMCommitment: firstService.RAMCommitment,
+		}, nil)
+
+	ft.serviceStore.On("Get", ft.ctx, firstService.ID).
+		Return(&firstService, nil)
+
+	ft.serviceStore.On("Put", ft.ctx, mock.AnythingOfType("*service.Service")).
+		Return(nil)
+
+	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
+		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
+
+	ft.hostStore.On("Get", ft.ctx, host.HostKey(secondHost.ID), mock.AnythingOfType("*host.Host")).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			*args.Get(2).(*host.Host) = secondHost
+		})
+
+	ft.zzk.On("RemoveHost", &secondHost).Return(nil)
+	ft.zzk.On("UnregisterDfsClients", []host.Host{secondHost}).Return(nil)
+
+	ft.hostkeyStore.On("Delete", ft.ctx, secondHost.ID).Return(nil)
+	ft.hostStore.On("Delete", ft.ctx, host.HostKey(secondHost.ID)).Return(nil)
+
+	pools, err := ft.Facade.GetReadPools(ft.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(pools, Not(IsNil))
+	c.Assert(len(pools), Equals, 1)
+
+	p := pools[0]
+
+	c.Assert(p.ID, Equals, resourcePool.ID)
+	c.Assert(p.CoreCapacity, Equals, 14)
+	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
+	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
+	c.Assert(p.ConnectionTimeout, Equals, 10)
+	c.Assert(p.CreatedAt, TimeEqual, resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, resourcePool.UpdatedAt)
+	c.Assert(p.Permissions, Equals, resourcePool.Permissions)
+
+	ft.Facade.RemoveHost(ft.ctx, secondHost.ID)
+
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, resourcePool.ID).
+		Return([]host.Host{firstHost}, nil).Once()
+
+	pools, err = ft.Facade.GetReadPools(ft.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(pools, Not(IsNil))
+	c.Assert(len(pools), Equals, 1)
+
+	p = pools[0]
+	c.Assert(p.ID, Equals, resourcePool.ID)
+	c.Assert(p.CoreCapacity, Equals, 6)
 	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
 	c.Assert(p.MemoryCommitment, Equals, uint64(4000))
 	c.Assert(p.ConnectionTimeout, Equals, 10)

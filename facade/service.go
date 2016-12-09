@@ -215,7 +215,6 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	fmt.Printf("updating service, ram commitment is %v\n", svc.RAMCommitment)
 	return f.updateService(ctx, tenantID, svc, false, false)
 }
 
@@ -285,8 +284,6 @@ func (f *Facade) updateService(ctx datastore.Context, tenantID string, svc servi
 		}
 	}
 
-	fmt.Printf("updating service2, ram commitment is %v\n", svc.RAMCommitment)
-	fmt.Printf("setting pool cache to dirty\n")
 	f.poolCache.SetDirty()
 
 	// sync the service with the coordinator
