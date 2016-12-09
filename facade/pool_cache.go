@@ -13,6 +13,7 @@
 package facade
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/control-center/serviced/domain/pool"
@@ -41,8 +42,10 @@ func NewPoolCache() *poolCache {
 // GetPools caches the result of getPoolsFunc if the cache is dirty
 // then returns the cached ReadPools.
 func (pc *poolCache) GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error) {
+
 	var err error
 	if pc.dirty {
+		fmt.Printf("cache is dirty...\n")
 		pc.mutex.Lock()
 		defer pc.mutex.Unlock()
 		pc.pools, err = getPoolsFunc()
@@ -50,6 +53,7 @@ func (pc *poolCache) GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error
 			pc.dirty = false
 		}
 	}
+	fmt.Printf("in cache GetPools CreatedAt: %v\n", pc.pools[0].CreatedAt)
 	return pc.pools, err
 }
 
