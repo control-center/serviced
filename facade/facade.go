@@ -53,6 +53,7 @@ func New() *Facade {
 		templateStore: servicetemplate.NewStore(),
 		userStore:     user.NewStore(),
 		serviceCache:  NewServiceCache(),
+		poolCache:     NewPoolCache(),
 		hostRegistry:  auth.NewHostExpirationRegistry(),
 		deployments:   NewPendingDeploymentMgr(),
 		zzk:           getZZK(),
@@ -75,6 +76,7 @@ type Facade struct {
 	hcache        *health.HealthStatusCache
 	metricsClient MetricsClient
 	serviceCache  *serviceCache
+	poolCache     *poolCache
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 
@@ -85,15 +87,24 @@ func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
 
-func (f *Facade) SetHostStore(store host.Store) { f.hostStore = store }
+func (f *Facade) SetHostStore(store host.Store) {
+	f.hostStore = store
+	f.poolCache.SetDirty()
+}
 
 func (f *Facade) SetHostkeyStore(store hostkey.Store) { f.hostkeyStore = store }
 
 func (f *Facade) SetRegistryStore(store registry.ImageRegistryStore) { f.registryStore = store }
 
-func (f *Facade) SetPoolStore(store pool.Store) { f.poolStore = store }
+func (f *Facade) SetPoolStore(store pool.Store) {
+	f.poolStore = store
+	f.poolCache.SetDirty()
+}
 
-func (f *Facade) SetServiceStore(store service.Store) { f.serviceStore = store }
+func (f *Facade) SetServiceStore(store service.Store) {
+	f.serviceStore = store
+	f.poolCache.SetDirty()
+}
 
 func (f *Facade) SetConfigStore(store serviceconfigfile.Store) { f.configStore = store }
 
