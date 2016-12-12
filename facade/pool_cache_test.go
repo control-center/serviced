@@ -36,7 +36,8 @@ type poolCacheEnv struct {
 	secondService service.Service
 }
 
-func SetupPoolCacheEnv() *poolCacheEnv {
+func NewPoolCacheEnv() *poolCacheEnv {
+	timeStamp := time.Now()
 	return &poolCacheEnv{
 		resourcePool: pool.ResourcePool{
 			ID:                "firstPool",
@@ -45,8 +46,8 @@ func SetupPoolCacheEnv() *poolCacheEnv {
 			MemoryCommitment:  0,
 			CoreCapacity:      0,
 			ConnectionTimeout: 10,
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
+			CreatedAt:         timeStamp,
+			UpdatedAt:         timeStamp,
 			Permissions:       pool.DFSAccess,
 		},
 		firstHost: host.Host{
@@ -76,12 +77,78 @@ func SetupPoolCacheEnv() *poolCacheEnv {
 	}
 }
 
+// Test_PoolCacheEditPool tests that the cache is invalidated when a
+// Pool's permissions change, and is subsequently updated on the next get
+func (ft *FacadeUnitTest) Test_PoolCacheEditPool(c *C) {
+	ft.setupMockDFSLocking()
+
+	pc := NewPoolCacheEnv()
+
+	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
+		Return([]host.Host{pc.firstHost, pc.secondHost}, nil)
+
+	ft.poolStore.On("GetResourcePools", ft.ctx).
+		Return([]pool.ResourcePool{pc.resourcePool}, nil).Once()
+
+	ft.serviceStore.On("GetServicesByPool", ft.ctx, pc.resourcePool.ID).
+		Return([]service.Service{pc.firstService, pc.secondService}, nil)
+
+	ft.serviceStore.On("GetServiceDetails", ft.ctx, pc.firstService.ID).
+		Return(&service.ServiceDetails{
+			ID:            pc.firstService.ID,
+			RAMCommitment: pc.firstService.RAMCommitment,
+		}, nil)
+
+	pools, err := ft.Facade.GetReadPools(ft.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(pools, Not(IsNil))
+	c.Assert(len(pools), Equals, 1)
+
+	p := pools[0]
+
+	c.Assert(p.ID, Equals, pc.resourcePool.ID)
+	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
+	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
+
+	pc.resourcePool.Permissions = pool.AdminAccess & pool.DFSAccess
+
+	ft.poolStore.On("GetResourcePools", ft.ctx).
+		Return([]pool.ResourcePool{pc.resourcePool}, nil).Once()
+
+	ft.poolStore.On("Get", ft.ctx, pool.Key(pc.resourcePool.ID), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			*args.Get(2).(*pool.ResourcePool) = pc.resourcePool
+		})
+
+	ft.poolStore.On("Put", ft.ctx, pool.Key(pc.resourcePool.ID), mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil)
+
+	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).
+		Return(nil)
+
+	ft.Facade.UpdateResourcePool(ft.ctx, &pc.resourcePool)
+
+	// GetReadPools should see that the cache is dirty, and update itself
+	pools, err = ft.Facade.GetReadPools(ft.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(pools, Not(IsNil))
+	c.Assert(len(pools), Equals, 1)
+
+	p = pools[0]
+	c.Assert(p.ID, Equals, pc.resourcePool.ID)
+	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
+	c.Assert(p.UpdatedAt, Not(TimeEqual), pc.resourcePool.UpdatedAt)
+	c.Assert(p.Permissions, Equals, (pool.AdminAccess & pool.DFSAccess))
+}
+
 // Test_PoolCacheEditService tests that the cache is invalidated when a
 // service's ram commitment changes, and is subsequently updated on the next get
 func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := SetupPoolCacheEnv()
+	pc := NewPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil)
@@ -118,13 +185,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 	p := pools[0]
 
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
-	c.Assert(p.CoreCapacity, Equals, 14)
-	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
 	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 
 	pc.firstService.RAMCommitment = utils.EngNotation{
 		Value: uint64(2000),
@@ -145,13 +206,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 
 	p = pools[0]
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
-	c.Assert(p.CoreCapacity, Equals, 14)
-	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
 	c.Assert(p.MemoryCommitment, Equals, uint64(4000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 }
 
 // Test_PoolCacheRemoveHost tests that cache is invalidated when a host is
@@ -159,7 +214,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheEditService(c *C) {
 func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := SetupPoolCacheEnv()
+	pc := NewPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost, pc.secondHost}, nil).Once()
@@ -175,15 +230,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 			ID:            pc.firstService.ID,
 			RAMCommitment: pc.firstService.RAMCommitment,
 		}, nil)
-
-	ft.serviceStore.On("Get", ft.ctx, pc.firstService.ID).
-		Return(&pc.firstService, nil)
-
-	ft.serviceStore.On("Put", ft.ctx, mock.AnythingOfType("*service.Service")).
-		Return(nil)
-
-	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
 
 	ft.hostStore.On("Get", ft.ctx, host.HostKey(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
 		Return(nil).
@@ -207,11 +253,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 14)
 	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
-	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 
 	err = ft.Facade.RemoveHost(ft.ctx, pc.secondHost.ID)
 	c.Assert(err, IsNil)
@@ -228,11 +269,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 6)
 	c.Assert(p.MemoryCapacity, Equals, uint64(12000))
-	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 }
 
 // Test_PoolCacheAddHost tests that cache is invalidated when a host is
@@ -240,7 +276,7 @@ func (ft *FacadeUnitTest) Test_PoolCacheRemoveHost(c *C) {
 func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 	ft.setupMockDFSLocking()
 
-	pc := SetupPoolCacheEnv()
+	pc := NewPoolCacheEnv()
 
 	ft.hostStore.On("FindHostsWithPoolID", ft.ctx, pc.resourcePool.ID).
 		Return([]host.Host{pc.firstHost}, nil).Once()
@@ -257,15 +293,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 			RAMCommitment: pc.firstService.RAMCommitment,
 		}, nil)
 
-	ft.serviceStore.On("Get", ft.ctx, pc.firstService.ID).
-		Return(&pc.firstService, nil)
-
-	ft.serviceStore.On("Put", ft.ctx, mock.AnythingOfType("*service.Service")).
-		Return(nil)
-
-	ft.configStore.On("GetConfigFiles", ft.ctx, mock.AnythingOfType("string"), mock.AnythingOfType("string")).
-		Return([]*serviceconfigfile.SvcConfigFile{}, nil)
-
 	ft.hostStore.On("Get", ft.ctx, host.HostKey(pc.secondHost.ID), mock.AnythingOfType("*host.Host")).
 		Return(datastore.ErrNoSuchEntity{}).
 		Once()
@@ -280,11 +307,6 @@ func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 6)
 	c.Assert(p.MemoryCapacity, Equals, uint64(12000))
-	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 
 	ft.poolStore.On("Get", ft.ctx, pool.Key(pc.resourcePool.ID), mock.AnythingOfType("*pool.ResourcePool")).
 		Return(nil).
@@ -315,9 +337,4 @@ func (ft *FacadeUnitTest) Test_PoolCacheAddHost(c *C) {
 	c.Assert(p.ID, Equals, pc.resourcePool.ID)
 	c.Assert(p.CoreCapacity, Equals, 14)
 	c.Assert(p.MemoryCapacity, Equals, uint64(22000))
-	c.Assert(p.MemoryCommitment, Equals, uint64(3000))
-	c.Assert(p.ConnectionTimeout, Equals, 10)
-	c.Assert(p.CreatedAt, TimeEqual, pc.resourcePool.CreatedAt)
-	c.Assert(p.UpdatedAt, TimeEqual, pc.resourcePool.UpdatedAt)
-	c.Assert(p.Permissions, Equals, pc.resourcePool.Permissions)
 }
