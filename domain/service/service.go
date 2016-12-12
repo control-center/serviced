@@ -30,7 +30,6 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
-
 // Desired states of services.
 type DesiredState int
 
@@ -102,6 +101,19 @@ type Service struct {
 	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string
+	// StartLevel represents the order in which services are started and stopped
+	// in normal operations.  All services of a given level start before any services
+	// at higher levels.  Stopping services occurs in the reverse order.  Services
+	// with StartLevel 0 (representing undefined) start after and stop before services
+	// with a defined StartLevel.
+	StartLevel uint
+	// ShutdownLevel represents the order in which services are stopped in an
+	// emergency low-storage situation.  All services of a given ShutdownLevel are
+	// stopped before any services of a higher ShutdownLevel.  In an emergency
+	// low-storage shutdown, services with ShutdownLevel 0 (representing undefined)
+	// are stopped after services with a defined ShutdownLevel, in the normal order
+	// dictated by their StartLevel.
+	ShutdownLevel uint
 	datastore.VersionedEntity
 }
 
@@ -224,6 +236,8 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.HealthChecks = sd.HealthChecks
 	svc.Prereqs = sd.Prereqs
 	svc.PIDFile = sd.PIDFile
+	svc.StartLevel = sd.StartLevel
+	svc.ShutdownLevel = sd.ShutdownLevel
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
@@ -509,10 +523,10 @@ func (s *Service) EnablePort(application string, portAddr string, enable bool) e
 					portFound = true
 					ep.PortList[i].Enabled = enable
 					plog.WithFields(log.Fields{
-						"portaddr": portAddr,
-						"serviceid": s.ID,
+						"portaddr":    portAddr,
+						"serviceid":   s.ID,
 						"application": application,
-						"enable": enable,
+						"enable":      enable,
 					}).Debug("Enable port")
 				}
 			}
@@ -553,10 +567,10 @@ func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) 
 					vhostFound = true
 					ep.VHostList[i].Enabled = enable
 					plog.WithFields(log.Fields{
-						"vhostname": vhostName,
-						"serviceid": s.ID,
+						"vhostname":   vhostName,
+						"serviceid":   s.ID,
 						"application": application,
-						"enable": enable,
+						"enable":      enable,
 					}).Debug("Enable vhost")
 				}
 			}

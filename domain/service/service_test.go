@@ -202,6 +202,8 @@ func (s *S) TestCloneService(t *C) {
 				},
 			},
 		},
+		StartLevel:    777,
+		ShutdownLevel: 999,
 	}
 
 	suffix := "tester"
@@ -213,6 +215,8 @@ func (s *S) TestCloneService(t *C) {
 	t.Check(clonedSvc.CreatedAt.Equal(svc.CreatedAt), Equals, false)
 	t.Check(clonedSvc.UpdatedAt.Equal(svc.UpdatedAt), Equals, false)
 	t.Check(clonedSvc.Name, Equals, svc.Name+suffix)
+	t.Check(clonedSvc.StartLevel, Equals, svc.StartLevel)
+	t.Check(clonedSvc.ShutdownLevel, Equals, svc.ShutdownLevel)
 
 	actualEp0 := clonedSvc.Endpoints[0]
 	t.Check(actualEp0.Name, Equals, "eptester")
