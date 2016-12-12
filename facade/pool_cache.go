@@ -41,11 +41,11 @@ func NewPoolCache() *poolCache {
 // GetPools caches the result of getPoolsFunc if the cache is dirty
 // then returns the cached ReadPools.
 func (pc *poolCache) GetPools(getPoolsFunc GetPoolsFunc) ([]pool.ReadPool, error) {
+	pc.mutex.Lock()
+	defer pc.mutex.Unlock()
 
 	var err error
 	if pc.dirty {
-		pc.mutex.Lock()
-		defer pc.mutex.Unlock()
 		pc.pools, err = getPoolsFunc()
 		if err == nil {
 			pc.dirty = false
