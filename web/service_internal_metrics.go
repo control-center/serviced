@@ -13,7 +13,11 @@
 
 package web
 
-import "github.com/control-center/serviced/domain"
+import (
+	"fmt"
+
+	"github.com/control-center/serviced/domain"
+)
 
 var internalCounterStats = []string{
 	"net.collisions", "net.multicast", "net.rx_bytes", "net.rx_compressed",
@@ -253,6 +257,46 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 						ResetThreshold: 1,
 					},
 					Type: "area",
+				},
+			},
+		}, {
+			// dfs usage graph
+			ID:          "dfsUsage",
+			Name:        "DFS Usage",
+			BuiltIn:     true,
+			Format:      "%4.2f",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			YAxisLabel:  "bytes",
+			Description: "DFS Used Over Last Hour",
+			MinY:        &zero,
+			Range:       &tRange,
+			Units:       "Bytes",
+			Base:        1024,
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "Available",
+					Metric:       fmt.Sprintf("storage.filesystem.available.%s", serviceID),
+					MetricSource: "metrics",
+					ID:           fmt.Sprintf("storage.filesystem.available.%s", serviceID),
+					Name:         "Available",
+					Rate:         false,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "Used",
+					Metric:       fmt.Sprintf("storage.filesystem.used.%s", serviceID),
+					MetricSource: "metrics",
+					ID:           fmt.Sprintf("storage.filesystem.used.%s", serviceID),
+					Name:         "Used",
+					Rate:         false,
+					Type:         "area",
 				},
 			},
 		},
