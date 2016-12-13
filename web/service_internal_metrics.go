@@ -33,8 +33,11 @@ var internalGaugeStats = []string{
 	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.open_connections.tcp", "net.open_connections.udp",
 	"net.open_connections.raw",
 }
+var internalTenantStats = []string{
+	"storage.filesystem.available.%s", "storage.filesystem.used.%s",
+}
 
-func getInternalMetrics() (*domain.MetricConfig, error) {
+func getInternalMetrics(tenantID string) (*domain.MetricConfig, error) {
 	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 	if err != nil {
 		return nil, err
@@ -59,6 +62,16 @@ func getInternalMetrics() (*domain.MetricConfig, error) {
 			domain.Metric{
 				ID:      metricName,
 				Name:    metricName,
+				Counter: false,
+				BuiltIn: true,
+			})
+
+	}
+	for _, metricName := range internalTenantStats {
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      fmt.Sprintf(metricName, tenantID),
+				Name:    fmt.Sprintf(metricName, tenantID),
 				Counter: false,
 				BuiltIn: true,
 			})
