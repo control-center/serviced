@@ -48,5 +48,5 @@
             "Type": ""
           }],
 		  "#StartLevel": "StartLevel ommitted to test default value",
-		  "#ShutdownLevel": "ShutdownLevel ommitted to test default value"
+		  "#EmergencyShutdownLevel": "EmergencyShutdownLevel ommitted to test default value"
 }

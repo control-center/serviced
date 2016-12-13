@@ -107,13 +107,13 @@ type Service struct {
 	// with StartLevel 0 (representing undefined) start after and stop before services
 	// with a defined StartLevel.
 	StartLevel uint
-	// ShutdownLevel represents the order in which services are stopped in an
-	// emergency low-storage situation.  All services of a given ShutdownLevel are
-	// stopped before any services of a higher ShutdownLevel.  In an emergency
-	// low-storage shutdown, services with ShutdownLevel 0 (representing undefined)
-	// are stopped after services with a defined ShutdownLevel, in the normal order
+	// EmergencyShutdownLevel represents the order in which services are stopped in an
+	// emergency low-storage situation.  All services of a given EmergencyShutdownLevel are
+	// stopped before any services of a higher EmergencyShutdownLevel.  In an emergency
+	// low-storage shutdown, services with EmergencyShutdownLevel 0 (representing undefined)
+	// are stopped after services with a defined EmergencyShutdownLevel, in the normal order
 	// dictated by their StartLevel.
-	ShutdownLevel uint
+	EmergencyShutdownLevel uint
 	datastore.VersionedEntity
 }
 
@@ -237,7 +237,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Prereqs = sd.Prereqs
 	svc.PIDFile = sd.PIDFile
 	svc.StartLevel = sd.StartLevel
-	svc.ShutdownLevel = sd.ShutdownLevel
+	svc.EmergencyShutdownLevel = sd.EmergencyShutdownLevel
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {

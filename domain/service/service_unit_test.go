@@ -82,7 +82,7 @@ func (s *ServiceDomainUnitTestSuite) TestBuildServiceSimple(t *C) {
 		CPUShares:     cpuShares,
 		PIDFile:       pidFile,
 		StartLevel:    startLevel,
-		ShutdownLevel: shutdownLevel,
+		EmergencyShutdownLevel: shutdownLevel,
 	}
 	actual, err := service.BuildService(sd, "", "", 0, "")
 
@@ -108,5 +108,5 @@ func (s *ServiceDomainUnitTestSuite) TestBuildServiceSimple(t *C) {
 	t.Check(actual.CPUShares, Equals, cpuShares)
 	t.Check(actual.PIDFile, Equals, pidFile)
 	t.Check(actual.StartLevel, Equals, startLevel)
-	t.Check(actual.ShutdownLevel, Equals, shutdownLevel)
+	t.Check(actual.EmergencyShutdownLevel, Equals, shutdownLevel)
 }

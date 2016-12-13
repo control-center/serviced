@@ -65,7 +65,7 @@ type ServiceDefinition struct {
 	CPUShares         int64
 	PIDFile           string // An optional path or command to generate a path for a PID file to which signals are relayed.
 	StartLevel        uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
-	ShutdownLevel     uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
+	EmergencyShutdownLevel     uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
 }
 
 // SnapshotCommands commands to be called during and after a snapshot

@@ -29,5 +29,5 @@
             "Resume": "echo resume"
           },
 		  "StartLevel": 123,
-		  "ShutdownLevel": 321
+		  "EmergencyShutdownLevel": 321
 }
