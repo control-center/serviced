@@ -27,5 +27,7 @@
           "Snapshot": {
             "Pause": "echo pause",
             "Resume": "echo resume"
-          }
+          },
+		  "StartLevel": 123,
+		  "EmergencyShutdownLevel": 321
 }
