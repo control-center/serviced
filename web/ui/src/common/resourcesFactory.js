@@ -297,6 +297,10 @@
             getUIConfig: {
                 method: GET,
                 url: "/config"
+            },
+            getStorage: {
+              method: GET,
+              url: "/storage"
             }
         };
 

@@ -27,8 +27,8 @@
           <td data-title="'label_public_endpoints'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
                   <div ng-repeat="vhost in service.publicEndpoints">
-                      <public-endpoint-link 
-                          data-public-endpoint="vhost" 
+                      <public-endpoint-link
+                          data-public-endpoint="vhost"
                           data-host-alias="defaultHostAlias">
                       </public-endpoint-link>
                   </div>
@@ -80,5 +80,16 @@
             </td>
         </tr>
     </table>
+
+    <!-- Graphs -->
+    <div ng-repeat="storageObj in storage">
+      <graph-panel
+          ng-if="storageObj.MonitoringProfile.GraphConfigs.length > 0"
+          data-service-id="0"
+          data-graph-configs="storageObj.MonitoringProfile.GraphConfigs"
+          class="infoWrapper graphPanel">
+      </graph-panel>
+    </div>
+
 
     <div ng-include="'/static/partials/wizard-modal.html'"></div>
