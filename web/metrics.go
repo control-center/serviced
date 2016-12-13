@@ -120,23 +120,25 @@ var (
 	volumeProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			domain.MetricConfig{
-				ID: "storage",
-				Name: "storage",
-				Description: "DFS usage data",
+				ID:          "storage",
+				Name:        "storage",
+				Description: "Serviced thin pool usage data",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "storage.total", Name: "total", Unit: "bytes"},
-					domain.Metric{ID: "storage.used", Name: "used", Unit: "bytes"},
+					domain.Metric{ID: "storage.pool.data.used", Name: "data used", Unit: "bytes"},
+					domain.Metric{ID: "storage.pool.data.available", Name: "data available", Unit: "bytes"},
+					domain.Metric{ID: "storage.pool.metadata.used", Name: "metadata used", Unit: "bytes"},
+					domain.Metric{ID: "storage.pool.metadata.available", Name: "metadata available", Unit: "bytes"},
 				},
 			},
 		},
 		ThresholdConfigs: []domain.ThresholdConfig{
 			domain.ThresholdConfig{
-				ID: "dfs.space.low",
-				Name: "DFS space low",
-				Description: "DFS free space is low",
+				ID:           "dfs.space.low",
+				Name:         "DFS space low",
+				Description:  "DFS free space is low",
 				MetricSource: "storage",
-				DataPoints: []string{"storage.used"},
-				Type: "MinMax",
+				DataPoints:   []string{"storage.pool.data.used"},
+				Type:         "MinMax",
 				Threshold:    domain.MinMaxThreshold{Min: "", Max: "here.totalBytes * 0.80"},
 				EventTags: map[string]interface{}{
 					"Severity":    3,
@@ -146,12 +148,12 @@ var (
 				},
 			},
 			domain.ThresholdConfig{
-				ID: "dfs.space.very.low",
-				Name: "DFS space very low",
-				Description: "DFS free space is very low",
+				ID:           "dfs.space.very.low",
+				Name:         "DFS space very low",
+				Description:  "DFS free space is very low",
 				MetricSource: "storage",
-				DataPoints: []string{"storage.used"},
-				Type: "MinMax",
+				DataPoints:   []string{"storage.pool.data.used"},
+				Type:         "MinMax",
 				Threshold:    domain.MinMaxThreshold{Min: "", Max: "here.totalBytes * 0.90"},
 				EventTags: map[string]interface{}{
 					"Severity":    4,
@@ -621,5 +623,97 @@ func newVolumeUsageGraph(tags map[string][]string) domain.GraphConfig {
 		Tags:        tags,
 		Units:       "Bytes",
 		Description: "DFS usage",
+	}
+}
+
+func newThinPoolDataUsageGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "used",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Used Bytes",
+				Metric:       "storage.pool.data.used",
+				MetricSource: "storage",
+				Name:         "Used Bytes",
+				Type:         "line",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "available",
+				Color:        "#aee4e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Available Bytes",
+				Metric:       "storage.pool.data.available",
+				MetricSource: "storage",
+				Name:         "Available Bytes",
+				Type:         "line",
+			},
+		},
+		ID:     "storage.pool.data.usage",
+		Name:   "Thin Pool Usage",
+		Footer: false,
+		Format: "%.2f",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "Bytes",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		Tags:        tags,
+		Units:       "Bytes",
+		Description: "Thin Pool Usage",
+	}
+}
+
+func newThinPoolMetadataUsageGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "used",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Used Bytes",
+				Metric:       "storage.pool.metadata.used",
+				MetricSource: "storage",
+				Name:         "Used Bytes",
+				Type:         "line",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "available",
+				Color:        "#aee4e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Available Bytes",
+				Metric:       "storage.pool.metadata.available",
+				MetricSource: "storage",
+				Name:         "Available Bytes",
+				Type:         "line",
+			},
+		},
+		ID:     "storage.pool.metadata.usage",
+		Name:   "Thin Pool Metadata Usage",
+		Footer: false,
+		Format: "%.2f",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "Bytes",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		Tags:        tags,
+		Units:       "Bytes",
+		Description: "Thin Pool Metadata Usage",
 	}
 }
