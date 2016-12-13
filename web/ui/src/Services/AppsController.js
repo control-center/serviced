@@ -373,6 +373,14 @@
             });
         }
 
+
+        function fetchStorage() {
+          resourcesFactory.getStorage().then(data => {
+            $scope.storage = data;
+          });
+        }
+
+
         // poll for apps that are being deployed
         $scope.deployingServices = [];
         var lastPollResults = 0;
@@ -442,7 +450,7 @@
                 sorting: {
                     name: "asc"
                 },
-                searchColumns: ['name','model.Description', 'model.DeploymentID', 'model.PoolID'],                
+                searchColumns: ['name','model.Description', 'model.DeploymentID', 'model.PoolID'],
                 getData: function(data, params) {
                     // use built-in angular filter
                     var orderedData = params.sorting() ?
@@ -477,8 +485,11 @@
                 sorting: {
                     Name: "asc"
                 },
-                searchColumns: ['Name','ID', 'Description']               
+                searchColumns: ['Name','ID', 'Description']
             };
+
+            $scope.storage = [];
+            fetchStorage();
 
             // Get a list of templates
             refreshTemplates();
