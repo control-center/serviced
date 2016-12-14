@@ -374,9 +374,18 @@
         }
 
 
-        function fetchStorage() {
+        function fetchGraphConfigs() {
           resourcesFactory.getStorage().then(data => {
-            $scope.storage = data;
+            for (let [n, s] of data.entries()) {
+              s.MonitoringProfile.GraphConfigs.forEach(g => {
+                if (g.id === "storage.pool.data.usage") {
+                  // in the case where we have more than one entry in storage
+                  // we need our graph ids to be unique, so concat their index
+                  g.id += "." + String(n)
+                  $scope.graphConfigs.push(g)
+                }
+              });
+            }
           });
         }
 
@@ -488,8 +497,9 @@
                 searchColumns: ['Name','ID', 'Description']
             };
 
-            $scope.storage = [];
-            fetchStorage();
+            // get configurations for graphs
+            $scope.graphConfigs = [];
+            fetchGraphConfigs();
 
             // Get a list of templates
             refreshTemplates();
