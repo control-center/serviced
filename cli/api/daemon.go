@@ -950,6 +950,7 @@ func (d *daemon) startAgent() error {
 			log.Debug("Registered local ControlCenterAgent RPC service")
 		}
 
+		// serviced stats (cpu, ram, etc)
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
@@ -958,17 +959,41 @@ func (d *daemon) startAgent() error {
 				"interval": options.StatsPeriod,
 			})
 			log.Debug("Starting container statistics reporting")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
+			servicedStatsReporter, err := stats.NewServicedStatsReporter(statsdest, statsduration, poolBasedConn, d.docker)
 			if err != nil {
 				log.WithError(err).Error("Unable to start reporting stats")
 			} else {
 				go func() {
-					defer statsReporter.Close()
+					defer servicedStatsReporter.Close()
 					<-d.shutdown
 					log.Info("Stopping stats reporting")
 				}()
 			}
 		}
+
+		// storage stats (thinpool, etc)
+		if options.Master {
+			// TODO: put this interval somewhere better?
+			statsInterval := 30
+			storageStatsDest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+			storageStatsDuration := statsInterval * time.Second
+			log := log.WithFields(logrus.Fields{
+				"statsurl": storageStatsDest,
+				"interval": statsInterval,
+			})
+			log.Debug("Starting storage statistics reporting")
+			storageStatsReporter, err := stats.NewStorageStatsReporter(storageStatsDest, storageStatsDuration)
+			if err != nil {
+				log.WithError(err).Error("Unable to start reporting stats")
+			} else {
+				go func() {
+					defer storageStatsReporter.Close()
+					<-d.shutdown
+					log.Info("Stopping stats reporting")
+				}()
+			}
+		}
+
 	}()
 
 	agentServer := agent.NewServer(d.staticIPs)
@@ -1186,7 +1211,7 @@ func (d *daemon) addTemplates() {
 				log.Warn("Unable to parse template file")
 				return nil
 			}
-			reloadLogstashConfig := false		// defer reloading until all templates have been added
+			reloadLogstashConfig := false // defer reloading until all templates have been added
 			d.facade.AddServiceTemplate(d.dsContext, st, reloadLogstashConfig)
 			log.Debug("Added service template")
 			return nil
