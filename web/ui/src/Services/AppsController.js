@@ -381,8 +381,8 @@
                 if (g.id === "storage.pool.data.usage") {
                   // in the case where we have more than one entry in storage
                   // we need our graph ids to be unique, so concat their index
-                  g.id += "." + String(n)
-                  $scope.graphConfigs.push(g)
+                  g.id += "." + String(n);
+                  $scope.graphConfigs.push(g);
                 }
               });
             }
