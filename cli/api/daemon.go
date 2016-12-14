@@ -976,7 +976,7 @@ func (d *daemon) startAgent() error {
 			// TODO: put this interval somewhere better?
 			statsInterval := 30
 			storageStatsDest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-			storageStatsDuration := statsInterval * time.Second
+			storageStatsDuration := time.Second * time.Duration(statsInterval)
 			log := log.WithFields(logrus.Fields{
 				"statsurl": storageStatsDest,
 				"interval": statsInterval,
