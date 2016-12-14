@@ -82,14 +82,12 @@
     </table>
 
     <!-- Graphs -->
-    <div ng-repeat="storageObj in storage">
-      <graph-panel
-          ng-if="storageObj.MonitoringProfile.GraphConfigs.length > 0"
-          data-service-id="0"
-          data-graph-configs="storageObj.MonitoringProfile.GraphConfigs"
-          class="infoWrapper graphPanel">
-      </graph-panel>
-    </div>
+    <graph-panel
+        ng-if="graphConfigs.length > 0"
+        data-service-id="0"
+        data-graph-configs="graphConfigs"
+        class="infoWrapper graphPanel">
+    </graph-panel>
 
 
     <div ng-include="'/static/partials/wizard-modal.html'"></div>
