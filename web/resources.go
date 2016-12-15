@@ -157,9 +157,11 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 			return
 		}
 
-		for ii, _ := range result {
-			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		for ii, svc := range result {
+			if len(svc.Startup) > 2 {
+				result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+				result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+			}
 		}
 		w.WriteJson(&result)
 		return
@@ -172,9 +174,11 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 			return
 		}
 
-		for ii, _ := range result {
-			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		for ii, svc := range result {
+			if len(svc.Startup) > 2 {
+				result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+				result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+			}
 		}
 		w.WriteJson(&result)
 		return
@@ -211,12 +215,14 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		}
 	}
 
-	for ii, _ := range result {
+	for ii, svc := range result {
 		if strings.HasPrefix(result[ii].ID, "isvc-") {
 			continue
 		}
-		result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-		result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		if len(svc.Startup) > 2 {
+			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		}
 	}
 	w.WriteJson(&result)
 }
