@@ -1400,7 +1400,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 			return nil, err
 		}
 		devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
-		total, free, err := getFilesystemStats(devicename)
+		total, used, free, err := getFilesystemStats(devicename)
 		if err != nil {
 			return nil, err
 		}
@@ -1410,7 +1410,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		}
 		tss.FilesystemTotal = total
 		tss.FilesystemAvailable = free
-		tss.FilesystemUsed = total - free
+		tss.FilesystemUsed = used
 		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
 		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
 		/* CC-2417
