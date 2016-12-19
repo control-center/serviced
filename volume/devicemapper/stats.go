@@ -224,53 +224,53 @@ var errFilesystemNotMounted = errors.New("Filesystem not mounted.")
 // getFilesystemStats calls df to see if the filesystem is mounted and
 // gets the parsed info for it if it is.
 // If it is not mounted, it calls getUnmountedFilesystemStats for the info.
-func getFilesystemStats(dev string) (uint64, uint64, error) {
-	totalBlocks, freeBlocks, err := getMountedFilesystemStats(dev)
+func getFilesystemStats(dev string) (uint64, uint64, uint64, error) {
+	totalBlocks, usedBlocks, freeBlocks, err := getMountedFilesystemStats(dev)
 	// Catch the errFilesystemNotMounted and try getUnmountedFilesystemStats
 	if err == errFilesystemNotMounted {
-		totalBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
+		totalBlocks, usedBlocks, freeBlocks, err = getUnmountedFilesystemStats(dev)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 	} else if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
-	return totalBlocks, freeBlocks, err
+	return totalBlocks, usedBlocks, freeBlocks, err
 }
 
 // getMountedFilesystemStats calls df to get filesystem stats for a mounted dev
-func getMountedFilesystemStats(dev string) (uint64, uint64, error) {
+func getMountedFilesystemStats(dev string) (uint64, uint64, uint64, error) {
 	// Specify 1 byte "blocks" for ease
 	cmd := exec.Command("df", "-B 1")
 	defer cmd.Wait()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	defer out.Close()
 	if err = cmd.Start(); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	mounted := false
-	var totalBlocks uint64
-	var freeBlocks uint64
+	var totalBlocks, usedBlocks, freeBlocks uint64
 	dfStatsSlice, err := parseDfOutput(out)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	for _, stats := range dfStatsSlice {
 		if stats.FilesystemPath == dev {
 			mounted = true
 			totalBlocks = stats.BlocksTotal
 			freeBlocks = stats.BlocksAvailable
+			usedBlocks = stats.BlocksUsed
 			break
 		}
 	}
 	if !mounted {
-		return 0, 0, errFilesystemNotMounted
+		return 0, 0, 0, errFilesystemNotMounted
 	}
 
-	return totalBlocks, freeBlocks, err
+	return totalBlocks, usedBlocks, freeBlocks, err
 }
 
 // parseDfOutput attempts to parse output from a df call.  It supports multiple
@@ -367,27 +367,28 @@ type filesystemStats struct {
 // We get a lot of info from dumpe2fs to calculate the usable space on the
 // filesystem, as this is what df shows, and we want consistancy since
 // df is used when the disk is mounted (df is more up-to-date).
-func getUnmountedFilesystemStats(dev string) (uint64, uint64, error) {
+func getUnmountedFilesystemStats(dev string) (uint64, uint64, uint64, error) {
 	cmd := exec.Command("dumpe2fs", dev)
 	defer cmd.Wait()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	defer out.Close()
 
 	if err = cmd.Start(); err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 
 	fs, err := parseDumpe2fsOutput(out)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 
-	return (fs.BlocksTotal - fs.UnusableBlocks) * fs.BlockSize,
-		fs.FreeBlocks * fs.BlockSize,
-		nil
+	total := (fs.BlocksTotal - fs.UnusableBlocks) * fs.BlockSize
+	free := fs.FreeBlocks * fs.BlockSize
+	used := total - free
+	return total, used, free, nil
 }
 
 // parseDumpe2fsOutput reads output from a dumpe2fs call to
