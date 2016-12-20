@@ -38,7 +38,7 @@ type StatsReporterInterface interface {
 // statsReporter collects and posts stats to the TSDB
 type statsReporter struct {
 	destination     string
-	closeChannel    chan bool
+	closeChannel    chan struct{}
 	updateStatsFunc updateStatsFunc
 	gatherStatsFunc gatherStatsFunc
 }
@@ -60,7 +60,6 @@ func (sr *statsReporter) report(d time.Duration) {
 		select {
 		case _ = <-sr.closeChannel:
 			glog.V(3).Info("Ceasing stat reporting.")
-			sr.closeChannel <- true
 			return
 		case t := <-tc:
 			glog.V(1).Info("Reporting container stats at:", t)
@@ -74,11 +73,10 @@ func (sr *statsReporter) report(d time.Duration) {
 	}
 }
 
-// Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
-// is indeed shutting down.
+// Close shuts down the reporting goroutine.
 func (sr *statsReporter) Close() {
-	sr.closeChannel <- true
-	_ = <-sr.closeChannel
+	close(sr.closeChannel)
+
 }
 
 // Send the list of stats to the TSDB.

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SimpleIOStat contains basic information from iostat
@@ -176,8 +177,8 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 // GetSimpleIOStatsCh calls iostat with -dNxy and an interval.
 // It parses the output and creates a DeviceUtilizationReport for each device
 // and sends it to the returned channel.
-func GetSimpleIOStatsCh(interval int, quitCh <-chan struct{}) (<-chan map[string]DeviceUtilizationReport, error) {
-	cmd := exec.Command("iostat", "-dNxy", string(interval))
+func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan struct{}) (<-chan map[string]DeviceUtilizationReport, error) {
+	cmd := exec.Command("iostat", "-dNxy", string(interval/time.Second))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err

@@ -1287,6 +1287,10 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 	if dockerStatus.DataLoopback != "" {
 		driverType = "loop-lvm"
 	}
+
+	// TODO: Pull the latest iostats and add appropriate metrics for
+	//  both pool and tenant devices
+
 	usageData := []volume.Usage{
 		// Store under older value names in case anybody's looking for it
 		{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available,
@@ -1380,11 +1384,6 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		}
 	*/
 
-	iostats, err := iostat.GetSimpleIOStats([]string{})
-	if err != nil {
-		glog.Errorf("Unable to fetch iostats for DFS: %s", err)
-	}
-
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
 		vol, err := d.getVolume(tenant, false)
@@ -1418,13 +1417,6 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		tss.FilesystemAvailable = free
 		tss.FilesystemUsed = used
 		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
-
-		//iostat
-		if iostats != nil {
-			if stats, ok := iostats[devicename]; ok {
-
-			}
-		}
 
 		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
 		/* CC-2417

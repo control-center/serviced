@@ -62,7 +62,7 @@ func NewServicedStatsReporter(destination string, interval time.Duration, conn c
 	ssr := ServicedStatsReporter{
 		statsReporter: statsReporter{
 			destination:  destination,
-			closeChannel: make(chan bool),
+			closeChannel: make(chan struct{}),
 		},
 		hostID:              hostID,
 		previousStats:       make(map[string]map[string]uint64),
