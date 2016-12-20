@@ -53,7 +53,7 @@ func init() {
 	var err error
 	Release, err = GetPackageRelease("serviced")
 	if err != nil {
-		plog.WithError(err).Error("Unable to get version information.")
+		plog.WithError(err).Debug("Unable to get version information.")
 	}
 }
 
