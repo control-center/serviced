@@ -24,7 +24,6 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 
-	"sync"
 	"time"
 )
 
@@ -32,8 +31,6 @@ import (
 type StorageStatsReporter struct {
 	statsReporter
 	hostID          string
-	lastIoStats     map[string](utils.SimpleIOStat)
-	iostatMutex     sync.RWMutex
 	storageRegistry metrics.Registry
 }
 
@@ -56,7 +53,6 @@ func NewStorageStatsReporter(destination string, interval time.Duration) (*Stora
 	ssr.storageRegistry = metrics.NewRegistry()
 	ssr.statsReporter.updateStatsFunc = ssr.updateStats
 	ssr.statsReporter.gatherStatsFunc = ssr.gatherStats
-	go ssr.watchIOStats(interval)
 	go ssr.report(interval)
 	return &ssr, nil
 }
@@ -79,46 +75,6 @@ func (sr *StorageStatsReporter) gatherStats(t time.Time) []Sample {
 		}
 	})
 	return stats
-}
-
-// TODO:  Make this package-level and kick it off from /cli/api/daemon.go
-func (sr *StorageStatsReporter) watchIOStats(interval time.Duration) {
-	defer glog.Infof("IOStat watcher terminated")
-	for {
-		statch, err := utils.GetSimpleIOStatsCh(interval, sr.closeChannel)
-		if err != nil {
-			glog.Errorf("Error running iostat, trying again in 10s")
-			timer := time.NewTimer(10 * time.Second)
-			select {
-			case <-sr.closeChannel:
-				return
-			case <-timer.C:
-				continue
-			}
-		}
-
-		for {
-			select {
-			case newStats := <-statch:
-				if newStats == nil {
-					glog.Errorf("Iostat channel closed unexpectedly, restarting in 10s")
-					timer := time.NewTimer(10 * time.Second)
-					select {
-					case <-sr.closeChannel:
-						return
-					case <-timer.C:
-						break
-					}
-				}
-				sr.iostatMutex.Lock()
-				sr.lastIoStats = newStats
-				sr.iostatMutex.Unlock()
-			case <-sr.closeChannel:
-				return
-			}
-		}
-
-	}
 }
 
 func (ssr StorageStatsReporter) updateStats() {
