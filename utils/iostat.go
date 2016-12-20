@@ -2,19 +2,18 @@ package utils
 
 import (
 	"bufio"
-	"io"
-	"strconv"
-	"string"
 	"fmt"
+	"io"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
 type SimpleIOStat struct {
-	Device   string
-	KBReadPS float64
-	KBWrtnPS float64
-	RPS      float64
-	WPS      float64
-	PctUtil  float64
+	Device string
+	RPS    float64
+	WPS    float64
+	Await  float64
 }
 
 type DeviceUtilizationReport struct {
@@ -45,58 +44,23 @@ type DeviceUtilizationReport struct {
 	AvgRqSz   float64 // Average Request Size (in sectors)
 	AvgQuSz   float64 // Average Queue Size
 	PctUtil   float64 // CPU bandwidth utilization by device requests
+	Await     float64 // The  average time (in  milliseconds) for I/O requests issued to the device to be served
 }
 
 func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
 	iostat := SimpleIOStat{}
-	// We should have one of:
-	// -KBReadPS
-	// -MBReadPS
-	// -RKBPS
-	// -RMBPS
-	// And one of:
-	// -KBWrtnPS
-	// -MBWrtnPS
-	// -WKBPS
-	// -WMBPS
-	// Find out which we have, and convert if necessary...
-	var emptyFloat float64
-	if d.KBReadPS != emptyFloat {
-		iostat.KBReadPS = d.KBReadPS
-	} else if d.MBReadPS != emptyFloat {
-		iostat.KBReadPS = d.MBReadPS * 1000
-	} else if d.RKBPS != emptyFloat {
-		iostat.KBReadPS = d.RKBPS
-	} else if d.RMBPS != emptyFloat {
-		iostat.KBReadPS = d.RMBPS * 1000
-	} else {
-		return SimpleIOStat{}, fmt.Errorf("Could not find kBRead/s of MBRead/s")
-	}
-
-	if d.KBWrtnPS != emptyFloat {
-		iostat.KBWrtnPS = d.KBWrtnPS
-	} else if d.MBWrtnPS != emptyFloat {
-		iostat.KBWrtnPS = d.MBWrtnPS * 1000
-	} else if d.WKBPS != emptyFloat {
-		iostat.KBWrtnPS = d.WKBPS
-	} else if d.WMBPS != emptyFloat {
-		iostat.KBWrtnPS = d.WMBPS * 1000
-	} else {
-		return SimpleIOStat{}, fmt.Errorf("Could not find kBWrtn/s of MBWrtn/s")
-	}
-
 	iostat.Device = d.Device
 	iostat.RPS = d.RPS
 	iostat.WPS = d.WPS
-	iostat.PctUtil = d.PctUtil
+	iostat.Await = d.Await
 	return iostat, nil
 }
 
-func parseIOStat(r io.Reader) ([]DeviceUtilizationReport, error) {
+func parseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	scanner := bufio.NewScanner(r)
 	var err error
 	fields := make([]string, 0)
-	reports := make([]DeviceUtilizationReport, 0)
+	reports := make(map[string]DeviceUtilizationReport, 0)
 	passedSysInfo := false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -167,12 +131,45 @@ func parseIOStat(r io.Reader) ([]DeviceUtilizationReport, error) {
 				report.AvgQuSz, err = strconv.ParseFloat(metrics[index], 64)
 			case "%util":
 				report.PctUtil, err = strconv.ParseFloat(metrics[index], 64)
+			case "await":
+				report.Await, err = strconv.ParseFloat(metrics[index], 64)
 			}
 			if err != nil {
 				return nil, err
 			}
 		}
-		reports = append(reports, report)
+		reports[report.Device] = report
 	}
 	return reports, nil
+}
+
+func GetSimpleIOStats(devices []string) (map[string]SimpleIOStat, error) {
+	cmd := exec.Command("iostat", "-dNxy", "30", devices...)
+	defer cmd.Wait()
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	defer out.Close()
+	if err = cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	iostats, err := parseIOStat(out)
+	if err != nil {
+		return nil, err
+	}
+
+	simpleIOStats := make(map[string]SimpleIOStat, len(iostats))
+
+	for device, stats := range iostats {
+		sstat, err := stats.ToSimpleIOStat()
+		if err != nil {
+			plog.WithField("device", device).WithError(err).Error("Unable to get iostat for tenant device")
+		} else {
+			simpleIOStats[device] = sstat
+		}
+	}
+
+	return simpleIOStats, nil
 }
