@@ -1379,6 +1379,12 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 			return nil, err
 		}
 	*/
+
+	iostats, err := iostat.GetSimpleIOStats([]string{})
+	if err != nil {
+		glog.Errorf("Unable to fetch iostats for DFS: %s", err)
+	}
+
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
 		vol, err := d.getVolume(tenant, false)
@@ -1412,6 +1418,14 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		tss.FilesystemAvailable = free
 		tss.FilesystemUsed = used
 		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+
+		//iostat
+		if iostats != nil {
+			if stats, ok := iostats[devicename]; ok {
+
+			}
+		}
+
 		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
 		/* CC-2417
 				last := stats
