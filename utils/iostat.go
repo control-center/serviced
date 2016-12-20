@@ -2,13 +2,14 @@ package utils
 
 import (
 	"bufio"
-	"fmt"
+	"errors"
 	"io"
 	"os/exec"
 	"strconv"
 	"strings"
 )
 
+// SimpleIOStat contains basic information from iostat
 type SimpleIOStat struct {
 	Device string
 	RPS    float64
@@ -16,6 +17,8 @@ type SimpleIOStat struct {
 	Await  float64
 }
 
+// DeviceUtilizationReport is a full iostat report.
+// Some fields may not be used if they are not output by an iostat call.
 type DeviceUtilizationReport struct {
 	Device    string  // Device name
 	TPS       float64 // Transfers Per Second
@@ -47,16 +50,43 @@ type DeviceUtilizationReport struct {
 	Await     float64 // The  average time (in  milliseconds) for I/O requests issued to the device to be served
 }
 
+var (
+	emptyFloat64      float64
+	ErrIOStatNoDevice error = errors.New("No device metric in iostat output")
+	ErrIOStatNoRPS    error = errors.New("No Read Per Second metric in iostat output")
+	ErrIOStatNoWPS    error = errors.New("No Write Per Second metric in iostat output")
+	ErrIOStatNoAwait  error = errors.New("No Await metric in iostat output")
+)
+
+// ToSimpleIOStat is a simple version of a DeviceUtilizationReport
 func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
 	iostat := SimpleIOStat{}
-	iostat.Device = d.Device
-	iostat.RPS = d.RPS
-	iostat.WPS = d.WPS
-	iostat.Await = d.Await
+	if d.Device == "" {
+		return SimpleIOStat{}, ErrIOStatNoDevice
+	} else {
+		iostat.Device = d.Device
+	}
+	if d.RPS == emptyFloat64 {
+		return SimpleIOStat{}, ErrIOStatNoRPS
+	} else {
+		iostat.RPS = d.RPS
+	}
+	if d.WPS == emptyFloat64 {
+		return SimpleIOStat{}, ErrIOStatNoWPS
+	} else {
+		iostat.WPS = d.WPS
+	}
+	if d.Await == emptyFloat64 {
+		return SimpleIOStat{}, ErrIOStatNoDevice
+	} else {
+		iostat.Device = d.Device
+	}
 	return iostat, nil
 }
 
-func parseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
+// ParseIOStat creates a map of DeviceUtilizationReports (device name as keys)
+// from a reader with iostat output.
+func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	scanner := bufio.NewScanner(r)
 	var err error
 	fields := make([]string, 0)
@@ -143,33 +173,65 @@ func parseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	return reports, nil
 }
 
-func GetSimpleIOStats(devices []string) (map[string]SimpleIOStat, error) {
-	cmd := exec.Command("iostat", "-dNxy", "30", devices...)
-	defer cmd.Wait()
+// GetSimpleIOStatsCh calls iostat with -dNxy and an interval.
+// It parses the output and creates a DeviceUtilizationReport for each device
+// and sends it to the returned channel.
+func GetSimpleIOStatsCh(interval int, quitCh <-chan struct{}) (<-chan map[string]DeviceUtilizationReport, error) {
+	cmd := exec.Command("iostat", "-dNxy", string(interval))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	defer out.Close()
 	if err = cmd.Start(); err != nil {
 		return nil, err
 	}
+	c := make(chan (map[string]DeviceUtilizationReport))
 
-	iostats, err := parseIOStat(out)
-	if err != nil {
-		return nil, err
+	go func() {
+		defer cmd.Process.Kill()
+		defer out.Close()
+		defer close(c)
+		parseIOStatWatcher(out, c, quitCh)
+	}()
+
+	return c, nil
+}
+
+// parseIOStatWatcher scans the reader for 2 new lines, signifying a new report
+func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport, qCh <-chan struct{}) {
+	// Custom bufio.Split() function to split tokens by 2 new lines
+	atTwoNewLines := func(data []byte, atEOF bool) (int, []byte, error) {
+		advance := 0
+		var token []byte
+		var prev byte
+
+		for _, b := range data {
+			// consume the newline by advancing passed it
+			if string(b) == "\n" && string(prev) == "\n" {
+				advance++
+				return advance, token, nil
+			}
+			token = append(token, b)
+			advance++
+			prev = b
+		}
+		return 0, nil, nil
 	}
 
-	simpleIOStats := make(map[string]SimpleIOStat, len(iostats))
-
-	for device, stats := range iostats {
-		sstat, err := stats.ToSimpleIOStat()
+	scanner := bufio.NewScanner(r)
+	scanner.Split(atTwoNewLines)
+	for scanner.Scan() {
+		out := scanner.Text()
+		parseReader := strings.NewReader(out)
+		report, err := ParseIOStat(parseReader)
 		if err != nil {
-			plog.WithField("device", device).WithError(err).Error("Unable to get iostat for tenant device")
-		} else {
-			simpleIOStats[device] = sstat
+			plog.WithError(err).Error("Failed to parse iostat output.")
+		}
+		select {
+		case <-qCh:
+			return
+		case c <- report:
+
 		}
 	}
-
-	return simpleIOStats, nil
 }
