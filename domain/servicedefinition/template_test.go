@@ -123,6 +123,8 @@ done
 						Type:              "",
 					},
 				},
+				StartLevel:    0,
+				EmergencyShutdownLevel: 0,
 			},
 			ServiceDefinition{
 				Name:    "s2",
@@ -156,6 +158,8 @@ done
 					Pause:  "echo pause",
 					Resume: "echo resume",
 				},
+				StartLevel:    123,
+				EmergencyShutdownLevel: 321,
 			},
 		},
 	}
@@ -190,6 +194,12 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 	if len(a.Volumes) != len(b.Volumes) {
 		return false, fmt.Sprintf("Number of volumes differ between %s [%d] and %s [%d]",
 			a.Name, len(a.Volumes), b.Name, len(b.Volumes))
+	}
+	if a.StartLevel != b.StartLevel {
+		return false, fmt.Sprintf("StartLevel differs: %d != %d", a.StartLevel, b.StartLevel)
+	}
+	if a.EmergencyShutdownLevel != b.EmergencyShutdownLevel {
+		return false, fmt.Sprintf("EmergencyShutdownLevel differs: %d != %d", a.EmergencyShutdownLevel, b.EmergencyShutdownLevel)
 	}
 
 	sort.Sort(ServiceDefinitionByName(a.Services))

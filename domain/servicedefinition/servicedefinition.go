@@ -64,6 +64,8 @@ type ServiceDefinition struct {
 	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string // An optional path or command to generate a path for a PID file to which signals are relayed.
+	StartLevel        uint   // Services start in the order implied by this field (low to high) and stopped in reverse order
+	EmergencyShutdownLevel     uint   // In case of low storage, Services stopped in the order implied by this field (low to high)
 }
 
 // SnapshotCommands commands to be called during and after a snapshot
@@ -228,7 +230,7 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 		}
 		plog.WithFields(log.Fields{
 			"vhostlist": e.VHostList,
-			"vhosts": e.VHosts,
+			"vhosts":    e.VHosts,
 		}).Debug("VHostList created from VHosts")
 		e.VHosts = nil
 	}
