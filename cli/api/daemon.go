@@ -346,8 +346,18 @@ func (d *daemon) run() (err error) {
 	}
 
 	signalC := make(chan os.Signal, 10)
-	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	sig := <-signalC
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	var sig os.Signal
+
+	for sig := range signalC {
+		if sig == syscall.SIGPIPE {
+			log.WithField("signal", sig).Warning("Attempted to write to a closed socket")
+			continue
+		} else {
+			break
+		}
+	}
 
 	log.WithFields(logrus.Fields{
 		"signal": sig,
@@ -1186,7 +1196,7 @@ func (d *daemon) addTemplates() {
 				log.Warn("Unable to parse template file")
 				return nil
 			}
-			reloadLogstashConfig := false		// defer reloading until all templates have been added
+			reloadLogstashConfig := false // defer reloading until all templates have been added
 			d.facade.AddServiceTemplate(d.dsContext, st, reloadLogstashConfig)
 			log.Debug("Added service template")
 			return nil
