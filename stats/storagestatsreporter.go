@@ -17,7 +17,6 @@ package stats
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -85,24 +84,24 @@ func (ssr StorageStatsReporter) updateStats() {
 	}
 	for _, volumeStatus := range volumeStatuses.GetAllStatuses() {
 		for _, volumeUsage := range volumeStatus.GetUsageData() {
+			metricName := volumeUsage.GetMetricName()
 
-			if volumeUsage.MetricName != "" {
-				metrics.GetOrRegisterGauge(volumeUsage.MetricName, ssr.storageRegistry).Update(int64(volumeUsage.Value))
-				continue
-			}
-			fields := strings.Fields(volumeUsage.Type)
-			if len(fields) < 1 {
-				glog.Errorf("Error parsing volume usage %s", volumeUsage.Type)
-				return
-			}
-			if fields[0] == "Total" {
-				metrics.GetOrRegisterGauge("storage.total", ssr.storageRegistry).Update(int64(volumeUsage.Value))
-			}
-			if fields[0] == "Used" {
-				metrics.GetOrRegisterGauge("storage.used", ssr.storageRegistry).Update(int64(volumeUsage.Value))
-			}
-			if fields[0] == "Available" {
-				metrics.GetOrRegisterGauge("storage.free", ssr.storageRegistry).Update(int64(volumeUsage.Value))
+			valUint64, err := volumeUsage.GetValueUInt64()
+			if err == volume.ErrWrongDataType {
+				valFloat64, err := volumeUsage.GetValueFloat64()
+				if err != nil {
+					glog.Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+				} else {
+					if metricName != "" {
+						metrics.GetOrRegisterGaugeFloat64(metricName, ssr.storageRegistry).Update(valFloat64)
+					}
+				}
+			} else if err != nil {
+				glog.Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+			} else {
+				if metricName != "" {
+					metrics.GetOrRegisterGauge(metricName, ssr.storageRegistry).Update(int64(valUint64))
+				}
 			}
 		}
 	}

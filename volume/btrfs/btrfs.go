@@ -773,8 +773,8 @@ func dfDataToUsageData(dfData []BtrfsDFData) []volume.Usage {
 	result := []volume.Usage{}
 	for _, btrfsData := range dfData {
 		label := btrfsData.DataType + " " + btrfsData.Level
-		result = append(result, volume.Usage{Label: label, Type: "Total", Value: btrfsData.Total})
-		result = append(result, volume.Usage{Label: label, Type: "Used", Value: btrfsData.Used})
+		result = append(result, volume.UsageInt{Label: label, Type: "Total", Value: btrfsData.Total})
+		result = append(result, volume.UsageInt{Label: label, Type: "Used", Value: btrfsData.Used})
 	}
 	return result
 }

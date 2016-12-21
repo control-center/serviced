@@ -992,6 +992,8 @@ func (d *daemon) startAgent() error {
 					log.Info("Stopping stats reporting")
 				}()
 			}
+
+			go volume.InitIOStat(time.Duration(statsInterval)*time.Second, d.shutdown)
 		}
 
 	}()

@@ -242,7 +242,7 @@ func GetDriver(root string) (Driver, error) {
 	return driver, nil
 }
 
-func initIOStat(interval time.Duration, closeChannel <-chan struct{}) {
+func InitIOStat(interval time.Duration, closeChannel <-chan interface{}) {
 	lastIOStat.Lock()
 	if lastIOStat.Running {
 		glog.Warning("Tried to start iostat watch, but it's already running")
@@ -259,21 +259,23 @@ func initIOStat(interval time.Duration, closeChannel <-chan struct{}) {
 	}()
 
 	for {
-		statch, err := utils.GetSimpleIOStatsCh(interval, closeChannel)
+		statCh, err := utils.GetSimpleIOStatsCh(interval, closeChannel)
 		if err != nil {
-			glog.Errorf("Error running iostat, trying again in 10s")
-			timer := time.NewTimer(10 * time.Second)
+			glog.Errorf("Error: \"%s\" starting iostat, trying again in 30s", err)
+			timer := time.NewTimer(30 * time.Second)
 			select {
 			case <-closeChannel:
 				return
 			case <-timer.C:
 				continue
 			}
+		} else {
+			glog.Info("Started iostat watcher")
 		}
 
 		for {
 			select {
-			case newStats := <-statch:
+			case newStats := <-statCh:
 				if newStats == nil {
 					glog.Errorf("Iostat channel closed unexpectedly, restarting in 10s")
 					timer := time.NewTimer(10 * time.Second)
@@ -283,10 +285,11 @@ func initIOStat(interval time.Duration, closeChannel <-chan struct{}) {
 					case <-timer.C:
 						break
 					}
+				} else {
+					lastIOStat.Lock()
+					lastIOStat.Data = newStats
+					lastIOStat.Unlock()
 				}
-				lastIOStat.Lock()
-				lastIOStat.Data = newStats
-				lastIOStat.Unlock()
 			case <-closeChannel:
 				return
 			}

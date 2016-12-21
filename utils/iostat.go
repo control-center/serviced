@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 	"strconv"
@@ -88,6 +89,7 @@ func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
 // ParseIOStat creates a map of DeviceUtilizationReports (device name as keys)
 // from a reader with iostat output.
 func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
+	plog.Info("-------------Parsing iostat")
 	scanner := bufio.NewScanner(r)
 	var err error
 	fields := make([]string, 0)
@@ -177,8 +179,8 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 // GetSimpleIOStatsCh calls iostat with -dNxy and an interval.
 // It parses the output and creates a DeviceUtilizationReport for each device
 // and sends it to the returned channel.
-func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan struct{}) (<-chan map[string]DeviceUtilizationReport, error) {
-	cmd := exec.Command("iostat", "-dNxy", string(interval/time.Second))
+func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan interface{}) (<-chan map[string]DeviceUtilizationReport, error) {
+	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%f", interval.Seconds()))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -186,20 +188,21 @@ func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan struct{}) (<-chan 
 	if err = cmd.Start(); err != nil {
 		return nil, err
 	}
-	c := make(chan (map[string]DeviceUtilizationReport))
+	c := make(chan map[string]DeviceUtilizationReport)
 
 	go func() {
 		defer cmd.Process.Kill()
 		defer out.Close()
 		defer close(c)
 		parseIOStatWatcher(out, c, quitCh)
+		plog.Info("----------Closing iostat channel!!!!")
 	}()
 
 	return c, nil
 }
 
 // parseIOStatWatcher scans the reader for 2 new lines, signifying a new report
-func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport, qCh <-chan struct{}) {
+func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport, qCh <-chan interface{}) {
 	// Custom bufio.Split() function to split tokens by 2 new lines
 	atTwoNewLines := func(data []byte, atEOF bool) (int, []byte, error) {
 		advance := 0
@@ -210,6 +213,7 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 			// consume the newline by advancing passed it
 			if string(b) == "\n" && string(prev) == "\n" {
 				advance++
+				plog.Info("---------------Splitting!")
 				return advance, token, nil
 			}
 			token = append(token, b)
@@ -223,16 +227,23 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 	scanner.Split(atTwoNewLines)
 	for scanner.Scan() {
 		out := scanner.Text()
+		plog.Infof("--------Got a str from the scanner")
 		parseReader := strings.NewReader(out)
 		report, err := ParseIOStat(parseReader)
 		if err != nil {
-			plog.WithError(err).Error("Failed to parse iostat output.")
+			plog.WithError(err).Error("----------Failed to parse iostat output.")
 		}
 		select {
 		case <-qCh:
+			plog.Info("---------------Quitting parseiostatwatcher")
 			return
 		case c <- report:
-
+			plog.Infof("-----------------Sent report\n:%v", report)
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		plog.Errorf("--------------error: %s", err)
+	}
+	plog.Info("--------BAILING!")
+
 }

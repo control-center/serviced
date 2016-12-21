@@ -175,6 +175,8 @@ type TenantStorageStats struct {
 	VolumePath          string
 	PoolAvailableBlocks uint64
 
+	DeviceName string
+
 	DeviceTotalBlocks       uint64
 	DeviceAllocatedBlocks   uint64
 	DeviceUnallocatedBlocks uint64

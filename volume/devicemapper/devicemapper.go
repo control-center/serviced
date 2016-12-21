@@ -1349,6 +1349,43 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		}...)
 		// Disabled due to CC-2417
 		//unallocated += tenant.DeviceUnallocatedBlocks
+		iostats := volume.GetLastIOStat()
+		poolNameSlice := strings.Split(tenant.DeviceName, "/")
+		poolName := poolNameSlice[len(poolNameSlice)-1]
+		deviceNameSlice := strings.Split(poolName, "-")
+		deviceName := ""
+		// Cut out the ID after the dash
+		n := 0
+		devParts := make([]string, 0)
+		for n < (len(deviceNameSlice) - 2) {
+			devParts = append(devParts, deviceNameSlice[n])
+		}
+		deviceName = strings.Join(devParts, "-")
+		deviceName += "pool"
+		singleIOStat, ok = iostats[deviceName]
+		glog.Infof("-------The iostat for my pool is: %v", singleIOStat)
+		if ok {
+			simpleIOStat, err := singleIOStat.ToSimpleIOStat()
+			if err != nil {
+				glog.Errorf("Could not convert iostat: %s", err)
+			} else {
+				usageData = append(usageData, []volume.Usage{
+					volume.UsageFloat{Value: simpleIOStat.RPS,
+						MetricName: fmt.Sprintf("storage.device.rps.%s", tenant.TenantID)},
+					volume.UsageFloat{Value: simpleIOStat.WPS,
+						MetricName: fmt.Sprintf("storage.device.wps.%s", tenant.TenantID)},
+					volume.UsageFloat{Value: simpleIOStat.Await,
+						MetricName: fmt.Sprintf("storage.device.await.%s", tenant.TenantID)},
+				}...)
+			}
+		} else {
+			glog.Infof("DEVICE: %s WAS NOT IN IOSTATSMAP", deviceName)
+			keyList := make([]string, 0)
+			for key, _ := range iostats {
+				keyList = append(keyList, key)
+			}
+			glog.Infof("IOSTATMAP CONTAINS: %v", keyList)
+		}
 	}
 
 	// convert dockerStatus to our status and return
@@ -1433,6 +1470,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		tss.FilesystemAvailable = free
 		tss.FilesystemUsed = used
 		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+		tss.DeviceName = devicename
 
 		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
 		/* CC-2417

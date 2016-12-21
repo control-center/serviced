@@ -725,9 +725,10 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 			return
 		}
 		//add graphs to profile
-		profile.GraphConfigs = make([]domain.GraphConfig, 0)
-		profile.GraphConfigs = append(profile.GraphConfigs, newThinPoolDataUsageGraph(tags))
-		profile.GraphConfigs = append(profile.GraphConfigs, newThinPoolMetadataUsageGraph(tags))
+		profile.GraphConfigs = []domain.GraphConfig{
+			newThinPoolDataUsageGraph(tags),
+			newThinPoolMetadataUsageGraph(tags),
+		}
 
 		volumeInfo.MonitoringProfile = *profile
 		storageInfo = append(storageInfo, volumeInfo)
