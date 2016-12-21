@@ -3,14 +3,18 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Invoking serviced</title>
+      <title>serviced host</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="reference">
       
-      <meta name="DC.Title" content="Invoking serviced">
+      <meta name="DC.Title" content="serviced host">
+      
+      <meta name="abstract" content="The serviced host command administers host data.">
+      
+      <meta name="description" content="The serviced host command administers host data.">
       
       <meta name="DC.Relation" scheme="URI" content="cli.html">
       
@@ -35,7 +39,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced.html","previousTopicHref":"feature\/cli\/cli.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced-key.html","previousTopicHref":"feature\/cli\/serviced-docker.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -65,7 +69,7 @@
                <ol class="breadcrumb">
                   <li><a class="breadcrumb" href="../../feature/cli/cli.html" title="Command-line interface reference">Command-line interface reference</a></li>
                   
-                  <li>Invoking serviced</li>
+                  <li>serviced host</li>
                </ol>
             </div>
          </div>
@@ -107,11 +111,11 @@
                         </ul>
                      </li>
                      <li class=" collapsible  active"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
-                           <li class=" no-child  active"><a class="selected" href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
-                           <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../feature/cli/serviced-host.html">serviced host</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
@@ -144,35 +148,107 @@
                   <article>
                      <div class="page reference  - topic-topic       reference-reference " id="referenceid">
                         
-                        <h1 class="title topictitle1">Invoking serviced</h1>
+                        <h1 class="title topictitle1">serviced host</h1>
                         <div class="body refbody">
+                           <p class="shortdesc">The <span class="keyword cmdname">serviced host</span> command  administers host data.
+                           </p>
                            
-                           <div class="section"><a name="referenceid-d7006e35" id="referenceid-d7006e35" class="anchor"></a>
+                           
+                           <div class="section"><a name="referenceid-section_wlf_fyb_hx" id="referenceid-section_wlf_fyb_hx" class="anchor"></a>
                               
-                              <p class="p">To use <span class="keyword cmdname">serviced</span>, you need a login account on hosts in <span class="ph">Control Center</span> pools. The account must be a member of the <span class="keyword cmdname">docker</span> group.
-                              </p>
+                              <h2 class="title sectiontitle">USAGE</h2>
+                              <pre class="pre codeblock">serviced host [global options] command [command options] [arguments...]</pre>
+                              
+                              </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-section_qzq_xyb_hx" id="referenceid-section_qzq_xyb_hx" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>The following commands are available for
+                              <span class="keyword cmdname">serviced host</span>:
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">list</dt>
+                                 
+                                 
+                                 <dd class="dd">Lists all hosts.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">add</dt>
+                                 
+                                 
+                                 <dd class="dd">Adds a host.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">remove, rm </dt>
+                                 
+                                 
+                                 <dd class="dd">Removes a host.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">register</dt>
+                                 
+                                 
+                                 <dd class="dd">Sets the authentication keys to use for a host. When <span class="ph filepath">KEYSFILE</span> is
+                                    <span class="ph filepath">-</span>, keys are read from standard input (stdin).
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">set-memory</dt>
+                                 
+                                 
+                                 <dd class="dd">Sets the memory allocation for a specific host.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">help, h</dt>
+                                 
+                                 
+                                 <dd class="dd">Shows a list of commands or the help for a single command.</dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                           </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-section_qfy_jyb_hx" id="referenceid-section_qfy_jyb_hx" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">OPTIONS</h2>
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"> --generate-bash-completion</dt>
+                                 
+                                 
+                                 <dd class="dd"></dd>
+                                 
+                                 
+                                 
+                              </dl>
                               
                               
-                              <p class="p">You can invoke <span class="keyword cmdname">serviced</span> from the <span class="ph">Control Center</span> master host or a
-                                 delegate host. For example, to list the services running on the master host, enter the
-                                 following command: 
-                              </p>
-                              
-                              <pre class="pre codeblock">serviced service list</pre>
-                              
-                              <p class="p">To invoke <span class="keyword cmdname">serviced</span> on a delegate host, you can specify the master host
-                                 and port by using the <samp class="ph codeph">--endpoint</samp> global option. Replace
-                                 <var class="keyword varname">Master-Host</var> with the hostname or IP address of the <span class="ph">Control Center</span>
-                                 master host.
-                              </p>
-                              
-                              
-                              <p class="p">Example:</p>
-                              
-                              <pre class="pre codeblock">serviced --endpoint <var class="keyword varname">Master-Host</var>:4979 service list</pre>
-                              
-                              <aside class="note note "><span class="title">Note:</span> To commit a container, you must run a <span class="keyword cmdname">serviced</span> CLI session on the <span class="ph">Control Center</span> master host.
-                              </aside>
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">--help, -h</dt>
+                                 
+                                 
+                                 <dd class="dd">Shows the help for an option.</dd>
+                                 
+                                 
+                                 
+                              </dl>
                               
                               
                            </div>
@@ -185,8 +261,8 @@
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/cli/cli.html" class="previous" rel="internal" title="Command-line interface reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Command-line interface reference</span></a></div>
-                           <div id="footer_next"><a href="../../feature/cli/serviced.html" class="next" rel="internal" title="serviced"><span class="sr-only">serviced</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../feature/cli/serviced-docker.html" class="previous" rel="internal" title="serviced docker"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced docker</span></a></div>
+                           <div id="footer_next"><a href="../../feature/cli/serviced-key.html" class="next" rel="internal" title="serviced key"><span class="sr-only">serviced key</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

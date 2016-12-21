@@ -35,7 +35,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"shared\/glossary\/service-definition.html","previousTopicHref":"feature\/cli\/serviced-storage.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"shared\/glossary\/cc-application.html","previousTopicHref":"feature\/cli\/serviced-storage.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -111,6 +111,9 @@
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
@@ -121,8 +124,16 @@
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../shared/glossary/cc-application.html">application</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-cluster.html">cluster</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-template.html">service template</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-tenant.html">tenant</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -137,7 +148,7 @@
                         </h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d14868e37" id="referenceid-d14868e37" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15897e37" id="referenceid-d15897e37" class="anchor"></a>
                               
                               <p class="p">The <span class="ph">Control Center</span> configuration file, <span class="ph filepath">/etc/default/serviced</span>,
                                  contains Bash environment variables that are read by the <span class="keyword cmdname">serviced</span> daemon
@@ -165,7 +176,7 @@
                                  </dd>
                                   
                                  
-                                 <dd class="dd ddexpand">The path Docker Engine clients use to locate the <span class="ph filepath">.dockercfg</span>
+                                 <dd class="dd ddexpand">The path Docker Engine clients use to locate the <span class="ph filepath">.docker/config.json</span>
                                     authentication file, which contains Docker Hub credentials.
                                  </dd>
                                  
@@ -280,6 +291,12 @@
                                     host. On delegate hosts, replace <samp class="ph codeph">{{SERVICED_MASTER_IP}}</samp> with the IP
                                     address or hostname of the registry host, which by default is the
                                     <span class="keyword cmdname">serviced</span> master host.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The value used to replace <samp class="ph codeph">{{SERVICED_MASTER_IP}}</samp> in this
+                                    variable must match the value of the <samp class="ph codeph">--insecure-registry</samp> flag in 
+                                    the <span class="ph filepath">/etc/sysconfig/docker</span> file.
                                  </dd>
                                  
                                  
@@ -1556,9 +1573,8 @@
                                  </dd>
                                   
                                  
-                                 <dd class="dd ddexpand">A list of hostname aliases for a host; for example, 
-                                    <samp class="ph codeph">localhost</samp>. Separate multiple values 
-                                    with the comma character (<samp class="ph codeph">,</samp>)..
+                                 <dd class="dd ddexpand">A list of hostname aliases for a host; for example, <samp class="ph codeph">localhost</samp>.
+                                    Separate multiple values with the comma character (<samp class="ph codeph">,</samp>).
                                  </dd>
                                  
                                  
@@ -1577,7 +1593,7 @@
                      <div class="row">
                         <footer id="topicsNPLinks">
                            <div id="footer_previous"><a href="../../feature/cli/serviced-storage.html" class="previous" rel="internal" title="serviced-storage"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced-storage</span></a></div>
-                           <div id="footer_next"><a href="../../shared/glossary/service-definition.html" class="next" rel="internal" title="service definition"><span class="sr-only">service definition</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_next"><a href="../../shared/glossary/cc-application.html" class="next" rel="internal" title="application"><span class="sr-only">application</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

@@ -39,7 +39,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced-restore.html","previousTopicHref":"feature\/cli\/serviced-docker.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced-restore.html","previousTopicHref":"feature\/cli\/serviced-log-export.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -115,6 +115,9 @@
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child  active"><a class="selected" href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
@@ -125,8 +128,16 @@
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../shared/glossary/cc-application.html">application</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-cluster.html">cluster</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-template.html">service template</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-tenant.html">tenant</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -279,7 +290,52 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d11249e186" id="referenceid-d11249e186" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d12192e186" id="referenceid-d12192e186" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">serviced pool set-conn-timeout</h2>
+                              
+                              <p class="p">The <span class="keyword cmdname">serviced pool set-conn-timeout</span> command sets the length of time
+                                 the scheduler waits for a disconnected delegate to rejoin its pool before moving 
+                                 the services scheduled for the delegate to a different host in the pool.
+                              </p>
+                              
+                              
+                              <p class="p">Syntax:</p>
+                              
+                              <pre class="pre codeblock">serviced pool set-conn-timeout <var class="keyword varname">POOLID</var> <var class="keyword varname">TIMEOUT</var></pre>
+                              
+                              <div class="p">The <var class="keyword varname">TIMEOUT</var> value is specified with an integer followed by the units identifier.
+                                 This command accepts the following units identifiers:
+                                 
+                                 <ul class="ul">
+                                    
+                                    <li class="li"><samp class="ph codeph">ms</samp>, milliseconds
+                                    </li>
+                                    
+                                    
+                                    <li class="li"><samp class="ph codeph">s</samp>, seconds
+                                    </li>
+                                    
+                                    
+                                    <li class="li"><samp class="ph codeph">m</samp>, minutes
+                                    </li>
+                                    
+                                    
+                                    <li class="li"><samp class="ph codeph">h</samp>, hours
+                                    </li>
+                                    
+                                    
+                                 </ul>
+                                 
+                                 For example, <samp class="ph codeph">50ms</samp> or <samp class="ph codeph">2m</samp>.
+                                 
+                              </div>
+                              
+                              
+                           </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-d12192e245" id="referenceid-d12192e245" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">serviced pool set-permission</h2>
                               
@@ -289,37 +345,42 @@
                               </p>
                               
                               
-                              <p class="p"><strong class="ph b">Syntax</strong>:
-                              </p>
+                              <p class="p">Syntax:</p>
                               
-                              <pre class="pre codeblock">serviced pool set-permission [<var class="keyword varname">CommandOptions</var>] <var class="keyword varname">POOLID</var></pre>
+                              <pre class="pre codeblock">serviced pool set-permission [--dfs[=false]][--admin[=false]] <var class="keyword varname">POOLID</var></pre>
                               
-                              <p class="p"><strong class="ph b">Command options:</strong></p>
+                              <p class="p">Command options:</p>
                               
                               
                               <dl class="dl">
                                  
                                  
-                                 <dt class="dt dlterm">--dfs</dt>
+                                 <dt class="dt dlterm">--dfs[=false]]</dt>
                                  
                                  
-                                 <dd class="dd">Control permission to mount DFS. </dd>
+                                 <dd class="dd">Add or remove permission to mount the DFS. The default value is <samp class="ph codeph">true</samp>.
+                                 </dd>
                                  
                                  
                                  
                                  
-                                 <dt class="dt dlterm">--admin</dt>
+                                 <dt class="dt dlterm">--admin[=false]]</dt>
                                  
                                  
-                                 <dd class="dd">Control permission to use administrative functions. </dd>
+                                 <dd class="dd">Add or remove permission to perform administrative functions DFS. The default value is <samp class="ph codeph">true</samp>.
+                                 </dd>
                                  
                                  
                                  
                               </dl>
                               
                               
-                              <p class="p"><strong class="ph b">Examples</strong></p>
+                           </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-d12192e302" id="referenceid-d12192e302" class="anchor"></a>
                               
+                              <h2 class="title sectiontitle">EXAMPLES</h2>
                               
                               <p class="p">Give a resource pool distributed file system (DFS) access: </p>
                               
@@ -347,6 +408,10 @@
                               
                               <pre class="pre codeblock">serviced pool set-permission --admin=false pool_01_140620</pre>
                               
+                              <p class="p">Set the connection timeout value to 3 minutes:</p>
+                              
+                              <pre class="pre codeblock">serviced pool set-conn-timeout pool_01_140620 3m</pre>
+                              
                               </div>
                            
                            
@@ -357,7 +422,7 @@
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/cli/serviced-docker.html" class="previous" rel="internal" title="serviced docker"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced docker</span></a></div>
+                           <div id="footer_previous"><a href="../../feature/cli/serviced-log-export.html" class="previous" rel="internal" title="serviced log export"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced log export</span></a></div>
                            <div id="footer_next"><a href="../../feature/cli/serviced-restore.html" class="next" rel="internal" title="serviced restore"><span class="sr-only">serviced restore</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>

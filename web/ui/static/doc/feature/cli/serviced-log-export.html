@@ -3,14 +3,18 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Invoking serviced</title>
+      <title>serviced log export</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="reference">
       
-      <meta name="DC.Title" content="Invoking serviced">
+      <meta name="DC.Title" content="serviced log export">
+      
+      <meta name="abstract" content="The serviced log export command exports application log files from Elasticsearch for one or more services based on service identifier or service name.">
+      
+      <meta name="description" content="The serviced log export command exports application log files from Elasticsearch for one or more services based on service identifier or service name.">
       
       <meta name="DC.Relation" scheme="URI" content="cli.html">
       
@@ -35,7 +39,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced.html","previousTopicHref":"feature\/cli\/cli.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced-pool.html","previousTopicHref":"feature\/cli\/serviced-key.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -65,7 +69,7 @@
                <ol class="breadcrumb">
                   <li><a class="breadcrumb" href="../../feature/cli/cli.html" title="Command-line interface reference">Command-line interface reference</a></li>
                   
-                  <li>Invoking serviced</li>
+                  <li>serviced log export</li>
                </ol>
             </div>
          </div>
@@ -107,13 +111,13 @@
                         </ul>
                      </li>
                      <li class=" collapsible  active"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
-                           <li class=" no-child  active"><a class="selected" href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
-                           <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
@@ -144,38 +148,79 @@
                   <article>
                      <div class="page reference  - topic-topic       reference-reference " id="referenceid">
                         
-                        <h1 class="title topictitle1">Invoking serviced</h1>
+                        <h1 class="title topictitle1">serviced log export</h1>
                         <div class="body refbody">
+                           <p class="shortdesc">The <span class="keyword cmdname">serviced log export</span> command exports application log files from
+                              Elasticsearch for one or more services based on service identifier or service name.
+                           </p>
                            
-                           <div class="section"><a name="referenceid-d7006e35" id="referenceid-d7006e35" class="anchor"></a>
+                           
+                           <div class="section"><a name="referenceid-section_wlf_fyb_hx" id="referenceid-section_wlf_fyb_hx" class="anchor"></a>
                               
-                              <p class="p">To use <span class="keyword cmdname">serviced</span>, you need a login account on hosts in <span class="ph">Control Center</span> pools. The account must be a member of the <span class="keyword cmdname">docker</span> group.
-                              </p>
+                              <h2 class="title sectiontitle">USAGE</h2>
+                              <pre class="pre codeblock">command export [command options] [arguments...]</pre>
                               
+                              </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-section_qfy_jyb_hx" id="referenceid-section_qfy_jyb_hx" class="anchor"></a>
                               
-                              <p class="p">You can invoke <span class="keyword cmdname">serviced</span> from the <span class="ph">Control Center</span> master host or a
-                                 delegate host. For example, to list the services running on the master host, enter the
-                                 following command: 
-                              </p>
+                              <h2 class="title sectiontitle">OPTIONS</h2>
                               
-                              <pre class="pre codeblock">serviced service list</pre>
-                              
-                              <p class="p">To invoke <span class="keyword cmdname">serviced</span> on a delegate host, you can specify the master host
-                                 and port by using the <samp class="ph codeph">--endpoint</samp> global option. Replace
-                                 <var class="keyword varname">Master-Host</var> with the hostname or IP address of the <span class="ph">Control Center</span>
-                                 master host.
-                              </p>
-                              
-                              
-                              <p class="p">Example:</p>
-                              
-                              <pre class="pre codeblock">serviced --endpoint <var class="keyword varname">Master-Host</var>:4979 service list</pre>
-                              
-                              <aside class="note note "><span class="title">Note:</span> To commit a container, you must run a <span class="keyword cmdname">serviced</span> CLI session on the <span class="ph">Control Center</span> master host.
-                              </aside>
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">--from</dt>
+                                 
+                                 
+                                 <dd class="dd">Specify the start date.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">--to</dt>
+                                 
+                                 
+                                 <dd class="dd">Specify the end date.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">--service '--service option --service option'</dt>
+                                 
+                                 
+                                 <dd class="dd">Specify the service ID or service name. Includes all subservices.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">--out</dt>
+                                 
+                                 
+                                 <dd class="dd">Specify the path to the output files.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">--debug, -d</dt>
+                                 
+                                 
+                                 <dd class="dd">Show additional diagnostic messages.</dd>
+                                 
+                                 
+                                 
+                              </dl>
                               
                               
                            </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-section_kqd_lnd_dy" id="referenceid-section_kqd_lnd_dy" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">EXAMPLE</h2>
+                              <pre class="pre codeblock">serviced log export --service SERVICE_ID1 --service SERVICE_ID2</pre>
+                              
+                              </div>
                            
                            
                         </div>
@@ -185,8 +230,8 @@
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/cli/cli.html" class="previous" rel="internal" title="Command-line interface reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Command-line interface reference</span></a></div>
-                           <div id="footer_next"><a href="../../feature/cli/serviced.html" class="next" rel="internal" title="serviced"><span class="sr-only">serviced</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../feature/cli/serviced-key.html" class="previous" rel="internal" title="serviced key"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced key</span></a></div>
+                           <div id="footer_next"><a href="../../feature/cli/serviced-pool.html" class="next" rel="internal" title="serviced pool"><span class="sr-only">serviced pool</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>
