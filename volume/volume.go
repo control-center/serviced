@@ -32,8 +32,7 @@ type DriverInit func(root string, args []string) (Driver, error)
 // DriverType represents a driver type.
 type DriverType string
 
-// IOStatMap
-type IOStatMap struct {
+type ioStatMap struct {
 	sync.RWMutex
 	Data    map[string]utils.DeviceUtilizationReport
 	Running bool
@@ -59,7 +58,7 @@ var (
 	drivers       map[DriverType]DriverInit
 	driversByRoot map[string]Driver
 
-	lastIOStat IOStatMap
+	lastIOStat ioStatMap
 
 	ErrInvalidDriverInit       = errors.New("invalid driver initializer")
 	ErrDriverNotInit           = errors.New("driver not initialized")
@@ -84,7 +83,7 @@ var (
 func init() {
 	drivers = make(map[DriverType]DriverInit)
 	driversByRoot = make(map[string]Driver)
-	lastIOStat = IOStatMap{
+	lastIOStat = ioStatMap{
 		Data: make(map[string]utils.DeviceUtilizationReport),
 	}
 }
@@ -242,6 +241,7 @@ func GetDriver(root string) (Driver, error) {
 	return driver, nil
 }
 
+// InitIOStat starts the iostat call and passes the close signal when sent
 func InitIOStat(interval time.Duration, closeChannel <-chan interface{}) {
 	lastIOStat.Lock()
 	if lastIOStat.Running {

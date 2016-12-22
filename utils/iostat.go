@@ -53,11 +53,9 @@ type DeviceUtilizationReport struct {
 }
 
 var (
-	emptyFloat64      float64
-	ErrIOStatNoDevice error = errors.New("No device metric in iostat output")
-	ErrIOStatNoRPS    error = errors.New("No Read Per Second metric in iostat output")
-	ErrIOStatNoWPS    error = errors.New("No Write Per Second metric in iostat output")
-	ErrIOStatNoAwait  error = errors.New("No Await metric in iostat output")
+	emptyFloat64 float64
+	// ErrIOStatNoDevice occurs when the device name is not in iostat output
+	ErrIOStatNoDevice = errors.New("No device metric in iostat output")
 )
 
 // ToSimpleIOStat is a simple version of a DeviceUtilizationReport
@@ -65,34 +63,20 @@ func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
 	iostat := SimpleIOStat{}
 	if d.Device == "" {
 		return SimpleIOStat{}, ErrIOStatNoDevice
-	} else {
-		iostat.Device = d.Device
 	}
-	if d.RPS == emptyFloat64 {
-		return SimpleIOStat{}, ErrIOStatNoRPS
-	} else {
-		iostat.RPS = d.RPS
-	}
-	if d.WPS == emptyFloat64 {
-		return SimpleIOStat{}, ErrIOStatNoWPS
-	} else {
-		iostat.WPS = d.WPS
-	}
-	if d.Await == emptyFloat64 {
-		return SimpleIOStat{}, ErrIOStatNoDevice
-	} else {
-		iostat.Device = d.Device
-	}
+	iostat.Device = d.Device
+	iostat.RPS = d.RPS
+	iostat.WPS = d.WPS
+	iostat.Device = d.Device
 	return iostat, nil
 }
 
 // ParseIOStat creates a map of DeviceUtilizationReports (device name as keys)
 // from a reader with iostat output.
 func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
-	plog.Info("-------------Parsing iostat")
 	scanner := bufio.NewScanner(r)
 	var err error
-	fields := make([]string, 0)
+	var fields []string
 	reports := make(map[string]DeviceUtilizationReport, 0)
 	passedSysInfo := false
 	for scanner.Scan() {
@@ -195,7 +179,6 @@ func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan interface{}) (<-ch
 		defer out.Close()
 		defer close(c)
 		parseIOStatWatcher(out, c, quitCh)
-		plog.Info("----------Closing iostat channel!!!!")
 	}()
 
 	return c, nil
@@ -213,7 +196,6 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 			// consume the newline by advancing passed it
 			if string(b) == "\n" && string(prev) == "\n" {
 				advance++
-				plog.Info("---------------Splitting!")
 				return advance, token, nil
 			}
 			token = append(token, b)
@@ -227,23 +209,18 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 	scanner.Split(atTwoNewLines)
 	for scanner.Scan() {
 		out := scanner.Text()
-		plog.Infof("--------Got a str from the scanner")
 		parseReader := strings.NewReader(out)
 		report, err := ParseIOStat(parseReader)
 		if err != nil {
-			plog.WithError(err).Error("----------Failed to parse iostat output.")
+			plog.WithError(err).Error("Failed to parse iostat output")
 		}
 		select {
 		case <-qCh:
-			plog.Info("---------------Quitting parseiostatwatcher")
 			return
 		case c <- report:
-			plog.Infof("-----------------Sent report\n:%v", report)
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		plog.Errorf("--------------error: %s", err)
+		plog.WithError(err).Error("Error reading iostat")
 	}
-	plog.Info("--------BAILING!")
-
 }

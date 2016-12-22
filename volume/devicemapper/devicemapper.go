@@ -1349,21 +1349,10 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		}...)
 		// Disabled due to CC-2417
 		//unallocated += tenant.DeviceUnallocatedBlocks
-		iostats := volume.GetLastIOStat()
-		poolNameSlice := strings.Split(tenant.DeviceName, "/")
-		poolName := poolNameSlice[len(poolNameSlice)-1]
-		deviceNameSlice := strings.Split(poolName, "-")
-		deviceName := ""
-		// Cut out the ID after the dash
-		n := 0
-		devParts := make([]string, 0)
-		for n < (len(deviceNameSlice) - 2) {
-			devParts = append(devParts, deviceNameSlice[n])
-		}
-		deviceName = strings.Join(devParts, "-")
-		deviceName += "pool"
+		devSlice := strings.Split(tenant.DeviceName, "/")
+		deviceName := devSlice[len(devSlice)-1]
+
 		singleIOStat, ok = iostats[deviceName]
-		glog.Infof("-------The iostat for my pool is: %v", singleIOStat)
 		if ok {
 			simpleIOStat, err := singleIOStat.ToSimpleIOStat()
 			if err != nil {
@@ -1379,13 +1368,9 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 				}...)
 			}
 		} else {
-			glog.Infof("DEVICE: %s WAS NOT IN IOSTATSMAP", deviceName)
-			keyList := make([]string, 0)
-			for key, _ := range iostats {
-				keyList = append(keyList, key)
-			}
-			glog.Infof("IOSTATMAP CONTAINS: %v", keyList)
+			glog.Warningf("Device: %s was not returned from iostat", deviceName)
 		}
+
 	}
 
 	// convert dockerStatus to our status and return
