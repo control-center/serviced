@@ -60,15 +60,15 @@ var (
 
 // ToSimpleIOStat is a simple version of a DeviceUtilizationReport
 func (d DeviceUtilizationReport) ToSimpleIOStat() (SimpleIOStat, error) {
-	iostat := SimpleIOStat{}
 	if d.Device == "" {
 		return SimpleIOStat{}, ErrIOStatNoDevice
 	}
-	iostat.Device = d.Device
-	iostat.RPS = d.RPS
-	iostat.WPS = d.WPS
-	iostat.Device = d.Device
-	return iostat, nil
+	return SimpleIOStat{
+		Device: d.Device,
+		RPS:    d.RPS,
+		WPS:    d.WPS,
+		Await:  d.Await,
+	}, nil
 }
 
 // ParseIOStat creates a map of DeviceUtilizationReports (device name as keys)

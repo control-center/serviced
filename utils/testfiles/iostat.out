@@ -1,0 +1,5 @@
+Linux 4.4.0-57-generic (ZENOSS-1423-ld) 	12/22/2016 	_x86_64_	(12 CPU)
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+sda               0.13    74.32   10.73   59.68   217.26  4130.44   123.50     0.61    8.71    0.42   10.20   0.55   3.91
+sdb              24.80    27.34  161.93   32.07  4640.81   857.53    56.68     3.10   15.95   14.74   22.06   1.70  32.89
