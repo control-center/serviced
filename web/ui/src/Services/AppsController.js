@@ -374,7 +374,7 @@
         }
 
 
-        function fetchGraphConfigs() {
+        function fetchPoolUsage() {
           resourcesFactory.getStorage().then(data => {
             for (let [n, s] of data.entries()) {
               s.MonitoringProfile.GraphConfigs.forEach(g => {
@@ -499,7 +499,7 @@
 
             // get configurations for graphs
             $scope.graphConfigs = [];
-            fetchGraphConfigs();
+            fetchPoolUsage();
 
             // Get a list of templates
             refreshTemplates();

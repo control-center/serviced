@@ -1289,9 +1289,6 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 		driverType = "loop-lvm"
 	}
 
-	// TODO: Pull the latest iostats and add appropriate metrics for
-	//  both pool and tenant devices
-
 	usageData := []volume.Usage{
 		// Store under older value names in case anybody's looking for it
 		volume.UsageInt{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available,
