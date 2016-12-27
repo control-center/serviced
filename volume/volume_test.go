@@ -135,3 +135,7 @@ func (s *DriverSuite) TestBadMount(c *C) {
 	c.Assert(err, Equals, ErrDriverNotInit)
 	c.Assert(v, IsNil)
 }
+
+func (s *DriverSuite) TestInitIOStat(c *C) {
+
+}

@@ -11,6 +11,25 @@ import (
 	"time"
 )
 
+// IOStatGetter is an interface to get a channel that reports iostats
+type IOStatGetter interface {
+	GetSimpleIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error)
+}
+
+// IOStatReporter implements IOStatGetter and uses interval and quit to control reporting
+type IOStatReporter struct {
+	interval time.Duration
+	quit     <-chan interface{}
+}
+
+// NewIOStatReporter creates a new IOStatReporter with interval and quit
+func NewIOStatReporter(interval time.Duration, quit <-chan interface{}) *IOStatReporter {
+	return &IOStatReporter{
+		interval: interval,
+		quit:     quit,
+	}
+}
+
 // SimpleIOStat contains basic information from iostat
 type SimpleIOStat struct {
 	Device string
@@ -160,11 +179,11 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	return reports, nil
 }
 
-// GetSimpleIOStatsCh calls iostat with -dNxy and an interval.
+// GetSimpleIOStatsCh calls iostat with -dNxy and an interval defined in reporter.
 // It parses the output and creates a DeviceUtilizationReport for each device
 // and sends it to the returned channel.
-func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan interface{}) (<-chan map[string]DeviceUtilizationReport, error) {
-	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%f", interval.Seconds()))
+func (reporter *IOStatReporter) GetSimpleIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error) {
+	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%f", reporter.interval.Seconds()))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -178,7 +197,7 @@ func GetSimpleIOStatsCh(interval time.Duration, quitCh <-chan interface{}) (<-ch
 		defer cmd.Process.Kill()
 		defer out.Close()
 		defer close(c)
-		parseIOStatWatcher(out, c, quitCh)
+		parseIOStatWatcher(out, c, reporter.quit)
 	}()
 
 	return c, nil

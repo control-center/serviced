@@ -242,7 +242,7 @@ func GetDriver(root string) (Driver, error) {
 }
 
 // InitIOStat starts the iostat call and passes the close signal when sent
-func InitIOStat(interval time.Duration, closeChannel <-chan interface{}) {
+func InitIOStat(getter utils.IOStatGetter, closeChannel <-chan interface{}) {
 	lastIOStat.Lock()
 	if lastIOStat.Running {
 		glog.Warning("Tried to start iostat watch, but it's already running")
@@ -259,7 +259,7 @@ func InitIOStat(interval time.Duration, closeChannel <-chan interface{}) {
 	}()
 
 	for {
-		statCh, err := utils.GetSimpleIOStatsCh(interval, closeChannel)
+		statCh, err := getter.GetSimpleIOStatsCh()
 		if err != nil {
 			glog.Errorf("Error: \"%s\" starting iostat, trying again in 30s", err)
 			timer := time.NewTimer(30 * time.Second)
