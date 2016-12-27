@@ -16,14 +16,18 @@ package facade
 import (
 	"errors"
 	"reflect"
+       "strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
+       "github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
+
+const ZENIMPACTSTATE_CFG = "zenimpactstate.conf"
 
 // GetServiceConfigs returns the config files for a service
 func (f *Facade) GetServiceConfigs(ctx datastore.Context, serviceID string) ([]service.Config, error) {
@@ -201,6 +205,12 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 		} else {
 			svcConfigFile, err = serviceconfigfile.New(tenantID, servicePath, configFile)
 			if err != nil {
+                               if (strings.Contains(configFile.Filename, ZENIMPACTSTATE_CFG)) {
+                                   if _, ok := err.(*validation.ValidationError); ok {
+                                       glog.V(1).Infof("Skipping empty config file: %s", configFile.Filename)
+                                       continue
+                                   }
+                               }
 				glog.Errorf("Could not create new service config file %s for service %s: %s", configFile.Filename, serviceID, err)
 				return err
 			}
