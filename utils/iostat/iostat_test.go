@@ -17,12 +17,12 @@ package iostat
 
 import (
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
 
 	. "gopkg.in/check.v1"
-	"io/ioutil"
 )
 
 func TestIOStat(t *testing.T) { TestingT(t) }
@@ -69,15 +69,11 @@ func (s *IOStatSuite) SetUpSuite(c *C) {
 
 func (s *IOStatSuite) TestIOStatParser(c *C) {
 	r, err := os.Open(s.testFile)
-	if err != nil {
-		panic(err)
-	}
+	c.Assert(err, IsNil)
 	defer r.Close()
 
 	m, err := ParseIOStat(r)
-	if err != nil {
-		panic(err)
-	}
+	c.Assert(err, IsNil)
 	// Hand picked data to verify
 	c.Check(len(m), Equals, 2)
 	report := m["sda"]
@@ -102,9 +98,8 @@ func (s *IOStatSuite) TestToSimpleIOStat(c *C) {
 		PctUtil: float64(3.91),
 	}
 	simple, err := report.ToSimpleIOStat()
-	if err != nil {
-		panic(err)
-	}
+	c.Assert(err, IsNil)
+
 	c.Check(simple, DeepEquals, SimpleIOStat{
 		Device: "sda",
 		RPS:    float64(10.73),

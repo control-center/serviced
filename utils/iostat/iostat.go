@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/control-center/serviced/logging"
 	"io"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/control-center/serviced/logging"
 )
 
 var plog = logging.PackageLogger()
@@ -114,6 +115,12 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 		}
 		metrics := strings.Fields(line)
 		report := DeviceUtilizationReport{}
+
+		// In some cases, we may have an extra newline at the end of a report,
+		// in which case the metrics len will be 0 and we need to return
+		if len(metrics) == 0 {
+			return reports, nil
+		}
 
 		for index, field := range fields {
 			switch field {
@@ -248,7 +255,6 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 		case <-scanc:
 			if scanned {
 				out := scanner.Text()
-				plog.WithField("out", out).Info("Got some text")
 				parseReader := strings.NewReader(out)
 				report, err := ParseIOStat(parseReader)
 				if err != nil {
