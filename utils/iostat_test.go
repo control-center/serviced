@@ -55,6 +55,21 @@ func (s *IOStatSuite) TestIOStatParser(c *C) {
 		Await:   float64(8.71),
 		PctUtil: float64(3.91),
 	})
+
+	report = m["sdb"]
+	c.Check(report, DeepEquals, DeviceUtilizationReport{
+		Device:  "sdb",
+		RRQMPS:  float64(24.80),
+		WRQMPS:  float64(27.34),
+		RPS:     float64(161.93),
+		WPS:     float64(32.07),
+		RKBPS:   float64(4640.81),
+		WKBPS:   float64(857.53),
+		AvgRqSz: float64(56.68),
+		AvgQuSz: float64(3.10),
+		Await:   float64(15.95),
+		PctUtil: float64(32.89),
+	})
 }
 
 func (s *IOStatSuite) TestToSimpleIOStat(c *C) {

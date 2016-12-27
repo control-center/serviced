@@ -1319,6 +1319,8 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 				volume.UsageFloat{Value: simpleIOStat.Await, MetricName: "storage.pool.await"},
 			}...)
 		}
+	} else {
+		glog.Warningf("Device: %s was not returned from iostat", dockerStatus.PoolName)
 	}
 
 	// Disabled due to CC-2417
