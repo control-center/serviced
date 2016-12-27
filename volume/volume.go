@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/utils/iostat"
 	"github.com/zenoss/glog"
 )
 
@@ -34,7 +34,7 @@ type DriverType string
 
 type ioStatMap struct {
 	sync.RWMutex
-	Data    map[string]utils.DeviceUtilizationReport
+	Data    map[string]iostat.DeviceUtilizationReport
 	Running bool
 }
 
@@ -84,7 +84,7 @@ func init() {
 	drivers = make(map[DriverType]DriverInit)
 	driversByRoot = make(map[string]Driver)
 	lastIOStat = ioStatMap{
-		Data: make(map[string]utils.DeviceUtilizationReport),
+		Data: make(map[string]iostat.DeviceUtilizationReport),
 	}
 }
 
@@ -242,10 +242,11 @@ func GetDriver(root string) (Driver, error) {
 }
 
 // InitIOStat starts the iostat call and passes the close signal when sent
-func InitIOStat(getter utils.IOStatGetter, closeChannel <-chan interface{}) {
+func InitIOStat(getter iostat.Getter, closeChannel <-chan interface{}) {
 	lastIOStat.Lock()
 	if lastIOStat.Running {
 		glog.Warning("Tried to start iostat watch, but it's already running")
+		lastIOStat.Unlock()
 		return
 	}
 	lastIOStat.Running = true
@@ -259,10 +260,11 @@ func InitIOStat(getter utils.IOStatGetter, closeChannel <-chan interface{}) {
 	}()
 
 	for {
-		statCh, err := getter.GetSimpleIOStatsCh()
+		statCh, err := getter.GetIOStatsCh()
 		if err != nil {
-			glog.Errorf("Error: \"%s\" starting iostat, trying again in 30s", err)
-			timer := time.NewTimer(30 * time.Second)
+			retry := getter.GetStatInterval()
+			glog.Errorf("Error: \"%s\" starting iostat, trying again in %s", err, retry)
+			timer := time.NewTimer(retry)
 			select {
 			case <-closeChannel:
 				return
@@ -273,17 +275,18 @@ func InitIOStat(getter utils.IOStatGetter, closeChannel <-chan interface{}) {
 			glog.Info("Started iostat watcher")
 		}
 
-		for {
+		for badChannel := false; !badChannel; {
 			select {
 			case newStats := <-statCh:
 				if newStats == nil {
-					glog.Errorf("Iostat channel closed unexpectedly, restarting in 10s")
-					timer := time.NewTimer(10 * time.Second)
+					badChannel = true
+					retry := getter.GetStatInterval()
+					glog.Errorf("Iostat channel closed unexpectedly, restarting in %v", retry)
+					timer := time.NewTimer(retry)
 					select {
 					case <-closeChannel:
 						return
 					case <-timer.C:
-						break
 					}
 				} else {
 					lastIOStat.Lock()
@@ -299,7 +302,7 @@ func InitIOStat(getter utils.IOStatGetter, closeChannel <-chan interface{}) {
 }
 
 // GetLastIOStat returns the iostat device utilization reports
-func GetLastIOStat() map[string]utils.DeviceUtilizationReport {
+func GetLastIOStat() map[string]iostat.DeviceUtilizationReport {
 	lastIOStat.RLock()
 	defer lastIOStat.RUnlock()
 	return lastIOStat.Data

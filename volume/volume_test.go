@@ -16,12 +16,16 @@
 package volume_test
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 
+	"github.com/control-center/serviced/utils/iostat"
+	iostatmocks "github.com/control-center/serviced/utils/iostat/mocks"
 	. "github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/mocks"
 	. "gopkg.in/check.v1"
+	"time"
 )
 
 func TestDriver(t *testing.T) { TestingT(t) }
@@ -136,6 +140,256 @@ func (s *DriverSuite) TestBadMount(c *C) {
 	c.Assert(v, IsNil)
 }
 
-func (s *DriverSuite) TestInitIOStat(c *C) {
+func (s *DriverSuite) TestInitIOStat_CallTwice(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done1 := make(chan interface{})
+	done2 := make(chan interface{})
 
+	statsChan := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChan <-chan map[string]iostat.DeviceUtilizationReport = statsChan
+	getter.On("GetIOStatsCh").Return(retChan, nil).Once()
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done1)
+	}()
+
+	// Wait 1 second for InitIOStat to get called
+	timer := time.NewTimer(time.Second)
+	<-timer.C
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done2)
+	}()
+
+	// Make sure a second call exits immediately
+	timer.Reset(time.Second)
+	select {
+	case <-done2:
+		timer.Reset(time.Second)
+		// Make sure the first goroutine is still running
+		select {
+		case <-done1:
+			c.Fatalf("First call to InitIOStat exited prematurely")
+		case <-timer.C:
+		}
+	case <-timer.C:
+		c.Fatalf("Second call to InitIOStat did not return")
+	}
+
+	// Quit and make sure first goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done1:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+}
+
+func (s *DriverSuite) TestInitIOStat_ErrGet(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done := make(chan interface{})
+	testErr := errors.New("Test error")
+
+	getter.On("GetIOStatsCh").Return(nil, testErr)
+
+	getter.On("GetStatInterval").Return(100 * time.Millisecond)
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	// Make sure the call doesn't exit
+	select {
+	case <-done:
+		c.Fatalf("Call to InitIOStat exited prematurely")
+	case <-timer.C:
+	}
+
+	// Quit and make sure goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+
+	getter.AssertExpectations(c)
+}
+
+func (s *DriverSuite) TestInitIOStat_ErrGet_AndResume(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done := make(chan interface{})
+	statsChan := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChan <-chan map[string]iostat.DeviceUtilizationReport = statsChan
+	testErr := errors.New("Test error")
+
+	getter.On("GetIOStatsCh").Return(nil, testErr).Twice()
+	getter.On("GetIOStatsCh").Return(retChan, nil).Once()
+
+	getter.On("GetStatInterval").Return(100 * time.Millisecond)
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	// Make sure the call doesn't exit
+	select {
+	case <-done:
+		c.Fatalf("Call to InitIOStat exited prematurely")
+	case <-timer.C:
+	}
+
+	// Quit and make sure goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+
+	getter.AssertExpectations(c)
+}
+
+func (s *DriverSuite) TestInitIOStat_ChannelClosed(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done := make(chan interface{})
+	statsChan := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChan <-chan map[string]iostat.DeviceUtilizationReport = statsChan
+
+	getter.On("GetIOStatsCh").Return(retChan, nil)
+	getter.On("GetStatInterval").Return(100 * time.Millisecond)
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done)
+	}()
+
+	// Close the channel
+	close(statsChan)
+
+	// Make sure the call doesn't exit
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Call to InitIOStat exited prematurely")
+	case <-timer.C:
+	}
+
+	// Quit and make sure goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+
+	getter.AssertExpectations(c)
+}
+
+func (s *DriverSuite) TestInitIOStat_ChannelClosed_AndResume(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done := make(chan interface{})
+	statsChanClosed := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChanClosed <-chan map[string]iostat.DeviceUtilizationReport = statsChanClosed
+
+	statsChan := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChan <-chan map[string]iostat.DeviceUtilizationReport = statsChan
+
+	getter.On("GetIOStatsCh").Return(retChanClosed, nil).Twice()
+	getter.On("GetIOStatsCh").Return(retChan, nil).Once()
+	getter.On("GetStatInterval").Return(100 * time.Millisecond)
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done)
+	}()
+
+	// Close the channel
+	close(statsChanClosed)
+
+	// Make sure the call doesn't exit
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Call to InitIOStat exited prematurely")
+	case <-timer.C:
+	}
+
+	// Quit and make sure goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+
+	getter.AssertExpectations(c)
+}
+
+func (s *DriverSuite) TestInitIOStat_Success(c *C) {
+	getter := &iostatmocks.Getter{}
+	quitCh := make(chan interface{})
+	done := make(chan interface{})
+	statsChan := make(chan map[string]iostat.DeviceUtilizationReport)
+	var retChan <-chan map[string]iostat.DeviceUtilizationReport = statsChan
+
+	getter.On("GetIOStatsCh").Return(retChan, nil).Once()
+
+	go func() {
+		InitIOStat(getter, quitCh)
+		close(done)
+	}()
+
+	// Send some data to the channel
+	result := make(map[string]iostat.DeviceUtilizationReport)
+	result["test"] = iostat.DeviceUtilizationReport{
+		RPS: 1.123,
+		WPS: 4.567,
+	}
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case statsChan <- result:
+	case <-timer.C:
+		c.Fatalf("Could not send stats to channel")
+	}
+
+	actual := GetLastIOStat()
+
+	c.Assert(actual, DeepEquals, result)
+
+	// Make sure the goroutine doesn't exit
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Call to InitIOStat exited prematurely")
+	case <-timer.C:
+	}
+
+	// Quit and make sure goroutine exits
+	close(quitCh)
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("InitIOStat did not exit")
+	}
+
+	getter.AssertExpectations(c)
 }

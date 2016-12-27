@@ -1,9 +1,10 @@
-package utils
+package iostat
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/control-center/serviced/logging"
 	"io"
 	"os/exec"
 	"strconv"
@@ -11,20 +12,23 @@ import (
 	"time"
 )
 
+var plog = logging.PackageLogger()
+
 // IOStatGetter is an interface to get a channel that reports iostats
-type IOStatGetter interface {
-	GetSimpleIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error)
+type Getter interface {
+	GetIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error)
+	GetStatInterval() time.Duration
 }
 
 // IOStatReporter implements IOStatGetter and uses interval and quit to control reporting
-type IOStatReporter struct {
+type Reporter struct {
 	interval time.Duration
 	quit     <-chan interface{}
 }
 
 // NewIOStatReporter creates a new IOStatReporter with interval and quit
-func NewIOStatReporter(interval time.Duration, quit <-chan interface{}) *IOStatReporter {
-	return &IOStatReporter{
+func NewReporter(interval time.Duration, quit <-chan interface{}) *Reporter {
+	return &Reporter{
 		interval: interval,
 		quit:     quit,
 	}
@@ -179,10 +183,10 @@ func ParseIOStat(r io.Reader) (map[string]DeviceUtilizationReport, error) {
 	return reports, nil
 }
 
-// GetSimpleIOStatsCh calls iostat with -dNxy and an interval defined in reporter.
+// GetIOStatsCh calls iostat with -dNxy and an interval defined in reporter.
 // It parses the output and creates a DeviceUtilizationReport for each device
 // and sends it to the returned channel.
-func (reporter *IOStatReporter) GetSimpleIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error) {
+func (reporter *Reporter) GetIOStatsCh() (<-chan map[string]DeviceUtilizationReport, error) {
 	cmd := exec.Command("iostat", "-dNxy", fmt.Sprintf("%f", reporter.interval.Seconds()))
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -201,6 +205,11 @@ func (reporter *IOStatReporter) GetSimpleIOStatsCh() (<-chan map[string]DeviceUt
 	}()
 
 	return c, nil
+}
+
+// GetStatInterval implements Getter, returns the stat reporting interval
+func (reporter *Reporter) GetStatInterval() time.Duration {
+	return reporter.interval
 }
 
 // parseIOStatWatcher scans the reader for 2 new lines, signifying a new report
@@ -226,19 +235,38 @@ func parseIOStatWatcher(r io.Reader, c chan<- map[string]DeviceUtilizationReport
 
 	scanner := bufio.NewScanner(r)
 	scanner.Split(atTwoNewLines)
-	for scanner.Scan() {
-		out := scanner.Text()
-		parseReader := strings.NewReader(out)
-		report, err := ParseIOStat(parseReader)
-		if err != nil {
-			plog.WithError(err).Error("Failed to parse iostat output")
-		}
+	for scanned := true; scanned; {
+		scanc := make(chan struct{})
+		go func() {
+			defer close(scanc)
+			scanned = scanner.Scan()
+		}()
+
 		select {
 		case <-qCh:
 			return
-		case c <- report:
+		case <-scanc:
+			if scanned {
+				out := scanner.Text()
+				plog.WithField("out", out).Info("Got some text")
+				parseReader := strings.NewReader(out)
+				report, err := ParseIOStat(parseReader)
+				if err != nil {
+					plog.WithError(err).Error("Failed to parse iostat output, exiting")
+					return
+				} else if len(report) == 0 {
+					plog.Warn("Got an empty report from iostat")
+					continue
+				}
+				select {
+				case <-qCh:
+					return
+				case c <- report:
+				}
+			}
 		}
 	}
+	plog.Warn("parseIOStatWatcher exiting")
 	if err := scanner.Err(); err != nil {
 		plog.WithError(err).Error("Error reading iostat")
 	}

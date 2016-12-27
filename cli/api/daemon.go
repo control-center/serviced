@@ -54,6 +54,7 @@ import (
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/utils/iostat"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
@@ -1002,7 +1003,7 @@ func (d *daemon) startAgent() error {
 					log.Info("Stopping stats reporting")
 				}()
 			}
-			reporter := utils.NewIOStatReporter(time.Duration(statsInterval)*time.Second, d.shutdown)
+			reporter := iostat.NewReporter(time.Duration(statsInterval)*time.Second, d.shutdown)
 			go volume.InitIOStat(reporter, d.shutdown)
 		}
 
