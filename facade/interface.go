@@ -194,4 +194,6 @@ type FacadeInterface interface {
 	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
 
 	ReloadLogstashConfig(ctx datastore.Context) error
+
+	EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 }

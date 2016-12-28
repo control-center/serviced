@@ -1176,10 +1176,10 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false)
+	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false, false)
 }
 
-func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool) (int, error) {
+func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool, emergency bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleService"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":     tenantID,
@@ -1212,18 +1212,76 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		logger.WithError(err).Errorf("Could not retrieve service(s) for scheduling")
 		return 0, err
 	}
+	affected := 0
+	err = nil
+	if emergency {
+		// Sort the services by EmergencyShutdownLevel - 1
+		sort.Sort(service.ByEmergencyShutdown{svcs})
 
-	var affected int
-	if synchronous {
-		logger.Debug("Scheduling services synchronously")
-		// Schedule the services synchronously, calculating the number of affected services as we go
-		affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
+		// Start one group at a time
+		if len(svcs) > 0 {
+			previousLevel := svcs[0].EmergencyShutdownLevel
+			nextBatch := []*service.Service{}
+			nextBatchIDs := []string{}
+			for _, svc := range svcs {
+				// Set EmergencyShutdown to true and update the database
+				svc.EmergencyShutdown = true
+				uerr := f.updateService(ctx, tenantID, *svc, false, false)
+				if uerr != nil {
+					err = uerr
+					logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+				}
+
+				currentLevel := svc.EmergencyShutdownLevel
+				if currentLevel == previousLevel {
+					nextBatch = append(nextBatch, svc)
+					nextBatchIDs = append(nextBatchIDs, svc.ID)
+				} else {
+					// Schedule this batch
+					levelLogger := logger.WithField("level", previousLevel)
+					levelLogger.Info("Shutting down all services at current emergency shutdown level")
+					a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
+					if serr != nil {
+						err = serr
+						levelLogger.WithError(serr).Error("Error scheduling services to stop")
+					} else {
+						// Wait at most 10 minutesfor services to stop before continuing
+						f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+					}
+					affected += a
+					nextBatch = []*service.Service{svc}
+					nextBatchIDs = []string{svc.ID}
+				}
+				previousLevel = currentLevel
+			}
+
+			// Schedule the last batch
+			levelLogger := logger.WithField("level", previousLevel)
+			levelLogger.Info("Shutting down all services at current emergency shutdown level")
+			a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
+			if serr != nil {
+				err = serr
+				levelLogger.WithError(serr).Error("Error scheduling services to stop")
+			} else {
+				// Wait at most 10 minutesfor services to stop before continuing
+				f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+			}
+			affected += a
+
+		}
+
 	} else {
-		logger.Debug("Scheduling services asynchronously")
-		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
-		affected = len(svcs)
-		err = nil
-		go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
+		if synchronous {
+			logger.Debug("Scheduling services synchronously")
+			// Schedule the services synchronously, calculating the number of affected services as we go
+			affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
+		} else {
+			logger.Debug("Scheduling services asynchronously")
+			// Schedule the services asynchronously, returning the number of services we are attempting to schedule
+			affected = len(svcs)
+			err = nil
+			go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
+		}
 	}
 	return affected, err
 }
@@ -1391,6 +1449,18 @@ func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleService
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop)
+}
+
+func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EmergencyStopService"))
+	tenantID, err := f.GetTenantID(ctx, request.ServiceID)
+	if err != nil {
+		return 0, err
+	}
+	mutex := getTenantLock(tenantID)
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return f.scheduleService(ctx, tenantID, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop, false, true)
 }
 
 type ipinfo struct {
