@@ -58,6 +58,7 @@ var (
 	ErrTenantDoesNotMatch       = errors.New("facade: service tenants do not match")
 	ErrServiceMissingAssignment = errors.New("facade: service is missing an address assignment")
 	ErrServiceDuplicateEndpoint = errors.New("facade: duplicate endpoint found")
+	ErrEmergencyShutdownNoOp    = errors.New("facade: cannot perform operation, emergency shutdown flag is set")
 )
 
 // AddService adds a service; return error if service already exists
@@ -457,6 +458,10 @@ func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Servic
 				return ErrServiceMissingAssignment
 			}
 		}
+	}
+
+	if svc.EmergencyShutdown {
+		return ErrEmergencyShutdownNoOp
 	}
 	return nil
 }
