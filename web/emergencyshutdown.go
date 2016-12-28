@@ -25,12 +25,6 @@ func restEmergencyShutdown(w *rest.ResponseWriter, r *rest.Request, ctx *request
 		Synchronous: false,
 	}
 
-	n, err := ctx.getFacade().EmergencyStopService(ctx.getDatastoreContext(), daoReq)
-	if err != nil {
-		plog.WithError(err).Error("Facade could not process Emergency Shutdown Request")
-		restBadRequest(w, err)
-		return
-	}
-	plog.Infof("Scheduled %d services", n)
+	go ctx.getFacade().EmergencyStopService(ctx.getDatastoreContext(), daoReq)
 	restSuccess(w)
 }
