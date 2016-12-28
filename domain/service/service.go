@@ -114,7 +114,23 @@ type Service struct {
 	// are stopped after services with a defined EmergencyShutdownLevel, in the normal order
 	// dictated by their StartLevel.
 	EmergencyShutdownLevel uint
+	// EmergencyShutdown is a flag that indicates whether this service has been shutdown due
+	// to an emergency (low-storage) situation.  Services with this flag set can not be started
+	EmergencyShutdown bool
 	datastore.VersionedEntity
+}
+
+// Types for sorting
+type Services []*Service
+
+func (s Services) Len() int      { return len(s) }
+func (s Services) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type ByEmergencyShutdown struct{ Services }
+
+// Sort by EmergencyShutdownLevel - 1, to ensure level of 0 is last
+func (s ByEmergencyShutdown) Less(i, j int) bool {
+	return s.Services[i].EmergencyShutdownLevel-1 < s.Services[j].EmergencyShutdownLevel-1
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
