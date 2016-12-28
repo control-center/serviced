@@ -18,15 +18,14 @@ func restEmergencyShutdown(w *rest.ResponseWriter, r *rest.Request, ctx *request
 		restBadRequest(w, err)
 		return
 	}
-	stateID := "stop"
-	if req.Operation != 0 {
-		stateID = "go"
+
+	daoReq := dao.ScheduleServiceRequest{
+		ServiceID:   req.TenantID,
+		AutoLaunch:  true,
+		Synchronous: false,
 	}
-	daoReq := dao.ServiceStateRequest{
-		ServiceID:      req.TenantID,
-		ServiceStateID: stateID,
-	}
-	n, err := ctx.getFacade().EmergencyStopService(ctx, daoReq)
+
+	n, err := ctx.getFacade().EmergencyStopService(ctx.getDatastoreContext(), daoReq)
 	if err != nil {
 		plog.WithError(err).Error("Facade could not process Emergency Shutdown Request")
 		restBadRequest(w, err)
