@@ -119,6 +119,9 @@ type ClientInterface interface {
 	// ResolveServicePath will return ServiceDetails that match the given path
 	ResolveServicePath(path string) ([]service.ServiceDetails, error)
 
+	// ClearEmergency will set EmergencyShutdown to false on the service and all child services
+	ClearEmergency(serviceID string) (int, error)
+
 	//--------------------------------------------------------------------------
 	// Service Instance Management Functions
 
