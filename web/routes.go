@@ -146,8 +146,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restGetServiceConfigFile))},
 		rest.Route{"PUT", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restUpdateServiceConfigFile))},
 		rest.Route{"DELETE", "/api/v2/serviceconfigs/:fileId", gz(sc.checkAuth(restDeleteServiceConfigFile))},
-
-		rest.Route{"POST", "/emergencyshutdown", gz(sc.checkAuth(restEmergencyShutdown))},
 	}
 
 	// Hardcoding these target URLs for now.

@@ -24,22 +24,23 @@ import (
 
 // ServiceDetails is the minimal data necessary to show for a service
 type ServiceDetails struct {
-	ID              string
-	Name            string
-	Description     string
-	PoolID          string
-	ImageID         string
-	ParentServiceID string
-	Parent          *ServiceDetails `json:",omitempty"` // optional, only needed when looking up service ancestry
-	Instances       int
-	InstanceLimits  domain.MinMax
-	RAMCommitment   utils.EngNotation
-	Startup         string
-	HasChildren     bool
-	DeploymentID    string
-	DesiredState    int
-	Launch          string
-	Tags            []string
+	ID                string
+	Name              string
+	Description       string
+	PoolID            string
+	ImageID           string
+	ParentServiceID   string
+	Parent            *ServiceDetails `json:",omitempty"` // optional, only needed when looking up service ancestry
+	Instances         int
+	InstanceLimits    domain.MinMax
+	RAMCommitment     utils.EngNotation
+	Startup           string
+	HasChildren       bool
+	DeploymentID      string
+	DesiredState      int
+	Launch            string
+	Tags              []string
+	EmergencyShutdown bool
 	datastore.VersionedEntity
 }
 
@@ -97,6 +98,9 @@ func (s *ServiceDetails) Equals(b *ServiceDetails) bool {
 		return false
 	}
 	if s.ParentServiceID != b.ParentServiceID {
+		return false
+	}
+	if s.EmergencyShutdown != b.EmergencyShutdown {
 		return false
 	}
 	return true
