@@ -1549,3 +1549,24 @@ func (_m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Des
 
 	return r0
 }
+
+// EmergencyStopService provides a mock function with given fields: ctx, request
+func (_m *FacadeInterface) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) int); ok {
+		r0 = rf(ctx, request)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, dao.ScheduleServiceRequest) error); ok {
+		r1 = rf(ctx, request)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
