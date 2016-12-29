@@ -40,9 +40,9 @@ var parsedftests = []ParseDFTest{
 		inbytes: []byte(`Filesystem         1B-blocks         Used         Avail
 /dev/sdb1      1901233012736 172685119488 1631947202560`),
 		out: []volume.Usage{
-			{Label: "volumelabel on /dev/sdb1", Type: "Total Bytes", Value: 1901233012736},
-			{Label: "volumelabel on /dev/sdb1", Type: "Used Bytes", Value: 172685119488},
-			{Label: "volumelabel on /dev/sdb1", Type: "Available Bytes", Value: 1631947202560},
+			volume.UsageInt{Label: "volumelabel on /dev/sdb1", Type: "Total Bytes", Value: 1901233012736},
+			volume.UsageInt{Label: "volumelabel on /dev/sdb1", Type: "Used Bytes", Value: 172685119488},
+			volume.UsageInt{Label: "volumelabel on /dev/sdb1", Type: "Available Bytes", Value: 1631947202560},
 		},
 		outmsg: "output did not match expectation",
 		err:    nil,
