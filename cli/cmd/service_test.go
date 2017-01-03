@@ -429,6 +429,13 @@ func (t ServiceAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 	return fmt.Sprintf("%s-snapshot description=%q tags=%q", config.ServiceID, config.Message, config.Tag), nil
 }
 
+func (t ServiceAPITest) ClearEmergency(serviceID string) (int, error) {
+	if t.errs["ClearEmergency"] != nil {
+		return 0, t.errs["ClearEmergency"]
+	}
+	return 1, nil
+}
+
 func TestServicedCLI_CmdServiceList_one(t *testing.T) {
 	serviceID := "test-service-1"
 
@@ -1194,4 +1201,46 @@ func ExampleServicedCLI_CmdServiceEndpoints_works() {
 	// Name    ServiceID         Endpoint         Purpose    Host       HostIP     HostPort    ContainerID     ContainerIP     ContainerPort
 	// Zope    test-service-2    endpointName1    export     hostID1    hostIP1    10          containerID1    containerIP1    100
 	// Zope    test-service-2    endpointName2    import     hostID2    hostIP2    20          containerID2    containerIP2    200
+}
+
+func ExampleServicedCLI_CmdServiceClearEmergency_works() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "clear-emergency", "test-service-1") })
+
+	// Output:
+	// Cleared emergency status for 1 services
+}
+
+func ExampleServicedCLI_CmdServiceClearEmergency_errNoService() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "clear-emergency", "test-service-0") })
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceClearEmergency_err() {
+	DefaultServiceAPITest.errs["ClearEmergency"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["ClearEmergency"] = nil }()
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "clear-emergency", "test-service-1") })
+
+	// Output:
+	// stub for facade failed
+}
+
+func ExampleServicedCLI_CmdServiceClearEmergency_usage() {
+	pipeStderr(func() { InitServiceAPITest("serviced", "service", "clear-emergency") })
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    clear-emergency - Clears the 'emergency shutdown' state for a service and all child services
+	//
+	// USAGE:
+	//    command clear-emergency [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }
+	//
+	// OPTIONS:
+	//
 }
