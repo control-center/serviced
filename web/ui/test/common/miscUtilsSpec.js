@@ -96,6 +96,17 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("needsHostAlias", function(){
+
+      it("Validates an IP address", function(){
+        expect(miscUtils.needsHostAlias("127.0.0.1")).toEqual(true);
+      });
+
+      it("Does not validate a host name", function(){
+        expect(miscUtils.needsHostAlias("shrubbery")).toEqual(false);
+      });
+    });
+
     describe("countTheKids", function(){
 
         it("Counts the number of descendents of a service", function(){
@@ -196,7 +207,7 @@ describe('miscUtils', function() {
             expect(miscUtils.parseDuration("18h 45m 567ms")).toEqual(18*60*60*1000 + 45*60*1000 + 567);
         });
     });
-    
+
     describe("validateDuration", function(){
         it("Validates zero and empty string as zero", function(){
             expect(miscUtils.validateDuration("")).toEqual(undefined);
