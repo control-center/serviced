@@ -130,6 +130,8 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
 		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
+		cli.IntFlag{"service-run-level-timeout", defaultOps.ServiceRunLevelTimeout, "max time in seconds to wait for services to start/stop before moving on to services at the next run level"},
+
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},

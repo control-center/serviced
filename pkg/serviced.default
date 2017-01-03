@@ -248,3 +248,6 @@
 
 # The frequency in seconds to report storage stats to opentsdb
 # SERVICED_STORAGE_REPORT_INTERVAL=30
+
+# The max amount of time to wait for services to start/stop before starting/stopping services at the next run level
+# SERVICED_RUN_LEVEL_TIMEOUT=60

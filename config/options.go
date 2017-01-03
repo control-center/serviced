@@ -110,6 +110,7 @@ type Options struct {
 	TokenExpiration            int               // The time in seconds before an authentication token expires
 	LogConfigFilename          string            // Path to the logri configuration
 	StorageReportInterval      int               // frequency in seconds to report storage stats to opentsdb
+	ServiceRunLevelTimeout     int               // The time in seconds serviced will wait for a batch of services to stop/start before moving to services with the next run level
 }
 
 // GetOptions returns a COPY of the global options struct
