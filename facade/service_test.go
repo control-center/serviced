@@ -1352,9 +1352,11 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		for _, s := range svcs {
 			if s.DesiredState == int(service.SVCStop) {
 				if ch, ok := stoppedChannels[s.ID]; ok {
-					// Sleep 1 second and then close the channel
-					time.Sleep(time.Second)
-					close(ch)
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
 				}
 			}
 		}
@@ -1525,9 +1527,11 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 		for _, s := range svcs {
 			if s.DesiredState == int(service.SVCStop) {
 				if ch, ok := stoppedChannels[s.ID]; ok {
-					// Sleep 1 second and then close the channel
-					time.Sleep(time.Second)
-					close(ch)
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
 				}
 			}
 		}
