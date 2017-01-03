@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -555,8 +556,13 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
-		glog.Errorf("Unexpected error restarting service: %s", err)
+	err = client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected)
+	if err == facade.ErrEmergencyShutdownNoOp {
+		glog.Errorf("Error starting service: %s", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusConflict)
+		return
+	} else if err != nil {
+		glog.Errorf("Unexpected error starting service: %s", err)
 		restServerError(w, err)
 		return
 	}
@@ -582,7 +588,12 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
+	err = client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected)
+	if err == facade.ErrEmergencyShutdownNoOp {
+		glog.Errorf("Error starting service: %s", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusConflict)
+		return
+	} else if err != nil {
 		glog.Errorf("Unexpected error starting service: %s", err)
 		restServerError(w, err)
 		return
