@@ -1212,77 +1212,87 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		logger.WithError(err).Errorf("Could not retrieve service(s) for scheduling")
 		return 0, err
 	}
-	affected := 0
-	err = nil
-	if emergency {
-		// Sort the services by EmergencyShutdownLevel - 1
-		sort.Sort(service.ByEmergencyShutdown{svcs})
 
-		// Start one group at a time
-		if len(svcs) > 0 {
-			previousLevel := svcs[0].EmergencyShutdownLevel
-			nextBatch := []*service.Service{}
-			nextBatchIDs := []string{}
-			for _, svc := range svcs {
-				// Set EmergencyShutdown to true and update the database
-				svc.EmergencyShutdown = true
-				uerr := f.updateService(ctx, tenantID, *svc, false, false)
-				if uerr != nil {
-					err = uerr
-					logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-				}
+	serviceScheduler := func() (int, error) {
+		affected := 0
+		var errToReturn error = nil
+		if emergency {
+			// Sort the services by EmergencyShutdownLevel - 1
+			sort.Sort(service.ByEmergencyShutdown{svcs})
 
-				currentLevel := svc.EmergencyShutdownLevel
-				if currentLevel == previousLevel {
-					nextBatch = append(nextBatch, svc)
-					nextBatchIDs = append(nextBatchIDs, svc.ID)
-				} else {
-					// Schedule this batch
-					levelLogger := logger.WithField("level", previousLevel)
-					levelLogger.Info("Shutting down all services at current emergency shutdown level")
-					a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
-					if serr != nil {
-						err = serr
-						levelLogger.WithError(serr).Error("Error scheduling services to stop")
-					} else {
-						// Wait at most 10 minutesfor services to stop before continuing
-						f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+			// Start one group at a time
+			if len(svcs) > 0 {
+				previousLevel := svcs[0].EmergencyShutdownLevel
+				nextBatch := []*service.Service{}
+				nextBatchIDs := []string{}
+				for _, svc := range svcs {
+					// Set EmergencyShutdown to true and update the database
+					svc.EmergencyShutdown = true
+					uerr := f.updateService(ctx, tenantID, *svc, false, false)
+					if uerr != nil {
+						errToReturn = uerr
+						logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
 					}
-					affected += a
-					nextBatch = []*service.Service{svc}
-					nextBatchIDs = []string{svc.ID}
+
+					currentLevel := svc.EmergencyShutdownLevel
+					if currentLevel == previousLevel {
+						nextBatch = append(nextBatch, svc)
+						nextBatchIDs = append(nextBatchIDs, svc.ID)
+					} else {
+						// Schedule this batch
+						levelLogger := logger.WithField("level", previousLevel)
+						levelLogger.Info("Shutting down all services at current emergency shutdown level")
+						a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
+						if serr != nil {
+							errToReturn = serr
+							levelLogger.WithError(serr).Error("Error scheduling services to stop")
+						} else {
+							// Wait at most 10 minutesfor services to stop before continuing
+							f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+						}
+						affected += a
+						nextBatch = []*service.Service{svc}
+						nextBatchIDs = []string{svc.ID}
+					}
+					previousLevel = currentLevel
 				}
-				previousLevel = currentLevel
+
+				// Schedule the last batch
+				levelLogger := logger.WithField("level", previousLevel)
+				levelLogger.Info("Shutting down all services at current emergency shutdown level")
+				a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
+				if serr != nil {
+					errToReturn = serr
+					levelLogger.WithError(serr).Error("Error scheduling services to stop")
+				} else {
+					// Wait at most 10 minutesfor services to stop before continuing
+					f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+				}
+				affected += a
+
 			}
 
-			// Schedule the last batch
-			levelLogger := logger.WithField("level", previousLevel)
-			levelLogger.Info("Shutting down all services at current emergency shutdown level")
-			a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
-			if serr != nil {
-				err = serr
-				levelLogger.WithError(serr).Error("Error scheduling services to stop")
-			} else {
-				// Wait at most 10 minutesfor services to stop before continuing
-				f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
-			}
-			affected += a
-
+		} else {
+			affected, errToReturn = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
 		}
+
+		return affected, errToReturn
+	}
+
+	affected := 0
+	if synchronous {
+		logger.Debug("Scheduling services synchronously")
+		// Schedule the services synchronously, calculating the number of affected services as we go
+		affected, err = serviceScheduler()
 
 	} else {
-		if synchronous {
-			logger.Debug("Scheduling services synchronously")
-			// Schedule the services synchronously, calculating the number of affected services as we go
-			affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
-		} else {
-			logger.Debug("Scheduling services asynchronously")
-			// Schedule the services asynchronously, returning the number of services we are attempting to schedule
-			affected = len(svcs)
-			err = nil
-			go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
-		}
+		logger.Debug("Scheduling services asynchronously")
+		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
+		affected = len(svcs)
+		err = nil
+		go serviceScheduler()
 	}
+
 	return affected, err
 }
 
