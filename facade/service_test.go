@@ -1314,7 +1314,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 }
 
-func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService(c *C) {
+func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
 	svc := service.Service{
 		ID:                     "ParentServiceID",
 		Name:                   "ParentService",
@@ -1425,7 +1425,10 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService(c *C) {
 		}
 	}()
 
+	// This channel is closed when the last service is stopped
+	allDone := make(chan interface{})
 	go func() {
+		defer close(allDone)
 		// svc should be the last service stopped
 		timer := time.NewTimer(10 * time.Second)
 		select {
@@ -1448,9 +1451,204 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService(c *C) {
 		}
 	}()
 
-	// emergency stop the parent
-	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
-		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
+	// emergency stop the parent synchronously
+	methodReturned := make(chan interface{})
+	go func() {
+		defer close(methodReturned)
+		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
+		}
+	}()
+
+	// Make sure the call was synchronous
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-methodReturned:
+		c.Fatalf("Method returned before services stopped on synchronous call")
+	case <-allDone:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for method to return")
+	}
+
+	// Wait for method to return
+	timer.Reset(10 * time.Second)
+	select {
+	case <-methodReturned:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for EmergencyStopService to return")
+	}
+
+	// verify all services have EmergencyShutDown set to true
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, true)
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c *C) {
+	svc := service.Service{
+		ID:                     "ParentServiceID",
+		Name:                   "ParentService",
+		Startup:                "/usr/bin/ping -c localhost",
+		Description:            "Ping a remote host a fixed number of times",
+		Instances:              1,
+		InstanceLimits:         domain.MinMax{1, 1, 1},
+		ImageID:                "test/pinger",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		DesiredState:           int(service.SVCRun),
+		Launch:                 "auto",
+		Endpoints:              []service.ServiceEndpoint{},
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
+		EmergencyShutdownLevel: 0,
+	}
+	childService1 := service.Service{
+		ID:                     "childService1",
+		Name:                   "childservice1",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 1,
+	}
+	childService2 := service.Service{
+		ID:                     "childService2",
+		Name:                   "childservice2",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 2,
+	}
+	// add a service with 2 subservices
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// start the service
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+
+	// Set up mocks to handle stopping services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Sleep 1 second and then close the channel
+					time.Sleep(time.Second)
+					close(ch)
+				}
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
+	// watch the services to make sure they shutdown in the correct order
+	go func() {
+		// childService2 should be the second service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService2"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService2 to stop")
+		}
+
+		// If this is stopped, level 1 must also be stopped
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 2 stopped before Level 1")
+		}
+	}()
+
+	// This channel is closed when the last service is stopped
+	allDone := make(chan interface{})
+	go func() {
+		defer close(allDone)
+		// svc should be the last service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["ParentServiceID"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for parent service to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+	}()
+
+	// emergency stop the parent asynchronously
+	methodReturned := make(chan interface{})
+	go func() {
+		defer close(methodReturned)
+		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: false}); err != nil {
+			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
+		}
+	}()
+
+	// Make sure the call was asynchronous
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-methodReturned:
+	case <-allDone:
+		c.Fatalf("Services stopped before method returned on asynchronous call")
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for method to return")
+	}
+
+	// Wait for services to stop
+	timer.Reset(10 * time.Second)
+	select {
+	case <-allDone:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for all services to stop")
 	}
 
 	// verify all services have EmergencyShutDown set to true
