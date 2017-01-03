@@ -168,6 +168,40 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 	return &svc
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_emergencyShutdownFlagged(c *C) {
+	// successfully add address assignment, vhost, and port
+	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep1",
+		Application: "ep1",
+		Purpose:     "export",
+		AddressConfig: servicedefinition.AddressResourceConfig{
+			Port:     1234,
+			Protocol: "tcp",
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, ep1)
+	// set up an address assignment for ep1
+	err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{
+		PoolID:        svc.PoolID,
+		IP:            "192.168.22.12",
+		Netmask:       "255.255.255.0",
+		BindInterface: "eth0",
+	})
+	c.Assert(err, IsNil)
+	err = ft.Facade.AssignIPs(ft.CTX, addressassignment.AssignmentRequest{
+		ServiceID:      svc.ID,
+		AutoAssignment: false,
+		IPAddress:      "192.168.22.12",
+	})
+	c.Assert(err, IsNil)
+	ft.zzk.On("GetVHost", "vh1").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil)
+	// Make service have EmergencyShutdown flagged
+	svc.EmergencyShutdown = true
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
 	// set up the endpoint with a missing address assignment
 	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
