@@ -1,7 +1,8 @@
 package statistics
 
-type Point struct {
-	X, Y float64
+type Point interface {
+	X() float64
+	Y() float64
 }
 
 func LeastSquares(series []Point) (m float64, b float64) {
@@ -14,10 +15,11 @@ func LeastSquares(series []Point) (m float64, b float64) {
 	var sumx, sumy, sumxx, sumxy float64
 
 	for _, p := range series {
-		sumx += p.X
-		sumy += p.Y
-		sumxx += p.X * p.X
-		sumxy += p.X * p.Y
+		x, y := p.X(), p.Y()
+		sumx += x
+		sumy += y
+		sumxx += x * x
+		sumxy += x * y
 	}
 
 	m = (n*sumxy - sumx*sumy) / (n*sumxx - sumx*sumx)
