@@ -12,7 +12,6 @@
 // limitations under the License.
 
 // Package stats collects serviced metrics and posts them to the TSDB.
-
 package stats
 
 import (
@@ -26,7 +25,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
 
 	"time"
 )
@@ -52,11 +50,11 @@ type registryKey struct {
 func NewServicedStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, dockerClient docker.Docker) (*ServicedStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		glog.Errorf("Could not determine host ID.")
+		plog.WithError(err).Errorf("Could not determine host ID.")
 		return nil, err
 	}
 	if conn == nil {
-		glog.Errorf("conn can not be nil")
+		plog.Errorf("conn can not be nil")
 		return nil, fmt.Errorf("conn can not be nil")
 	}
 	ssr := ServicedStatsReporter{
@@ -97,9 +95,8 @@ func (sr *ServicedStatsReporter) removeStaleRegistries(states []zkservice.State)
 	containers := make(map[string]bool)
 	for _, rs := range states {
 		containers[rs.ContainerID] = true
-		if instances, ok := keys[rs.ServiceID]; !ok {
-			instances = []int{rs.InstanceID}
-			keys[rs.ServiceID] = instances
+		if _, ok := keys[rs.ServiceID]; !ok {
+			keys[rs.ServiceID] = []int{rs.InstanceID}
 		} else {
 			keys[rs.ServiceID] = append(keys[rs.ServiceID], rs.InstanceID)
 		}
@@ -108,7 +105,7 @@ func (sr *ServicedStatsReporter) removeStaleRegistries(states []zkservice.State)
 	// on this host
 	sr.Lock()
 	defer sr.Unlock()
-	for key, _ := range sr.containerRegistries {
+	for key := range sr.containerRegistries {
 		if instances, ok := keys[key.serviceID]; !ok {
 			delete(sr.containerRegistries, key)
 		} else {
@@ -126,7 +123,7 @@ func (sr *ServicedStatsReporter) removeStaleRegistries(states []zkservice.State)
 	}
 
 	// Now remove stale entries from our list of previous stats
-	for key, _ := range sr.previousStats {
+	for key := range sr.previousStats {
 		if _, ok := containers[key]; !ok {
 			delete(sr.previousStats, key)
 		}
@@ -138,30 +135,26 @@ func (sr *ServicedStatsReporter) gatherStats(t time.Time) []Sample {
 	stats := []Sample{}
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
+	tagmap := map[string]string{"controlplane_host_id": sr.hostID}
 	reg.Each(func(name string, i interface{}) {
-		if metric, ok := i.(metrics.Gauge); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
+		switch metric := i.(type) {
+		case metrics.Gauge:
 			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
-		}
-		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+		case metrics.GaugeFloat64:
+			stats = append(stats, Sample{name, strconv.FormatFloat(metric.Value(), 'f', -1, 32), t.Unix(), tagmap})
 		}
 	})
 	// Handle each container's metrics.
 	for key, registry := range sr.containerRegistries {
 		reg, _ := registry.(*metrics.StandardRegistry)
+		tagmap["controlplane_service_id"] = key.serviceID
+		tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
 		reg.Each(func(name string, i interface{}) {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_service_id"] = key.serviceID
-			tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
-			tagmap["controlplane_host_id"] = sr.hostID
-			if metric, ok := i.(metrics.Gauge); ok {
+			switch metric := i.(type) {
+			case metrics.Gauge:
 				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
-			} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
-				stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+			case metrics.GaugeFloat64:
+				stats = append(stats, Sample{name, strconv.FormatFloat(metric.Value(), 'f', -1, 32), t.Unix(), tagmap})
 			}
 		})
 	}
@@ -175,7 +168,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 	// Stats for the containers.
 	states, err := zkservice.GetHostStates(sr.conn, "", sr.hostID)
 	if err != nil {
-		glog.Errorf("updateStats: zkservice.GetHostStates (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
+		plog.Errorf("updateStats: zkservice.GetHostStates (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
 
 	for _, rs := range states {
@@ -184,7 +177,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 			stats, err := sr.docker.GetContainerStats(rs.ContainerID, 30*time.Second)
 			if err != nil || stats == nil { //stats may be nil if service is shutting down
-				glog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.ServiceID, rs.InstanceID, err)
+				plog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.ServiceID, rs.InstanceID, err)
 				continue
 			}
 
@@ -212,7 +205,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 			previousTotalCPU, found := sr.previousStats[key]["totalCPU"]
 			if found {
 				if totalCPU <= previousTotalCPU {
-					glog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
+					plog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
 					usePreviousStats = false
 				} else {
 					totalCPUChange = totalCPU - previousTotalCPU
@@ -245,7 +238,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", containerRegistry).Update(kernelCPUPercent)
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", containerRegistry).Update(userCPUPercent)
 			} else {
-				glog.V(4).Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.ServiceID, rs.InstanceID)
+				plog.Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.ServiceID, rs.InstanceID)
 			}
 
 			// Memory Stats
@@ -253,14 +246,14 @@ func (sr *ServicedStatsReporter) updateStats() {
 			totalRSS := int64(stats.MemoryStats.Stats.TotalRss)
 			cache := int64(stats.MemoryStats.Stats.Cache)
 			if pgFault < 0 || totalRSS < 0 || cache < 0 {
-				glog.Warningf("Memory metric value for service %s instance %d too big for int64", rs.ServiceID, rs.InstanceID)
+				plog.Warningf("Memory metric value for service %s instance %d too big for int64", rs.ServiceID, rs.InstanceID)
 			}
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
 			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
 			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(cache)
 
 		} else {
-			glog.V(4).Infof("Skipping stats update for %s (%d), no container ID exists yet", rs.ServiceID, rs.InstanceID)
+			plog.Infof("Skipping stats update for %s (%d), no container ID exists yet", rs.ServiceID, rs.InstanceID)
 		}
 	}
 	// Clean out old container registries
@@ -271,7 +264,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	loadavg, err := linux.ReadLoadavg()
 	if err != nil {
-		glog.Errorf("could not read loadavg: %s", err)
+		plog.Errorf("could not read loadavg: %s", err)
 		return
 	}
 	metrics.GetOrRegisterGaugeFloat64("load.avg1m", sr.hostRegistry).Update(float64(loadavg.Avg1m))
@@ -282,7 +275,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	stat, err := linux.ReadStat()
 	if err != nil {
-		glog.Errorf("could not read stat: %s", err)
+		plog.Errorf("could not read stat: %s", err)
 		return
 	}
 	metrics.GetOrRegisterGauge("cpu.user", sr.hostRegistry).Update(int64(stat.Cpu.User()))
@@ -300,7 +293,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	meminfo, err := linux.ReadMeminfo()
 	if err != nil {
-		glog.Errorf("could not read meminfo: %s", err)
+		plog.Errorf("could not read meminfo: %s", err)
 		return
 	}
 	metrics.GetOrRegisterGauge("memory.total", sr.hostRegistry).Update(int64(meminfo.MemTotal))
@@ -315,7 +308,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	vmstat, err := linux.ReadVmstat()
 	if err != nil {
-		glog.Errorf("could not read vmstat: %s", err)
+		plog.Errorf("could not read vmstat: %s", err)
 		return
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
@@ -326,7 +319,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("vmstat.pswpin", sr.hostRegistry).Update(int64(vmstat.Pswpin) * 1024)
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
-		glog.Warningf("Couldn't get open file descriptor count", err)
+		plog.Warningf("Couldn't get open file descriptor count", err)
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}

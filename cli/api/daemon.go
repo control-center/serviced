@@ -984,13 +984,11 @@ func (d *daemon) startAgent() error {
 
 		// storage stats (thinpool, etc)
 		if options.Master {
-			// TODO: put this interval somewhere better?
-			statsInterval := 30
 			storageStatsDest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
-			storageStatsDuration := time.Second * time.Duration(statsInterval)
+			storageStatsDuration := time.Second * time.Duration(options.StorageReportInterval)
 			log := log.WithFields(logrus.Fields{
 				"statsurl": storageStatsDest,
-				"interval": statsInterval,
+				"interval": options.StorageReportInterval,
 			})
 			log.Debug("Starting storage statistics reporting")
 			storageStatsReporter, err := stats.NewStorageStatsReporter(storageStatsDest, storageStatsDuration)
@@ -1003,7 +1001,7 @@ func (d *daemon) startAgent() error {
 					log.Info("Stopping stats reporting")
 				}()
 			}
-			reporter := iostat.NewReporter(time.Duration(statsInterval)*time.Second, d.shutdown)
+			reporter := iostat.NewReporter(time.Duration(options.StorageReportInterval)*time.Second, d.shutdown)
 			go volume.InitIOStat(reporter, d.shutdown)
 		}
 

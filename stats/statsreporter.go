@@ -12,17 +12,22 @@
 // limitations under the License.
 
 // Package stats collects serviced metrics and posts them to the TSDB.
-
 package stats
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/logging"
 
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
+)
+
+var (
+	statsReqUserAgent   = []string{"Zenoss Metric Publisher"}
+	statsReqContentType = []string{"application/json"}
+	plog                = logging.PackageLogger()
 )
 
 type gatherStatsFunc func(time.Time) []Sample
@@ -55,19 +60,18 @@ type Sample struct {
 // the data to the TSDB. Stops when close signal is received on closeChannel.
 func (sr *statsReporter) report(d time.Duration) {
 	tc := time.Tick(d)
-	glog.Infof("collecting internal metrics at %s intervals", d)
+	plog.Infof("collecting internal metrics at %s intervals", d)
 	for {
 		select {
 		case _ = <-sr.closeChannel:
-			glog.V(3).Info("Ceasing stat reporting.")
+			plog.Info("Ceasing stat reporting.")
 			return
 		case t := <-tc:
-			glog.V(1).Info("Reporting container stats at:", t)
 			sr.updateStatsFunc()
 			stats := sr.gatherStatsFunc(t)
 			err := Post(sr.destination, stats)
 			if err != nil {
-				glog.Errorf("Error reporting container stats: %v", err)
+				plog.Errorf("Error reporting stats: %v", err)
 			}
 		}
 	}
@@ -79,29 +83,29 @@ func (sr *statsReporter) Close() {
 
 }
 
-// Send the list of stats to the TSDB.
+// Post sends the list of stats to the TSDB.
 func Post(destination string, stats []Sample) error {
 	payload := map[string][]Sample{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		glog.Warningf("Couldn't marshal stats: ", err)
+		plog.Warningf("Couldn't marshal stats: ", err)
 		return err
 	}
 	statsreq, err := http.NewRequest("POST", destination, bytes.NewBuffer(data))
 	if err != nil {
-		glog.Warningf("Couldn't create stats request: ", err)
+		plog.Warningf("Couldn't create stats request: ", err)
 		return err
 	}
-	statsreq.Header["User-Agent"] = []string{"Zenoss Metric Publisher"}
-	statsreq.Header["Content-Type"] = []string{"application/json"}
+	statsreq.Header["User-Agent"] = statsReqUserAgent
+	statsreq.Header["Content-Type"] = statsReqContentType
 	resp, reqerr := http.DefaultClient.Do(statsreq)
 	if reqerr != nil {
-		glog.Warningf("Couldn't post container stats: %s", reqerr)
+		plog.Warningf("Couldn't post container stats: %s", reqerr)
 		return reqerr
 	}
 	defer resp.Body.Close()
 	if !strings.Contains(resp.Status, "200 OK") {
-		glog.Warningf("Post for container stats failed: %s", resp.Status)
+		plog.Warningf("Post for container stats failed: %s", resp.Status)
 		return nil
 	}
 	return nil

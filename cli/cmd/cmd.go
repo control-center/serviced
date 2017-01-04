@@ -126,6 +126,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
+		cli.IntFlag{"storage-report-interval", defaultOps.StorageReportInterval, "frequency in seconds to report storage stats to opentsdb"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
 		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
@@ -275,6 +276,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		AllowLoopBack:              ctx.GlobalString("allow-loop-back"),
 		UIPollFrequency:            ctx.GlobalInt("ui-poll-frequency"),
 		StorageStatsUpdateInterval: ctx.GlobalInt("storage-stats-update-interval"),
+		StorageReportInterval:      ctx.GlobalInt("storage-report-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
 	}

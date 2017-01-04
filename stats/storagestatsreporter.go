@@ -12,7 +12,6 @@
 // limitations under the License.
 
 // Package stats collects serviced metrics and posts them to the TSDB.
-
 package stats
 
 import (
@@ -21,7 +20,6 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
 
 	"time"
 )
@@ -37,11 +35,11 @@ type StorageStatsReporter struct {
 func NewStorageStatsReporter(destination string, interval time.Duration) (*StorageStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		glog.Errorf("Could not determine host ID.")
+		plog.WithError(err).Errorf("Could not determine host ID.")
 		return nil, err
 	}
 
-	ssr := StorageStatsReporter{
+	sr := StorageStatsReporter{
 		statsReporter: statsReporter{
 			destination:  destination,
 			closeChannel: make(chan struct{}),
@@ -49,37 +47,34 @@ func NewStorageStatsReporter(destination string, interval time.Duration) (*Stora
 		hostID: hostID,
 	}
 
-	ssr.storageRegistry = metrics.NewRegistry()
-	ssr.statsReporter.updateStatsFunc = ssr.updateStats
-	ssr.statsReporter.gatherStatsFunc = ssr.gatherStats
-	go ssr.report(interval)
-	return &ssr, nil
+	sr.storageRegistry = metrics.NewRegistry()
+	sr.statsReporter.updateStatsFunc = sr.updateStats
+	sr.statsReporter.gatherStatsFunc = sr.gatherStats
+	go sr.report(interval)
+	return &sr, nil
 }
 
 // Fills out the metric consumer format.
 func (sr *StorageStatsReporter) gatherStats(t time.Time) []Sample {
 	stats := []Sample{}
-	// Handle the host metrics.
+	// Handle the storage metrics.
 	reg, _ := sr.storageRegistry.(*metrics.StandardRegistry)
+	tagmap := map[string]string{"controlplane_host_id": sr.hostID}
 	reg.Each(func(name string, i interface{}) {
-		if metric, ok := i.(metrics.Gauge); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
+		switch metric := i.(type) {
+		case metrics.Gauge:
 			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
-		}
-		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+		case metrics.GaugeFloat64:
+			stats = append(stats, Sample{name, strconv.FormatFloat(metric.Value(), 'f', -1, 32), t.Unix(), tagmap})
 		}
 	})
 	return stats
 }
 
-func (ssr StorageStatsReporter) updateStats() {
+func (sr StorageStatsReporter) updateStats() {
 	volumeStatuses := volume.GetStatus()
 	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
-		glog.Errorf("Unexpected error getting volume status")
+		plog.Errorf("Unexpected error getting volume status")
 		return
 	}
 	for _, volumeStatus := range volumeStatuses.GetAllStatuses() {
@@ -90,17 +85,17 @@ func (ssr StorageStatsReporter) updateStats() {
 			if err == volume.ErrWrongDataType {
 				valFloat64, err := volumeUsage.GetValueFloat64()
 				if err != nil {
-					glog.Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+					plog.WithError(err).Errorf("Error parsing volume usage %s", volumeUsage.GetType())
 				} else {
 					if metricName != "" {
-						metrics.GetOrRegisterGaugeFloat64(metricName, ssr.storageRegistry).Update(valFloat64)
+						metrics.GetOrRegisterGaugeFloat64(metricName, sr.storageRegistry).Update(valFloat64)
 					}
 				}
 			} else if err != nil {
-				glog.Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+				plog.WithError(err).Errorf("Error parsing volume usage %s", volumeUsage.GetType())
 			} else {
 				if metricName != "" {
-					metrics.GetOrRegisterGauge(metricName, ssr.storageRegistry).Update(int64(valUint64))
+					metrics.GetOrRegisterGauge(metricName, sr.storageRegistry).Update(int64(valUint64))
 				}
 			}
 		}
