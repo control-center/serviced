@@ -17,6 +17,7 @@ package stats
 import (
 	"strconv"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/rcrowley/go-metrics"
@@ -35,7 +36,7 @@ type StorageStatsReporter struct {
 func NewStorageStatsReporter(destination string, interval time.Duration) (*StorageStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		plog.WithError(err).Errorf("Could not determine host ID.")
+		plog.WithError(err).Error("Could not determine host ID")
 		return nil, err
 	}
 
@@ -74,25 +75,30 @@ func (sr *StorageStatsReporter) gatherStats(t time.Time) []Sample {
 func (sr StorageStatsReporter) updateStats() {
 	volumeStatuses := volume.GetStatus()
 	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
-		plog.Errorf("Unexpected error getting volume status")
+		plog.Error("Unexpected error getting volume status")
 		return
 	}
 	for _, volumeStatus := range volumeStatuses.GetAllStatuses() {
 		for _, volumeUsage := range volumeStatus.GetUsageData() {
 			metricName := volumeUsage.GetMetricName()
-
 			valUint64, err := volumeUsage.GetValueUInt64()
 			if err == volume.ErrWrongDataType {
 				valFloat64, err := volumeUsage.GetValueFloat64()
 				if err != nil {
-					plog.WithError(err).Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+					plog.WithFields(logrus.Fields{
+						"metric": metricName,
+						"type":   volumeUsage.GetType(),
+					}).WithError(err).Error("Error parsing volume usage")
 				} else {
 					if metricName != "" {
 						metrics.GetOrRegisterGaugeFloat64(metricName, sr.storageRegistry).Update(valFloat64)
 					}
 				}
 			} else if err != nil {
-				plog.WithError(err).Errorf("Error parsing volume usage %s", volumeUsage.GetType())
+				plog.WithFields(logrus.Fields{
+					"metric": metricName,
+					"type":   volumeUsage.GetType(),
+				}).WithError(err).Error("Error parsing volume usage")
 			} else {
 				if metricName != "" {
 					metrics.GetOrRegisterGauge(metricName, sr.storageRegistry).Update(int64(valUint64))

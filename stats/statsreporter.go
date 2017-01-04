@@ -15,6 +15,7 @@
 package stats
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/logging"
 
 	"bytes"
@@ -60,18 +61,20 @@ type Sample struct {
 // the data to the TSDB. Stops when close signal is received on closeChannel.
 func (sr *statsReporter) report(d time.Duration) {
 	tc := time.Tick(d)
-	plog.Infof("collecting internal metrics at %s intervals", d)
+	plog.WithField("interval", d).Info("Collecting internal metrics")
 	for {
 		select {
 		case _ = <-sr.closeChannel:
-			plog.Info("Ceasing stat reporting.")
+			plog.WithField("destination", sr.destination).
+				Info("Ceasing stat collection")
 			return
 		case t := <-tc:
 			sr.updateStatsFunc()
 			stats := sr.gatherStatsFunc(t)
 			err := Post(sr.destination, stats)
 			if err != nil {
-				plog.Errorf("Error reporting stats: %v", err)
+				plog.WithField("destination", sr.destination).
+					WithError(err).Errorf("Unable to report stats to OpenTSDB")
 			}
 		}
 	}
@@ -88,24 +91,32 @@ func Post(destination string, stats []Sample) error {
 	payload := map[string][]Sample{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		plog.Warningf("Couldn't marshal stats: ", err)
+		plog.WithField("stats", stats).WithError(err).
+			Warn("Couldn't marshal stats")
 		return err
 	}
-	statsreq, err := http.NewRequest("POST", destination, bytes.NewBuffer(data))
+	statsReq, err := http.NewRequest("POST", destination, bytes.NewBuffer(data))
 	if err != nil {
-		plog.Warningf("Couldn't create stats request: ", err)
+		plog.WithFields(logrus.Fields{
+			"destination": destination,
+			"data":        data,
+		}).WithError(err).Warn("Couldn't create stats request")
 		return err
 	}
-	statsreq.Header["User-Agent"] = statsReqUserAgent
-	statsreq.Header["Content-Type"] = statsReqContentType
-	resp, reqerr := http.DefaultClient.Do(statsreq)
-	if reqerr != nil {
-		plog.Warningf("Couldn't post container stats: %s", reqerr)
-		return reqerr
+	statsReq.Header["User-Agent"] = statsReqUserAgent
+	statsReq.Header["Content-Type"] = statsReqContentType
+	resp, err := http.DefaultClient.Do(statsReq)
+	if err != nil {
+		plog.WithField("request", statsReq).WithError(err).
+			Warn("Couldn't post container stats")
+		return err
 	}
 	defer resp.Body.Close()
 	if !strings.Contains(resp.Status, "200 OK") {
-		plog.Warningf("Post for container stats failed: %s", resp.Status)
+		plog.WithFields(logrus.Fields{
+			"status":  resp.Status,
+			"request": statsReq,
+		}).Warn("Non-Success response when posting stats")
 		return nil
 	}
 	return nil

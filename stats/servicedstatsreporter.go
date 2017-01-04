@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/docker"
@@ -50,12 +51,12 @@ type registryKey struct {
 func NewServicedStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, dockerClient docker.Docker) (*ServicedStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		plog.WithError(err).Errorf("Could not determine host ID.")
+		plog.WithError(err).Error("Could not determine host ID")
 		return nil, err
 	}
 	if conn == nil {
-		plog.Errorf("conn can not be nil")
-		return nil, fmt.Errorf("conn can not be nil")
+		plog.Error("Received empty coordinator client connection")
+		return nil, fmt.Errorf("Coordinator client connection can not be nil")
 	}
 	ssr := ServicedStatsReporter{
 		statsReporter: statsReporter{
@@ -168,7 +169,10 @@ func (sr *ServicedStatsReporter) updateStats() {
 	// Stats for the containers.
 	states, err := zkservice.GetHostStates(sr.conn, "", sr.hostID)
 	if err != nil {
-		plog.Errorf("updateStats: zkservice.GetHostStates (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
+		plog.WithFields(logrus.Fields{
+			"conn":   sr.conn,
+			"hostID": sr.hostID,
+		}).WithError(err).Error("Could not get host states from Zookeeper")
 	}
 
 	for _, rs := range states {
@@ -177,7 +181,10 @@ func (sr *ServicedStatsReporter) updateStats() {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 			stats, err := sr.docker.GetContainerStats(rs.ContainerID, 30*time.Second)
 			if err != nil || stats == nil { //stats may be nil if service is shutting down
-				plog.Warningf("Couldn't get stats for service %s instance %d: %v", rs.ServiceID, rs.InstanceID, err)
+				plog.WithFields(logrus.Fields{
+					"serviceID":  rs.ServiceID,
+					"instanceID": rs.InstanceID,
+				}).WithError(err).Warn("Couldn't get stats from docker")
 				continue
 			}
 
@@ -205,7 +212,10 @@ func (sr *ServicedStatsReporter) updateStats() {
 			previousTotalCPU, found := sr.previousStats[key]["totalCPU"]
 			if found {
 				if totalCPU <= previousTotalCPU {
-					plog.Warningf("Change in total CPU usage was nonpositive, skipping CPU stats update.")
+					plog.WithFields(logrus.Fields{
+						"totalCPU":         totalCPU,
+						"previousTotalCPU": previousTotalCPU,
+					}).Warn("Change in total CPU usage was nonpositive, skipping CPU stats update")
 					usePreviousStats = false
 				} else {
 					totalCPUChange = totalCPU - previousTotalCPU
@@ -238,7 +248,10 @@ func (sr *ServicedStatsReporter) updateStats() {
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinkernelmode", containerRegistry).Update(kernelCPUPercent)
 				metrics.GetOrRegisterGaugeFloat64("docker.usageinusermode", containerRegistry).Update(userCPUPercent)
 			} else {
-				plog.Infof("Skipping CPU stats for %s (%d) , no previous values to compare to", rs.ServiceID, rs.InstanceID)
+				plog.WithFields(logrus.Fields{
+					"serviceID":  rs.ServiceID,
+					"instanceID": rs.InstanceID,
+				}).Debug("Skipping CPU stats, no previous values to compare to")
 			}
 
 			// Memory Stats
@@ -246,14 +259,20 @@ func (sr *ServicedStatsReporter) updateStats() {
 			totalRSS := int64(stats.MemoryStats.Stats.TotalRss)
 			cache := int64(stats.MemoryStats.Stats.Cache)
 			if pgFault < 0 || totalRSS < 0 || cache < 0 {
-				plog.Warningf("Memory metric value for service %s instance %d too big for int64", rs.ServiceID, rs.InstanceID)
+				plog.WithFields(logrus.Fields{
+					"serviceID":  rs.ServiceID,
+					"instanceID": rs.InstanceID,
+				}).Warn("Memory metric value too big for int64")
 			}
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
 			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
 			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(cache)
 
 		} else {
-			plog.Infof("Skipping stats update for %s (%d), no container ID exists yet", rs.ServiceID, rs.InstanceID)
+			plog.WithFields(logrus.Fields{
+				"serviceID":  rs.ServiceID,
+				"instanceID": rs.InstanceID,
+			}).Debug("Skipping stats update, no container ID exists")
 		}
 	}
 	// Clean out old container registries
@@ -264,7 +283,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	loadavg, err := linux.ReadLoadavg()
 	if err != nil {
-		plog.Errorf("could not read loadavg: %s", err)
+		plog.WithError(err).Error("Could not read load avg")
 		return
 	}
 	metrics.GetOrRegisterGaugeFloat64("load.avg1m", sr.hostRegistry).Update(float64(loadavg.Avg1m))
@@ -275,7 +294,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	stat, err := linux.ReadStat()
 	if err != nil {
-		plog.Errorf("could not read stat: %s", err)
+		plog.WithError(err).Error("Could not read CPU stat")
 		return
 	}
 	metrics.GetOrRegisterGauge("cpu.user", sr.hostRegistry).Update(int64(stat.Cpu.User()))
@@ -293,7 +312,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	meminfo, err := linux.ReadMeminfo()
 	if err != nil {
-		plog.Errorf("could not read meminfo: %s", err)
+		plog.WithError(err).Error("Could not read memory info")
 		return
 	}
 	metrics.GetOrRegisterGauge("memory.total", sr.hostRegistry).Update(int64(meminfo.MemTotal))
@@ -308,7 +327,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	vmstat, err := linux.ReadVmstat()
 	if err != nil {
-		plog.Errorf("could not read vmstat: %s", err)
+		plog.WithError(err).Error("Could not read vmstat")
 		return
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
@@ -319,7 +338,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 	metrics.GetOrRegisterGauge("vmstat.pswpin", sr.hostRegistry).Update(int64(vmstat.Pswpin) * 1024)
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
-		plog.Warningf("Couldn't get open file descriptor count", err)
+		plog.WithError(err).Warn("Couldn't get open file descriptor count")
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
