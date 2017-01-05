@@ -1,56 +1,23 @@
 package statistics_test
 
 import (
-	"fmt"
-	"math"
 	"testing"
 
 	. "github.com/control-center/serviced/commons/statistics"
+	"github.com/control-center/serviced/utils/checkers"
 	. "gopkg.in/check.v1"
 )
-
-type withToleranceChecker struct {
-	*CheckerInfo
-	tolerance float64
-}
-
-func (checker *withToleranceChecker) Check(params []interface{}, names []string) (result bool, error string) {
-	defer func() {
-		if v := recover(); v != nil {
-			result = false
-			error = fmt.Sprint(v)
-		}
-	}()
-
-	obtained, ok := params[0].(float64)
-	expected, ok2 := params[1].(float64)
-
-	if !ok || !ok2 {
-		return false, "Obtained and expected values must be of type float64"
-	}
-
-	diff := math.Abs(obtained - expected)
-	maxdiff := checker.tolerance * math.Max(1.0, math.Max(math.Abs(obtained), math.Abs(expected)))
-
-	return diff <= maxdiff, ""
-}
-
-func EqualsWithTolerance(tolerance float64) Checker {
-	return &withToleranceChecker{
-		&CheckerInfo{Name: "EqualsWithTolerance", Params: []string{"obtained", "expected"}},
-		tolerance,
-	}
-}
-
-var RoughlyEquals = EqualsWithTolerance(0.0000000001)
 
 func Test(t *testing.T) { TestingT(t) }
 
 type StatisticsSuite struct{}
 
-var _ = Suite(&StatisticsSuite{})
+var (
+	_ = Suite(&StatisticsSuite{})
 
-var zeroFloat float64
+	RoughlyEquals = checkers.EqualsWithTolerance(0.0000000001)
+	zeroFloat     float64
+)
 
 // ycoords is a utility func to generate the series of y-coordinates from
 // a series of x-coordinates based on a slope and y-intercept provided
