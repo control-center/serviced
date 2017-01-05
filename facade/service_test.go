@@ -1281,6 +1281,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
+	// add a service with 4 subservices
 	svc := service.Service{
 		ID:                     "ParentServiceID",
 		Name:                   "ParentService",
@@ -1297,6 +1298,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		CreatedAt:              time.Now(),
 		UpdatedAt:              time.Now(),
 		EmergencyShutdownLevel: 0,
+		StartLevel:             1,
 	}
 	childService1 := service.Service{
 		ID:                     "childService1",
@@ -1318,7 +1320,28 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		ParentServiceID:        "ParentServiceID",
 		EmergencyShutdownLevel: 2,
 	}
-	// add a service with 2 subservices
+	childService3 := service.Service{
+		ID:                     "childService3",
+		Name:                   "childservice3",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 0,
+		StartLevel:             0,
+	}
+	childService4 := service.Service{
+		ID:                     "childService4",
+		Name:                   "childservice4",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 0,
+		StartLevel:             0,
+	}
 	var err error
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
 		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
@@ -1329,6 +1352,12 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
 		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService3); err != nil {
+		c.Fatalf("Failed Loading Child Service 3: %+v, %s", childService3, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService4); err != nil {
+		c.Fatalf("Failed Loading Child Service 4: %+v, %s", childService4, err)
 	}
 
 	// start the service
@@ -1344,6 +1373,8 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	stoppedChannels["ParentServiceID"] = make(chan interface{})
 	stoppedChannels["childService1"] = make(chan interface{})
 	stoppedChannels["childService2"] = make(chan interface{})
+	stoppedChannels["childService3"] = make(chan interface{})
+	stoppedChannels["childService4"] = make(chan interface{})
 	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
 	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
 		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
@@ -1376,6 +1407,11 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	})
 
 	// watch the services to make sure they shutdown in the correct order
+	// Emergency shutdown order should be:
+	//  (EL 1) childService1
+	//  (EL 2) childService2
+	//  (EL 0, SL 0) childService3, childService4
+	//  (EL 0, SL 1) svc
 	go func() {
 		// childService2 should be the second service stopped
 		timer := time.NewTimer(10 * time.Second)
@@ -1387,9 +1423,55 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 
 		// If this is stopped, level 1 must also be stopped
 		select {
-		case <-stoppedChannels["childService2"]:
+		case <-stoppedChannels["childService1"]:
 		default:
 			c.Fatalf("Level 2 stopped before Level 1")
+		}
+	}()
+
+	go func() {
+		// childService3 should stop after childservice2 and childService1
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService3"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService3 to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+	}()
+
+	go func() {
+		// childService4 should stop after childservice2 and childService1
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService4"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService3 to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
 		}
 	}()
 
@@ -1416,6 +1498,19 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		case <-stoppedChannels["childService2"]:
 		default:
 			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		// Level 0 with StartLevel 0 must also be stopped
+		select {
+		case <-stoppedChannels["childService3"]:
+		default:
+			c.Fatalf("Level 0, StartLevel 1 stopped before Level 0, StartLevel 0")
+		}
+
+		select {
+		case <-stoppedChannels["childService4"]:
+		default:
+			c.Fatalf("Level 0, StartLevel 1 stopped before Level 0, StartLevel 0")
 		}
 	}()
 
@@ -1562,7 +1657,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 
 		// If this is stopped, level 1 must also be stopped
 		select {
-		case <-stoppedChannels["childService2"]:
+		case <-stoppedChannels["childService1"]:
 		default:
 			c.Fatalf("Level 2 stopped before Level 1")
 		}

@@ -130,7 +130,18 @@ type ByEmergencyShutdown struct{ Services }
 
 // Sort by EmergencyShutdownLevel - 1, to ensure level of 0 is last
 func (s ByEmergencyShutdown) Less(i, j int) bool {
-	return s.Services[i].EmergencyShutdownLevel-1 < s.Services[j].EmergencyShutdownLevel-1
+	if s.Services[i].EmergencyShutdownLevel == s.Services[j].EmergencyShutdownLevel {
+		// If emergency shutdown level is the same, order by reverse start level
+		return !ByStartLevel{s.Services}.Less(i, j)
+	} else {
+		return s.Services[i].EmergencyShutdownLevel-1 < s.Services[j].EmergencyShutdownLevel-1
+	}
+}
+
+type ByStartLevel struct{ Services }
+
+func (s ByStartLevel) Less(i, j int) bool {
+	return s.Services[i].StartLevel-1 < s.Services[j].StartLevel-1
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
