@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -1632,8 +1633,11 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 		}
 	})
 
+	var waitServiceWG sync.WaitGroup
 	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
 		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		waitServiceWG.Add(1)
+		defer waitServiceWG.Done()
 		s := args.Get(0).(*service.Service)
 		cancel := args.Get(2).(<-chan interface{})
 		if ch, ok := stoppedChannels[s.ID]; ok {
@@ -1723,6 +1727,9 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	for _, s := range services {
 		c.Assert(s.EmergencyShutdown, Equals, true)
 	}
+
+	// Wait for our mocked goroutines to return
+	waitServiceWG.Wait()
 }
 
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {

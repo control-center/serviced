@@ -1275,8 +1275,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 					errToReturn = serr
 					levelLogger.WithError(serr).Error("Error scheduling services to stop")
 				} else {
-					// Wait at most 10 minutesfor services to stop before continuing
-					f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+					// Wait for services to change state before continuing
+					f.WaitService(ctx, desiredState, f.serviceRunLevelTimeout, false, nextBatchIDs...)
 				}
 				affected += a
 
