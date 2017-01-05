@@ -281,6 +281,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		StorageReportInterval:      ctx.GlobalInt("storage-report-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
+		ServiceRunLevelTimeout:     ctx.GlobalInt("service-run-level-timeout"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs
