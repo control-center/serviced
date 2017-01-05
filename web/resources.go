@@ -140,15 +140,16 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 // FIXME: Delete this method as soon as Zenoss and CC ZenPack no longer use this method.
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
+	tenantID := r.URL.Query().Get("tenantID")
+
 	// load the internal monitoring data
-	config, err := getInternalMetrics()
+	config, err := getInternalMetrics(tenantID)
 	if err != nil {
 		glog.Errorf("Could not get internal monitoring metrics: %s", err)
 		restServerError(w, err)
 		return
 	}
 
-	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
 		result, err := getTaggedServices(ctx, tags, nmregex, tenantID)
@@ -340,17 +341,18 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 
 // DEPRECATED
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	// load the internal monitoring data
-	config, err := getInternalMetrics()
-	if err != nil {
-		glog.Errorf("Could not get internal monitoring metrics: %s", err)
-		restServerError(w, err)
-		return
-	}
 
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
+		return
+	}
+
+	// load the internal monitoring data
+	config, err := getInternalMetrics(serviceID)
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
 		return
 	}
 
@@ -723,8 +725,11 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 			return
 		}
 		//add graphs to profile
-		profile.GraphConfigs = make([]domain.GraphConfig, 1)
-		profile.GraphConfigs[0] = newVolumeUsageGraph(tags)
+		profile.GraphConfigs = []domain.GraphConfig{
+			newThinPoolDataUsageGraph(tags),
+			newThinPoolMetadataUsageGraph(tags),
+		}
+
 		volumeInfo.MonitoringProfile = *profile
 		storageInfo = append(storageInfo, volumeInfo)
 	}

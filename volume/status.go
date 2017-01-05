@@ -15,6 +15,7 @@ package volume
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
 	"text/tabwriter"
@@ -34,11 +35,68 @@ type SimpleStatus struct { // see Docker - look at their status struct and borro
 	UsageData  []Usage
 }
 
-type Usage struct {
+type Usage interface {
+	GetMetricName() string
+	GetLabel() string
+	GetType() string
+	GetValueUInt64() (uint64, error)
+	GetValueFloat64() (float64, error)
+}
+
+var ErrWrongDataType = errors.New("Wrong data type for Usage Value")
+
+type UsageInt struct {
 	MetricName string
 	Label      string
 	Type       string
 	Value      uint64
+}
+
+func (u UsageInt) GetMetricName() string {
+	return u.MetricName
+}
+
+func (u UsageInt) GetLabel() string {
+	return u.Label
+}
+
+func (u UsageInt) GetType() string {
+	return u.Type
+}
+
+func (u UsageInt) GetValueUInt64() (uint64, error) {
+	return u.Value, nil
+}
+
+func (u UsageInt) GetValueFloat64() (float64, error) {
+	return 0.0, ErrWrongDataType
+}
+
+type UsageFloat struct {
+	MetricName string
+	Label      string
+	Type       string
+	Value      float64
+}
+
+func (u UsageFloat) GetMetricName() string {
+	return u.MetricName
+}
+
+func (u UsageFloat) GetLabel() string {
+	return u.Label
+}
+
+func (u UsageFloat) GetType() string {
+	return u.Type
+}
+
+func (u UsageFloat) GetValueUInt64() (uint64, error) {
+	return 0, ErrWrongDataType
+}
+
+func (u UsageFloat) GetValueFloat64() (float64, error) {
+	return u.Value, nil
 }
 
 // This struct is stupid, for the sake of using interfaces AND RPC ser/deser.
@@ -94,7 +152,19 @@ func (s SimpleStatus) String() string {
 	}
 	buffer.WriteString(fmt.Sprintf("Usage Data:\n"))
 	for _, usage := range s.UsageData {
-		buffer.WriteString(fmt.Sprintf("\t%s %s: %s\n", usage.Label, usage.Type, units.BytesSize(float64(usage.Value))))
+		val, err := usage.GetValueUInt64()
+		if err == ErrWrongDataType {
+			val, err := usage.GetValueFloat64()
+			if err != nil {
+				glog.Error("Usage data has no value")
+			}
+			buffer.WriteString(fmt.Sprintf("\t%s %s: %s\n", usage.GetLabel(), usage.GetType(), units.BytesSize(val)))
+		} else if err != nil {
+			glog.Errorf("Could not get usage data: %s", err)
+		} else {
+			buffer.WriteString(fmt.Sprintf("\t%s %s: %s\n", usage.GetLabel(), usage.GetType(), units.BytesSize(float64(val))))
+		}
+
 	}
 	return buffer.String()
 }
@@ -104,6 +174,8 @@ type TenantStorageStats struct {
 	TenantID            string
 	VolumePath          string
 	PoolAvailableBlocks uint64
+
+	DeviceName string
 
 	DeviceTotalBlocks       uint64
 	DeviceAllocatedBlocks   uint64

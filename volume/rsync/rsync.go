@@ -192,7 +192,7 @@ func appendIfConvertSucceeds(result []volume.Usage, field string, label string, 
 	if err != nil {
 		glog.Warningf("could not convert string %s to Uint64 for %s", field, usage)
 	} else {
-		result = append(result, volume.Usage{Label: label, Type: usage, Value: totalBytes})
+		result = append(result, volume.UsageInt{Label: label, Type: usage, Value: totalBytes})
 	}
 	return result
 }

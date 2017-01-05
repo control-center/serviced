@@ -245,3 +245,6 @@
 
 # A list of alias for this host, e.g., localhost.  Multiple values should be comma separated.
 # SERVICED_VHOST_ALIASES=
+
+# The frequency in seconds to report storage stats to opentsdb
+# SERVICED_STORAGE_REPORT_INTERVAL=30

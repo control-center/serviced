@@ -19,8 +19,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
+	"github.com/control-center/serviced/utils/iostat"
 	"github.com/zenoss/glog"
 )
 
@@ -29,6 +31,12 @@ type DriverInit func(root string, args []string) (Driver, error)
 
 // DriverType represents a driver type.
 type DriverType string
+
+type ioStatMap struct {
+	sync.RWMutex
+	Data    map[string]iostat.DeviceUtilizationReport
+	Running bool
+}
 
 type SnapshotInfo struct {
 	Name     string
@@ -49,6 +57,8 @@ const (
 var (
 	drivers       map[DriverType]DriverInit
 	driversByRoot map[string]Driver
+
+	lastIOStat ioStatMap
 
 	ErrInvalidDriverInit       = errors.New("invalid driver initializer")
 	ErrDriverNotInit           = errors.New("driver not initialized")
@@ -73,6 +83,9 @@ var (
 func init() {
 	drivers = make(map[DriverType]DriverInit)
 	driversByRoot = make(map[string]Driver)
+	lastIOStat = ioStatMap{
+		Data: make(map[string]iostat.DeviceUtilizationReport),
+	}
 }
 
 // Driver is the basic interface to the filesystem. It is able to create,
@@ -226,6 +239,73 @@ func GetDriver(root string) (Driver, error) {
 		return nil, ErrDriverNotInit
 	}
 	return driver, nil
+}
+
+// InitIOStat starts the iostat call and passes the close signal when sent
+func InitIOStat(getter iostat.Getter, closeChannel <-chan interface{}) {
+	lastIOStat.Lock()
+	if lastIOStat.Running {
+		glog.Warning("Tried to start iostat watch, but it's already running")
+		lastIOStat.Unlock()
+		return
+	}
+	lastIOStat.Running = true
+	lastIOStat.Unlock()
+
+	defer func() {
+		glog.Infof("IOStat watcher terminated")
+		lastIOStat.Lock()
+		lastIOStat.Running = false
+		lastIOStat.Unlock()
+	}()
+
+	for {
+		statCh, err := getter.GetIOStatsCh()
+		if err != nil {
+			retry := getter.GetStatInterval()
+			glog.Errorf("Error: \"%s\" starting iostat, trying again in %s", err, retry)
+			timer := time.NewTimer(retry)
+			select {
+			case <-closeChannel:
+				return
+			case <-timer.C:
+				continue
+			}
+		} else {
+			glog.Info("Started iostat watcher")
+		}
+
+		for badChannel := false; !badChannel; {
+			select {
+			case newStats := <-statCh:
+				if newStats == nil {
+					badChannel = true
+					retry := getter.GetStatInterval()
+					glog.Errorf("Iostat channel closed unexpectedly, restarting in %v", retry)
+					timer := time.NewTimer(retry)
+					select {
+					case <-closeChannel:
+						return
+					case <-timer.C:
+					}
+				} else {
+					lastIOStat.Lock()
+					lastIOStat.Data = newStats
+					lastIOStat.Unlock()
+				}
+			case <-closeChannel:
+				return
+			}
+		}
+
+	}
+}
+
+// GetLastIOStat returns the iostat device utilization reports
+func GetLastIOStat() map[string]iostat.DeviceUtilizationReport {
+	lastIOStat.RLock()
+	defer lastIOStat.RUnlock()
+	return lastIOStat.Data
 }
 
 // SplitPath splits a path by its driver and respective volume.  Returns
