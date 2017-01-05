@@ -72,8 +72,8 @@
               <td data-title="'public_endpoint_type'|translate" sortable="'type'">{{getEndpointType(publicEndpoint)}}</td>
               <td data-title="'public_endpoint_protocol'|translate">{{publicEndpoint.Protocol}}</td>
               <td data-title="'public_endpoint_url'|translate">
-                  <public-endpoint-link 
-                    data-public-endpoint="publicEndpoint" 
+                  <public-endpoint-link
+                    data-public-endpoint="publicEndpoint"
                     data-host-alias="defaultHostAlias"
                   ></public-endpoint-link>
               </td>
@@ -168,17 +168,17 @@
                 <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.model.Description}}">
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc() && !row.isDummy">
-                <div ng-if="!row.service.isIsvc()">
+                <div title="{{row.service.emergencyShutdown ? 'Service has been emergency shutdown': ''}}" ng-if="!row.service.isIsvc()">
                   <div ng-if="row.service.desiredState !== 2">
-                    <button ng-class="{disabled: row.service.desiredState === 1}" ng-click="clickRunning(row.service, 'start', true)" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(row.service, 'start')}" ng-click="clickRunning(row.service, 'start', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-play"></i>
                         <span translate>start</span>
                     </button>
-                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'stop', true)" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(row.service, 'stop')}" ng-click="clickRunning(row.service, 'stop', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-stop"></i>
                         <span translate>stop</span>
                     </button>
-                    <button ng-class="{disabled: row.service.desiredState === 0}" ng-click="clickRunning(row.service, 'restart', true)" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(row.service, 'restart')}" ng-click="clickRunning(row.service, 'restart', true)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>
@@ -195,7 +195,7 @@
     </div>
 
     <!-- Instances -->
-    <div ng-show="hasCurrentInstances() && !currentService.isIsvc()"> 
+    <div ng-show="hasCurrentInstances() && !currentService.isIsvc()">
         <h3 class="pull-left" translate>running_tbl_instances</h3>
         <table jelly-table data-data="currentService.instances" data-config="instancesTable" class="table">
             <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
@@ -234,9 +234,9 @@
     <br>
 
     <!-- Graphs -->
-    <graph-panel 
-        ng-if="currentService.monitoringProfile.GraphConfigs.length > 0" 
-        data-service-id="currentService.id" 
-        data-graph-configs="currentService.monitoringProfile.GraphConfigs" 
+    <graph-panel
+        ng-if="currentService.monitoringProfile.GraphConfigs.length > 0"
+        data-service-id="currentService.id"
+        data-graph-configs="currentService.monitoringProfile.GraphConfigs"
         class="infoWrapper graphPanel">
     </graph-panel>

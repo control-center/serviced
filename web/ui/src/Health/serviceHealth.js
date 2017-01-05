@@ -13,6 +13,8 @@
 	// Unknown means the instance hasn't checked in within the provided time
 	// limit.
 	const UNKNOWN = "unknown";
+  // EMERGENCY_SHUTDOWN means instance has been emergency shutdown
+  const EMERGENCY_SHUTDOWN = "emergency_shutdown";
 
     let serviceHealthModule = angular.module('serviceHealth', []);
 
@@ -22,7 +24,8 @@
         FAILED: FAILED,
         TIMEOUT: TIMEOUT,
         NOT_RUNNING: NOT_RUNNING,
-        UNKNOWN: UNKNOWN
+        UNKNOWN: UNKNOWN,
+        EMERGENCY_SHUTDOWN: EMERGENCY_SHUTDOWN
     });
 
     serviceHealthModule.factory("$serviceHealth", ["$translate",
@@ -93,6 +96,10 @@
                 service.id,
                 service.name,
                 service.desiredState);
+
+            if (service.emergencyShutdown) {
+                status.setEmergencyShutdown();
+            }
 
             // if instances were provided, evaluate their health
             instances.forEach(instance => {
@@ -193,6 +200,10 @@
 
             // distill this service's statusRollup into a single value
             evaluateStatus: function(){
+                if (this.status === EMERGENCY_SHUTDOWN) {
+                  this.description = $translate.instant("emergency_shutdown");
+                  return;
+                }
                 if(this.desiredState === 1){
                     // if any failing, bad!
                     if(this.statusRollup.anyFailed()){
@@ -251,6 +262,10 @@
                     });
                 }
                 this.evaluateStatus();
+            },
+
+            setEmergencyShutdown: function(){
+                this.status = EMERGENCY_SHUTDOWN;
             },
 
         };

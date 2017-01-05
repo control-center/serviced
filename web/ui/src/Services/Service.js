@@ -68,6 +68,7 @@
             this.name = model.Name;
             this.id = model.ID;
             this.desiredState = model.DesiredState;
+            this.emergencyShutdown = model.EmergencyShutdown;
             this.model = Object.freeze(model);
             this.evaluateServiceType();
             this.touch();
@@ -185,7 +186,7 @@
                     results.forEach(data => {
                         // new-ing instances will cause UI bounce and force rebuilding
                         // of the popover. To minimize UI churn, update/merge status info
-                        // into exisiting instance objects  
+                        // into exisiting instance objects
                         let iid = data.InstanceID;
                         if (this.instances[iid]) {
                             this.instances[iid].update(data);
@@ -390,7 +391,7 @@
         // kicks off request to update fast-moving instances and service state
         fetchAllStates() {
             return $q.all([
-                this.fetchInstances(), 
+                this.fetchInstances(),
                 this.getStatus(),
                 this.getEndpointStatuses()])
                 .then(results => {
@@ -407,6 +408,7 @@
 
             // update service status
             this.desiredState = myStatus.DesiredState;
+            this.emergencyShutdown = myStatus.EmergencyShutdown;
 
             // update public endpoints
             if(otherStatuses){

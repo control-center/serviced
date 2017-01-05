@@ -1286,6 +1286,10 @@ health-icon {
     color: #AAA;
     content: "\e082";
 }
+.emergency_shutdown>.healthIcon:before{
+    color: #9C1200;
+    content: "\e090";
+}
 
 h3 health-icon {
     top: 2px;

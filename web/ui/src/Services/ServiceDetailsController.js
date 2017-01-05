@@ -358,7 +358,7 @@
                                 0, onStartService,
                                 onStartServiceAndChildren);
                         });
-                    
+
                     // let the user know they gonna have to hold onto
                     // their horses for just one moment.
                     $modalService.modals.oneMoment();
@@ -701,7 +701,7 @@
                 };
 
                 // updates URL and current service ID
-                // which triggers UI update 
+                // which triggers UI update
                 $scope.routeToService = function (id, e) {
                     // if an event is present, we may
                     // need to prevent it from performing
@@ -943,7 +943,7 @@
                         }
                     });
                     $scope.serviceTreeState[$scope.currentService.id] = treeState;
-                    
+
                     $scope.updateTreeState();
                     $scope.currentTreeState = treeState;
 
@@ -1061,6 +1061,19 @@
                                 $scope.$root.$emit("ready");
                             }
                         });
+                };
+
+                $scope.shouldDisable = function(service, button) {
+                    if (button === 'start') {
+                        return service.desiredState === 1 ||
+                            service.emergencyShutdown;
+                    } else if (button === 'stop') {
+                        return service.desiredState === 0;
+                    } else if (button === 'restart') {
+                      return service.desiredState === 0 ||
+                          service.emergencyShutdown;
+                    }
+                    return false;
                 };
 
                 function refreshEndpoints() {
