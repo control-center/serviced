@@ -54,6 +54,7 @@ import (
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/utils/iostat"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
@@ -960,6 +961,7 @@ func (d *daemon) startAgent() error {
 			log.Debug("Registered local ControlCenterAgent RPC service")
 		}
 
+		// serviced stats (cpu, ram, etc)
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
@@ -968,17 +970,41 @@ func (d *daemon) startAgent() error {
 				"interval": options.StatsPeriod,
 			})
 			log.Debug("Starting container statistics reporting")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
+			servicedStatsReporter, err := stats.NewServicedStatsReporter(statsdest, statsduration, poolBasedConn, d.docker)
 			if err != nil {
 				log.WithError(err).Error("Unable to start reporting stats")
 			} else {
 				go func() {
-					defer statsReporter.Close()
+					defer servicedStatsReporter.Close()
 					<-d.shutdown
 					log.Info("Stopping stats reporting")
 				}()
 			}
 		}
+
+		// storage stats (thinpool, etc)
+		if options.Master {
+			storageStatsDest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+			storageStatsDuration := time.Second * time.Duration(options.StorageReportInterval)
+			log := log.WithFields(logrus.Fields{
+				"statsurl": storageStatsDest,
+				"interval": options.StorageReportInterval,
+			})
+			log.Debug("Starting storage statistics reporting")
+			storageStatsReporter, err := stats.NewStorageStatsReporter(storageStatsDest, storageStatsDuration)
+			if err != nil {
+				log.WithError(err).Error("Unable to start reporting stats")
+			} else {
+				go func() {
+					defer storageStatsReporter.Close()
+					<-d.shutdown
+					log.Info("Stopping stats reporting")
+				}()
+			}
+			reporter := iostat.NewReporter(time.Duration(options.StorageReportInterval)*time.Second, d.shutdown)
+			go volume.InitIOStat(reporter, d.shutdown)
+		}
+
 	}()
 
 	agentServer := agent.NewServer(d.staticIPs)
@@ -1074,6 +1100,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
+	f.SetServiceRunLevelTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)

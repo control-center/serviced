@@ -16,6 +16,8 @@
 package facade
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -66,6 +68,7 @@ func (ft *FacadeIntegrationTest) SetUpSuite(c *gocheck.C) {
 	ft.CTX = datastore.Get()
 
 	ft.Facade = New()
+	ft.Facade.SetServiceRunLevelTimeout(1 * time.Minute)
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockDFS()

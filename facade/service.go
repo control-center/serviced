@@ -1222,25 +1222,34 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		affected := 0
 		var errToReturn error = nil
 		if emergency {
-			// Sort the services by EmergencyShutdownLevel - 1
+			// Set EmergencyShutdown to true for all services and update the database
+			for _, svc := range svcs {
+				svc.EmergencyShutdown = true
+				uerr := f.updateService(ctx, tenantID, *svc, false, false)
+				if uerr != nil {
+					errToReturn = uerr
+					logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+				}
+			}
+
+			// Sort the services by emergency shutdown order
 			sort.Sort(service.ByEmergencyShutdown{svcs})
 
 			// Start one group at a time
 			if len(svcs) > 0 {
 				previousLevel := svcs[0].EmergencyShutdownLevel
+				previousStartLevel := svcs[0].StartLevel
 				nextBatch := []*service.Service{}
 				nextBatchIDs := []string{}
 				for _, svc := range svcs {
-					// Set EmergencyShutdown to true and update the database
-					svc.EmergencyShutdown = true
-					uerr := f.updateService(ctx, tenantID, *svc, false, false)
-					if uerr != nil {
-						errToReturn = uerr
-						logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-					}
-
 					currentLevel := svc.EmergencyShutdownLevel
-					if currentLevel == previousLevel {
+					currentStartLevel := svc.StartLevel
+					sameBatch := currentLevel == previousLevel
+					if sameBatch && currentLevel == 0 {
+						// For emergency shutdown level 0, we group by reverse start level
+						sameBatch = currentStartLevel == previousStartLevel
+					}
+					if sameBatch {
 						nextBatch = append(nextBatch, svc)
 						nextBatchIDs = append(nextBatchIDs, svc.ID)
 					} else {
@@ -1252,14 +1261,15 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 							errToReturn = serr
 							levelLogger.WithError(serr).Error("Error scheduling services to stop")
 						} else {
-							// Wait at most 10 minutesfor services to stop before continuing
-							f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+							// Wait for services to change state before continuing
+							f.WaitService(ctx, desiredState, f.serviceRunLevelTimeout, false, nextBatchIDs...)
 						}
 						affected += a
 						nextBatch = []*service.Service{svc}
 						nextBatchIDs = []string{svc.ID}
 					}
 					previousLevel = currentLevel
+					previousStartLevel = currentStartLevel
 				}
 
 				// Schedule the last batch
@@ -1270,8 +1280,8 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 					errToReturn = serr
 					levelLogger.WithError(serr).Error("Error scheduling services to stop")
 				} else {
-					// Wait at most 10 minutesfor services to stop before continuing
-					f.WaitService(ctx, desiredState, 10*time.Minute, false, nextBatchIDs...)
+					// Wait for services to change state before continuing
+					f.WaitService(ctx, desiredState, f.serviceRunLevelTimeout, false, nextBatchIDs...)
 				}
 				affected += a
 

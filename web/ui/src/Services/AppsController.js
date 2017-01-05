@@ -373,6 +373,23 @@
             });
         }
 
+
+        function fetchPoolUsage() {
+          resourcesFactory.getStorage().then(data => {
+            for (let [n, s] of data.entries()) {
+              s.MonitoringProfile.GraphConfigs.forEach(g => {
+                if (g.id === "storage.pool.data.usage") {
+                  // in the case where we have more than one entry in storage
+                  // we need our graph ids to be unique, so concat their index
+                  g.id += "." + String(n);
+                  $scope.graphConfigs.push(g);
+                }
+              });
+            }
+          });
+        }
+
+
         // poll for apps that are being deployed
         $scope.deployingServices = [];
         var lastPollResults = 0;
@@ -442,7 +459,7 @@
                 sorting: {
                     name: "asc"
                 },
-                searchColumns: ['name','model.Description', 'model.DeploymentID', 'model.PoolID'],                
+                searchColumns: ['name','model.Description', 'model.DeploymentID', 'model.PoolID'],
                 getData: function(data, params) {
                     // use built-in angular filter
                     var orderedData = params.sorting() ?
@@ -477,8 +494,12 @@
                 sorting: {
                     Name: "asc"
                 },
-                searchColumns: ['Name','ID', 'Description']               
+                searchColumns: ['Name','ID', 'Description']
             };
+
+            // get configurations for graphs
+            $scope.graphConfigs = [];
+            fetchPoolUsage();
 
             // Get a list of templates
             refreshTemplates();

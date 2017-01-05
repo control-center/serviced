@@ -178,6 +178,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		SnapshotSpacePercent:       cfg.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           cfg.IntVal("ZK_SESSION_TIMEOUT", 15),
 		TokenExpiration:            cfg.IntVal("AUTH_TOKEN_EXPIRATION", 60*60),
+		StorageReportInterval:      cfg.IntVal("STORAGE_REPORT_INTERVAL", 30),
+		ServiceRunLevelTimeout:     cfg.IntVal("RUN_LEVEL_TIMEOUT", 60),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")
