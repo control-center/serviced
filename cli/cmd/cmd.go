@@ -130,6 +130,8 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
 		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
+		cli.IntFlag{"service-run-level-timeout", defaultOps.ServiceRunLevelTimeout, "max time in seconds to wait for services to start/stop before moving on to services at the next run level"},
+
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
@@ -279,6 +281,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		StorageReportInterval:      ctx.GlobalInt("storage-report-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
+		ServiceRunLevelTimeout:     ctx.GlobalInt("service-run-level-timeout"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs

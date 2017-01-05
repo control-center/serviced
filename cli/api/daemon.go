@@ -1100,6 +1100,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
+	f.SetServiceRunLevelTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)
