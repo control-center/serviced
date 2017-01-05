@@ -198,4 +198,6 @@ type FacadeInterface interface {
 	EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
 
 	ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error)
+
+	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
 }

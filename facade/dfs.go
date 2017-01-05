@@ -665,6 +665,32 @@ func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageNam
 	return f.dfs.Override(newImageName, oldImageName)
 }
 
+// PredictStorageAvailability returns the predicted available storage after
+// a given period for the thin pool data device, the thin pool metadata device,
+// and each tenant filesystem.
+func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.PredictStorageAvailability"))
+
+	// First, get a list of all tenant IDs
+	var tenantIDs []string
+	tenants, err := f.serviceStore.GetServiceDetailsByParentID(ctx, "", 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tenants {
+		tenantIDs = append(tenantIDs, t.ID)
+	}
+
+	// Next, query metrics for our window
+	window := time.Hour // TODO: Configurable
+	perfdata, err := f.metricsClient.GetAvailableStorage(window, tenantIDs...)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(perfdata)
+	return nil, nil
+}
+
 // Interface to allow filtering DFS clients
 type DfsClientValidator interface {
 	ValidateClient(string) bool
