@@ -36,7 +36,7 @@ type StorageStatsReporter struct {
 func NewStorageStatsReporter(destination string, interval time.Duration) (*StorageStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		plog.WithError(err).Error("Could not determine host ID")
+		plog.WithError(err).Debug("Could not determine host ID")
 		return nil, err
 	}
 
@@ -88,7 +88,7 @@ func (sr StorageStatsReporter) updateStats() {
 					plog.WithFields(logrus.Fields{
 						"metric": metricName,
 						"type":   volumeUsage.GetType(),
-					}).WithError(err).Error("Error parsing volume usage")
+					}).WithError(err).Warn("Error parsing volume usage")
 				} else {
 					if metricName != "" {
 						metrics.GetOrRegisterGaugeFloat64(metricName, sr.storageRegistry).Update(valFloat64)
@@ -98,7 +98,7 @@ func (sr StorageStatsReporter) updateStats() {
 				plog.WithFields(logrus.Fields{
 					"metric": metricName,
 					"type":   volumeUsage.GetType(),
-				}).WithError(err).Error("Error parsing volume usage")
+				}).WithError(err).Warn("Error parsing volume usage")
 			} else {
 				if metricName != "" {
 					metrics.GetOrRegisterGauge(metricName, sr.storageRegistry).Update(int64(valUint64))

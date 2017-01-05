@@ -51,12 +51,12 @@ type registryKey struct {
 func NewServicedStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, dockerClient docker.Docker) (*ServicedStatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
-		plog.WithError(err).Error("Could not determine host ID")
+		plog.WithError(err).Debug("Could not determine host ID")
 		return nil, err
 	}
 	if conn == nil {
-		plog.Error("Received empty coordinator client connection")
-		return nil, fmt.Errorf("Coordinator client connection can not be nil")
+		plog.Debug("Received empty coordinator client connection")
+		return nil, fmt.Errorf("Coordinator client connection does not exist")
 	}
 	ssr := ServicedStatsReporter{
 		statsReporter: statsReporter{
@@ -215,7 +215,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 					plog.WithFields(logrus.Fields{
 						"totalCPU":         totalCPU,
 						"previousTotalCPU": previousTotalCPU,
-					}).Warn("Change in total CPU usage was nonpositive, skipping CPU stats update")
+					}).Debug("Change in total CPU usage was nonpositive, skipping CPU stats update")
 					usePreviousStats = false
 				} else {
 					totalCPUChange = totalCPU - previousTotalCPU
@@ -262,7 +262,7 @@ func (sr *ServicedStatsReporter) updateStats() {
 				plog.WithFields(logrus.Fields{
 					"serviceID":  rs.ServiceID,
 					"instanceID": rs.InstanceID,
-				}).Warn("Memory metric value too big for int64")
+				}).Debug("Memory metric value too big for int64")
 			}
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(pgFault)
 			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(totalRSS)
@@ -283,7 +283,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	loadavg, err := linux.ReadLoadavg()
 	if err != nil {
-		plog.WithError(err).Error("Could not read load avg")
+		plog.WithError(err).Warn("Could not read load avg")
 		return
 	}
 	metrics.GetOrRegisterGaugeFloat64("load.avg1m", sr.hostRegistry).Update(float64(loadavg.Avg1m))
@@ -294,7 +294,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	stat, err := linux.ReadStat()
 	if err != nil {
-		plog.WithError(err).Error("Could not read CPU stat")
+		plog.WithError(err).Warn("Could not read CPU stat")
 		return
 	}
 	metrics.GetOrRegisterGauge("cpu.user", sr.hostRegistry).Update(int64(stat.Cpu.User()))
@@ -312,7 +312,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	meminfo, err := linux.ReadMeminfo()
 	if err != nil {
-		plog.WithError(err).Error("Could not read memory info")
+		plog.WithError(err).Warn("Could not read memory info")
 		return
 	}
 	metrics.GetOrRegisterGauge("memory.total", sr.hostRegistry).Update(int64(meminfo.MemTotal))
@@ -327,7 +327,7 @@ func (sr *ServicedStatsReporter) updateHostStats() {
 
 	vmstat, err := linux.ReadVmstat()
 	if err != nil {
-		plog.WithError(err).Error("Could not read vmstat")
+		plog.WithError(err).Warn("Could not read vmstat")
 		return
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
