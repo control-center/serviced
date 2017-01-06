@@ -461,6 +461,13 @@ func (c *ServicedCli) initService() {
 					},
 				},
 			},
+			{
+				Name:         "clear-emergency",
+				Usage:        "Clears the 'emergency shutdown' state for a service and all child services",
+				Description:  "serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceClearEmergency,
+			},
 		},
 	})
 }
@@ -1542,4 +1549,29 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		}
 		t.Print()
 	}
+}
+
+// serviced service clear-emergency { SERVICEID | SERVICENAME | DEPLOYMENTID/...PARENTNAME.../SERVICENAME }
+func (c *ServicedCli) cmdServiceClearEmergency(ctx *cli.Context) {
+	// verify args
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "clear-emergency")
+		return
+	}
+
+	svc, _, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	count, err := c.driver.ClearEmergency(svc.ID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	fmt.Printf("Cleared emergency status for %d services\n", count)
 }

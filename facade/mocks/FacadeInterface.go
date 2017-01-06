@@ -1570,3 +1570,24 @@ func (_m *FacadeInterface) EmergencyStopService(ctx datastore.Context, request d
 
 	return r0, r1
 }
+
+// EmergencyStopService provides a mock function with given fields: ctx, serviceID
+func (_m *FacadeInterface) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) int); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

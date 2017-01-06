@@ -1184,6 +1184,34 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false, false)
 }
 
+func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, serviceID string) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.clearEmergencyStopFlag"))
+	svcs := []*service.Service{}
+	visitor := func(svc *service.Service) error {
+		if svc.EmergencyShutdown {
+			svcs = append(svcs, svc)
+		}
+		return nil
+	}
+	err := f.walkServices(ctx, serviceID, true, visitor, "clearEmergencyStopFlag")
+	if err != nil {
+		plog.WithError(err).Errorf("Could not retrieve service(s) to clear emergency stop flag")
+		return 0, err
+	}
+
+	cleared := 0
+	for _, svc := range svcs {
+		svc.EmergencyShutdown = false
+		err = f.updateService(ctx, tenantID, *svc, false, false)
+		if err != nil {
+			plog.WithField("service", svc.ID).WithError(err).Error("Failed to update database with EmergencyShutdown")
+		} else {
+			cleared++
+		}
+	}
+	return cleared, nil
+}
+
 func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool, emergency bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleService"))
 	logger := plog.WithFields(log.Fields{
@@ -1486,6 +1514,19 @@ func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.Schedul
 	mutex.RLock()
 	defer mutex.RUnlock()
 	return f.scheduleService(ctx, tenantID, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop, false, true)
+}
+
+// ClearEmergencyStopFlag sets EmergencyStop to false for all services on the tenant that have it set to true
+func (f *Facade) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ClearEmergencyStopFlag"))
+	tenantID, err := f.GetTenantID(ctx, serviceID)
+	if err != nil {
+		return 0, err
+	}
+	mutex := getTenantLock(tenantID)
+	mutex.RLock()
+	defer mutex.RUnlock()
+	return f.clearEmergencyStopFlag(ctx, tenantID, serviceID)
 }
 
 type ipinfo struct {

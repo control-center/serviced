@@ -101,3 +101,11 @@ func (c *Client) ResolveServicePath(path string) ([]service.ServiceDetails, erro
 	err := c.call("ResolveServicePath", path, &svcs)
 	return svcs, err
 }
+
+// ClearEmergency clears the EmergencyShutdown flag on a service and all child services
+// it returns the number of affected services
+func (c *Client) ClearEmergency(serviceID string) (int, error) {
+	affected := 0
+	err := c.call("ClearEmergency", serviceID, &affected)
+	return affected, err
+}

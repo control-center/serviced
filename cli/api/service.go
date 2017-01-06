@@ -410,3 +410,12 @@ func (a *api) ResolveServicePath(path string) ([]service.ServiceDetails, error) 
 	}
 	return client.ResolveServicePath(path)
 }
+
+func (a *api) ClearEmergency(serviceID string) (int, error) {
+	client, err := a.connectMaster()
+	if err != nil {
+		return 0, err
+	}
+
+	return client.ClearEmergency(serviceID)
+}

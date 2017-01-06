@@ -1766,6 +1766,100 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	waitServiceWG.Wait()
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
+	// add a service with 2 subservices and set EmergencyShutdown to true for all 3
+	svc := service.Service{
+		ID:                "ParentServiceID",
+		Name:              "ParentService",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         1,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: true,
+	}
+	childService1 := service.Service{
+		ID:                "childService1",
+		Name:              "childservice1",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: true,
+	}
+	childService2 := service.Service{
+		ID:                "childService2",
+		Name:              "childservice2",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: true,
+	}
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// Clear emergency stop on one child
+	count, err := ft.Facade.ClearEmergencyStopFlag(ft.CTX, "childService1")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 1)
+
+	// Make sure emergency stop is cleared for only that one service
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		if s.ID == "childService1" {
+			c.Assert(s.EmergencyShutdown, Equals, false)
+		} else {
+			c.Assert(s.EmergencyShutdown, Equals, true)
+		}
+	}
+
+	// clear emergency stop on the parent service
+	count, err = ft.Facade.ClearEmergencyStopFlag(ft.CTX, "ParentServiceID")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 2)
+
+	// Make sure emergency stop is cleared on all services
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, false)
+	}
+
+	// Clear emergency stop on a service that is already cleared
+	count, err = ft.Facade.ClearEmergencyStopFlag(ft.CTX, "ParentServiceID")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 0)
+
+	// Make sure emergency stop is still cleared on all services
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, false)
+	}
+}
+
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, false)
 }

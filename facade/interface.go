@@ -196,4 +196,6 @@ type FacadeInterface interface {
 	ReloadLogstashConfig(ctx datastore.Context) error
 
 	EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+
+	ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error)
 }
