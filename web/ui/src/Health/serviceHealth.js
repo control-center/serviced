@@ -97,10 +97,6 @@
                 service.name,
                 service.desiredState);
 
-            if (service.emergencyShutdown) {
-                status.setEmergencyShutdown();
-            }
-
             // if instances were provided, evaluate their health
             instances.forEach(instance => {
                 let instanceUniqueId = service.id +"."+ instance.model.InstanceID;
@@ -200,10 +196,6 @@
 
             // distill this service's statusRollup into a single value
             evaluateStatus: function(){
-                if (this.status === EMERGENCY_SHUTDOWN) {
-                  this.description = $translate.instant("emergency_shutdown");
-                  return;
-                }
                 if(this.desiredState === 1){
                     // if any failing, bad!
                     if(this.statusRollup.anyFailed()){
@@ -233,6 +225,11 @@
                             this.statusRollup.anyUnknown()){
                         this.status = UNKNOWN;
                         this.description = $translate.instant("stopping_service");
+
+                    // stuff is shutdown and emergency shutdown is flagged
+                    } else if(this.emergencyShutdown){
+                        this.status = EMERGENCY_SHUTDOWN;
+                        this.description = $translate.instant("emergency_shutdown");
 
                     // stuff is notRunning as expected
                     } else {
