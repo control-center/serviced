@@ -1250,15 +1250,6 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		affected := 0
 		var errToReturn error = nil
 		if emergency {
-			// Set EmergencyShutdown to true for all services and update the database
-			for _, svc := range svcs {
-				svc.EmergencyShutdown = true
-				uerr := f.updateService(ctx, tenantID, *svc, false, false)
-				if uerr != nil {
-					errToReturn = uerr
-					logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-				}
-			}
 
 			// Sort the services by emergency shutdown order
 			sort.Sort(service.ByEmergencyShutdown{svcs})
@@ -1280,6 +1271,14 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 					if sameBatch {
 						nextBatch = append(nextBatch, svc)
 						nextBatchIDs = append(nextBatchIDs, svc.ID)
+
+						// Set EmergencyShutdown to true for this service and update the database
+						svc.EmergencyShutdown = true
+						uerr := f.updateService(ctx, tenantID, *svc, false, false)
+						if uerr != nil {
+							errToReturn = uerr
+							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+						}
 					} else {
 						// Schedule this batch
 						levelLogger := logger.WithField("level", previousLevel)
@@ -1295,6 +1294,14 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 						affected += a
 						nextBatch = []*service.Service{svc}
 						nextBatchIDs = []string{svc.ID}
+
+						// Set EmergencyShutdown to true for this service and update the database
+						svc.EmergencyShutdown = true
+						uerr := f.updateService(ctx, tenantID, *svc, false, false)
+						if uerr != nil {
+							errToReturn = uerr
+							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+						}
 					}
 					previousLevel = currentLevel
 					previousStartLevel = currentStartLevel
