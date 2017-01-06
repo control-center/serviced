@@ -593,7 +593,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	err = client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected)
 	if err == facade.ErrEmergencyShutdownNoOp {
 		glog.Errorf("Error starting service: %s", err)
-		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusConflict)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
 		glog.Errorf("Unexpected error starting service: %s", err)
