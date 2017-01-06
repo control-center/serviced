@@ -684,7 +684,7 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 	}
 
 	// Next, query metrics for our window
-	window := time.Hour // TODO: Configurable
+	window := 5 * time.Minute // TODO: Configurable
 	perfdata, err := f.metricsClient.GetAvailableStorage(window, tenantIDs...)
 	if err != nil {
 		return nil, err

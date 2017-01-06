@@ -1003,6 +1003,7 @@ func (d *daemon) startAgent() error {
 			}
 			reporter := iostat.NewReporter(time.Duration(options.StorageReportInterval)*time.Second, d.shutdown)
 			go volume.InitIOStat(reporter, d.shutdown)
+			go d.startStorageMonitor()
 		}
 
 	}()
@@ -1130,6 +1131,31 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 		case <-d.shutdown:
 			return
 		case <-time.After(cycleTime):
+		}
+	}
+}
+
+func (d *daemon) startStorageMonitor() {
+	//options := config.GetOptions()
+	for {
+		lookahead := 10 * time.Minute
+		if avail, err := d.facade.PredictStorageAvailability(d.dsContext, lookahead); err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"lookahead": lookahead,
+			}).Warn("Unable to predict storage availability")
+		} else {
+			for k, v := range avail {
+				switch k {
+				case "pooldata", "poolmetadata":
+					log.Error("The application storage thin pool is predicted to be full soon. Application shutdown has been triggered.")
+					d.facade.EmergencyStopService(d.dsContext, nil)
+				}
+			}
+		}
+		select {
+		case <-d.shutdown:
+			return
+		case <-time.After(10 * time.Second): // TODO: Make this configurable
 		}
 	}
 }

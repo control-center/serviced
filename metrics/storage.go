@@ -88,14 +88,15 @@ func (c *Client) GetAvailableStorage(window time.Duration, tenants ...string) (*
 		Tenants: make(map[string]MetricSeries),
 	}
 	for _, result := range data.Results {
+		log.WithField("metric", result.Metric).Info("Checking metric")
+		fmt.Println(result.Metric)
 		switch result.Metric {
-		case "storage.pool.data.available":
+		case PoolDataAvailableName:
 			storagemetrics.PoolDataAvailable = DatapointsToSeries(result.Datapoints)
-		case "storage.pool.metadata.available":
+		case PoolMetadataAvailableName:
 			storagemetrics.PoolMetadataAvailable = DatapointsToSeries(result.Datapoints)
 		default:
-			tenantID := result.Metric[29:]
-			storagemetrics.Tenants[tenantID] = DatapointsToSeries(result.Datapoints)
+			storagemetrics.Tenants[result.Metric] = DatapointsToSeries(result.Datapoints)
 		}
 	}
 	return storagemetrics, nil
