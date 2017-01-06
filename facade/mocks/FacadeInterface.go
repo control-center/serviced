@@ -263,7 +263,7 @@ func (_m *FacadeInterface) DeployTemplateActive() ([]map[string]string, error) {
 	return r0, r1
 }
 
-// DeployTemplateStatus provides a mock function with given fields: deploymentID
+// DeployTemplateStatus provides a mock function with given fields: deploymentID, lastStatus, timeout
 func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (string, error) {
 	ret := _m.Called(deploymentID, lastStatus, timeout)
 
@@ -1211,6 +1211,29 @@ func (_m *FacadeInterface) MigrateServices(ctx datastore.Context, request dao.Se
 	}
 
 	return r0
+}
+
+// PredictStorageAvailability provides a mock function with given fields: ctx, lookahead
+func (_m *FacadeInterface) PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error) {
+	ret := _m.Called(ctx, lookahead)
+
+	var r0 map[string]float64
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) map[string]float64); ok {
+		r0 = rf(ctx, lookahead)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]float64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
+		r1 = rf(ctx, lookahead)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // RegisterHostKeys provides a mock function with given fields: ctx, entity, keys, prompt
