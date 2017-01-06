@@ -139,3 +139,14 @@ func (s *Server) ResolveServicePath(path string, response *[]service.ServiceDeta
 	*response = svcs
 	return nil
 }
+
+// ClearEmergency clears the EmergencyShutdown flag on a service and all child services
+// it returns the number of affected services
+func (s *Server) ClearEmergency(serviceID string, count *int) error {
+	c, err := s.f.ClearEmergencyStopFlag(s.context(), serviceID)
+	if err != nil {
+		return err
+	}
+	*count = c
+	return nil
+}
