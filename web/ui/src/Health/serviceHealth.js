@@ -13,8 +13,8 @@
 	// Unknown means the instance hasn't checked in within the provided time
 	// limit.
 	const UNKNOWN = "unknown";
-  // EMERGENCY_SHUTDOWN means instance has been emergency shutdown
-  const EMERGENCY_SHUTDOWN = "emergency_shutdown";
+    // EMERGENCY_SHUTDOWN means instance has been emergency shutdown
+    const EMERGENCY_SHUTDOWN = "emergency_shutdown";
 
     let serviceHealthModule = angular.module('serviceHealth', []);
 
