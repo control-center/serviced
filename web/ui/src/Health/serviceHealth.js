@@ -2,17 +2,17 @@
 (function() {
     'use strict';
 
-	// OK means health check is passing
-	const OK = "passed";
-	// Failed means health check is responsive, but failing
-	const FAILED = "failed";
-	// Timeout means health check is non-responsive in the given time
-	const TIMEOUT = "timeout";
-	// NotRunning means the instance is not running
-	const NOT_RUNNING = "not_running";
-	// Unknown means the instance hasn't checked in within the provided time
-	// limit.
-	const UNKNOWN = "unknown";
+    // OK means health check is passing
+    const OK = "passed";
+    // Failed means health check is responsive, but failing
+    const FAILED = "failed";
+    // Timeout means health check is non-responsive in the given time
+    const TIMEOUT = "timeout";
+    // NotRunning means the instance is not running
+    const NOT_RUNNING = "not_running";
+    // Unknown means the instance hasn't checked in within the provided time
+    // limit.
+    const UNKNOWN = "unknown";
     // EMERGENCY_SHUTDOWN means instance has been emergency shutdown
     const EMERGENCY_SHUTDOWN = "emergency_shutdown";
 
