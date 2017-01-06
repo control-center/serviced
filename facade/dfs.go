@@ -24,10 +24,12 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/statistics"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
@@ -687,8 +689,16 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(perfdata)
-	return nil, nil
+	result := make(map[string]float64)
+	predict := func(series metrics.MetricSeries) float64 {
+		return statistics.LeastSquaresPredictor.Predict(lookahead, series.X(), series.Y())
+	}
+	result["pooldata"] = predict(perfdata.PoolDataAvailable)
+	result["poolmetadata"] = predict(perfdata.PoolMetadataAvailable)
+	for tenant, series := range perfdata.Tenants {
+		result[tenant] = predict(series)
+	}
+	return result, nil
 }
 
 // Interface to allow filtering DFS clients
