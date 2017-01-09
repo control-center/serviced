@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -558,13 +559,22 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	err = client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected)
+	err = client.RestartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		glog.Errorf("Error starting service: %s", err)
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		glog.Errorf("Unexpected error starting service: %s", err)
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
 		restServerError(w, err)
 		return
 	}
@@ -590,13 +600,22 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected)
+	err = client.StartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		glog.Errorf("Error starting service: %s", err)
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		glog.Errorf("Unexpected error starting service: %s", err)
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
 		restServerError(w, err)
 		return
 	}
