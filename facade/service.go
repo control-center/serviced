@@ -41,6 +41,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 
 	"github.com/control-center/serviced/utils"
+	"sync"
 )
 
 const (
@@ -1345,8 +1346,44 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	return affected, err
 }
 
-func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string,
-	desiredState service.DesiredState) (int, error) {
+func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) (int, error) {
+	mutex := getTenantLock(tenantID)
+	mutex.RLock()
+	defer mutex.RUnlock()
+
+	logger := plog.WithFields(log.Fields{
+		"desiredstate": desiredState,
+	})
+	servicesToSchedule := make([]*service.Service, 0)
+	for _, svc := range svcs {
+		if svc.DesiredState == int(desiredState) {
+			continue
+		}
+		err := f.updateDesiredState(ctx, svc, desiredState)
+		if err != nil {
+			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error scheduling service")
+			return 0, err
+		}
+		if err := f.fillServiceAddr(ctx, svc); err != nil {
+			return 0, err
+		}
+		logger.WithFields(log.Fields{
+			"servicename": svc.Name,
+			"serviceid":   svc.ID,
+		}).Info("Scheduled service")
+		servicesToSchedule = append(servicesToSchedule, svc)
+	}
+
+	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
+		logger.WithError(err).Error("Could not sync service(s)")
+		return 0, err
+	}
+
+	logger.WithField("count", len(servicesToSchedule)).Debug("Finished scheduleServices")
+	return len(servicesToSchedule), nil
+}
+
+func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState) (int, error) {
 	logger := plog.WithFields(log.Fields{
 		"parentserviceid": serviceID,
 		"tenantid":        tenantID,
@@ -1385,7 +1422,7 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 	return len(servicesToSchedule), nil
 }
 
-func (f *Facade) updateDesiredState(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
+func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service, desiredState service.DesiredState) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	switch desiredState {
 	case service.SVCRestart:
@@ -1501,6 +1538,17 @@ func (f *Facade) ListTenants(ctx datastore.Context) ([]string, error) {
 		tenantIDs = append(tenantIDs, t.ID)
 	}
 	return tenantIDs, nil
+}
+
+// WaitServiceWithCancel waits for service/s to reach a particular desired state, or until canceled
+func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredState, cancel <-chan interface{}) error {
+	// error out if the desired state is invalid
+	if dstate.String() == "unknown" {
+		return fmt.Errorf("desired state unknown")
+	}
+
+	return f.zzk.WaitService(svc, dstate, cancel)
+
 }
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {

@@ -81,8 +81,7 @@ type Facade struct {
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 
-	isvcsPath              string
-	serviceRunLevelTimeout time.Duration
+	isvcsPath string
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }

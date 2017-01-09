@@ -48,6 +48,12 @@ func getTenantLock(tenantID string) (mutex *sync.RWMutex) {
 // that tenant
 func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.lockTenant"))
+
+	// Lock the Service state Manager and wait for the queue to empty
+	f.ssm.LockQueue()
+	defer f.ssm.UnlockQueue()
+	f.ssm.DrainQueue()
+
 	mutex := getTenantLock(tenantID)
 	mutex.Lock()
 	defer func() {
