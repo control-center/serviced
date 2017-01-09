@@ -1558,22 +1558,20 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 		}
 	}()
 
-	// Make sure the call was synchronous
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-methodReturned:
-		c.Fatalf("Method returned before services stopped on synchronous call")
-	case <-allDone:
-	case <-timer.C:
-		c.Fatalf("Timeout waiting for method to return")
-	}
-
+	// For a synchronous call, make sure the services are stopped before the method returns
 	// Wait for method to return
-	timer.Reset(10 * time.Second)
+	timer := time.NewTimer(10 * time.Second)
 	select {
 	case <-methodReturned:
 	case <-timer.C:
 		c.Fatalf("Timeout waiting for EmergencyStopService to return")
+	}
+
+	// Services must already be stopped
+	select {
+	case <-allDone:
+	default:
+		c.Fatalf("Method returned before services stopped on synchronous call")
 	}
 
 	// verify all services have EmergencyShutDown set to true
