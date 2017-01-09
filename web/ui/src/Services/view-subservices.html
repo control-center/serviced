@@ -32,7 +32,7 @@
                         <i class="glyphicon glyphicon-stop"></i>
                         <span translate>stop</span>
                     </button>
-                    <button ng-class="{disabled: shouldDisable(currentService, 'restart')}" ng-class="{disabled: currentService.desiredState === 0}" ng-click="clickRunning(currentService, 'restart')" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(currentService, 'restart')}" ng-click="clickRunning(currentService, 'restart')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>
