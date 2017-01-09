@@ -169,6 +169,40 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 	return &svc
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_emergencyShutdownFlagged(c *C) {
+	// successfully add address assignment, vhost, and port
+	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep1",
+		Application: "ep1",
+		Purpose:     "export",
+		AddressConfig: servicedefinition.AddressResourceConfig{
+			Port:     1234,
+			Protocol: "tcp",
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, ep1)
+	// set up an address assignment for ep1
+	err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{
+		PoolID:        svc.PoolID,
+		IP:            "192.168.22.12",
+		Netmask:       "255.255.255.0",
+		BindInterface: "eth0",
+	})
+	c.Assert(err, IsNil)
+	err = ft.Facade.AssignIPs(ft.CTX, addressassignment.AssignmentRequest{
+		ServiceID:      svc.ID,
+		AutoAssignment: false,
+		IPAddress:      "192.168.22.12",
+	})
+	c.Assert(err, IsNil)
+	ft.zzk.On("GetVHost", "vh1").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil)
+	// Make service have EmergencyShutdown flagged
+	svc.EmergencyShutdown = true
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
 	// set up the endpoint with a missing address assignment
 	endpoint := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
@@ -1477,9 +1511,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// This channel is closed when the last service is stopped
-	allDone := make(chan interface{})
 	go func() {
-		defer close(allDone)
 		// svc should be the last service stopped
 		timer := time.NewTimer(10 * time.Second)
 		select {
@@ -1516,30 +1548,15 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// emergency stop the parent synchronously
-	methodReturned := make(chan interface{})
-	go func() {
-		defer close(methodReturned)
-		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
-			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
-		}
-	}()
-
-	// Make sure the call was synchronous
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-methodReturned:
-		c.Fatalf("Method returned before services stopped on synchronous call")
-	case <-allDone:
-	case <-timer.C:
-		c.Fatalf("Timeout waiting for method to return")
+	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 	}
 
-	// Wait for method to return
-	timer.Reset(10 * time.Second)
+	// For a synchronous call, make sure the services are stopped before the method returns
 	select {
-	case <-methodReturned:
-	case <-timer.C:
-		c.Fatalf("Timeout waiting for EmergencyStopService to return")
+	case <-stoppedChannels["ParentServiceID"]:
+	default:
+		c.Fatalf("Method returned before services stopped on synchronous call")
 	}
 
 	// verify all services have EmergencyShutDown set to true
@@ -1668,9 +1685,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	}()
 
 	// This channel is closed when the last service is stopped
-	allDone := make(chan interface{})
 	go func() {
-		defer close(allDone)
 		// svc should be the last service stopped
 		timer := time.NewTimer(10 * time.Second)
 		select {
@@ -1706,7 +1721,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	timer := time.NewTimer(10 * time.Second)
 	select {
 	case <-methodReturned:
-	case <-allDone:
+	case <-stoppedChannels["ParentServiceID"]:
 		c.Fatalf("Services stopped before method returned on asynchronous call")
 	case <-timer.C:
 		c.Fatalf("Timeout waiting for method to return")
@@ -1715,7 +1730,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	// Wait for services to stop
 	timer.Reset(10 * time.Second)
 	select {
-	case <-allDone:
+	case <-stoppedChannels["ParentServiceID"]:
 	case <-timer.C:
 		c.Fatalf("Timeout waiting for all services to stop")
 	}

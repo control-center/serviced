@@ -114,6 +114,7 @@
     "download": "Download",
     "edit_context": "Edit Variables",
     "endpoint": "Endpoint",
+    "emergency_shutdown": "Emergency Shutdown",
     "entry_content": "",
     "error": "Error",
     "failing_health_checks": "Failing Health Checks",

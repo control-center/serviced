@@ -2,17 +2,19 @@
 (function() {
     'use strict';
 
-	// OK means health check is passing
-	const OK = "passed";
-	// Failed means health check is responsive, but failing
-	const FAILED = "failed";
-	// Timeout means health check is non-responsive in the given time
-	const TIMEOUT = "timeout";
-	// NotRunning means the instance is not running
-	const NOT_RUNNING = "not_running";
-	// Unknown means the instance hasn't checked in within the provided time
-	// limit.
-	const UNKNOWN = "unknown";
+    // OK means health check is passing
+    const OK = "passed";
+    // Failed means health check is responsive, but failing
+    const FAILED = "failed";
+    // Timeout means health check is non-responsive in the given time
+    const TIMEOUT = "timeout";
+    // NotRunning means the instance is not running
+    const NOT_RUNNING = "not_running";
+    // Unknown means the instance hasn't checked in within the provided time
+    // limit.
+    const UNKNOWN = "unknown";
+    // EMERGENCY_SHUTDOWN means instance has been emergency shutdown
+    const EMERGENCY_SHUTDOWN = "emergency_shutdown";
 
     let serviceHealthModule = angular.module('serviceHealth', []);
 
@@ -22,7 +24,8 @@
         FAILED: FAILED,
         TIMEOUT: TIMEOUT,
         NOT_RUNNING: NOT_RUNNING,
-        UNKNOWN: UNKNOWN
+        UNKNOWN: UNKNOWN,
+        EMERGENCY_SHUTDOWN: EMERGENCY_SHUTDOWN
     });
 
     serviceHealthModule.factory("$serviceHealth", ["$translate",
@@ -43,7 +46,8 @@
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
-                    service.desiredState);
+                    service.desiredState,
+                    service.emergencyShutdown);
 
                 // refresh list of instances
                 // TODO - this "if" is a workaround for old servicesFactory
@@ -60,7 +64,8 @@
                     instanceStatus = new Status(
                         instanceUniqueId,
                         service.name +" "+ instance.model.InstanceID,
-                        service.desiredState);
+                        service.desiredState,
+                        service.emergencyShutdown);
 
                     // evalute instance healthchecks and roll em up
                     instanceStatus.evaluateHealthChecks(instance.healthChecks);
@@ -92,7 +97,8 @@
             status = new Status(
                 service.id,
                 service.name,
-                service.desiredState);
+                service.desiredState,
+                service.emergencyShutdown);
 
             // if instances were provided, evaluate their health
             instances.forEach(instance => {
@@ -100,7 +106,8 @@
                 let instanceStatus = new Status(
                     instanceUniqueId,
                     service.name +" "+ instance.model.InstanceID,
-                    service.desiredState);
+                    service.desiredState,
+                    service.emergencyShutdown);
 
                 // evalute instance healthchecks and roll em up
                 instanceStatus.evaluateHealthChecks(instance.healthChecks);
@@ -176,10 +183,11 @@
             }
         };
 
-        function Status(id, name, desiredState){
+        function Status(id, name, desiredState, emergencyShutdown){
             this.id = id;
             this.name = name;
             this.desiredState = desiredState;
+            this.emergencyShutdown = emergencyShutdown;
 
             this.statusRollup = new StatusRollup();
             this.children = [];
@@ -223,6 +231,11 @@
                         this.status = UNKNOWN;
                         this.description = $translate.instant("stopping_service");
 
+                    // stuff is shutdown and emergency shutdown is flagged
+                    } else if(this.emergencyShutdown){
+                        this.status = EMERGENCY_SHUTDOWN;
+                        this.description = $translate.instant("emergency_shutdown");
+
                     // stuff is notRunning as expected
                     } else {
                         this.status = NOT_RUNNING;
@@ -263,7 +276,7 @@
 
                 // if no status found, return unknown
                 if(!status){
-                    status = new Status(id, UNKNOWN, 0);
+                    status = new Status(id, UNKNOWN, 0, false);
                     status.evaluateStatus();
                 }
 

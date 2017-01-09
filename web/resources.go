@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -557,8 +559,22 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
-		glog.Errorf("Unexpected error restarting service: %s", err)
+	err = client.RestartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
 		restServerError(w, err)
 		return
 	}
@@ -584,8 +600,22 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
-		glog.Errorf("Unexpected error starting service: %s", err)
+	err = client.StartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
 		restServerError(w, err)
 		return
 	}

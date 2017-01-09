@@ -58,6 +58,7 @@ var (
 	ErrTenantDoesNotMatch       = errors.New("facade: service tenants do not match")
 	ErrServiceMissingAssignment = errors.New("facade: service is missing an address assignment")
 	ErrServiceDuplicateEndpoint = errors.New("facade: duplicate endpoint found")
+	ErrEmergencyShutdownNoOp    = errors.New("Cannot perform operation; Service has Emergency Shutdown flag set")
 )
 
 // AddService adds a service; return error if service already exists
@@ -445,6 +446,9 @@ func (f *Facade) validateServiceTenant(ctx datastore.Context, serviceA, serviceB
 // start.
 func (f *Facade) validateServiceStart(ctx datastore.Context, svc *service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.validateServiceStart"))
+	if svc.EmergencyShutdown {
+		return ErrEmergencyShutdownNoOp
+	}
 	// ensure that all endpoints are available
 	for _, ep := range svc.Endpoints {
 		if ep.IsConfigurable() {
@@ -1245,15 +1249,6 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		affected := 0
 		var errToReturn error = nil
 		if emergency {
-			// Set EmergencyShutdown to true for all services and update the database
-			for _, svc := range svcs {
-				svc.EmergencyShutdown = true
-				uerr := f.updateService(ctx, tenantID, *svc, false, false)
-				if uerr != nil {
-					errToReturn = uerr
-					logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-				}
-			}
 
 			// Sort the services by emergency shutdown order
 			sort.Sort(service.ByEmergencyShutdown{svcs})
@@ -1275,6 +1270,14 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 					if sameBatch {
 						nextBatch = append(nextBatch, svc)
 						nextBatchIDs = append(nextBatchIDs, svc.ID)
+
+						// Set EmergencyShutdown to true for this service and update the database
+						svc.EmergencyShutdown = true
+						uerr := f.updateService(ctx, tenantID, *svc, false, false)
+						if uerr != nil {
+							errToReturn = uerr
+							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+						}
 					} else {
 						// Schedule this batch
 						levelLogger := logger.WithField("level", previousLevel)
@@ -1290,6 +1293,14 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 						affected += a
 						nextBatch = []*service.Service{svc}
 						nextBatchIDs = []string{svc.ID}
+
+						// Set EmergencyShutdown to true for this service and update the database
+						svc.EmergencyShutdown = true
+						uerr := f.updateService(ctx, tenantID, *svc, false, false)
+						if uerr != nil {
+							errToReturn = uerr
+							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+						}
 					}
 					previousLevel = currentLevel
 					previousStartLevel = currentStartLevel

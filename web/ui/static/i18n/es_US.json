@@ -114,6 +114,7 @@
     "download": "Descargar",
     "edit_context": "Ajustes de contexto",
     "endpoint": "Punto de destino",
+    "emergency_shutdown": "Parada de emergencia",
     "entry_content": "",
     "error": "Error",
     "failing_health_checks": "Instancias estan fallando",

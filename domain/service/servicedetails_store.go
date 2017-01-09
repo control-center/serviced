@@ -200,14 +200,14 @@ func (s *storeImpl) GetServiceDetailsByIDOrName(ctx datastore.Context, query str
 	for _, r := range []rune(query) {
 		if unicode.IsLetter(r) {
 			regex[idx] = '['
-			regex[idx + 1] = unicode.ToLower(r)
-			regex[idx + 2] = unicode.ToUpper(r)
-			regex[idx + 3] = ']'
+			regex[idx+1] = unicode.ToLower(r)
+			regex[idx+2] = unicode.ToUpper(r)
+			regex[idx+3] = ']'
 			idx += 4
 		} else if isRegexReservedChar(r) {
 			// Escape all reserved characters
 			regex[idx] = '\\'
-			regex[idx + 1] = r
+			regex[idx+1] = r
 			idx += 2
 		} else {
 			// anything else should be usable as is
@@ -348,8 +348,8 @@ func (s *storeImpl) GetAllIPAssignments(ctx datastore.Context) ([]BaseIPAssignme
 				"must": []map[string]interface{}{
 					map[string]interface{}{
 						"range": map[string]interface{}{
-							"Endpoints.AddressConfig.Port":  map[string]interface{}{
-								"gt": 0,
+							"Endpoints.AddressConfig.Port": map[string]interface{}{
+								"gt":  0,
 								"lte": 65535, // largest valid port is 65535 (unsigned 16-bit int)
 							},
 						},
@@ -480,9 +480,9 @@ func createIPAssignment(result EndpointQueryResult) []BaseIPAssignment {
 			ServiceName:     result.Name,
 			PoolID:          result.PoolID,
 
-			Application:     ep.Application,
-			EndpointName:    ep.Name,
-			Port:            ep.AddressConfig.Port,
+			Application:  ep.Application,
+			EndpointName: ep.Name,
+			Port:         ep.AddressConfig.Port,
 		}
 		ipAssignments = append(ipAssignments, assignment)
 
@@ -528,6 +528,7 @@ var serviceDetailsFields = []string{
 	"DeploymentID",
 	"Launch",
 	"Tags",
+	"EmergencyShutdown",
 }
 
 var serviceEndpointFields = []string{
