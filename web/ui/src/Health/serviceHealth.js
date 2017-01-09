@@ -46,7 +46,8 @@
                 serviceStatus = new Status(
                     serviceId,
                     service.name,
-                    service.desiredState);
+                    service.desiredState,
+                    service.emergencyShutdown);
 
                 // refresh list of instances
                 // TODO - this "if" is a workaround for old servicesFactory
@@ -63,7 +64,8 @@
                     instanceStatus = new Status(
                         instanceUniqueId,
                         service.name +" "+ instance.model.InstanceID,
-                        service.desiredState);
+                        service.desiredState,
+                        service.emergencyShutdown);
 
                     // evalute instance healthchecks and roll em up
                     instanceStatus.evaluateHealthChecks(instance.healthChecks);
@@ -95,7 +97,8 @@
             status = new Status(
                 service.id,
                 service.name,
-                service.desiredState);
+                service.desiredState,
+                service.emergencyShutdown);
 
             // if instances were provided, evaluate their health
             instances.forEach(instance => {
@@ -103,7 +106,8 @@
                 let instanceStatus = new Status(
                     instanceUniqueId,
                     service.name +" "+ instance.model.InstanceID,
-                    service.desiredState);
+                    service.desiredState,
+                    service.emergencyShutdown);
 
                 // evalute instance healthchecks and roll em up
                 instanceStatus.evaluateHealthChecks(instance.healthChecks);
@@ -179,10 +183,11 @@
             }
         };
 
-        function Status(id, name, desiredState){
+        function Status(id, name, desiredState, emergencyShutdown){
             this.id = id;
             this.name = name;
             this.desiredState = desiredState;
+            this.emergencyShutdown = emergencyShutdown;
 
             this.statusRollup = new StatusRollup();
             this.children = [];
@@ -261,10 +266,6 @@
                 this.evaluateStatus();
             },
 
-            setEmergencyShutdown: function(){
-                this.status = EMERGENCY_SHUTDOWN;
-            },
-
         };
 
         return {
@@ -275,7 +276,7 @@
 
                 // if no status found, return unknown
                 if(!status){
-                    status = new Status(id, UNKNOWN, 0);
+                    status = new Status(id, UNKNOWN, 0, false);
                     status.evaluateStatus();
                 }
 

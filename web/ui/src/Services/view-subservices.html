@@ -24,15 +24,15 @@
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
                 <div ng-if="currentService.desiredState !== 2" style="display: inline-block;">
-                    <button ng-click="clickRunning(currentService, 'start')" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(currentService, 'start')}" ng-click="clickRunning(currentService, 'start')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-play"></i>
                         <span translate>start</span>
                     </button>
-                    <button ng-click="clickRunning(currentService, 'stop')" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(currentService, 'stop')}" ng-click="clickRunning(currentService, 'stop')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-stop"></i>
                         <span translate>stop</span>
                     </button>
-                    <button ng-class="{disabled: currentService.desiredState === 0}" ng-click="clickRunning(currentService, 'restart')" class="btn btn-link action">
+                    <button ng-class="{disabled: shouldDisable(currentService, 'restart')}" ng-class="{disabled: currentService.desiredState === 0}" ng-click="clickRunning(currentService, 'restart')" class="btn btn-link action">
                         <i class="glyphicon glyphicon-refresh"></i>
                         <span translate>action_restart</span>
                     </button>
