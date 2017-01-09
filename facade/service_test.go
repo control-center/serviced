@@ -1511,9 +1511,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// This channel is closed when the last service is stopped
-	allDone := make(chan interface{})
 	go func() {
-		defer close(allDone)
 		// svc should be the last service stopped
 		timer := time.NewTimer(10 * time.Second)
 		select {
@@ -1550,26 +1548,13 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// emergency stop the parent synchronously
-	methodReturned := make(chan interface{})
-	go func() {
-		defer close(methodReturned)
-		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
-			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
-		}
-	}()
-
-	// For a synchronous call, make sure the services are stopped before the method returns
-	// Wait for method to return
-	timer := time.NewTimer(10 * time.Second)
-	select {
-	case <-methodReturned:
-	case <-timer.C:
-		c.Fatalf("Timeout waiting for EmergencyStopService to return")
+	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 	}
 
-	// Services must already be stopped
+	// For a synchronous call, make sure the services are stopped before the method returns
 	select {
-	case <-allDone:
+	case <-stoppedChannels["ParentServiceID"]:
 	default:
 		c.Fatalf("Method returned before services stopped on synchronous call")
 	}
@@ -1700,9 +1685,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	}()
 
 	// This channel is closed when the last service is stopped
-	allDone := make(chan interface{})
 	go func() {
-		defer close(allDone)
 		// svc should be the last service stopped
 		timer := time.NewTimer(10 * time.Second)
 		select {
@@ -1738,7 +1721,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	timer := time.NewTimer(10 * time.Second)
 	select {
 	case <-methodReturned:
-	case <-allDone:
+	case <-stoppedChannels["ParentServiceID"]:
 		c.Fatalf("Services stopped before method returned on asynchronous call")
 	case <-timer.C:
 		c.Fatalf("Timeout waiting for method to return")
@@ -1747,7 +1730,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	// Wait for services to stop
 	timer.Reset(10 * time.Second)
 	select {
-	case <-allDone:
+	case <-stoppedChannels["ParentServiceID"]:
 	case <-timer.C:
 		c.Fatalf("Timeout waiting for all services to stop")
 	}
