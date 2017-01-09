@@ -261,5 +261,5 @@
 # SERVICED_STORAGE_LOOKAHEAD_PERIOD=600
 
 # The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
-# SERVICED_STORAGE_MIN_FREE=5G
+# SERVICED_STORAGE_MIN_FREE=1G
 

@@ -1153,7 +1153,7 @@ func (d *daemon) startStorageMonitor() {
 					"value": options.StorageMinimumFreeSpace,
 				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
 				// TODO: Change this when we update the default
-				minfree, _ = units.RAMInBytes("5G")
+				minfree, _ = units.RAMInBytes("1G")
 			}
 			tenants := []string{}
 		CheckMetrics:
