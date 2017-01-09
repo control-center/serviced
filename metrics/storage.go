@@ -55,6 +55,8 @@ type StorageMetrics struct {
 }
 
 func (c *Client) GetAvailableStorage(window time.Duration, tenants ...string) (*StorageMetrics, error) {
+	log.WithField("tenants", tenants).Debug("Requesting storage availability metrics")
+
 	options := PerformanceOptions{
 		Start:     time.Now().UTC().Add(-window).Format(timeFormat),
 		End:       "now",
@@ -82,14 +84,13 @@ func (c *Client) GetAvailableStorage(window time.Duration, tenants ...string) (*
 	options.Metrics = metrics
 	data, err := c.performanceQuery(options)
 	if err != nil {
+		log.WithError(err).WithField("options", options).Debug("Storage availability metric query failed")
 		return nil, err
 	}
 	storagemetrics := &StorageMetrics{
 		Tenants: make(map[string]MetricSeries),
 	}
 	for _, result := range data.Results {
-		log.WithField("metric", result.Metric).Info("Checking metric")
-		fmt.Println(result.Metric)
 		switch result.Metric {
 		case PoolDataAvailableName:
 			storagemetrics.PoolDataAvailable = DatapointsToSeries(result.Datapoints)

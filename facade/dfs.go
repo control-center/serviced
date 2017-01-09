@@ -691,8 +691,8 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 	predict := func(series metrics.MetricSeries) float64 {
 		return statistics.LeastSquaresPredictor.Predict(lookahead, series.X(), series.Y())
 	}
-	result["pooldata"] = predict(perfdata.PoolDataAvailable)
-	result["poolmetadata"] = predict(perfdata.PoolMetadataAvailable)
+	result[metrics.PoolDataAvailableName] = predict(perfdata.PoolDataAvailable)
+	result[metrics.PoolMetadataAvailableName] = predict(perfdata.PoolMetadataAvailable)
 	for tenant, series := range perfdata.Tenants {
 		result[tenant] = predict(series)
 	}
