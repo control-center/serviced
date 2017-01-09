@@ -1479,6 +1479,19 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 	return nil
 }
 
+func (f *Facade) ListTenants(ctx datastore.Context) ([]string, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ListTenants"))
+	var tenantIDs []string
+	tenants, err := f.serviceStore.GetServiceDetailsByParentID(ctx, "", 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tenants {
+		tenantIDs = append(tenantIDs, t.ID)
+	}
+	return tenantIDs, nil
+}
+
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRun)

@@ -246,8 +246,20 @@
 # A list of alias for this host, e.g., localhost.  Multiple values should be comma separated.
 # SERVICED_VHOST_ALIASES=
 
+# The max amount of time, in seconds, to wait for services to start/stop before starting/stopping services at the next run level
+# SERVICED_RUN_LEVEL_TIMEOUT=60
+
 # The frequency in seconds to report storage stats to opentsdb
 # SERVICED_STORAGE_REPORT_INTERVAL=30
 
-# The max amount of time, in seconds, to wait for services to start/stop before starting/stopping services at the next run level
-# SERVICED_RUN_LEVEL_TIMEOUT=60
+# The amount of time in seconds for which serviced will consider storage
+# availability metrics in order to predict future availability
+# SERVICED_STORAGE_METRIC_MONITOR_WINDOW=120
+
+# The amount of time in the future in seconds serviced should predict storage
+# availability for the purposes of emergency shutdown
+# SERVICED_STORAGE_LOOKAHEAD_PERIOD=600
+
+# The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
+# SERVICED_STORAGE_MIN_FREE=5G
+

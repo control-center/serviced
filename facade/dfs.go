@@ -25,6 +25,7 @@ import (
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/statistics"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -672,19 +673,16 @@ func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageNam
 // and each tenant filesystem.
 func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.PredictStorageAvailability"))
+	options := config.GetOptions()
 
 	// First, get a list of all tenant IDs
-	var tenantIDs []string
-	tenants, err := f.serviceStore.GetServiceDetailsByParentID(ctx, "", 0)
+	tenantIDs, err := f.ListTenants(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range tenants {
-		tenantIDs = append(tenantIDs, t.ID)
-	}
 
 	// Next, query metrics for our window
-	window := 5 * time.Minute // TODO: Configurable
+	window := time.Duration(options.StorageMetricMonitorWindow) * time.Second
 	perfdata, err := f.metricsClient.GetAvailableStorage(window, tenantIDs...)
 	if err != nil {
 		return nil, err

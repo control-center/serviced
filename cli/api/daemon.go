@@ -58,6 +58,7 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
+	"github.com/docker/go-units"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -1136,26 +1137,69 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 }
 
 func (d *daemon) startStorageMonitor() {
-	//options := config.GetOptions()
+	options := config.GetOptions()
 	for {
-		lookahead := 10 * time.Minute
+		lookahead := time.Duration(options.StorageLookaheadPeriod) * time.Second
 		if avail, err := d.facade.PredictStorageAvailability(d.dsContext, lookahead); err != nil {
 			log.WithError(err).WithFields(logrus.Fields{
 				"lookahead": lookahead,
 			}).Warn("Unable to predict storage availability")
 		} else {
+			minfree, err := units.RAMInBytes(options.StorageMinimumFreeSpace)
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"value": options.StorageMinimumFreeSpace,
+				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
+				// TODO: Change this when we update the default
+				minfree, _ = units.RAMInBytes("5G")
+			}
+			tenants := []string{}
 			for k, v := range avail {
 				switch k {
 				case "pooldata", "poolmetadata":
-					log.Error("The application storage thin pool is predicted to be full soon. Application shutdown has been triggered.")
-					d.facade.EmergencyStopService(d.dsContext, nil)
+					if v < float64(minfree) {
+						t, err := d.facade.ListTenants(d.dsContext)
+						if err != nil {
+							log.WithError(err).Error("Unable to look up tenants to shut them down")
+							// TODO: What do we do in this scenario?
+						}
+						tenants = append(tenants, t...)
+					}
+				default:
+					// This is an individual tenant
+					if v < float64(minfree) {
+						tenants = append(tenants, k)
+					}
+				}
+				for _, tenant := range tenants {
+					log := log.WithFields(logrus.Fields{
+						"service": tenant,
+					})
+					svc, _ := d.facade.GetService(d.dsContext, tenant)
+					if svc != nil && svc.EmergencyShutdown {
+						// Nothing to do here, it's already shut down
+						continue
+					}
+					log.WithFields(logrus.Fields{
+						"prediction": avail[tenant],
+						"period":     lookahead,
+					}).Error("Application storage will be full within the configured period")
+					if n, err := d.facade.EmergencyStopService(d.dsContext, dao.ScheduleServiceRequest{
+						ServiceID:   tenant,
+						AutoLaunch:  false,
+						Synchronous: true,
+					}); err != nil {
+						log.WithError(err).Error("Unable to perform emergency shutdown of application")
+					} else {
+						log.WithField("numservices", n).Info("Emergency shutdown initiated")
+					}
 				}
 			}
 		}
 		select {
 		case <-d.shutdown:
 			return
-		case <-time.After(10 * time.Second): // TODO: Make this configurable
+		case <-time.After(time.Duration(options.StorageReportInterval) * time.Second / 2): // TODO: Some better way of doing this?
 		}
 	}
 }
