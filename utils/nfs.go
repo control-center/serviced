@@ -3,15 +3,18 @@ package utils
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 
 	"github.com/zenoss/glog"
 )
+
+var noChildProcessesRegex = regexp.MustCompile("^wait(id)?: no child processes$")
 
 func IsNFSMountStale(mountpoint string) bool {
 	// See http://stackoverflow.com/questions/17612004/linux-shell-script-how-to-detect-nfs-mount-point-or-the-server-is-dead
 	// for explanation of the following command.
 	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
-		if err.Error() == "waitid: no child processes" {
+		if noChildProcessesRegex.MatchString(err.Error()) {
 			glog.V(2).Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
 			return false
 		}
