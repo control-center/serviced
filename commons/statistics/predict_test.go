@@ -15,11 +15,19 @@ func (s *StatisticsSuite) TestLeastSquaresPredictor(c *C) {
 
 	// A constant value
 	m, b = 0, 4
-	val := LeastSquaresPredictor.Predict(20*time.Minute, ts, ycoords(ts, m, b))
+	val, err := LeastSquaresPredictor.Predict(20*time.Minute, ts, ycoords(ts, m, b))
 	c.Assert(val, RoughlyEquals, 4.0)
+	c.Assert(err, IsNil)
 
 	// A line with slope 1 (x=y)
 	m, b = 1, 0
-	val = LeastSquaresPredictor.Predict(time.Minute, ts, ycoords(ts, m, b))
+	val, err = LeastSquaresPredictor.Predict(time.Minute, ts, ycoords(ts, m, b))
 	c.Assert(val, RoughlyEquals, now+60)
+	c.Assert(err, IsNil)
+
+	// Insufficient data
+	ts2 := []float64{}
+	val, err = LeastSquaresPredictor.Predict(time.Minute, ts2, ts2)
+	c.Assert(val, Equals, zeroFloat)
+	c.Assert(err, Equals, ErrInsufficientData)
 }

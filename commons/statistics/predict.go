@@ -26,18 +26,21 @@ var (
 type Predictor interface {
 	// Predict uses the timestamp/value pairs passed in to predict the value at
 	// time now+period
-	Predict(period time.Duration, timestamps, values []float64) float64
+	Predict(period time.Duration, timestamps, values []float64) (float64, error)
 }
 
 type olsPredictor struct{}
 
-func (p *olsPredictor) Predict(period time.Duration, timestamps, values []float64) float64 {
+func (p *olsPredictor) Predict(period time.Duration, timestamps, values []float64) (float64, error) {
 	// Get the timestamp for which we're going to predict the value
 	then := float64(time.Now().UTC().Add(period).Unix())
 
 	// Use least squares to find the line of best fit
-	m, b := LeastSquares(timestamps, values)
+	m, b, err := LeastSquares(timestamps, values)
+	if err != nil {
+		return 0, err
+	}
 
 	// Get the predicted future value using the line
-	return then*m + b
+	return then*m + b, nil
 }

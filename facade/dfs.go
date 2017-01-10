@@ -688,13 +688,19 @@ func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead tim
 		return nil, err
 	}
 	result := make(map[string]float64)
-	predict := func(series metrics.MetricSeries) float64 {
+	predict := func(series metrics.MetricSeries) (float64, error) {
 		return statistics.LeastSquaresPredictor.Predict(lookahead, series.X(), series.Y())
 	}
-	result[metrics.PoolDataAvailableName] = predict(perfdata.PoolDataAvailable)
-	result[metrics.PoolMetadataAvailableName] = predict(perfdata.PoolMetadataAvailable)
+	if avail, err := predict(perfdata.PoolDataAvailable); err == nil {
+		result[metrics.PoolDataAvailableName] = avail
+	}
+	if avail, err := predict(perfdata.PoolMetadataAvailable); err == nil {
+		result[metrics.PoolMetadataAvailableName] = avail
+	}
 	for tenant, series := range perfdata.Tenants {
-		result[tenant] = predict(series)
+		if avail, err := predict(series); err == nil {
+			result[tenant] = avail
+		}
 	}
 	return result, nil
 }
