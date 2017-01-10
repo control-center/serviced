@@ -58,6 +58,7 @@ import (
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
+	"github.com/docker/go-units"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -1003,6 +1004,7 @@ func (d *daemon) startAgent() error {
 			}
 			reporter := iostat.NewReporter(time.Duration(options.StorageReportInterval)*time.Second, d.shutdown)
 			go volume.InitIOStat(reporter, d.shutdown)
+			go d.startStorageMonitor()
 		}
 
 	}()
@@ -1130,6 +1132,96 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 		case <-d.shutdown:
 			return
 		case <-time.After(cycleTime):
+		}
+	}
+}
+
+func (d *daemon) startStorageMonitor() {
+	options := config.GetOptions()
+	defer log.Info("Stopped monitoring application storage availability")
+	for {
+		lookahead := time.Duration(options.StorageLookaheadPeriod) * time.Second
+		log.WithField("period", lookahead).Debug("Estimating future storage availability")
+		if avail, err := d.facade.PredictStorageAvailability(d.dsContext, lookahead); err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"lookahead": lookahead,
+			}).Warn("Unable to predict storage availability")
+		} else {
+			minfree, err := units.RAMInBytes(options.StorageMinimumFreeSpace)
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"value": options.StorageMinimumFreeSpace,
+				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
+				// TODO: Change this when we update the default
+				minfree, _ = units.RAMInBytes("1G")
+			}
+			tenants := []string{}
+		CheckMetrics:
+			for k, v := range avail {
+				switch k {
+				case metrics.PoolDataAvailableName, metrics.PoolMetadataAvailableName:
+					if v < float64(minfree) {
+						log.WithFields(logrus.Fields{
+							"resource":   k,
+							"prediction": v,
+							"period":     lookahead,
+						}).Error("Pool resources will be exhausted within the configured period, so all running applications should be stopped")
+						t, err := d.facade.ListTenants(d.dsContext)
+						if err != nil {
+							log.WithError(err).Warn("Unable to look up tenants to be stopped. Using returned metrics instead")
+							// Fall back to pulling tenants from the metrics.
+							// This should really never happen.
+							t = []string{}
+							for k, _ := range avail {
+								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
+									t = append(t, k)
+								}
+							}
+						}
+						tenants = append(tenants, t...)
+						// No need to continue checking the availability
+						// metrics, since all tenants are being shut down
+						break CheckMetrics
+					}
+				default:
+					// This is an individual tenant
+					if v < float64(minfree) {
+						tenants = append(tenants, k)
+					}
+				}
+			}
+			log.WithField("tenants", tenants).Debug("")
+			for _, tenant := range tenants {
+				log := log.WithFields(logrus.Fields{
+					"service": tenant,
+				})
+				svc, _ := d.facade.GetService(d.dsContext, tenant)
+				if svc != nil && svc.EmergencyShutdown {
+					// Nothing to do here, it's already shut down
+					log.Debug("Skipping emergency stop of already stopped service")
+					continue
+				}
+				log.WithFields(logrus.Fields{
+					"prediction": avail[tenant],
+					"period":     lookahead,
+				}).Error("Application storage is predicted to be full within the configured period")
+				if n, err := d.facade.EmergencyStopService(d.dsContext, dao.ScheduleServiceRequest{
+					ServiceID:   tenant,
+					AutoLaunch:  false,
+					Synchronous: true,
+				}); err != nil {
+					log.WithError(err).Error("Unable to perform emergency stop of application")
+				} else {
+					log.WithField("numservices", n).Info("Emergency stop initiated")
+				}
+			}
+		}
+		// Now wait to check again, some duration smaller than that at which
+		// storage metrics are reported, to avoid races
+		select {
+		case <-d.shutdown:
+			return
+		case <-time.After(time.Duration(options.StorageReportInterval) * time.Second / 2):
 		}
 	}
 }

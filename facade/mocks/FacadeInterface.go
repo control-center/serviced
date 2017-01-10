@@ -180,6 +180,27 @@ func (_m *FacadeInterface) AssignIPs(ctx datastore.Context, assignmentRequest ad
 	return r0
 }
 
+// ClearEmergencyStopFlag provides a mock function with given fields: ctx, serviceID
+func (_m *FacadeInterface) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
+	ret := _m.Called(ctx, serviceID)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(datastore.Context, string) int); ok {
+		r0 = rf(ctx, serviceID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
+		r1 = rf(ctx, serviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CountDescendantStates provides a mock function with given fields: ctx, serviceID
 func (_m *FacadeInterface) CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error) {
 	ret := _m.Called(ctx, serviceID)
@@ -263,7 +284,7 @@ func (_m *FacadeInterface) DeployTemplateActive() ([]map[string]string, error) {
 	return r0, r1
 }
 
-// DeployTemplateStatus provides a mock function with given fields: deploymentID
+// DeployTemplateStatus provides a mock function with given fields: deploymentID, lastStatus, timeout
 func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string, lastStatus string, timeout time.Duration) (string, error) {
 	ret := _m.Called(deploymentID, lastStatus, timeout)
 
@@ -277,6 +298,27 @@ func (_m *FacadeInterface) DeployTemplateStatus(deploymentID string, lastStatus 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(string, string, time.Duration) error); ok {
 		r1 = rf(deploymentID, lastStatus, timeout)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EmergencyStopService provides a mock function with given fields: ctx, request
+func (_m *FacadeInterface) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	ret := _m.Called(ctx, request)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) int); ok {
+		r0 = rf(ctx, request)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, dao.ScheduleServiceRequest) error); ok {
+		r1 = rf(ctx, request)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1199,6 +1241,29 @@ func (_m *FacadeInterface) HostIsAuthenticated(ctx datastore.Context, hostid str
 	return r0, r1
 }
 
+// ListTenants provides a mock function with given fields: _a0
+func (_m *FacadeInterface) ListTenants(_a0 datastore.Context) ([]string, error) {
+	ret := _m.Called(_a0)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(datastore.Context) []string); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // MigrateServices provides a mock function with given fields: ctx, request
 func (_m *FacadeInterface) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
 	ret := _m.Called(ctx, request)
@@ -1211,6 +1276,29 @@ func (_m *FacadeInterface) MigrateServices(ctx datastore.Context, request dao.Se
 	}
 
 	return r0
+}
+
+// PredictStorageAvailability provides a mock function with given fields: ctx, lookahead
+func (_m *FacadeInterface) PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error) {
+	ret := _m.Called(ctx, lookahead)
+
+	var r0 map[string]float64
+	if rf, ok := ret.Get(0).(func(datastore.Context, time.Duration) map[string]float64); ok {
+		r0 = rf(ctx, lookahead)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]float64)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context, time.Duration) error); ok {
+		r1 = rf(ctx, lookahead)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // RegisterHostKeys provides a mock function with given fields: ctx, entity, keys, prompt
@@ -1548,46 +1636,4 @@ func (_m *FacadeInterface) WaitService(ctx datastore.Context, dstate service.Des
 	}
 
 	return r0
-}
-
-// EmergencyStopService provides a mock function with given fields: ctx, request
-func (_m *FacadeInterface) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	ret := _m.Called(ctx, request)
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, dao.ScheduleServiceRequest) int); ok {
-		r0 = rf(ctx, request)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, dao.ScheduleServiceRequest) error); ok {
-		r1 = rf(ctx, request)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// EmergencyStopService provides a mock function with given fields: ctx, serviceID
-func (_m *FacadeInterface) ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error) {
-	ret := _m.Called(ctx, serviceID)
-
-	var r0 int
-	if rf, ok := ret.Get(0).(func(datastore.Context, string) int); ok {
-		r0 = rf(ctx, serviceID)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(datastore.Context, string) error); ok {
-		r1 = rf(ctx, serviceID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }

@@ -126,19 +126,16 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 
 		cli.IntFlag{"ui-poll-frequency", defaultOps.UIPollFrequency, "frequency in seconds that the UI polls serviced for changes"},
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
-		cli.IntFlag{"storage-report-interval", defaultOps.StorageReportInterval, "frequency in seconds to report storage stats to opentsdb"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
 		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
 
 		cli.IntFlag{"service-run-level-timeout", defaultOps.ServiceRunLevelTimeout, "max time in seconds to wait for services to start/stop before moving on to services at the next run level"},
 
-		// Reimplementing GLOG flags :(
-		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
-		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashurl", defaultOps.LogstashURL, "logstash url and port"},
-		cli.StringFlag{"logstash-es", defaultOps.LogstashES, "host and port for logstash elastic search"},
-		cli.IntFlag{"logstash-max-days", defaultOps.LogstashMaxDays, "days to keep Logstash data"},
-		cli.IntFlag{"logstash-max-size", defaultOps.LogstashMaxSize, "max size of Logstash data to keep in gigabytes"},
+		cli.IntFlag{"storage-report-interval", defaultOps.StorageReportInterval, "frequency in seconds to report storage stats to opentsdb"},
+		cli.IntFlag{"storage-metric-monitor-window", defaultOps.StorageMetricMonitorWindow, "the amount of time in seconds for which serviced will consider storage availability metrics in order to predict future availability"},
+		cli.IntFlag{"storage-lookahead-period", defaultOps.StorageLookaheadPeriod, "the amount of time in the future in seconds serviced should predict storage availability for the purposes of emergency shutdown"},
+		cli.StringFlag{"storage-min-free", string(defaultOps.StorageMinimumFreeSpace), "the amount of space the emergency shutdown algorithm should reserve when deciding to shut down"},
+
 		cli.IntFlag{"logstash-cycle-time", defaultOps.LogstashCycleTime, "logstash purging cycle time in hours"},
 		cli.IntFlag{"v", defaultOps.Verbosity, "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
@@ -282,6 +279,9 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
 		ServiceRunLevelTimeout:     ctx.GlobalInt("service-run-level-timeout"),
+		StorageMetricMonitorWindow: ctx.GlobalInt("storage-metric-monitor-window"),
+		StorageLookaheadPeriod:     ctx.GlobalInt("storage-lookahead-period"),
+		StorageMinimumFreeSpace:    ctx.GlobalString("storage-min-free"),
 	}
 
 	// Long story, but due to the way codegantsta handles bools and the way we start system services vs

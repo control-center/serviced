@@ -1,4 +1,24 @@
+// Copyright 2017 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package statistics
+
+import "errors"
+
+var (
+	ErrUnequalArrays    = errors.New("coordinate arrays are of different lengths")
+	ErrInsufficientData = errors.New("not enough data to make a prediction")
+)
 
 // Mean calculates the mean of an array of floats
 func Mean(series []float64) float64 {
@@ -13,17 +33,19 @@ func Mean(series []float64) float64 {
 // LeastSquares calculates the slope and y-intercept of the line of best fit
 // for the series of points represented as arrays of x- and y-coordinates using
 // the Ordinary Least Squares method.
-func LeastSquares(xs, ys []float64) (m, b float64) {
+func LeastSquares(xs, ys []float64) (m, b float64, err error) {
 
 	lx, ly := len(xs), len(ys)
 
 	// If the arrays are not of equal length, we can't do anything
 	if lx != ly {
+		err = ErrUnequalArrays
 		return
 	}
 
 	// If we don't have at least two points, we can't do anything
 	if lx < 2 {
+		err = ErrInsufficientData
 		return
 	}
 

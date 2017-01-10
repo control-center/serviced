@@ -24,10 +24,13 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/statistics"
+	"github.com/control-center/serviced/config"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
@@ -663,6 +666,43 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 func (f *Facade) DockerOverride(ctx datastore.Context, newImageName, oldImageName string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DockerOverride"))
 	return f.dfs.Override(newImageName, oldImageName)
+}
+
+// PredictStorageAvailability returns the predicted available storage after
+// a given period for the thin pool data device, the thin pool metadata device,
+// and each tenant filesystem.
+func (f *Facade) PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.PredictStorageAvailability"))
+	options := config.GetOptions()
+
+	// First, get a list of all tenant IDs
+	tenantIDs, err := f.ListTenants(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Next, query metrics for our window
+	window := time.Duration(options.StorageMetricMonitorWindow) * time.Second
+	perfdata, err := f.metricsClient.GetAvailableStorage(window, tenantIDs...)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]float64)
+	predict := func(series metrics.MetricSeries) (float64, error) {
+		return statistics.LeastSquaresPredictor.Predict(lookahead, series.X(), series.Y())
+	}
+	if avail, err := predict(perfdata.PoolDataAvailable); err == nil {
+		result[metrics.PoolDataAvailableName] = avail
+	}
+	if avail, err := predict(perfdata.PoolMetadataAvailable); err == nil {
+		result[metrics.PoolMetadataAvailableName] = avail
+	}
+	for tenant, series := range perfdata.Tenants {
+		if avail, err := predict(series); err == nil {
+			result[tenant] = avail
+		}
+	}
+	return result, nil
 }
 
 // Interface to allow filtering DFS clients
