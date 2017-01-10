@@ -129,6 +129,8 @@ type FacadeInterface interface {
 
 	GetHostInstances(ctx datastore.Context, since time.Time, hostid string) ([]service.Instance, error)
 
+	ListTenants(datastore.Context) ([]string, error)
+
 	GetServiceInstances(ctx datastore.Context, since time.Time, serviceid string) ([]service.Instance, error)
 
 	GetAggregateServices(ctx datastore.Context, since time.Time, serviceids []string) ([]service.AggregateService, error)
@@ -194,4 +196,10 @@ type FacadeInterface interface {
 	CountDescendantStates(ctx datastore.Context, serviceID string) (map[string]map[int]int, error)
 
 	ReloadLogstashConfig(ctx datastore.Context) error
+
+	EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error)
+
+	ClearEmergencyStopFlag(ctx datastore.Context, serviceID string) (int, error)
+
+	PredictStorageAvailability(ctx datastore.Context, lookahead time.Duration) (map[string]float64, error)
 }

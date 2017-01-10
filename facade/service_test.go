@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -30,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	zzkmocks "github.com/control-center/serviced/facade/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
 	"github.com/stretchr/testify/mock"
@@ -165,6 +167,40 @@ func (ft *FacadeIntegrationTest) setup_validateServiceStart(c *C, endpoints ...s
 	}
 	c.Assert(ft.Facade.AddService(ft.CTX, svc), IsNil)
 	return &svc
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_emergencyShutdownFlagged(c *C) {
+	// successfully add address assignment, vhost, and port
+	ep1 := service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
+		Name:        "ep1",
+		Application: "ep1",
+		Purpose:     "export",
+		AddressConfig: servicedefinition.AddressResourceConfig{
+			Port:     1234,
+			Protocol: "tcp",
+		},
+	})
+	svc := ft.setup_validateServiceStart(c, ep1)
+	// set up an address assignment for ep1
+	err := ft.Facade.AddVirtualIP(ft.CTX, pool.VirtualIP{
+		PoolID:        svc.PoolID,
+		IP:            "192.168.22.12",
+		Netmask:       "255.255.255.0",
+		BindInterface: "eth0",
+	})
+	c.Assert(err, IsNil)
+	err = ft.Facade.AssignIPs(ft.CTX, addressassignment.AssignmentRequest{
+		ServiceID:      svc.ID,
+		AutoAssignment: false,
+		IPAddress:      "192.168.22.12",
+	})
+	c.Assert(err, IsNil)
+	ft.zzk.On("GetVHost", "vh1").Return("", "", nil)
+	ft.zzk.On("GetPublicPort", ":1234").Return("", "", nil)
+	// Make service have EmergencyShutdown flagged
+	svc.EmergencyShutdown = true
+	err = ft.Facade.validateServiceStart(ft.CTX, svc)
+	c.Assert(err, Equals, ErrEmergencyShutdownNoOp)
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_validateServiceStart_missingAddressAssignment(c *C) {
@@ -1276,6 +1312,532 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == "ParentServiceID" {
 			c.Errorf("Was expecting child services to be stopped %v", subService)
 		}
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
+	// add a service with 4 subservices
+	svc := service.Service{
+		ID:                     "ParentServiceID",
+		Name:                   "ParentService",
+		Startup:                "/usr/bin/ping -c localhost",
+		Description:            "Ping a remote host a fixed number of times",
+		Instances:              1,
+		InstanceLimits:         domain.MinMax{1, 1, 1},
+		ImageID:                "test/pinger",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		DesiredState:           int(service.SVCRun),
+		Launch:                 "auto",
+		Endpoints:              []service.ServiceEndpoint{},
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
+		EmergencyShutdownLevel: 0,
+		StartLevel:             1,
+	}
+	childService1 := service.Service{
+		ID:                     "childService1",
+		Name:                   "childservice1",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 1,
+	}
+	childService2 := service.Service{
+		ID:                     "childService2",
+		Name:                   "childservice2",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 2,
+	}
+	childService3 := service.Service{
+		ID:                     "childService3",
+		Name:                   "childservice3",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 0,
+		StartLevel:             0,
+	}
+	childService4 := service.Service{
+		ID:                     "childService4",
+		Name:                   "childservice4",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 0,
+		StartLevel:             0,
+	}
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService3); err != nil {
+		c.Fatalf("Failed Loading Child Service 3: %+v, %s", childService3, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService4); err != nil {
+		c.Fatalf("Failed Loading Child Service 4: %+v, %s", childService4, err)
+	}
+
+	// start the service
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+
+	// Set up mocks to handle stopping services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	stoppedChannels["childService3"] = make(chan interface{})
+	stoppedChannels["childService4"] = make(chan interface{})
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
+				}
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
+	// watch the services to make sure they shutdown in the correct order
+	// Emergency shutdown order should be:
+	//  (EL 1) childService1
+	//  (EL 2) childService2
+	//  (EL 0, SL 0) childService3, childService4
+	//  (EL 0, SL 1) svc
+	go func() {
+		// childService2 should be the second service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService2"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService2 to stop")
+		}
+
+		// If this is stopped, level 1 must also be stopped
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 2 stopped before Level 1")
+		}
+	}()
+
+	go func() {
+		// childService3 should stop after childservice2 and childService1
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService3"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService3 to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+	}()
+
+	go func() {
+		// childService4 should stop after childservice2 and childService1
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService4"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService3 to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+	}()
+
+	// This channel is closed when the last service is stopped
+	go func() {
+		// svc should be the last service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["ParentServiceID"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for parent service to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+
+		// Level 0 with StartLevel 0 must also be stopped
+		select {
+		case <-stoppedChannels["childService3"]:
+		default:
+			c.Fatalf("Level 0, StartLevel 1 stopped before Level 0, StartLevel 0")
+		}
+
+		select {
+		case <-stoppedChannels["childService4"]:
+		default:
+			c.Fatalf("Level 0, StartLevel 1 stopped before Level 0, StartLevel 0")
+		}
+	}()
+
+	// emergency stop the parent synchronously
+	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
+	}
+
+	// For a synchronous call, make sure the services are stopped before the method returns
+	select {
+	case <-stoppedChannels["ParentServiceID"]:
+	default:
+		c.Fatalf("Method returned before services stopped on synchronous call")
+	}
+
+	// verify all services have EmergencyShutDown set to true
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, true)
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c *C) {
+	svc := service.Service{
+		ID:                     "ParentServiceID",
+		Name:                   "ParentService",
+		Startup:                "/usr/bin/ping -c localhost",
+		Description:            "Ping a remote host a fixed number of times",
+		Instances:              1,
+		InstanceLimits:         domain.MinMax{1, 1, 1},
+		ImageID:                "test/pinger",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		DesiredState:           int(service.SVCRun),
+		Launch:                 "auto",
+		Endpoints:              []service.ServiceEndpoint{},
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
+		EmergencyShutdownLevel: 0,
+	}
+	childService1 := service.Service{
+		ID:                     "childService1",
+		Name:                   "childservice1",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 1,
+	}
+	childService2 := service.Service{
+		ID:                     "childService2",
+		Name:                   "childservice2",
+		Launch:                 "auto",
+		PoolID:                 "default",
+		DeploymentID:           "deployment_id",
+		Startup:                "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:        "ParentServiceID",
+		EmergencyShutdownLevel: 2,
+	}
+	// add a service with 2 subservices
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// start the service
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
+	}
+
+	// Set up mocks to handle stopping services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
+				}
+			}
+		}
+	})
+
+	var waitServiceWG sync.WaitGroup
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		waitServiceWG.Add(1)
+		defer waitServiceWG.Done()
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
+	// watch the services to make sure they shutdown in the correct order
+	go func() {
+		// childService2 should be the second service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["childService2"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for childService2 to stop")
+		}
+
+		// If this is stopped, level 1 must also be stopped
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 2 stopped before Level 1")
+		}
+	}()
+
+	// This channel is closed when the last service is stopped
+	go func() {
+		// svc should be the last service stopped
+		timer := time.NewTimer(10 * time.Second)
+		select {
+		case <-stoppedChannels["ParentServiceID"]:
+		case <-timer.C:
+			c.Fatalf("Timeout waiting for parent service to stop")
+		}
+
+		// If this is stopped, levels 1 and 2 must also be stopped
+		select {
+		case <-stoppedChannels["childService1"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 1")
+		}
+
+		select {
+		case <-stoppedChannels["childService2"]:
+		default:
+			c.Fatalf("Level 0 stopped before Level 2")
+		}
+	}()
+
+	// emergency stop the parent asynchronously
+	methodReturned := make(chan interface{})
+	go func() {
+		defer close(methodReturned)
+		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: false}); err != nil {
+			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
+		}
+	}()
+
+	// Make sure the call was asynchronous
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-methodReturned:
+	case <-stoppedChannels["ParentServiceID"]:
+		c.Fatalf("Services stopped before method returned on asynchronous call")
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for method to return")
+	}
+
+	// Wait for services to stop
+	timer.Reset(10 * time.Second)
+	select {
+	case <-stoppedChannels["ParentServiceID"]:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for all services to stop")
+	}
+
+	// verify all services have EmergencyShutDown set to true
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, true)
+	}
+
+	// Wait for our mocked goroutines to return
+	waitServiceWG.Wait()
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
+	// add a service with 2 subservices and set EmergencyShutdown to true for all 3
+	svc := service.Service{
+		ID:                "ParentServiceID",
+		Name:              "ParentService",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         1,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: true,
+	}
+	childService1 := service.Service{
+		ID:                "childService1",
+		Name:              "childservice1",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: true,
+	}
+	childService2 := service.Service{
+		ID:                "childService2",
+		Name:              "childservice2",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: true,
+	}
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+
+	// Clear emergency stop on one child
+	count, err := ft.Facade.ClearEmergencyStopFlag(ft.CTX, "childService1")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 1)
+
+	// Make sure emergency stop is cleared for only that one service
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		if s.ID == "childService1" {
+			c.Assert(s.EmergencyShutdown, Equals, false)
+		} else {
+			c.Assert(s.EmergencyShutdown, Equals, true)
+		}
+	}
+
+	// clear emergency stop on the parent service
+	count, err = ft.Facade.ClearEmergencyStopFlag(ft.CTX, "ParentServiceID")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 2)
+
+	// Make sure emergency stop is cleared on all services
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, false)
+	}
+
+	// Clear emergency stop on a service that is already cleared
+	count, err = ft.Facade.ClearEmergencyStopFlag(ft.CTX, "ParentServiceID")
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 0)
+
+	// Make sure emergency stop is still cleared on all services
+	services, err = ft.Facade.GetServices(ft.CTX, serviceRequest)
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(s.EmergencyShutdown, Equals, false)
 	}
 }
 

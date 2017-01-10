@@ -109,6 +109,11 @@ type Options struct {
 	ZKSessionTimeout           int               // The session timeout of a zookeeper client connection.
 	TokenExpiration            int               // The time in seconds before an authentication token expires
 	LogConfigFilename          string            // Path to the logri configuration
+	StorageReportInterval      int               // frequency in seconds to report storage stats to opentsdb
+	ServiceRunLevelTimeout     int               // The time in seconds serviced will wait for a batch of services to stop/start before moving to services with the next run level
+	StorageMetricMonitorWindow int               // The amount of time in seconds for which serviced will consider storage availability metrics in order to predict future availability
+	StorageLookaheadPeriod     int               // The amount of time in the future in seconds serviced should predict storage availability for the purposes of emergency shutdown
+	StorageMinimumFreeSpace    string            // The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
 }
 
 // GetOptions returns a COPY of the global options struct

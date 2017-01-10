@@ -8,7 +8,7 @@
     angular.module('healthIcon', [])
     .directive("healthIcon", ["hcStatus",
     function(hcStatus){
-        let {OK, FAILED, NOT_RUNNING, UNKNOWN} = hcStatus;
+        let {OK, FAILED, NOT_RUNNING, UNKNOWN, EMERGENCY_SHUTDOWN} = hcStatus;
 
         return {
             restrict: "E",
@@ -22,7 +22,8 @@
                     [FAILED]: "glyphicon glyphicon-exclamation bad",
                     [OK]: "glyphicon glyphicon-ok good",
                     [UNKNOWN]: "glyphicon glyphicon-question unknown",
-                    [NOT_RUNNING]: "glyphicon glyphicon-minus disabled"
+                    [NOT_RUNNING]: "glyphicon glyphicon-minus disabled",
+                    [EMERGENCY_SHUTDOWN]: "glyphicon glyphicon-fire bad"
                 };
 
                 // cache some DOM elements

@@ -54,9 +54,11 @@ import (
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/utils/iostat"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/volume/devicemapper"
+	"github.com/docker/go-units"
 
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
@@ -346,8 +348,18 @@ func (d *daemon) run() (err error) {
 	}
 
 	signalC := make(chan os.Signal, 10)
-	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	sig := <-signalC
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	var sig os.Signal
+
+	for sig := range signalC {
+		if sig == syscall.SIGPIPE {
+			log.WithField("signal", sig).Warning("Attempted to write to a closed socket")
+			continue
+		} else {
+			break
+		}
+	}
 
 	log.WithFields(logrus.Fields{
 		"signal": sig,
@@ -950,6 +962,7 @@ func (d *daemon) startAgent() error {
 			log.Debug("Registered local ControlCenterAgent RPC service")
 		}
 
+		// serviced stats (cpu, ram, etc)
 		if options.ReportStats {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
@@ -958,17 +971,42 @@ func (d *daemon) startAgent() error {
 				"interval": options.StatsPeriod,
 			})
 			log.Debug("Starting container statistics reporting")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master, d.docker)
+			servicedStatsReporter, err := stats.NewServicedStatsReporter(statsdest, statsduration, poolBasedConn, d.docker)
 			if err != nil {
 				log.WithError(err).Error("Unable to start reporting stats")
 			} else {
 				go func() {
-					defer statsReporter.Close()
+					defer servicedStatsReporter.Close()
 					<-d.shutdown
 					log.Info("Stopping stats reporting")
 				}()
 			}
 		}
+
+		// storage stats (thinpool, etc)
+		if options.Master {
+			storageStatsDest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
+			storageStatsDuration := time.Second * time.Duration(options.StorageReportInterval)
+			log := log.WithFields(logrus.Fields{
+				"statsurl": storageStatsDest,
+				"interval": options.StorageReportInterval,
+			})
+			log.Debug("Starting storage statistics reporting")
+			storageStatsReporter, err := stats.NewStorageStatsReporter(storageStatsDest, storageStatsDuration)
+			if err != nil {
+				log.WithError(err).Error("Unable to start reporting stats")
+			} else {
+				go func() {
+					defer storageStatsReporter.Close()
+					<-d.shutdown
+					log.Info("Stopping stats reporting")
+				}()
+			}
+			reporter := iostat.NewReporter(time.Duration(options.StorageReportInterval)*time.Second, d.shutdown)
+			go volume.InitIOStat(reporter, d.shutdown)
+			go d.startStorageMonitor()
+		}
+
 	}()
 
 	agentServer := agent.NewServer(d.staticIPs)
@@ -1064,6 +1102,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
+	f.SetServiceRunLevelTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)
@@ -1093,6 +1132,120 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 		case <-d.shutdown:
 			return
 		case <-time.After(cycleTime):
+		}
+	}
+}
+
+func (d *daemon) startStorageMonitor() {
+	options := config.GetOptions()
+	defer log.Info("Stopped monitoring application storage availability")
+	for {
+		lookahead := time.Duration(options.StorageLookaheadPeriod) * time.Second
+		log.WithField("period", lookahead).Debug("Estimating future storage availability")
+		if avail, err := d.facade.PredictStorageAvailability(d.dsContext, lookahead); err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"lookahead": lookahead,
+			}).Warn("Unable to predict storage availability")
+		} else {
+			minfree, err := units.RAMInBytes(options.StorageMinimumFreeSpace)
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"value": options.StorageMinimumFreeSpace,
+				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
+				// TODO: Change this when we update the default
+				minfree, _ = units.RAMInBytes("1G")
+			}
+			tenants := []string{}
+		CheckMetrics:
+			for k, v := range avail {
+				switch k {
+				case metrics.PoolMetadataAvailableName:
+					if v < float64(minfree)*0.02 {
+						log.WithFields(logrus.Fields{
+							"prediction": v,
+							"minfree":    float64(minfree) * 0.02,
+							"period":     lookahead,
+						}).Error("Pool metadata volume will be exhausted within the configured period, so all running applications should be stopped")
+						t, err := d.facade.ListTenants(d.dsContext)
+						if err != nil {
+							log.WithError(err).Warn("Unable to look up tenants to be stopped. Using returned metrics instead")
+							// Fall back to pulling tenants from the metrics.
+							// This should really never happen.
+							t = []string{}
+							for k, _ := range avail {
+								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
+									t = append(t, k)
+								}
+							}
+						}
+						tenants = append(tenants, t...)
+						// No need to continue checking the availability
+						// metrics, since all tenants are being shut down
+						break CheckMetrics
+					}
+				case metrics.PoolDataAvailableName:
+					if v < float64(minfree) {
+						log.WithFields(logrus.Fields{
+							"prediction": v,
+							"minfree":    float64(minfree),
+							"period":     lookahead,
+						}).Error("Pool data volume will be exhausted within the configured period, so all running applications should be stopped")
+						t, err := d.facade.ListTenants(d.dsContext)
+						if err != nil {
+							log.WithError(err).Warn("Unable to look up tenants to be stopped. Using returned metrics instead")
+							// Fall back to pulling tenants from the metrics.
+							// This should really never happen.
+							t = []string{}
+							for k, _ := range avail {
+								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
+									t = append(t, k)
+								}
+							}
+						}
+						tenants = append(tenants, t...)
+						// No need to continue checking the availability
+						// metrics, since all tenants are being shut down
+						break CheckMetrics
+					}
+				default:
+					// This is an individual tenant
+					if v < float64(minfree) {
+						tenants = append(tenants, k)
+					}
+				}
+			}
+			log.WithField("tenants", tenants).Debug("determined services that should be emergency stopped")
+			for _, tenant := range tenants {
+				log := log.WithFields(logrus.Fields{
+					"service": tenant,
+				})
+				svc, _ := d.facade.GetService(d.dsContext, tenant)
+				if svc != nil && svc.EmergencyShutdown {
+					// Nothing to do here, it's already shut down
+					log.Debug("Skipping emergency stop of already stopped service")
+					continue
+				}
+				log.WithFields(logrus.Fields{
+					"prediction": avail[tenant],
+					"period":     lookahead,
+				}).Error("Application storage is predicted to be full within the configured period")
+				if n, err := d.facade.EmergencyStopService(d.dsContext, dao.ScheduleServiceRequest{
+					ServiceID:   tenant,
+					AutoLaunch:  false,
+					Synchronous: true,
+				}); err != nil {
+					log.WithError(err).Error("Unable to perform emergency stop of application")
+				} else {
+					log.WithField("numservices", n).Info("Emergency stop initiated")
+				}
+			}
+		}
+		// Now wait to check again, some duration smaller than that at which
+		// storage metrics are reported, to avoid races
+		select {
+		case <-d.shutdown:
+			return
+		case <-time.After(time.Duration(options.StorageReportInterval) * time.Second / 2):
 		}
 	}
 }
@@ -1186,7 +1339,7 @@ func (d *daemon) addTemplates() {
 				log.Warn("Unable to parse template file")
 				return nil
 			}
-			reloadLogstashConfig := false		// defer reloading until all templates have been added
+			reloadLogstashConfig := false // defer reloading until all templates have been added
 			d.facade.AddServiceTemplate(d.dsContext, st, reloadLogstashConfig)
 			log.Debug("Added service template")
 			return nil

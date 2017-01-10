@@ -78,6 +78,7 @@ type API interface {
 	AssignIP(IPConfig) error
 	GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error)
 	ResolveServicePath(path string) ([]service.ServiceDetails, error)
+	ClearEmergency(serviceID string) (int, error)
 
 	// Shell
 	StartShell(ShellConfig) error

@@ -27,8 +27,8 @@
           <td data-title="'label_public_endpoints'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
                   <div ng-repeat="vhost in service.publicEndpoints">
-                      <public-endpoint-link 
-                          data-public-endpoint="vhost" 
+                      <public-endpoint-link
+                          data-public-endpoint="vhost"
                           data-host-alias="defaultHostAlias">
                       </public-endpoint-link>
                   </div>
@@ -39,8 +39,8 @@
 
           <td data-title="'actions'|translate">
               <span ng-if="!service.deploying && !service.isIsvc()">
-                <div>
-                  <button ng-class="{disabled: service.desiredState === 1}" ng-click="clickRunning(service, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> <span translate>start</span></button>
+                <div title="{{service.emergencyShutdown ? 'Service has been emergency shutdown': ''}}">
+                  <button ng-class="{disabled: service.desiredState === 1 || service.emergencyShutdown}" ng-click="clickRunning(service, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> <span translate>start</span></button>
                   <button ng-class="{disabled: service.desiredState === 0}" ng-click="clickRunning(service, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> <span translate>stop</span></button>
                   <button ng-click="modal_removeService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> <span translate>delete</span></button>
                 </div>
@@ -80,5 +80,14 @@
             </td>
         </tr>
     </table>
+
+    <!-- Graphs -->
+    <graph-panel
+        ng-if="graphConfigs.length > 0"
+        data-service-id="0"
+        data-graph-configs="graphConfigs"
+        class="infoWrapper graphPanel">
+    </graph-panel>
+
 
     <div ng-include="'/static/partials/wizard-modal.html'"></div>

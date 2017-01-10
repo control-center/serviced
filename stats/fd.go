@@ -12,7 +12,6 @@
 // limitations under the License.
 
 // Package stats collects serviced metrics and posts them to the TSDB.
-
 package stats
 
 import (

@@ -14,8 +14,8 @@
 package service
 
 import (
-	"strings"
 	"errors"
+	"strings"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -57,7 +57,6 @@ func (s *storeImpl) GetServiceHealth(ctx datastore.Context, svcId string) (*Serv
 	key := datastore.NewKey(kind, svcId)
 	return nil, datastore.ErrNoSuchEntity{Key: key}
 }
-
 
 func (s *storeImpl) GetAllServiceHealth(ctx datastore.Context) ([]ServiceHealth, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceStore.GetServiceHealth"))
@@ -120,4 +119,5 @@ var serviceHealthFields = []string{
 	"Instances",
 	"DesiredState",
 	"HealthChecks",
+	"EmergencyShutdown",
 }

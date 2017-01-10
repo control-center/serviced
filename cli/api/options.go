@@ -178,6 +178,11 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		SnapshotSpacePercent:       cfg.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           cfg.IntVal("ZK_SESSION_TIMEOUT", 15),
 		TokenExpiration:            cfg.IntVal("AUTH_TOKEN_EXPIRATION", 60*60),
+		ServiceRunLevelTimeout:     cfg.IntVal("RUN_LEVEL_TIMEOUT", 60),
+		StorageReportInterval:      cfg.IntVal("STORAGE_REPORT_INTERVAL", 30),
+		StorageMetricMonitorWindow: cfg.IntVal("STORAGE_METRIC_MONITOR_WINDOW", 300),
+		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 600),
+		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "1G"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")

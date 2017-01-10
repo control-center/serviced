@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -140,15 +142,16 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 // FIXME: Delete this method as soon as Zenoss and CC ZenPack no longer use this method.
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 
+	tenantID := r.URL.Query().Get("tenantID")
+
 	// load the internal monitoring data
-	config, err := getInternalMetrics()
+	config, err := getInternalMetrics(tenantID)
 	if err != nil {
 		glog.Errorf("Could not get internal monitoring metrics: %s", err)
 		restServerError(w, err)
 		return
 	}
 
-	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
 		result, err := getTaggedServices(ctx, tags, nmregex, tenantID)
@@ -157,9 +160,11 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 			return
 		}
 
-		for ii, _ := range result {
-			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		for ii, svc := range result {
+			if len(svc.Startup) > 2 {
+				result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+				result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+			}
 		}
 		w.WriteJson(&result)
 		return
@@ -172,9 +177,11 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 			return
 		}
 
-		for ii, _ := range result {
-			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		for ii, svc := range result {
+			if len(svc.Startup) > 2 {
+				result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+				result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+			}
 		}
 		w.WriteJson(&result)
 		return
@@ -211,12 +218,14 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		}
 	}
 
-	for ii, _ := range result {
+	for ii, svc := range result {
 		if strings.HasPrefix(result[ii].ID, "isvc-") {
 			continue
 		}
-		result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
-		result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		if len(svc.Startup) > 2 {
+			result[ii].MonitoringProfile.MetricConfigs = append(result[ii].MonitoringProfile.MetricConfigs, *config)
+			result[ii].MonitoringProfile.GraphConfigs = append(result[ii].MonitoringProfile.GraphConfigs, getInternalGraphConfigs(result[ii].ID)...)
+		}
 	}
 	w.WriteJson(&result)
 }
@@ -334,17 +343,18 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 
 // DEPRECATED
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
-	// load the internal monitoring data
-	config, err := getInternalMetrics()
-	if err != nil {
-		glog.Errorf("Could not get internal monitoring metrics: %s", err)
-		restServerError(w, err)
-		return
-	}
 
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
+		return
+	}
+
+	// load the internal monitoring data
+	config, err := getInternalMetrics(serviceID)
+	if err != nil {
+		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		restServerError(w, err)
 		return
 	}
 
@@ -549,8 +559,22 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}
 
 	var affected int
-	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
-		glog.Errorf("Unexpected error restarting service: %s", err)
+	err = client.RestartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error restarting service")
 		restServerError(w, err)
 		return
 	}
@@ -576,8 +600,22 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 
 	var affected int
-	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
-		glog.Errorf("Unexpected error starting service: %s", err)
+	err = client.StartService(dao.ScheduleServiceRequest{
+		ServiceID:   serviceID,
+		AutoLaunch:  autoLaunch,
+		Synchronous: true,
+	}, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithFields(logrus.Fields{
+			"serviceID": serviceID,
+		}).WithError(err).Error("Error starting service")
 		restServerError(w, err)
 		return
 	}
@@ -717,8 +755,11 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 			return
 		}
 		//add graphs to profile
-		profile.GraphConfigs = make([]domain.GraphConfig, 1)
-		profile.GraphConfigs[0] = newVolumeUsageGraph(tags)
+		profile.GraphConfigs = []domain.GraphConfig{
+			newThinPoolDataUsageGraph(tags),
+			newThinPoolMetadataUsageGraph(tags),
+		}
+
 		volumeInfo.MonitoringProfile = *profile
 		storageInfo = append(storageInfo, volumeInfo)
 	}

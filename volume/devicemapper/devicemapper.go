@@ -1279,6 +1279,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer, excl
 func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 	glog.V(2).Info("devicemapper.Status()")
 	dockerStatus := d.DeviceSet.Status()
+
 	tss, err := d.GetTenantStorageStats()
 	if err != nil {
 		return nil, err
@@ -1287,21 +1288,39 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 	if dockerStatus.DataLoopback != "" {
 		driverType = "loop-lvm"
 	}
+
 	usageData := []volume.Usage{
 		// Store under older value names in case anybody's looking for it
-		{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available,
+		volume.UsageInt{Label: "Data", Type: "Available", Value: dockerStatus.Data.Available,
 			MetricName: "storage.available"},
-		{Label: "Data", Type: "Used", Value: dockerStatus.Data.Used,
+		volume.UsageInt{Label: "Data", Type: "Used", Value: dockerStatus.Data.Used,
 			MetricName: "storage.used"},
-		{Label: "Data", Type: "Total", Value: dockerStatus.Data.Total,
+		volume.UsageInt{Label: "Data", Type: "Total", Value: dockerStatus.Data.Total,
 			MetricName: "storage.total"},
 		// Now store under useful names
-		{Value: dockerStatus.Data.Available, MetricName: "storage.pool.data.available"},
-		{Value: dockerStatus.Data.Used, MetricName: "storage.pool.data.used"},
-		{Value: dockerStatus.Data.Total, MetricName: "storage.pool.data.total"},
-		{Value: dockerStatus.Metadata.Available, MetricName: "storage.pool.metadata.available"},
-		{Value: dockerStatus.Metadata.Used, MetricName: "storage.pool.metadata.used"},
-		{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
+		volume.UsageInt{Value: dockerStatus.Data.Available, MetricName: "storage.pool.data.available"},
+		volume.UsageInt{Value: dockerStatus.Data.Used, MetricName: "storage.pool.data.used"},
+		volume.UsageInt{Value: dockerStatus.Data.Total, MetricName: "storage.pool.data.total"},
+		volume.UsageInt{Value: dockerStatus.Metadata.Available, MetricName: "storage.pool.metadata.available"},
+		volume.UsageInt{Value: dockerStatus.Metadata.Used, MetricName: "storage.pool.metadata.used"},
+		volume.UsageInt{Value: dockerStatus.Metadata.Total, MetricName: "storage.pool.metadata.total"},
+	}
+
+	iostats := volume.GetLastIOStat()
+	singleIOStat, ok := iostats[dockerStatus.PoolName]
+	if ok {
+		simpleIOStat, err := singleIOStat.ToSimpleIOStat()
+		if err != nil {
+			glog.Errorf("Could not convert iostat: %s", err)
+		} else {
+			usageData = append(usageData, []volume.Usage{
+				volume.UsageFloat{Value: simpleIOStat.RPS, MetricName: "storage.pool.rps"},
+				volume.UsageFloat{Value: simpleIOStat.WPS, MetricName: "storage.pool.wps"},
+				volume.UsageFloat{Value: simpleIOStat.Await, MetricName: "storage.pool.await"},
+			}...)
+		}
+	} else {
+		glog.Warningf("Device: %s was not returned from iostat", dockerStatus.PoolName)
 	}
 
 	// Disabled due to CC-2417
@@ -1310,13 +1329,13 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 	// Add in tenant storage metrics
 	for _, tenant := range tss {
 		usageData = append(usageData, []volume.Usage{
-			{MetricName: fmt.Sprintf("storage.filesystem.total.%s", tenant.TenantID),
+			volume.UsageInt{MetricName: fmt.Sprintf("storage.filesystem.total.%s", tenant.TenantID),
 				Value: tenant.FilesystemTotal},
-			{MetricName: fmt.Sprintf("storage.filesystem.available.%s", tenant.TenantID),
+			volume.UsageInt{MetricName: fmt.Sprintf("storage.filesystem.available.%s", tenant.TenantID),
 				Value: tenant.FilesystemAvailable},
-			{MetricName: fmt.Sprintf("storage.filesystem.used.%s", tenant.TenantID),
+			volume.UsageInt{MetricName: fmt.Sprintf("storage.filesystem.used.%s", tenant.TenantID),
 				Value: tenant.FilesystemUsed},
-			{MetricName: fmt.Sprintf("storage.device.total.%s", tenant.TenantID),
+			volume.UsageInt{MetricName: fmt.Sprintf("storage.device.total.%s", tenant.TenantID),
 				Value: tenant.DeviceTotalBlocks},
 			/* Disabled due to CC-2417
 			{MetricName: fmt.Sprintf("storage.device.allocated.%s", tenant.TenantID),
@@ -1324,11 +1343,33 @@ func (d *DeviceMapperDriver) Status() (volume.Status, error) {
 			{MetricName: fmt.Sprintf("storage.snapshot.allocated.%s", tenant.TenantID),
 				Value: tenant.SnapshotAllocatedBlocks},
 			*/
-			{MetricName: fmt.Sprintf("storage.snapshot.count.%s", tenant.TenantID),
+			volume.UsageInt{MetricName: fmt.Sprintf("storage.snapshot.count.%s", tenant.TenantID),
 				Value: uint64(tenant.NumberSnapshots)},
 		}...)
 		// Disabled due to CC-2417
 		//unallocated += tenant.DeviceUnallocatedBlocks
+		devSlice := strings.Split(tenant.DeviceName, "/")
+		deviceName := devSlice[len(devSlice)-1]
+
+		singleIOStat, ok = iostats[deviceName]
+		if ok {
+			simpleIOStat, err := singleIOStat.ToSimpleIOStat()
+			if err != nil {
+				glog.Errorf("Could not convert iostat: %s", err)
+			} else {
+				usageData = append(usageData, []volume.Usage{
+					volume.UsageFloat{Value: simpleIOStat.RPS,
+						MetricName: fmt.Sprintf("storage.device.rps.%s", tenant.TenantID)},
+					volume.UsageFloat{Value: simpleIOStat.WPS,
+						MetricName: fmt.Sprintf("storage.device.wps.%s", tenant.TenantID)},
+					volume.UsageFloat{Value: simpleIOStat.Await,
+						MetricName: fmt.Sprintf("storage.device.await.%s", tenant.TenantID)},
+				}...)
+			}
+		} else {
+			glog.Warningf("Device: %s was not returned from iostat", deviceName)
+		}
+
 	}
 
 	// convert dockerStatus to our status and return
@@ -1379,6 +1420,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 			return nil, err
 		}
 	*/
+
 	for _, tenant := range d.ListTenants() {
 		var devInfo devInfo
 		vol, err := d.getVolume(tenant, false)
@@ -1400,7 +1442,7 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 			return nil, err
 		}
 		devicename := fmt.Sprintf("/dev/mapper/%s-%s", d.DevicePrefix, dev)
-		total, free, err := getFilesystemStats(devicename)
+		total, used, free, err := getFilesystemStats(devicename)
 		if err != nil {
 			return nil, err
 		}
@@ -1410,8 +1452,10 @@ func (d *DeviceMapperDriver) GetTenantStorageStats() ([]volume.TenantStorageStat
 		}
 		tss.FilesystemTotal = total
 		tss.FilesystemAvailable = free
-		tss.FilesystemUsed = total - free
+		tss.FilesystemUsed = used
 		tss.DeviceTotalBlocks = volume.BytesToBlocks(size)
+		tss.DeviceName = devicename
+
 		//tss.DeviceUnallocatedBlocks = tss.DeviceTotalBlocks - tss.DeviceAllocatedBlocks
 		/* CC-2417
 				last := stats

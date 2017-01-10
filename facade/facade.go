@@ -33,6 +33,7 @@ import (
 
 type MetricsClient interface {
 	GetInstanceMemoryStats(time.Time, ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error)
+	GetAvailableStorage(time.Duration, ...string) (*metrics.StorageMetrics, error)
 }
 
 // instantiate the package logger
@@ -80,7 +81,8 @@ type Facade struct {
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 
-	isvcsPath string
+	isvcsPath              string
+	serviceRunLevelTimeout time.Duration
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
@@ -123,3 +125,5 @@ func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegis
 }
 
 func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }
+
+func (f *Facade) SetServiceRunLevelTimeout(t time.Duration) { f.serviceRunLevelTimeout = t }

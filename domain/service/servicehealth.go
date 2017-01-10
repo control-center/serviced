@@ -21,12 +21,13 @@ import (
 
 // a lightweight Service object with enough data to support status polling even if frequent
 type ServiceHealth struct {
-	ID           string
-	Name         string
-	PoolID       string
-	Instances    int
-	DesiredState int
-	HealthChecks map[string]health.HealthCheck
+	ID                string
+	Name              string
+	PoolID            string
+	Instances         int
+	DesiredState      int
+	HealthChecks      map[string]health.HealthCheck
+	EmergencyShutdown bool
 	datastore.VersionedEntity
 }
 
