@@ -1159,13 +1159,37 @@ func (d *daemon) startStorageMonitor() {
 		CheckMetrics:
 			for k, v := range avail {
 				switch k {
-				case metrics.PoolDataAvailableName, metrics.PoolMetadataAvailableName:
+				case metrics.PoolMetadataAvailableName:
+					if v < float64(minfree)*0.02 {
+						log.WithFields(logrus.Fields{
+							"prediction": v,
+							"minfree":    float64(minfree) * 0.02,
+							"period":     lookahead,
+						}).Error("Pool metadata volume will be exhausted within the configured period, so all running applications should be stopped")
+						t, err := d.facade.ListTenants(d.dsContext)
+						if err != nil {
+							log.WithError(err).Warn("Unable to look up tenants to be stopped. Using returned metrics instead")
+							// Fall back to pulling tenants from the metrics.
+							// This should really never happen.
+							t = []string{}
+							for k, _ := range avail {
+								if k != metrics.PoolDataAvailableName && k != metrics.PoolMetadataAvailableName {
+									t = append(t, k)
+								}
+							}
+						}
+						tenants = append(tenants, t...)
+						// No need to continue checking the availability
+						// metrics, since all tenants are being shut down
+						break CheckMetrics
+					}
+				case metrics.PoolDataAvailableName:
 					if v < float64(minfree) {
 						log.WithFields(logrus.Fields{
-							"resource":   k,
 							"prediction": v,
+							"minfree":    float64(minfree),
 							"period":     lookahead,
-						}).Error("Pool resources will be exhausted within the configured period, so all running applications should be stopped")
+						}).Error("Pool data volume will be exhausted within the configured period, so all running applications should be stopped")
 						t, err := d.facade.ListTenants(d.dsContext)
 						if err != nil {
 							log.WithError(err).Warn("Unable to look up tenants to be stopped. Using returned metrics instead")
@@ -1190,7 +1214,7 @@ func (d *daemon) startStorageMonitor() {
 					}
 				}
 			}
-			log.WithField("tenants", tenants).Debug("")
+			log.WithField("tenants", tenants).Debug("determined services that should be emergency stopped")
 			for _, tenant := range tenants {
 				log := log.WithFields(logrus.Fields{
 					"service": tenant,
