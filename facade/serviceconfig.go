@@ -15,6 +15,7 @@ package facade
 
 import (
 	"errors"
+	"os"
 	"reflect"
 
 	log "github.com/Sirupsen/logrus"
@@ -22,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
 
@@ -201,6 +203,12 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 		} else {
 			svcConfigFile, err = serviceconfigfile.New(tenantID, servicePath, configFile)
 			if err != nil {
+                        	if _, ok := err.(*validation.ValidationError); ok {
+					if _, err := os.Stat(configFile.Filename); os.IsNotExist(err) {
+						glog.V(1).Infof("%s doesn't exist. Skipping", configFile.Filename)
+						continue
+					}
+				}  
 				glog.Errorf("Could not create new service config file %s for service %s: %s", configFile.Filename, serviceID, err)
 				return err
 			}
