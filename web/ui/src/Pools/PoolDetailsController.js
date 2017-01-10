@@ -58,7 +58,7 @@
                     update();
                 })
                 .error((data, status) => {
-                    $notification.create("Add Virtual IP failed", data.Detail).error();
+                    $notification.create("Add Virtual IP failed", utils.escapeHTML(data.Detail)).error();
                 });
 
         };
@@ -91,7 +91,7 @@
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                       this.createNotification("Adding pool virtual ip failed", data.Detail).error();
+                                       this.createNotification("Adding pool virtual ip failed", utils.escapeHTML(data.Detail)).error();
                                        enableSubmit();
                                     }.bind(this));
                             }
@@ -141,12 +141,12 @@
                                 // update pool with recently edited pool
                                 resourcesFactory.updatePool($scope.currentPool.model.ID, poolModel)
                                     .success(function(data, status){
-                                        $notification.create("Updated pool", poolModel.ID).success();
+                                        $notification.create("Updated pool", utils.escapeHTML(poolModel.ID)).success();
                                         update();
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Update pool failed", data.Detail).error();
+                                        this.createNotification("Update pool failed", utils.escapeHTML(data.Detail)).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
