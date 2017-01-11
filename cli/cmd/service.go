@@ -1236,7 +1236,9 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 				for _, cmd := range c.serviceCommands(svcDetails.ID) {
 					fmt.Println(cmd)
 				}
-			}
+			} else {
+                return c.exit(1)
+            }
 		}
 		return c.exit(0)
 	}
