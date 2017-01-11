@@ -1227,10 +1227,15 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		return c.exit(1)
 	}
 
+	// Bash completion, CC-892
 	if args[len(args)-1] == "--generate-bash-completion" {
+		// if "serviced service run SERVICE_ID --generate-bash-completion" is executed
 		if len(args) == 2 {
-			for _, cmd := range c.serviceCommands(args[0]) {
-				fmt.Println(cmd)
+			svcDetails, _, err := c.searchForService(args[0])
+			if err == nil {
+				for _, cmd := range c.serviceCommands(svcDetails.ID) {
+					fmt.Println(cmd)
+				}
 			}
 		}
 		return c.exit(0)
