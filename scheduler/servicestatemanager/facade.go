@@ -11,13 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scheduler
+package servicestatemanager
 
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 )
 
+// Facade provides access to functions for scheduling
 type Facade interface {
 	WaitSingleService(*service.Service, service.DesiredState, <-chan interface{}) error
 	ScheduleServiceBatch(datastore.Context, []*service.Service, string, service.DesiredState) (int, error)

@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/metrics"
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 )
 
 type MetricsClient interface {
@@ -81,6 +82,7 @@ type Facade struct {
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
 
+	ssm       servicestatemanager.ServiceStateManager
 	isvcsPath string
 }
 
@@ -125,4 +127,4 @@ func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegis
 
 func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }
 
-func (f *Facade) SetServiceRunLevelTimeout(t time.Duration) { f.serviceRunLevelTimeout = t }
+//func (f *Facade) SetServiceRunLevelTimeout(t time.Duration) { f.serviceRunLevelTimeout = t }
