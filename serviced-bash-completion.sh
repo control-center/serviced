@@ -8,7 +8,9 @@ _cli_bash_autocomplete() {
      cur="${COMP_WORDS[COMP_CWORD]}"
      prev="${COMP_WORDS[COMP_CWORD-1]}"
      opts=$( ${COMP_WORDS[@]:0:COMP_CWORD} --generate-bash-completion )
-     COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+     if [ $? -eq 0 ]; then
+         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+     fi
      return 0
 }
   
