@@ -14,6 +14,8 @@
 package serviceconfigfile
 
 import (
+	"strconv"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 )
@@ -39,18 +41,35 @@ type storeImpl struct {
 //is a "/" delimited string of the service name hierarchy, i.e /Zenoss.Core/Zproxy
 func (s *storeImpl) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath string) ([]*SvcConfigFile, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("ServiceConfigFileStore.GetConfigFiles"))
-	search := search.Search("controlplane").Type(kind).Filter(
-		"and",
-		search.Filter().Terms("ServiceTenantID", tenantID),
-		search.Filter().Terms("ServicePath", svcPath),
-	)
 
-	q := datastore.NewQuery(ctx)
-	results, err := q.Execute(search)
-	if err != nil {
-		return nil, err
+	size := 20
+	from := 0
+	var confs []*SvcConfigFile
+
+	for {
+		search := search.Search("controlplane").Type(kind).Filter(
+			"and",
+			search.Filter().Terms("ServiceTenantID", tenantID),
+			search.Filter().Terms("ServicePath", svcPath),
+		).From(strconv.Itoa(from)).Size(strconv.Itoa(size))
+
+		q := datastore.NewQuery(ctx)
+
+		results, err := q.Execute(search)
+		if err != nil {
+			return nil, err
+		}
+
+		conv, err := convert(results)
+		if err != nil {
+			return nil, err
+		} else if len(conv) == 0 {
+			return confs, nil
+		}
+
+		from += size
+		confs = append(confs, conv...)
 	}
-	return convert(results)
 }
 
 func (s *storeImpl) GetConfigFile(ctx datastore.Context, tenantID, svcPath, filename string) (*SvcConfigFile, error) {
