@@ -23,4 +23,5 @@ type Facade interface {
 	WaitSingleService(*service.Service, service.DesiredState, <-chan interface{}) error
 	ScheduleServiceBatch(datastore.Context, []*service.Service, string, service.DesiredState) (int, error)
 	UpdateService(ctx datastore.Context, svc service.Service) error
+	GetTenantIDs(ctx datastore.Context) ([]string, error)
 }

@@ -1347,10 +1347,6 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 }
 
 func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) (int, error) {
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	defer mutex.RUnlock()
-
 	logger := plog.WithFields(log.Fields{
 		"desiredstate": desiredState,
 	})
