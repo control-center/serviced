@@ -39,7 +39,6 @@ var (
 type ServiceStateChangeBatch struct {
 	services     []*service.Service
 	desiredState service.DesiredState
-	tenantID     string
 	emergency    bool
 }
 
@@ -48,7 +47,6 @@ type ServiceStateChangeBatch struct {
 type PendingServiceStateChangeBatch struct {
 	services     map[string]CancellableService
 	desiredState service.DesiredState
-	tenantID     string
 	emergency    bool
 }
 
@@ -180,7 +178,6 @@ func (s *ServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID
 	// create a batch from the args
 	newBatch := ServiceStateChangeBatch{
 		services:     svcs,
-		tenantID:     tenantID,
 		desiredState: desiredState,
 		emergency:    emergency,
 	}
@@ -253,11 +250,6 @@ func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch)
 }
 
 func (b *ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) ServiceStateChangeBatch {
-	if b.tenantID != newBatch.tenantID {
-		// Nothing to do
-		return newBatch
-	}
-
 	oldSvcs := make([]*service.Service, len(b.services))
 	copy(oldSvcs, b.services)
 	newSvcs := []*service.Service{}
