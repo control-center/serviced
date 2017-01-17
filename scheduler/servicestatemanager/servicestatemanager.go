@@ -247,31 +247,25 @@ func (s *ServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID
 	var expeditedServices []*service.Service
 
 	for _, queue := range queues {
-		queue.Lock()
-		// reconcile the new batch against all batches in queue
-		newBatch, expeditedBatch = queue.reconcileWithBatchQueue(ServiceStateChangeBatch{
-			Services:     svcs,
-			DesiredState: desiredState,
-			Emergency:    emergency,
-		})
-		expeditedServices = append(expeditedServices, expeditedBatch.Services...)
+		func(q *ServiceStateQueue) {
+			q.Lock()
+			defer q.Unlock()
+			// reconcile the new batch against all batches in q
+			newBatch, expeditedBatch = q.reconcileWithBatchQueue(ServiceStateChangeBatch{
+				Services:     svcs,
+				DesiredState: desiredState,
+				Emergency:    emergency,
+			})
+			expeditedServices = append(expeditedServices, expeditedBatch.Services...)
 
-		if len(newBatch.Services) == 0 {
-			// this is no longer a useful batch
-			queue.Unlock()
-			continue
-		}
+			if len(newBatch.Services) == 0 {
+				// this is no longer a useful batch
+				return
+			}
 
-		// reconcile with the pending batch
-		newBatch = queue.reconcileWithPendingBatch(newBatch)
-
-		if len(newBatch.Services) == 0 {
-			// this is no longer a useful batch
-			queue.Unlock()
-			continue
-		}
-
-		queue.Unlock()
+			// reconcile with the pending batch
+			newBatch = q.reconcileWithPendingBatch(newBatch)
+		}(queue)
 	}
 
 	expeditedBatch.Services = expeditedServices
@@ -290,8 +284,12 @@ func (s *ServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID
 		return ErrMissingQueue
 	}
 	queue.Lock()
+	defer queue.Unlock()
 	if len(expeditedBatch.Services) > 0 {
 		s.processBatch(tenantID, expeditedBatch)
+	}
+	if len(newBatch.Services) == 0 {
+		return nil
 	}
 	if newBatch.Emergency {
 		err = queue.mergeEmergencyBatch(newBatch)
@@ -304,7 +302,6 @@ func (s *ServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID
 	case queue.Changed <- true:
 	default:
 	}
-	queue.Unlock()
 
 	plog.WithFields(logrus.Fields{
 		"services":  svcs,
