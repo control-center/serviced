@@ -107,8 +107,15 @@ ul {
     display: flex;
     flex-direction: column;
 }
+#visualization .graph_title {
+    flex: 0 0;
+}
+#graph {
+    flex: 1;
+}
 
 .legend {
+    flex: 0 0;
     line-height: 1.5em;
     font-size: 0.9em;
     margin: auto;

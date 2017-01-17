@@ -37,12 +37,6 @@ function detectShutdowns(dpsByTime, metric, margin){
         if(prev && prev[1] < margin){
             continue;
         }
-        /*
-        shutdowns.push({
-            label: metric,
-            dp: dpsByValue[i]
-        });
-        */
         shutdowns.push(dpsByValue[i]);
     }
 

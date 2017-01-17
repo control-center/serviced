@@ -91,22 +91,6 @@ function reformatData(data){
             };
         });
         resolve(actual);
-
-        /*
-        // NOTE - seems like the overhead of copying the
-        // data to the worker isnt worth it
-        let worker = new Worker("workers/reformat.js");
-        worker.postMessage({ data: data, colors: COLORS });
-        worker.onmessage = function(e){
-            resolve(e.data);
-            worker.terminate();
-        };
-        worker.onerror = e => {
-            console.error("reformat worker error", e);
-            reject(e);
-            worker.terminate();
-        };
-        */
     });
 }
 

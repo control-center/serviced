@@ -209,26 +209,6 @@ class ThreshyGraph {
                 .attr("d", d => draw(d));
 
         line.exit().remove();
-
-        /*
-        let rect = this.visG.selectAll("rect.margin")
-            .data([{
-                x: 0,
-                y: this.yScale(margin),
-                w: this.w,
-                h: this.h - this.yScale(margin)}
-            ]);
-
-        rect.enter().append("rect")
-                .attr("class", "margin")
-            .merge(rect)
-                .attr("x", d => d.x)
-                .attr("y", d => d.y)
-                .attr("width", d => d.w)
-                .attr("height", d => d.h);
-
-        rect.exit().remove();
-        */
     }
 
     drawLines(data){
