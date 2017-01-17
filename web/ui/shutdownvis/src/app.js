@@ -61,7 +61,7 @@ function fetchDiskUsage(config){
         tsdbURL = buildTSDBQuery(url, metrics, start, end);
 
     // load up mock data
-    tsdbURL = "available.json";
+    //tsdbURL = "available.json";
 
     return get(tsdbURL)
         .catch(e => {
