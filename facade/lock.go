@@ -58,7 +58,7 @@ func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) 
 	}()
 
 	// Wait for the queue to empty
-	f.ssm.DrainQueue(tenantID)
+	f.ssm.DrainQueues(tenantID)
 
 	var svcs []service.ServiceDetails
 	if svcs, err = f.GetServiceDetailsByTenantID(ctx, tenantID); err != nil {

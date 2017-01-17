@@ -24,6 +24,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	ssm "github.com/control-center/serviced/scheduler/servicestatemanager"
 	"github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
+	"github.com/stretchr/testify/mock"
+
 	. "gopkg.in/check.v1"
 )
 
@@ -1031,6 +1033,47 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 		c.Fatalf("Tenant loop 1 not terminated")
 	case <-timer.C:
 	}
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
+	// Setup a tenant
+	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1"}, nil).Once()
+
+	svcs := getTestServicesADGH()
+
+	svcA := svcs[0]
+	svcD := svcs[1]
+	svcG := svcs[2]
+	svcH := svcs[3]
+
+	// Start the manager
+	s.serviceStateManager.Start()
+
+	// The first batch should contain A, D, H because of startlevel
+	// Those should get waited on by a call to the facade from runLoop
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return(3, nil).Once()
+	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Once()
+	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Once()
+	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Once()
+
+	// We'll sleep a bit to make sure those services reach desired state in zk (mocked),
+	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
+	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return(1, nil).Once()
+	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Once()
+
+	err := s.serviceStateManager.ScheduleServices(svcs, "tenant1", service.SVCRun, false)
+	c.Assert(err, IsNil)
+
+	// Sleep so our stuff goes through the loop process and we can guarantee our calls
+	time.Sleep(time.Millisecond * 300)
+	s.facade.AssertExpectations(c)
+
+	// Stop the manager
+	s.serviceStateManager.Shutdown()
 }
 
 func (s *ServiceStateManagerSuite) CompareBatches(c *C, a, b ssm.ServiceStateChangeBatch) bool {

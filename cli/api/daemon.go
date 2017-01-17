@@ -1102,7 +1102,6 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
-	f.SetServiceRunLevelTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)
@@ -1113,6 +1112,9 @@ func (d *daemon) initFacade() *facade.Facade {
 	}
 	if err := f.UpdateServiceCache(d.dsContext); err != nil {
 		log.WithError(err).Fatal("Unable to update the service cache")
+	}
+	if err := f.InitServiceStateManager(d.dsContext, time.Second*30); err != nil {
+		log.WithError(err).Fatal("Unable to initialize service state manager")
 	}
 	return f
 }

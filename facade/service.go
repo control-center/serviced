@@ -36,12 +36,12 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"github.com/control-center/serviced/domain/service"
 
 	"github.com/control-center/serviced/utils"
-	"sync"
 )
 
 const (
@@ -61,6 +61,13 @@ var (
 	ErrServiceDuplicateEndpoint = errors.New("facade: duplicate endpoint found")
 	ErrEmergencyShutdownNoOp    = errors.New("Cannot perform operation; Service has Emergency Shutdown flag set")
 )
+
+// InitServiceStateManager initializes the facade's servicestatemanager
+func (f *Facade) InitServiceStateManager(ctx datastore.Context, runlevelTimeout time.Duration) error {
+	f.ssm = servicestatemanager.NewServiceStateManager(f, ctx, runlevelTimeout)
+	err := f.ssm.Start()
+	return err
+}
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
@@ -1230,6 +1237,9 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	// Build a list of services to be scheduled
 	svcs := []*service.Service{}
 	visitor := func(svc *service.Service) error {
+		if svc.ID != serviceID && svc.Launch == commons.MANUAL && !emergency {
+			return nil
+		}
 		if desiredState != service.SVCStop {
 			// Verify that all of the services are ready to be started
 			if err := f.validateServiceStart(ctx, svc); err != nil {
@@ -1246,104 +1256,44 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		return 0, err
 	}
 
-	serviceScheduler := func() (int, error) {
-		affected := 0
-		var errToReturn error = nil
-		if emergency {
-
-			// Sort the services by emergency shutdown order
-			sort.Sort(service.ByEmergencyShutdown{svcs})
-
-			// Start one group at a time
-			if len(svcs) > 0 {
-				previousLevel := svcs[0].EmergencyShutdownLevel
-				previousStartLevel := svcs[0].StartLevel
-				nextBatch := []*service.Service{}
-				nextBatchIDs := []string{}
-				for _, svc := range svcs {
-					currentLevel := svc.EmergencyShutdownLevel
-					currentStartLevel := svc.StartLevel
-					sameBatch := currentLevel == previousLevel
-					if sameBatch && currentLevel == 0 {
-						// For emergency shutdown level 0, we group by reverse start level
-						sameBatch = currentStartLevel == previousStartLevel
-					}
-					if sameBatch {
-						nextBatch = append(nextBatch, svc)
-						nextBatchIDs = append(nextBatchIDs, svc.ID)
-
-						// Set EmergencyShutdown to true for this service and update the database
-						svc.EmergencyShutdown = true
-						uerr := f.updateService(ctx, tenantID, *svc, false, false)
-						if uerr != nil {
-							errToReturn = uerr
-							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-						}
-					} else {
-						// Schedule this batch
-						levelLogger := logger.WithField("level", previousLevel)
-						levelLogger.Info("Shutting down all services at current emergency shutdown level")
-						a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
-						if serr != nil {
-							errToReturn = serr
-							levelLogger.WithError(serr).Error("Error scheduling services to stop")
-						} else {
-							// Wait for services to change state before continuing
-							f.WaitService(ctx, desiredState, f.serviceRunLevelTimeout, false, nextBatchIDs...)
-						}
-						affected += a
-						nextBatch = []*service.Service{svc}
-						nextBatchIDs = []string{svc.ID}
-
-						// Set EmergencyShutdown to true for this service and update the database
-						svc.EmergencyShutdown = true
-						uerr := f.updateService(ctx, tenantID, *svc, false, false)
-						if uerr != nil {
-							errToReturn = uerr
-							logger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
-						}
-					}
-					previousLevel = currentLevel
-					previousStartLevel = currentStartLevel
-				}
-
-				// Schedule the last batch
-				levelLogger := logger.WithField("level", previousLevel)
-				levelLogger.Info("Shutting down all services at current emergency shutdown level")
-				a, serr := scheduleServices(f, nextBatch, ctx, tenantID, serviceID, desiredState)
-				if serr != nil {
-					errToReturn = serr
-					levelLogger.WithError(serr).Error("Error scheduling services to stop")
-				} else {
-					// Wait for services to change state before continuing
-					f.WaitService(ctx, desiredState, f.serviceRunLevelTimeout, false, nextBatchIDs...)
-				}
-				affected += a
-
-			}
-
-		} else {
-			affected, errToReturn = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState)
-		}
-
-		return affected, errToReturn
-	}
-
 	affected := 0
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
 		// Schedule the services synchronously, calculating the number of affected services as we go
-		affected, err = serviceScheduler()
+		affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
 
 	} else {
 		logger.Debug("Scheduling services asynchronously")
 		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
 		affected = len(svcs)
 		err = nil
-		go serviceScheduler()
+		go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
 	}
 
 	return affected, err
+}
+
+func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState, emergency bool) (int, error) {
+	logger := plog.WithFields(log.Fields{
+		"parentserviceid": serviceID,
+		"tenantid":        tenantID,
+		"desiredstate":    desiredState,
+	})
+	logger.Debug("Begin scheduleServices")
+	err := f.ssm.ScheduleServices(svcs, tenantID, desiredState, emergency)
+	if err == servicestatemanager.ErrBadTenantID {
+		logger.WithField("tenantid", tenantID).Info("Tenant did not exist in service state manager, creating now.")
+		err = f.ssm.AddTenant(tenantID)
+		if err != nil {
+			return 0, err
+		}
+		err = f.ssm.ScheduleServices(svcs, tenantID, desiredState, emergency)
+	}
+	if err != nil {
+		logger.WithError(err).Error("Couldn't schedule services")
+		return 0, err
+	}
+	return len(svcs), nil
 }
 
 func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) (int, error) {
@@ -1358,45 +1308,6 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 		err := f.updateDesiredState(ctx, svc, desiredState)
 		if err != nil {
 			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error scheduling service")
-			return 0, err
-		}
-		if err := f.fillServiceAddr(ctx, svc); err != nil {
-			return 0, err
-		}
-		logger.WithFields(log.Fields{
-			"servicename": svc.Name,
-			"serviceid":   svc.ID,
-		}).Info("Scheduled service")
-		servicesToSchedule = append(servicesToSchedule, svc)
-	}
-
-	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
-		logger.WithError(err).Error("Could not sync service(s)")
-		return 0, err
-	}
-
-	logger.WithField("count", len(servicesToSchedule)).Debug("Finished scheduleServices")
-	return len(servicesToSchedule), nil
-}
-
-func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState) (int, error) {
-	logger := plog.WithFields(log.Fields{
-		"parentserviceid": serviceID,
-		"tenantid":        tenantID,
-		"desiredstate":    desiredState,
-	})
-	logger.Debug("Begin scheduleServices")
-	servicesToSchedule := make([]*service.Service, 0)
-	for _, svc := range svcs {
-		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
-			continue
-		} else if svc.DesiredState == int(desiredState) {
-			continue
-		}
-
-		err := f.updateDesiredState(ctx, tenantID, svc, desiredState)
-		if err != nil {
-			logger.WithError(err).WithField("serviceid", svc.ID).WithField("tenantid", tenantID).Errorf("Error scheduling service")
 			return 0, err
 		}
 		if err := f.fillServiceAddr(ctx, svc); err != nil {
@@ -1750,7 +1661,11 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 		// Restart the service if it is running and new address assignments are made
 		if restart && svc.DesiredState == int(service.SVCRun) {
-			f.RestartService(ctx, dao.ScheduleServiceRequest{svc.ID, false, true})
+			f.RestartService(ctx, dao.ScheduleServiceRequest{
+				ServiceID:   svc.ID,
+				AutoLaunch:  false,
+				Synchronous: true,
+			})
 		}
 
 		return nil
