@@ -3,16 +3,14 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Invoking serviced</title>
+      <title>master host</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
-      <meta name="DC.Type" content="reference">
+      <meta name="DC.Type" content="glossentry">
       
-      <meta name="DC.Title" content="Invoking serviced">
-      
-      <meta name="DC.Relation" scheme="URI" content="cli.html">
+      <meta name="DC.Title" content="master host">
       
       <meta name="prodname" content="Control Center">
       
@@ -34,8 +32,8 @@
       
       <meta name="DC.Format" content="XHTML">
       
-      <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"feature\/cli\/serviced.html","previousTopicHref":"feature\/cli\/cli.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <meta name="DC.Identifier" content="glossentryid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"shared\/glossary\/cc-resource-pool.html","previousTopicHref":"shared\/glossary\/cc-delegate-host.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -63,9 +61,7 @@
          <div class="row">
             <div class="col-xs-12 col-md-21">
                <ol class="breadcrumb">
-                  <li><a class="breadcrumb" href="../../feature/cli/cli.html" title="Command-line interface reference">Command-line interface reference</a></li>
-                  
-                  <li>Invoking serviced</li>
+                  <li>master host</li>
                </ol>
             </div>
          </div>
@@ -106,8 +102,8 @@
                            </li>
                         </ul>
                      </li>
-                     <li class=" collapsible  active"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
-                           <li class=" no-child  active"><a class="selected" href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
+                     <li class=" collapsible  collapsed"><a href="../../feature/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Command-line interface reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../feature/cli/invoking-serviced.html">Invoking serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
@@ -123,11 +119,11 @@
                            <li class=" no-child "><a href="../../feature/vars/file.html">Control Center configuration file</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                     <li class=" collapsible  active"><a href="#">Glossary</a><ul class="nav">
                            <li class=" no-child "><a href="../../shared/glossary/cc-application.html">application</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/cc-cluster.html">cluster</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
-                           <li class=" no-child "><a href="../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../shared/glossary/cc-master-host.html">master host</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
@@ -142,51 +138,20 @@
             <div class="col-xs-12 col-md-8">
                <div id="page" class="starter-template">
                   <article>
-                     <div class="page reference  - topic-topic       reference-reference " id="referenceid">
+                     <div class="page glossentry  - topic-topic concept-concept glossentry-glossentry " id="glossentryid">
                         
-                        <h1 class="title topictitle1">Invoking serviced</h1>
-                        <div class="body refbody">
-                           
-                           <div class="section"><a name="referenceid-d7006e35" id="referenceid-d7006e35" class="anchor"></a>
-                              
-                              <p class="p">To use <span class="keyword cmdname">serviced</span>, you need a login account on hosts in <span class="ph">Control Center</span> pools. The account must be a member of the <span class="keyword cmdname">docker</span> group.
-                              </p>
-                              
-                              
-                              <p class="p">You can invoke <span class="keyword cmdname">serviced</span> from the <span class="ph">Control Center</span> master host or a
-                                 delegate host. For example, to list the services running on the master host, enter the
-                                 following command: 
-                              </p>
-                              
-                              <pre class="pre codeblock">serviced service list</pre>
-                              
-                              <p class="p">To invoke <span class="keyword cmdname">serviced</span> on a delegate host, you can specify the master host
-                                 and port by using the <samp class="ph codeph">--endpoint</samp> global option. Replace
-                                 <var class="keyword varname">Master-Host</var> with the hostname or IP address of the <span class="ph">Control Center</span>
-                                 master host.
-                              </p>
-                              
-                              
-                              <p class="p">Example:</p>
-                              
-                              <pre class="pre codeblock">serviced --endpoint <var class="keyword varname">Master-Host</var>:4979 service list</pre>
-                              
-                              <aside class="note note "><span class="title">Note:</span> To commit a container, you must run a <span class="keyword cmdname">serviced</span> CLI session on the <span class="ph">Control Center</span> master host.
-                              </aside>
-                              
-                              
-                           </div>
-                           
-                           
+                        <h1 class="title title glossterm topictitle1">master host</h1>
+                        <div class="abstract abstract glossdef">The host that runs the application services scheduler, the Docker registry, the
+                           distributed file system, and other internal services, including the server for the <span class="ph">Control Center</span> browser interface. A system can be configured as delegate or master. Only one
+                           system in a <span class="ph">Control Center</span> cluster can be the master.
                         </div>
                         
-                        <div class="related-links"></div>
                      </div>
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../feature/cli/cli.html" class="previous" rel="internal" title="Command-line interface reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Command-line interface reference</span></a></div>
-                           <div id="footer_next"><a href="../../feature/cli/serviced.html" class="next" rel="internal" title="serviced"><span class="sr-only">serviced</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../shared/glossary/cc-delegate-host.html" class="previous" rel="internal" title="delegate host"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">delegate host</span></a></div>
+                           <div id="footer_next"><a href="../../shared/glossary/cc-resource-pool.html" class="next" rel="internal" title="resource pool"><span class="sr-only">resource pool</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

@@ -115,6 +115,9 @@
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
@@ -125,8 +128,16 @@
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../shared/glossary/cc-application.html">application</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-cluster.html">cluster</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-template.html">service template</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-tenant.html">tenant</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -144,9 +155,7 @@
                            </p>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e44" id="referenceid-d14079e44" class="anchor"></a>
-                              
-                              <h2 class="title sectiontitle">USAGE</h2>
+                           <div class="section"><a name="referenceid-d15112e44" id="referenceid-d15112e44" class="anchor"></a>
                               
                               <p class="p">Use this command to create LVM thin pools for Docker Engine and <span class="ph">Control Center</span>.
                               </p>
@@ -155,16 +164,16 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e56" id="referenceid-d14079e56" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e53" id="referenceid-d15112e53" class="anchor"></a>
                               
-                              <h2 class="title sectiontitle">SYNTAX</h2>
+                              <h2 class="title sectiontitle">USAGE</h2>
                               <pre class="pre codeblock">serviced-storage  [-h|--help] [-o <var class="keyword varname">DeviceMapperOption</var>=<var class="keyword varname">Value</var>] \
   [-v] Command [<var class="keyword varname">CommandOptions</var>]</pre>
                               
                               </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e74" id="referenceid-d14079e74" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e71" id="referenceid-d15112e71" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
                               
@@ -200,7 +209,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e115" id="referenceid-d14079e115" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e112" id="referenceid-d15112e112" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">COMMANDS</h2>
                               
@@ -324,7 +333,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e252" id="referenceid-d14079e252" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e249" id="referenceid-d15112e249" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">serviced-storage check</h2>
                               
@@ -360,7 +369,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e308" id="referenceid-d14079e308" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e305" id="referenceid-d15112e305" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">serviced-storage create-thin-pool</h2>
                               
@@ -399,7 +408,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e363" id="referenceid-d14079e363" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e360" id="referenceid-d15112e360" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">serviced-storage resize</h2>
                               
@@ -433,11 +442,12 @@
                            </div>
                            
                            
-                           <div class="section"><a name="referenceid-d14079e416" id="referenceid-d14079e416" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d15112e413" id="referenceid-d15112e413" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">EXAMPLES</h2>
                               
-                              <p class="p">Create an LVM volume group named <samp class="ph codeph">zenoss</samp> and use it for both thin pools:
+                              <p class="p">Create an LVM volume group named <samp class="ph codeph">zenoss</samp> and use it for both thin
+                                 pools:
                               </p>
                               
                               <pre class="pre codeblock">vgcreate zenoss /dev/sdb /dev/sdc
@@ -471,8 +481,8 @@ serviced-storage create-thin-pool serviced /dev/sdc3</pre>
 serviced-storage -o dm.thinpooldev=/dev/mapper/zenoss-serviced--pool \
   resize -d /opt/serviced/var/volumes 58uuetj38draeu9alp6002b1y 200G</pre>
                               
-                              <p class="p">Identify the <span class="keyword cmdname">serviced</span> application data thin pool,
-                                 and then remove orphaned snapshot devices.
+                              <p class="p">Identify the <span class="keyword cmdname">serviced</span> application data thin pool, and then remove
+                                 orphaned snapshot devices.
                               </p>
                               
                               <pre class="pre codeblock">ls /dev/mapper | grep serviced

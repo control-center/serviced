@@ -107,6 +107,9 @@
                            <li class=" no-child "><a href="../../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child "><a href="../../../feature/cli/serviced-key.html">serviced key</a></li>
+                           <li class=" no-child "><a href="../../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../../feature/cli/script.html">serviced script</a></li>
@@ -117,8 +120,16 @@
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-application.html">application</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-cluster.html">cluster</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../../shared/glossary/service-definition.html">service definition</a></li>
                            <li class=" no-child "><a href="../../../shared/glossary/service-template.html">service template</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../../shared/glossary/cc-tenant.html">tenant</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -133,7 +144,7 @@
                         <div class="body refbody">
                            
                            
-                           <div class="section"><a name="refid-d821e35" id="refid-d821e35" class="anchor"></a>
+                           <div class="section"><a name="refid-d1001e35" id="refid-d1001e35" class="anchor"></a>
                               
                               <p class="p"><cite class="cite">Control Center Reference Guide</cite> provides information and procedures for managing <span class="ph">Control Center</span>.
                               </p>
@@ -143,13 +154,13 @@
                            
                            
                            
-                           <div class="section"><a name="refid-d821e46" id="refid-d821e46" class="anchor"></a>
+                           <div class="section"><a name="refid-d1001e46" id="refid-d1001e46" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Related publications</h2>
                               
                               
                               <div class="tablenoborder">
-                                 <table id="ID_d821e51" class="table">
+                                 <table id="ID_d1001e51" class="table">
                                     
                                     <col style="width:33.33333333333333%">
                                     
@@ -159,10 +170,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d821e63">Title</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1001e63">Title</th>
                                           
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d821e66">Description&nbsp;</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1001e66">Description&nbsp;</th>
                                           
                                           
                                        </tr>
@@ -175,10 +186,23 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e63 "><cite class="cite">Control Center Planning Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e63 "><cite class="cite">Control Center Release Notes</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e66 ">Provides both general and specific information about
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e66 ">Describes known issues, fixed issues, and late-breaking
+                                             information not included in other publications.
+                                          </td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e63 "><cite class="cite">Control Center Planning Guide</cite></td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e66 ">Provides both general and specific information about
                                              preparing to deploy a <span class="ph">Control Center</span> cluster.
                                           </td>
                                           
@@ -188,10 +212,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e63 "><cite class="cite">Control Center Installation Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e63 "><cite class="cite">Control Center Installation Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e66 ">Provides detailed procedures for installing
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e66 ">Provides detailed procedures for installing
                                              and configuring a <span class="ph">Control Center</span> cluster.
                                           </td>
                                           
@@ -199,13 +223,12 @@
                                        </tr>
                                        
                                        
-                                       
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e63 "><cite class="cite">Control Center Reference Guide</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e63 "><cite class="cite">Control Center Reference Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e66 ">Provides information and procedures for managing
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e66 ">Provides information and procedures for managing
                                              <span class="ph">Control Center</span>. This information is also available
                                              as online help in the <span class="ph">Control Center</span> browser interface.
                                           </td>
@@ -216,11 +239,12 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e63 "><cite class="cite">Control Center Release Notes</cite></td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e63 "><cite class="cite">Control Center Upgrade Guide</cite></td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e66 ">Describes known issues, fixed issues, and late-breaking
-                                             information not included in other publications.
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e66 ">Provides detailed procedures for updating
+                                             a <span class="ph">Control Center</span> deployment to the 
+                                             latest release.
                                           </td>
                                           
                                           
@@ -238,7 +262,7 @@
                            </div>
                            
                            
-                           <div class="section"><a name="refid-d821e131" id="refid-d821e131" class="anchor"></a>
+                           <div class="section"><a name="refid-d1001e142" id="refid-d1001e142" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Documentation feedback</h2>
                               
@@ -253,7 +277,7 @@
                            
                            
                            
-                           <div class="section"><a name="refid-d821e146" id="refid-d821e146" class="anchor"></a>
+                           <div class="section"><a name="refid-d1001e157" id="refid-d1001e157" class="anchor"></a>
                               
                               <h2 class="title sectiontitle">Supported clients and browsers</h2>
                               
@@ -264,7 +288,7 @@
                               
                               
                               <div class="tablenoborder">
-                                 <table id="ID_d821e154" class="table">
+                                 <table id="ID_d1001e165" class="table">
                                     
                                     <col style="width:33.33333333333333%">
                                     
@@ -274,10 +298,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d821e166">Client OS</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1001e177">Client OS</th>
                                           
                                           
-                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d821e169">Supported Browsers</th>
+                                          <th class="entry cellrowborder" style="text-align:left;vertical-align:top;" id="d1001e180">Supported Browsers</th>
                                           
                                           
                                        </tr>
@@ -290,10 +314,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="4" style="text-align:left;vertical-align:top;" headers="d821e166 ">Windows 7 and 8.1</td>
+                                          <td class="entry cellrowborder" rowspan="4" style="text-align:left;vertical-align:top;" headers="d1001e177 ">Windows 7 and 8.1</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Internet Explorer 11 (Enterprise mode only; compatibility mode is not
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Internet Explorer 11 (Enterprise mode only; compatibility mode is not
                                              supported.)
                                           </td>
                                           
@@ -303,7 +327,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Internet Explorer 10 (Compatibility mode is not supported.)</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Internet Explorer 10 (Compatibility mode is not supported.)</td>
                                           
                                           
                                        </tr>
@@ -311,7 +335,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Firefox 30 and above</td>
                                           
                                           
                                        </tr>
@@ -319,27 +343,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Chrome 30 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d821e166 ">Windows Server 2012 R2</td>
-                                          
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Firefox 30</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Chrome 36</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Chrome 30 and above</td>
                                           
                                           
                                        </tr>
@@ -348,30 +352,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d821e166 ">Macintosh OS/X 10.9</td>
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1001e177 ">Windows Server 2012 R2</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Firefox 30 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Chrome 36 and above</td>
-                                          
-                                          
-                                       </tr>
-                                       
-                                       
-                                       
-                                       <tr class="row">
-                                          
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d821e166 ">Ubuntu 14.04 LTS</td>
-                                          
-                                          
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Firefox 30</td>
                                           
                                           
                                        </tr>
@@ -379,7 +363,7 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Chrome 37 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Chrome 36</td>
                                           
                                           
                                        </tr>
@@ -388,10 +372,10 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d821e166 ">Red Hat Enterprise Linux 6.5, CentOS 6.5</td>
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1001e177 ">Macintosh OS/X 10.9</td>
                                           
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Firefox 30 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Firefox 30 and above</td>
                                           
                                           
                                        </tr>
@@ -399,7 +383,47 @@
                                        
                                        <tr class="row">
                                           
-                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d821e169 ">Chrome 37 and above</td>
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Chrome 36 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1001e177 ">Ubuntu 14.04 LTS</td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Firefox 30 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Chrome 37 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" rowspan="2" style="text-align:left;vertical-align:top;" headers="d1001e177 ">Red Hat Enterprise Linux 6.5, CentOS 6.5</td>
+                                          
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Firefox 30 and above</td>
+                                          
+                                          
+                                       </tr>
+                                       
+                                       
+                                       <tr class="row">
+                                          
+                                          <td class="entry cellrowborder" style="text-align:left;vertical-align:top;" headers="d1001e180 ">Chrome 37 and above</td>
                                           
                                           
                                        </tr>
