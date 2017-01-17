@@ -14,7 +14,7 @@ ROLLUP = $(NODE_MODULES)/rollup/bin/rollup
 
 default: build www
 
-build: $(WWW)/index.html $(WWW)/d3.js $(WWW)/available.json $(WWW)/workers
+build: $(WWW)/index.html $(WWW)/d3.js $(WWW)/workers
 
 $(WWW)/index.html: $(SRC)/app.html $(JS) $(SRC)/app.css
 	mkdir -p $(@D)
@@ -26,10 +26,6 @@ $(WWW)/index.html: $(SRC)/app.html $(JS) $(SRC)/app.css
 $(WWW)/d3.js:
 	mkdir -p $(@D)
 	cp $(NODE_MODULES)/d3/build/d3.js $@
-
-$(WWW)/available.json:
-	mkdir -p $(@D)
-	cp data/available.json $(WWW)
 
 $(WWW)/workers:
 	cp -r $(SRC)/workers $(WWW)
