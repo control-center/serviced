@@ -1,0 +1,254 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    font-family: arial;
+    box-sizing: border-box;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    color: #444;
+}
+
+a.btn {
+    cursor: pointer;
+    display: inline-block;
+    background-color: orchid;
+    text-decoration: none;
+    color: #222;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 2px 8px;
+}
+a.btn:hover {
+    background-color: plum;
+}
+a.btn:active {
+    background-color: mediumorchid;
+    color: white;
+}
+
+ul {
+    list-style-type: none;
+}
+
+.section_header {
+    font-size: 1.2em;
+    font-weight: normal;
+    background-color: #222;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    color: #CCC;
+}
+
+#content {
+    width: 100%;
+    height: 100%;
+    flex-direction: row;
+    font-size: 0.9em;
+}
+
+#controls {
+    position: absolute;
+    top: 0; left: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.control-group {
+    line-height: 2em;
+    font-size: 0.8em;
+    background-color: #444;
+    color: #CCC;
+    margin: 10px;
+    width: 400px;
+}
+
+.control {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 10px;
+}
+
+.control label {
+    flex: 0 0 70px;
+    text-transform: uppercase;
+    font-size: 0.9em;
+    text-align: right;
+}
+.control input,
+.control select {
+    flex: 2;
+    margin: 0 10px;
+}
+.control .value {
+    flex: 1;
+    font-size: 1.4em;
+    font-weight: bold;
+    color: lawngreen;
+}
+
+.control .value_units {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    color: #AAA;
+    padding-left: 2px;
+}
+
+#visualization {
+    width: 100%;
+    height: 100%;
+    margin: auto;
+    padding: 175px 40px;
+    display: flex;
+    flex-direction: column;
+}
+#visualization .graph_title {
+    flex: 0 0;
+}
+#graph {
+    flex: 1;
+}
+
+.legend {
+    flex: 0 0;
+    line-height: 1.5em;
+    font-size: 0.9em;
+    margin: auto;
+}
+.legend_row {
+    cursor: default;
+}
+.legend_row:hover{
+    color: black;
+}
+.legend_row .metric_name {
+    font-weight: bold;
+}
+.legend_row .series_color {
+    display: flex;
+    flex-direction: column;
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 4px;
+}
+.legend_row .series_color .line-piece.top {
+    flex: 1;
+    border-bottom: solid 2px;
+}
+.legend_row .series_color .line-piece.bottom {
+    flex: 1;
+    border-top: solid 2px;
+}
+.legend_row .series_color .line-piece.top.derived {
+    border-bottom-style: dotted !important;
+}
+.legend_row .series_color .line-piece.bottom.derived {
+    border-top-style: dotted !important;
+}
+.legend_row .series_label {
+    padding-right: 10px;
+}
+
+.ohno_icon:before {
+    display: inline-block;
+    content: "❗";
+    font-size: 0.8em;
+    width: 1.1em;
+    padding: 1px;
+    font-weight: bold;
+    color: red;
+    background-color: white;
+    text-align: center;
+    border-radius: 50%;
+}
+
+#shutdowns {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+}
+#shutdowns h2 {
+    background-color: red;
+    color: white;
+    padding-bottom: 4px;
+}
+
+.shutdown_list {
+    overflow-y: scroll;
+    max-height: 125px;
+}
+
+.shutdown_list li {
+    cursor: default;
+    padding: 2px 4px;
+    border-bottom: solid 1px #CCC;
+}
+.shutdown_list li:hover {
+    background-color: #CCC;
+}
+.shutdown_list .shutdown_time {
+    font-weight: bold;
+}
+
+#graph path.line-series {
+    fill: none;
+    stroke-width: 3px;
+    stroke-linejoin: bevel;
+    stroke-linecap: round;
+}
+#graph path.line-series.derived {
+    stroke-dasharray: 1 5;
+}
+#graph path.line-series.blurred {
+    stroke-width: 2px;
+    stroke: #CCC !important;
+}
+
+
+#graph path.margin{
+    stroke: red;
+    stroke-width: 1px;
+}
+#graph path.margin.blurred{
+    stroke: none;
+}
+#graph rect.margin{
+    fill: rgba(200,0,0,0.1);
+}
+
+#graph path.shutdown {
+    stroke: red;
+}
+#graph path.shutdown.blurred {
+    stroke: none;
+}
+
+#graph circle.shutdown_circle {
+    fill: red;
+}
+#graph circle.shutdown_circle.blurred {
+    fill: none;
+}
+
+#graph .axis .domain,
+#graph .axis .tick line,
+#graph .grid .domain {
+    stroke: none;
+}
+#graph .axis .tick text {
+    fill: #888;
+    font-weight: bold;
+}
+#graph .axis-y .domain {
+    stroke: #888;
+}
+#graph .axis-x .tick text {
+    fill: red;
+}

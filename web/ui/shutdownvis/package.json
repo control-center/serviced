@@ -1,0 +1,17 @@
+{
+  "name": "emergency_shutdown_tweak",
+  "version": "0.0.1",
+  "description": "visualize the emergency shutdown config",
+  "scripts": {},
+  "author": "John Matos",
+  "dependencies": {
+    "d3": "^4.4.0"
+  },
+  "devDependencies": {
+    "chokidar-cli": "^1.2.0",
+    "http-server": "^0.9.0",
+    "livereload": "^0.6.0",
+    "rollup": "^0.41.1",
+    "watch": "^1.0.1"
+  }
+}
