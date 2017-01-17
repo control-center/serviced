@@ -131,6 +131,13 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 
 		cli.IntFlag{"service-run-level-timeout", defaultOps.ServiceRunLevelTimeout, "max time in seconds to wait for services to start/stop before moving on to services at the next run level"},
 
+		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
+		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
+		cli.StringFlag{"logstashurl", defaultOps.LogstashURL, "logstash url and port"},
+		cli.StringFlag{"logstash-es", defaultOps.LogstashES, "host and port for logstash elastic search"},
+		cli.IntFlag{"logstash-max-days", defaultOps.LogstashMaxDays, "days to keep Logstash data"},
+		cli.IntFlag{"logstash-max-size", defaultOps.LogstashMaxSize, "max size of Logstash data to keep in gigabytes"},
+
 		cli.IntFlag{"storage-report-interval", defaultOps.StorageReportInterval, "frequency in seconds to report storage stats to opentsdb"},
 		cli.IntFlag{"storage-metric-monitor-window", defaultOps.StorageMetricMonitorWindow, "the amount of time in seconds for which serviced will consider storage availability metrics in order to predict future availability"},
 		cli.IntFlag{"storage-lookahead-period", defaultOps.StorageLookaheadPeriod, "the amount of time in the future in seconds serviced should predict storage availability for the purposes of emergency shutdown"},
