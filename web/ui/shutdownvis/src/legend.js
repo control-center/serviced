@@ -1,5 +1,3 @@
-import {delegate} from "./utils";
-
 // build legend html
 function buildLegendRowEl(config){
     let html = `
@@ -32,12 +30,15 @@ export function buildLegend(data, el, events){
         });
     });
 
+    // TODO - unbind event listeners
+    el.innerHTML = "";
+
     legendRowEls.forEach(row => {
         el.appendChild(row);
         for(let event in events){
             let fn = events[event];
             row.addEventListener(event, e => {
-                fn(e.target.dataset.id);
+                fn(e.currentTarget.dataset.id);
             });
         }
     });

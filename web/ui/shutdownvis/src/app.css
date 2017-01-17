@@ -13,6 +13,7 @@ body, html {
 }
 
 a.btn {
+    cursor: pointer;
     display: inline-block;
     background-color: orchid;
     text-decoration: none;
@@ -23,6 +24,10 @@ a.btn {
 }
 a.btn:hover {
     background-color: plum;
+}
+a.btn:active {
+    background-color: mediumorchid;
+    color: white;
 }
 
 ul {
@@ -174,12 +179,15 @@ ul {
 }
 
 .shutdown_list li {
-    cursor: pointer;
+    cursor: default;
     padding: 2px 4px;
     border-bottom: solid 1px #CCC;
 }
 .shutdown_list li:hover {
     background-color: #CCC;
+}
+.shutdown_list .shutdown_time {
+    font-weight: bold;
 }
 
 #graph path.line-series {

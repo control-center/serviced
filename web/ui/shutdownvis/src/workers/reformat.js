@@ -8,7 +8,7 @@ onmessage = function(e){
             .sort((a,b) => (+a) - (+b))
             .map(ts => [ts*1000, m.dps[ts]])
             // HACK TODO - dont just work on the first 100 :>
-            .slice(0,1000);
+            .slice(0,10000);
 
         return {
             metric: m.metric,

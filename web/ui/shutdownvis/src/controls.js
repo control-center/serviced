@@ -27,17 +27,51 @@ function buildSliderEl(config){
     return el;
 }
 
+function buildTextInputEl(config){
+    let html = `
+        <label>${config.label}</label>
+        <input type="text" value="${config.val}">
+    `;
+
+    let el = document.createElement("div");
+    el.classList.add("control", "text-input");
+    el.innerHTML = html;
+
+    let inputEl = el.querySelector("input");
+
+    for(let name in config.events){
+        inputEl.addEventListener(name, e => {
+            config.events[name](e.currentTarget.value);
+        });
+    }
+
+    return el;
+}
+
+function buildButton(config){
+    let el = document.createElement("a");
+    el.classList.add("control", "button", "btn");
+    el.style = config.style;
+    el.innerHTML = config.label;
+    for(let name in config.events){
+        el.addEventListener(name, e => {
+            config.events[name](e);
+        });
+    }
+
+    return el;
+}
+
+const CONTROL_FNS = {
+    slider: buildSliderEl,
+    textInput: buildTextInputEl,
+    button: buildButton
+};
+
 // bind controls to a model
 export function buildControls(params, el){
-    let shutdownControlsEl = el.querySelector(".shutdown_controls");
-
     let controlEls = params.map(param => {
-        return buildSliderEl(param);
-    });
-
-    controlEls.forEach(control => {
-        // TODO - change listener to bind changes
-        // to model
-        shutdownControlsEl.appendChild(control);
+        let build = CONTROL_FNS[param.type];
+        el.appendChild(build(param));
     });
 }

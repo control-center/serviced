@@ -1,16 +1,14 @@
 import {wrap} from "./utils";
 
-const MARGINS = {top: 10, right: 10, bottom: 80, left: 50};
+const MARGINS = {top: 10, right: 10, bottom: 100, left: 50};
 
-function applyMarginToScale(scale, margin){
-    let [start, end] = scale.domain();
-    if(margin < start){
-        start = margin;
-    }
-    if(margin > end){
-        end = margin;
-    }
-    scale.domain([start,end]);
+function applyPaddingToScale(scale, multiplier){
+    let [start, end] = scale.domain(),
+        range = end - start,
+        val = range * multiplier;
+    start -= val;
+    end += val;
+    scale.domain([start, end]);
 }
 
 class ThreshyGraph {
@@ -165,6 +163,8 @@ class ThreshyGraph {
             end = margin;
         }
         this.yScale.domain([start,end]);
+
+        applyPaddingToScale(this.yScale, 0.01);
     }
 
     update(data, shutdowns, margin){
@@ -320,6 +320,31 @@ class ThreshyGraph {
             // update xAxis ticks to just these shutdowns
             this.xAxis.tickValues(this.shutdowns
                 .filter(s => s.metric === id)
+                .map(s => s.dp[0]));
+        }
+
+        // redraw x axis
+        this.g.select("g.axis.axis-x")
+            .call(this.xAxis)
+        .selectAll(".tick text")
+            .call(wrap, 0);
+    }
+
+    focusShutdown(metric, ts){
+        let line = this.visG.selectAll("path.shutdown"),
+            circle = this.visG.selectAll("circle.shutdown_circle"),
+            id = metric + ts;
+
+        if(metric === null){
+            line.classed("blurred", false);
+            circle.classed("blurred", false);
+            this.xAxis.tickValues(this.shutdowns.map(s => s.dp[0]));
+        } else {
+            line.classed("blurred", d => (d.metric + d.dp[0][0]) !== id);
+            circle.classed("blurred", d => (d.metric + d.dp[0]) !== id);
+            // update xAxis ticks to just these shutdowns
+            this.xAxis.tickValues(this.shutdowns
+                .filter(s => (s.metric + s.dp[0]) === id)
                 .map(s => s.dp[0]));
         }
 
