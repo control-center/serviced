@@ -5,8 +5,8 @@ This tool fetches storage usage data from tsdb and visualizes the emergency shut
 Requirements
 ------------------
 * A recent version of Chrome (v56 works)
-* [https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions](nodejs v6) or greater
-* [https://yarnpkg.com/en/docs/install](yarn)
+* [Nodejs v6](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions) or greater
+* [yarn](https://yarnpkg.com/en/docs/install)
 
 Install dependencies
 
@@ -24,7 +24,7 @@ Point your browser to `http://127.0.0.1:8080/` and you're there!
 
 Usage
 -----------------
-The app requires the isvcs opentsdb URL and port number (eg: `http://uiboss:4242`), as well as at least one valid tenant id. Additionally, if this is being served from a different domain than the isvcs opentsd, opentsdb will need [http://opentsdb.net/docs/build/html/api_http/index.html#cors](CORS enabled).
+The app requires the isvcs opentsdb URL and port number (eg: `http://uiboss:4242`), as well as at least one valid tenant id. Additionally, if this is being served from a different domain than the isvcs opentsd, opentsdb will need [CORS enabled](http://opentsdb.net/docs/build/html/api_http/index.html#cors).
 
 Enter the tsdb URL and tenant ids (as a comma separated list for multiple tenants) into the fields in the "TSDB" controls box, and click "Query" to grab the data.
 
