@@ -42,7 +42,7 @@ var _ = Suite(&ServiceStateManagerSuite{})
 func (s *ServiceStateManagerSuite) SetUpTest(c *C) {
 	s.facade = &mocks.Facade{}
 	s.ctx = &datastoremocks.Context{}
-	s.serviceStateManager = ssm.NewServiceStateManager(s.facade, s.ctx, 10*time.Second)
+	s.serviceStateManager = ssm.NewBatchServiceStateManager(s.facade, s.ctx, 10*time.Second)
 }
 
 func getTestServicesABC() []*service.Service {
@@ -135,18 +135,33 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	// Test that the batch has been added to the BatchQueue
 	// and split by nomral start level
 	tenantID := "tenant"
-
-	queue := &ssm.ServiceStateQueue{
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
 		CurrentBatch: ssm.PendingServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
 	}
-	s.serviceStateManager.TenantQueues[tenantID] = queue
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
+		CurrentBatch: ssm.PendingServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
+	}
 
+	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
+	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
+
+	// Test that:
+	// 1. The batch has been added to the startQueue
+	// 2. The batch has been split into batches by startlevel
+	// 3. Nothing was falsely added to the stopQueue
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -179,17 +194,20 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		},
 	})
 
+	c.Assert(len(stopQueue.BatchQueue), Equals, 0)
+
 	// Test that:
-	// 1. The batch has been added to the BatchQueue
+	// 1. The batch has been added to the stopQueue
 	// 2. The batch was split by Emergency shutdown level
 	// 3. The Emergency batches were moved to the front of the queue,
-	// 4. The existing batches have been purged of the Emergency-shutdown services
+	// 4. The existing batches have been purged of startQueue
 	err = s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
-	c.Logf("%s\n", s.serviceStateManager.TenantQueues[tenantID].BatchQueue)
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+
+	c.Assert(len(startQueue.BatchQueue), Equals, 0)
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -234,7 +252,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	c.Assert(len(startQueue.BatchQueue), Equals, 0)
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -278,44 +297,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
-
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "B",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
-				},
-			},
-			DesiredState: 0,
-			Emergency:    true,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "C",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
-				},
-			},
-			DesiredState: 0,
-			Emergency:    true,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "A",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
-				},
-			},
-			DesiredState: 0,
-			Emergency:    true,
-		},
+	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -347,20 +329,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			Emergency:    false,
 		},
 	})
-
-	// Add a non-Emergency batch with some conflicting and some non-conflicting services, and make sure that:
-	//  1. The conflicting services are removed from the incoming batch
-	//  2. The non-conflicting services are merged with the end of the queue based on start level
-	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
-	if err != nil {
-		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
-	}
-
-	for _, batch := range s.serviceStateManager.TenantQueues[tenantID].BatchQueue {
-		s.LogBatch(c, batch)
-	}
-
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -397,14 +366,24 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			DesiredState: 0,
 			Emergency:    true,
 		},
+	})
+
+	// Add a non-Emergency batch with some expedited and some non-conflicting services, and make sure that:
+	//  1. The expedited services are removed from the incoming batch and processed on their own (mocked)
+	//  2. The non-conflicting services are merged with the end of the queue based on start level
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return(1, nil).Once()
+	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	for _, b := range startQueue.BatchQueue {
+		s.LogBatch(c, b)
+	}
+
+	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
-				&service.Service{
-					ID:                     "D",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
-				},
 				&service.Service{
 					ID:                     "F",
 					DesiredState:           1,
@@ -438,6 +417,44 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			},
 			DesiredState: 1,
 			Emergency:    false,
+		},
+	})
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "B",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 1,
+					StartLevel:             3,
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "C",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 2,
+					StartLevel:             2,
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "A",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 0,
+					StartLevel:             2,
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
 		},
 	})
 
@@ -447,11 +464,33 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	for _, batch := range s.serviceStateManager.TenantQueues[tenantID].BatchQueue {
-		s.LogBatch(c, batch)
-	}
-
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "H",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 2,
+					StartLevel:             2,
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "G",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 1,
+					StartLevel:             3,
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -487,30 +526,6 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			},
 			DesiredState: 0,
 			Emergency:    true,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "H",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "G",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
@@ -551,10 +566,33 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	for _, batch := range s.serviceStateManager.TenantQueues[tenantID].BatchQueue {
-		s.LogBatch(c, batch)
-	}
-	c.Assert(s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "H",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 2,
+					StartLevel:             2,
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: []*service.Service{
+				&service.Service{
+					ID:                     "G",
+					DesiredState:           1,
+					EmergencyShutdownLevel: 1,
+					StartLevel:             3,
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(stopQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
@@ -606,30 +644,6 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
 				&service.Service{
-					ID:                     "H",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
-					ID:                     "G",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: []*service.Service{
-				&service.Service{
 					ID:                     "E",
 					DesiredState:           1,
 					EmergencyShutdownLevel: 1,
@@ -658,9 +672,9 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			Emergency:    false,
 		},
 	})
-
 }
 
+/*
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_ReconcileWithPending(c *C) {
 	// Set up a pending batch
 	tenantID := "tenant"
@@ -1098,7 +1112,7 @@ func (s *ServiceStateManagerSuite) CompareBatches(c *C, a, b ssm.ServiceStateCha
 	}
 	return sameVals
 }
-
+*/
 func (s *ServiceStateManagerSuite) LogBatch(c *C, b ssm.ServiceStateChangeBatch) {
 	svcStr := ""
 	for _, svc := range b.Services {

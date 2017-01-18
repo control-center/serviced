@@ -253,7 +253,11 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	// 4. If any service in this batch also appears in an earlier batch:
 	//    A. If the desired state is the same, leave it in the earlier batch and remove it here
 	//    B. If the desired state is different, delete it from the earlier batch and leave it in the new one
-	var newBatch ServiceStateChangeBatch
+	newBatch := ServiceStateChangeBatch{
+		Services:     svcs,
+		DesiredState: desiredState,
+		Emergency:    emergency,
+	}
 	var expeditedBatch ServiceStateChangeBatch
 	var expeditedServices []*service.Service
 
@@ -262,11 +266,7 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 			q.Lock()
 			defer q.Unlock()
 			// reconcile the new batch against all batches in q
-			newBatch, expeditedBatch = q.reconcileWithBatchQueue(ServiceStateChangeBatch{
-				Services:     svcs,
-				DesiredState: desiredState,
-				Emergency:    emergency,
-			})
+			newBatch, expeditedBatch = q.reconcileWithBatchQueue(newBatch)
 			expeditedServices = append(expeditedServices, expeditedBatch.Services...)
 
 			if len(newBatch.Services) == 0 {
