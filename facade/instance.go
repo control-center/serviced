@@ -104,7 +104,7 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	if len(metricsreq) > 0 {
 		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
 		if err != nil {
-			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+			logger.WithError(err).Debug("Could not look up memory metrics for instances on service")
 		} else {
 			for _, metric := range metricsres {
 				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{
@@ -199,7 +199,7 @@ func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID
 		// look up the metrics of all the instances
 		metricsres, err := f.metricsClient.GetInstanceMemoryStats(since, metricsreq...)
 		if err != nil {
-			logger.WithError(err).Warn("Could not look up memory metrics for instances on service")
+			logger.WithError(err).Debug("Could not look up memory metrics for instances on service")
 		} else {
 			for _, metric := range metricsres {
 				*instanceMap[fmt.Sprintf("%s-%s", metric.ServiceID, metric.InstanceID)] = service.Usage{

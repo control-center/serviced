@@ -1372,7 +1372,7 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 		logger.WithFields(log.Fields{
 			"servicename": svc.Name,
 			"serviceid":   svc.ID,
-		}).Info("Scheduled service")
+		}).Debug("Scheduled service")
 		servicesToSchedule = append(servicesToSchedule, svc)
 	}
 
