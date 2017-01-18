@@ -32,7 +32,7 @@ import (
 func TestServiceStateManager(t *testing.T) { TestingT(t) }
 
 type ServiceStateManagerSuite struct {
-	serviceStateManager *ssm.ServiceStateManager
+	serviceStateManager *ssm.BatchServiceStateManager
 	facade              *mocks.Facade
 	ctx                 *datastoremocks.Context
 }

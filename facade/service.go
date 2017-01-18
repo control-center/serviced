@@ -62,13 +62,6 @@ var (
 	ErrEmergencyShutdownNoOp    = errors.New("Cannot perform operation; Service has Emergency Shutdown flag set")
 )
 
-// InitServiceStateManager initializes the facade's servicestatemanager
-func (f *Facade) InitServiceStateManager(ctx datastore.Context, runlevelTimeout time.Duration) error {
-	f.ssm = servicestatemanager.NewServiceStateManager(f, ctx, runlevelTimeout)
-	err := f.ssm.Start()
-	return err
-}
-
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) (err error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.AddService"))
@@ -1236,6 +1229,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 
 	// Build a list of services to be scheduled
 	svcs := []*service.Service{}
+	var svcIDs []string
 	visitor := func(svc *service.Service) error {
 		if svc.ID != serviceID && svc.Launch == commons.MANUAL && !emergency {
 			return nil
@@ -1248,6 +1242,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 			}
 		}
 		svcs = append(svcs, svc)
+		svcIDs = append(svcIDs, svc.ID)
 		return nil
 	}
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
@@ -1257,17 +1252,11 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	}
 
 	affected := 0
+	affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
+
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
-		// Schedule the services synchronously, calculating the number of affected services as we go
-		affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
-
-	} else {
-		logger.Debug("Scheduling services asynchronously")
-		// Schedule the services asynchronously, returning the number of services we are attempting to schedule
-		affected = len(svcs)
-		err = nil
-		go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
+		f.WaitService(ctx, desiredState, 10*time.Minute, false, svcIDs...)
 	}
 
 	return affected, err

@@ -16,6 +16,9 @@
 package facade
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/control-center/serviced/auth"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -29,6 +32,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	"github.com/stretchr/testify/mock"
 	gocheck "gopkg.in/check.v1"
 )
@@ -40,6 +44,7 @@ type FacadeIntegrationTest struct {
 	Facade *Facade
 	zzk    *zzkmocks.ZZK
 	dfs    *dfsmocks.DFS
+	ssm    *servicestatemanager.BatchServiceStateManager
 }
 
 var _ = gocheck.Suite(&FacadeIntegrationTest{})
@@ -81,12 +86,15 @@ func (ft *FacadeIntegrationTest) SetUpTest(c *gocheck.C) {
 	ft.Facade.SetZZK(ft.zzk)
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
-	ft.setupMockZZK()
+	ft.setupMockZZK(c)
 	ft.setupMockDFS()
 	LogstashContainerReloader = reloadLogstashContainerStub
+	ft.ssm = servicestatemanager.NewBatchServiceStateManager(ft.Facade, ft.CTX, 10*time.Second)
+	ft.ssm.Start()
+	ft.Facade.SetServiceStateManager(ft.ssm)
 }
 
-func (ft *FacadeIntegrationTest) setupMockZZK() {
+func (ft *FacadeIntegrationTest) setupMockZZK(c *gocheck.C) {
 	ft.zzk.On("AddResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
 	ft.zzk.On("RemoveResourcePool", mock.AnythingOfType("string")).Return(nil)
@@ -106,6 +114,30 @@ func (ft *FacadeIntegrationTest) setupMockZZK() {
 	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
 	ft.zzk.On("UnregisterDfsClients", mock.AnythingOfType("[]host.Host")).Return(nil)
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		dstate := args.Get(1).(service.DesiredState)
+		cancel := args.Get(2).(<-chan interface{})
+		for {
+			svc, err := ft.Facade.GetService(ft.CTX, s.ID)
+			if err != nil {
+				c.Fatalf("Error getting service in WaitService call: %s\n", err)
+				return
+			}
+			if int(svc.DesiredState) == int(dstate) {
+				return
+			}
+			// Wait and check again or cancel before returning
+			timer := time.NewTimer(100 * time.Millisecond)
+			select {
+			case <-timer.C:
+			case <-cancel:
+				return
+			}
+		}
+	})
 }
 
 func (ft *FacadeIntegrationTest) setupMockDFS() {
@@ -113,6 +145,11 @@ func (ft *FacadeIntegrationTest) setupMockDFS() {
 }
 
 func (ft *FacadeIntegrationTest) TearDownTest(c *gocheck.C) {
+	ft.ssm.Shutdown()
+}
+
+func (ft *FacadeIntegrationTest) BeforeTest(suiteName, testName string) {
+	fmt.Printf("Starting test %s\n", testName)
 }
 
 func reloadLogstashContainerStub(_ datastore.Context, _ FacadeInterface) error {

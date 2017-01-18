@@ -41,6 +41,17 @@ var (
 	ErrMissingQueue = errors.New("No queue found for tenant ID and desired state")
 )
 
+type ServiceStateManager interface {
+	// ScheduleServices schedules a set of services to change their desired state
+	ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error
+	// AddTenant prepares the service state manager to receive requests for a new tenant
+	AddTenant(tenantID string) error
+	// RemoveTenant notifies the service state manager that a tenant no longer exists
+	RemoveTenant(tenantID string) error
+	// Wait blocks until all current processing for the given tenant is complete
+	Wait(tenantID string)
+}
+
 // ServiceStateChangeBatch represents a batch of services with the same
 // desired state that will be operated on by a ServiceStateManager
 type ServiceStateChangeBatch struct {
@@ -72,8 +83,8 @@ type ServiceStateQueue struct {
 	Facade       Facade
 }
 
-// ServiceStateManager intelligently schedules batches of services with zookeeper
-type ServiceStateManager struct {
+// BatchServiceStateManager intelligently schedules batches of services to start/stop/restart with the facade
+type BatchServiceStateManager struct {
 	sync.RWMutex
 	Facade                 Facade
 	ctx                    datastore.Context
@@ -116,8 +127,8 @@ func (b ServiceStateChangeBatch) String() string {
 }
 
 // NewServiceStateManager creates a new, initialized ServiceStateManager
-func NewServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeout time.Duration) *ServiceStateManager {
-	return &ServiceStateManager{
+func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeout time.Duration) *BatchServiceStateManager {
+	return &BatchServiceStateManager{
 		RWMutex: sync.RWMutex{},
 		Facade:  facade,
 		ctx:     ctx,
@@ -128,7 +139,7 @@ func NewServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeou
 }
 
 // Shutdown properly cancels pending services in tenantLoop
-func (s *ServiceStateManager) Shutdown() {
+func (s *BatchServiceStateManager) Shutdown() {
 	s.Lock()
 	defer s.Unlock()
 	var wg sync.WaitGroup
@@ -145,7 +156,7 @@ func (s *ServiceStateManager) Shutdown() {
 }
 
 // Start gets tenants from the facade and adds them to the service state manager
-func (s *ServiceStateManager) Start() error {
+func (s *BatchServiceStateManager) Start() error {
 	tenantIDs, err := s.Facade.GetTenantIDs(s.ctx)
 	if err != nil {
 		return err
@@ -165,7 +176,7 @@ func (s *ServiceStateManager) Start() error {
 }
 
 // AddTenant adds a queue for a tenant and starts the processing loop for it
-func (s *ServiceStateManager) AddTenant(tenantID string) error {
+func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -194,7 +205,7 @@ func (s *ServiceStateManager) AddTenant(tenantID string) error {
 }
 
 // RemoveTenant cancels the pending batches in queue for the tenant and deletes it from the service state manager
-func (s *ServiceStateManager) RemoveTenant(tenantID string) error {
+func (s *BatchServiceStateManager) RemoveTenant(tenantID string) error {
 	s.Lock()
 	defer s.Unlock()
 	cancel, ok := s.TenantShutDowns[tenantID]
@@ -215,7 +226,7 @@ func (s *ServiceStateManager) RemoveTenant(tenantID string) error {
 
 // ScheduleServices merges and reconciles a slice of services with the
 // ServiceStateChangeBatches in the ServiceStateManager's queue
-func (s *ServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error {
+func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error {
 	plog.Info("doing servicestatemanager scheduleservices")
 	var err error
 
@@ -586,8 +597,8 @@ func MergeBatches(batches []ServiceStateChangeBatch) ([]ServiceStateChangeBatch,
 	return newBatches, nil
 }
 
-// DrainQueues blocks until the queues are empty for tenantID
-func (s *ServiceStateManager) DrainQueues(tenantID string) {
+// Wait blocks until the queues are empty for tenantID
+func (s *BatchServiceStateManager) Wait(tenantID string) {
 	plog.Info("Draining the queue")
 	s.RLock()
 	var wg sync.WaitGroup
@@ -602,7 +613,7 @@ func (s *ServiceStateManager) DrainQueues(tenantID string) {
 	wg.Wait()
 }
 
-func (s *ServiceStateManager) drainQueue(queue *ServiceStateQueue) {
+func (s *BatchServiceStateManager) drainQueue(queue *ServiceStateQueue) {
 	plog.Info("Draining the queue")
 
 	for {
@@ -620,7 +631,7 @@ func (s *ServiceStateManager) drainQueue(queue *ServiceStateQueue) {
 	}
 }
 
-func (s *ServiceStateManager) tenantLoop(tenantID string, queue *ServiceStateQueue, cancel <-chan int) {
+func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceStateQueue, cancel <-chan int) {
 	logger := plog.WithField("tenantid", tenantID)
 	for {
 		logger.Info("In tenant loop")
@@ -657,7 +668,7 @@ func (s *ServiceStateManager) tenantLoop(tenantID string, queue *ServiceStateQue
 	}
 }
 
-func (s *ServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) {
+func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) {
 	batchLogger := plog.WithFields(
 		logrus.Fields{
 			"tenantid":     tenantID,

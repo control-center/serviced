@@ -81,13 +81,15 @@ type Facade struct {
 	poolCache     *poolCache
 	hostRegistry  auth.HostExpirationRegistryInterface
 	deployments   *PendingDeploymentMgr
-	ssm           *servicestatemanager.ServiceStateManager
+	ssm           servicestatemanager.ServiceStateManager
 	isvcsPath     string
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
 
 func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }
+
+func (f *Facade) SetServiceStateManager(ssm servicestatemanager.ServiceStateManager) { f.ssm = ssm }
 
 func (f *Facade) SetHostStore(store host.Store) {
 	f.hostStore = store

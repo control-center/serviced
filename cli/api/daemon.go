@@ -82,6 +82,7 @@ import (
 	"time"
 
 	// Needed for profiling
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	_ "net/http/pprof"
 )
 
@@ -111,6 +112,7 @@ type daemon struct {
 	tokenExpiration  time.Duration
 
 	facade *facade.Facade
+	ssm    *servicestatemanager.BatchServiceStateManager
 	hcache *health.HealthStatusCache
 	docker docker.Docker
 	reg    *registry.RegistryListener
@@ -485,6 +487,11 @@ func (d *daemon) startMaster() (err error) {
 	d.dsContext = d.initContext()
 	d.facade = d.initFacade()
 	d.cpDao = d.initDAO()
+
+	// Initialize service state manager
+	d.ssm = servicestatemanager.NewBatchServiceStateManager(d.facade, d.dsContext, time.Duration(options.ServiceRunLevelTimeout)*time.Second)
+	d.startServiceStateManager()
+	d.facade.SetServiceStateManager(d.ssm)
 
 	if err = d.checkVersion(); err != nil {
 		log.WithError(err).Fatal("Unable to initialize version")
@@ -1113,9 +1120,6 @@ func (d *daemon) initFacade() *facade.Facade {
 	if err := f.UpdateServiceCache(d.dsContext); err != nil {
 		log.WithError(err).Fatal("Unable to update the service cache")
 	}
-	if err := f.InitServiceStateManager(d.dsContext, time.Second*30); err != nil {
-		log.WithError(err).Fatal("Unable to initialize service state manager")
-	}
 	return f
 }
 
@@ -1384,4 +1388,16 @@ func (d *daemon) runScheduler() {
 			return
 		}
 	}
+}
+
+func (d *daemon) startServiceStateManager() {
+	go d.runServiceStateManager()
+}
+
+func (d *daemon) runServiceStateManager() {
+	d.ssm.Start()
+	log.Info("Started service state manager")
+	<-d.shutdown
+	log.Debug("Shutting down service state manager")
+	d.ssm.Shutdown()
 }
