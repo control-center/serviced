@@ -227,22 +227,15 @@ func (s *BatchServiceStateManager) RemoveTenant(tenantID string) error {
 // ScheduleServices merges and reconciles a slice of services with the
 // ServiceStateChangeBatches in the ServiceStateManager's queue
 func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error {
-	plog.Info("doing servicestatemanager scheduleservices")
 	var err error
 
-	plog.Info("getting ssm lock")
 	s.RLock()
-	plog.Info("got ssm lock")
 	var queues map[service.DesiredState]*ServiceStateQueue
 	queues, ok := s.TenantQueues[tenantID]
 	s.RUnlock()
-	plog.Info("unlocking ssm lock")
 	if !ok {
 		return ErrBadTenantID
 	}
-
-	plog.Info("getting queue lock")
-	plog.Info("got queue lock")
 
 	// Merge with oldBatch batchQueue
 	// 1. If this is emergency, merge with other emergencies and move to front of the queue
@@ -314,16 +307,10 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	default:
 	}
 
-	plog.WithFields(logrus.Fields{
-		"services":  svcs,
-		"emergency": emergency,
-	}).Info("Added services to queue and signaled change")
-
 	return err
 }
 
 func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch) (ServiceStateChangeBatch, ServiceStateChangeBatch) {
-	plog.Info("reconciling with batch queue")
 	var newBatchQueue []ServiceStateChangeBatch
 	var expedited []*service.Service
 	expeditedBatch := ServiceStateChangeBatch{
@@ -351,7 +338,6 @@ func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch)
 }
 
 func (b *ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ServiceStateChangeBatch, []*service.Service) {
-	plog.Info("reconciling")
 	oldSvcs := make([]*service.Service, len(b.Services))
 	var expedited []*service.Service
 	copy(oldSvcs, b.Services)
@@ -406,7 +392,6 @@ func (b *ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (S
 }
 
 func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChangeBatch) ServiceStateChangeBatch {
-	plog.Info("reconciling with pending")
 	var newSvcs []*service.Service
 	for _, newSvc := range newBatch.Services {
 		addNew := true
@@ -441,7 +426,6 @@ func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChang
 }
 
 func (s *ServiceStateQueue) mergeEmergencyBatch(newBatch ServiceStateChangeBatch) error {
-	plog.Info("Merging an emergency batch")
 	if !newBatch.Emergency {
 		return s.mergeBatch(newBatch)
 	}
@@ -472,8 +456,6 @@ func (s *ServiceStateQueue) mergeEmergencyBatch(newBatch ServiceStateChangeBatch
 }
 
 func (s *ServiceStateQueue) mergeBatch(newBatch ServiceStateChangeBatch) error {
-
-	plog.Info("Merging a normal batch")
 	if newBatch.Emergency {
 		return s.mergeEmergencyBatch(newBatch)
 	}
@@ -481,7 +463,7 @@ func (s *ServiceStateQueue) mergeBatch(newBatch ServiceStateChangeBatch) error {
 	// We want to merge this batch with all consecutive batches at the END of the queue that have the same desired state
 	lastBatchToMerge := len(s.BatchQueue)
 	for i := len(s.BatchQueue) - 1; i >= 0; i-- {
-		if s.BatchQueue[i].DesiredState == newBatch.DesiredState {
+		if s.BatchQueue[i].DesiredState == newBatch.DesiredState && s.BatchQueue[i].Emergency == newBatch.Emergency {
 			lastBatchToMerge = i
 		} else {
 			break
@@ -504,7 +486,6 @@ func (s *ServiceStateQueue) mergeBatch(newBatch ServiceStateChangeBatch) error {
 // MergeBatches sorts the services is batches by StartLevel, desiredState, and emergency,
 // creates a new batch from the services and returns is
 func MergeBatches(batches []ServiceStateChangeBatch) ([]ServiceStateChangeBatch, error) {
-	plog.Info("Merging batches")
 	if len(batches) < 1 {
 		return batches, nil
 	}
@@ -599,7 +580,6 @@ func MergeBatches(batches []ServiceStateChangeBatch) ([]ServiceStateChangeBatch,
 
 // Wait blocks until the queues are empty for tenantID
 func (s *BatchServiceStateManager) Wait(tenantID string) {
-	plog.Info("Draining the queue")
 	s.RLock()
 	var wg sync.WaitGroup
 	for _, queue := range s.TenantQueues[tenantID] {
@@ -614,8 +594,6 @@ func (s *BatchServiceStateManager) Wait(tenantID string) {
 }
 
 func (s *BatchServiceStateManager) drainQueue(queue *ServiceStateQueue) {
-	plog.Info("Draining the queue")
-
 	for {
 		empty := func() bool {
 			queue.RLock()
@@ -662,7 +640,6 @@ func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceSta
 			case <-cancel:
 				return
 			case <-queue.Changed:
-				logger.Info("Got a job in queue")
 			}
 		}
 	}
@@ -690,7 +667,6 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 	}
 
 	_, serr := s.Facade.ScheduleServiceBatch(s.ctx, services, tenantID, batch.DesiredState)
-	batchLogger.Info("Scheduled service batch on facade")
 	if serr != nil {
 		batchLogger.WithError(serr).Error("Error scheduling services")
 	}
@@ -716,7 +692,6 @@ func (s *ServiceStateQueue) getNextBatch() (b PendingServiceStateChangeBatch, er
 	}
 
 	s.CurrentBatch = b
-	plog.Info("Digested batch")
 	return
 }
 

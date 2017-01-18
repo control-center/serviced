@@ -377,10 +377,6 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	for _, b := range startQueue.BatchQueue {
-		s.LogBatch(c, b)
-	}
-
 	c.Assert(startQueue.BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: []*service.Service{
@@ -558,7 +554,6 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 			Emergency:    false,
 		},
 	})
-
 	// Add an Emergency shutdown request with EmergencyShutDownLevel 0 and StartLevel 0 and make sure it gets placed
 	//  before other EmergencyShutDownLevel 0
 	err = s.serviceStateManager.ScheduleServices(getTestServicesI(), tenantID, service.SVCStop, true)
