@@ -1158,6 +1158,11 @@ func (d *daemon) startStorageMonitor() {
 			tenants := []string{}
 		CheckMetrics:
 			for k, v := range avail {
+				log.WithFields(logrus.Fields{
+					"lookahead": lookahead,
+					"minfree":   options.StorageMinimumFreeSpace,
+					"window":    time.Duration(options.StorageMetricMonitorWindow) * time.Second,
+				}).Debug("Predicting future availability of storage")
 				switch k {
 				case metrics.PoolMetadataAvailableName:
 					if v < float64(minfree)*0.02 {
