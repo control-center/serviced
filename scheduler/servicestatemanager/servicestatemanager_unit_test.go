@@ -406,7 +406,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	// Add a non-Emergency batch with some expedited and some non-conflicting services, and make sure that:
 	//  1. The expedited services are removed from the incoming batch and processed on their own (mocked)
 	//  2. The non-conflicting services are merged with the end of the queue based on start level
-	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return(1, nil).Once()
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return([]string{}, nil).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1158,7 +1158,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
 
 	// The first batch should contain A, D, H because of startlevel
 	// Those should get waited on by a call to the facade from runLoop
-	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return(3, nil).Once()
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
 		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Once()
 	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
@@ -1168,7 +1168,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
 
 	// We'll sleep a bit to make sure those services reach desired state in zk (mocked),
 	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
-	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return(1, nil).Once()
+	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
 		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Once()
 
