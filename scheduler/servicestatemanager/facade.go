@@ -20,8 +20,12 @@ import (
 
 // Facade provides access to functions for scheduling
 type Facade interface {
+	// WaitSingleService blocks until the service has reached the desired state, or the channel is closed
 	WaitSingleService(*service.Service, service.DesiredState, <-chan interface{}) error
-	ScheduleServiceBatch(datastore.Context, []*service.Service, string, service.DesiredState) (int, error)
+	// ScheduleServiceBatch changes the desired state of a set of services, and returns a list of IDs of services that could not be scheduled
+	ScheduleServiceBatch(datastore.Context, []*service.Service, string, service.DesiredState) ([]string, error)
+	// UpdateService modifies a service
 	UpdateService(ctx datastore.Context, svc service.Service) error
+	// GetTenantIDs gets a list of all tenant IDs
 	GetTenantIDs(ctx datastore.Context) ([]string, error)
 }

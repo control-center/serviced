@@ -1251,12 +1251,14 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		return 0, err
 	}
 
-	affected := 0
-	affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
-
+	affected := len(svcs)
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
+		affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
 		f.ssm.WaitScheduled(tenantID, svcIDs...)
+	} else {
+		logger.Debug("Scheduling services asynchronously")
+		go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
 	}
 
 	return affected, err
@@ -1279,28 +1281,40 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 		err = f.ssm.ScheduleServices(svcs, tenantID, desiredState, emergency)
 	}
 	if err != nil {
-		logger.WithError(err).Error("Couldn't schedule services")
 		return 0, err
 	}
 	return len(svcs), nil
 }
 
-func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) (int, error) {
+func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) ([]string, error) {
 	logger := plog.WithFields(log.Fields{
 		"desiredstate": desiredState,
 	})
 	servicesToSchedule := make([]*service.Service, 0)
+	failedServices := []string{}
 	for _, svc := range svcs {
 		if svc.DesiredState == int(desiredState) {
 			continue
 		}
+		if desiredState != service.SVCStop {
+			// Verify that the service is ready to be started
+			if err := f.validateServiceStart(ctx, svc); err != nil {
+				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+				failedServices = append(failedServices, svc.ID)
+				continue
+			}
+		}
+
 		err := f.updateDesiredState(ctx, svc, desiredState)
 		if err != nil {
 			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error scheduling service")
-			return 0, err
+			failedServices = append(failedServices, svc.ID)
+			continue
 		}
 		if err := f.fillServiceAddr(ctx, svc); err != nil {
-			return 0, err
+			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error filling service address")
+			failedServices = append(failedServices, svc.ID)
+			continue
 		}
 		logger.WithFields(log.Fields{
 			"servicename": svc.Name,
@@ -1311,11 +1325,11 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 
 	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
 		logger.WithError(err).Error("Could not sync service(s)")
-		return 0, err
+		return []string{}, err
 	}
 
-	logger.WithField("count", len(servicesToSchedule)).Debug("Finished scheduleServices")
-	return len(servicesToSchedule), nil
+	logger.WithField("count", len(servicesToSchedule)).Debug("Finished ScheduleServiceBatch")
+	return failedServices, nil
 }
 
 func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service, desiredState service.DesiredState) error {

@@ -721,7 +721,13 @@ func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceSta
 		}
 		batch, err := queue.getNextBatch()
 		if err == nil {
-			s.processBatch(tenantID, batch)
+			sids := s.processBatch(tenantID, batch)
+
+			// Cancel the services that didn't get scheduled, so we don't wait on them
+			for _, sid := range sids {
+				batch.Services[sid].Cancel()
+			}
+
 			// Wait on this batch, with cancel option
 			desiredState := batch.DesiredState
 			if desiredState == service.SVCRestart {
@@ -746,7 +752,7 @@ func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceSta
 	}
 }
 
-func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) {
+func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) []string {
 	batchLogger := plog.WithFields(
 		logrus.Fields{
 			"tenantid":     tenantID,
@@ -755,8 +761,10 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 		})
 	// Schedule services for this batch
 	var services []*service.Service
+	var serviceIDs []string
 	for _, svc := range batch.Services {
 		services = append(services, svc.Service)
+		serviceIDs = append(serviceIDs, svc.ID)
 		if batch.Emergency {
 			// Set EmergencyShutdown to true for this service and update the database
 			svc.EmergencyShutdown = true
@@ -767,10 +775,13 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 		}
 	}
 
-	_, serr := s.Facade.ScheduleServiceBatch(s.ctx, services, tenantID, batch.DesiredState)
+	failedServiceIDs, serr := s.Facade.ScheduleServiceBatch(s.ctx, services, tenantID, batch.DesiredState)
 	if serr != nil {
 		batchLogger.WithError(serr).Error("Error scheduling services")
+		return serviceIDs
 	}
+
+	return failedServiceIDs
 }
 
 func (s *ServiceStateQueue) getNextBatch() (b ServiceStateChangeBatch, err error) {
