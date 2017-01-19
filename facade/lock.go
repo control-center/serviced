@@ -57,10 +57,6 @@ func (f *Facade) lockTenant(ctx datastore.Context, tenantID string) (err error) 
 		}
 	}()
 
-	// Wait for any pending service state requests to finish
-	//  the tenant lock will prevent any new requests from coming in
-	f.ssm.Wait(tenantID)
-
 	var svcs []service.ServiceDetails
 	if svcs, err = f.GetServiceDetailsByTenantID(ctx, tenantID); err != nil {
 		glog.Errorf("Could not get services for tenant %s: %s", tenantID, err)

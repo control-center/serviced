@@ -48,8 +48,6 @@ type ServiceStateManager interface {
 	AddTenant(tenantID string) error
 	// RemoveTenant notifies the service state manager that a tenant no longer exists
 	RemoveTenant(tenantID string) error
-	// Wait blocks until all current processing for the given tenant is complete
-	Wait(tenantID string)
 	// WaitScheduled blocks until all requested services have been scheduled or cancelled
 	WaitScheduled(tenantID string, serviceIDs ...string)
 }
@@ -402,9 +400,17 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (Se
 	for id, newSvc := range newBatch.Services {
 		if oldsvc, ok := b.Services[id]; ok {
 			// There is already an entry in the queue for this service, so reconcile
-			if b.Emergency {
+			if b.Emergency && !newBatch.Emergency {
 				// this service is going to be stopped, so don't bother queuing it
 				// nobody should be watching it yet, but go ahead and cancel it anyway
+				newSvc.Cancel()
+			} else if b.Emergency && b.DesiredState == newBatch.DesiredState {
+				// Duplicate, and it is an emergency so it should already be at the front of the queue
+				// so discard the new one.
+				// nobody should be watching it yet, but go ahead and cancel it anyway
+				newSvc.Cancel()
+			} else if b.Emergency && b.DesiredState == service.SVCStop {
+				// Two emergencies with different desired states, stop takes priority
 				newSvc.Cancel()
 			} else if newBatch.Emergency {
 				// newBatch is going to be brought to the front of the queue on merge,
@@ -452,22 +458,32 @@ func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChang
 		DesiredState: newBatch.DesiredState,
 		Emergency:    newBatch.Emergency,
 	}
-
+	b := s.CurrentBatch
 	for id, newSvc := range newBatch.Services {
 		if oldsvc, ok := s.CurrentBatch.Services[id]; ok {
 			// There is already an entry in the queue for this service, so reconcile
-			if s.CurrentBatch.Emergency {
+			if b.Emergency && !newBatch.Emergency {
 				// this service is going to be stopped, so don't bother queuing it
 				// nobody should be watching it yet, but go ahead and cancel it anyway
+				newSvc.Cancel()
+			} else if b.Emergency && b.DesiredState == newBatch.DesiredState {
+				// Duplicate, and it is an emergency so it should already be at the front of the queue
+				// so discard the new one.
+				// nobody should be watching it yet, but go ahead and cancel it anyway
+				newSvc.Cancel()
+			} else if b.Emergency && b.DesiredState == service.SVCStop {
+				// Two emergencies with different desired states, stop takes priority
 				newSvc.Cancel()
 			} else if newBatch.Emergency {
 				// newBatch is going to be brought to the front of the queue on merge,
 				// so we can take this service out of the old batch
+				delete(b.Services, id)
 				oldsvc.Cancel()
 				reconciledBatch.Services[id] = newSvc
-			} else if s.CurrentBatch.DesiredState != newBatch.DesiredState {
+			} else if b.DesiredState != newBatch.DesiredState {
 				// this service has a newer desired state than it does in b,
 				// so we can take this service out of old batch
+				delete(b.Services, id)
 				oldsvc.Cancel()
 				reconciledBatch.Services[id] = newSvc
 			} else {
@@ -499,7 +515,7 @@ func (s *ServiceStateQueue) mergeEmergencyBatch(newBatch ServiceStateChangeBatch
 	// find the last emergency batch in the queue
 	lastEmergencyBatch := -1
 	for i, batch := range s.BatchQueue {
-		if batch.Emergency {
+		if batch.Emergency && batch.DesiredState == newBatch.DesiredState {
 			lastEmergencyBatch = i
 		} else {
 			break
