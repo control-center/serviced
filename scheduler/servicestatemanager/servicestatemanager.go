@@ -721,7 +721,6 @@ func (s *BatchServiceStateManager) drainQueue(queue *ServiceStateQueue) {
 func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceStateQueue, cancel <-chan int) {
 	logger := plog.WithField("tenantid", tenantID)
 	for {
-		logger.Info("In tenant loop")
 		select {
 		case <-cancel:
 			return

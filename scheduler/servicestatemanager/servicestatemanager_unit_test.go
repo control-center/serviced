@@ -758,25 +758,24 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	c.Assert(pass, Equals, true)
 }
 
-/*
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_ReconcileWithPending(c *C) {
 	// Set up a pending batch
 	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
 	pendingServices := make(map[string]ssm.CancellableService)
 	for _, s := range getTestServicesABC() {
-		cancel := make(chan interface{})
 		s.StartLevel = 0
-		pendingServices[s.ID] = ssm.CancellableService{s, cancel}
+		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
 	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.PendingServiceStateChangeBatch{
+		CurrentBatch: ssm.ServiceStateChangeBatch{
 			Services:     pendingServices,
 			DesiredState: 0,
 			Emergency:    false,
 		},
 	}
-	s.serviceStateManager.TenantQueues[tenantID] = queue
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add a batch that gets cancelled by the pending batch
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, false)
@@ -787,14 +786,14 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Reco
 	// Make sure the pending services do NOT get cancelled
 	for _, pending := range pendingServices {
 		select {
-		case <-pending.Cancel:
+		case <-pending.C:
 			c.Fatal("Pending Service cancelled unexpectedly")
 		default:
 		}
 	}
 
 	// Our queue should still be empty
-	c.Assert(len(s.serviceStateManager.TenantQueues[tenantID].BatchQueue), Equals, 0)
+	c.Assert(len(s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue), Equals, 0)
 
 	// Add an Emergency batch that cancels a pending batch
 	err = s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, true)
@@ -805,22 +804,23 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Reco
 	// Make sure the pending services do NOT get cancelled
 	for _, pending := range pendingServices {
 		select {
-		case <-pending.Cancel:
+		case <-pending.C:
 		default:
 			c.Fatal("Pending Service NOT cancelled")
 		}
 	}
 
 	// Our queue should be populated
-	s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"B": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "B",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
 				},
 			},
 			DesiredState: 0,
@@ -828,12 +828,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Reco
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"C": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "C",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
 				},
 			},
 			DesiredState: 0,
@@ -841,38 +842,41 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Reco
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"A": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "A",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
 				},
 			},
 			DesiredState: 0,
 			Emergency:    true,
 		},
 	})
+	c.Assert(pass, Equals, true)
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonEmergencyCancelPending(c *C) {
 	// Set up a pending batch
 	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
 	pendingServices := make(map[string]ssm.CancellableService)
 	for _, s := range getTestServicesABC() {
-		cancel := make(chan interface{})
 		s.StartLevel = 0
-		pendingServices[s.ID] = ssm.CancellableService{s, cancel}
+		pendingServices[s.ID] = ssm.NewCancellableService(s)
 	}
 
 	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.PendingServiceStateChangeBatch{
+		CurrentBatch: ssm.ServiceStateChangeBatch{
 			Services:     pendingServices,
 			DesiredState: 0,
 			Emergency:    false,
 		},
 	}
-	s.serviceStateManager.TenantQueues[tenantID] = queue
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add a non-Emergency batch that cancels a pending batch
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
@@ -883,32 +887,35 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 	// Make sure the pending services do NOT get cancelled
 	for _, pending := range pendingServices {
 		select {
-		case <-pending.Cancel:
+		case <-pending.C:
 		default:
 			c.Fatal("Pending Service NOT cancelled")
 		}
 	}
 
-	for _, batch := range s.serviceStateManager.TenantQueues[tenantID].BatchQueue {
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue {
 		s.LogBatch(c, batch)
 	}
 
 	// Our queue should be populated
-	s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"A": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "A",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
 				},
-				&service.Service{
-					ID:                     "C",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
 				},
 			},
 			DesiredState: 1,
@@ -916,35 +923,39 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"B": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "B",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
 				},
 			},
 			DesiredState: 1,
 			Emergency:    false,
 		},
 	})
+	c.Assert(pass, Equals, true)
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoTenants(c *C) {
 	// set up 2 tenants
 	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
 	tenantID2 := "tenant2"
+	s.serviceStateManager.TenantQueues[tenantID2] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
 
 	queue := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.PendingServiceStateChangeBatch{},
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
 	}
 
 	queue2 := &ssm.ServiceStateQueue{
-		CurrentBatch: ssm.PendingServiceStateChangeBatch{},
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
 	}
 
-	s.serviceStateManager.TenantQueues[tenantID] = queue
-	s.serviceStateManager.TenantQueues[tenantID2] = queue2
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = queue
+	s.serviceStateManager.TenantQueues[tenantID2][service.SVCRun] = queue2
 
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
 	if err != nil {
@@ -957,21 +968,24 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoT
 	}
 
 	// Check that the queues are correct:
-	s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCRun].BatchQueue, []ssm.ServiceStateChangeBatch{
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"A": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "A",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
 				},
-				&service.Service{
-					ID:                     "C",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
 				},
 			},
 			DesiredState: 1,
@@ -979,47 +993,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoT
 		},
 		ssm.ServiceStateChangeBatch{
 			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
+				"B": ssm.CancellableService{
 					Service: &service.Service{
-					ID:                     "B",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
-		},
-	})
-
-	s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID2].BatchQueue, DeepEquals, []ssm.ServiceStateChangeBatch{
-		ssm.ServiceStateChangeBatch{
-			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
-					Service: &service.Service{
-					ID:                     "D",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 0,
-					StartLevel:             2,
-				},
-				&service.Service{
-					ID:                     "F",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 2,
-					StartLevel:             2,
-				},
-			},
-			DesiredState: 1,
-			Emergency:    false,
-		},
-		ssm.ServiceStateChangeBatch{
-			Services: map[string]ssm.CancellableService{
-				"": ssm.CancellableService{
-					Service: &service.Service{
-					ID:                     "E",
-					DesiredState:           1,
-					EmergencyShutdownLevel: 1,
-					StartLevel:             3,
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
 				},
 			},
 			DesiredState: 1,
@@ -1027,6 +1007,47 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoT
 		},
 	})
 
+	c.Assert(pass, Equals, true)
+
+	pass = s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID2][service.SVCRun].BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"D": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "D",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"F": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "F",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"E": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "E",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_BadTenant(c *C) {
@@ -1050,7 +1071,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_AddAndRemoveTenants(c
 	c.Assert(err, IsNil)
 
 	// Confirm that the loop was started by sending to the Changed channel
-	Changed := s.serviceStateManager.TenantQueues["tenant"].Changed
+	Changed := s.serviceStateManager.TenantQueues["tenant"][service.SVCRun].Changed
 	timer := time.NewTimer(1 * time.Second)
 	select {
 	case Changed <- true:
@@ -1094,13 +1115,13 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 	s.serviceStateManager.Start()
 
 	// Make sure both tenants were added
-	queue1, ok := s.serviceStateManager.TenantQueues["tenant1"]
+	queue1, ok := s.serviceStateManager.TenantQueues["tenant1"][service.SVCRun]
 	c.Assert(ok, Equals, true)
 
 	_, ok = s.serviceStateManager.TenantShutDowns["tenant1"]
 	c.Assert(ok, Equals, true)
 
-	queue2, ok := s.serviceStateManager.TenantQueues["tenant2"]
+	queue2, ok := s.serviceStateManager.TenantQueues["tenant2"][service.SVCRun]
 	c.Assert(ok, Equals, true)
 
 	_, ok = s.serviceStateManager.TenantShutDowns["tenant2"]
@@ -1183,29 +1204,6 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
 	s.serviceStateManager.Shutdown()
 }
 
-func (s *ServiceStateManagerSuite) CompareBatches(c *C, a, b ssm.ServiceStateChangeBatch) bool {
-	sameVals := true
-	if a.DesiredState != b.DesiredState {
-		c.Logf("DesiredState mismatch, a: %v b: %v", a.DesiredState, b.DesiredState)
-		sameVals = false
-	}
-	if a.Emergency != b.Emergency {
-		c.Logf("Emergency mismatch, a: %v b: %v", a.Emergency, b.Emergency)
-		sameVals = false
-	}
-	for n, svc := range a.Services {
-		if b.Services[n].ID != svc.ID {
-			c.Logf("ID mismatch, a.services[%v]: %v b.services[%v]: %v", n, svc.ID, n, b.Services[n].ID)
-			sameVals = false
-		}
-		if b.Services[n].DesiredState != svc.DesiredState {
-			c.Logf("DesiredState mismatch, a.services[%v]: %v b.services[%v]: %v", n, svc.DesiredState, n, b.Services[n].DesiredState)
-			sameVals = false
-		}
-	}
-	return sameVals
-}
-*/
 func (s *ServiceStateManagerSuite) LogBatch(c *C, b ssm.ServiceStateChangeBatch) {
 	svcStr := ""
 	for _, svc := range b.Services {
