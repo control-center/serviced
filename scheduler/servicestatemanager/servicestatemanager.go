@@ -275,9 +275,6 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		cancellableServices[svc.ID] = NewCancellableService(svc)
 	}
 
-	plog.Info("getting queue lock")
-	plog.Info("got queue lock")
-
 	// Merge with oldBatch batchQueue
 	// 1. If this is emergency, merge with other emergencies and move to front of the queue
 	// 2. If any service in this batch is currently in the "pending" batch:
@@ -293,7 +290,7 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		Emergency:    emergency,
 	}
 	var expeditedBatch ServiceStateChangeBatch
-	var expeditedServices map[string]CancellableService
+	expeditedServices := make(map[string]CancellableService)
 
 	for _, queue := range queues {
 		func(q *ServiceStateQueue) {
@@ -362,13 +359,14 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 
 func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch) (ServiceStateChangeBatch, ServiceStateChangeBatch) {
 	var newBatchQueue []ServiceStateChangeBatch
-	expedited := make(map[string]CancellableService)
 	expeditedBatch := ServiceStateChangeBatch{
+		Services:     make(map[string]CancellableService),
 		DesiredState: new.DesiredState,
 		Emergency:    new.Emergency,
 	}
 	updated := new
 	for _, batch := range s.BatchQueue {
+		var expedited map[string]CancellableService
 		updated, expedited = batch.reconcile(updated)
 		if len(batch.Services) > 0 {
 			newBatchQueue = append(newBatchQueue, batch)
@@ -388,7 +386,6 @@ func (s *ServiceStateQueue) reconcileWithBatchQueue(new ServiceStateChangeBatch)
 }
 
 func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ServiceStateChangeBatch, map[string]CancellableService) {
-	plog.Info("reconciling")
 	expedited := make(map[string]CancellableService)
 	newSvcs := make(map[string]CancellableService)
 	for id, newSvc := range newBatch.Services {
