@@ -137,6 +137,20 @@ func (s CancellableService) Cancel() {
 	}
 }
 
+func (b ServiceStateChangeBatch) Cancel() {
+	for _, svc := range b.Services {
+		svc.Cancel()
+	}
+}
+
+func (q ServiceStateQueue) Cancel() {
+	q.RLock()
+	defer q.RUnlock()
+	for _, b := range q.BatchQueue {
+		b.Cancel()
+	}
+}
+
 func (b ServiceStateChangeBatch) String() string {
 	svcStr := ""
 	for _, svc := range b.Services {
@@ -174,17 +188,9 @@ func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelT
 func (s *BatchServiceStateManager) Shutdown() {
 	s.Lock()
 	defer s.Unlock()
-	var wg sync.WaitGroup
-	for _, cancel := range s.TenantShutDowns {
-		wg.Add(1)
-		go func(c chan<- int) {
-			c <- 0
-			wg.Done()
-		}(cancel)
+	for tenantID, _ := range s.TenantShutDowns {
+		s.removeTenant(tenantID)
 	}
-
-	// Wait for all loops to exit
-	wg.Wait()
 }
 
 // Start gets tenants from the facade and adds them to the service state manager
@@ -240,14 +246,19 @@ func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 func (s *BatchServiceStateManager) RemoveTenant(tenantID string) error {
 	s.Lock()
 	defer s.Unlock()
+	return s.removeTenant(tenantID)
+}
+
+func (s *BatchServiceStateManager) removeTenant(tenantID string) error {
 	cancel, ok := s.TenantShutDowns[tenantID]
 	if !ok {
 		return ErrBadTenantID
 	}
 
 	// blocks until the cancel is received
-	for range s.TenantQueues[tenantID] {
+	for _, q := range s.TenantQueues[tenantID] {
 		cancel <- 0
+		q.Cancel()
 	}
 
 	delete(s.TenantShutDowns, tenantID)
