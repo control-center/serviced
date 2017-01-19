@@ -116,28 +116,7 @@ func (ft *FacadeIntegrationTest) setupMockZZK(c *gocheck.C) {
 	ft.zzk.On("UnregisterDfsClients", mock.AnythingOfType("[]host.Host")).Return(nil)
 
 	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		s := args.Get(0).(*service.Service)
-		dstate := args.Get(1).(service.DesiredState)
-		cancel := args.Get(2).(<-chan interface{})
-		for {
-			svc, err := ft.Facade.GetService(ft.CTX, s.ID)
-			if err != nil {
-				c.Fatalf("Error getting service in WaitService call: %s\n", err)
-				return
-			}
-			if int(svc.DesiredState) == int(dstate) {
-				return
-			}
-			// Wait and check again or cancel before returning
-			timer := time.NewTimer(100 * time.Millisecond)
-			select {
-			case <-timer.C:
-			case <-cancel:
-				return
-			}
-		}
-	})
+		mock.AnythingOfType("<-chan interface {}")).Return(nil)
 }
 
 func (ft *FacadeIntegrationTest) setupMockDFS() {

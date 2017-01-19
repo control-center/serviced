@@ -50,6 +50,8 @@ type ServiceStateManager interface {
 	RemoveTenant(tenantID string) error
 	// Wait blocks until all current processing for the given tenant is complete
 	Wait(tenantID string)
+	// WaitScheduled blocks until all requested services have been scheduled or cancelled
+	WaitScheduled(tenantID string, serviceIDs ...string)
 }
 
 // ServiceStateChangeBatch represents a batch of services with the same
@@ -650,6 +652,46 @@ func (s *BatchServiceStateManager) Wait(tenantID string) {
 	}
 	s.RUnlock()
 	wg.Wait()
+}
+
+// WaitScheduled blocks until every service has been scheduled or moved/removed from the queue
+func (s *BatchServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...string) {
+	s.RLock()
+	var wg sync.WaitGroup
+	for _, sid := range serviceIDs {
+		// find the service in the queues
+		if svc, ok := s.findService(tenantID, sid); ok {
+			wg.Add(1)
+			go func(s CancellableService) {
+				<-s.C
+				wg.Done()
+			}(svc)
+		}
+	}
+	s.RUnlock()
+	wg.Wait()
+}
+
+func (s *BatchServiceStateManager) findService(tenantID, serviceID string) (CancellableService, bool) {
+	s.RLock()
+	defer s.RUnlock()
+	for _, queue := range s.TenantQueues[tenantID] {
+		svc, ok := func() (CancellableService, bool) {
+			queue.RLock()
+			defer queue.RUnlock()
+			for _, batch := range queue.BatchQueue {
+				if svc, ok := batch.Services[serviceID]; ok {
+					return svc, true
+				}
+			}
+			return CancellableService{}, false
+		}()
+
+		if ok {
+			return svc, ok
+		}
+	}
+	return CancellableService{}, false
 }
 
 func (s *BatchServiceStateManager) drainQueue(queue *ServiceStateQueue) {

@@ -1256,7 +1256,7 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
-		f.WaitService(ctx, desiredState, 10*time.Minute, false, svcIDs...)
+		f.ssm.WaitScheduled(tenantID, svcIDs...)
 	}
 
 	return affected, err
