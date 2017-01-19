@@ -141,7 +141,7 @@ func (b ServiceStateChangeBatch) Cancel() {
 	}
 }
 
-func (q ServiceStateQueue) Cancel() {
+func (q *ServiceStateQueue) Cancel() {
 	q.RLock()
 	defer q.RUnlock()
 	for _, b := range q.BatchQueue {
