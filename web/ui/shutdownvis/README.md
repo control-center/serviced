@@ -8,6 +8,9 @@ Requirements
 * [Nodejs v6](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions) or greater
 * [yarn](https://yarnpkg.com/en/docs/install)
 
+Building
+------------------
+
 Install dependencies
 
     yarn install
@@ -33,3 +36,18 @@ Each metric fetched from tsdb is actual available space, and is represented in t
 Use the "Shutdown Algorithm" controls to adjust the parameters of the shutdown algorithm to dial it in so that no false positives occur. Be patient after adjusting the controls as the recalculation can take a few seconds.
 
 Finally, the mouse can be used to pan and zoom the graph.
+
+
+Usage with isvcs opentsdb
+-----------------
+* build the shutdownvis tool as described above
+* start the shutdownvis web server: `make serve`
+* enable CORS for tsdb:
+  * attach to the isvcs opentsdb container `docker exec -it serviced-isvcs_opentsdb /bin/bash`
+  * edit `/usr/local/serviced/resources/opentsdb/opentsdb.conf` and add `tsd.http.request.cors_domains = http://<your_ip>:8080` to the end (replace `<your_ip>` with the ip of the box you will run the shutdownvis tool on)(optionally you can just set `cors_domains` to `*` if you dont give two toots about security)
+  * bounce opentsdb service `supervisorctl -c /opt/zenoss/etc/supervisor.conf restart opentsdb`
+* navigate to the shutdownvis page using the URL you provided to the tsdb CORS config (`http://<your_ip>:8080`) (NOTE: `127.0.0.1` won't work with CORS)
+* in the "TSDB" controls box, fill in the tsdb URL (usually `http://<CC_master>:4242`)
+* in the "TSDB" controls box, enter a tenant id (or comma separated ids)
+* click "Query"
+* data!
