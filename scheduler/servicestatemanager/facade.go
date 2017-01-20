@@ -28,4 +28,6 @@ type Facade interface {
 	UpdateService(ctx datastore.Context, svc service.Service) error
 	// GetTenantIDs gets a list of all tenant IDs
 	GetTenantIDs(ctx datastore.Context) ([]string, error)
+	// GetServiceLite looks up the latest service object with all of the information necessary to schedule it
+	GetServicesForScheduling(ctx datastore.Context, ids []string) []*service.Service
 }

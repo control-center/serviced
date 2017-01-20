@@ -1913,6 +1913,19 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 	return *svc, err
 }
 
+func (f *Facade) GetServicesForScheduling(ctx datastore.Context, ids []string) []*service.Service {
+	services := []*service.Service{}
+	for _, id := range ids {
+		svc, err := f.getService(ctx, id)
+		if err != nil {
+			glog.Warningf("Could not get service with id %s: %s", id, err)
+		} else {
+			services = append(services, &svc)
+		}
+	}
+	return services
+}
+
 //getServices is an internal method that returns all Services without filling in all related service data like address assignments
 //and modified config files
 func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {

@@ -756,9 +756,299 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 		},
 	})
 	c.Assert(pass, Equals, true)
+
 }
 
-func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_ReconcileWithPending(c *C) {
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_PauseMovesToFront(c *C) {
+	// Add some non-emergency services to the start and stop queues
+	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
+	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{
+		BatchQueue:   make([]ssm.ServiceStateChangeBatch, 0),
+		CurrentBatch: ssm.ServiceStateChangeBatch{},
+		Changed:      make(chan bool),
+		Facade:       s.facade,
+	}
+
+	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
+	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
+
+	// Test that:
+	// 1. The batch has been added to the startQueue
+	// 2. The batch has been split into batches by startlevel
+	// 3. Nothing was falsely added to the stopQueue
+	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+	pass := s.CompareBatchSlices(c, startQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
+
+	c.Assert(len(stopQueue.BatchQueue), Equals, 0)
+
+	// Test that:
+	// 1. The batch has been added to the stopQueue
+	// 2. The services are grouped by reverse RunLevel
+	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID, service.SVCStop, false)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	pass = s.CompareBatchSlices(c, stopQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"E": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "E",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"D": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "D",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"F": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "F",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    false,
+		},
+	})
+
+	c.Assert(pass, Equals, true)
+
+	// Make sure the start queue is unchanged
+	pass = s.CompareBatchSlices(c, startQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
+
+	// Add a pause request for A, D, G, and H.  Make sure this gets moved to the front of the queue
+	// and overrides existing.  Also, it should be grouped by reverse RunLevel
+	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCPause, true)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	c.Logf("!!!!!!!!!!!!!!!!!!!START!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCRun].BatchQueue {
+		s.LogBatch(c, batch)
+	}
+	c.Logf("!!!!!!!!!!!!!!!!!!!STOP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue {
+		s.LogBatch(c, batch)
+	}
+	c.Logf("!!!!!!!!!!!!!!!!!!!DONE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+	pass = s.CompareBatchSlices(c, startQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 1,
+			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
+
+	pass = s.CompareBatchSlices(c, stopQueue.BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"G": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "G",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"D": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "D",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"H": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "H",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
+		},
+
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"E": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "E",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    false,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+
+				"F": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "F",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    false,
+		},
+	})
+
+	c.Assert(pass, Equals, true)
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_CancelledByPending(c *C) {
 	// Set up a pending batch
 	tenantID := "tenant"
 	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
@@ -884,7 +1174,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
 
-	// Make sure the pending services do NOT get cancelled
+	// Make sure the pending services DO get cancelled
 	for _, pending := range pendingServices {
 		select {
 		case <-pending.C:
@@ -934,6 +1224,258 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 			},
 			DesiredState: 1,
 			Emergency:    false,
+		},
+	})
+	c.Assert(pass, Equals, true)
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_EmergencyCancelPending(c *C) {
+	// Set up a pending batch
+	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	pendingServices := make(map[string]ssm.CancellableService)
+	for _, s := range getTestServicesABC() {
+		s.StartLevel = 0
+		pendingServices[s.ID] = ssm.NewCancellableService(s)
+	}
+
+	queue := &ssm.ServiceStateQueue{
+		CurrentBatch: ssm.ServiceStateChangeBatch{
+			Services:     pendingServices,
+			DesiredState: 0,
+			Emergency:    false,
+		},
+	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
+
+	// Add an Emergency batch that cancels a pending batch
+	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, true)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	// Make sure the pending services do get cancelled
+	for _, pending := range pendingServices {
+		select {
+		case <-pending.C:
+		default:
+			c.Fatal("Pending Service NOT cancelled")
+		}
+	}
+
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue {
+		s.LogBatch(c, batch)
+	}
+
+	// Our queue should be populated
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 0,
+			Emergency:    true,
+		},
+	})
+	c.Assert(pass, Equals, true)
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_EmergencyPauseCancelPendingStop(c *C) {
+	// Set up a pending batch
+	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	pendingServices := make(map[string]ssm.CancellableService)
+	for _, s := range getTestServicesABC() {
+		s.StartLevel = 0
+		pendingServices[s.ID] = ssm.NewCancellableService(s)
+	}
+
+	queue := &ssm.ServiceStateQueue{
+		CurrentBatch: ssm.ServiceStateChangeBatch{
+			Services:     pendingServices,
+			DesiredState: 0,
+			Emergency:    false,
+		},
+	}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = &ssm.ServiceStateQueue{}
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
+
+	// Add an Emergency Pause batch that cancels a pending batch
+	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCPause, true)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	// Make sure the pending services do get cancelled
+	for _, pending := range pendingServices {
+		select {
+		case <-pending.C:
+		default:
+			c.Fatal("Pending Service NOT cancelled")
+		}
+	}
+
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue {
+		s.LogBatch(c, batch)
+	}
+
+	// Our queue should be populated
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
+		},
+	})
+	c.Assert(pass, Equals, true)
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_EmergencyPauseCancelPendingStart(c *C) {
+	// Set up a pending batch
+	tenantID := "tenant"
+	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
+	pendingServices := make(map[string]ssm.CancellableService)
+	for _, s := range getTestServicesABC() {
+		s.StartLevel = 0
+		pendingServices[s.ID] = ssm.NewCancellableService(s)
+	}
+
+	queue := &ssm.ServiceStateQueue{
+		CurrentBatch: ssm.ServiceStateChangeBatch{
+			Services:     pendingServices,
+			DesiredState: 0,
+			Emergency:    false,
+		},
+	}
+
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = queue
+	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{}
+
+	// Add an Emergency Pause batch that cancels a pending batch
+	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCPause, true)
+	if err != nil {
+		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
+	}
+
+	// Make sure the pending services do get cancelled
+	for _, pending := range pendingServices {
+		select {
+		case <-pending.C:
+		default:
+			c.Fatal("Pending Service NOT cancelled")
+		}
+	}
+
+	for _, batch := range s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue {
+		s.LogBatch(c, batch)
+	}
+
+	c.Assert(len(s.serviceStateManager.TenantQueues[tenantID][service.SVCRun].BatchQueue), Equals, 0)
+
+	// Our queue should be populated
+	pass := s.CompareBatchSlices(c, s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue, []ssm.ServiceStateChangeBatch{
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"B": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "B",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 1,
+						StartLevel:             3,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
+		},
+		ssm.ServiceStateChangeBatch{
+			Services: map[string]ssm.CancellableService{
+				"A": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "A",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 0,
+						StartLevel:             2,
+					},
+				},
+				"C": ssm.CancellableService{
+					Service: &service.Service{
+						ID:                     "C",
+						DesiredState:           1,
+						EmergencyShutdownLevel: 2,
+						StartLevel:             2,
+					},
+				},
+			},
+			DesiredState: 2,
+			Emergency:    true,
 		},
 	})
 	c.Assert(pass, Equals, true)

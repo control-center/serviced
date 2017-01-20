@@ -39,6 +39,8 @@ var (
 	ErrMismatchedDesiredStates = errors.New("Can't merge batches with different desired states")
 	// ErrMissingQueue occurs when queue doesn't exist for the tenant with the desired state of a batch
 	ErrMissingQueue = errors.New("No queue found for tenant ID and desired state")
+	// ErrWaitTimeout occurs when we timeout waiting for a batch of services to reach the desired state
+	ErrWaitTimeout = errors.New("Timeout waiting for services")
 )
 
 type ServiceStateManager interface {
@@ -50,6 +52,8 @@ type ServiceStateManager interface {
 	RemoveTenant(tenantID string) error
 	// WaitScheduled blocks until all requested services have been scheduled or cancelled
 	WaitScheduled(tenantID string, serviceIDs ...string)
+	// Wait blocks until all processing for the current tenant has completed
+	Wait(tenantID string)
 }
 
 // ServiceStateChangeBatch represents a batch of services with the same
@@ -233,8 +237,8 @@ func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 		Facade:       s.Facade,
 	}
 	s.TenantShutDowns[tenantID] = shutdown
-	for _, q := range s.TenantQueues[tenantID] {
-		go s.tenantLoop(tenantID, q, shutdown)
+	for t, q := range s.TenantQueues[tenantID] {
+		go s.tenantLoop(tenantID, t.String(), q, shutdown)
 	}
 
 	return nil
@@ -269,15 +273,23 @@ func (s *BatchServiceStateManager) removeTenant(tenantID string) error {
 // ServiceStateChangeBatches in the ServiceStateManager's queue
 func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error {
 	var err error
-
-	s.RLock()
+	plog.WithField("desiredstate", desiredState.String()).Infof("Starting ScheduleServices")
+	s.Lock()
 	var queues map[service.DesiredState]*ServiceStateQueue
 	queues, ok := s.TenantQueues[tenantID]
-	s.RUnlock()
+
 	if !ok {
+		s.Unlock()
 		return ErrBadTenantID
 	}
 
+	// Get a lock on all queues
+	for _, q := range queues {
+		q.Lock()
+		defer q.Unlock()
+	}
+	s.Unlock()
+	plog.WithField("desiredstate", desiredState.String()).Infof("Starting ScheduleServices, got all locks")
 	// Build the cancellable services from the list
 	cancellableServices := make(map[string]CancellableService)
 	for _, svc := range svcs {
@@ -302,23 +314,19 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	expeditedServices := make(map[string]CancellableService)
 
 	for _, queue := range queues {
-		func(q *ServiceStateQueue) {
-			q.Lock()
-			defer q.Unlock()
-			// reconcile the new batch against all batches in q
-			newBatch, expeditedBatch = q.reconcileWithBatchQueue(newBatch)
-			for id, svc := range expeditedBatch.Services {
-				expeditedServices[id] = svc
-			}
+		// reconcile the new batch against all batches in q
+		newBatch, expeditedBatch = queue.reconcileWithBatchQueue(newBatch)
+		for id, svc := range expeditedBatch.Services {
+			expeditedServices[id] = svc
+		}
 
-			if len(newBatch.Services) == 0 {
-				// this is no longer a useful batch
-				return
-			}
+		if len(newBatch.Services) == 0 {
+			// this is no longer a useful batch
+			return nil
+		}
 
-			// reconcile with the pending batch
-			newBatch = q.reconcileWithPendingBatch(newBatch)
-		}(queue)
+		// reconcile with the pending batch
+		newBatch = queue.reconcileWithPendingBatch(newBatch)
 	}
 
 	expeditedBatch.Services = expeditedServices
@@ -336,8 +344,6 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	if !ok {
 		return ErrMissingQueue
 	}
-	queue.Lock()
-	defer queue.Unlock()
 	if len(expeditedBatch.Services) > 0 {
 		// process the expedited batch now
 		go func() {
@@ -351,6 +357,7 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	if len(newBatch.Services) == 0 {
 		return nil
 	}
+	plog.WithField("queue", queueDesiredState.String()).Infof("About to add batch to queue")
 	if newBatch.Emergency {
 		err = queue.mergeEmergencyBatch(newBatch)
 	} else {
@@ -624,7 +631,7 @@ func MergeBatches(batches []ServiceStateChangeBatch) ([]ServiceStateChangeBatch,
 		currentStartLevel := svc.StartLevel
 		var sameBatch bool
 
-		if emergency {
+		if emergency && desiredState == service.SVCStop {
 			// this service should be in the same batch if it has the same emergency level
 			sameBatch = currentEmergencyLevel == previousEmergencyLevel
 			if sameBatch && currentEmergencyLevel == 0 {
@@ -680,19 +687,27 @@ func (s *BatchServiceStateManager) Wait(tenantID string) {
 
 // WaitScheduled blocks until every service has been scheduled or moved/removed from the queue
 func (s *BatchServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...string) {
+	logger := plog.WithField("numservices", len(serviceIDs))
+	logger.Infof("In WaitScheduled")
+	defer logger.Infof("WaitScheduled Done")
 	s.RLock()
+	logger.Infof("In WaitScheduled, got lock")
 	var wg sync.WaitGroup
+	count := 0
 	for _, sid := range serviceIDs {
 		// find the service in the queues
 		if svc, ok := s.findService(tenantID, sid); ok {
 			wg.Add(1)
+			count++
 			go func(s CancellableService) {
 				<-s.C
+				plog.WithField("service", s.Name).Info("Got a Cancel!")
 				wg.Done()
 			}(svc)
 		}
 	}
 	s.RUnlock()
+	logger.WithField("waitcount", count).Infof("Waiting on services to be scheduled")
 	wg.Wait()
 }
 
@@ -734,17 +749,27 @@ func (s *BatchServiceStateManager) drainQueue(queue *ServiceStateQueue) {
 	}
 }
 
-func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceStateQueue, cancel <-chan int) {
+func (s *BatchServiceStateManager) tenantLoop(tenantID, queueName string, queue *ServiceStateQueue, cancel <-chan int) {
 	logger := plog.WithField("tenantid", tenantID)
+	logger = logger.WithField("queue", queueName)
 	for {
 		select {
 		case <-cancel:
 			return
 		default:
 		}
+		logger.Infof("Getting next batch")
 		batch, err := queue.getNextBatch()
 		if err == nil {
-			sids := s.processBatch(tenantID, batch)
+			batchlogger := logger.WithFields(logrus.Fields{
+				"emergency":    batch.Emergency,
+				"desiredstate": batch.DesiredState,
+				"timeout":      s.ServiceRunLevelTimeout,
+			})
+			batchlogger.Infof("Got Batch")
+
+			sids := s.updateBatch(&batch)
+			sids = append(sids, s.processBatch(tenantID, batch)...)
 
 			// Cancel the services that didn't get scheduled, so we don't wait on them
 			for _, sid := range sids {
@@ -756,16 +781,26 @@ func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceSta
 			if desiredState == service.SVCRestart {
 				desiredState = service.SVCRun
 			}
-			if err := queue.waitServicesWithTimeout(desiredState, batch.Services, s.ServiceRunLevelTimeout); err != nil {
+			err := queue.waitServicesWithTimeout(desiredState, batch.Services, s.ServiceRunLevelTimeout)
+			if err == ErrWaitTimeout {
 				logger.WithFields(logrus.Fields{
 					"emergency":    batch.Emergency,
 					"desiredstate": desiredState,
+					"timeout":      s.ServiceRunLevelTimeout,
+					"numservices":  len(batch.Services),
+				}).Warn("Timeout waiting for service batch to reach desired state")
+			} else if err != nil {
+				logger.WithFields(logrus.Fields{
+					"emergency":    batch.Emergency,
+					"desiredstate": desiredState,
+					"timeout":      s.ServiceRunLevelTimeout,
 				}).WithError(err).Error("Error waiting for service batch to reach desired state")
 			}
 		} else {
 			if err != ErrBatchQueueEmpty {
 				logger.WithError(err).Error("Error getting next batch")
 			}
+			logger.Infof("Waiting for change")
 			select {
 			case <-cancel:
 				return
@@ -773,6 +808,39 @@ func (s *BatchServiceStateManager) tenantLoop(tenantID string, queue *ServiceSta
 			}
 		}
 	}
+}
+
+func (s *BatchServiceStateManager) updateBatch(batch *ServiceStateChangeBatch) []string {
+	serviceIDs := make([]string, len(batch.Services))
+	i := 0
+	for _, svc := range batch.Services {
+		serviceIDs[i] = svc.ID
+		i++
+	}
+
+	services := s.Facade.GetServicesForScheduling(s.ctx, serviceIDs)
+
+	newServices := make(map[string]CancellableService, len(services))
+	missingServices := []string{}
+
+	for id, batchService := range batch.Services {
+		found := false
+		for _, svc := range services {
+			if id == svc.ID {
+				found = true
+				batchService.Service = svc
+				newServices[svc.ID] = batchService
+				break
+			}
+		}
+		if !found {
+			missingServices = append(missingServices, id)
+		}
+	}
+
+	batch.Services = newServices
+
+	return missingServices
 }
 
 func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) []string {
@@ -788,7 +856,7 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 	for _, svc := range batch.Services {
 		services = append(services, svc.Service)
 		serviceIDs = append(serviceIDs, svc.ID)
-		if batch.Emergency {
+		if batch.Emergency && batch.DesiredState == service.SVCStop {
 			// Set EmergencyShutdown to true for this service and update the database
 			svc.EmergencyShutdown = true
 			uerr := s.Facade.UpdateService(s.ctx, *svc.Service)
@@ -824,14 +892,18 @@ func (s *ServiceStateQueue) getNextBatch() (b ServiceStateChangeBatch, err error
 func (s *ServiceStateQueue) waitServicesWithTimeout(dstate service.DesiredState, services map[string]CancellableService, timeout time.Duration) error {
 	done := make(chan error)
 	cancel := make(chan interface{})
+	logger := plog.WithFields(logrus.Fields{
+		"numservices": len(services),
+	})
+
+	logger.Infof("Starting waitServicesWithTimeout")
+
 	defer func() {
 		// close all channels
 		close(cancel)
-		s.RLock()
 		for _, svc := range services {
 			svc.Cancel()
 		}
-		s.RUnlock()
 	}()
 
 	go func() {
@@ -847,7 +919,8 @@ func (s *ServiceStateQueue) waitServicesWithTimeout(dstate service.DesiredState,
 	case err := <-done:
 		return err
 	case <-timer.C:
-		return errors.New("Timeout waiting for services")
+		logger.Infof("Timeout")
+		return ErrWaitTimeout
 		// defer will cancel all waits
 	}
 }
