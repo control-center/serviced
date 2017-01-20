@@ -1,4 +1,4 @@
-// Copyright 2016 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -60,8 +60,10 @@ func (sr *StorageStatsReporter) gatherStats(t time.Time) []Sample {
 	stats := []Sample{}
 	// Handle the storage metrics.
 	reg, _ := sr.storageRegistry.(*metrics.StandardRegistry)
-	tagmap := map[string]string{"controlplane_host_id": sr.hostID}
 	reg.Each(func(name string, i interface{}) {
+		tagmap := map[string]string{
+			"controlplane_host_id": sr.hostID,
+		}
 		switch metric := i.(type) {
 		case metrics.Gauge:
 			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
