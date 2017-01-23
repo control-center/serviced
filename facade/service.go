@@ -1289,8 +1289,11 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 
 func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) ([]string, error) {
 	logger := plog.WithFields(log.Fields{
+		"numservices":  len(svcs),
+		"tenantid":     tenantID,
 		"desiredstate": desiredState,
 	})
+	logger.Info("Scheduling service batch")
 	servicesToSchedule := make([]*service.Service, 0)
 	failedServices := []string{}
 	for _, svc := range svcs {
@@ -1308,12 +1311,12 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 
 		err := f.updateDesiredState(ctx, svc, desiredState)
 		if err != nil {
-			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error scheduling service")
+			logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
 			failedServices = append(failedServices, svc.ID)
 			continue
 		}
 		if err := f.fillServiceAddr(ctx, svc); err != nil {
-			logger.WithError(err).WithField("serviceid", svc.ID).Errorf("Error filling service address")
+			logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
 			failedServices = append(failedServices, svc.ID)
 			continue
 		}
@@ -1469,7 +1472,21 @@ func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleService
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRestart)
+	forceRestart := func() (int, error) {
+		count, err := f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, true, service.SVCStop)
+		if err != nil {
+			return count, err
+		}
+
+		return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRun)
+	}
+
+	if request.Synchronous {
+		return forceRestart()
+	} else {
+		go forceRestart()
+		return 0, nil
+	}
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
