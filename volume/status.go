@@ -15,6 +15,7 @@ package volume
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -26,13 +27,91 @@ import (
 
 type Status interface {
 	String() string
-	GetUsageData() []Usage
+	GetUsageData() UsageData
 }
 
 type SimpleStatus struct { // see Docker - look at their status struct and borrow heavily.
 	Driver     DriverType
 	DriverData map[string]string
-	UsageData  []Usage
+	UsageData  UsageData
+}
+
+// UsageData implements Unmarshaler allowing us to unmarshal a []Usage indirectly
+type UsageData []Usage
+
+// UnmarshalJSON satisfies Unmarshaler interface
+func (u *UsageData) UnmarshalJSON(data []byte) error {
+	var usageData UsageData
+	var usageRaw []json.RawMessage
+	// we should have a slice of usage entries in json
+	err := json.Unmarshal(data, &usageRaw)
+	if err != nil {
+		return err
+	}
+	for _, usage := range usageRaw {
+		// unmarshal into a map, so we can check our fields
+		usageMap := make(map[string]json.RawMessage)
+		err := json.Unmarshal(usage, &usageMap)
+		if err != nil {
+			return err
+		}
+		var (
+			metricStr string
+			labelStr  string
+			typeStr   string
+			valInt    uint64
+			valFloat  float64
+		)
+		isInt := true
+
+		for key, val := range usageMap {
+			switch key {
+			case "MetricName":
+				err = json.Unmarshal(val, &metricStr)
+				if err != nil {
+					return err
+				}
+			case "Label":
+				err = json.Unmarshal(val, &labelStr)
+				if err != nil {
+					return err
+				}
+			case "Type":
+				err = json.Unmarshal(val, &typeStr)
+				if err != nil {
+					return err
+				}
+			case "Value":
+				// try to get an int
+				err = json.Unmarshal(val, &valInt)
+				if err != nil {
+					// if it failed, val is most likely a float
+					err = json.Unmarshal(val, &valFloat)
+					if err != nil {
+						return err
+					}
+					isInt = false
+				}
+			}
+		}
+		if isInt {
+			usageData = append(usageData, UsageInt{
+				MetricName: metricStr,
+				Label:      labelStr,
+				Type:       typeStr,
+				Value:      valInt,
+			})
+		} else {
+			usageData = append(usageData, UsageFloat{
+				MetricName: metricStr,
+				Label:      labelStr,
+				Type:       typeStr,
+				Value:      valFloat,
+			})
+		}
+	}
+	u = &usageData
+	return nil
 }
 
 type Usage interface {
@@ -140,7 +219,7 @@ func GetStatus() *Statuses {
 	return result
 }
 
-func (s SimpleStatus) GetUsageData() []Usage {
+func (s SimpleStatus) GetUsageData() UsageData {
 	return s.UsageData
 }
 
@@ -206,13 +285,13 @@ type DeviceMapperStatus struct {
 	PoolMetadataUsed      uint64
 
 	DriverData map[string]string
-	UsageData  []Usage
+	UsageData  UsageData
 	Tenants    []TenantStorageStats
 
 	Errors []string
 }
 
-func (s DeviceMapperStatus) GetUsageData() []Usage {
+func (s DeviceMapperStatus) GetUsageData() UsageData {
 	return s.UsageData
 }
 
