@@ -1705,7 +1705,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
 	}
 }
 
-func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
+func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	// Setup a tenant
 	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1"}, nil).Once()
 
