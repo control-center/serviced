@@ -538,13 +538,11 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	imagesMap := make(map[string]struct{})
 	images := make([]string, 0)
 	serviceids := make([]string, len(svcs))
-	for i, svc := range svcs {
+	servicesToPause := []*service.Service{}
+	for i, _ := range svcs {
+		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
-			defer f.scheduleService(ctx, tenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true, false)
-			if _, err := f.scheduleService(ctx, tenantID, svc.ID, false, true, service.SVCPause, true, false); err != nil {
-				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
-				return "", err
-			}
+			servicesToPause = append(servicesToPause, svc)
 		}
 		serviceids[i] = svc.ID
 		if svc.ImageID != "" {
@@ -554,6 +552,15 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 	}
+	// Pause the services that need pausing in a batch
+	if _, err := scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCPause, false); err != nil {
+		glog.Errorf("Could not pause services for snapshot: %s", err)
+		return "", err
+	}
+
+	defer scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCRun, false)
+
+	// Wait for the paused services to reach the paused state (and other services to reach stopped)
 	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during snapshot of %s: %s", service.SVCStop, tenantID, err)
 		return "", err

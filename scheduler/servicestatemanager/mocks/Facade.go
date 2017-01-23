@@ -82,4 +82,18 @@ func (_m *Facade) WaitSingleService(_a0 *service.Service, _a1 service.DesiredSta
 	return r0
 }
 
+// GetServicesForScheduling provides a mock function with given fields: _a0, _a1
+func (_m *Facade) GetServicesForScheduling(_a0 datastore.Context, _a1 []string) []*service.Service {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 []*service.Service
+	if rf, ok := ret.Get(0).(func(datastore.Context, []string) []*service.Service); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).([]*service.Service)
+	}
+
+	return r0
+}
+
 var _ servicestatemanager.Facade = (*Facade)(nil)

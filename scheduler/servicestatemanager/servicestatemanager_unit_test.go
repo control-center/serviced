@@ -1719,6 +1719,9 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_tenantLoop(c *C) {
 	// Start the manager
 	s.serviceStateManager.Start()
 
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcA, svcD, svcH}).Once()
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcG}).Once()
+
 	// The first batch should contain A, D, H because of startlevel
 	// Those should get waited on by a call to the facade from runLoop
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()

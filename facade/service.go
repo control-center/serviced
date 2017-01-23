@@ -1256,21 +1256,20 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 	affected := len(svcs)
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
-		affected, err = scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
+		affected, err = scheduleServices(f, svcs, ctx, tenantID, desiredState, emergency)
 		f.ssm.WaitScheduled(tenantID, svcIDs...)
 	} else {
 		logger.Debug("Scheduling services asynchronously")
-		go scheduleServices(f, svcs, ctx, tenantID, serviceID, desiredState, emergency)
+		go scheduleServices(f, svcs, ctx, tenantID, desiredState, emergency)
 	}
 
 	return affected, err
 }
 
-func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, serviceID string, desiredState service.DesiredState, emergency bool) (int, error) {
+func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context, tenantID string, desiredState service.DesiredState, emergency bool) (int, error) {
 	logger := plog.WithFields(log.Fields{
-		"parentserviceid": serviceID,
-		"tenantid":        tenantID,
-		"desiredstate":    desiredState,
+		"tenantid":     tenantID,
+		"desiredstate": desiredState,
 	})
 	logger.Debug("Begin scheduleServices")
 	err := f.ssm.ScheduleServices(svcs, tenantID, desiredState, emergency)

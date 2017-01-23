@@ -1145,7 +1145,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	// Bash completion
 	if args[len(args)-1] == "--generate-bash-completion" {
 		// CC-892: Disable bash completion after SERVICE_ID because possible matches
-        // are unavailable outside the container.
+		// are unavailable outside the container.
 		return c.exit(1)
 	}
 
@@ -1238,8 +1238,8 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 					fmt.Println(cmd)
 				}
 			} else {
-                return c.exit(1)
-            }
+				return c.exit(1)
+			}
 		}
 		return c.exit(0)
 	}
@@ -1311,7 +1311,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// Bash completion
 	if args[len(args)-1] == "--generate-bash-completion" {
 		// CC-892: The attach command does not require an additional argument after
-        // SERVICE_ID. Disable bash completion after SERVICE_ID.
+		// SERVICE_ID. Disable bash completion after SERVICE_ID.
 		return c.exit(1)
 	}
 
@@ -1361,8 +1361,8 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 				actions := c.serviceActions(svc.ID)
 				fmt.Println(strings.Join(actions, "\n"))
 			} else {
-                c.exit(1)
-            }
+				c.exit(1)
+			}
 		}
 		return c.exit(0)
 	}
@@ -1415,7 +1415,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	// Bash completion
 	if args[len(args)-1] == "--generate-bash-completion" {
 		// CC-892: The logs command does not require an additional argument after
-        // SERVICE_ID. Disable bash completion after SERVICE_ID.
+		// SERVICE_ID. Disable bash completion after SERVICE_ID.
 		return c.exit(1)
 	}
 
