@@ -348,17 +348,16 @@ func (d *daemon) run() (err error) {
 	}
 
 	signalC := make(chan os.Signal, 10)
-	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	// CC-3154 According to JP, golang will frequently receive these signals. A message or trace for this signal does
+	// not provide useful information, so we suppress it.
+	signal.Ignore(syscall.SIGPIPE)
 
 	var sig os.Signal
 
-	for sig := range signalC {
-		if sig == syscall.SIGPIPE {
-			log.WithField("signal", sig).Warning("Attempted to write to a closed socket")
-			continue
-		} else {
-			break
-		}
+	for sig = range signalC {
+		break
 	}
 
 	log.WithFields(logrus.Fields{
