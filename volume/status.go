@@ -110,7 +110,7 @@ func (u *UsageData) UnmarshalJSON(data []byte) error {
 			})
 		}
 	}
-	u = &usageData
+	*u = usageData
 	return nil
 }
 
