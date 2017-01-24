@@ -306,7 +306,7 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	// 1. If this is emergency, merge with other emergencies and move to front of the queue
 	// 2. If any service in this batch is currently in the "pending" batch:
 	//    A. If the desired states are the same, leave it pending and remove it from this batch
-	//    B. If the desired states are different, cancel the pending request and leave it in this batch
+	//    B. If the desired states are different, cancel waits on the pending request and leave it in this batch
 	// 3. If this and the last N batches at the end of the queue all have the same desired state, merge and re-group them
 	// 4. If any service in this batch also appears in an earlier batch:
 	//    A. If the desired state is the same, leave it in the earlier batch and remove it here
@@ -493,13 +493,11 @@ func (s *ServiceStateQueue) reconcileWithPendingBatch(newBatch ServiceStateChang
 			} else if newBatch.Emergency {
 				// newBatch is going to be brought to the front of the queue on merge,
 				// so we can take this service out of the old batch
-				delete(b.Services, id)
 				oldsvc.Cancel()
 				reconciledBatch.Services[id] = newSvc
 			} else if b.DesiredState != newBatch.DesiredState {
 				// this service has a newer desired state than it does in b,
 				// so we can take this service out of old batch
-				delete(b.Services, id)
 				oldsvc.Cancel()
 				reconciledBatch.Services[id] = newSvc
 			} else {
@@ -880,7 +878,18 @@ func (s *ServiceStateQueue) getNextBatch() (b ServiceStateChangeBatch, err error
 		err = ErrBatchQueueEmpty
 	}
 
-	s.CurrentBatch = b
+	// Make a copy of this batch to store in current batch so we don't have to hold the lock while processing it
+	serviceCopy := make(map[string]CancellableService, len(b.Services))
+	for k, v := range b.Services {
+		serviceCopy[k] = v
+	}
+
+	s.CurrentBatch = ServiceStateChangeBatch{
+		DesiredState: b.DesiredState,
+		Emergency:    b.Emergency,
+		Services:     serviceCopy,
+	}
+
 	return
 }
 
