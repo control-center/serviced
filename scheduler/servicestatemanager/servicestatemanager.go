@@ -327,8 +327,8 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		}
 
 		if len(newBatch.Services) == 0 {
-			// this is no longer a useful batch
-			return nil
+			// Nothing left to reconcile
+			break
 		}
 
 		// reconcile with the pending batch
@@ -336,6 +336,22 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	}
 
 	expeditedBatch.Services = expeditedServices
+
+	if len(expeditedBatch.Services) > 0 {
+		// process the expedited batch now
+		go func() {
+			s.updateBatch(&expeditedBatch)
+			s.processBatch(tenantID, expeditedBatch)
+			// Cancel these services to notify waiters that they have been scheduled
+			for _, svc := range expeditedBatch.Services {
+				svc.Cancel()
+			}
+		}()
+	}
+
+	if len(newBatch.Services) == 0 {
+		return nil
+	}
 
 	queueDesiredState := newBatch.DesiredState
 	switch newBatch.DesiredState {
@@ -349,19 +365,6 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 	queue, ok := queues[queueDesiredState]
 	if !ok {
 		return ErrMissingQueue
-	}
-	if len(expeditedBatch.Services) > 0 {
-		// process the expedited batch now
-		go func() {
-			s.processBatch(tenantID, expeditedBatch)
-			// Cancel these services to notify waiters that they have been scheduled
-			for _, svc := range expeditedBatch.Services {
-				svc.Cancel()
-			}
-		}()
-	}
-	if len(newBatch.Services) == 0 {
-		return nil
 	}
 
 	if newBatch.Emergency {
@@ -772,8 +775,8 @@ func (s *BatchServiceStateManager) queueLoop(tenantID, queueName string, queue *
 			})
 			batchlogger.Debug("Got Batch")
 
-			sids := s.updateBatch(&batch)
-			sids = append(sids, s.processBatch(tenantID, batch)...)
+			s.updateBatch(&batch)
+			sids := s.processBatch(tenantID, batch)
 
 			// Cancel the services that didn't get scheduled, so we don't wait on them
 			for _, sid := range sids {
@@ -805,7 +808,7 @@ func (s *BatchServiceStateManager) queueLoop(tenantID, queueName string, queue *
 	}
 }
 
-func (s *BatchServiceStateManager) updateBatch(batch *ServiceStateChangeBatch) []string {
+func (s *BatchServiceStateManager) updateBatch(batch *ServiceStateChangeBatch) {
 	serviceIDs := make([]string, len(batch.Services))
 	i := 0
 	for _, svc := range batch.Services {
@@ -816,7 +819,6 @@ func (s *BatchServiceStateManager) updateBatch(batch *ServiceStateChangeBatch) [
 	services := s.Facade.GetServicesForScheduling(s.ctx, serviceIDs)
 
 	newServices := make(map[string]CancellableService, len(services))
-	missingServices := []string{}
 
 	for id, batchService := range batch.Services {
 		found := false
@@ -829,13 +831,11 @@ func (s *BatchServiceStateManager) updateBatch(batch *ServiceStateChangeBatch) [
 			}
 		}
 		if !found {
-			missingServices = append(missingServices, id)
+			batchService.Cancel()
 		}
 	}
 
 	batch.Services = newServices
-
-	return missingServices
 }
 
 func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceStateChangeBatch) []string {
