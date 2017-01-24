@@ -2175,6 +2175,220 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	c.Assert(int(updatedSvc.DesiredState), Equals, int(service.SVCRun))
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
+	// Test to make sure services are always paused during a snapshot
+	// add a service with 1 subservice
+	svc := service.Service{
+		ID:             "ParentServiceID",
+		Name:           "ParentService",
+		Startup:        "/usr/bin/ping -c localhost",
+		Description:    "Ping a remote host a fixed number of times",
+		Instances:      1,
+		InstanceLimits: domain.MinMax{1, 1, 1},
+		ImageID:        "test/pinger",
+		PoolID:         "default",
+		DeploymentID:   "deployment_id",
+		DesiredState:   int(service.SVCRun),
+		Launch:         "auto",
+		Endpoints:      []service.ServiceEndpoint{},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		StartLevel:     0,
+	}
+	childService1 := service.Service{
+		ID:              "childService1",
+		Name:            "childservice1",
+		Launch:          "auto",
+		PoolID:          "default",
+		DeploymentID:    "deployment_id",
+		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID: "ParentServiceID",
+		StartLevel:      1,
+	}
+
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+
+	// Set up mocks to handle starting services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	var mutex sync.RWMutex
+	desiredStates := make(map[string]service.DesiredState)
+	desiredStates["ParentServiceID"] = service.SVCStop
+	desiredStates["childService1"] = service.SVCStop
+
+	ft.dfs.On("Timeout").Return(10 * time.Second)
+	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		mutex.Lock()
+		defer mutex.Unlock()
+		for _, s := range svcs {
+			desiredStates[s.ID] = service.DesiredState(s.DesiredState)
+		}
+	})
+
+	waitBlocker := make(chan interface{})
+	close(waitBlocker)
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		desiredState := args.Get(1).(service.DesiredState)
+		cancel := args.Get(2).(<-chan interface{})
+		for {
+			select {
+			case <-cancel:
+				return
+			default:
+			}
+			mutex.RLock()
+			state, _ := desiredStates[s.ID]
+			mutex.RUnlock()
+			if int(state) == int(desiredState) || (int(desiredState) == int(service.SVCPause) && int(state) == int(service.SVCStop)) {
+				// Sleep for 1 second and then return
+				time.Sleep(time.Second)
+				// Wait for the waitBlocker
+				mutex.RLock()
+				defer mutex.RUnlock()
+				<-waitBlocker
+				return
+			} else {
+				// wait 100 ms and try again
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	})
+
+	// On Snapshot, fail if all services aren't either paused or stopped
+	ft.dfs.On("Snapshot", mock.AnythingOfType("dfs.SnapshotInfo")).Return("snapshotID", nil).Run(func(args mock.Arguments) {
+		mutex.RLock()
+		defer mutex.RUnlock()
+
+		for _, state := range desiredStates {
+			if state != service.SVCPause && state != service.SVCStop {
+				c.Fatalf("Attempted to snapshot with running services")
+			}
+		}
+	})
+
+	// Start the parent service synchronously with AutoLaunch set to false, so that the child service stays stopped
+	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	c.Assert(err, IsNil)
+
+	// Snapshot the service.
+	_, err = ft.Facade.Snapshot(ft.CTX, "ParentServiceID", "", []string{}, 0)
+	c.Assert(err, IsNil)
+
+	// Make sure services returned to their original state
+	ft.Facade.WaitService(ft.CTX, service.SVCRun, 5*time.Second, false, "ParentServiceID")
+	services, err := ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{})
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		switch s.ID {
+		case "ParentServiceID":
+			c.Assert(int(s.DesiredState), Equals, int(service.SVCRun))
+		default:
+			c.Assert(int(s.DesiredState), Equals, int(service.SVCStop))
+		}
+	}
+
+	// Stop the parent service
+	_, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	c.Assert(err, IsNil)
+
+	// TEST: Snapshot during service start
+	// Block Wait
+	mutex.Lock()
+	waitBlocker = make(chan interface{})
+	mutex.Unlock()
+	// Start services in a goroutine
+	startDone := make(chan interface{})
+	go func() {
+		defer close(startDone)
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		c.Assert(err, IsNil)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Call snapshot in a goroutine
+	snapshotDone := make(chan interface{})
+	go func() {
+		defer close(snapshotDone)
+		_, err := ft.Facade.Snapshot(ft.CTX, "ParentServiceID", "", []string{}, 0)
+		c.Assert(err, IsNil)
+
+		// Wait for services to return to running
+		err = ft.Facade.WaitService(ft.CTX, service.SVCRun, 5*time.Second, false, "ParentServiceID", "childService1")
+		c.Assert(err, IsNil)
+	}()
+
+	// Unblock wait
+	close(waitBlocker)
+
+	// Wait for the snapshot and start services to complete
+	<-startDone
+	<-snapshotDone
+
+	// All services should be running
+	services, err = ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{})
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(int(s.DesiredState), Equals, int(service.SVCRun))
+	}
+
+	// TEST: Start services during snapshot
+
+	//block wait and call snapshot in a goroutine
+	mutex.Lock()
+	waitBlocker = make(chan interface{})
+	mutex.Unlock()
+	snapshotDone = make(chan interface{})
+	go func() {
+		defer close(snapshotDone)
+		_, err := ft.Facade.Snapshot(ft.CTX, "ParentServiceID", "", []string{}, 0)
+		c.Assert(err, IsNil)
+
+		// Wait for services to return to running
+		err = ft.Facade.WaitService(ft.CTX, service.SVCRun, 5*time.Second, false, "ParentServiceID", "childService1")
+		c.Assert(err, IsNil)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+	// Start services in a goroutine
+	startDone = make(chan interface{})
+	go func() {
+		defer close(startDone)
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		c.Assert(err, IsNil)
+	}()
+
+	//unblock wait
+	close(waitBlocker)
+
+	<-snapshotDone
+	<-startDone
+
+	// All services should still be running
+	services, err = ft.Facade.GetServices(ft.CTX, dao.ServiceRequest{})
+	c.Assert(err, IsNil)
+	for _, s := range services {
+		c.Assert(int(s.DesiredState), Equals, int(service.SVCRun))
+	}
+
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	// add a service with 2 subservices and set EmergencyShutdown to true for all 3
 	svc := service.Service{
