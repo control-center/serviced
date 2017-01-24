@@ -406,6 +406,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	// Add a non-Emergency batch with some expedited and some non-conflicting services, and make sure that:
 	//  1. The expedited services are removed from the incoming batch and processed on their own (mocked)
 	//  2. The non-conflicting services are merged with the end of the queue based on start level
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{getTestServicesADGH()[1]}).Once()
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return([]string{}, nil).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
 	if err != nil {
@@ -759,7 +760,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 
 }
 
-func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_PauseMovesToFront(c *C) {
+func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_EmergencyPauseMovesToFront(c *C) {
 	// Add some non-emergency services to the start and stop queues
 	tenantID := "tenant"
 	s.serviceStateManager.TenantQueues[tenantID] = make(map[service.DesiredState]*ssm.ServiceStateQueue)
