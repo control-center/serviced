@@ -1297,11 +1297,11 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -1396,7 +1396,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1548,7 +1548,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// emergency stop the parent synchronously
-	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true}); err != nil {
 		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1620,7 +1620,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1712,7 +1712,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	methodReturned := make(chan interface{})
 	go func() {
 		defer close(methodReturned)
-		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: false}); err != nil {
+		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: false}); err != nil {
 			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 		}
 	}()
@@ -1970,7 +1970,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// start the parent synchronously
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2077,7 +2077,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// stop the parent synchronously
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2152,7 +2152,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 		mock.AnythingOfType("<-chan interface {}")).WaitUntil(releaseWait).Return(nil)
 
 	// Start the services asynchronously.  After starting level 1, it will block until we close releaseWait
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, false}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2283,7 +2283,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	})
 
 	// Start the parent service synchronously with AutoLaunch set to false, so that the child service stays stopped
-	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: false, Synchronous: true})
 	c.Assert(err, IsNil)
 
 	// Snapshot the service.
@@ -2304,7 +2304,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	}
 
 	// Stop the parent service
-	_, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	_, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: false, Synchronous: true})
 	c.Assert(err, IsNil)
 
 	// TEST: Snapshot during service start
@@ -2316,7 +2316,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	startDone := make(chan interface{})
 	go func() {
 		defer close(startDone)
-		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true})
 		c.Assert(err, IsNil)
 	}()
 
@@ -2370,7 +2370,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	startDone = make(chan interface{})
 	go func() {
 		defer close(startDone)
-		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true})
 		c.Assert(err, IsNil)
 	}()
 
