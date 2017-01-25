@@ -350,7 +350,7 @@ func (a *api) StartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.StartService(dao.ScheduleServiceRequest{[]string{config.ServiceID}, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 
@@ -362,7 +362,7 @@ func (a *api) RestartService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.RestartService(dao.ScheduleServiceRequest{[]string{config.ServiceID}, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 
@@ -374,7 +374,7 @@ func (a *api) StopService(config SchedulerConfig) (int, error) {
 	}
 
 	var affected int
-	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch, config.Synchronous}, &affected)
+	err = client.StopService(dao.ScheduleServiceRequest{[]string{config.ServiceID}, config.AutoLaunch, config.Synchronous}, &affected)
 	return affected, err
 }
 

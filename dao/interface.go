@@ -70,7 +70,7 @@ type ServiceStateRequest struct {
 }
 
 type ScheduleServiceRequest struct {
-	ServiceID   string
+	ServiceIDs  []string
 	AutoLaunch  bool
 	Synchronous bool
 }
@@ -162,7 +162,7 @@ type ControlPlane interface {
 	AssignIPs(assignmentRequest addressassignment.AssignmentRequest, unused *int) (err error)
 
 	// Get a list of tenant IDs
-	GetTenantIDs(unused struct {}, tenantIDs *[]string) error
+	GetTenantIDs(unused struct{}, tenantIDs *[]string) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
