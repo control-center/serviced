@@ -145,7 +145,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	tenantID := r.URL.Query().Get("tenantID")
 
 	// load the internal monitoring data
-	config, err := getInternalMetrics(tenantID)
+	config, err := getInternalMetrics()
 	if err != nil {
 		glog.Errorf("Could not get internal monitoring metrics: %s", err)
 		restServerError(w, err)
@@ -351,7 +351,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	}
 
 	// load the internal monitoring data
-	config, err := getInternalMetrics(serviceID)
+	config, err := getInternalMetrics()
 	if err != nil {
 		glog.Errorf("Could not get internal monitoring metrics: %s", err)
 		restServerError(w, err)
