@@ -16,6 +16,7 @@ package service
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 )
 
@@ -28,6 +29,7 @@ type ServiceHealth struct {
 	DesiredState      int
 	HealthChecks      map[string]health.HealthCheck
 	EmergencyShutdown bool
+	RAMCommitment     utils.EngNotation
 	datastore.VersionedEntity
 }
 

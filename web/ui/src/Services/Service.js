@@ -323,14 +323,6 @@
             return this.model.HasChildren;
         }
 
-        resourcesGood() {
-            for (var i = 0; i < this.instances.length; i++) {
-                if (!this.instances[i].resourcesGood()) {
-                    return false;
-                }
-            }
-            return true;
-        }
 
         // start, stop, or restart this service
         start(skipChildren) {
@@ -442,7 +434,7 @@
                         MemoryUsage: instanceStatus.MemoryUsage,
                         // NOTE - fake values!
                         HostID: 0,
-                        RAMCommitment: 0
+                        RAMCommitment: myStatus.RAMCommitment
                     });
                 }
                 instance.updateState(instanceStatus);
@@ -451,7 +443,15 @@
 
             // get health for this service and its instances
             this.status = serviceHealth.evaluate(this, instances);
-            this.touch();
+            this.resourcesGood = true;
+            for (var i = 0; i < instances.length; i++) {
+                if (!instances[i].resourcesGood()) {
+                    this.resourcesGood = false;
+		    break;
+                }
+            }
+
+	    this.touch();
         }
     }
 

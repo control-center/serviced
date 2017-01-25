@@ -120,4 +120,5 @@ var serviceHealthFields = []string{
 	"DesiredState",
 	"HealthChecks",
 	"EmergencyShutdown",
+	"RAMCommitment",
 }
