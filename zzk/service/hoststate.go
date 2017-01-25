@@ -42,6 +42,11 @@ type HostStateHandler interface {
 	// channel that triggers when the container has stopped.
 	StartContainer(cancel <-chan interface{}, serviceID string, instanceID int) (*ServiceState, <-chan time.Time, error)
 
+	// RestartContainer asynchronously prepulls the latest image before
+	// stopping the container.  It only returns an error if there is a problem
+	// with docker and not of the container is not running or doesn't exist.
+	RestartContainer(cancel <-chan interface{}, serviceID string, instanceID int) error
+
 	// ResumeContainer resumes a paused container.  Returns nil if the
 	// container has stopped or if it doesn't exist.
 	ResumeContainer(serviceID string, instanceID int) error
@@ -302,6 +307,25 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 
 			logger.Debug("Resumed paused container")
 		}
+	case service.SVCRestart:
+		if err := l.handler.RestartContainer(l.shutdown, serviceID, instanceID); err != nil {
+			logger.WithError(err).Error("Could not restart container, exiting")
+			l.cleanUpContainers([]string{stateID}, true)
+			return nil, nil, false
+		}
+
+		// set the host state
+		if err := UpdateState(l.conn, req, func(s *State) bool {
+			if s.DesiredState == service.SVCRestart {
+				s.DesiredState = service.SVCRun
+				return true
+			}
+			return false
+		}); err != nil {
+			logger.WithError(err).Error("Could update desired state to restart container")
+			return nil, nil, false
+		}
+		logger.Debug("Initiating container restart")
 	case service.SVCPause:
 		if containerExit != nil && !ssdat.Paused {
 			// container is attached and not paused, so pause the container

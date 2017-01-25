@@ -168,6 +168,63 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	return state, ev, nil
 }
 
+// RestartContainer asynchronously pulls the latest image of a running
+// container before stopping the service.  After the service has stopped, the
+// listener will be notified by the event monitor.
+func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string, instanceID int) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+
+	// look up the container to get the image
+	ctrName := fmt.Sprintf("%s-%d", serviceID, instanceID)
+	ctr, err := docker.FindContainer(ctrName)
+	if err == docker.ErrNoSuchContainer {
+		// container has been deleted so we will pull when the container starts
+		// again.
+		logger.Debug("Container not found")
+		return nil
+	}
+
+	if !ctr.IsRunning() {
+		// container has stopped, so we will pull when the container starts
+		// again; the event monitor will handle the stopped container
+		logger.Debug("Container stopped")
+		return nil
+	}
+
+	go func() {
+		for {
+			// relentlessly try to pull the image
+			_, _, err := a.pullImage(logger, cancel, ctr.Config.Image)
+			if err != nil {
+				logger.WithError(err).Debug("Could not pull the service image")
+				// wait 5 seconds and try again
+				select {
+				case <-time.After(5 * time.Second):
+				case <-cancel:
+					logger.Info("Cancelled image pull")
+					return
+				}
+				continue
+			}
+			logger.Debug("Pulled image")
+			break
+		}
+
+		// set the container to stop; ctr.Stop() stops the container by
+		// container id and not name, so if the container was stopped or
+		// deleted before the pull is successful, then this will just be a
+		// no-op.
+		if err := ctr.Stop(45 * time.Second); err != nil {
+			logger.WithError(err).Debug("Could not stop container")
+		}
+	}()
+
+	return nil
+}
+
 // ResumeContainer resumes a paused container
 func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 	logger := plog.WithFields(log.Fields{
