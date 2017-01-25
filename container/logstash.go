@@ -14,8 +14,9 @@
 package container
 
 import (
-    "bytes"
+	"bytes"
 	"fmt"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
@@ -48,12 +49,12 @@ func formatTagsForConfFile(tags map[string]string) string {
 	if len(tags) == 0 {
 		return ""
 	}
-    var buffer bytes.Buffer
-    buffer.WriteString("{")
-    for k, v := range tags {
-        buffer.WriteString(k + ": " + v + ", ")
-    }
-    buffer.WriteString("}")
+	var buffer bytes.Buffer
+	buffer.WriteString("{")
+	for k, v := range tags {
+		buffer.WriteString(k + ": " + v + ", ")
+	}
+	buffer.WriteString("}")
 	return buffer.String()
 }
 
@@ -65,8 +66,8 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	filebeatLogConf := ``
 	for _, logConfig := range service.LogConfigs {
 		filebeatLogConf = filebeatLogConf + `
-    -
-      ignore_older: 26280h
+    - ignore_older: 10s
+      close_older: 5m
       paths:
         - %s
       fields: %s`
@@ -75,7 +76,7 @@ func writeLogstashAgentConfig(confPath string, hostID string, service *service.S
 	}
 
 	filebeatShipperConf :=
-`filebeat:
+		`filebeat:
   idle_timeout: 5s
   prospectors: %s
 output:
@@ -89,18 +90,17 @@ output:
       certificate_key: %s
       certificate_authorities:
         - %s
-      timeout: 15
+    timeout: 15
 logging:
-  to_syslog: false`
+  level: warning`
 
 	filebeatShipperConf = fmt.Sprintf(filebeatShipperConf,
-        filebeatLogConf,
-//		"172.17.42.1:5043",
+		filebeatLogConf,
 		"127.0.0.1:5043",
 		resourcePath+"/filebeat.crt",
 		resourcePath+"/filebeat.key",
 		resourcePath+"/filebeat.crt",
-		)
+	)
 
 	config := servicedefinition.ConfigFile{
 		Filename: confPath,
