@@ -355,6 +355,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 			Status:            make([]service.StatusInstance, len(stateIDs)),
 			NotFound:          false,
 			EmergencyShutdown: svc.EmergencyShutdown,
+			RAMCommitment:     int64(svc.RAMCommitment.Value),
 		}
 
 		// set up the status of each instance

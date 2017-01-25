@@ -22,6 +22,7 @@ type AggregateService struct {
 	Status            []StatusInstance
 	NotFound          bool
 	EmergencyShutdown bool
+	RAMCommitment     int64
 }
 
 // PublicEndpoint is a minimal service object that describes a public endpoint
