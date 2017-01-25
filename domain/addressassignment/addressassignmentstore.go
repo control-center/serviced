@@ -43,7 +43,6 @@ func (s *Store) GetAllAddressAssignments(ctx datastore.Context) ([]AddressAssign
 	return convert(results)
 }
 
-
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignments"))
 	q := datastore.NewQuery(ctx)
@@ -56,14 +55,19 @@ func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID st
 	return convert(results)
 }
 
-func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port uint16) ([]AddressAssignment, error) {
+func (s *Store) GetServiceAddressAssignmentsByPort(ctx datastore.Context, poolID string, port uint16) ([]AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.GetServiceAddressAssignmentsByPort"))
-	if port == 0 {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, fmt.Errorf("poolID cannot be empty")
+	} else if port == 0 {
 		return nil, fmt.Errorf("port must be greater than 0")
 	}
 
-	query := search.Query().Term("Port", strconv.FormatUint(uint64(port), 10))
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
+		"and",
+		search.Filter().Terms("PoolID", poolID),
+		search.Filter().Terms("Port", strconv.FormatUint(uint64(port), 10)),
+	)
 
 	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
 		return nil, err
@@ -97,16 +101,19 @@ func (s *Store) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID
 	}
 }
 
-func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, port uint16) (*AddressAssignment, error) {
+func (s *Store) FindAssignmentByHostPort(ctx datastore.Context, poolID string, ipAddr string, port uint16) (*AddressAssignment, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("AddressAssignmentStore.FindAssignmentByHostPort"))
-	if ipAddr = strings.TrimSpace(ipAddr); ipAddr == "" {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, fmt.Errorf("poolID cannot be empty")
+	} else if ipAddr = strings.TrimSpace(ipAddr); ipAddr == "" {
 		return nil, fmt.Errorf("hostIP cannot be empty")
 	} else if port == 0 {
 		return nil, fmt.Errorf("port must be greater than 0")
 	}
 
-	search := search.Search("controlplane").Type(kind).Filter(
+	search := search.Search("controlplane").Type(kind).Size("50000").Filter(
 		"and",
+		search.Filter().Terms("PoolID", poolID),
 		search.Filter().Terms("IPAddr", ipAddr),
 		search.Filter().Terms("Port", strconv.FormatUint(uint64(port), 10)),
 	)

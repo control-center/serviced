@@ -1627,7 +1627,7 @@ func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, ports .
 	ignoreips := make(map[string]struct{})
 	for _, port := range ports {
 		// Get all of the address assignments for port
-		assignments, err := f.GetServiceAddressAssignmentsByPort(ctx, port)
+		assignments, err := f.GetServiceAddressAssignmentsByPort(ctx, poolID, port)
 		if err != nil {
 			glog.Errorf("Error while looking up address assignments for port %d: %s", port, err)
 			return ipinfo{}, err
@@ -1680,7 +1680,7 @@ func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, ports .
 func (f *Facade) getManualAssignment(ctx datastore.Context, poolID, ipAddr string, ports ...uint16) (ipinfo, error) {
 	// Check if the assignment is already there
 	for _, port := range ports {
-		if exists, err := f.FindAssignmentByHostPort(ctx, ipAddr, port); err != nil {
+		if exists, err := f.FindAssignmentByHostPort(ctx, poolID, ipAddr, port); err != nil {
 			glog.Errorf("Error while looking for assignment for (%s:%d): %s", ipAddr, port, err)
 			return ipinfo{}, err
 		} else if exists != nil {
