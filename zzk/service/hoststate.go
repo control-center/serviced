@@ -308,6 +308,10 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			logger.Debug("Resumed paused container")
 		}
 	case service.SVCRestart:
+		// RestartContainer will asynchronously pull the image and stop the
+		// service.  Once the container stops, we will receive a message on the
+		// containerExit channel that the container has exited which will
+		// trigger the container to start again.
 		if err := l.handler.RestartContainer(l.shutdown, serviceID, instanceID); err != nil {
 			logger.WithError(err).Error("Could not restart container, exiting")
 			l.cleanUpContainers([]string{stateID}, true)

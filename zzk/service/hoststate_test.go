@@ -1486,7 +1486,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartRestart(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil)
-	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil)
+	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil).Once()
 
 	done := make(chan struct{})
 	ssdatResult := &ServiceState{}
@@ -1654,6 +1654,136 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartRestartStop(c *C) {
 		ok, err = conn.Exists(path.Join(hostPath, "instances", req.StateID()))
 		c.Assert(ok, Equals, false)
 		c.Assert(err, IsNil)
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	handler.AssertExpectations(c)
+}
+
+// Test Case: restart and then reconnect
+func (t *ZZKTest) TestHostStateListener_Spawn_StartRestartDetach(c *C) {
+	conn := setUpServiceAndHostPaths(c)
+	handler := &mocks.HostStateHandler{}
+	shutdown := make(chan interface{})
+
+	req := StateRequest{
+		HostID:     hostId,
+		ServiceID:  serviceId,
+		InstanceID: 1,
+	}
+	err := CreateState(conn, req)
+	c.Assert(err, IsNil)
+
+	cancel := make(chan interface{})
+	listener := NewHostStateListener(handler, hostId, shutdown)
+	listener.SetConnection(conn)
+
+	// Start a container
+	ssdat := &ServiceState{
+		ContainerID: containerId,
+		ImageUUID:   imageId,
+		Paused:      false,
+		Started:     time.Now(),
+	}
+	var retShutdown <-chan interface{} = shutdown
+	containerExit := make(chan time.Time, 1)
+	var retExit <-chan time.Time = containerExit
+
+	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil)
+	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil)
+	done := make(chan struct{})
+
+	s := &ServiceState{}
+	ev, err := conn.GetW(path.Join(servicePath, req.StateID()), s, done)
+	c.Assert(err, IsNil)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	select {
+	case <-ev:
+	case <-done:
+		c.Fatalf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// Restart the container
+	handler.On("RestartContainer", retShutdown, serviceId, 1).Return(nil).Run(
+		func(_ mock.Arguments) {
+			// close the connection to simulate a wan outage
+			conn.Close()
+		},
+	).Once()
+
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.DesiredState = service.SVCRestart
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Listener did not shut down")
+	}
+
+	handler.On("RestartContainer", retShutdown, serviceId, 1).Return(nil).Once()
+	conn, err = zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	done = make(chan struct{})
+	hsdata := &HostState{}
+	ev, err = conn.GetW(path.Join(hostPath, "instances", req.StateID()), hsdata, done)
+	c.Assert(err, IsNil)
+	c.Assert(hsdata.DesiredState, Equals, service.SVCRestart)
+
+	listener.SetConnection(conn)
+	go func() {
+		listener.Spawn(cancel, req.StateID())
+		close(done)
+	}()
+
+	// Ensure the state change
+	timer = time.NewTimer(time.Second)
+	for hsdata.DesiredState == service.SVCRestart {
+		select {
+		case <-ev:
+			ev, err = conn.GetW(path.Join(hostPath, "instances", req.StateID()), hsdata, done)
+			c.Assert(err, IsNil)
+		case <-done:
+			c.Fatalf("Listener exit")
+		case <-timer.C:
+			c.Fatalf("Listener took too long")
+		}
+	}
+
+	// cancel
+	close(cancel)
+	timer = time.NewTimer(time.Second)
+	select {
+	case <-done:
+		c.Logf("Listener exit")
+	case <-timer.C:
+		c.Fatalf("Listener took too long")
+	}
+
+	// shutdown
+	shutdowndone := listener.GetShutdownComplete()
+	handler.On("StopContainer", serviceId, 1).Return(nil).Run(func(_ mock.Arguments) {
+		containerExit <- time.Now()
+	}).Once()
+	close(shutdown)
+	timer.Reset(time.Second)
+	select {
+	case <-shutdowndone:
+		c.Logf("Listener shut down, checking orphaned node deletion")
+		ok, err := conn.Exists("/services/serviceid/" + req.StateID())
+		c.Assert(err, IsNil)
+		c.Check(ok, Equals, false)
 	case <-timer.C:
 		c.Fatalf("Listener took too long")
 	}

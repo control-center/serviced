@@ -219,7 +219,8 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 		// set the container to stop; ctr.Stop() stops the container by
 		// container id and not name, so if the container was stopped or
 		// deleted before the pull is successful, then this will just be a
-		// no-op.
+		// no-op.  The restart of the container is handled by the delegate once
+		// it is notified that the container has stopped.
 		if err := ctr.Stop(45 * time.Second); err != nil {
 			logger.WithError(err).Debug("Could not stop container")
 		}
