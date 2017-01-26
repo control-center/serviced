@@ -476,27 +476,33 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	}
 	defer f.retryUnlockTenant(ctx, info.TenantID, nil, time.Second)
 	glog.Infof("Checking states for services under %s", info.TenantID)
-	svcs, err := f.GetServiceDetailsByTenantID(ctx, info.TenantID)
+	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: info.TenantID})
 	if err != nil {
 		glog.Errorf("Could not get services under %s: %s", info.TenantID, err)
 		return err
 	}
 	serviceids := make([]string, len(svcs))
-	for i, svc := range svcs {
-		if svc.DesiredState != int(service.SVCStop) {
-			if force {
-				defer f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true, false)
-				if _, err := f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.SVCStop, true, false); err != nil {
-					glog.Errorf("Could not %s service %s (%s): %s", service.SVCStop, svc.Name, svc.ID, err)
-					return err
-				}
-			} else {
+	servicesToStop := []*service.Service{}
+	for i, _ := range svcs {
+		svc := &svcs[i]
+		if svc.DesiredState == int(service.SVCRun) {
+			servicesToStop = append(servicesToStop, svc)
+			if !force {
 				glog.Errorf("Could not rollback to snapshot %s: service %s (%s) is running", snapshotID, svc.Name, svc.ID)
 				return errors.New("service is running")
 			}
 		}
 		serviceids[i] = svc.ID
 	}
+
+	// Stop the services that need stopping in a batch
+	if _, err := scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCStop, false); err != nil {
+		glog.Errorf("Could not stop services for rollback: %s", err)
+		return err
+	}
+
+	defer scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+
 	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during rollback of snapshot %s: %s", service.SVCStop, snapshotID, err)
 		return err
