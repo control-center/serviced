@@ -112,7 +112,7 @@ type daemon struct {
 	tokenExpiration  time.Duration
 
 	facade *facade.Facade
-	ssm    *servicestatemanager.BatchServiceStateManager
+	ssm    servicestatemanager.ServiceStateManager
 	hcache *health.HealthStatusCache
 	docker docker.Docker
 	reg    *registry.RegistryListener
@@ -489,8 +489,7 @@ func (d *daemon) startMaster() (err error) {
 	d.cpDao = d.initDAO()
 
 	// Initialize service state manager
-	d.ssm = servicestatemanager.NewBatchServiceStateManager(d.facade, d.dsContext, time.Duration(options.ServiceRunLevelTimeout)*time.Second)
-	d.startServiceStateManager()
+	d.initServiceStateManager(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.facade.SetServiceStateManager(d.ssm)
 
 	if err = d.checkVersion(); err != nil {
@@ -1390,14 +1389,14 @@ func (d *daemon) runScheduler() {
 	}
 }
 
-func (d *daemon) startServiceStateManager() {
-	go d.runServiceStateManager()
-}
-
-func (d *daemon) runServiceStateManager() {
-	d.ssm.Start()
-	log.Info("Started service state manager")
-	<-d.shutdown
-	log.Debug("Shutting down service state manager")
-	d.ssm.Shutdown()
+func (d *daemon) initServiceStateManager(runLevelTimeout time.Duration) {
+	bssm := servicestatemanager.NewBatchServiceStateManager(d.facade, d.dsContext, runLevelTimeout)
+	d.ssm = bssm
+	go func() {
+		bssm.Start()
+		log.WithField("leveltimeout", runLevelTimeout).Info("Started service state manager")
+		<-d.shutdown
+		log.Debug("Shutting down service state manager")
+		bssm.Shutdown()
+	}()
 }
