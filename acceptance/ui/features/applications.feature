@@ -75,7 +75,7 @@ Feature: Application Management
 
   @clean_hosts @clean_services
   Scenario: Deploy an instance of the default template and add a host
-    Given that the "table://applications/defaultApp/template" application is not added
+    Given PENDING that the "table://applications/defaultApp/template" application is not added
       And there are no hosts added
     When I am on the applications page
       And I click the add Application button
