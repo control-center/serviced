@@ -127,5 +127,3 @@ func (f *Facade) SetHostExpirationRegistry(hostRegistry auth.HostExpirationRegis
 }
 
 func (f *Facade) SetDeploymentMgr(mgr *PendingDeploymentMgr) { f.deployments = mgr }
-
-//func (f *Facade) SetServiceRunLevelTimeout(t time.Duration) { f.serviceRunLevelTimeout = t }
