@@ -1064,6 +1064,9 @@
                 };
 
                 $scope.shouldDisable = function(service, button) {
+                    if (service === undefined) {
+                        return false;
+                    }
                     if (button === 'start') {
                         return service.desiredState === 1 ||
                             service.emergencyShutdown;
