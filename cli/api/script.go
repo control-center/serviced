@@ -74,7 +74,7 @@ func cliServiceUse(a *api) script.ServiceUse {
 
 func cliServiceControl(svcControlMethod ServiceStateController) script.ServiceControl {
 	return func(svcID string, recursive bool) error {
-		svcConfig := SchedulerConfig{ServiceID: svcID, AutoLaunch: recursive}
+		svcConfig := SchedulerConfig{ServiceIDs: []string{svcID}, AutoLaunch: recursive}
 		if _, err := svcControlMethod(svcConfig); err != nil {
 			return err
 		}
