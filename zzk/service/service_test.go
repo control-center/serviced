@@ -97,3 +97,88 @@ func (t *ZZKTest) TestWaitService(c *C) {
 		c.Fatalf("Timed out waiting for listener")
 	}
 }
+
+func (t *ZZKTest) TestWaitInstance(c *C) {
+
+	node := &ServiceNode{
+		ID:           "serviceid",
+		Name:         "serviceA",
+		DesiredState: int(service.SVCRun),
+		Instances:    1,
+	}
+
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
+	// add 1 service
+	err = conn.CreateDir("/pools/poolid/services/serviceid")
+	c.Assert(err, IsNil)
+
+	// add an node for an instance of that service
+	err = conn.Create("/pools/poolid/services/serviceid/hostid-serviceid-0", node)
+	c.Assert(err, IsNil)
+
+	// add 1 host
+	err = conn.CreateDir("/pools/poolid/hosts/hostid/instances")
+	c.Assert(err, IsNil)
+
+	// add an node for an instance of that service
+	err = conn.Create("/pools/poolid/hosts/hostid/instances/hostid-serviceid-0", node)
+	c.Assert(err, IsNil)
+
+	instanceID := 0
+
+	// Start our wait and check/return when the state is SVCRun and started is after terminated
+	shutdown := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		checkState := func(s *State, ok bool) bool {
+			if !ok {
+				return false
+			}
+			return s.DesiredState == service.SVCRun && s.Started.After(s.Terminated)
+		}
+
+		err := WaitInstance(shutdown, conn, "poolid", "serviceid", instanceID, checkState)
+		c.Assert(err, IsNil)
+		close(done)
+	}()
+
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+		c.Fatalf("Listener exited unexpectedly")
+	case <-timer.C:
+	}
+
+	// create the state
+	req := StateRequest{
+		PoolID:     "poolid",
+		HostID:     "hostid",
+		ServiceID:  "serviceid",
+		InstanceID: instanceID,
+	}
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+		c.Fatalf("Listener exited unexpectedly")
+	case <-timer.C:
+	}
+
+	// the state is "running", our wait should see that and return
+	err = UpdateState(conn, req, func(s *State) bool {
+		s.Started = time.Now()
+		return true
+	})
+	c.Assert(err, IsNil)
+
+	timer.Reset(time.Second)
+	select {
+	case <-done:
+	case <-timer.C:
+		c.Fatalf("Timed out waiting for listener")
+	}
+}
