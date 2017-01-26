@@ -238,14 +238,14 @@ func (s *BatchServiceStateManager) AddTenant(tenantID string) error {
 		go s.queueLoop(tenantID, t.String(), q, shutdown)
 	}
 
-	plog.WithField("tenantid", tenantID).Info("Added tenant to service state manager")
+	plog.WithField("tenantid", tenantID).Debug("Added tenant to service state manager")
 
 	return nil
 }
 
 // RemoveTenant cancels the pending batches in queue for the tenant and deletes it from the service state manager
 func (s *BatchServiceStateManager) RemoveTenant(tenantID string) error {
-	defer plog.WithField("tenantid", tenantID).Info("Tenant removed from service state manager")
+	defer plog.WithField("tenantid", tenantID).Debug("Tenant removed from service state manager")
 	s.Lock()
 	defer s.Unlock()
 	return s.removeTenant(tenantID)
