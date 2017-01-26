@@ -1181,9 +1181,7 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	mutex := getTenantLock(tenantID)
 	mutex.RLock()
 	defer mutex.RUnlock()
-	// Pause requests are always expedited
-	emergency := desiredState == service.SVCPause
-	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false, emergency)
+	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false, false)
 }
 
 func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, serviceID string) (int, error) {
