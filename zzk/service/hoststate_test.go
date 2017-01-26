@@ -1691,7 +1691,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartRestartDetach(c *C) {
 	var retExit <-chan time.Time = containerExit
 
 	handler.On("AttachContainer", mock.AnythingOfType("*service.ServiceState"), serviceId, 1).Return(nil, nil)
-	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil)
+	handler.On("StartContainer", retShutdown, serviceId, 1).Return(ssdat, retExit, nil).Once()
 	done := make(chan struct{})
 
 	s := &ServiceState{}
