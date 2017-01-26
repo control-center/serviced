@@ -146,14 +146,25 @@ func restGetServiceMonitoringProfile(w *rest.ResponseWriter, r *rest.Request, ct
 	}
 
 	// load the internal monitoring data
-	config, err := getInternalMetrics(serviceID)
+	config, err := getInternalMetrics()
 	if err != nil {
 		glog.Errorf("Could not get internal monitoring metrics: %s", err)
 		restServerError(w, err)
 		return
 	}
+
+
 	mp.MetricConfigs = append(mp.MetricConfigs, *config)
 	mp.GraphConfigs = append(mp.GraphConfigs, getInternalGraphConfigs(serviceID)...)
+
+	// we want to try to include monitoring data for the tenant, as well
+	tenantID, err := facade.GetTenantID(dataCtx, serviceID)
+        if err != nil {
+                glog.Warningf("Could not determine tenant for: %s", serviceID)
+        } else if tenantConfig, err := getTenantMetrics(tenantID); err == nil {
+		mp.MetricConfigs = append(mp.MetricConfigs, *tenantConfig)
+		mp.GraphConfigs = append(mp.GraphConfigs, getTenantGraphConfigs(tenantID)...)
+	}
 
 	glog.V(4).Infof("restGetServiceMonitoringProfile: id %s, monitoring profile %#v", serviceID, mp)
 	w.WriteJson(&mp)
