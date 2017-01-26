@@ -404,3 +404,67 @@ func WaitService(cancel <-chan struct{}, conn client.Connection, poolID, service
 		done = make(chan struct{})
 	}
 }
+
+// WaitInstance waits for an instance of a service to satisfy a particular state
+func WaitInstance(cancel <-chan struct{}, conn client.Connection, poolID, serviceID string, instanceID int, checkState func(s *State, exists bool) bool) error {
+	hostID, err := GetServiceStateHostID(conn, poolID, serviceID, instanceID)
+	if err != nil {
+		return err
+	}
+
+	basepth := ""
+	if poolID != "" {
+		basepth = path.Join("/pools", poolID)
+	}
+	pth := path.Join(basepth, "/services", serviceID, fmt.Sprintf("%s-%s-%d", hostID, serviceID, instanceID))
+
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+		"zkpath":     pth,
+	})
+
+	done := make(chan struct{})
+	defer close(done)
+
+	// clean any bad service states
+	if err := CleanServiceStates(conn, poolID, serviceID); err != nil {
+		return err
+	}
+
+	node := &ServiceNode{}
+	ev, err := conn.GetW(pth, node, done)
+	if err != nil {
+		return err
+	}
+
+	req := StateRequest{
+		PoolID:     poolID,
+		HostID:     hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+
+	// wait for the state to satisfy the requirements
+	if _, err := MonitorState(cancel, conn, req, checkState); err != nil {
+		logger.WithError(err).Debug("Stopped monitoring state")
+
+		// return if cancel was triggered
+		select {
+		case <-cancel:
+			return nil
+		default:
+		}
+	}
+
+	// otherwise, wait for the event for the instance
+	select {
+	case event := <-ev:
+		if event.Err != nil {
+			logger.WithError(event.Err).Warn("Error waiting for instance")
+		}
+	case <-cancel:
+		return nil
+	}
+	return nil
+}

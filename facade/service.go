@@ -1387,21 +1387,50 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 
 func (f *Facade) updateDesiredState(ctx datastore.Context, tenantID string, svc *service.Service, desiredState service.DesiredState) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
-	switch desiredState {
-	case service.SVCRestart:
-		// shutdown all service instances
-		if err := f.zzk.StopServiceInstances(ctx, svc.PoolID, svc.ID); err != nil {
+	if desiredState == service.SVCRestart {
+		//  place-holder ready func until we figure out how best to determine if we should move on to the next instance
+		if err := f.rollingRestart(ctx, tenantID, svc, func() bool {
+			time.Sleep(5 * time.Second)
+			return true
+		}); err != nil {
+			glog.Errorf("Facade.updateDesiredState: Could not perform rolling restart for service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
-		svc.DesiredState = int(service.SVCRun)
-	default:
+	} else {
 		svc.DesiredState = int(desiredState)
+		// write the service into the database
+		if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
+			glog.Errorf("Facade.updateDesiredState: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
 	}
 
-	// write the service into the database
-	if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
-		glog.Errorf("Facade.updateDesiredState: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+	return nil
+}
+
+// rollingRestart restarts a service one instance at a time and waits for it to reach SVCRun.
+// The ready func determines if we should move on to the next instance and
+// will be called on a 500ms interval until it returns true.
+func (f *Facade) rollingRestart(ctx datastore.Context, tenantID string, svc *service.Service, ready func() bool) error {
+	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
+		if err := f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
+			return err
+		}
+		cancel := make(chan interface{})
+		go func() {
+			select {
+			case <-time.After(30 * time.Second):
+				close(cancel)
+			}
+		}()
+		err := f.zzk.WaitInstance(ctx, svc, instanceID, service.SVCRun, cancel)
+		if err != nil {
+			return err
+		}
+		// Check if we're ready to move on to the next instance on an interval
+		for !ready() {
+			time.Sleep(500 * time.Millisecond)
+		}
 	}
 	return nil
 }
