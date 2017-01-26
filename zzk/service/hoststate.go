@@ -322,7 +322,7 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			}
 			return false
 		}); err != nil {
-			logger.WithError(err).Error("Could update desired state to restart container")
+			logger.WithError(err).Error("Could not update desired state to restart container")
 			return nil, nil, false
 		}
 		logger.Debug("Initiating container restart")

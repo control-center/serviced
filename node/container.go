@@ -185,6 +185,9 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 		// again.
 		logger.Debug("Container not found")
 		return nil
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up container")
+		return err
 	}
 
 	if !ctr.IsRunning() {
@@ -246,7 +249,11 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 		// container has been deleted and the event monitor should catch this
 		logger.Debug("Container not found")
 		return nil
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up container")
+		return err
 	}
+
 	if !ctr.IsRunning() {
 		// container has stopped and the event monitor should catch this
 		logger.Debug("Container stopped")
@@ -277,7 +284,11 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 		// container has been deleted and the event monitor should catch this
 		logger.Debug("Container not found")
 		return nil
+	} else if err != nil {
+		logger.WithError(err).Debug("Could not look up container")
+		return err
 	}
+
 	if !ctr.IsRunning() {
 		// container has stopped and the event monitor should catch this
 		logger.Debug("Container stopped")
