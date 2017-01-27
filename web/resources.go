@@ -581,6 +581,33 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	w.WriteJson(&simpleResponse{"Restarted service", serviceLinks(serviceID)})
 }
 
+// restRetartServices starts the services with the given ids and all of their children
+func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+
+	var serviceRequest dao.ScheduleServiceRequest
+	err := r.DecodeJsonPayload(&serviceRequest)
+	if err != nil {
+		glog.V(1).Info("Could not decode service payload: ", err)
+		restBadRequest(w, err)
+		return
+
+	}
+
+	var affected int
+	err = client.RestartService(serviceRequest, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithError(err).Error("Error restarting services")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithError(err).Error("Error restarting services")
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{"restarted services", servicesLinks()})
+}
+
 // restStartService starts the service with the given id and all of its children
 func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
@@ -622,6 +649,35 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
 }
 
+// restStartServices starts the services with the given ids and all of their children
+func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+
+	var serviceRequest dao.ScheduleServiceRequest
+	err := r.DecodeJsonPayload(&serviceRequest)
+	if err != nil {
+		glog.V(1).Info("Could not decode service payload: ", err)
+		restBadRequest(w, err)
+		return
+
+	}
+
+	plog.WithField("serviceIDs", serviceRequest.ServiceIDs).Info("About to start services")
+
+	var affected int
+	err = client.StartService(serviceRequest, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err == facade.ErrEmergencyShutdownNoOp {
+		plog.WithError(err).Error("Error starting services")
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
+		return
+	} else if err != nil {
+		plog.WithError(err).Error("Error starting services")
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{"Started services", servicesLinks()})
+}
+
 // restStopService stop the service with the given id and all of its children
 func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
@@ -647,6 +703,29 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 		return
 	}
 	w.WriteJson(&simpleResponse{"Stopped service", serviceLinks(serviceID)})
+}
+
+// restStopServices stops the services with the given ids and all of their children
+func restStopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
+
+	var serviceRequest dao.ScheduleServiceRequest
+	err := r.DecodeJsonPayload(&serviceRequest)
+	if err != nil {
+		glog.V(1).Info("Could not decode service payload: ", err)
+		restBadRequest(w, err)
+		return
+
+	}
+
+	var affected int
+	err = client.StopService(serviceRequest, &affected)
+	// We handle this error differently because we don't want to return a 500
+	if err != nil {
+		plog.WithError(err).Error("Error stopping services")
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{"Stopped services", servicesLinks()})
 }
 
 func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
