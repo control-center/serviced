@@ -1638,21 +1638,7 @@ func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleService
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
-	forceRestart := func() (int, error) {
-		count, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, true, service.SVCStop, false)
-		if err != nil {
-			return count, err
-		}
-
-		return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
-	}
-
-	if request.Synchronous {
-		return forceRestart()
-	} else {
-		go forceRestart()
-		return 0, nil
-	}
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {

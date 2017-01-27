@@ -26,16 +26,16 @@ func (_m *ZZK) UpdateService(ctx datastore.Context, tenantID string, svc *servic
 	return r0
 }
 func (_m *ZZK) UpdateServices(ctx datastore.Context, tenantID string, svcs []*service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
-        ret := _m.Called(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+	ret := _m.Called(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
 
-        var r0 error
-        if rf, ok := ret.Get(0).(func(datastore.Context, string, []*service.Service, bool, bool) error); ok {
-                r0 = rf(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
-        } else {
-                r0 = ret.Error(0)
-        }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, []*service.Service, bool, bool) error); ok {
+		r0 = rf(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-        return r0
+	return r0
 }
 func (_m *ZZK) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
 	ret := _m.Called(ctx, tenantID, svc)
