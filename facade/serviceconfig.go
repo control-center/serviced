@@ -203,12 +203,12 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, serviceID string, c
 		} else {
 			svcConfigFile, err = serviceconfigfile.New(tenantID, servicePath, configFile)
 			if err != nil {
-                        	if _, ok := err.(*validation.ValidationError); ok {
+				if _, ok := err.(*validation.ValidationError); ok {
 					if _, err := os.Stat(configFile.Filename); os.IsNotExist(err) {
 						glog.V(1).Infof("%s doesn't exist. Skipping", configFile.Filename)
 						continue
 					}
-				}  
+				}
 				glog.Errorf("Could not create new service config file %s for service %s: %s", configFile.Filename, serviceID, err)
 				return err
 			}
