@@ -30,6 +30,7 @@ type ZZK interface {
 	RemoveServiceEndpoints(serviceID string) error
 	RemoveTenantExports(tenantID string) error
 	WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error
+	WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, state service.DesiredState, cancel <-chan interface{}) error
 	GetPublicPort(portAddress string) (string, string, error)
 	GetVHost(subdomain string) (string, string, error)
 	AddHost(_host *host.Host) error
@@ -53,6 +54,7 @@ type ZZK interface {
 	GetServiceState(ctx datastore.Context, poolID, serviceID string, instanceID int) (*zkservice.State, error)
 	StopServiceInstance(poolID, serviceID string, instanceID int) error
 	StopServiceInstances(ctx datastore.Context, poolID, serviceID string) error
+	RestartInstance(ctx datastore.Context, poolID, serviceID string, instanceID int) error
 	SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error
 	GetServiceStateIDs(poolID, serviceID string) ([]zkservice.StateRequest, error)
 	GetServiceNodes() ([]zkservice.ServiceNode, error)
