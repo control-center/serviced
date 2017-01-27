@@ -97,6 +97,18 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 
 	return r0
 }
+func (_m *ZZK) WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, state service.DesiredState, cancel <-chan struct{}) error {
+	ret := _m.Called(ctx, svc, instanceID, state, cancel)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, *service.Service, int, service.DesiredState, <-chan struct{}) error); ok {
+		r0 = rf(ctx, svc, instanceID, state, cancel)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ZZK) GetPublicPort(portAddress string) (string, string, error) {
 	ret := _m.Called(portAddress)
 
@@ -445,6 +457,18 @@ func (_m *ZZK) StopServiceInstances(ctx datastore.Context, poolID string, servic
 	var r0 error
 	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) error); ok {
 		r0 = rf(ctx, poolID, serviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) RestartInstance(ctx datastore.Context, poolID string, serviceID string, instanceID int) error {
+	ret := _m.Called(ctx, poolID, serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string, int) error); ok {
+		r0 = rf(ctx, poolID, serviceID, instanceID)
 	} else {
 		r0 = ret.Error(0)
 	}

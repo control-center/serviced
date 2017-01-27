@@ -32,6 +32,7 @@ import (
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/control-center/serviced/health"
 	ssmmocks "github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
@@ -2484,6 +2485,493 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	}
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+		HealthChecks:      map[string]health.HealthCheck{"healthcheck": health.HealthCheck{}},
+	}
+
+	hcache := health.New()
+	ft.Facade.SetHealthCache(hcache)
+	key0 := health.HealthStatusKey{
+		ServiceID:       svc.ID,
+		InstanceID:      0,
+		HealthCheckName: "healthcheck",
+	}
+	key1 := health.HealthStatusKey{
+		ServiceID:       svc.ID,
+		InstanceID:      1,
+		HealthCheckName: "healthcheck",
+	}
+	key2 := health.HealthStatusKey{
+		ServiceID:       svc.ID,
+		InstanceID:      2,
+		HealthCheckName: "healthcheck",
+	}
+
+	statusOK := health.HealthStatus{
+		Status:    health.OK,
+		StartedAt: time.Now(),
+		Duration:  time.Minute,
+	}
+	statusFailed := health.HealthStatus{
+		Status:    health.Failed,
+		StartedAt: time.Now(),
+		Duration:  time.Minute,
+	}
+
+	hcache.Set(key0, statusFailed, time.Hour)
+	hcache.Set(key1, statusFailed, time.Hour)
+	hcache.Set(key2, statusFailed, time.Hour)
+
+	restarted0 := make(chan struct{})
+	restarted1 := make(chan struct{})
+	restarted2 := make(chan struct{})
+
+	// Make sure we call RestartInstance once for each instance of svc
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 2).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each instance of svc
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 2, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted0)
+	}).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted1)
+	}).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 2, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted2)
+	}).Return(nil).Once()
+
+	done := make(chan struct{})
+	go func() {
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+		c.Assert(err, IsNil)
+		close(done)
+	}()
+	timer := time.NewTimer(5 * time.Second)
+	// Should see instance 0 restarted first
+	select {
+	case <-restarted1:
+		c.Fatalf("Instance 1 restarted before 0")
+	case <-restarted2:
+		c.Fatalf("Instance 2 restarted before 0")
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 0 to restart")
+	case <-restarted0:
+	}
+
+	// Instance 1 won't restart until healthchecks pass for instance 0
+	timer.Reset(2 * time.Second)
+	select {
+	case <-restarted1:
+		c.Fatalf("Instance 1 restarted before 0 passed healthcheck")
+	case <-restarted2:
+		c.Fatalf("Instance 2 restarted before 0 passed healthcheck")
+	case <-timer.C:
+	}
+
+	// Pass the healthchecks for instance 0
+	hcache.Set(key0, statusOK, time.Hour)
+
+	// Now we should see instance 1 restart
+	timer.Reset(5 * time.Second)
+	select {
+	case <-restarted2:
+		c.Fatalf("Instance 2 restarted before 1")
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 1 to restart")
+	case <-restarted1:
+	}
+
+	// Instance 2 won't restart until healthchecks pass for instance 1
+	timer.Reset(2 * time.Second)
+	select {
+	case <-restarted2:
+		c.Fatalf("Instance 2 restarted before 1 passed healthcheck")
+	case <-timer.C:
+	}
+
+	// Pass the healthchecks for instance 1
+	hcache.Set(key1, statusOK, time.Hour)
+
+	// Now we should see instance 2 restart
+	timer.Reset(5 * time.Second)
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 1 to restart")
+	case <-restarted2:
+	}
+
+	// Pass the healthchecks for instance 2
+	hcache.Set(key2, statusOK, time.Hour)
+
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for rolling restart")
+	case <-done:
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutWaitStop(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         2,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Use a timeout of 1 second
+	timeout := 1 * time.Second
+
+	restarted1 := make(chan struct{})
+
+	// Make sure we call RestartInstance once for each instance of svc
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each instance of svc
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		cancel := args[4].(<-chan struct{})
+		// Wait twice the timeout or until cancelled to force a timeout
+		select {
+		case <-cancel:
+		case <-time.After(2 * timeout):
+			c.Fatalf("Wait not cancelled after timeout")
+		}
+	}).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+
+	// We should not be waiting on instace 0 to start back up due to the timeout
+
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted1)
+	}).Return(nil).Once()
+
+	done := make(chan struct{})
+	go func() {
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout)
+		c.Assert(err, IsNil)
+		close(done)
+	}()
+	timer := time.NewTimer(3 * timeout)
+	// instance 0 will timeout, but we should see instance 1 restart
+	select {
+	case <-restarted1:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 1 to restart")
+	}
+
+	timer.Reset(3 * timeout)
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for rolling restart")
+	case <-done:
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutWaitStart(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         2,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Use a timeout of 1 second
+	timeout := 1 * time.Second
+
+	restarted1 := make(chan struct{})
+
+	// Make sure we call RestartInstance once for each instance of svc
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each instance of svc
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		cancel := args[4].(<-chan struct{})
+		// Wait twice the timeout or until cancelled to force a timeout
+		select {
+		case <-cancel:
+		case <-time.After(2 * timeout):
+			c.Fatalf("Wait not cancelled after timeout")
+		}
+	}).Return(nil).Once()
+
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted1)
+	}).Return(nil).Once()
+
+	done := make(chan struct{})
+	go func() {
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout)
+		c.Assert(err, IsNil)
+		close(done)
+	}()
+	timer := time.NewTimer(3 * timeout)
+	// instance 0 will timeout, but we should see instance 1 restart
+	select {
+	case <-restarted1:
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 1 to restart")
+	}
+
+	timer.Reset(3 * timeout)
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for rolling restart")
+	case <-done:
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_TimeoutHealthcheck(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         2,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+		HealthChecks:      map[string]health.HealthCheck{"healthcheck": health.HealthCheck{}},
+	}
+
+	hcache := health.New()
+	ft.Facade.SetHealthCache(hcache)
+	key0 := health.HealthStatusKey{
+		ServiceID:       svc.ID,
+		InstanceID:      0,
+		HealthCheckName: "healthcheck",
+	}
+	key1 := health.HealthStatusKey{
+		ServiceID:       svc.ID,
+		InstanceID:      1,
+		HealthCheckName: "healthcheck",
+	}
+
+	statusOK := health.HealthStatus{
+		Status:    health.OK,
+		StartedAt: time.Now(),
+		Duration:  time.Minute,
+	}
+	statusFailed := health.HealthStatus{
+		Status:    health.Failed,
+		StartedAt: time.Now(),
+		Duration:  time.Minute,
+	}
+
+	// set a 1 second timeout
+	timeout := 1 * time.Second
+
+	hcache.Set(key0, statusFailed, time.Hour)
+	hcache.Set(key1, statusFailed, time.Hour)
+
+	restarted0 := make(chan struct{})
+	restarted1 := make(chan struct{})
+
+	// Make sure we call RestartInstance once for each instance of svc
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each instance of svc
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted0)
+	}).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Run(func(args mock.Arguments) {
+		close(restarted1)
+	}).Return(nil).Once()
+
+	done := make(chan struct{})
+	go func() {
+		err := ft.Facade.rollingRestart(ft.CTX, &svc, timeout)
+		c.Assert(err, IsNil)
+		close(done)
+	}()
+	timer := time.NewTimer(5 * time.Second)
+	// Should see instance 0 restarted first
+	select {
+	case <-restarted1:
+		c.Fatalf("Instance 1 restarted before 0")
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 0 to restart")
+	case <-restarted0:
+	}
+
+	// Leave Instance 0's healthchecks failing and make sure we move on
+	// Now we should see instance 1 restart
+	timer.Reset(3 * timeout)
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for instance 1 to restart")
+	case <-restarted1:
+	}
+
+	// Pass the healthchecks for instance 1
+	hcache.Set(key1, statusOK, time.Hour)
+
+	timer.Reset(3 * timeout)
+	select {
+	case <-timer.C:
+		c.Fatalf("Timeout waiting for rolling restart")
+	case <-done:
+	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailWaitStop(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Make sure we call RestartInstance once for each insance of svc that gets called
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each insance of svc that gets called
+	testerr := errors.New("test error")
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(testerr).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	// Make sure our rollingRestart bailed after it failed for one instance
+	c.Assert(err, Equals, testerr)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailWaitStart(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Make sure we call RestartInstance once for each insance of svc that gets called
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each insance of svc that gets called
+	testerr := errors.New("test error")
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Return(testerr).Once()
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	// Make sure our rollingRestart bailed after it failed for one instance
+	c.Assert(err, Equals, testerr)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_FailRestartInstance(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Make sure we call RestartInstance once for each insance of svc that gets called
+	testerr := errors.New("test error")
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(testerr).Once()
+
+	// Make sure we call WaitInstance once for each insance of svc that gets called
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCStop, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan struct {}")).Return(nil).Once()
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, 30*time.Second)
+	// Make sure our rollingRestart bailed after it failed for one instance
+	c.Assert(err, Equals, testerr)
+}
+
 func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	// create a service tree that looks like this:
 	// ParentServiceID
@@ -2664,7 +3152,6 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	c.Assert(count, Equals, 6)
 
 	mockedSSM.AssertExpectations(c)
-
 }
 
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
