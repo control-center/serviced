@@ -661,8 +661,6 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 
 	}
 
-	plog.WithField("serviceIDs", serviceRequest.ServiceIDs).Info("About to start services")
-
 	var affected int
 	err = client.StartService(serviceRequest, &affected)
 	// We handle this error differently because we don't want to return a 500
