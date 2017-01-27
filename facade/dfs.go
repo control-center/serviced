@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/statistics"
 	"github.com/control-center/serviced/config"
@@ -33,7 +34,6 @@ import (
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/glog"
 )
 
 const (
@@ -70,39 +70,40 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 
 	stime := time.Now()
 	message := fmt.Sprintf("started backup at %s", stime.UTC())
-	glog.Infof("Starting backup")
+	plog.Info("Started backup")
 	templates, images, err := f.GetServiceTemplatesAndImages(ctx)
 	if err != nil {
-		glog.Errorf("Could not get service templates and images: %s", err)
+		plog.WithError(err).Debug("Could not get service templates and images")
 		return err
 	}
-	glog.Infof("Loaded templates and their images")
+	plog.Info("Loaded templates and their images")
 	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
-		glog.Errorf("Could not get resource pools: %s", err)
+		plog.WithError(err).Debug("Could not get resource pools")
 		return err
 	}
-	glog.Infof("Loaded resource pools")
+	plog.Info("Loaded resource pools")
 	tenants, err := f.GetTenantIDs(ctx)
 	if err != nil {
-		glog.Errorf("Could not get tenants: %s", err)
+		plog.WithError(err).Debug("Could not get tenants")
 		return err
 	}
 	snapshots := make([]string, len(tenants))
 	snapshotExcludes := map[string][]string{}
 	for i, tenant := range tenants {
+		tenantLogger := plog.WithField("tenant", tenant)
 		tag := fmt.Sprintf("backup-%s-%s", tenant, stime)
 		snapshot, err := f.Snapshot(ctx, tenant, message, []string{tag}, snapshotSpacePercent)
 		if err != nil {
-			glog.Errorf("Could not snapshot %s: %s", tenant, err)
+			tenantLogger.WithError(err).Debug("Could not snapshot tenant")
 			return err
 		}
 		defer f.DeleteSnapshot(ctx, snapshot)
 		snapshots[i] = snapshot
 		snapshotExcludes[snapshot] = append(excludes, f.getExcludedVolumes(ctx, tenant)...)
-		glog.Infof("Created a snapshot for tenant %s at %s", tenant, snapshot)
+		tenantLogger.WithField("snapshot", snapshot).Info("Created a snapshot for tenant")
 	}
-	glog.Infof("Loaded tenants")
+	plog.Info("Loaded tenants")
 	data := dfs.BackupInfo{
 		Templates:        templates,
 		BaseImages:       images,
@@ -113,10 +114,10 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer, excludes []string, s
 		BackupVersion:    1,
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
-		glog.Errorf("Could not backup: %s", err)
+		plog.WithError(err).Debug("Could not backup")
 		return err
 	}
-	glog.Infof("Completed backup in %s", time.Since(stime))
+	plog.WithField("duration", time.Since(stime)).Info("Completed backup")
 	return nil
 }
 
@@ -125,7 +126,7 @@ func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.BackupInfo"))
 	info, err := f.dfs.BackupInfo(r)
 	if err != nil {
-		glog.Errorf("Could not get info for backup: %s", err)
+		plog.WithError(err).Debug("Could not get info for backup")
 		return nil, err
 	}
 	return info, nil
@@ -134,14 +135,16 @@ func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo
 // Commit commits a container to the docker registry and takes a snapshot.
 func (f *Facade) Commit(ctx datastore.Context, ctrID, message string, tags []string, snapshotSpacePercent int) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Commit"))
+	logger := plog.WithField("containerid", ctrID)
 	tenantID, err := f.dfs.Commit(ctrID)
 	if err != nil {
-		glog.Errorf("Could not commit container %s: %s", ctrID, err)
+		logger.WithError(err).Debug("Could not commit container")
 		return "", err
 	}
+	logger = logger.WithField("tenantid", tenantID)
 	snapshotID, err := f.Snapshot(ctx, tenantID, message, tags, snapshotSpacePercent)
 	if err != nil {
-		glog.Errorf("Could not snapshot %s: %s", tenantID, err)
+		logger.WithError(err).Debug("Could not snapshot tenant")
 		return "", err
 	}
 	return snapshotID, nil
@@ -152,7 +155,7 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.DeleteSnapshot"))
 	// Do not DFSLock here, ControlPlaneDao does that
 	if err := f.dfs.Delete(snapshotID); err != nil {
-		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
+		plog.WithField("snapshotid", snapshotID).WithError(err).Debug("Could not delete snapshot")
 		return err
 	}
 	return nil
@@ -185,7 +188,7 @@ func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetSnapshotInfo"))
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
+		plog.WithField("snapshotid", snapshotID).WithError(err).Debug("Could not get info for snapshot")
 		return nil, err
 	}
 	return info, nil
@@ -195,14 +198,16 @@ func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs
 // given application.
 func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ListSnapshots"))
+	logger := plog.WithField("serviceid", serviceID)
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		logger.WithError(err).Debug("Could not find tenant for service")
 		return nil, err
 	}
+	logger = logger.WithField("tenantid", tenantID)
 	snapshots, err := f.dfs.List(tenantID)
 	if err != nil {
-		glog.Errorf("Could not list snapshots for tenant %s: %s", tenantID, err)
+		logger.WithError(err).Debug("Could not list snapshots for tenant")
 		return nil, err
 	}
 	return snapshots, nil
@@ -210,8 +215,12 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 
 // TagSnapshot adds tags to an existing snapshot
 func (f *Facade) TagSnapshot(snapshotID string, tagName string) error {
+	logger := plog.WithFields(logrus.Fields{
+		"snapshotid": snapshotID,
+		"tagname":    tagName,
+	})
 	if err := f.dfs.Tag(snapshotID, tagName); err != nil {
-		glog.Errorf("Could not add tag to snapshot %s: %s", snapshotID, err)
+		logger.WithError(err).Debug("Could not add tag to snapshot")
 		return err
 	}
 	return nil
@@ -220,14 +229,19 @@ func (f *Facade) TagSnapshot(snapshotID string, tagName string) error {
 // RemoveSnapshotTag removes a specific tag from an existing snapshot
 func (f *Facade) RemoveSnapshotTag(ctx datastore.Context, serviceID, tagName string) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RemoveSnapshotTag"))
+	logger := plog.WithFields(logrus.Fields{
+		"serviceid": serviceID,
+		"tagname":   tagName,
+	})
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		logger.WithError(err).Debug("Could not find tenant for service")
 		return "", err
 	}
+	logger = logger.WithField("tenantid", tenantID)
 	snapshotID, err := f.dfs.Untag(tenantID, tagName)
 	if err != nil {
-		glog.Errorf("Could not remove tag %s from tenant %s: %s", tagName, snapshotID, err)
+		logger.WithError(err).Debug("Could not remove tag from tenant")
 		return "", err
 	}
 	return snapshotID, nil
@@ -236,14 +250,20 @@ func (f *Facade) RemoveSnapshotTag(ctx datastore.Context, serviceID, tagName str
 // GetSnapshotByServiceIDAndTag finds the existing snapshot for a given service with a specific tag
 func (f *Facade) GetSnapshotByServiceIDAndTag(ctx datastore.Context, serviceID, tagName string) (*dfs.SnapshotInfo, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetSnapshotByServiceIDAndTag"))
+	logger := plog.WithFields(logrus.Fields{
+		"serviceid": serviceID,
+		"tagname":   tagName,
+	})
+
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		logger.WithError(err).Debug("Could not find tenant for service")
 		return nil, err
 	}
+	logger = logger.WithField("tenantid", tenantID)
 	info, err := f.dfs.TagInfo(tenantID, tagName)
 	if err != nil {
-		glog.Errorf("Could not get info for snapshot tag %s: %s", tagName, err)
+		logger.WithError(err).Debug("Could not get info for snapshot tag")
 		return nil, err
 	}
 	return info, nil
@@ -252,9 +272,10 @@ func (f *Facade) GetSnapshotByServiceIDAndTag(ctx datastore.Context, serviceID, 
 // ResetLock resets locks for a specific tenant
 func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetLock"))
+	logger := plog.WithField("serviceid", serviceID)
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		logger.WithError(err).Debug("Could not find tenant for service")
 		return err
 	}
 	mutex := getTenantLock(tenantID)
@@ -270,7 +291,7 @@ func (f *Facade) ResetLocks(ctx datastore.Context) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ResetLocks"))
 	tenantIDs, err := f.GetTenantIDs(ctx)
 	if err != nil {
-		glog.Errorf("Could not get tenants: %s", err)
+		plog.WithError(err).Debug("Could not get tenants")
 		return err
 	}
 	for _, tenantID := range tenantIDs {
@@ -295,7 +316,7 @@ func (f *Facade) Download(imageID, tenantID string) error {
 func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RepairRegistry"))
 	if err := f.DFSLock(ctx).LockWithTimeout("reset registry", userLockTimeout); err != nil {
-		glog.Warningf("Cannot reset registry: %s", err)
+		plog.WithError(err).Debug("Cannot reset registry")
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
@@ -313,7 +334,7 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 		for _, svc := range svcs {
 			if _, ok := imagesMap[svc.ImageID]; !ok {
 				if _, err := f.dfs.Download(svc.ImageID, tenantID, true); err != nil {
-					glog.Errorf("Could not download image %s from registry: %s", svc.ImageID, err)
+					plog.WithField("imageid", svc.ImageID).WithError(err).Debug("Could not download image from registry")
 					return err
 				}
 				imagesMap[svc.ImageID] = struct{}{}
@@ -329,8 +350,12 @@ func (f *Facade) RepairRegistry(ctx datastore.Context) error {
 // (For a remote registry, the upgrade is always performed regardless of the value of the force parameter.)
 func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string, force bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.UpgradeRegistry"))
+	logger := plog.WithFields(logrus.Fields{
+		"fromregistryhost": fromRegistryHost,
+		"force":            force,
+	})
 	if err := f.DFSLock(ctx).LockWithTimeout("migrate registry", userLockTimeout); err != nil {
-		glog.Warningf("Cannot migrate registry: %s", err)
+		logger.WithError(err).Debug("Cannot migrate registry")
 		return err
 	}
 	defer f.DFSLock(ctx).Unlock()
@@ -340,32 +365,34 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string,
 		// check if a local docker migration is needed
 		isMigrated, previousVersion, err := f.getPreviousRegistryVersion()
 		if err != nil {
-			glog.Errorf("Could not determine the previous docker registry to migrate: %s", err)
+			logger.WithError(err).Debug("Could not determine the previous docker registry to migrate")
 			return err
 		}
 		if previousVersion == currentRegistryVersion {
-			glog.Infof("No previous version of the docker registry exists; nothing to migrate")
+			logger.Info("No previous version of the docker registry exists; nothing to migrate")
 			return nil
 		}
+		logger := logger.WithField("previousversion", previousVersion)
 		if !isMigrated || force {
-			glog.Infof("Starting local docker registry v%d", previousVersion)
+			logger.Info("Starting local docker registry")
 			oldRegistryCtr, err := f.startDockerRegistry(previousVersion, oldLocalRegistryPort)
 			if err != nil {
-				glog.Errorf("Could not start v%d docker registry at port %s: %s", previousVersion, oldLocalRegistryPort, err)
+				logger.WithField("port", oldLocalRegistryPort).WithError(err).Debug("Could not start old docker registry")
 				return err
 			}
+			logger = logger.WithField("oldregistrycontainer", oldRegistryCtr.Name)
 			defer func() {
 				if success {
 					f.markLocalDockerRegistryUpgraded(previousVersion)
 				}
-				glog.Infof("Stopping docker registry v%d container %s", previousVersion, oldRegistryCtr.Name)
+				logger.Infof("Stopping docker registry container")
 				if err := oldRegistryCtr.Stop(5 * time.Minute); err != nil {
-					glog.Errorf("Could not stop docker registry v%d container %s: %s", previousVersion, oldRegistryCtr.Name, err)
+					logger.WithError(err).Error("Could not stop old docker registry container")
 				}
 			}()
 			fromRegistryHost = fmt.Sprintf("localhost:%s", oldLocalRegistryPort)
 		} else {
-			glog.Infof("Registry already migrated from v%d; no action required", previousVersion)
+			logger.Info("Registry already migrated; no action required")
 			return nil
 		}
 	}
@@ -380,7 +407,7 @@ func (f *Facade) UpgradeRegistry(ctx datastore.Context, fromRegistryHost string,
 		}
 		if err := f.dfs.UpgradeRegistry(svcs, tenantID, fromRegistryHost, force); err != nil {
 			success = false
-			glog.Warningf("Could not upgrade registry for tenant %s: %s", tenantID, err)
+			logger.WithField("tenantid", tenantID).WithError(err).Warning("Could not upgrade registry for tenant")
 		}
 	}
 	return nil
@@ -396,20 +423,23 @@ func (f *Facade) startDockerRegistry(version int, port string) (*docker.Containe
 // registry that needs migration and whether it has been previously migrated.
 func (f *Facade) getPreviousRegistryVersion() (isMigrated bool, version int, err error) {
 	for i := currentRegistryVersion - 1; i > 0; i-- {
-		glog.Infof("Checking v%d docker registry", i)
+		logger := plog.WithField("version", i)
+		plog.Info("Checking docker registry")
 		versionInfo := registryVersionInfos[i]
 		registryPath := versionInfo.getStoragePath(f.isvcsPath)
+		logger = logger.WithField("registrypath", registryPath)
 		if _, err := os.Stat(registryPath); os.IsNotExist(err) {
 			continue
 		} else if err != nil {
-			glog.Errorf("Could not stat v%d registry path at %s: %s", i, registryPath, err)
+			logger.WithError(err).Debug("Could not stat registry path")
 			return false, 0, err
 		}
 		markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
+		logger = logger.WithField("markerfilepath", markerFilePath)
 		if _, err := os.Stat(markerFilePath); os.IsNotExist(err) {
 			return false, i, nil
 		} else if err != nil {
-			glog.Errorf("Could not stat v%d registry marker file at %s: %s", i, markerFilePath, err)
+			logger.WithError(err).Debug("Could not stat registry marker file")
 			return false, 0, err
 		}
 		return true, i, nil
@@ -422,8 +452,12 @@ func (f *Facade) getPreviousRegistryVersion() (isMigrated bool, version int, err
 func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 	versionInfo := registryVersionInfos[version]
 	markerFilePath := versionInfo.getUpgradedMarkerPath(f.isvcsPath)
+	logger := plog.WithFields(logrus.Fields{
+		"version":        version,
+		"markerfilepath": markerFilePath,
+	})
 	if err := ioutil.WriteFile(markerFilePath, []byte{}, 0644); err != nil {
-		glog.Errorf("Could not write marker file %s: %s", markerFilePath, err)
+		logger.WithError(err).Debug("Could not write marker file")
 		return err
 	}
 	return nil
@@ -433,29 +467,30 @@ func (f *Facade) markLocalDockerRegistryUpgraded(version int) error {
 func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.BackupInfo) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Restore"))
 	// Do not DFSLock here, ControlPlaneDao does that
-	glog.Infof("Beginning restore from backup")
+	plog.Info("Started restore from backup")
 	if err := f.dfs.Restore(r, backupInfo.BackupVersion); err != nil {
-		glog.Errorf("Could not restore from backup: %s", err)
+		plog.WithError(err).Debug("Could not restore from backup")
 		return err
 	}
 	if err := f.RestoreServiceTemplates(ctx, backupInfo.Templates); err != nil {
-		glog.Errorf("Could not restore service templates from backup: %s", err)
+		plog.WithError(err).Debug("Could not restore service templates from backup")
 		return err
 	}
-	glog.Infof("Restored service templates")
+	plog.Infof("Restored service templates")
 	if err := f.RestoreResourcePools(ctx, backupInfo.Pools); err != nil {
-		glog.Errorf("Could not restore resource pools from backup: %s", err)
+		plog.WithError(err).Debug("Could not restore resource pools from backup")
 		return err
 	}
-	glog.Infof("Restored resource pools")
+	plog.Info("Restored resource pools")
 	for _, snapshot := range backupInfo.Snapshots {
+		logger := plog.WithField("snapshot", snapshot)
 		if err := f.Rollback(ctx, snapshot, false); err != nil {
-			glog.Errorf("Could not rollback snapshot %s: %s", snapshot, err)
+			logger.WithError(err).Debug("Could not rollback snapshot")
 			return err
 		}
-		glog.Infof("Rolled back snapshot %s", snapshot)
+		logger.Info("Rolled back snapshot")
 	}
-	glog.Infof("Completed restore from backup")
+	plog.Info("Completed restore from backup")
 	return nil
 }
 
@@ -464,54 +499,65 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader, backupInfo *dfs.Bac
 func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Rollback"))
 	// Do not DFSLock here, ControlPlaneDao does that
-	glog.Infof("Beginning rollback of snapshot %s", snapshotID)
+	logger := plog.WithField("snapshotid", snapshotID)
+	logger.Infof("Started rollback of snapshot")
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
+		logger.WithError(err).Debug("Could not get info for snapshot")
 		return err
 	}
+	logger = logger.WithField("tenantid", info.TenantID)
 	if err := f.lockTenant(ctx, info.TenantID); err != nil {
-		glog.Errorf("Could not lock tenant %s: %s", info.TenantID, err)
+		logger.WithError(err).Debug("Could not lock tenant")
 		return err
 	}
 	defer f.retryUnlockTenant(ctx, info.TenantID, nil, time.Second)
-	glog.Infof("Checking states for services under %s", info.TenantID)
-	svcs, err := f.GetServiceDetailsByTenantID(ctx, info.TenantID)
+	logger.Info("Got tenant lock")
+	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: info.TenantID})
 	if err != nil {
-		glog.Errorf("Could not get services under %s: %s", info.TenantID, err)
+		logger.WithError(err).Debug("Could not get services under tenant")
 		return err
 	}
 	serviceids := make([]string, len(svcs))
-	for i, svc := range svcs {
-		if svc.DesiredState != int(service.SVCStop) {
-			if force {
-				defer f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true, false)
-				if _, err := f.scheduleService(ctx, info.TenantID, svc.ID, false, true, service.SVCStop, true, false); err != nil {
-					glog.Errorf("Could not %s service %s (%s): %s", service.SVCStop, svc.Name, svc.ID, err)
-					return err
-				}
-			} else {
-				glog.Errorf("Could not rollback to snapshot %s: service %s (%s) is running", snapshotID, svc.Name, svc.ID)
+	servicesToStop := []*service.Service{}
+	for i, _ := range svcs {
+		svc := &svcs[i]
+		if svc.DesiredState == int(service.SVCRun) {
+			servicesToStop = append(servicesToStop, svc)
+			if !force {
+				logger.WithFields(logrus.Fields{
+					"servicename": svc.Name,
+					"serviceid":   svc.ID,
+				}).Debug("Could not rollback to snapshot; service is running")
 				return errors.New("service is running")
 			}
 		}
 		serviceids[i] = svc.ID
 	}
+
+	// Stop the services that need stopping in a batch
+	if _, err := scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCStop, false); err != nil {
+		logger.WithError(err).Debug("Could not stop services for rollback")
+		return err
+	}
+
+	defer scheduleServices(f, servicesToStop, ctx, info.TenantID, service.SVCRun, false)
+
 	if err := f.WaitService(ctx, service.SVCStop, f.dfs.Timeout(), false, serviceids...); err != nil {
-		glog.Errorf("Could not wait for services to %s during rollback of snapshot %s: %s", service.SVCStop, snapshotID, err)
+		logger.WithError(err).Debug("Could not wait for services to stop during rollback of snapshot")
 		return err
 	}
-	glog.Infof("Services are all stopped, reverting service data")
+	logger.Info("Services are all stopped")
 	if err := f.RestoreServices(ctx, info.TenantID, info.Services); err != nil {
-		glog.Errorf("Could not restore services: %s", err)
+		logger.WithError(err).Debug("Could not restore services")
 		return err
 	}
-	glog.Infof("Service data is rolled back, now restoring disk and images")
+	logger.Infof("Service data is rolled back")
 	if err := f.dfs.Rollback(snapshotID); err != nil {
-		glog.Errorf("Could not rollback snapshot %s: %s", snapshotID, err)
+		logger.WithError(err).Debug("Could not rollback snapshot")
 		return err
 	}
-	glog.Infof("Successfully restored application data from snapshot %s", snapshotID)
+	logger.Info("Successfully restored application data from snapshot")
 	return nil
 }
 
@@ -519,32 +565,36 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags []string, snapshotSpacePercent int) (string, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.Snapshot"))
 	// Do not DFSLock here, ControlPlaneDao does that
+
+	logger := plog.WithFields(logrus.Fields{
+		"serviceid": serviceID,
+	})
+
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
-		glog.Errorf("Could not get tenant id of service %s: %s", serviceID, err)
+		logger.WithError(err).Debug("Could not get tenant id of service")
 		return "", err
 	}
+	logger = logger.WithField("tenantid", tenantID)
 	if err := f.lockTenant(ctx, tenantID); err != nil {
-		glog.Errorf("Could not lock tenant %s: %s", tenantID, err)
+		logger.WithError(err).Debug("Could not lock tenant")
 		return "", err
 	}
 	defer f.retryUnlockTenant(ctx, tenantID, nil, time.Second)
-	glog.Infof("Checking states for services under %s", tenantID)
+	logger.Info("Got tenant lock")
 	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
-		glog.Errorf("Could not get services under %s: %s", tenantID, err)
+		logger.WithError(err).Debug("Could not get services under tenant")
 		return "", err
 	}
 	imagesMap := make(map[string]struct{})
 	images := make([]string, 0)
 	serviceids := make([]string, len(svcs))
-	for i, svc := range svcs {
+	servicesToPause := []*service.Service{}
+	for i, _ := range svcs {
+		svc := &svcs[i]
 		if svc.DesiredState == int(service.SVCRun) {
-			defer f.scheduleService(ctx, tenantID, svc.ID, false, true, service.DesiredState(svc.DesiredState), true, false)
-			if _, err := f.scheduleService(ctx, tenantID, svc.ID, false, true, service.SVCPause, true, false); err != nil {
-				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
-				return "", err
-			}
+			servicesToPause = append(servicesToPause, svc)
 		}
 		serviceids[i] = svc.ID
 		if svc.ImageID != "" {
@@ -554,11 +604,20 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 	}
-	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {
-		glog.Errorf("Could not wait for services to %s during snapshot of %s: %s", service.SVCStop, tenantID, err)
+	// Pause the services that need pausing in a batch
+	if _, err := scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCPause, false); err != nil {
+		logger.WithError(err).Debug("Could not pause services for snapshot")
 		return "", err
 	}
-	glog.Infof("Services are now paused, capturing state")
+
+	defer scheduleServices(f, servicesToPause, ctx, tenantID, service.SVCRun, false)
+
+	// Wait for the paused services to reach the paused state (and other services to reach stopped)
+	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), false, serviceids...); err != nil {
+		logger.WithError(err).Debug("Could not wait for services to pause during snapshot")
+		return "", err
+	}
+	logger.Infof("Services are now paused for snapshot")
 	data := dfs.SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: tenantID,
@@ -570,10 +629,10 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	}
 	snapshotID, err := f.dfs.Snapshot(data, snapshotSpacePercent)
 	if err != nil {
-		glog.Errorf("Could not snapshot disk and images for tenant %s: %s", tenantID, err)
+		logger.WithError(err).Debug("Could not snapshot disk and images for tenant")
 		return "", err
 	}
-	glog.Infof("Successfully captured application data from tenant %s and created snapshot %s", tenantID, snapshotID)
+	logger.WithField("snapshotid", snapshotID).Info("Successfully captured application data and created snapshot")
 	return snapshotID, nil
 }
 
@@ -599,7 +658,7 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 	container, err := docker.FindContainer(containerName)
 	if err != nil {
 		if err != docker.ErrNoSuchContainer {
-			glog.Errorf("Could not look up container %s: %s", containerName, err)
+			plog.WithField("containername", containerName).WithError(err).Debug("Could not look up container")
 			return nil, err
 		}
 
@@ -617,24 +676,32 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 				PortBindings: portBindings,
 			},
 		}
-
-		glog.Infof("Creating container %s from image %s", containerDefinition.Name, containerDefinition.Config.Image)
+		cclogger := plog.WithFields(logrus.Fields{
+			"containername": containerDefinition.Name,
+			"image":         containerDefinition.Config.Image,
+		})
 		container, err = docker.NewContainer(containerDefinition, false, 0, nil, nil)
 		if err != nil {
-			glog.Errorf("Error trying to create container %s: %s", containerDefinition.Name, err)
+			cclogger.WithError(err).Debug("Error trying to create container")
 			return nil, err
 		}
+		cclogger.Info("Created container")
 	}
 
 	os.MkdirAll(storagePath, 0755)
 
+	logger := plog.WithFields(logrus.Fields{
+		"containername": container.Name,
+		"version":       info.version,
+	})
+
 	// Make sure container is running
-	glog.Infof("Starting container %s for Docker registry v%d at %s", container.Name, info.version, url)
+
 	if err = container.Start(); err != nil {
-		glog.Errorf("Could not start container %s: %s", container.Name, err)
+		logger.WithError(err).Debug("Could not start container")
 		return nil, err
 	}
-
+	logger.Infof("Started container for Docker registry")
 	// Make sure registry is up and running (accepting connections)
 	timeout := time.After(5 * time.Minute)
 	for {
@@ -645,14 +712,14 @@ func (info *registryVersionInfo) start(isvcsRoot string, hostPort string) (*dock
 		if err == nil {
 			break
 		} else {
-			glog.V(1).Infof("Waiting for Docker registry v%d to accept connections...", info.version)
+			logger.Debug("Waiting for Docker registry to accept connections...")
 		}
 
 		select {
 		case <-timeout:
-			glog.Warningf("Timed out waiting for Docker registry v%d to accept connections", info.version)
+			logger.Warning("Timed out waiting for Docker registry to accept connections")
 			if err := container.Stop(5 * time.Minute); err != nil {
-				glog.Errorf("After timeout, could not stop Docker registry v%d container %s: %s", info.version, container.Name, err)
+				logger.WithError(err).Error("After timeout, could not stop Docker registry container")
 			}
 			return nil, errors.New(fmt.Sprintf("Timed out waiting for Docker registry v%d to accept connections", info.version))
 		case <-time.After(time.Second):
@@ -720,14 +787,16 @@ func NewDfsClientValidator(fac *Facade, ctx datastore.Context) DfsClientValidato
 }
 
 func (val *clientValidator) ValidateClient(hostIP string) bool {
+	logger := plog.WithField("hostip", hostIP)
 	host, err := val.facade.GetHostByIP(val.context, hostIP)
 	if err != nil || host == nil {
-		glog.Warningf("Unable to load host with ip %s", hostIP)
+		logger.Warningf("Unable to load host with given ip")
 		return false
 	}
+	logger = logger.WithField("poolid", host.PoolID)
 	pool, err := val.facade.GetResourcePool(val.context, host.PoolID)
 	if err != nil || pool == nil {
-		glog.Warningf("Unable to load pool %s", host.PoolID)
+		logger.Warningf("Unable to load pool")
 		return false
 	}
 	return pool.HasDfsAccess()

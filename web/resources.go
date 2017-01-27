@@ -562,7 +562,7 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	err = client.RestartService(dao.ScheduleServiceRequest{
 		ServiceID:   serviceID,
 		AutoLaunch:  autoLaunch,
-		Synchronous: true,
+		Synchronous: false,
 	}, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
@@ -603,7 +603,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	err = client.StartService(dao.ScheduleServiceRequest{
 		ServiceID:   serviceID,
 		AutoLaunch:  autoLaunch,
-		Synchronous: true,
+		Synchronous: false,
 	}, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
@@ -641,7 +641,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 	}
 
 	var affected int
-	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch, true}, &affected); err != nil {
+	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch, false}, &affected); err != nil {
 		glog.Errorf("Unexpected error stopping service: %s", err)
 		restServerError(w, err)
 		return
