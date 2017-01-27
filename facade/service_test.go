@@ -2483,6 +2483,73 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	}
 }
 
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Pass(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Make sure we call RestartInstance once for each insance of svc
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 2).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each insance of svc
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 2, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, func() bool {
+		return true
+	})
+	c.Assert(err, IsNil)
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_rollingRestart_Fail(c *C) {
+	svc := service.Service{
+		ID:                "serviceID",
+		Name:              "Service",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         3,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+
+	// Make sure we call RestartInstance once for each insance of svc that gets called
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 0).Return(nil).Once()
+	ft.zzk.On("RestartInstance", ft.CTX, svc.PoolID, svc.ID, 1).Return(nil).Once()
+
+	// Make sure we call WaitInstance once for each insance of svc that gets called
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 0, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	ft.zzk.On("WaitInstance", ft.CTX, &svc, 1, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(errors.New("This could be a timeout")).Once()
+	err := ft.Facade.rollingRestart(ft.CTX, &svc, func() bool {
+		return true
+	})
+	// Make sure our rollingRestart bailed after it failed for one instance
+	c.Assert(err, Not(IsNil))
+}
+
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
 	return ft.setupMigrationTest(t, false)
 }
