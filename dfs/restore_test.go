@@ -54,7 +54,7 @@ func (s *DFSTestSuite) TestRestore_LoadImages(c *C) {
 	err := tarfile.WriteHeader(&tar.Header{Name: DockerImagesFile, Size: 0})
 	c.Assert(err, IsNil)
 	tarfile.Close()
-	s.docker.On("LoadImage", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	s.docker.On("LoadImage", mock.Anything).Return(nil)
 	err = s.dfs.Restore(buf, backupInfo.BackupVersion)
 	c.Assert(err, IsNil)
 	s.docker.AssertExpectations(c)
@@ -81,7 +81,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshot(c *C) {
 	s.disk.On("Create", "BASE").Return(&volumemocks.Volume{}, volume.ErrVolumeExists)
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	imgbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
@@ -113,7 +113,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesCreate(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(vol, nil)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	vol.On("RemoveSnapshot", "LABEL").Return(nil)
 	//s.disk.On("Remove", "BASE").Return(nil)
@@ -144,7 +144,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotNoImagesGet(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(&volumemocks.Volume{}, volume.ErrVolumeExists)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	vol.On("RemoveSnapshot", "LABEL").Return(nil)
 	err = s.dfs.Restore(buf, backupInfo.BackupVersion)
@@ -173,7 +173,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNotFound(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(vol, nil)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	imgbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgbuffer).Encode([]string{"test:5000/image:now"})
 	c.Assert(err, IsNil)
@@ -206,7 +206,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoPush(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(vol, nil)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	imgbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgbuffer).Encode([]string{"test:5000/image:now"})
 	c.Assert(err, IsNil)
@@ -241,7 +241,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotImageNoHash(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(vol, nil)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*tar.Reader")).Return(nil)
+	vol.On("Import", "LABEL", mock.Anything).Return(nil)
 	imgbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgbuffer).Encode([]string{"test:5000/image:now"})
 	c.Assert(err, IsNil)
@@ -278,9 +278,9 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotSnapshotExists(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Create", "BASE").Return(&volumemocks.Volume{}, volume.ErrVolumeExists)
 	s.disk.On("Get", "BASE").Return(vol, nil)
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(volume.ErrSnapshotExists)
+	vol.On("Import", "LABEL", mock.Anything).Return(volume.ErrSnapshotExists)
 	// s.disk.On("Exists", "BASE_LABEL").Return(true)
-	s.docker.On("LoadImage", mock.AnythingOfType("*io.PipeReader")).Return(nil).Run(func(a mock.Arguments) {
+	s.docker.On("LoadImage", mock.Anything).Return(nil).Run(func(a mock.Arguments) {
 		reader := a.Get(0).(io.Reader)
 		io.Copy(ioutil.Discard, reader)
 	})
@@ -301,7 +301,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	s.disk.On("Remove", "BASE").Return(nil)
 
 	// bad backup
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -313,7 +313,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		c.Assert(hdr, IsNil)
 	}).Return(ErrTestBadSnapshot).Once()
 
-	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL2", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -361,7 +361,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 
 	// good backup, bad snapshot
 	c.Logf("Good backup, bad snapshot")
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Return(ErrTestBadSnapshot).Once()
+	vol.On("Import", "LABEL", mock.Anything).Return(ErrTestBadSnapshot).Once()
 	r, w = io.Pipe()
 	errc = make(chan error)
 	go func() {
@@ -399,7 +399,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	imgbuffer2 := bytes.NewBufferString("[]")
 	vol.On("ReadMetadata", "LABEL2", ImagesMetadataFile).Return(&NopCloser{imgbuffer2}, nil).Once()
 
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -411,7 +411,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		c.Assert(hdr, IsNil)
 	}).Return(nil).Once()
 
-	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL2", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -452,7 +452,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 	imgbuffer2 = bytes.NewBufferString("[]")
 	vol.On("ReadMetadata", "LABEL2", ImagesMetadataFile).Return(&NopCloser{imgbuffer2}, nil).Once()
 
-	vol.On("Import", "LABEL", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
@@ -463,7 +463,7 @@ func (s *DFSTestSuite) TestRestore_ImportSnapshotBadSnapshot(c *C) {
 		c.Assert(hdr, IsNil)
 	}).Return(nil).Once()
 
-	vol.On("Import", "LABEL2", mock.AnythingOfType("*io.PipeReader")).Run(func(a mock.Arguments) {
+	vol.On("Import", "LABEL2", mock.Anything).Run(func(a mock.Arguments) {
 		r := a.Get(1).(io.Reader)
 		tr := tar.NewReader(r)
 		hdr, err := tr.Next()
