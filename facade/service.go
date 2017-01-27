@@ -1338,7 +1338,7 @@ func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service,
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	if desiredState == service.SVCRestart {
 		//  place-holder ready func until we figure out how best to determine if we should move on to the next instance
-		if err := f.rollingRestart(ctx, tenantID, svc, func() bool {
+		if err := f.rollingRestart(ctx, svc, func() bool {
 			time.Sleep(5 * time.Second)
 			return true
 		}); err != nil {
@@ -1360,7 +1360,7 @@ func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service,
 // rollingRestart restarts a service one instance at a time and waits for it to reach SVCRun.
 // The ready func determines if we should move on to the next instance and
 // will be called on a 500ms interval until it returns true.
-func (f *Facade) rollingRestart(ctx datastore.Context, tenantID string, svc *service.Service, ready func() bool) error {
+func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, ready func() bool) error {
 	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
 		if err := f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
 			return err
