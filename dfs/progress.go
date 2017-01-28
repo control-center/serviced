@@ -14,7 +14,6 @@
 package dfs
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/control-center/serviced/logging"
@@ -24,33 +23,47 @@ var (
 	plog = logging.PackageLogger()
 )
 
+type Clock interface {
+	Now() time.Time
+	Since(t time.Time) time.Duration
+}
+
+type DefaultClock struct{}
+
+func (c *DefaultClock) Now() time.Time { return time.Now() }
+
+func (c *DefaultClock) Since(t time.Time) time.Duration { return time.Since(t) }
+
 type ProgressCounter struct {
 	Total                 uint64
-	Message               string
-	lastUpdate            time.Time
+	Log                   func()
+	clock                 Clock
+	lastLogged            time.Time
 	updateIntervalSeconds int
 }
 
 func (pc *ProgressCounter) Write(data []byte) (int, error) {
-
 	pc.Total += uint64(len(data))
 
-	timeSinceUpdate := int(time.Since(pc.lastUpdate).Seconds())
-	if timeSinceUpdate > pc.updateIntervalSeconds {
-		plog.Info(fmt.Sprintf(pc.Message, pc.Total))
-		pc.lastUpdate = time.Now()
+	if pc.Log != nil {
+		timeSinceUpdate := int(pc.clock.Since(pc.lastLogged).Seconds())
+		if timeSinceUpdate > pc.updateIntervalSeconds {
+			pc.Log()
+			pc.lastLogged = pc.clock.Now()
+		}
 	}
+
 	return len(data), nil
 }
 
-func NewProgressCounter(interval int, message string) *ProgressCounter {
-	if len(message) == 0 {
-		message = "Processed %v Total Bytes."
-	}
+func NewProgressCounter(interval int) *ProgressCounter {
+	return NewProgressCounterWithClock(interval, &DefaultClock{})
+}
 
+func NewProgressCounterWithClock(interval int, clock Clock) *ProgressCounter {
 	return &ProgressCounter{
-		lastUpdate:            time.Now(),
+		clock:                 clock,
+		lastLogged:            clock.Now(),
 		updateIntervalSeconds: interval,
-		Message:               message,
 	}
 }

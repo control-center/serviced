@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/logging"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -100,7 +99,8 @@ func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {
 	}
 
 	startTime := time.Now()
-	plog.Info("Starting image export", images)
+
+	plog.WithField("images", images).Info("Starting image export")
 
 	done := make(chan error)
 	go func() {
@@ -113,9 +113,8 @@ func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {
 			plog.Info("Finished image export.")
 			return err
 		case <-time.After(5 * time.Second):
-			plog.WithFields(log.Fields{
-				"timeElapsed": time.Now().Sub(startTime)},
-			).Info("Exporting images")
+			timeElapsed := time.Now().Sub(startTime)
+			plog.WithField("timeelapsed", timeElapsed).Info("Exporting images")
 		}
 	}
 }
@@ -278,8 +277,7 @@ func (d *DockerClient) FindImageByHash(imageHash string, checkAllLayers bool) (*
 				return d.FindImage(apiImage.ID)
 			}
 		} else {
-			plog.WithError(err).WithFields(log.Fields{"image": apiImage.ID}).
-				Warn("Error computing hash")
+			plog.WithError(err).WithField("image", apiImage.ID).Warn("Error computing hash")
 		}
 	}
 

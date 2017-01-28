@@ -35,7 +35,9 @@ const (
 // Backup writes all application data into an export stream
 func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
-	progress := NewProgressCounter(300, "Written %v bytes to archive for backup")
+	progress := NewProgressCounter(300)
+	progress.Log = func() { plog.Infof("Written %v bytes to archive for backup", progress.Total) }
+
 	tarOut := tar.NewWriter(io.MultiWriter(w, progress))
 
 	// write the backup metadata
@@ -46,42 +48,37 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 	var images []string
 
-	numberOfImages := len(data.BaseImages)
-
-	plog.WithFields(log.Fields{"total": numberOfImages}).
-		Info("Preparing docker images for backup")
+	imageLogger := plog.WithField("total", len(data.BaseImages))
+	imageLogger.Info("Preparing docker images for backup")
 
 	// download the base images
 	for i, image := range data.BaseImages {
+		imageLogger = imageLogger.WithFields(log.Fields{
+			"image":          image,
+			"numbercomplete": i + 1,
+		})
+
 		if _, err := dfs.docker.FindImage(image); docker.IsImageNotFound(err) {
 			if err := dfs.docker.PullImage(image); docker.IsImageNotFound(err) {
-				plog.WithFields(log.Fields{"image": image}).
-					Warn("Could not pull base image for backup, skipping", image)
+				imageLogger.Warn("Could not pull base image for backup, skipping")
 				continue
 			} else if err != nil {
-				plog.WithError(err).WithFields(log.Fields{"image": image}).
-					Error("Could not pull image for backup")
+				imageLogger.WithError(err).Error("Could not pull image for backup")
 				return err
 			}
 		} else if err != nil {
-			plog.WithFields(log.Fields{"image": image}).WithError(err).
-				Error("Could not find image for backup")
+			imageLogger.WithError(err).Error("Could not find image for backup")
 			return err
 		}
 
-		plog.WithFields(log.Fields{
-			"image":          image,
-			"numberComplete": i + 1,
-			"total":          numberOfImages}).
-			Info("Prepared Docker image for backup")
+		imageLogger.Info("Prepared Docker image for backup")
 
 		images = append(images, image)
 	}
 
 	numberOfSnapshots := len(data.Snapshots)
 
-	plog.WithFields(log.Fields{"total": numberOfSnapshots}).
-		Info("Preparing snapshots for backup")
+	plog.WithField("total", numberOfSnapshots).Info("Preparing snapshots for backup")
 
 	// export the snapshots
 	for i, snapshot := range data.Snapshots {
@@ -89,61 +86,65 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		if err != nil {
 			return err
 		}
+
 		// load the images from this snapshot
-		plog.WithFields(log.Fields{"tenant": info.TenantID}).
-			Info("Preparing images for tenant")
+		tenantLogger := plog.WithField("tenant", info.TenantID)
+		tenantLogger.Info("Preparing images for tenant")
 
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
-			plog.WithFields(log.Fields{"tenant": info.TenantID}).WithError(err).
-				Error("Could not receive images metadata for tenant")
+			tenantLogger.WithError(err).Error("Could not receive images metadata for tenant")
 			return err
 		}
+
 		var imgs []string
 		if err := importJSON(r, &imgs); err != nil {
-			plog.WithFields(log.Fields{"tenant": info.TenantID}).WithError(err).
-				Error("Could not interpret images metadata for tenant")
+			tenantLogger.WithError(err).Error("Could not interpret images metadata for tenant")
 			return err
 		}
+
 		timer := time.NewTimer(0)
 		for _, img := range imgs {
+			tenantImageLogger := tenantLogger.WithField("image", img)
+
 			timer.Reset(dfs.timeout)
 			if err := dfs.reg.PullImage(timer.C, img); err != nil {
-				plog.WithFields(log.Fields{"image": img}).WithError(err).
-					Error("Could not pull image from registry")
+				tenantImageLogger.WithError(err).Error("Could not pull image from registry")
 				return err
 			}
+
 			image, err := dfs.reg.ImagePath(img)
 			if err != nil {
-				plog.WithFields(log.Fields{"image": img}).WithError(err).
-					Error("Could not get the image path from registry")
+				tenantImageLogger.WithError(err).Error("Could not get the image path from registry")
 				return err
 			}
-			plog.WithFields(log.Fields{"image": image}).
-				Info("Prepared Docker image for backup")
+
+			plog.WithField("image", image).Info("Prepared Docker image for backup")
+
 			images = append(images, image)
 		}
+
 		timer.Stop()
+
+		snapshotLogger := plog.WithField("snapshot", snapshot)
+
 		// dump the snapshot into the backup
 		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
 		snapReader, errchan := dfs.snapshotSavePipe(vol, info.Label, data.SnapshotExcludes[snapshot])
 		if err := rewriteTar(prefix, tarOut, snapReader); err != nil {
 			// be a good citizen and clean up any running threads
 			<-errchan
-			plog.WithFields(log.Fields{"snapshot": snapshot}).WithError(err).
-				Error("Could not write snapshot to backup")
+			snapshotLogger.WithError(err).Error("Could not write snapshot to backup")
 			return err
 		} else if err := <-errchan; err != nil {
-			plog.WithFields(log.Fields{"snapshot": snapshot}).WithError(err).
-				Error("Could not export snapshot for backup")
+			snapshotLogger.WithError(err).Error("Could not export snapshot for backup")
 			return err
 		}
 
-		plog.WithFields(log.Fields{
-			"numberComplete": i + 1,
-			"snapshot":       snapshot,
-			"total":          numberOfSnapshots}).
-			Info("Exported snapshot to backup")
+		snapshotLogger.WithFields(log.Fields{
+			"numbercomplete": i + 1,
+			"total":          numberOfSnapshots,
+		}).Info("Exported snapshot to backup")
 	}
 
 	// dump the images from all the snapshots into the backup
@@ -153,18 +154,18 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	if err := rewriteTar(DockerImagesFile, tarOut, imageReader); err != nil {
 		// be a good citizen and clean up any running threads
 		<-errchan
-		plog.WithFields(log.Fields{"images": images}).
-			WithError(err).
+		plog.WithField("images", images).WithError(err).
 			Error("Could not write images to backup")
 		return err
 	} else if err := <-errchan; err != nil {
-		plog.WithFields(log.Fields{"images": images}).
-			WithError(err).
+		plog.WithField("images", images).WithError(err).
 			Error("Could not export images for backup")
 		return err
 	}
-	plog.Info("Exported images to backup")
 	tarOut.Close()
+
+	plog.Info("Exported images to backup")
+
 	return nil
 }
 
@@ -228,17 +229,17 @@ func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w *tar.Wr
 		jsonData []byte
 		err      error
 	)
-	plog.Info("Writing backup metadata")
+	plog.Debug("Writing backup metadata")
 	if jsonData, err = json.Marshal(data); err != nil {
 		return err
 	}
 	header := &tar.Header{Name: BackupMetadataFile, Size: int64(len(jsonData))}
 	if err := w.WriteHeader(header); err != nil {
-		plog.WithError(err).Info("Could not create metadata header for backup")
+		plog.WithError(err).Debug("Could not create metadata header for backup")
 		return err
 	}
 	if _, err := w.Write(jsonData); err != nil {
-		plog.WithError(err).Info("Could not write backup metadata")
+		plog.WithError(err).Debug("Could not write backup metadata")
 		return err
 	}
 	return nil
