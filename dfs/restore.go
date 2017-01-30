@@ -20,8 +20,8 @@ import (
 	"path"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 
 // Restore restores application data from a backup.
 func (dfs *DistributedFilesystem) Restore(r io.Reader, version int) error {
-	glog.Infof("Detected backup version %d", version)
+	plog.WithField("version", version).Info("Detected backup version")
 	switch version {
 	case 0:
 		return dfs.restoreV0(r)
@@ -54,7 +54,7 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			glog.Errorf("Could not read backup file: %s", err)
+			plog.WithError(err).Error("Could not read backup file")
 			return err
 		}
 
@@ -73,7 +73,10 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 			// restore the snapshot
 			tenant, label := parts[1], parts[2]
 			if err := dfs.restoreSnapshot(tenant, label, backuptar); err != nil {
-				glog.Errorf("Could not restore snapshot %s for tenant %s: %s", label, tenant, err)
+				plog.WithError(err).WithFields(log.Fields{
+					"label":    label,
+					"snapshot": tenant,
+				}).Error("Could not restore snapshot")
 				return err
 			}
 
@@ -83,11 +86,11 @@ func (dfs *DistributedFilesystem) restoreV0(r io.Reader) error {
 
 			// Load the images from the docker tar
 			if err := dfs.docker.LoadImage(backuptar); err != nil {
-				glog.Errorf("Could not load docker images: %s", err)
+				plog.WithError(err).Error("Could not load docker images")
 				return err
 			}
 		default:
-			glog.Warningf("Unrecognized file %s", hdr.Name)
+			plog.WithField("file", hdr.Name).Warn("Unrecognized file")
 		}
 	}
 
@@ -139,7 +142,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			glog.Errorf("Could not read backup file: %s", err)
+			plog.WithError(err).Error("Could not read backup file")
 			dataError = err
 			return err
 		}
@@ -160,29 +163,38 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			}
 			tenant, label := parts[1], parts[2]
 
+			tenantLogger := plog.WithFields(log.Fields{
+				"label":  label,
+				"tenant": tenant,
+			})
+
 			id := path.Join(SnapshotsMetadataDir, tenant, label)
 			// Find or create the pipe that's got a restoreSnapshot for this
 			// volume reading from the other end
 			s, ok := streamMap[id]
 			if !ok {
-				glog.Infof("Loading snapshot %s for tenant %s from backup", label, tenant)
+				tenantLogger.Info("Loading snapshot for tenant from backup")
+
 				writer, errc := dfs.snapshotLoadPipe(tenant, label)
 				tarwriter := tar.NewWriter(writer)
 				s = &stream{tarwriter: tarwriter, writer: writer, errc: errc}
 				streamMap[id] = s
 			}
+
 			hdr.Name = parts[3]
 			if err := s.tarwriter.WriteHeader(hdr); err == io.ErrClosedPipe {
 				// Snapshot already exists, so don't bother
 				continue
 			} else if err != nil {
-				glog.Errorf("Could not write header %s for snapshot %s on tenant %s: %s", hdr.Name, label, tenant, err)
+				tenantLogger.WithError(err).WithField("header", hdr.Name).
+					Error("Could not write header for snapshot on tenant")
 				dataError = err
 				return err
 			}
 
 			if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
-				glog.Errorf("Could not write snapshot %s for tenant %s with header %s: %s", label, tenant, hdr.Name, err)
+				tenantLogger.WithError(err).WithField("header", hdr.Name).
+					Error("Could not write snapshot for tenant with header")
 				dataError = err
 				return err
 			}
@@ -197,7 +209,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			id := parts[0]
 			s, ok := streamMap[id]
 			if !ok {
-				glog.Infof("Loading docker images from backup")
+				plog.Info("Loading docker images from backup")
 				writer, errc := dfs.imageLoadPipe()
 				tarwriter := tar.NewWriter(writer)
 				s = &stream{tarwriter: tarwriter, writer: writer, errc: errc}
@@ -205,16 +217,18 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 			}
 			hdr.Name = parts[1]
 			if err := s.tarwriter.WriteHeader(hdr); err != nil {
-				glog.Errorf("Could not write image header %s: %s", hdr.Name, err)
+				plog.WithError(err).WithField("header", hdr.Name).
+					Error("Could not write image header")
 				dataError = err
 				return err
 			} else if _, err := io.Copy(s.tarwriter, backuptar); err != nil {
-				glog.Errorf("Could not write image data with header %s: %s", hdr.Name, err)
+				plog.WithError(err).WithField("header", hdr.Name).
+					Error("Could not write image data with header")
 				dataError = err
 				return err
 			}
 		default:
-			glog.Warningf("Unrecognized file %s", hdr.Name)
+			plog.WithField("name", hdr.Name).Warn("Unrecognized file")
 		}
 	}
 
@@ -225,12 +239,12 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 		s.tarwriter.Close()
 		s.writer.Close()
 		if err := <-s.errc; err != nil {
-			glog.Errorf("Could not load docker images from backup: %s", err)
+			plog.WithError(err).Error("Could not load docker images from backup")
 			dataError = err
 			return err
 		}
 	} else {
-		glog.Warningf("Backup missing docker image data")
+		plog.Warn("Backup missing docker image data")
 	}
 
 	// load the snapshots and update the images in the registry
@@ -241,7 +255,7 @@ func (dfs *DistributedFilesystem) restoreV1(r io.Reader) error {
 		if err := <-s.errc; err != nil {
 			// this snapshot is no good, but maybe the other snapshots are
 			// better.
-			glog.Errorf("Error trying to import %s: %s", id, err)
+			plog.WithError(err).WithField("id", id).Error("Error trying to import")
 			dataError = err
 			continue
 		}
@@ -280,14 +294,16 @@ func (dfs *DistributedFilesystem) snapshotLoadPipe(tenant, label string) (*io.Pi
 // restoreSnapshot restores snapshot volume data from a backup for a specific
 // tenant.
 func (dfs *DistributedFilesystem) restoreSnapshot(tenant, label string, r io.Reader) error {
+	tenantLogger := plog.WithField("tenant", tenant)
+
 	vol, err := dfs.disk.Create(tenant)
 	if err == volume.ErrVolumeExists {
 		if vol, err = dfs.disk.Get(tenant); err != nil {
-			glog.Errorf("Could not get volume for tenant %s: %s", tenant, err)
+			tenantLogger.WithError(err).Error("Could not get volume for tenant")
 			return err
 		}
 	} else if err != nil {
-		glog.Errorf("Could not create volume for tenant %s: %s", tenant, err)
+		tenantLogger.WithError(err).Error("Could not create volume for tenant")
 		return err
 	} else {
 		defer func() {
@@ -301,7 +317,8 @@ func (dfs *DistributedFilesystem) restoreSnapshot(tenant, label string, r io.Rea
 	if err == volume.ErrSnapshotExists {
 		err = nil // volume.ErrSnapshotExists is an error we can ignore
 	} else if err != nil {
-		glog.Errorf("Could not import snapshot %s for tenant %s: %s", label, tenant, err)
+		tenantLogger.WithError(err).WithField("label", label).
+			Error("Could not import snapshot for tenant")
 		return err
 	}
 
@@ -313,22 +330,27 @@ func (dfs *DistributedFilesystem) restoreSnapshot(tenant, label string, r io.Rea
 func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error {
 	vol, err := dfs.disk.Get(tenant)
 	if err != nil {
-		glog.Errorf("Could not get volume for tenant %s: %s", tenant, err)
+		plog.WithError(err).WithField("tenant", tenant).Error("Could not get volume for tenant")
 		return err
 	}
+
+	tenantLogger := plog.WithFields(log.Fields{
+		"label":  label,
+		"tenant": tenant,
+	})
 
 	// get the list of images for this snapshot
 	images, err := func() ([]string, error) {
 		r, err := vol.ReadMetadata(label, ImagesMetadataFile)
 		defer r.Close()
 		if err != nil {
-			glog.Errorf("Could not read images metadata from snapshot %s for tenant %s: %s", label, tenant, err)
+			tenantLogger.WithError(err).Error("Could not read images metadata from snapshot for tenant")
 			return nil, err
 		}
 
 		images := []string{}
 		if err := importJSON(r, &images); err != nil {
-			glog.Errorf("Could not interpret images metadata from snapshot %s for tenant %s: %s", label, tenant, err)
+			tenantLogger.WithError(err).Error("Could not interpret images metadata from snapshot for tenant")
 			return nil, err
 		}
 		return images, nil
@@ -342,26 +364,31 @@ func (dfs *DistributedFilesystem) loadSnapshotImages(tenant, label string) error
 
 	// try to load the image into the registry
 	for _, image := range images {
+		imageLogger := plog.WithField("image", image)
+
 		img, err := dfs.docker.FindImage(image)
 		if err != nil {
-			glog.Warningf("Missing image %s to import to the registry: %s", image, err)
+			imageLogger.WithError(err).Warn("Missing image for import to registry")
 			continue
 		}
 
 		hash, err := dfs.docker.GetImageHash(img.ID)
 		if err != nil {
-			glog.Errorf("Could not get hash for image %s: %s", img.ID, err)
+			imageLogger.WithField("imageid", img.ID).WithError(err).
+				Error("Could not get hash for image")
 			return err
 		}
 
 		if err := dfs.index.PushImage(image, img.ID, hash); err != nil {
-			glog.Errorf("Could not push image %s into the registry: %s", image, err)
+			imageLogger.WithError(err).Error("Could not push image into the registry")
 			return err
 		}
-		glog.V(2).Infof("Loaded image %s into the registry", image)
+
+		imageLogger.Info("Loaded image into the registry")
 	}
 
-	glog.V(2).Infof("Loaded images from snapshot %s for tenant %s", label, tenant)
+	tenantLogger.Info("Loaded images from snapshot for tenant")
+
 	return nil
 }
 
@@ -370,7 +397,11 @@ func loadPipe(do func(io.Reader) error) (*io.PipeWriter, <-chan error) {
 	r, w := io.Pipe()
 	errc := make(chan error)
 	go func() {
-		err := do(r)
+		progress := NewProgressCounter(300)
+		progress.Log = func() { plog.Infof("Read %v bytes from archive for restore", progress.Total) }
+
+		tr := io.TeeReader(r, progress)
+		err := do(tr)
 		r.CloseWithError(err)
 		errc <- err
 	}()

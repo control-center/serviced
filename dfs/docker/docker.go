@@ -23,9 +23,14 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/logging"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/glog"
+)
+
+var (
+	plog = logging.PackageLogger()
 )
 
 const (
@@ -93,8 +98,26 @@ func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {
 		Names:        images,
 		OutputStream: writer,
 	}
-	glog.Infof("Exporting images %s", images)
-	return d.dc.ExportImages(opts)
+
+	startTime := time.Now()
+
+	plog.WithField("images", images).Info("Starting image export")
+
+	done := make(chan error)
+	go func() {
+		done <- d.dc.ExportImages(opts)
+	}()
+
+	for {
+		select {
+		case err := <-done:
+			plog.Info("Finished image export.")
+			return err
+		case <-time.After(3 * time.Minute):
+			timeElapsed := time.Now().Sub(startTime)
+			plog.WithField("timeelapsed", timeElapsed).Info("Exporting images")
+		}
+	}
 }
 
 func (d *DockerClient) LoadImage(reader io.Reader) error {
@@ -170,14 +193,20 @@ func (d *DockerClient) fetchCreds(registry string) (auth dockerclient.AuthConfig
 	if registry = strings.TrimSpace(registry); registry == "" {
 		registry = DefaultRegistry
 	}
+
 	auths, err := dockerclient.NewAuthConfigurationsFromDockerCfg()
 	if err != nil {
 		return
 	}
+
 	auth, ok := auths.Configs[registry]
 	if ok {
-		glog.V(1).Infof("Authorized as %s in registry %s", auth.Email, registry)
+		plog.WithFields(log.Fields{
+			"email":    auth.Email,
+			"registry": registry,
+		}).Debug("Authorized in registry")
 	}
+
 	return
 }
 
@@ -255,7 +284,7 @@ func (d *DockerClient) FindImageByHash(imageHash string, checkAllLayers bool) (*
 				return d.FindImage(apiImage.ID)
 			}
 		} else {
-			glog.Warningf("Error computing hash for %s: %s", apiImage.ID, err)
+			plog.WithError(err).WithField("image", apiImage.ID).Warn("Error computing hash")
 		}
 	}
 
