@@ -35,6 +35,11 @@ const (
 // Backup writes all application data into an export stream
 func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
+	backupLogger := plog.WithFields(log.Fields{
+		"backupversion": data.BackupVersion,
+		"timestamp":     data.Timestamp,
+	})
+
 	progress := NewProgressCounter(300)
 	progress.Log = func() { plog.Infof("Written %v bytes to archive for backup", progress.Total) }
 
@@ -48,37 +53,37 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 	var images []string
 
-	imageLogger := plog.WithField("total", len(data.BaseImages))
-	imageLogger.Info("Preparing docker images for backup")
+	baseImageLogger := backupLogger.WithField("total", len(data.BaseImages))
+	baseImageLogger.Info("Preparing docker images for backup")
 
 	// download the base images
 	for i, image := range data.BaseImages {
-		imageLogger = imageLogger.WithFields(log.Fields{
+		baseImageLogger = baseImageLogger.WithFields(log.Fields{
 			"image":          image,
 			"numbercomplete": i + 1,
 		})
 
 		if _, err := dfs.docker.FindImage(image); docker.IsImageNotFound(err) {
 			if err := dfs.docker.PullImage(image); docker.IsImageNotFound(err) {
-				imageLogger.Warn("Could not pull base image for backup, skipping")
+				baseImageLogger.Warn("Could not pull base image for backup, skipping")
 				continue
 			} else if err != nil {
-				imageLogger.WithError(err).Error("Could not pull image for backup")
+				baseImageLogger.WithError(err).Error("Could not pull image for backup")
 				return err
 			}
 		} else if err != nil {
-			imageLogger.WithError(err).Error("Could not find image for backup")
+			baseImageLogger.WithError(err).Error("Could not find image for backup")
 			return err
 		}
 
-		imageLogger.Info("Prepared Docker image for backup")
+		baseImageLogger.Info("Prepared Docker image for backup")
 
 		images = append(images, image)
 	}
 
 	numberOfSnapshots := len(data.Snapshots)
 
-	plog.WithField("total", numberOfSnapshots).Info("Preparing snapshots for backup")
+	backupLogger.WithField("total", numberOfSnapshots).Info("Preparing snapshots for backup")
 
 	// export the snapshots
 	for i, snapshot := range data.Snapshots {
@@ -88,7 +93,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		}
 
 		// load the images from this snapshot
-		tenantLogger := plog.WithField("tenant", info.TenantID)
+		tenantLogger := backupLogger.WithField("tenant", info.TenantID)
 		tenantLogger.Info("Preparing images for tenant")
 
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
@@ -126,7 +131,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 		timer.Stop()
 
-		snapshotLogger := plog.WithField("snapshot", snapshot)
+		snapshotLogger := backupLogger.WithField("snapshot", snapshot)
 
 		// dump the snapshot into the backup
 		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
@@ -149,22 +154,20 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
 	// dump the images from all the snapshots into the backup
 	imageReader, errchan := dfs.dockerSavePipe(images...)
-
-	plog.Info("Starting export of images to backup")
+	imageLogger := backupLogger.WithField("images", images)
+	imageLogger.Info("Starting export of images to backup")
 	if err := rewriteTar(DockerImagesFile, tarOut, imageReader); err != nil {
 		// be a good citizen and clean up any running threads
 		<-errchan
-		plog.WithField("images", images).WithError(err).
-			Error("Could not write images to backup")
+		imageLogger.WithError(err).Error("Could not write images to backup")
 		return err
 	} else if err := <-errchan; err != nil {
-		plog.WithField("images", images).WithError(err).
-			Error("Could not export images for backup")
+		imageLogger.WithError(err).Error("Could not export images for backup")
 		return err
 	}
 	tarOut.Close()
 
-	plog.Info("Exported images to backup")
+	imageLogger.Info("Exported images to backup")
 
 	return nil
 }
@@ -229,17 +232,23 @@ func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w *tar.Wr
 		jsonData []byte
 		err      error
 	)
-	plog.Debug("Writing backup metadata")
+
+	backupLogger := plog.WithFields(log.Fields{
+		"backupversion": data.BackupVersion,
+		"timestamp":     data.Timestamp,
+	})
+
+	backupLogger.Debug("Writing backup metadata")
 	if jsonData, err = json.Marshal(data); err != nil {
 		return err
 	}
 	header := &tar.Header{Name: BackupMetadataFile, Size: int64(len(jsonData))}
 	if err := w.WriteHeader(header); err != nil {
-		plog.WithError(err).Debug("Could not create metadata header for backup")
+		backupLogger.WithError(err).Debug("Could not create metadata header for backup")
 		return err
 	}
 	if _, err := w.Write(jsonData); err != nil {
-		plog.WithError(err).Debug("Could not write backup metadata")
+		backupLogger.WithError(err).Debug("Could not write backup metadata")
 		return err
 	}
 	return nil

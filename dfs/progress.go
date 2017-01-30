@@ -15,12 +15,6 @@ package dfs
 
 import (
 	"time"
-
-	"github.com/control-center/serviced/logging"
-)
-
-var (
-	plog = logging.PackageLogger()
 )
 
 type Clock interface {

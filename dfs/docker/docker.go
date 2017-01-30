@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/logging"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -112,7 +113,7 @@ func (d *DockerClient) SaveImages(images []string, writer io.Writer) error {
 		case err := <-done:
 			plog.Info("Finished image export.")
 			return err
-		case <-time.After(5 * time.Second):
+		case <-time.After(3 * time.Minute):
 			timeElapsed := time.Now().Sub(startTime)
 			plog.WithField("timeelapsed", timeElapsed).Info("Exporting images")
 		}
@@ -192,14 +193,20 @@ func (d *DockerClient) fetchCreds(registry string) (auth dockerclient.AuthConfig
 	if registry = strings.TrimSpace(registry); registry == "" {
 		registry = DefaultRegistry
 	}
+
 	auths, err := dockerclient.NewAuthConfigurationsFromDockerCfg()
 	if err != nil {
 		return
 	}
+
 	auth, ok := auths.Configs[registry]
 	if ok {
-		plog.Info(fmt.Sprintf("Authorized as %s in registry %s", auth.Email, registry))
+		plog.WithFields(log.Fields{
+			"email":    auth.Email,
+			"registry": registry,
+		}).Debug("Authorized in registry")
 	}
+
 	return
 }
 
