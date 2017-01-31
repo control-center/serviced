@@ -1172,7 +1172,7 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 }
 
 // ScheduleService changes a services' desired state and returns the number of affected services
-func (f *Facade) ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error) {
+func (f *Facade) ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, emergency bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ScheduleService"))
 	if len(serviceIDs) < 1 {
 		return 0, nil
@@ -1191,7 +1191,7 @@ func (f *Facade) ScheduleServices(ctx datastore.Context, serviceIDs []string, au
 	for tenantID, services := range tenantServices {
 		mutex := getTenantLock(tenantID)
 		mutex.RLock()
-		tcount, err := f.scheduleServiceParents(ctx, tenantID, services, autoLaunch, synchronous, desiredState, false, false)
+		tcount, err := f.scheduleServiceParents(ctx, tenantID, services, autoLaunch, synchronous, desiredState, false, emergency)
 		mutex.RUnlock()
 		if err != nil {
 			return 0, err
@@ -1497,18 +1497,18 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
 	forceRestart := func() (int, error) {
-		count, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, true, service.SVCStop)
+		count, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, true, service.SVCStop, false)
 		if err != nil {
 			return count, err
 		}
 
-		return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun)
+		return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
 	}
 
 	if request.Synchronous {
@@ -1521,40 +1521,17 @@ func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServi
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.PauseService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCPause)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCPause, false)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
-	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
 }
 
 func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EmergencyStopService"))
-	if len(request.ServiceIDs) < 1 {
-		return 0, nil
-	}
-
-	tenantID, err := f.GetTenantID(ctx, request.ServiceIDs[0])
-	if err != nil {
-		return 0, err
-	}
-
-	for _, sid := range request.ServiceIDs[1:] {
-		serviceTenant, err := f.GetTenantID(ctx, sid)
-		if err != nil {
-			return 0, err
-		}
-
-		if serviceTenant != tenantID {
-			return 0, errors.New("Can't batch schedule services with different tenants")
-		}
-	}
-
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return f.scheduleServiceParents(ctx, tenantID, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false, true)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
 }
 
 // ClearEmergencyStopFlag sets EmergencyStop to false for all services on the tenant that have it set to true
