@@ -120,6 +120,19 @@ func (f *Facade) GetServiceInstances(ctx datastore.Context, since time.Time, ser
 	return insts, nil
 }
 
+func (f *Facade) GetInstanceCurrentState(serviceID, instanceID) (CurrentState, bool) {
+	return f.instanceCache.Get(serviceID, instanceID)
+}
+func (f *Facade) SetInstanceCurrentState(serviceID string, instanceID int, state CurrentState) {
+	f.instanceCache.Set(serviceID, instanceID, state)
+}
+
+func (f *Facade) BulkUpdate(states map[string]CurrentState) {
+	for key, state := range states {
+		f.instanceCache.SetKey(key, state)
+	}
+}
+
 // GetHostInstances returns the state of all instances for a particular host.
 func (f *Facade) GetHostInstances(ctx datastore.Context, since time.Time, hostID string) ([]service.Instance, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.GetHostInstances"))

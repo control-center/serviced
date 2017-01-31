@@ -26,13 +26,30 @@ func (c *Client) GetServiceInstances(serviceID string) ([]service.Instance, erro
 	return insts, nil
 }
 
+func (c *Client) SetInstanceState(serviceID string, instanceID int, state CurrentState) error {
+	req := ServiceInstanceStateRequest{
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+		CState:     state,
+	}
+	err := c.call("SetInstanceState", req, new(string))
+	return err
+}
+
+func (c *Client) SendStates(data map[string]CurrentState) error {
+	req := SendStatesRequest{
+		States: data,
+	}
+	err := c.call("SendStates", req, new(string))
+	return err
+}
+
 // StopServiceInstance stops a service instance.
 func (c *Client) StopServiceInstance(serviceID string, instanceID int) error {
 	req := ServiceInstanceRequest{
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
-
 	err := c.call("StopServiceInstance", req, new(string))
 	return err
 }

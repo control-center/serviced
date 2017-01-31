@@ -59,6 +59,7 @@ func New() *Facade {
 		hostRegistry:  auth.NewHostExpirationRegistry(),
 		deployments:   NewPendingDeploymentMgr(),
 		zzk:           getZZK(),
+		instanceCache: NewInstanceCache(),
 	}
 }
 
@@ -83,6 +84,7 @@ type Facade struct {
 	deployments   *PendingDeploymentMgr
 	ssm           servicestatemanager.ServiceStateManager
 	isvcsPath     string
+	instanceCache *InstanceCache
 }
 
 func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }

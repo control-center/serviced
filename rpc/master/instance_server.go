@@ -34,8 +34,29 @@ type ServiceInstanceRequest struct {
 	InstanceID int
 }
 
+type InstanceStateRequest struct {
+	ServiceID  string
+	InstanceID int
+	CState     CurrentState
+}
+
+type SendStatesRequest struct {
+	States map[string]CurrentState
+}
+
+func (s *Server) SetInstanceState(req InstanceStateRequest, unused *string) (err error) {
+	c.f.SetInstanceCurrentState(req.ServiceID, req.InstanceID, req.CState)
+	return nil
+}
+
+func (s *Server) BulkUpdate(req SendStatesRequest, unused *string) (err error) {
+	c.f.BulkUpdate(req.States)
+	return nil
+}
+
 // StopServiceInstance stops a single service instance
 func (s *Server) StopServiceInstance(req ServiceInstanceRequest, unused *string) (err error) {
+	// set the state change
 	err = s.f.StopServiceInstance(s.context(), req.ServiceID, req.InstanceID)
 	return
 }

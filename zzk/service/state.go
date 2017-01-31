@@ -65,6 +65,55 @@ type ServiceState struct {
 	version     interface{}
 }
 
+type CurrentState struct {
+	State   string
+	version interface{}
+}
+
+func SetCurrentState(conn client.Connection, req StateRequest, state string) error {
+	logger := plog.WithFields(log.Fields{
+		"hostid":     req.HostID,
+		"serviceid":  req.ServiceID,
+		"instanceid": req.InstanceID,
+	})
+
+	basepth := "/"
+	if req.PoolID != "" {
+		basepth = path.Join("/pools", req.PoolID)
+	}
+	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
+	ok, err := conn.Exists(sspth)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+
+	// TODO: Add logging
+	// state path exists; attempt to create node
+	node := &CurrentState{State: state}
+	p := path.Join(sspath, "current")
+	err := conn.CreateIfExists(p, node)
+	if err == client.ErrNodeExists {
+		// node exists, update
+		return conn.Set(p, node)
+	} else if err == client.ErrNoNode {
+		// parent has been deleted
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *CurrentState) Version() interface{} {
+	return s.version
+}
+func (s *CurrentState) SetVersion(version interface{}) {
+	s.version = version
+}
+
 // Version implements client.Node
 func (s *ServiceState) Version() interface{} {
 	return s.version
