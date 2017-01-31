@@ -184,6 +184,11 @@ func (l *HostStateListener) Spawn(cancel <-chan interface{}, stateID string) {
 			logger.WithError(err).Error("Could not load service state")
 			return
 		}
+	} else {
+		if err := l.updateServiceStateInZK(ssdat, req); err != nil {
+			logger.WithError(err).Error("Could not set state for container")
+			return
+		}
 	}
 
 	done := make(chan struct{})
@@ -308,28 +313,51 @@ func (l *HostStateListener) setInstanceState(containerExit <-chan time.Time, ssd
 			logger.Debug("Resumed paused container")
 		}
 	case service.SVCRestart:
-		// RestartContainer will asynchronously pull the image and stop the
-		// service.  Once the container stops, we will receive a message on the
-		// containerExit channel that the container has exited which will
-		// trigger the container to start again.
-		if err := l.handler.RestartContainer(l.shutdown, serviceID, instanceID); err != nil {
-			logger.WithError(err).Error("Could not restart container, exiting")
-			l.cleanUpContainers([]string{stateID}, true)
-			return nil, nil, false
-		}
-
-		// set the host state
-		if err := UpdateState(l.conn, req, func(s *State) bool {
-			if s.DesiredState == service.SVCRestart {
-				s.DesiredState = service.SVCRun
-				return true
+		// only try to restart once if the container hasn't already been
+		// restarted.
+		if ssdat.Restarted.Before(ssdat.Started) {
+			// RestartContainer will asynchronously pull the image and stop the
+			// service.  Once the container stops, we will receive a message on the
+			// containerExit channel that the container has exited which will
+			// trigger the container to start again.
+			if err := l.handler.RestartContainer(l.shutdown, serviceID, instanceID); err != nil {
+				logger.WithError(err).Error("Could not restart container, exiting")
+				l.cleanUpContainers([]string{stateID}, true)
+				return nil, nil, false
 			}
-			return false
-		}); err != nil {
-			logger.WithError(err).Error("Could not update desired state to restart container")
-			return nil, nil, false
+
+			// update the service state
+			ssdat.Restarted = time.Now()
+			if !l.setExistingThreadOrShutdown(stateID, ssdat, containerExit) {
+				return nil, nil, false
+			}
+
+			// set the host state
+			if err := UpdateState(l.conn, req, func(s *State) bool {
+				s.ServiceState = *ssdat
+				if s.DesiredState == service.SVCRestart {
+					s.DesiredState = service.SVCRun
+				}
+				return true
+			}); err != nil {
+				logger.WithError(err).Error("Could not set state for restarting container")
+				return nil, nil, false
+			}
+			logger.Debug("Initiating container restart")
+		} else {
+			// restart has already been triggered, so restore the state back to
+			// run
+			if err := UpdateState(l.conn, req, func(s *State) bool {
+				if s.DesiredState == service.SVCRestart {
+					s.DesiredState = service.SVCRun
+					return true
+				}
+				return false
+			}); err != nil {
+				logger.WithError(err).Error("Could not update desired state for restarting container")
+				return nil, nil, false
+			}
 		}
-		logger.Debug("Initiating container restart")
 	case service.SVCPause:
 		if containerExit != nil && !ssdat.Paused {
 			// container is attached and not paused, so pause the container
