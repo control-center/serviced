@@ -72,22 +72,22 @@ func getInternalMetrics() (*domain.MetricConfig, error) {
 
 func getTenantMetrics(tenantID string) (*domain.MetricConfig, error) {
 	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
-        if err != nil {
-                return nil, err
-        }
-        config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
-        if err != nil {
-                return nil, err
-        }
+	if err != nil {
+		return nil, err
+	}
+	config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
+	if err != nil {
+		return nil, err
+	}
 	for _, metricName := range internalTenantStats {
-                config.Metrics = append(config.Metrics,
-                        domain.Metric{
-                                ID:      fmt.Sprintf(metricName, tenantID),
-                                Name:    fmt.Sprintf(metricName, tenantID),
-                                Counter: false,
-                                BuiltIn: true,
-                        })
-        }
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      fmt.Sprintf(metricName, tenantID),
+				Name:    fmt.Sprintf(metricName, tenantID),
+				Counter: false,
+				BuiltIn: true,
+			})
+	}
 	return config, nil
 }
 
@@ -294,47 +294,46 @@ func getTenantGraphConfigs(tenantID string) []domain.GraphConfig {
 	}
 	zero := 0
 	return []domain.GraphConfig{
-	{
-                        // dfs usage graph
-                        ID:          "dfsUsage",
-                        Name:        "DFS Usage",
-                        BuiltIn:     true,
-                        Format:      "%4.2f",
-                        ReturnSet:   "EXACT",
-                        Type:        "area",
-                        YAxisLabel:  "bytes",
-                        Description: "DFS Used Over Last Hour",
-                        MinY:        &zero,
-                        Range:       &tRange,
-                        Units:       "Bytes",
-                        Base:        1024,
-                        DataPoints: []domain.DataPoint{
-                                domain.DataPoint{
-                                        Aggregator:   "avg",
-                                        Fill:         true,
-                                        Format:       "%4.2f",
-                                        Legend:       "Used",
-                                        Metric:       fmt.Sprintf("storage.filesystem.used.%s", tenantID),
-                                        MetricSource: "metrics",
-                                        ID:           fmt.Sprintf("storage.filesystem.used.%s", tenantID),
-                                        Name:         "Used",
-                                        Rate:         false,
-                                        Type:         "area",
-                                },
-                                domain.DataPoint{
-                                        Aggregator:   "avg",
-                                        Fill:         true,
-                                        Format:       "%4.2f",
-                                        Legend:       "Available",
-                                        Metric:       fmt.Sprintf("storage.filesystem.available.%s", tenantID),
-                                        MetricSource: "metrics",
-                                        ID:           fmt.Sprintf("storage.filesystem.available.%s", tenantID),
-                                        Name:         "Available",
-                                        Rate:         false,
-                                        Type:         "area",
-                                },
-                        },
-                },
+		{
+			// dfs usage graph
+			ID:          "dfsUsage",
+			Name:        "DFS Usage",
+			BuiltIn:     true,
+			Format:      "%4.2f",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			YAxisLabel:  "bytes",
+			Description: "DFS Used Over Last Hour",
+			MinY:        &zero,
+			Range:       &tRange,
+			Units:       "Bytes",
+			Base:        1024,
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "Used",
+					Metric:       fmt.Sprintf("storage.filesystem.used.%s", tenantID),
+					MetricSource: "metrics",
+					ID:           fmt.Sprintf("storage.filesystem.used.%s", tenantID),
+					Name:         "Used",
+					Rate:         false,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "Available",
+					Metric:       fmt.Sprintf("storage.filesystem.available.%s", tenantID),
+					MetricSource: "metrics",
+					ID:           fmt.Sprintf("storage.filesystem.available.%s", tenantID),
+					Name:         "Available",
+					Rate:         false,
+					Type:         "area",
+				},
+			},
+		},
 	}
 }
-

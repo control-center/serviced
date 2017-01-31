@@ -1239,7 +1239,7 @@ func (d *daemon) startStorageMonitor() {
 					"period":     lookahead,
 				}).Error("Application storage is predicted to be full within the configured period")
 				if n, err := d.facade.EmergencyStopService(d.dsContext, dao.ScheduleServiceRequest{
-					ServiceID:   tenant,
+					ServiceIDs:  []string{tenant},
 					AutoLaunch:  true,
 					Synchronous: false,
 				}); err != nil {
