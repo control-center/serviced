@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
 	"github.com/control-center/serviced/dao"
@@ -56,7 +55,7 @@ func getTaggedServices(ctx *requestContext, tags, nmregex string, tenantID strin
 		NameRegex: nmregex,
 	}
 	if svcs, err := ctx.getFacade().GetTaggedServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
-		glog.V(2).Infof("Returning %d tagged services", len(svcs))
+		plog.WithField("numservices", len(svcs)).Debug("Returning tagged services")
 		return svcs, nil
 	} else {
 		return nil, err
@@ -71,7 +70,7 @@ func getNamedServices(ctx *requestContext, nmregex string, tenantID string) ([]s
 		NameRegex: nmregex,
 	}
 	if svcs, err := ctx.getFacade().GetServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
-		glog.V(2).Infof("Returning %d named services", len(svcs))
+		plog.WithField("numservices", len(svcs)).Debug("Returning named services")
 		return svcs, nil
 	} else {
 		return nil, err
@@ -87,7 +86,7 @@ func getServices(ctx *requestContext, tenantID string, since time.Duration) ([]s
 		NameRegex:    "",
 	}
 	if svcs, err := ctx.getFacade().GetServices(ctx.getDatastoreContext(), serviceRequest); err == nil {
-		glog.V(2).Infof("Returning %d services", len(svcs))
+		plog.WithField("numservices", len(svcs)).Debug("Returning services")
 		return svcs, nil
 	} else {
 		return nil, err
@@ -124,7 +123,7 @@ func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, clien
 	var migrationRequest dao.ServiceMigrationRequest
 	err := r.DecodeJsonPayload(&migrationRequest)
 	if err != nil {
-		glog.Errorf("Could not decode services for migration: %v", err)
+		plog.WithError(err).Error("Could not decode services for migration")
 		restBadRequest(w, err)
 		return
 	}
@@ -147,7 +146,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	// load the internal monitoring data
 	config, err := getInternalMetrics()
 	if err != nil {
-		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		plog.WithError(err).Error("Could not get internal monitoring metrics")
 		restServerError(w, err)
 		return
 	}
@@ -239,15 +238,18 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *daoc
 	var services []dao.RunningService
 	err = client.GetRunningServicesForHost(hostID, &services)
 	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
+		plog.WithError(err).Error("Could not get services")
 		restServerError(w, err)
 		return
 	}
 	if services == nil {
-		glog.V(3).Info("Running services was nil, returning empty list instead")
+		plog.Debug("Running services was nil")
 		services = []dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
+	plog.WithFields(logrus.Fields{
+		"numservices": len(services),
+		"hostid":      hostID,
+	}).Debug("Got running services for host")
 	w.WriteJson(&services)
 }
 
@@ -264,15 +266,18 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *d
 	var services []dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
-		glog.Errorf("Could not get running services for %s: %v", serviceID, err)
+		plog.WithError(err).WithField("serviceid", serviceID).Error("Could not get running services")
 		restServerError(w, err)
 		return
 	}
 	if services == nil {
-		glog.V(3).Info("Running services was nil, returning empty list instead")
+		plog.Debug("Running services was nil")
 		services = []dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
+	plog.WithFields(logrus.Fields{
+		"numservices": len(services),
+		"serviceid":   serviceID,
+	}).Debug("Got running services for service")
 	w.WriteJson(&services)
 }
 
@@ -294,13 +299,17 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 		restBadRequest(w, err)
 		return
 	}
+	logger := plog.WithFields(logrus.Fields{
+		"hostid":         hostID,
+		"servicestateid": serviceStateID,
+	})
 	request := dao.HostServiceRequest{hostID, serviceStateID}
-	glog.V(1).Info("Received request to kill ", request)
+	logger.WithField("request", request).Debug("Received request to kill")
 
 	var unused int
 	err = client.StopRunningInstance(request, &unused)
 	if err != nil {
-		glog.Errorf("Unable to stop service: %v", err)
+		logger.WithError(err).Error("Unable to stop service")
 		restServerError(w, err)
 		return
 	}
@@ -323,21 +332,21 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	// Instead of getting all services, get ServiceDetails for just the tenant Apps
 	allTenants, err := ctx.getFacade().GetServiceDetailsByParentID(ctx.getDatastoreContext(), "", tsince)
 	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
+		plog.WithError(err).Error("Could not get services")
 		restServerError(w, err)
 		return
 	}
 	for _, tenant := range allTenants {
 		service, err := ctx.getFacade().GetService(ctx.getDatastoreContext(), tenant.ID)
 		if err != nil {
-			glog.Errorf("Could not get service %s: %v", tenant.ID, err)
+			plog.WithField("tenantid", tenant.ID).WithError(err).Error("Could not get service")
 			restServerError(w, err)
 			return
 		}
 		topServices = append(topServices, *service)
 	}
 	topServices = append(topServices, isvcs.InternalServicesISVC)
-	glog.V(2).Infof("Returning %d services as top services", len(topServices))
+	plog.WithField("numservices", len(topServices)).Debug("Got top services")
 	w.WriteJson(&topServices)
 }
 
@@ -353,7 +362,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	// load the internal monitoring data
 	config, err := getInternalMetrics()
 	if err != nil {
-		glog.Errorf("Could not get internal monitoring metrics: %s", err)
+		plog.WithError(err).Error("Could not get internal monitoring metrics")
 		restServerError(w, err)
 		return
 	}
@@ -363,7 +372,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	if includeChildren == "true" {
 		services := []service.Service{}
 		if err := client.GetServiceList(serviceID, &services); err != nil {
-			glog.Errorf("Could not get services: %v", err)
+			plog.WithError(err).Error("Could not get services")
 			restServerError(w, err)
 			return
 		}
@@ -377,7 +386,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	}
 	svc := service.Service{}
 	if err := client.GetService(serviceID, &svc); err != nil {
-		glog.Errorf("Could not get service %v: %v", serviceID, err)
+		plog.WithField("serviceid", serviceID).WithError(err).Error("Could not get service")
 		restServerError(w, err)
 		return
 	}
@@ -389,7 +398,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 		return
 	}
 
-	glog.Errorf("No such service [%v]", serviceID)
+	plog.WithField("serviceid", serviceID).Error("No such service")
 	restServerError(w, err)
 }
 
@@ -398,7 +407,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	var serviceID string
 	err := r.DecodeJsonPayload(&svc)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		plog.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 
@@ -425,7 +434,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 		return svc, err
 	}
 	if err = svc.EvaluateEndpointTemplates(getSvc, findChild, 0); err != nil {
-		glog.Errorf("Unable to evaluate service endpoints: %v", err)
+		plog.WithError(err).Error("Unable to evaluate service endpoints")
 		restServerError(w, err)
 		return
 	}
@@ -435,7 +444,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	}
 	profile, err := svc.MonitoringProfile.ReBuild("1h-ago", tags)
 	if err != nil {
-		glog.Errorf("Unable to rebuild service monitoring profile: %v", err)
+		plog.WithError(err).Error("Unable to rebuild service monitoring profile")
 		restServerError(w, err)
 		return
 	}
@@ -444,7 +453,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	//add the service to the data store
 	err = client.AddService(svc, &serviceID)
 	if err != nil {
-		glog.Errorf("Unable to add service: %v", err)
+		plog.WithError(err).Error("Unable to add service")
 		restServerError(w, err)
 		return
 	}
@@ -452,12 +461,12 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	//automatically assign virtual ips to new service
 	request := addressassignment.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
-		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
+		plog.WithField("request", request).WithError(err).Error("Failed to automatically assign IPs")
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(0).Info("Added service ", serviceID)
+	plog.WithField("serviceid", serviceID).Info("Added service")
 	w.WriteJson(&simpleResponse{"Added service", serviceLinks(serviceID)})
 }
 
@@ -465,7 +474,7 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	var payload dao.ServiceDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		plog.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 	}
@@ -473,18 +482,19 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	var serviceID string
 	err = client.DeployService(payload, &serviceID)
 	if err != nil {
-		glog.Errorf("Unable to deploy service: %v", err)
+		plog.WithError(err).Error("Unable to deploy service")
 		restServerError(w, err)
 		return
 	}
 
-	glog.V(0).Info("Deployed service ", serviceID)
+	plog.WithField("serviceid", serviceID).Info("Deployed service")
 	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceID)})
 }
 
 func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
-	glog.V(3).Infof("Received update request for %s", serviceID)
+	logger := plog.WithField("serviceid", serviceID)
+	logger.Debug("Received update request")
 	if err != nil {
 		restBadRequest(w, err)
 		return
@@ -493,17 +503,17 @@ func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		logger.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 	}
 	err = client.UpdateService(payload, &unused)
 	if err != nil {
-		glog.Errorf("Unable to update service %s: %v", serviceID, err)
+		logger.WithField("serviceid", serviceID).WithError(err).Error("Unable to update service")
 		restServerError(w, err)
 		return
 	}
-	glog.V(1).Info("Updated service ", serviceID)
+	logger.Debug("Updated service")
 	w.WriteJson(&simpleResponse{"Updated service", serviceLinks(serviceID)})
 }
 
@@ -514,13 +524,14 @@ func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 		restBadRequest(w, err)
 		return
 	}
+	logger := plog.WithField("serviceid", serviceID)
 	err = client.RemoveService(serviceID, &unused)
 	if err != nil {
-		glog.Errorf("Could not remove service: %v", err)
+		logger.WithError(err).Error("Could not remove service")
 		restServerError(w, err)
 		return
 	}
-	glog.V(0).Info("Removed service ", serviceID)
+	logger.Info("Removed service")
 	w.WriteJson(&simpleResponse{"Removed service", servicesLinks()})
 }
 
@@ -530,10 +541,11 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		restBadRequest(w, err)
 		return
 	}
+	logger := plog.WithField("serviceid", serviceID)
 	var logs string
 	err = client.GetServiceLogs(serviceID, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting service logs: %v", err)
+		logger.WithError(err).Error("Unexpected error getting service logs")
 		restServerError(w, err)
 		return
 	}
@@ -547,6 +559,8 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 		restBadRequest(w, err)
 		return
 	}
+
+	logger := plog.WithField("serviceid", serviceID)
 
 	auto := r.FormValue("auto")
 	autoLaunch := true
@@ -566,15 +580,11 @@ func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *daoclie
 	}, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		plog.WithFields(logrus.Fields{
-			"serviceID": serviceID,
-		}).WithError(err).Error("Error restarting service")
+		logger.WithError(err).Error("Error restarting service")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		plog.WithFields(logrus.Fields{
-			"serviceID": serviceID,
-		}).WithError(err).Error("Error restarting service")
+		logger.WithError(err).Error("Error restarting service")
 		restServerError(w, err)
 		return
 	}
@@ -587,21 +597,23 @@ func restRestartServices(w *rest.ResponseWriter, r *rest.Request, client *daocli
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		plog.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 
 	}
 
+	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
+
 	var affected int
 	err = client.RestartService(serviceRequest, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		plog.WithError(err).Error("Error restarting services")
+		logger.WithError(err).Error("Error restarting services")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		plog.WithError(err).Error("Error restarting services")
+		logger.WithError(err).Error("Error restarting services")
 		restServerError(w, err)
 		return
 	}
@@ -615,6 +627,8 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 		restBadRequest(w, err)
 		return
 	}
+
+	logger := plog.WithField("serviceid", serviceID)
 
 	auto := r.FormValue("auto")
 	autoLaunch := true
@@ -634,15 +648,11 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		plog.WithFields(logrus.Fields{
-			"serviceID": serviceID,
-		}).WithError(err).Error("Error starting service")
+		logger.WithError(err).Error("Error starting service")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		plog.WithFields(logrus.Fields{
-			"serviceID": serviceID,
-		}).WithError(err).Error("Error starting service")
+		logger.WithError(err).Error("Error starting service")
 		restServerError(w, err)
 		return
 	}
@@ -655,21 +665,23 @@ func restStartServices(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		plog.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 
 	}
 
+	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
+
 	var affected int
 	err = client.StartService(serviceRequest, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err == facade.ErrEmergencyShutdownNoOp {
-		plog.WithError(err).Error("Error starting services")
+		logger.WithError(err).Error("Error starting services")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusServiceUnavailable)
 		return
 	} else if err != nil {
-		plog.WithError(err).Error("Error starting services")
+		logger.WithError(err).Error("Error starting services")
 		restServerError(w, err)
 		return
 	}
@@ -684,6 +696,8 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 		return
 	}
 
+	logger := plog.WithField("serviceid", serviceID)
+
 	auto := r.FormValue("auto")
 	autoLaunch := true
 
@@ -696,7 +710,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *daoclient.
 
 	var affected int
 	if err := client.StopService(dao.ScheduleServiceRequest{[]string{serviceID}, autoLaunch, false}, &affected); err != nil {
-		glog.Errorf("Unexpected error stopping service: %s", err)
+		logger.WithError(err).Error("Unexpected error stopping service")
 		restServerError(w, err)
 		return
 	}
@@ -709,17 +723,19 @@ func restStopServices(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	var serviceRequest dao.ScheduleServiceRequest
 	err := r.DecodeJsonPayload(&serviceRequest)
 	if err != nil {
-		glog.V(1).Info("Could not decode service payload: ", err)
+		plog.WithError(err).Debug("Could not decode service payload")
 		restBadRequest(w, err)
 		return
 
 	}
 
+	logger := plog.WithField("serviceids", serviceRequest.ServiceIDs)
+
 	var affected int
 	err = client.StopService(serviceRequest, &affected)
 	// We handle this error differently because we don't want to return a 500
 	if err != nil {
-		plog.WithError(err).Error("Error stopping services")
+		logger.WithError(err).Error("Error stopping services")
 		restServerError(w, err)
 		return
 	}
@@ -732,13 +748,16 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *daocli
 		restBadRequest(w, err)
 		return
 	}
+
+	logger := plog.WithField("serviceid", serviceID)
+
 	req := dao.SnapshotRequest{
 		ServiceID: serviceID,
 	}
 	var label string
 	err = client.Snapshot(req, &label)
 	if err != nil {
-		glog.Errorf("Unexpected error snapshotting service: %v", err)
+		logger.WithError(err).Error("Unexpected error snapshotting service")
 		restServerError(w, err)
 		return
 	}
@@ -756,12 +775,18 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *da
 		restBadRequest(w, err)
 		return
 	}
+
+	logger := plog.WithFields(logrus.Fields{
+		"servicestateid": serviceStateID,
+		"serviceid":      serviceID,
+	})
+
 	request := dao.ServiceStateRequest{serviceID, serviceStateID}
 
 	var logs string
 	err = client.GetServiceStateLogs(request, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting service state logs: %v", err)
+		logger.WithError(err).Error("Unexpected error getting service state logs")
 		restServerError(w, err)
 		return
 	}
@@ -782,13 +807,18 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *d
 		return
 	}
 
+	logger := plog.WithFields(logrus.Fields{
+		"servicestateid": serviceStateID,
+		"serviceid":      serviceID,
+	})
+
 	request := dao.ServiceStateRequest{serviceID, serviceStateID}
 
 	var logs string
 	err = client.GetServiceStateLogs(request, &logs)
 
 	if err != nil {
-		glog.Errorf("Unexpected error getting service state logs: %v", err)
+		logger.WithError(err).Error("Unexpected error getting service state logs")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("Internal Server Error: %v", err)))
 		return
@@ -808,7 +838,7 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	volumeStatuses := volume.GetStatus()
 	if volumeStatuses == nil || len(volumeStatuses.GetAllStatuses()) == 0 {
 		err := fmt.Errorf("Unexpected error getting volume status")
-		glog.Errorf("%s", err)
+		plog.WithError(err).Error("Could not get volume status")
 		restServerError(w, err)
 		return
 	}
@@ -823,11 +853,14 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *daoclient.C
 	statuses := volumeStatuses.GetAllStatuses()
 	storageInfo := make([]VolumeInfo, 0, len(statuses))
 	for volumeName, volumeStatus := range statuses {
+		vLogger := plog.WithFields(logrus.Fields{
+			"volumename": volumeName,
+		})
 		volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
 		tags := map[string][]string{}
 		profile, err := volumeProfile.ReBuild("1h-ago", tags)
 		if err != nil {
-			glog.Errorf("Unexpected error getting volume statuses: %v", err)
+			vLogger.WithError(err).Error("Unexpected error getting volume statuses")
 			restServerError(w, err)
 			return
 		}
@@ -857,7 +890,7 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	}
 	err := client.AsyncBackup(req, &filePath)
 	if err != nil {
-		glog.Errorf("Unexpected error during backup: %v", err)
+		plog.WithError(err).Error("Unexpected error during backup")
 		restServerError(w, err)
 		return
 	}
@@ -877,7 +910,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 
 	err = client.AsyncRestore(filePath, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error during restore: %v", err)
+		plog.WithError(err).Error("Unexpected error during restore")
 		restServerError(w, err)
 		return
 	}
@@ -899,7 +932,7 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *daoclient
 	backupStatus := ""
 	err := client.BackupStatus(0, &backupStatus)
 	if err != nil {
-		glog.Errorf("Unexpected error during backup status: %v", err)
+		plog.WithError(err).Error("Unexpected error getting backup status")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
 		return
 	}
@@ -910,7 +943,7 @@ func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *daoclien
 	restoreStatus := ""
 	err := client.BackupStatus(0, &restoreStatus)
 	if err != nil {
-		glog.Errorf("Unexpected error during restore status: %v", err)
+		plog.WithError(err).Error("Unexpected error getting restore status")
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
 		return
 	}
