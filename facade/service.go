@@ -1178,26 +1178,28 @@ func (f *Facade) ScheduleServices(ctx datastore.Context, serviceIDs []string, au
 		return 0, nil
 	}
 
-	tenantID, err := f.GetTenantID(ctx, serviceIDs[0])
-	if err != nil {
-		return 0, err
-	}
-
-	for _, sid := range serviceIDs[1:] {
+	tenantServices := make(map[string][]string)
+	for _, sid := range serviceIDs {
 		serviceTenant, err := f.GetTenantID(ctx, sid)
 		if err != nil {
 			return 0, err
 		}
-
-		if serviceTenant != tenantID {
-			return 0, errors.New("Can't batch schedule services with different tenants")
-		}
+		tenantServices[serviceTenant] = append(tenantServices[serviceTenant], sid)
 	}
 
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return f.scheduleServiceParents(ctx, tenantID, serviceIDs, autoLaunch, synchronous, desiredState, false, false)
+	var count int
+	for tenantID, services := range tenantServices {
+		mutex := getTenantLock(tenantID)
+		mutex.RLock()
+		tcount, err := f.scheduleServiceParents(ctx, tenantID, services, autoLaunch, synchronous, desiredState, false, false)
+		mutex.RUnlock()
+		if err != nil {
+			return 0, err
+		}
+		count += tcount
+	}
+
+	return count, nil
 }
 
 func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, serviceID string) (int, error) {

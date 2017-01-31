@@ -2493,6 +2493,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	//   ->childService4
 	//   ->childService5 (MANUAL)
 	//   ->childService6 (MANUAL)
+	// ParentServiceID2
 
 	svc := service.Service{
 		ID:                "ParentServiceID",
@@ -2571,6 +2572,15 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 		ParentServiceID:   "childService2",
 		EmergencyShutdown: false,
 	}
+	svc2 := service.Service{
+		ID:                "ParentServiceID2",
+		Name:              "ParentService2",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		EmergencyShutdown: false,
+	}
 
 	var err error
 	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
@@ -2595,10 +2605,14 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 	if err = ft.Facade.AddService(ft.CTX, childService6); err != nil {
 		c.Fatalf("Failed Loading Child Service 6: %+v, %s", childService6, err)
 	}
+	if err = ft.Facade.AddService(ft.CTX, svc2); err != nil {
+		c.Fatalf("Failed Loading Parent Service 2 Service: %+v, %s", svc2, err)
+	}
 
-	// Start services childService1, childService2, childService3, and childService5
+	// Start services childService1, childService2, childService3, childService5, and ParentServiceID2
 	//  Mock the service state manager and make sure the right services get passed with no duplicates
-	//  Should be childService1, childService2, childService3, childService4, childService5
+	//  Should be childService1, childService2, childService3, childService4, childService5 in one call and
+	//  ParentServiceID2 in a second call with different tenants
 	mockedSSM := &ssmmocks.ServiceStateManager{}
 	ft.Facade.SetServiceStateManager(mockedSSM)
 
@@ -2618,6 +2632,13 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 		c.Assert(found["childService5"], Equals, true)
 	}).Once()
 
+	mockedSSM.On("ScheduleServices", mock.AnythingOfType("[]*service.Service"),
+		"ParentServiceID2", service.SVCRun, false).Return(nil).Run(func(args mock.Arguments) {
+		services := args.Get(0).([]*service.Service)
+		c.Assert(len(services), Equals, 1)
+		c.Assert(services[0].ID, Equals, "ParentServiceID2")
+	}).Once()
+
 	mockedSSM.On("WaitScheduled", "ParentServiceID", mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
 		sIDs := args.Get(1).([]string)
 		c.Assert(len(sIDs), Equals, 5)
@@ -2632,8 +2653,15 @@ func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
 		c.Assert(found["childService5"], Equals, true)
 	}).Once()
 
-	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"childService1", "childService2", "childService3", "childService5"}, AutoLaunch: true, Synchronous: true})
+	mockedSSM.On("WaitScheduled", "ParentServiceID2", mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		sIDs := args.Get(1).([]string)
+		c.Assert(len(sIDs), Equals, 1)
+		c.Assert(sIDs[0], Equals, "ParentServiceID2")
+	}).Once()
+
+	count, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"childService1", "childService2", "childService3", "childService5", "ParentServiceID2"}, AutoLaunch: true, Synchronous: true})
 	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 6)
 
 	mockedSSM.AssertExpectations(c)
 
