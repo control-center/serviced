@@ -37,24 +37,6 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
-func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state string) error {
-	logger := plog.WithFields(log.Fields{
-		"serviceid":  serviceID,
-		"instanceid": instanceID,
-	})
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))
-	if err != nil {
-		logger.WithError(err).Error("Could not connect to zookeeper")
-		return err
-	}
-	req := StateRequest{
-		HostID:     a.hostID,
-		ServiceID:  serviceID,
-		InstanceID: instanceID,
-	}
-	return zkservice.SetCurrentState(conn, req, state)
-}
-
 // StopContainer stops running container or returns nil if the container does
 // not exist or has already stopped.
 func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
@@ -294,7 +276,7 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 		return err
 	}
 	logger.Debug("Resumed paused container")
-	a.setInstanceState(serviceID, instanceID, StateRunning)
+	a.setInstanceState(serviceID, instanceID, StateResumed)
 
 	return nil
 }

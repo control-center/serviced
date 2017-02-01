@@ -144,10 +144,6 @@ type ClientInterface interface {
 	// SendDockerAction submits a docker action to a running container
 	SendDockerAction(serviceID string, instanceID int, action string, args []string) error
 
-	SetInstanceState(serviceID string, instanceID int, state CurrentState) error
-
-	SendStates(states map[string]CurrentState) error
-
 	//--------------------------------------------------------------------------
 	// Service Tempatate Management Functions
 

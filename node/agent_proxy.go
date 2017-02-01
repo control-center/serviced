@@ -263,25 +263,3 @@ func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[strin
 
 	return nil
 }
-
-// SendStates Syncs the instance states to the master
-func (a *HostAgent) SendStates(req master.SendStatesRequest, unused *int) error {
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not send instance states; %s", err)
-		return err
-	}
-	return masterClient.SendStates(req)
-}
-
-// SetInstanceState Update the state of an instance on master
-func (a *HostAgent) SetInstanceState(req master.InstanceStateRequest, unused *int) error {
-	// func (a *HostAgent) SetInstanceState(req master.InstanceStateRequest, unused *int) error {
-	masterClient, err := master.NewClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not set instance state; %s", err)
-		return err
-	}
-	defer masterClient.Close()
-	return masterClient.SetInstanceState(req, unused)
-}
