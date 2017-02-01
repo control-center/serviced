@@ -107,7 +107,7 @@ var (
 	// ErrUnknownAuthProtocol is thrown when the authentication protocol version is not supported
 	ErrUnknownAuthProtocol = errors.New("Unknown authentication protocol version")
 	// ErrHeaderExpired is thrown when an authentication header is more than 10s old
-	ErrHeaderExpired = errors.New("Expired authentication header")
+	ErrHeaderExpired = errors.New("Expired authentication header.")
 )
 
 // AuthHeaderError wraps another error with an accompanying payload, for the
@@ -289,7 +289,7 @@ func readAuthHeaderV1(r io.Reader) (sender Identity, tstamp time.Time, payload [
 		return
 	}
 	tstamp = time.Unix(int64(ts), 0).UTC()
-	cutoff := jwt.TimeFunc().UTC().Add(-expirationDelta)
+	cutoff := jwt.TimeFunc().UTC().Add(-ExpirationDelta)
 	if tstamp.Before(cutoff) {
 		err = eatBytesAndGetPayloadError(teed, remaining, ErrHeaderExpired)
 		return
