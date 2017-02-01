@@ -37,6 +37,27 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
+func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state CurrentState) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))
+	if err != nil {
+		logger.WithError(err).Error("Could not connect to zookeeper")
+		return err
+	}
+	req := StateRequest{
+		HostID:     a.hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+	return UpdateState(conn, req, func(s *State) bool {
+		s.Status = state
+		return true
+	})
+}
+
 // StopContainer stops running container or returns nil if the container does
 // not exist or has already stopped.
 func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
@@ -383,6 +404,7 @@ func (a *HostAgent) pullImage(logger *log.Entry, cancel <-chan interface{}, imag
 func (a *HostAgent) monitorContainer(logger *log.Entry, ctr *docker.Container) <-chan time.Time {
 	ev := make(chan time.Time, 1)
 	ctr.OnEvent(docker.Die, func(_ string) {
+		a.setInstanceState(StateStopped)
 		a.instanceCache.SetKey(ctr.Name, StateStopped)
 		defer close(ev)
 		dctr, err := ctr.Inspect()
