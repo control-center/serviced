@@ -1,4 +1,4 @@
-// Copyright 2016 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -136,8 +136,10 @@ func (sr *ServicedStatsReporter) gatherStats(t time.Time) []Sample {
 	stats := []Sample{}
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
-	tagmap := map[string]string{"controlplane_host_id": sr.hostID}
 	reg.Each(func(name string, i interface{}) {
+		tagmap := map[string]string{
+			"controlplane_host_id": sr.hostID,
+		}
 		switch metric := i.(type) {
 		case metrics.Gauge:
 			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
@@ -148,9 +150,12 @@ func (sr *ServicedStatsReporter) gatherStats(t time.Time) []Sample {
 	// Handle each container's metrics.
 	for key, registry := range sr.containerRegistries {
 		reg, _ := registry.(*metrics.StandardRegistry)
-		tagmap["controlplane_service_id"] = key.serviceID
-		tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
 		reg.Each(func(name string, i interface{}) {
+			tagmap := map[string]string{
+				"controlplane_host_id":     sr.hostID,
+				"controlplane_service_id":  key.serviceID,
+				"controlplane_instance_id": strconv.FormatInt(int64(key.instanceID), 10),
+			}
 			switch metric := i.(type) {
 			case metrics.Gauge:
 				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})

@@ -37,7 +37,7 @@ var internalTenantStats = []string{
 	"storage.filesystem.available.%s", "storage.filesystem.used.%s",
 }
 
-func getInternalMetrics(tenantID string) (*domain.MetricConfig, error) {
+func getInternalMetrics() (*domain.MetricConfig, error) {
 	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 	if err != nil {
 		return nil, err
@@ -67,6 +67,18 @@ func getInternalMetrics(tenantID string) (*domain.MetricConfig, error) {
 			})
 
 	}
+	return config, nil
+}
+
+func getTenantMetrics(tenantID string) (*domain.MetricConfig, error) {
+	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		return nil, err
+	}
+	config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
+	if err != nil {
+		return nil, err
+	}
 	for _, metricName := range internalTenantStats {
 		config.Metrics = append(config.Metrics,
 			domain.Metric{
@@ -75,7 +87,6 @@ func getInternalMetrics(tenantID string) (*domain.MetricConfig, error) {
 				Counter: false,
 				BuiltIn: true,
 			})
-
 	}
 	return config, nil
 }
@@ -272,7 +283,18 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 					Type: "area",
 				},
 			},
-		}, {
+		},
+	}
+}
+
+func getTenantGraphConfigs(tenantID string) []domain.GraphConfig {
+	tRange := domain.GraphConfigRange{
+		Start: "1h-ago",
+		End:   "0s-ago",
+	}
+	zero := 0
+	return []domain.GraphConfig{
+		{
 			// dfs usage graph
 			ID:          "dfsUsage",
 			Name:        "DFS Usage",
@@ -292,9 +314,9 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "Used",
-					Metric:       fmt.Sprintf("storage.filesystem.used.%s", serviceID),
+					Metric:       fmt.Sprintf("storage.filesystem.used.%s", tenantID),
 					MetricSource: "metrics",
-					ID:           fmt.Sprintf("storage.filesystem.used.%s", serviceID),
+					ID:           fmt.Sprintf("storage.filesystem.used.%s", tenantID),
 					Name:         "Used",
 					Rate:         false,
 					Type:         "area",
@@ -304,9 +326,9 @@ func getInternalGraphConfigs(serviceID string) []domain.GraphConfig {
 					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "Available",
-					Metric:       fmt.Sprintf("storage.filesystem.available.%s", serviceID),
+					Metric:       fmt.Sprintf("storage.filesystem.available.%s", tenantID),
 					MetricSource: "metrics",
-					ID:           fmt.Sprintf("storage.filesystem.available.%s", serviceID),
+					ID:           fmt.Sprintf("storage.filesystem.available.%s", tenantID),
 					Name:         "Available",
 					Rate:         false,
 					Type:         "area",

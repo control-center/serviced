@@ -343,13 +343,10 @@ func NewController(options ControllerOptions) (*Controller, error) {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
-
-		// make sure we pick up any logfile that was modified within the
-		// last three years
-		// TODO: Either expose the 3 years a configurable or get rid of it
 		logforwarder, exited, err := subprocess.New(time.Second,
 			nil,
 			options.Logforwarder.Path,
+			"-e", // Log to stderr
 			"-c", options.Logforwarder.ConfigFile)
 		if err != nil {
 			return nil, err
@@ -507,7 +504,7 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 		retries := 3
 		failures := 0
 		for {
-			err := client.Ping(2 * time.Second, &ts)
+			err := client.Ping(2*time.Second, &ts)
 			if err != nil {
 				failures++
 				glog.Warningf("RPC Server healthcheck ping to delegate failed. Error: %v", err)

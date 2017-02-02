@@ -82,6 +82,7 @@ import (
 	"time"
 
 	// Needed for profiling
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	_ "net/http/pprof"
 )
 
@@ -111,6 +112,7 @@ type daemon struct {
 	tokenExpiration  time.Duration
 
 	facade *facade.Facade
+	ssm    servicestatemanager.ServiceStateManager
 	hcache *health.HealthStatusCache
 	docker docker.Docker
 	reg    *registry.RegistryListener
@@ -348,17 +350,16 @@ func (d *daemon) run() (err error) {
 	}
 
 	signalC := make(chan os.Signal, 10)
-	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	// CC-3154 According to JP, golang will frequently receive these signals. A message or trace for this signal does
+	// not provide useful information, so we suppress it.
+	signal.Ignore(syscall.SIGPIPE)
 
 	var sig os.Signal
 
-	for sig := range signalC {
-		if sig == syscall.SIGPIPE {
-			log.WithField("signal", sig).Warning("Attempted to write to a closed socket")
-			continue
-		} else {
-			break
-		}
+	for sig = range signalC {
+		break
 	}
 
 	log.WithFields(logrus.Fields{
@@ -485,6 +486,10 @@ func (d *daemon) startMaster() (err error) {
 	d.dsContext = d.initContext()
 	d.facade = d.initFacade()
 	d.cpDao = d.initDAO()
+
+	// Initialize service state manager
+	d.initServiceStateManager(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
+	d.facade.SetServiceStateManager(d.ssm)
 
 	if err = d.checkVersion(); err != nil {
 		log.WithError(err).Fatal("Unable to initialize version")
@@ -1102,7 +1107,6 @@ func (d *daemon) initFacade() *facade.Facade {
 	dfs.SetTmp(os.Getenv("TMP"))
 	f.SetDFS(dfs)
 	f.SetIsvcsPath(options.IsvcsPath)
-	f.SetServiceRunLevelTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.hcache = health.New()
 	d.hcache.SetPurgeFrequency(5 * time.Second)
 	f.SetHealthCache(d.hcache)
@@ -1158,6 +1162,11 @@ func (d *daemon) startStorageMonitor() {
 			tenants := []string{}
 		CheckMetrics:
 			for k, v := range avail {
+				log.WithFields(logrus.Fields{
+					"lookahead": lookahead,
+					"minfree":   options.StorageMinimumFreeSpace,
+					"window":    time.Duration(options.StorageMetricMonitorWindow) * time.Second,
+				}).Debug("Predicting future availability of storage")
 				switch k {
 				case metrics.PoolMetadataAvailableName:
 					if v < float64(minfree)*0.02 {
@@ -1230,9 +1239,9 @@ func (d *daemon) startStorageMonitor() {
 					"period":     lookahead,
 				}).Error("Application storage is predicted to be full within the configured period")
 				if n, err := d.facade.EmergencyStopService(d.dsContext, dao.ScheduleServiceRequest{
-					ServiceID:   tenant,
-					AutoLaunch:  false,
-					Synchronous: true,
+					ServiceIDs:  []string{tenant},
+					AutoLaunch:  true,
+					Synchronous: false,
 				}); err != nil {
 					log.WithError(err).Error("Unable to perform emergency stop of application")
 				} else {
@@ -1377,4 +1386,16 @@ func (d *daemon) runScheduler() {
 			return
 		}
 	}
+}
+
+func (d *daemon) initServiceStateManager(runLevelTimeout time.Duration) {
+	bssm := servicestatemanager.NewBatchServiceStateManager(d.facade, d.dsContext, runLevelTimeout)
+	d.ssm = bssm
+	go func() {
+		bssm.Start()
+		log.WithField("leveltimeout", runLevelTimeout).Info("Started service state manager")
+		<-d.shutdown
+		log.Debug("Shutting down service state manager")
+		bssm.Shutdown()
+	}()
 }

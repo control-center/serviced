@@ -155,7 +155,7 @@
                 <span ng-if="!row.service.model.HasChildren" ng-style="indent(1)"></span>
                 <a href="#/services/{{row.service.id}}" ng-click="routeToService(row.service.id, $event)" class="link">
                     {{row.service.name}}
-                    <div class="overcomIndicator" ng-class="{'bad': !row.service.resourcesGood() && !row.service.isIsvc()}" title="An instance is oversubscribed."></div>
+                    <div class="overcomIndicator" ng-class="{'bad': !row.service.resourcesGood && !row.service.isIsvc()}" title="An instance is oversubscribed."></div>
                     <span class="version" ng-show="row.service.model.Version"> (v{{row.service.model.Version}})</span>
                 </a>
               </td>

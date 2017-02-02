@@ -21,9 +21,9 @@ import (
 	"path/filepath"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
 )
 
 const (
@@ -35,94 +35,140 @@ const (
 // Backup writes all application data into an export stream
 func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 
-	tarOut := tar.NewWriter(w)
+	backupLogger := plog.WithFields(log.Fields{
+		"backupversion": data.BackupVersion,
+		"timestamp":     data.Timestamp,
+	})
+
+	progress := NewProgressCounter(300)
+	progress.Log = func() { plog.Infof("Written %v bytes to archive for backup", progress.Total) }
+
+	tarOut := tar.NewWriter(io.MultiWriter(w, progress))
 
 	// write the backup metadata
 	if err := dfs.writeBackupMetadata(data, tarOut); err != nil {
-		glog.Errorf("Unable to write backup metadata: %s", err)
+		plog.WithError(err).Error("Unable to write metadata for backup")
 		return err
 	}
 
 	var images []string
+
+	baseImageLogger := backupLogger.WithField("total", len(data.BaseImages))
+	baseImageLogger.Info("Preparing docker images for backup")
+
 	// download the base images
-	for _, image := range data.BaseImages {
+	for i, image := range data.BaseImages {
+		baseImageLogger = baseImageLogger.WithFields(log.Fields{
+			"image":          image,
+			"numbercomplete": i + 1,
+		})
+
 		if _, err := dfs.docker.FindImage(image); docker.IsImageNotFound(err) {
 			if err := dfs.docker.PullImage(image); docker.IsImageNotFound(err) {
-				glog.Warningf("Could not pull base image %s, skipping", image)
+				baseImageLogger.Warn("Could not pull base image for backup, skipping")
 				continue
 			} else if err != nil {
-				glog.Errorf("Could not pull image %s: %s", image, err)
+				baseImageLogger.WithError(err).Error("Could not pull image for backup")
 				return err
 			}
 		} else if err != nil {
-			glog.Errorf("Could not find image %s: %s", image, err)
+			baseImageLogger.WithError(err).Error("Could not find image for backup")
 			return err
 		}
-		glog.Infof("Prepared Docker image %s for backup", image)
+
+		baseImageLogger.Info("Prepared Docker image for backup")
+
 		images = append(images, image)
 	}
 
+	numberOfSnapshots := len(data.Snapshots)
+
+	backupLogger.WithField("total", numberOfSnapshots).Info("Preparing snapshots for backup")
+
 	// export the snapshots
-	for _, snapshot := range data.Snapshots {
+	for i, snapshot := range data.Snapshots {
 		vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshot)
 		if err != nil {
 			return err
 		}
+
 		// load the images from this snapshot
-		glog.Infof("Preparing images for tenant %s", info.TenantID)
+		tenantLogger := backupLogger.WithField("tenant", info.TenantID)
+		tenantLogger.Info("Preparing images for tenant")
+
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
-			glog.Errorf("Could not receive images metadata for tenant %s: %s", info.TenantID, err)
+			tenantLogger.WithError(err).Error("Could not receive images metadata for tenant")
 			return err
 		}
+
 		var imgs []string
 		if err := importJSON(r, &imgs); err != nil {
-			glog.Errorf("Could not interpret images metadata for tenant %s: %s", info.TenantID, err)
+			tenantLogger.WithError(err).Error("Could not interpret images metadata for tenant")
 			return err
 		}
+
 		timer := time.NewTimer(0)
 		for _, img := range imgs {
+			tenantImageLogger := tenantLogger.WithField("image", img)
+
 			timer.Reset(dfs.timeout)
 			if err := dfs.reg.PullImage(timer.C, img); err != nil {
-				glog.Errorf("Could not pull image %s from registry: %s", img, err)
+				tenantImageLogger.WithError(err).Error("Could not pull image from registry")
 				return err
 			}
+
 			image, err := dfs.reg.ImagePath(img)
 			if err != nil {
-				glog.Errorf("Could not get the image path from registry %s: %s", img, err)
+				tenantImageLogger.WithError(err).Error("Could not get the image path from registry")
 				return err
 			}
-			glog.Infof("Prepared Docker image %s for backup", image)
+
+			plog.WithField("image", image).Info("Prepared Docker image for backup")
+
 			images = append(images, image)
 		}
+
 		timer.Stop()
+
+		snapshotLogger := backupLogger.WithField("snapshot", snapshot)
+
 		// dump the snapshot into the backup
 		prefix := path.Join(SnapshotsMetadataDir, info.TenantID, info.Label)
 		snapReader, errchan := dfs.snapshotSavePipe(vol, info.Label, data.SnapshotExcludes[snapshot])
 		if err := rewriteTar(prefix, tarOut, snapReader); err != nil {
 			// be a good citizen and clean up any running threads
 			<-errchan
-			glog.Errorf("Could not write snapshot %s to backup: %s", snapshot, err)
+			snapshotLogger.WithError(err).Error("Could not write snapshot to backup")
 			return err
 		} else if err := <-errchan; err != nil {
-			glog.Errorf("Could not export snapshot %s for backup: %s", snapshot, err)
+			snapshotLogger.WithError(err).Error("Could not export snapshot for backup")
 			return err
 		}
-		glog.Infof("Exported snapshot %s to backup", snapshot)
+
+		snapshotLogger.WithFields(log.Fields{
+			"numbercomplete": i + 1,
+			"total":          numberOfSnapshots,
+		}).Info("Exported snapshot to backup")
 	}
+
 	// dump the images from all the snapshots into the backup
 	imageReader, errchan := dfs.dockerSavePipe(images...)
+	imageLogger := backupLogger.WithField("images", images)
+	imageLogger.Info("Starting export of images to backup")
 	if err := rewriteTar(DockerImagesFile, tarOut, imageReader); err != nil {
 		// be a good citizen and clean up any running threads
 		<-errchan
-		glog.Errorf("Could not write images %v to backup: %s", images, err)
+		imageLogger.WithError(err).Error("Could not write images to backup")
 		return err
 	} else if err := <-errchan; err != nil {
-		glog.Errorf("Could not export images %v for backup: %s", images, err)
+		imageLogger.WithError(err).Error("Could not export images for backup")
 		return err
 	}
-	glog.Infof("Exported images to backup")
 	tarOut.Close()
+
+	imageLogger.Info("Exported images to backup")
+
 	return nil
 }
 
@@ -157,6 +203,7 @@ func (dfs *DistributedFilesystem) snapshotSavePipe(vol volume.Volume, label stri
 func rewriteTar(prefix string, tarWriter *tar.Writer, r *io.PipeReader) error {
 	defer r.Close()
 	tarReader := tar.NewReader(r)
+
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -164,6 +211,7 @@ func rewriteTar(prefix string, tarWriter *tar.Writer, r *io.PipeReader) error {
 		} else if err != nil {
 			return err
 		}
+
 		// Rewrite the header to include the prefix
 		header.Name = filepath.Join(prefix, header.Name)
 		if err := tarWriter.WriteHeader(header); err != nil {
@@ -173,6 +221,7 @@ func rewriteTar(prefix string, tarWriter *tar.Writer, r *io.PipeReader) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -183,17 +232,23 @@ func (dfs *DistributedFilesystem) writeBackupMetadata(data BackupInfo, w *tar.Wr
 		jsonData []byte
 		err      error
 	)
-	glog.V(2).Infof("Writing backup metadata")
+
+	backupLogger := plog.WithFields(log.Fields{
+		"backupversion": data.BackupVersion,
+		"timestamp":     data.Timestamp,
+	})
+
+	backupLogger.Debug("Writing backup metadata")
 	if jsonData, err = json.Marshal(data); err != nil {
 		return err
 	}
 	header := &tar.Header{Name: BackupMetadataFile, Size: int64(len(jsonData))}
 	if err := w.WriteHeader(header); err != nil {
-		glog.V(2).Infof("Could not create metadata header for backup: %s", err)
+		backupLogger.WithError(err).Debug("Could not create metadata header for backup")
 		return err
 	}
 	if _, err := w.Write(jsonData); err != nil {
-		glog.V(2).Infof("Could not write backup metadata: %s", err)
+		backupLogger.WithError(err).Debug("Could not write backup metadata")
 		return err
 	}
 	return nil

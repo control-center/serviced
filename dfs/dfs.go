@@ -24,7 +24,12 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/logging"
 	"github.com/control-center/serviced/volume"
+)
+
+var (
+	plog = logging.PackageLogger()
 )
 
 // DFS is the api for the distributed filesystem

@@ -120,30 +120,6 @@ type Service struct {
 	datastore.VersionedEntity
 }
 
-// Types for sorting
-type Services []*Service
-
-func (s Services) Len() int      { return len(s) }
-func (s Services) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByEmergencyShutdown struct{ Services }
-
-// Sort by EmergencyShutdownLevel - 1, to ensure level of 0 is last
-func (s ByEmergencyShutdown) Less(i, j int) bool {
-	if s.Services[i].EmergencyShutdownLevel == s.Services[j].EmergencyShutdownLevel {
-		// If emergency shutdown level is the same, order by reverse start level
-		return !ByStartLevel{s.Services}.Less(i, j)
-	} else {
-		return s.Services[i].EmergencyShutdownLevel-1 < s.Services[j].EmergencyShutdownLevel-1
-	}
-}
-
-type ByStartLevel struct{ Services }
-
-func (s ByStartLevel) Less(i, j int) bool {
-	return s.Services[i].StartLevel-1 < s.Services[j].StartLevel-1
-}
-
 //ServiceEndpoint endpoint exported or imported by a service
 type ServiceEndpoint struct {
 	Name                string // Human readable name of the endpoint. Unique per service definition

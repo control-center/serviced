@@ -115,6 +115,9 @@
                            <li class=" no-child "><a href="../../feature/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-backup.html">serviced backup</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-docker.html">serviced docker</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-host.html">serviced host</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-key.html">serviced key</a></li>
+                           <li class=" no-child "><a href="../../feature/cli/serviced-log-export.html">serviced log export</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-pool.html">serviced pool</a></li>
                            <li class=" no-child "><a href="../../feature/cli/serviced-restore.html">serviced restore</a></li>
                            <li class=" no-child "><a href="../../feature/cli/script.html">serviced script</a></li>
@@ -125,8 +128,16 @@
                         </ul>
                      </li>
                      <li class=" collapsible  collapsed"><a href="#">Glossary</a><ul class="nav">
+                           <li class=" no-child "><a href="../../shared/glossary/cc-application.html">application</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-cluster.html">cluster</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-delegate-host.html">delegate host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-master-host.html">master host</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-resource-pool.html">resource pool</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-service.html">service</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-definition.html">service definition</a></li>
                            <li class=" no-child "><a href="../../shared/glossary/service-template.html">service template</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../shared/glossary/cc-tenant.html">tenant</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -144,9 +155,7 @@
                            </p>
                            
                            
-                           <div class="section"><a name="referenceid-section_p3x_mng_hx" id="referenceid-section_p3x_mng_hx" class="anchor"></a>
-                              
-                              <h2 class="title sectiontitle">USAGE</h2>
+                           <div class="section"><a name="referenceid-d14805e41" id="referenceid-d14805e41" class="anchor"></a>
                               
                               <p class="p">Use this command to create a short-term save point of a system. For more information, see
                                  <a class="xref" href="../manage/snapshot-rollback.html" title="Though backups are the most reliable and durable way to preserve Docker images and configurations, creating a backup of an entire application is not always practical. However, you need to safeguard against potential risk when changing the system. In these cases, you can create a snapshot of the system.">Snapshot and rollback</a>.
@@ -156,9 +165,12 @@
                            </div>
                            
                            
+                           <div class="section"><a name="referenceid-section_p3x_mng_hx" id="referenceid-section_p3x_mng_hx" class="anchor"></a></div>
+                           
+                           
                            <div class="section"><a name="referenceid-section_wlf_fyb_hx" id="referenceid-section_wlf_fyb_hx" class="anchor"></a>
                               
-                              <h2 class="title sectiontitle">SYNTAX</h2>
+                              <h2 class="title sectiontitle">USAGE</h2>
                               <pre class="pre codeblock">serviced snapshot [global options] \
   command [command options] [arguments...]</pre>
                               

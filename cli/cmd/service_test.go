@@ -340,14 +340,14 @@ func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
 	if t.errs["StartService"] != nil {
 		return 0, t.errs["StartService"]
 	}
-	return 1, nil
+	return len(cfg.ServiceIDs), nil
 }
 
 func (t ServiceAPITest) RestartService(cfg api.SchedulerConfig) (int, error) {
 	if t.errs["RestartService"] != nil {
 		return 0, t.errs["RestartService"]
 	}
-	return 1, nil
+	return len(cfg.ServiceIDs), nil
 }
 
 func (t ServiceAPITest) StopServiceInstance(serviceID string, instanceID int) error {
@@ -362,13 +362,14 @@ func (t ServiceAPITest) StopServiceInstance(serviceID string, instanceID int) er
 }
 
 func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
-	if s, err := t.GetService(cfg.ServiceID); err != nil {
-		return 0, err
-	} else if s == nil {
-		return 0, ErrNoServiceFound
+	for _, sid := range cfg.ServiceIDs {
+		if s, err := t.GetService(sid); err != nil {
+			return 0, err
+		} else if s == nil {
+			return 0, ErrNoServiceFound
+		}
 	}
-
-	return 1, nil
+	return len(cfg.ServiceIDs), nil
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
@@ -742,13 +743,13 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    start - Starts a service
+	//    start - Starts one or more services
 	//
 	// USAGE:
 	//    command start [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service start SERVICEID
+	//    serviced service start SERVICEID ...
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
@@ -773,9 +774,11 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 
 func ExampleServicedCLI_CmdServiceStart() {
 	InitServiceAPITest("serviced", "service", "start", "test-service-2")
+	InitServiceAPITest("serviced", "service", "start", "test-service-1", "test-service-2")
 
 	// Output:
 	// Scheduled 1 service(s) to start
+	// Scheduled 2 service(s) to start
 }
 
 func ExampleServicedCLI_CmdServiceRestart_usage() {
@@ -785,13 +788,13 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    restart - Restarts a service
+	//    restart - Restarts one or more services
 	//
 	// USAGE:
 	//    command restart [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service restart { SERVICEID | INSTANCEID }
+	//    serviced service restart { SERVICEID | INSTANCEID } ...
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
@@ -822,11 +825,20 @@ func ExampleServicedCLI_CmdServiceRestart_err() {
 
 func ExampleServicedCLI_CmdServiceRestart() {
 	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
-	InitServiceAPITest("serviced", "service", "restart", "test-service-3/1") // Specific instance
+	InitServiceAPITest("serviced", "service", "restart", "test-service-3/1")                     // Specific instance
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3/1")   // Both
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2", "test-service-3")     // 2 services
+	InitServiceAPITest("serviced", "service", "restart", "test-service-3/0", "test-service-3/1") // 2 instances
 
 	// Output:
 	// Restarting 1 service(s)
+	// Restarting instance test-service-3/1
 	// Restarting 1 service(s)
+	// Restarting instance test-service-3/1
+	// Restarting 2 service(s)
+	// Restarting instance test-service-3/0
+	// Restarting instance test-service-3/1
+
 }
 
 func ExampleServicedCLI_CmdServiceStop_usage() {
@@ -836,13 +848,13 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	// Incorrect Usage.
 	//
 	// NAME:
-	//    stop - Stops a service
+	//    stop - Stops one or more services
 	//
 	// USAGE:
 	//    command stop [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service stop SERVICEID
+	//    serviced service stop SERVICEID ...
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
@@ -858,9 +870,11 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 
 func ExampleServicedCLI_CmdServiceStop() {
 	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
+	InitServiceAPITest("serviced", "service", "stop", "test-service-1", "test-service-2")
 
 	// Output:
 	// Scheduled 1 service(s) to stop
+	// Scheduled 2 service(s) to stop
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {

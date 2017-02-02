@@ -149,8 +149,8 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceAssignIP,
 			}, {
 				Name:         "start",
-				Usage:        "Starts a service",
-				Description:  "serviced service start SERVICEID",
+				Usage:        "Starts one or more services",
+				Description:  "serviced service start SERVICEID ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
 				Flags: []cli.Flag{
@@ -165,8 +165,8 @@ func (c *ServicedCli) initService() {
 				},
 			}, {
 				Name:         "restart",
-				Usage:        "Restarts a service",
-				Description:  "serviced service restart { SERVICEID | INSTANCEID }",
+				Usage:        "Restarts one or more services",
+				Description:  "serviced service restart { SERVICEID | INSTANCEID } ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
 				Flags: []cli.Flag{
@@ -181,8 +181,8 @@ func (c *ServicedCli) initService() {
 				},
 			}, {
 				Name:         "stop",
-				Usage:        "Stops a service",
-				Description:  "serviced service stop SERVICEID",
+				Usage:        "Stops one or more services",
+				Description:  "serviced service stop SERVICEID ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStop,
 				Flags: []cli.Flag{
@@ -488,15 +488,15 @@ func (c *ServicedCli) services() (data []string) {
 }
 
 // Returns a list of runnable commands for a particular service
-func (c *ServicedCli) serviceRuns(id string) (data []string) {
+func (c *ServicedCli) serviceCommands(id string) (data []string) {
 	svc, err := c.driver.GetService(id)
 	if err != nil || svc == nil {
 		return
 	}
 
-	data = make([]string, len(svc.Runs))
+	data = make([]string, len(svc.Commands))
 	i := 0
-	for r := range svc.Runs {
+	for r := range svc.Commands {
 		data[i] = r
 		i++
 	}
@@ -596,7 +596,7 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 	case 0:
 		output = c.services()
 	case 1:
-		output = c.serviceRuns(args[0])
+		output = c.serviceCommands(args[0])
 	}
 	fmt.Println(strings.Join(output, "\n"))
 }
@@ -1053,7 +1053,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	}
 }
 
-// serviced service start SERVICEID
+// serviced service start SERVICEID...
 func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -1062,16 +1062,21 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	serviceIDs := make([]string, len(args))
+	for i, svcID := range args {
+		svc, _, err := c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
-		fmt.Println("Service already started")
+		fmt.Println("Service(s) already started")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to start\n", affected)
 	}
@@ -1086,23 +1091,47 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	var sIds []string
+	var instances []struct {
+		Service  string
+		Instance int
 	}
 
-	if instanceID < 0 {
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	for _, arg := range args {
+		svc, instanceID, err := c.searchForService(arg)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		if instanceID < 0 {
+			sIds = append(sIds, svc.ID)
+		} else {
+			instances = append(instances, struct {
+				Service  string
+				Instance int
+			}{
+				svc.ID,
+				instanceID,
+			})
+		}
+	}
+
+	// Batch start services
+	if len(sIds) > 0 {
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting %d service(s)\n", affected)
 		}
-	} else {
-		if err := c.driver.StopServiceInstance(svc.ID, instanceID); err != nil {
+	}
+
+	// Iterate and reschedule any instances specified
+	for _, instance := range instances {
+		if err := c.driver.StopServiceInstance(instance.Service, instance.Instance); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
-			fmt.Printf("Restarting 1 service(s)\n")
+			fmt.Printf("Restarting instance %s/%d\n", instance.Service, instance.Instance)
 		}
 	}
 }
@@ -1116,16 +1145,21 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	serviceIDs := make([]string, len(args))
+	for i, svcID := range args {
+		svc, _, err := c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
-		fmt.Println("Service already stopped")
+		fmt.Println("Service(s) already stopped")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
 	}
@@ -1139,6 +1173,13 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
 		}
 		cli.ShowSubcommandHelp(ctx)
+		return c.exit(1)
+	}
+
+	// Bash completion
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// CC-892: Disable bash completion after SERVICE_ID because possible matches
+		// are unavailable outside the container.
 		return c.exit(1)
 	}
 
@@ -1214,11 +1255,27 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	if len(args) < 2 {
-		for _, s := range c.serviceRuns(args[0]) {
+		for _, s := range c.serviceCommands(args[0]) {
 			fmt.Println(s)
 		}
 		fmt.Fprintf(os.Stderr, "serviced service run")
 		return c.exit(1)
+	}
+
+	// Bash completion, CC-892
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// if "serviced service run SERVICE_ID --generate-bash-completion" is executed
+		if len(args) == 2 {
+			svcDetails, _, err := c.searchForService(args[0])
+			if err == nil {
+				for _, cmd := range c.serviceCommands(svcDetails.ID) {
+					fmt.Println(cmd)
+				}
+			} else {
+				return c.exit(1)
+			}
+		}
+		return c.exit(0)
 	}
 
 	var (
@@ -1285,6 +1342,13 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return nil
 	}
 
+	// Bash completion
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// CC-892: The attach command does not require an additional argument after
+		// SERVICE_ID. Disable bash completion after SERVICE_ID.
+		return c.exit(1)
+	}
+
 	svc, instanceID, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1318,6 +1382,23 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		}
 		cli.ShowSubcommandHelp(ctx)
 		return nil
+	}
+
+	// Bash completion
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// CC-892
+		// if a tab is pressed after serviced service SERVICE_ID and the
+		// service is found
+		if len(args) == 2 {
+			svc, _, err := c.searchForService(ctx.Args().First())
+			if err == nil {
+				actions := c.serviceActions(svc.ID)
+				fmt.Println(strings.Join(actions, "\n"))
+			} else {
+				c.exit(1)
+			}
+		}
+		return c.exit(0)
 	}
 
 	svc, instanceID, err := c.searchForService(ctx.Args().First())
@@ -1363,6 +1444,13 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		}
 		cli.ShowSubcommandHelp(ctx)
 		return nil
+	}
+
+	// Bash completion
+	if args[len(args)-1] == "--generate-bash-completion" {
+		// CC-892: The logs command does not require an additional argument after
+		// SERVICE_ID. Disable bash completion after SERVICE_ID.
+		return c.exit(1)
 	}
 
 	svc, instanceID, err := c.searchForService(ctx.Args().First())

@@ -168,6 +168,7 @@ deb: stage_deb
 		-d logrotate \
 		-d rsync \
 		-d lvm2 \
+		-d sysstat \
 		-d cronie \
 		-t deb \
 		-a x86_64 \
@@ -203,6 +204,7 @@ rpm: stage_rpm
 		-d 'docker-engine = 1.12.1' \
 		-d logrotate \
 		-d rsync \
+		-d sysstat \
 		-d lvm2 \
 		-d cronie \
 		-t rpm \
