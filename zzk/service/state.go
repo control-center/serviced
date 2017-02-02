@@ -61,6 +61,7 @@ type ServiceState struct {
 	Imports     []ImportBinding
 	Exports     []ExportBinding
 	Started     time.Time
+	Restarted   time.Time
 	Terminated  time.Time
 	version     interface{}
 }

@@ -1171,17 +1171,35 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 	return store.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
 }
 
-// ScheduleService changes a service's desired state and returns the number of affected services
-func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState) (int, error) {
+// ScheduleService changes a services' desired state and returns the number of affected services
+func (f *Facade) ScheduleServices(ctx datastore.Context, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, emergency bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.ScheduleService"))
-	tenantID, err := f.GetTenantID(ctx, serviceID)
-	if err != nil {
-		return 0, err
+	if len(serviceIDs) < 1 {
+		return 0, nil
 	}
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return f.scheduleService(ctx, tenantID, serviceID, autoLaunch, synchronous, desiredState, false, false)
+
+	tenantServices := make(map[string][]string)
+	for _, sid := range serviceIDs {
+		serviceTenant, err := f.GetTenantID(ctx, sid)
+		if err != nil {
+			return 0, err
+		}
+		tenantServices[serviceTenant] = append(tenantServices[serviceTenant], sid)
+	}
+
+	var count int
+	for tenantID, services := range tenantServices {
+		mutex := getTenantLock(tenantID)
+		mutex.RLock()
+		tcount, err := f.scheduleServiceParents(ctx, tenantID, services, autoLaunch, synchronous, desiredState, false, emergency)
+		mutex.RUnlock()
+		if err != nil {
+			return 0, err
+		}
+		count += tcount
+	}
+
+	return count, nil
 }
 
 func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, serviceID string) (int, error) {
@@ -1212,11 +1230,11 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 	return cleared, nil
 }
 
-func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool, emergency bool) (int, error) {
-	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleService"))
+func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool, emergency bool) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleServiceParents"))
 	logger := plog.WithFields(log.Fields{
 		"tenantid":     tenantID,
-		"serviceid":    serviceID,
+		"serviceids":   serviceIDs,
 		"desiredstate": desiredState,
 		"autolaunch":   autoLaunch,
 		"synchronous":  synchronous,
@@ -1227,30 +1245,44 @@ func (f *Facade) scheduleService(ctx datastore.Context, tenantID, serviceID stri
 		return 0, fmt.Errorf("desired state unknown")
 	}
 
+	isRequested := make(map[string]bool)
+	for _, serviceID := range serviceIDs {
+		isRequested[serviceID] = true
+	}
+
+	alreadyChecked := make(map[string]bool)
 	// Build a list of services to be scheduled
 	svcs := []*service.Service{}
 	var svcIDs []string
 	visitor := func(svc *service.Service) error {
-		if svc.ID != serviceID && svc.Launch == commons.MANUAL && !emergency {
-			return nil
-		}
-		if desiredState != service.SVCStop {
-			// Verify that all of the services are ready to be started
-			if err := f.validateServiceStart(ctx, svc); err != nil {
-				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
-				return err
+		if !alreadyChecked[svc.ID] {
+			alreadyChecked[svc.ID] = true
+
+			if svc.Launch == commons.MANUAL && !emergency && !isRequested[svc.ID] {
+				return nil
 			}
+			if desiredState != service.SVCStop {
+				// Verify that all of the services are ready to be started
+				if err := f.validateServiceStart(ctx, svc); err != nil {
+					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					return err
+				}
+			}
+			svcs = append(svcs, svc)
+			svcIDs = append(svcIDs, svc.ID)
 		}
-		svcs = append(svcs, svc)
-		svcIDs = append(svcIDs, svc.ID)
 		return nil
 	}
-	err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleService")
-	if err != nil {
-		logger.WithError(err).Errorf("Could not retrieve service(s) for scheduling")
-		return 0, err
+
+	for _, serviceID := range serviceIDs {
+		err := f.walkServices(ctx, serviceID, autoLaunch, visitor, "scheduleServiceParents")
+		if err != nil {
+			logger.WithError(err).Errorf("Could not retrieve service(s) for scheduling")
+			return 0, err
+		}
 	}
 
+	var err error
 	affected := len(svcs)
 	if synchronous {
 		logger.Debug("Scheduling services synchronously")
@@ -1465,18 +1497,18 @@ func (f *Facade) WaitSingleService(svc *service.Service, dstate service.DesiredS
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StartService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRun)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
 }
 
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
 	forceRestart := func() (int, error) {
-		count, err := f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, true, service.SVCStop)
+		count, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, true, service.SVCStop, false)
 		if err != nil {
 			return count, err
 		}
 
-		return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCRun)
+		return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
 	}
 
 	if request.Synchronous {
@@ -1489,24 +1521,17 @@ func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServi
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.PauseService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCPause)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCPause, false)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.StopService"))
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, false)
 }
 
 func (f *Facade) EmergencyStopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.EmergencyStopService"))
-	tenantID, err := f.GetTenantID(ctx, request.ServiceID)
-	if err != nil {
-		return 0, err
-	}
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return f.scheduleService(ctx, tenantID, request.ServiceID, request.AutoLaunch, request.Synchronous, service.SVCStop, false, true)
+	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCStop, true)
 }
 
 // ClearEmergencyStopFlag sets EmergencyStop to false for all services on the tenant that have it set to true
@@ -1681,7 +1706,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 		// Restart the service if it is running and new address assignments are made
 		if restart && svc.DesiredState == int(service.SVCRun) {
 			f.RestartService(ctx, dao.ScheduleServiceRequest{
-				ServiceID:   svc.ID,
+				ServiceIDs:  []string{svc.ID},
 				AutoLaunch:  false,
 				Synchronous: true,
 			})

@@ -477,7 +477,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	t.Assert(err, IsNil)
 
 	var affected int
-	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true, true}, &affected); err != nil {
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{[]string{"0"}, true, true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 

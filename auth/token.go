@@ -26,7 +26,7 @@ const (
 	// expirationDelta is a margin of error during which a token should be
 	// considered expired. This should help avoid expiration races when server
 	// times don't match
-	expirationDelta = 10 * time.Second
+	ExpirationDelta = 10 * time.Second
 )
 
 var (
@@ -104,7 +104,6 @@ func WaitForAuthToken(cancel <-chan interface{}) <-chan struct{} {
 	}()
 	return ch
 }
-
 
 // MasterToken() generates a new token with an empty host and pool ID and the master's public key,
 //  signed by the master's private key.  This will return an error if there is no master private
@@ -241,7 +240,7 @@ func expired() bool {
 	if expiration.IsZero() {
 		return false
 	}
-	return expiration.Add(-expirationDelta).Before(now())
+	return expiration.Add(-ExpirationDelta).Before(now())
 }
 
 func updateToken(token string, expires time.Time, filename string) {

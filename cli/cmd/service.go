@@ -149,8 +149,8 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceAssignIP,
 			}, {
 				Name:         "start",
-				Usage:        "Starts a service",
-				Description:  "serviced service start SERVICEID",
+				Usage:        "Starts one or more services",
+				Description:  "serviced service start SERVICEID ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
 				Flags: []cli.Flag{
@@ -165,8 +165,8 @@ func (c *ServicedCli) initService() {
 				},
 			}, {
 				Name:         "restart",
-				Usage:        "Restarts a service",
-				Description:  "serviced service restart { SERVICEID | INSTANCEID }",
+				Usage:        "Restarts one or more services",
+				Description:  "serviced service restart { SERVICEID | INSTANCEID } ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
 				Flags: []cli.Flag{
@@ -181,8 +181,8 @@ func (c *ServicedCli) initService() {
 				},
 			}, {
 				Name:         "stop",
-				Usage:        "Stops a service",
-				Description:  "serviced service stop SERVICEID",
+				Usage:        "Stops one or more services",
+				Description:  "serviced service stop SERVICEID ...",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStop,
 				Flags: []cli.Flag{
@@ -1053,7 +1053,7 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 	}
 }
 
-// serviced service start SERVICEID
+// serviced service start SERVICEID...
 func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -1062,16 +1062,21 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	serviceIDs := make([]string, len(args))
+	for i, svcID := range args {
+		svc, _, err := c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
-		fmt.Println("Service already started")
+		fmt.Println("Service(s) already started")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to start\n", affected)
 	}
@@ -1086,23 +1091,47 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	svc, instanceID, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	var sIds []string
+	var instances []struct {
+		Service  string
+		Instance int
 	}
 
-	if instanceID < 0 {
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	for _, arg := range args {
+		svc, instanceID, err := c.searchForService(arg)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		if instanceID < 0 {
+			sIds = append(sIds, svc.ID)
+		} else {
+			instances = append(instances, struct {
+				Service  string
+				Instance int
+			}{
+				svc.ID,
+				instanceID,
+			})
+		}
+	}
+
+	// Batch start services
+	if len(sIds) > 0 {
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Printf("Restarting %d service(s)\n", affected)
 		}
-	} else {
-		if err := c.driver.StopServiceInstance(svc.ID, instanceID); err != nil {
+	}
+
+	// Iterate and reschedule any instances specified
+	for _, instance := range instances {
+		if err := c.driver.StopServiceInstance(instance.Service, instance.Instance); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
-			fmt.Printf("Restarting 1 service(s)\n")
+			fmt.Printf("Restarting instance %s/%d\n", instance.Service, instance.Instance)
 		}
 	}
 }
@@ -1116,16 +1145,21 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	svc, _, err := c.searchForService(ctx.Args().First())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	serviceIDs := make([]string, len(args))
+	for i, svcID := range args {
+		svc, _, err := c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceIDs[i] = svc.ID
 	}
 
-	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{serviceIDs, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if affected == 0 {
-		fmt.Println("Service already stopped")
+		fmt.Println("Service(s) already stopped")
 	} else {
 		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
 	}

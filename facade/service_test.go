@@ -32,6 +32,7 @@ import (
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	ssmmocks "github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	zks "github.com/control-center/serviced/zzk/service"
 
 	"github.com/stretchr/testify/mock"
@@ -1297,11 +1298,11 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -1396,7 +1397,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1548,7 +1549,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	}()
 
 	// emergency stop the parent synchronously
-	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true}); err != nil {
+	if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true}); err != nil {
 		c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1620,7 +1621,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	}
 
 	// start the service
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 
@@ -1712,7 +1713,7 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	methodReturned := make(chan interface{})
 	go func() {
 		defer close(methodReturned)
-		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: false}); err != nil {
+		if _, err = ft.Facade.EmergencyStopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: false}); err != nil {
 			c.Fatalf("Unable to emergency stop parent service: %+v, %s", svc, err)
 		}
 	}()
@@ -1970,7 +1971,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// start the parent synchronously
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2077,7 +2078,7 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	}()
 
 	// stop the parent synchronously
-	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, true}); err != nil {
+	if _, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2152,7 +2153,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 		mock.AnythingOfType("<-chan interface {}")).WaitUntil(releaseWait).Return(nil)
 
 	// Start the services asynchronously.  After starting level 1, it will block until we close releaseWait
-	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{"ParentServiceID", true, false}); err != nil {
+	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
 	}
 
@@ -2283,7 +2284,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	})
 
 	// Start the parent service synchronously with AutoLaunch set to false, so that the child service stays stopped
-	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	_, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: false, Synchronous: true})
 	c.Assert(err, IsNil)
 
 	// Snapshot the service.
@@ -2304,7 +2305,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	}
 
 	// Stop the parent service
-	_, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: false, Synchronous: true})
+	_, err = ft.Facade.StopService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: false, Synchronous: true})
 	c.Assert(err, IsNil)
 
 	// TEST: Snapshot during service start
@@ -2316,7 +2317,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	startDone := make(chan interface{})
 	go func() {
 		defer close(startDone)
-		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true})
 		c.Assert(err, IsNil)
 	}()
 
@@ -2370,7 +2371,7 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	startDone = make(chan interface{})
 	go func() {
 		defer close(startDone)
-		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceID: "ParentServiceID", AutoLaunch: true, Synchronous: true})
+		_, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"ParentServiceID"}, AutoLaunch: true, Synchronous: true})
 		c.Assert(err, IsNil)
 	}()
 
@@ -2481,6 +2482,189 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	for _, s := range services {
 		c.Assert(s.EmergencyShutdown, Equals, false)
 	}
+}
+
+func (ft *FacadeIntegrationTest) TestFacade_StartMultipleServices(c *C) {
+	// create a service tree that looks like this:
+	// ParentServiceID
+	// ->childService1
+	// ->childService2
+	//   ->childService3
+	//   ->childService4
+	//   ->childService5 (MANUAL)
+	//   ->childService6 (MANUAL)
+	// ParentServiceID2
+
+	svc := service.Service{
+		ID:                "ParentServiceID",
+		Name:              "ParentService",
+		Startup:           "/usr/bin/ping -c localhost",
+		Description:       "Ping a remote host a fixed number of times",
+		Instances:         1,
+		InstanceLimits:    domain.MinMax{1, 1, 1},
+		ImageID:           "test/pinger",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		DesiredState:      int(service.SVCRun),
+		Launch:            "auto",
+		Endpoints:         []service.ServiceEndpoint{},
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+		EmergencyShutdown: false,
+	}
+	childService1 := service.Service{
+		ID:                "childService1",
+		Name:              "childservice1",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: false,
+	}
+	childService2 := service.Service{
+		ID:                "childService2",
+		Name:              "childservice2",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
+		ParentServiceID:   "ParentServiceID",
+		EmergencyShutdown: false,
+	}
+	childService3 := service.Service{
+		ID:                "childService3",
+		Name:              "childservice3",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "childService2",
+		EmergencyShutdown: false,
+	}
+	childService4 := service.Service{
+		ID:                "childService4",
+		Name:              "childservice4",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "childService2",
+		EmergencyShutdown: false,
+	}
+	childService5 := service.Service{
+		ID:                "childService5",
+		Name:              "childservice5",
+		Launch:            "manual",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "childService2",
+		EmergencyShutdown: false,
+	}
+	childService6 := service.Service{
+		ID:                "childService6",
+		Name:              "childservice6",
+		Launch:            "manual",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		ParentServiceID:   "childService2",
+		EmergencyShutdown: false,
+	}
+	svc2 := service.Service{
+		ID:                "ParentServiceID2",
+		Name:              "ParentService2",
+		Launch:            "auto",
+		PoolID:            "default",
+		DeploymentID:      "deployment_id",
+		Startup:           "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
+		EmergencyShutdown: false,
+	}
+
+	var err error
+	if err = ft.Facade.AddService(ft.CTX, svc); err != nil {
+		c.Fatalf("Failed Loading Parent Service Service: %+v, %s", svc, err)
+	}
+
+	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
+		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService2); err != nil {
+		c.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService3); err != nil {
+		c.Fatalf("Failed Loading Child Service 3: %+v, %s", childService3, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService4); err != nil {
+		c.Fatalf("Failed Loading Child Service 4: %+v, %s", childService4, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService5); err != nil {
+		c.Fatalf("Failed Loading Child Service 5: %+v, %s", childService5, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, childService6); err != nil {
+		c.Fatalf("Failed Loading Child Service 6: %+v, %s", childService6, err)
+	}
+	if err = ft.Facade.AddService(ft.CTX, svc2); err != nil {
+		c.Fatalf("Failed Loading Parent Service 2 Service: %+v, %s", svc2, err)
+	}
+
+	// Start services childService1, childService2, childService3, childService5, and ParentServiceID2
+	//  Mock the service state manager and make sure the right services get passed with no duplicates
+	//  Should be childService1, childService2, childService3, childService4, childService5 in one call and
+	//  ParentServiceID2 in a second call with different tenants
+	mockedSSM := &ssmmocks.ServiceStateManager{}
+	ft.Facade.SetServiceStateManager(mockedSSM)
+
+	mockedSSM.On("ScheduleServices", mock.AnythingOfType("[]*service.Service"),
+		"ParentServiceID", service.SVCRun, false).Return(nil).Run(func(args mock.Arguments) {
+		services := args.Get(0).([]*service.Service)
+		c.Assert(len(services), Equals, 5)
+		found := make(map[string]bool)
+		for _, s := range services {
+			found[s.ID] = true
+		}
+
+		c.Assert(found["childService1"], Equals, true)
+		c.Assert(found["childService2"], Equals, true)
+		c.Assert(found["childService3"], Equals, true)
+		c.Assert(found["childService4"], Equals, true)
+		c.Assert(found["childService5"], Equals, true)
+	}).Once()
+
+	mockedSSM.On("ScheduleServices", mock.AnythingOfType("[]*service.Service"),
+		"ParentServiceID2", service.SVCRun, false).Return(nil).Run(func(args mock.Arguments) {
+		services := args.Get(0).([]*service.Service)
+		c.Assert(len(services), Equals, 1)
+		c.Assert(services[0].ID, Equals, "ParentServiceID2")
+	}).Once()
+
+	mockedSSM.On("WaitScheduled", "ParentServiceID", mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		sIDs := args.Get(1).([]string)
+		c.Assert(len(sIDs), Equals, 5)
+		found := make(map[string]bool)
+		for _, s := range sIDs {
+			found[s] = true
+		}
+		c.Assert(found["childService1"], Equals, true)
+		c.Assert(found["childService2"], Equals, true)
+		c.Assert(found["childService3"], Equals, true)
+		c.Assert(found["childService4"], Equals, true)
+		c.Assert(found["childService5"], Equals, true)
+	}).Once()
+
+	mockedSSM.On("WaitScheduled", "ParentServiceID2", mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		sIDs := args.Get(1).([]string)
+		c.Assert(len(sIDs), Equals, 1)
+		c.Assert(sIDs[0], Equals, "ParentServiceID2")
+	}).Once()
+
+	count, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{ServiceIDs: []string{"childService1", "childService2", "childService3", "childService5", "ParentServiceID2"}, AutoLaunch: true, Synchronous: true})
+	c.Assert(err, IsNil)
+	c.Assert(count, Equals, 6)
+
+	mockedSSM.AssertExpectations(c)
+
 }
 
 func (ft *FacadeIntegrationTest) setupMigrationTestWithoutEndpoints(t *C) error {
