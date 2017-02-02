@@ -86,8 +86,6 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 		logger.WithError(err).Debug("Could not stop container")
 		return err
 	}
-
-	a.setInstanceState(serviceID, instanceID, zkservice.StateStopped)
 	return nil
 }
 
