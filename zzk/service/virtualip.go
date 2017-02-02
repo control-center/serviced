@@ -1,4 +1,4 @@
-// Copyright 2016 The Serviced Authors.
+// Copyright 2017 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,12 +14,18 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/coordinator/client"
 )
+
+// ErrInvalidIPID is an error that is returned when the ip id value is not
+// parseable.
+var ErrInvalidIPID = errors.New("invalid ip id")
 
 // PoolIP provides information about the virtual ip with respect to its state
 // on the host.
@@ -39,7 +45,9 @@ func (ip *PoolIP) SetVersion(version interface{}) {
 
 // HostIP describes to the delegate how to set up the virtual ip
 type HostIP struct {
-	version interface{}
+	Netmask       string
+	BindInterface string
+	version       interface{}
 }
 
 // Version implements client.Node
@@ -123,10 +131,10 @@ func GetIP(conn client.Connection, req IPRequest) (*IP, error) {
 }
 
 // CreateIP adds a new ip for pool and the host
-func CreateIP(conn client.Connection, req IPRequest) error {
+func CreateIP(conn client.Connection, req IPRequest, netmask, iface string) error {
 	logger := plog.WithFields(log.Fields{
-		"hostid": req.HostID,
-		"ipaddress", req.IPAddress,
+		"hostid":    req.HostID,
+		"ipaddress": req.IPAddress,
 	})
 
 	basepth := "/"
@@ -159,7 +167,10 @@ func CreateIP(conn client.Connection, req IPRequest) error {
 	}
 
 	hpth = path.Join(hpth, req.IPID())
-	hdat := &HostIP{}
+	hdat := &HostIP{
+		Netmask:       netmask,
+		BindInterface: iface,
+	}
 	t.Create(hpth, hdat)
 
 	if err := t.Commit(); err != nil {
@@ -174,8 +185,8 @@ func CreateIP(conn client.Connection, req IPRequest) error {
 // UpdateIP updates the ip for the pool and the host
 func UpdateIP(conn client.Connection, req IPRequest, mutate func(*IP) bool) error {
 	logger := plog.WithFields(log.Fields{
-		"hostid": req.HostID,
-		"ipaddress", req.IPAddress,
+		"hostid":    req.HostID,
+		"ipaddress": req.IPAddress,
 	})
 
 	basepth := "/"
@@ -189,7 +200,7 @@ func UpdateIP(conn client.Connection, req IPRequest, mutate func(*IP) bool) erro
 	if err := conn.Get(ppth, pdat); err != nil {
 		logger.WithError(err).Debug("Could not look up virtual ip on resource pool")
 		// TODO: error
-		return nil, err
+		return err
 	}
 
 	// Get the current host ip
@@ -198,7 +209,7 @@ func UpdateIP(conn client.Connection, req IPRequest, mutate func(*IP) bool) erro
 	if err := conn.Get(hpth, hdat); err != nil {
 		logger.WithError(err).Debug("Could not look up virtual ip on host")
 		// TODO: error
-		return nil, err
+		return err
 	}
 
 	// mutate the state
@@ -234,8 +245,8 @@ func UpdateIP(conn client.Connection, req IPRequest, mutate func(*IP) bool) erro
 // DeleteIP removes the ip from the pool and the host
 func DeleteIP(conn client.Connection, req IPRequest) error {
 	logger := plog.WithFields(log.Fields{
-		"hostid": req.HostID,
-		"ipaddress", req.IPAddress,
+		"hostid":    req.HostID,
+		"ipaddress": req.IPAddress,
 	})
 
 	basepth := "/"
