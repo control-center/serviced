@@ -32,7 +32,6 @@ func (c *Client) StopServiceInstance(serviceID string, instanceID int) error {
 		ServiceID:  serviceID,
 		InstanceID: instanceID,
 	}
-
 	err := c.call("StopServiceInstance", req, new(string))
 	return err
 }

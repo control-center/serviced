@@ -37,6 +37,27 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
+func (a *HostAgent) setInstanceState(serviceID string, instanceID int, state zkservice.CurrentState) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+	})
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))
+	if err != nil {
+		logger.WithError(err).Error("Could not connect to zookeeper")
+		return err
+	}
+	req := zkservice.StateRequest{
+		HostID:     a.hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+	return zkservice.UpdateState(conn, req, func(s *zkservice.State) bool {
+		s.Status = state
+		return true
+	})
+}
+
 // StopContainer stops running container or returns nil if the container does
 // not exist or has already stopped.
 func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
@@ -56,6 +77,7 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 		return err
 	}
 
+	a.setInstanceState(serviceID, instanceID, zkservice.StateStopping)
 	err = ctr.Stop(45 * time.Second)
 	if _, ok := err.(*dockerclient.ContainerNotRunning); ok {
 		logger.Debug("Container already stopped")
@@ -64,7 +86,6 @@ func (a *HostAgent) StopContainer(serviceID string, instanceID int) error {
 		logger.WithError(err).Debug("Could not stop container")
 		return err
 	}
-
 	return nil
 }
 
@@ -109,6 +130,7 @@ func (a *HostAgent) AttachContainer(state *zkservice.ServiceState, serviceID str
 		return nil, nil
 	}
 	go a.exposeAssignedIPs(state, ctr)
+	a.setInstanceState(serviceID, instanceID, zkservice.StateRunning)
 	return ev, nil
 }
 
@@ -128,6 +150,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	}
 
 	// pull the service image
+	a.setInstanceState(serviceID, instanceID, zkservice.StatePulling)
 	imageUUID, imageName, err := a.pullImage(logger, cancel, evaluatedService.ImageID)
 	if err != nil {
 		logger.WithError(err).Debug("Could not pull the service image")
@@ -144,6 +167,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	}
 
 	// start the container
+	a.setInstanceState(serviceID, instanceID, zkservice.StateStarting)
 	ev := a.monitorContainer(logger, ctr)
 
 	if err := ctr.Start(); err != nil {
@@ -165,6 +189,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 	state.Started = dctr.State.StartedAt
 
 	go a.exposeAssignedIPs(state, ctr)
+	a.setInstanceState(serviceID, instanceID, zkservice.StateRunning)
 	return state, ev, nil
 }
 
@@ -198,6 +223,7 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 	}
 
 	go func() {
+		a.setInstanceState(serviceID, instanceID, zkservice.StatePulling)
 		for {
 			// relentlessly try to pull the image
 			_, _, err := a.pullImage(logger, cancel, ctr.Config.Image)
@@ -216,6 +242,7 @@ func (a *HostAgent) RestartContainer(cancel <-chan interface{}, serviceID string
 			break
 		}
 
+		a.setInstanceState(serviceID, instanceID, zkservice.StateStopping)
 		// set the container to stop; ctr.Stop() stops the container by
 		// container id and not name, so if the container was stopped or
 		// deleted before the pull is successful, then this will just be a
@@ -262,11 +289,13 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 	}
 
 	// resume the paused container
+	a.setInstanceState(serviceID, instanceID, zkservice.StateResuming)
 	if err := attachAndRun(ctrName, svc.Snapshot.Resume); err != nil {
 		logger.WithError(err).Debug("Could not resume paused container")
 		return err
 	}
 	logger.Debug("Resumed paused container")
+	a.setInstanceState(serviceID, instanceID, zkservice.StateResumed)
 
 	return nil
 }
@@ -304,11 +333,13 @@ func (a *HostAgent) PauseContainer(serviceID string, instanceID int) error {
 	}
 
 	// pause the running container
+	a.setInstanceState(serviceID, instanceID, zkservice.StatePausing)
 	if err := attachAndRun(ctrName, svc.Snapshot.Pause); err != nil {
 		logger.WithError(err).Debug("Could not pause running container")
 		return err
 	}
 	logger.Debug("Paused running container")
+	a.setInstanceState(serviceID, instanceID, zkservice.StatePaused)
 	return nil
 }
 
@@ -367,9 +398,14 @@ func (a *HostAgent) pullImage(logger *log.Entry, cancel <-chan interface{}, imag
 }
 
 // monitorContainer tracks the running state of the container.
+// runs when the container dies
 func (a *HostAgent) monitorContainer(logger *log.Entry, ctr *docker.Container) <-chan time.Time {
 	ev := make(chan time.Time, 1)
 	ctr.OnEvent(docker.Die, func(_ string) {
+		someSlice := strings.Split(ctr.Name, "-")
+		serviceID := someSlice[0]
+		instanceID, err := strconv.ParseInt(someSlice[1], 10, 0)
+		a.setInstanceState(serviceID, int(instanceID), zkservice.StateStopped)
 		defer close(ev)
 		dctr, err := ctr.Inspect()
 		if err != nil {

@@ -66,6 +66,32 @@ type ServiceState struct {
 	version     interface{}
 }
 
+type CurrentState string
+
+const (
+	StatePulling  CurrentState = "pulling"
+	StateStarting CurrentState = "starting"
+	StateRunning  CurrentState = "running"
+	StateStopping CurrentState = "stopping"
+	StateStopped  CurrentState = "stopped"
+	StatePausing  CurrentState = "pausing"
+	StatePaused   CurrentState = "paused"
+	StateResuming CurrentState = "resuming"
+	StateResumed  CurrentState = "resumed"
+)
+
+type CurrentStateContainer struct {
+	Status  CurrentState
+	version interface{}
+}
+
+func (s *CurrentStateContainer) Version() interface{} {
+	return s.version
+}
+func (s *CurrentStateContainer) SetVersion(version interface{}) {
+	s.version = version
+}
+
 // Version implements client.Node
 func (s *ServiceState) Version() interface{} {
 	return s.version
@@ -98,6 +124,7 @@ func (s *HostState) SetVersion(version interface{}) {
 type State struct {
 	HostState
 	ServiceState
+	CurrentStateContainer
 	HostID     string
 	ServiceID  string
 	InstanceID int
@@ -192,12 +219,25 @@ func GetState(conn client.Connection, req StateRequest) (*State, error) {
 
 	logger.Debug("Found the service state")
 
+	// Get the current state (status)
+	cspth := path.Join(sspth, "current")
+	cstate := &CurrentStateContainer{}
+	if err := conn.Get(cspth, cstate); err != nil {
+		logger.WithError(err).Debug("Could not look up current state (status)")
+		return nil, &StateError{
+			Request:   req,
+			Operation: "get",
+			Message:   "could not look up current state (status)",
+		}
+	}
+
 	return &State{
-		HostState:    *hsdat,
-		ServiceState: *ssdat,
-		HostID:       req.HostID,
-		ServiceID:    req.ServiceID,
-		InstanceID:   req.InstanceID,
+		HostState:             *hsdat,
+		ServiceState:          *ssdat,
+		CurrentStateContainer: *cstate,
+		HostID:                req.HostID,
+		ServiceID:             req.ServiceID,
+		InstanceID:            req.InstanceID,
 	}, nil
 }
 
@@ -453,8 +493,12 @@ func CreateState(conn client.Connection, req StateRequest) error {
 	ssdat := &ServiceState{}
 	t.Create(sspth, ssdat)
 
-	if err := t.Commit(); err != nil {
+	cspth := path.Join(sspth, "current")
+	cstate := &CurrentStateContainer{}
+	cstate.Status = StateStopped
+	t.Create(cspth, cstate)
 
+	if err := t.Commit(); err != nil {
 		logger.WithError(err).Debug("Could not commit transaction")
 		return &StateError{
 			Request:   req,
@@ -506,14 +550,27 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*State) b
 		}
 	}
 
+	// Get the current state (status)
+	cspth := path.Join(sspth, "current")
+	cstate := &CurrentStateContainer{}
+	if err := conn.Get(cspth, cstate); err != nil {
+		logger.WithError(err).Debug("Could not look up current state (status)")
+		return &StateError{
+			Request:   req,
+			Operation: "update",
+			Message:   "could not look up current state (status)",
+		}
+	}
+
 	// mutate the states
-	hsver, ssver := hsdat.Version(), ssdat.Version()
+	hsver, ssver, cstatever := hsdat.Version(), ssdat.Version(), cstate.Version()
 	state := &State{
-		HostState:    *hsdat,
-		ServiceState: *ssdat,
-		HostID:       req.HostID,
-		ServiceID:    req.ServiceID,
-		InstanceID:   req.InstanceID,
+		HostState:             *hsdat,
+		ServiceState:          *ssdat,
+		CurrentStateContainer: *cstate,
+		HostID:                req.HostID,
+		ServiceID:             req.ServiceID,
+		InstanceID:            req.InstanceID,
 	}
 
 	// only commit the transaction if mutate returns true
@@ -527,9 +584,10 @@ func UpdateState(conn client.Connection, req StateRequest, mutate func(*State) b
 	hsdat.SetVersion(hsver)
 	*ssdat = state.ServiceState
 	ssdat.SetVersion(ssver)
+	*cstate = state.CurrentStateContainer
+	cstate.SetVersion(cstatever)
 
-	if err := conn.NewTransaction().Set(hspth, hsdat).Set(sspth, ssdat).Commit(); err != nil {
-
+	if err := conn.NewTransaction().Set(hspth, hsdat).Set(sspth, ssdat).Set(cspth, cstate).Commit(); err != nil {
 		logger.WithError(err).Debug("Could not commit transaction")
 		return &StateError{
 			Request:   req,
@@ -578,8 +636,24 @@ func DeleteState(conn client.Connection, req StateRequest) error {
 		logger.Debug("No state to delete on host")
 	}
 
-	// Delete the service instance
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
+
+	// Delete the current state (status)
+	cspth := path.Join(sspth, "current")
+	if ok, err := conn.Exists(cspth); err != nil {
+		logger.WithError(err).Debug("Could not look up current state (status)")
+		return &StateError{
+			Request:   req,
+			Operation: "delete",
+			Message:   "could not look up current state (status)",
+		}
+	} else if ok {
+		t.Delete(cspth)
+	} else {
+		logger.Debug("No status to delete on service")
+	}
+
+	// Delete the service instance
 	if ok, err := conn.Exists(sspth); err != nil {
 		logger.WithError(err).Debug("Could not look up service state")
 
@@ -800,7 +874,6 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 
 	sspth := path.Join(basepth, "/services", req.ServiceID, req.StateID())
 	if ok, err := conn.Exists(sspth); err != nil {
-
 		logger.WithError(err).Debug("Could not look up service state")
 		return false, &StateError{
 			Request:   req,
@@ -808,8 +881,20 @@ func IsValidState(conn client.Connection, req StateRequest) (bool, error) {
 			Message:   "could not look up service state",
 		}
 	} else if !ok {
-
 		logger.Debug("Service state not found")
+		return false, nil
+	}
+
+	cspth := path.Join(sspth, "current")
+	if ok, err := conn.Exists(cspth); err != nil {
+		logger.WithError(err).Debug("Could not look up current state (status)")
+		return false, &StateError{
+			Request:   req,
+			Operation: "exists",
+			Message:   "could not look up current state (status)",
+		}
+	} else if !ok {
+		logger.Debug("Service status not found")
 		return false, nil
 	}
 
@@ -972,7 +1057,6 @@ func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateReque
 	done := make(chan struct{})
 	defer func() { close(done) }()
 	for {
-
 		// Get the current host state and set the watch
 		hspth := path.Join(basepth, "/hosts", req.HostID, "instances", req.StateID())
 		hsok := true
@@ -1005,11 +1089,27 @@ func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateReque
 			}
 		}
 
+		cspth := path.Join(sspth, "current")
+		csok := true
+		cstate := &CurrentStateContainer{}
+		csev, err := conn.GetW(cspth, cstate, done)
+		if err == client.ErrNoNode {
+			csok = false
+		} else if err != nil {
+			logger.WithError(err).Debug("Could not watch service status")
+			return nil, &StateError{
+				Request:   req,
+				Operation: "watch",
+				Message:   "could not watch service status",
+			}
+		}
+
 		// Ensure the nodes are compatible
-		if hsok != ssok {
+		if hsok != ssok || ssok != csok {
 			logger.WithFields(log.Fields{
-				"hoststateexists":    hsok,
-				"servicestateexists": ssok,
+				"hoststateexists":     hsok,
+				"servicestateexists":  ssok,
+				"servicestatusexists": csok,
 			}).Debug("Incongruent state")
 			return nil, &StateError{
 				Request:   req,
@@ -1017,15 +1117,16 @@ func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateReque
 				Message:   "incongruent state",
 			}
 		}
-		exists := hsok && ssok
+		exists := hsok && ssok && csok
 
 		// Does the state statisfy the requirements?
 		state := &State{
-			HostState:    *hsdat,
-			ServiceState: *ssdat,
-			HostID:       req.HostID,
-			ServiceID:    req.ServiceID,
-			InstanceID:   req.InstanceID,
+			HostState:             *hsdat,
+			ServiceState:          *ssdat,
+			CurrentStateContainer: *cstate,
+			HostID:                req.HostID,
+			ServiceID:             req.ServiceID,
+			InstanceID:            req.InstanceID,
 		}
 
 		// Only return the state if the value is true.  Return an error if the
@@ -1045,6 +1146,7 @@ func MonitorState(cancel <-chan struct{}, conn client.Connection, req StateReque
 		select {
 		case <-hsev:
 		case <-ssev:
+		case <-csev:
 		case <-cancel:
 			logger.Debug("Aborted state monitor")
 			return nil, nil

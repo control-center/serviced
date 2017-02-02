@@ -44,7 +44,7 @@ type HostStateHandler interface {
 
 	// RestartContainer asynchronously prepulls the latest image before
 	// stopping the container.  It only returns an error if there is a problem
-	// with docker and not of the container is not running or doesn't exist.
+	// with docker and not if the container is not running or doesn't exist.
 	RestartContainer(cancel <-chan interface{}, serviceID string, instanceID int) error
 
 	// ResumeContainer resumes a paused container.  Returns nil if the
