@@ -1,3 +1,8 @@
 #!/bin/sh
 
-${SERVICED:=/opt/serviced/bin/serviced} service run zope zenossdbpack
+if [ ! -d /opt/serviced/log/zenossdbpack ]; then
+    mkdir -p /opt/serviced/log/zenossdbpack
+    chmod 1777 /opt/serviced/log/zenossdbpack
+fi
+
+${SERVICED:=/opt/serviced/bin/serviced} service run --mount /opt/serviced/log/zenossdbpack,/opt/zenoss/log zope zenossdbpack
