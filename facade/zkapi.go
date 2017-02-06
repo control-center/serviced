@@ -51,7 +51,7 @@ func getLocalConnection(ctx datastore.Context, path string) (client.Connection, 
 
 func (zk *zkf) syncServiceRegistry(ctx datastore.Context, tenantID string, svcs []*service.Service) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.syncServiceRegistry"))
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if err := zk.SyncServiceRegistry(ctx, tenantID, svc); err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("zzk.UpdateServices"))
 
 	servicesByPool := make(map[string]*[]*service.Service)
-	for _, svc := range(svcs) {
+	for _, svc := range svcs {
 		if poolSvcs, ok := servicesByPool[svc.PoolID]; ok {
 			*poolSvcs = append(*poolSvcs, svc)
 		} else {
@@ -92,7 +92,7 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 		}
 	}
 
-	for poolID, poolSvcs := range(servicesByPool) {
+	for poolID, poolSvcs := range servicesByPool {
 		poolLogger := plog.WithFields(log.Fields{
 			"tenantid":     tenantID,
 			"poolid":       poolID,
@@ -114,8 +114,6 @@ func (zk *zkf) UpdateServices(ctx datastore.Context, tenantID string, svcs []*se
 		}
 		poolLogger.Debug("Updated the pool service(s) in zookeeper")
 	}
-
-
 
 	return nil
 }
@@ -274,6 +272,81 @@ func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, can
 	stop := make(chan struct{})
 	go func() {
 		errC <- zks.WaitService(stop, rootconn, svc.PoolID, svc.ID, checkCount, checkState)
+	}()
+
+	select {
+	case err := <-errC:
+		if err != nil {
+			logger.WithError(err).Debug("Could not monitor the service's states in zookeeper")
+			return err
+		}
+		return err
+	case <-cancel:
+		close(stop)
+		return <-errC
+	}
+}
+
+// WaitInstance waits for an instance of a service to reach a desiredstate
+func (zk *zkf) WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, state service.DesiredState, cancel <-chan struct{}) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":    svc.ID,
+		"servicename":  svc.Name,
+		"desiredstate": state,
+		"poolid":       svc.PoolID,
+	})
+
+	// get the root-based connection to delete the service endpoints
+	rootconn, err := getLocalConnection(ctx, "/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire root-based connection")
+		return err
+	}
+
+	var checkState func(*zks.State, bool) bool
+
+	// set up the check calls
+	switch state {
+	case service.SVCStop:
+		checkState = func(s *zks.State, exists bool) bool {
+			if !exists {
+				return true
+			}
+
+			if s.DesiredState == service.SVCStop {
+				return s.Terminated.After(s.Started)
+			}
+
+			if s.DesiredState == service.SVCRun {
+				// This is what a stop looks like during a restart
+				return s.Terminated.After(s.Restarted) && s.Restarted.After(s.Started)
+			}
+
+			return false
+		}
+	case service.SVCRun:
+		checkState = func(s *zks.State, exists bool) bool {
+			return exists && s.DesiredState != service.SVCStop && s.Started.After(s.Terminated)
+		}
+	case service.SVCPause:
+		checkState = func(s *zks.State, exists bool) bool {
+			if exists {
+				if s.DesiredState != service.SVCRun {
+					return s.Paused || s.Terminated.After(s.Started)
+				}
+				return false
+			}
+			return true
+		}
+	default:
+		return errors.New("invalid state")
+	}
+
+	// do wait
+	errC := make(chan error)
+	stop := make(chan struct{})
+	go func() {
+		errC <- zks.WaitInstance(stop, rootconn, svc.PoolID, svc.ID, instanceID, checkState)
 	}()
 
 	select {
