@@ -42,6 +42,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 
 	"github.com/control-center/serviced/utils"
+	"sync"
 )
 
 const (
@@ -1326,37 +1327,54 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 	logger.Info("Scheduling service batch")
 	servicesToSchedule := make([]*service.Service, 0)
 	failedServices := []string{}
-	for _, svc := range svcs {
-		if svc.DesiredState == int(desiredState) {
-			continue
-		}
-		if desiredState != service.SVCStop {
-			// Verify that the service is ready to be started
-			if err := f.validateServiceStart(ctx, svc); err != nil {
-				logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
-				failedServices = append(failedServices, svc.ID)
-				continue
-			}
-		}
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	for _, s := range svcs {
+		wg.Add(1)
+		// Do this in a goroutine because rolling restarts could take awhile
+		go func(svc *service.Service) {
+			defer wg.Done()
 
-		err := f.updateDesiredState(ctx, svc, desiredState)
-		if err != nil {
-			logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
-			failedServices = append(failedServices, svc.ID)
-			continue
-		}
-		if err := f.fillServiceAddr(ctx, svc); err != nil {
-			logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
-			failedServices = append(failedServices, svc.ID)
-			continue
-		}
-		logger.WithFields(log.Fields{
-			"servicename": svc.Name,
-			"serviceid":   svc.ID,
-		}).Debug("Scheduled service")
-		servicesToSchedule = append(servicesToSchedule, svc)
+			if svc.DesiredState == int(desiredState) {
+				return
+			}
+			if desiredState != service.SVCStop {
+				// Verify that the service is ready to be started
+				if err := f.validateServiceStart(ctx, svc); err != nil {
+					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
+					lock.Lock()
+					failedServices = append(failedServices, svc.ID)
+					lock.Unlock()
+					return
+				}
+			}
+
+			err := f.updateDesiredState(ctx, svc, desiredState)
+			if err != nil {
+				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error scheduling service")
+				lock.Lock()
+				failedServices = append(failedServices, svc.ID)
+				lock.Unlock()
+				return
+			}
+			if err := f.fillServiceAddr(ctx, svc); err != nil {
+				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
+				lock.Lock()
+				failedServices = append(failedServices, svc.ID)
+				lock.Unlock()
+				return
+			}
+			logger.WithFields(log.Fields{
+				"servicename": svc.Name,
+				"serviceid":   svc.ID,
+			}).Debug("Scheduled service")
+			lock.Lock()
+			servicesToSchedule = append(servicesToSchedule, svc)
+			lock.Unlock()
+		}(s)
 	}
 
+	wg.Wait()
 	if err := f.zzk.UpdateServices(ctx, tenantID, servicesToSchedule, false, false); err != nil {
 		logger.WithError(err).Error("Could not sync service(s)")
 		return []string{}, err
@@ -1368,21 +1386,139 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 
 func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service, desiredState service.DesiredState) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
-	switch desiredState {
-	case service.SVCRestart:
-		// shutdown all service instances
-		if err := f.zzk.StopServiceInstances(ctx, svc.PoolID, svc.ID); err != nil {
-			return err
-		}
-		svc.DesiredState = int(service.SVCRun)
-	default:
-		svc.DesiredState = int(desiredState)
+	logger := plog.WithFields(log.Fields{
+		"serviceid":    svc.ID,
+		"servicename":  svc.Name,
+		"desiredstate": desiredState,
+	})
+	if desiredState == service.SVCRestart && svc.DesiredState == int(service.SVCStop) {
+		// If we are already stopped or stopping, just start it back up
+		desiredState = service.SVCRun
 	}
 
-	// write the service into the database
-	if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
-		glog.Errorf("Facade.updateDesiredState: Could not create service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+	if desiredState == service.SVCRestart {
+		if err := f.rollingRestart(ctx, svc, f.rollingRestartTimeout); err != nil {
+			logger.WithError(err).Debug("Could not perform rolling restart for service")
+			return err
+		}
+	} else {
+		svc.DesiredState = int(desiredState)
+		// write the service into the database
+		if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
+			logger.WithError(err).Debug("Could not update desired state")
+			return err
+		}
+	}
+
+	return nil
+}
+
+// rollingRestart restarts a service one instance at a time and waits for it to reach pass health checks.
+func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, timeout time.Duration) error {
+	logger := plog.WithFields(log.Fields{
+		"serviceid":   svc.ID,
+		"servicename": svc.Name,
+	})
+
+	// Build the service health object to use for getting instance health
+	svch := service.BuildServiceHealth(*svc)
+
+	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
+		ilogger := logger.WithField("instance", instanceID)
+		ilogger.Debug("Restarting instance")
+		// Set up the timeout
+		cancel := make(chan struct{})
+		cancelWait := make(chan struct{})
+		timer := time.NewTimer(timeout)
+		go func() {
+			defer timer.Stop()
+
+			select {
+			case <-timer.C:
+				ilogger.Warn("Timeout waiting for instance to restart")
+				close(cancelWait)
+			case <-cancel:
+				close(cancelWait)
+			}
+		}()
+
+		// We need to start the wait in a goroutine before calling restart, so we can be sure to catch the first
+		// transition from running to stopped
+		errC := make(chan error)
+		go func() {
+			// First wait for the stop
+			err := f.zzk.WaitInstance(ctx, svc, instanceID, service.SVCStop, cancelWait)
+			if err != nil {
+				errC <- err
+				return
+			}
+
+			// If we got cancelled, bail:
+			select {
+			case <-cancelWait:
+				errC <- nil
+				return
+			default:
+			}
+
+			// Then for the start
+			errC <- f.zzk.WaitInstance(ctx, svc, instanceID, service.SVCRun, cancelWait)
+		}()
+
+		if err := f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
+			close(cancel)
+			<-errC
+			return err
+		}
+
+		// Now we actually wait
+		err := <-errC
+		ilogger.Debug("Done waiting on instance")
+		if err != nil {
+			close(cancel)
+			return err
+		}
+
+		// Check if we're ready to move on to the next instance on an interval
+		ready := func() bool {
+			// Wait for health checks to pass
+			statuses := f.getInstanceHealth(svch, instanceID)
+			for key, status := range statuses {
+				ilogger.WithFields(log.Fields{
+					"status": status,
+					"key":    key,
+				}).Debug("Got health status for instance")
+				if status != health.OK {
+					return false
+				}
+			}
+
+			return true
+		}
+
+		hctimer := time.NewTimer(500 * time.Millisecond)
+
+		// See if we have timed out
+		cancelled := false
+		select {
+		case <-cancelWait:
+			cancelled = true
+		default:
+		}
+
+		for !cancelled && !ready() {
+			ilogger.Debug("Instance not ready yet, checking again in 500 ms")
+			select {
+			case <-cancelWait:
+				cancelled = true
+			case <-hctimer.C:
+				hctimer.Stop()
+				hctimer.Reset(500 * time.Millisecond)
+			}
+		}
+		hctimer.Stop()
+		ilogger.Debug("Done restarting instance")
+		close(cancel)
 	}
 	return nil
 }
