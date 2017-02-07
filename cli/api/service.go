@@ -366,6 +366,18 @@ func (a *api) RestartService(config SchedulerConfig) (int, error) {
 	return affected, err
 }
 
+// Rebalance
+func (a *api) RebalanceService(config SchedulerConfig) (int, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return 0, err
+	}
+
+	var affected int
+	err = client.RebalanceService(dao.ScheduleServiceRequest{config.ServiceIDs, config.AutoLaunch, config.Synchronous}, &affected)
+	return affected, err
+}
+
 // StopService stops a service
 func (a *api) StopService(config SchedulerConfig) (int, error) {
 	client, err := a.connectDAO()

@@ -178,6 +178,10 @@ func (c *ServicedCli) initService() {
 						Name:  "sync, s",
 						Usage: "Schedules services synchronously",
 					},
+					cli.BoolFlag{
+						Name:  "rebalance",
+						Usage: "Stops all instances before restarting them, instead of performing a rolling restart",
+					},
 				},
 			}, {
 				Name:         "stop",
@@ -1119,10 +1123,18 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 
 	// Batch start services
 	if len(sIds) > 0 {
-		if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		if ctx.Bool("rebalance") {
+			if affected, err := c.driver.RebalanceService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			} else {
+				fmt.Printf("Restarting %d service(s)\n", affected)
+			}
 		} else {
-			fmt.Printf("Restarting %d service(s)\n", affected)
+			if affected, err := c.driver.RestartService(api.SchedulerConfig{sIds, ctx.Bool("auto-launch"), ctx.Bool("sync")}); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			} else {
+				fmt.Printf("Restarting %d service(s)\n", affected)
+			}
 		}
 	}
 
