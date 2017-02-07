@@ -1231,6 +1231,31 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 	return cleared, nil
 }
 
+// countServices will count how many unique services in the given list (including children) satisfy the check function
+func (f *Facade) countServices(ctx datastore.Context, serviceIDs []string, check func(*service.Service) bool) (int, error) {
+	alreadyChecked := make(map[string]bool)
+	count := 0
+	visitor := func(svc *service.Service) error {
+		if !alreadyChecked[svc.ID] {
+			alreadyChecked[svc.ID] = true
+
+			if check(svc) {
+				count++
+			}
+		}
+		return nil
+	}
+
+	for _, serviceID := range serviceIDs {
+		err := f.walkServices(ctx, serviceID, true, visitor, "countServices")
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return count, nil
+}
+
 func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, serviceIDs []string, autoLaunch bool, synchronous bool, desiredState service.DesiredState, locked bool, emergency bool) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.scheduleServiceParents"))
 	logger := plog.WithFields(log.Fields{
@@ -1639,6 +1664,36 @@ func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleService
 func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RestartService"))
 	return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRestart, false)
+}
+
+// RebalanceService does a hard restart:  All services are stopped, and then all services are started again
+func (f *Facade) RebalanceService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RebalanceService"))
+
+	forceRestart := func() (int, error) {
+		count, err := f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, true, service.SVCStop, false)
+		if err != nil {
+			return count, err
+		}
+
+		return f.ScheduleServices(ctx, request.ServiceIDs, request.AutoLaunch, request.Synchronous, service.SVCRun, false)
+	}
+
+	if request.Synchronous {
+		return forceRestart()
+	} else {
+		go forceRestart()
+
+		// We need to figure out some count to return
+		check := func(svc *service.Service) bool {
+			if svc.DesiredState != int(service.SVCStop) {
+				return true
+			}
+			return false
+		}
+		return f.countServices(ctx, request.ServiceIDs, check)
+	}
+
 }
 
 func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
