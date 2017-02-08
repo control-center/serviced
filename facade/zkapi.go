@@ -312,7 +312,7 @@ func (zk *zkf) WaitInstance(ctx datastore.Context, svc *service.Service, instanc
 	select {
 	case err := <-errC:
 		if err != nil {
-			logger.WithError(err).Debug("Could not monitor the service's containerID in zookeeper")
+			logger.WithError(err).Debug("Could not monitor the instance in zookeeper")
 			return err
 		}
 		return err
