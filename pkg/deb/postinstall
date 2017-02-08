@@ -2,3 +2,5 @@
 mkdir -p /var/log/serviced
 chmod 1777 /var/log/serviced
 
+chgrp serviced /etc/default/serviced
+chgrp -R serviced /opt/serviced
