@@ -82,8 +82,9 @@ import (
 	"time"
 
 	// Needed for profiling
-	"github.com/control-center/serviced/scheduler/servicestatemanager"
 	_ "net/http/pprof"
+
+	"github.com/control-center/serviced/scheduler/servicestatemanager"
 )
 
 var (
@@ -1156,8 +1157,7 @@ func (d *daemon) startStorageMonitor() {
 				log.WithFields(logrus.Fields{
 					"value": options.StorageMinimumFreeSpace,
 				}).Warn("Unable to parse minimum free space parameter. Falling back to default")
-				// TODO: Change this when we update the default
-				minfree, _ = units.RAMInBytes("1G")
+				minfree, _ = units.RAMInBytes("3G")
 			}
 			tenants := []string{}
 		CheckMetrics:

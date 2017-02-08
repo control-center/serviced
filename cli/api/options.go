@@ -181,8 +181,8 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		ServiceRunLevelTimeout:     cfg.IntVal("RUN_LEVEL_TIMEOUT", 60),
 		StorageReportInterval:      cfg.IntVal("STORAGE_REPORT_INTERVAL", 30),
 		StorageMetricMonitorWindow: cfg.IntVal("STORAGE_METRIC_MONITOR_WINDOW", 300),
-		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 600),
-		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "1G"),
+		StorageLookaheadPeriod:     cfg.IntVal("STORAGE_LOOKAHEAD_PERIOD", 360),
+		StorageMinimumFreeSpace:    cfg.StringVal("STORAGE_MIN_FREE", "3G"),
 	}
 
 	options.Endpoint = cfg.StringVal("ENDPOINT", "")
