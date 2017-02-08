@@ -1452,55 +1452,45 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		ilogger := logger.WithField("instance", instanceID)
 		ilogger.Debug("Restarting instance")
 		// Set up the timeout
-		cancel := make(chan struct{})
 		cancelWait := make(chan struct{})
+		done := make(chan struct{})
 		timer := time.NewTimer(timeout)
 		go func() {
-			defer timer.Stop()
-
 			select {
 			case <-timer.C:
 				ilogger.Warn("Timeout waiting for instance to restart")
-				close(cancelWait)
-			case <-cancel:
-				close(cancelWait)
+			case <-done:
 			}
+			timer.Stop()
+			close(cancelWait)
 		}()
 
-		// We need to start the wait in a goroutine before calling restart, so we can be sure to catch the first
-		// transition from running to stopped
-		errC := make(chan error)
-		go func() {
-			// First wait for the stop
-			err := f.zzk.WaitInstance(ctx, svc, instanceID, service.SVCStop, cancelWait)
-			if err != nil {
-				errC <- err
-				return
-			}
-
-			// If we got cancelled, bail:
-			select {
-			case <-cancelWait:
-				errC <- nil
-				return
-			default:
-			}
-
-			// Then for the start
-			errC <- f.zzk.WaitInstance(ctx, svc, instanceID, service.SVCRun, cancelWait)
-		}()
-
-		if err := f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
-			close(cancel)
-			<-errC
+		// Before we restart, check the current instance's container ID
+		state, err := f.zzk.GetServiceState(ctx, svc.PoolID, svc.ID, instanceID)
+		if err != nil {
+			close(done)
 			return err
 		}
 
-		// Now we actually wait
-		err := <-errC
-		ilogger.Debug("Done waiting on instance")
-		if err != nil {
-			close(cancel)
+		oldContainer := state.ContainerID
+
+		if err = f.zzk.RestartInstance(ctx, svc.PoolID, svc.ID, instanceID); err != nil {
+			close(done)
+			return err
+		}
+
+		// Wait for the instance's containerID to change
+		checkContainer := func(s *zkservice.State, exists bool) bool {
+			if !exists {
+				return true
+			}
+			if s.ContainerID != "" && s.ContainerID != oldContainer {
+				return true
+			}
+			return false
+		}
+		if err = f.zzk.WaitInstance(ctx, svc, instanceID, checkContainer, cancelWait); err != nil {
+			close(done)
 			return err
 		}
 
@@ -1543,7 +1533,8 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		}
 		hctimer.Stop()
 		ilogger.Debug("Done restarting instance")
-		close(cancel)
+		close(done)
+		<-cancelWait
 	}
 	return nil
 }

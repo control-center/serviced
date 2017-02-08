@@ -97,12 +97,12 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 
 	return r0
 }
-func (_m *ZZK) WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, state service.DesiredState, cancel <-chan struct{}) error {
-	ret := _m.Called(ctx, svc, instanceID, state, cancel)
+func (_m *ZZK) WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, checkInstance func(*zkservice.State, bool) bool, cancel <-chan struct{}) error {
+	ret := _m.Called(ctx, svc, instanceID, checkInstance, cancel)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(datastore.Context, *service.Service, int, service.DesiredState, <-chan struct{}) error); ok {
-		r0 = rf(ctx, svc, instanceID, state, cancel)
+	if rf, ok := ret.Get(0).(func(datastore.Context, *service.Service, int, func(*zkservice.State, bool) bool, <-chan struct{}) error); ok {
+		r0 = rf(ctx, svc, instanceID, checkInstance, cancel)
 	} else {
 		r0 = ret.Error(0)
 	}
