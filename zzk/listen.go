@@ -113,7 +113,7 @@ func Listen2(shutdown <-chan interface{}, conn client.Connection, s Spawner) {
 				done = make(chan struct{})
 				continue
 			} else if err != nil {
-				logger.WithError(err).Error("Coudl not watch path children")
+				logger.WithError(err).Error("Could not watch path children")
 				return
 			}
 		}
@@ -132,7 +132,7 @@ func Listen2(shutdown <-chan interface{}, conn client.Connection, s Spawner) {
 		}
 
 		// trigger post-processing actions (for orphaned nodes, for example)
-		s.Post(active)
+		s.Post(copyMap(active))
 
 		select {
 		case <-ev:
@@ -156,4 +156,12 @@ func Listen2(shutdown <-chan interface{}, conn client.Connection, s Spawner) {
 
 func connect(root string) <-chan client.Connection {
 	return Connect(root, GetLocalConnection)
+}
+
+func copyMap(a map[string]struct{}) (b map[string]struct{}) {
+	b = make(map[string]struct{})
+	for i := range a {
+		b[i] = struct{}{}
+	}
+	return
 }
