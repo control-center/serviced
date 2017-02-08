@@ -19,7 +19,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	. "github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/mocks"
 	"github.com/stretchr/testify/mock"
@@ -32,15 +31,10 @@ func (t *ZZKTest) TestManage(c *C) {
 
 	exit := make(chan time.Time)
 
+	var shutdownRecv <-chan interface{} = shutdown
 	s := &mocks.Listener2{}
-	s.On("Listen", mock.Anything, mock.Anything).Return().Run(
-		func(args mock.Arguments) {
-			_, ok := args.Get(0).(<-chan interface{})
-			c.Assert(ok, Equals, true)
-			_, ok = args.Get(1).(client.Connection)
-			c.Assert(ok, Equals, true)
-		},
-	).WaitUntil(exit).Twice()
+	s.On("Listen", shutdownRecv, mock.AnythingOfType("*zookeeper.Connection")).Return().WaitUntil(exit).Twice()
+	s.On("Exited").Return().Once()
 
 	done := make(chan struct{})
 	go func() {
@@ -48,6 +42,7 @@ func (t *ZZKTest) TestManage(c *C) {
 		close(done)
 	}()
 
+	// start
 	select {
 	case <-done:
 		c.Errorf("Listener exited prematurely")
@@ -63,7 +58,6 @@ func (t *ZZKTest) TestManage(c *C) {
 	}
 
 	// shutdown
-	s.On("Exited").Return().Once()
 	close(shutdown)
 	exit <- time.Now()
 	select {
@@ -71,6 +65,7 @@ func (t *ZZKTest) TestManage(c *C) {
 	case <-time.After(time.Second):
 		c.Errorf("Listener did not shut down")
 	}
+
 	s.AssertExpectations(c)
 }
 
@@ -82,10 +77,11 @@ func (t *ZZKTest) TestListen2(c *C) {
 	pathname := "/listentest"
 
 	s := &mocks.Spawner{}
-	s.On("SetConn", conn).Return()
+	s.On("SetConn", mock.AnythingOfType("*zookeeper.Connection")).Return().Once()
+
 	s.On("Path").Return(pathname)
 
-	s.On("Post", mock.Anything).Return().Run(
+	s.On("Post", mock.AnythingOfType("map[string]struct {}")).Return().Run(
 		func(args mock.Arguments) {
 			active, ok := args.Get(0).(map[string]struct{})
 			c.Assert(ok, Equals, true)
@@ -123,10 +119,11 @@ func (t *ZZKTest) TestListen2(c *C) {
 
 	s.On("Pre").Return()
 
-	s.On("Spawn", mock.Anything, nodeA).Return().Run(
+	s.On("Spawn", mock.AnythingOfType("<-chan struct {}"), nodeA).Return().Run(
 		func(args mock.Arguments) {
 			cancel, ok := args.Get(0).(<-chan struct{})
 			c.Assert(ok, Equals, true)
+
 			select {
 			case <-nodeAExit:
 			case <-cancel:
@@ -134,7 +131,7 @@ func (t *ZZKTest) TestListen2(c *C) {
 		},
 	).Once()
 
-	s.On("Post", mock.Anything).Return().Run(
+	s.On("Post", mock.AnythingOfType("map[string]struct {}")).Return().Run(
 		func(args mock.Arguments) {
 			active, ok := args.Get(0).(map[string]struct{})
 			c.Assert(ok, Equals, true)
@@ -165,7 +162,7 @@ func (t *ZZKTest) TestListen2(c *C) {
 	}
 
 	// exit spawn
-	s.On("Post", mock.Anything).Return().Run(
+	s.On("Post", mock.AnythingOfType("map[string]struct {}")).Return().Run(
 		func(args mock.Arguments) {
 			active, ok := args.Get(0).(map[string]struct{})
 			c.Assert(ok, Equals, true)
@@ -186,7 +183,7 @@ func (t *ZZKTest) TestListen2(c *C) {
 	nodeB := "b"
 	nodeBExit := make(chan time.Time)
 
-	s.On("Spawn", mock.Anything, nodeB).Return().Run(
+	s.On("Spawn", mock.AnythingOfType("<-chan struct {}"), nodeB).Return().Run(
 		func(args mock.Arguments) {
 			cancel, ok := args.Get(0).(<-chan struct{})
 			c.Assert(ok, Equals, true)
@@ -197,7 +194,7 @@ func (t *ZZKTest) TestListen2(c *C) {
 		},
 	).Twice()
 
-	s.On("Post", mock.Anything).Return().Run(
+	s.On("Post", mock.AnythingOfType("map[string]struct {}")).Return().Run(
 		func(args mock.Arguments) {
 			active, ok := args.Get(0).(map[string]struct{})
 			c.Assert(ok, Equals, true)
