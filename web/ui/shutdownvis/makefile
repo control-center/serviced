@@ -2,10 +2,10 @@ BUILD = build
 SRC = src
 WWW = www
 NODE_MODULES=node_modules
+WORKERS = $(WWW)/workers
 
 JS = $(shell find src -name *.js)
 ALL_SRC = $(shell find src)
-WORKERS = $(shell find src/workers -name *.js)
 
 LIVERELOAD = $(NODE_MODULES)/livereload/bin/livereload.js
 CHOKIDAR = $(NODE_MODULES)/chokidar-cli/index.js
@@ -14,7 +14,8 @@ ROLLUP = $(NODE_MODULES)/rollup/bin/rollup
 
 default: build www
 
-build: $(WWW)/index.html $(WWW)/d3.js $(WWW)/workers
+build: $(WWW)/index.html $(WWW)/d3.js workers
+workers: $(WORKERS)/predict.js $(WORKERS)/detectshutdowns.js
 
 $(WWW)/index.html: $(SRC)/app.html $(JS) $(SRC)/app.css
 	mkdir -p $(@D)
@@ -27,8 +28,13 @@ $(WWW)/d3.js:
 	mkdir -p $(@D)
 	cp $(NODE_MODULES)/d3/build/d3.js $@
 
-$(WWW)/workers:
-	cp -r $(SRC)/workers $(WWW)
+$(WORKERS)/predict.js: $(SRC)/workers/predict.js
+	mkdir -p $(@D)
+	cp -r $(SRC)/workers/predict.js $@
+
+$(WORKERS)/detectshutdowns.js: $(SRC)/workers/detectshutdowns.js
+	mkdir -p $(@D)
+	cp -r $(SRC)/workers/detectshutdowns.js $@
 
 # watch filesystem for changes and rebuild
 # various pieces as needed
