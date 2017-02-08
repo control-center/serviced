@@ -258,7 +258,7 @@
 
 # The amount of time in the future in seconds serviced should predict storage
 # availability for the purposes of emergency shutdown
-# SERVICED_STORAGE_LOOKAHEAD_PERIOD=60
+# SERVICED_STORAGE_LOOKAHEAD_PERIOD=360
 
 # The amount of space the emergency shutdown algorithm should reserve when deciding to shut down
 # SERVICED_STORAGE_MIN_FREE=3G
