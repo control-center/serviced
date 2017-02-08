@@ -1233,11 +1233,11 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 
 // countServices will count how many unique services in the given list (including children) satisfy the check function
 func (f *Facade) countServices(ctx datastore.Context, serviceIDs []string, check func(*service.Service) bool) (int, error) {
-	alreadyChecked := make(map[string]bool)
+	alreadyChecked := make(map[string]struct{})
 	count := 0
 	visitor := func(svc *service.Service) error {
-		if !alreadyChecked[svc.ID] {
-			alreadyChecked[svc.ID] = true
+		if _, ok := alreadyChecked[svc.ID]; !ok {
+			alreadyChecked[svc.ID] = struct{}{}
 
 			if check(svc) {
 				count++
@@ -1276,13 +1276,13 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 		isRequested[serviceID] = true
 	}
 
-	alreadyChecked := make(map[string]bool)
+	alreadyChecked := make(map[string]struct{})
 	// Build a list of services to be scheduled
 	svcs := []*service.Service{}
 	var svcIDs []string
 	visitor := func(svc *service.Service) error {
-		if !alreadyChecked[svc.ID] {
-			alreadyChecked[svc.ID] = true
+		if _, ok := alreadyChecked[svc.ID]; !ok {
+			alreadyChecked[svc.ID] = struct{}{}
 
 			if svc.Launch == commons.MANUAL && !emergency && !isRequested[svc.ID] {
 				return nil
