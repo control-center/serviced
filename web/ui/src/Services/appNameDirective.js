@@ -109,7 +109,7 @@
                 // clickable links.
                 $appname.on('hide.bs.popover', function() {
                     let popover = scope.app.popover;
-                    let container = $appname.siblings('.popover');
+                    let container = popover.$tip;
                     if (container.is(':visible') && container.is(':hover')) {
                         container.one('mouseleave', function() {
                             setTimeout(function() {
