@@ -934,14 +934,14 @@ input.startup {
 
 .popover .emergencyTooltip {
     color: #9c1200;
-    font-size: 12px;
+    font-size: 0.9em;
     text-align: center;
 }
 
 .popover .emergencyTooltip h3 {
     margin-top: 3px;
     margin-bottom: 3px;
-    font-size: 14px;
+    font-size: 1.1em;
     font-weight: bold;
 }
 
