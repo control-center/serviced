@@ -225,7 +225,7 @@ func writeConfFile(prefix string, id string, filename string, content string) (*
 // the permissions.
 func chownConfFile(filename, owner, permissions string, dockerImage string) error {
 	// TODO: reach in to the dockerImage and get the effective UID, GID so we can do this without a bind mount
-	if !validOwnerSpec(owner) {
+	if !IsValidOwnerSpec(owner) {
 		return fmt.Errorf("unsupported owner specification: %s", owner)
 	}
 
@@ -294,7 +294,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		glog.Errorf("Could not get registry image for %s: %s", service.ImageID, err)
 		return "", err
 	}
-	if err := createVolumeDir(conn, resourcePath, containerPath, image, volume.Owner, volume.Permission); err != nil {
+	if err := CreateVolumeDir(conn, resourcePath, containerPath, image, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, containerPath, err)
 		return "", err
 	}
