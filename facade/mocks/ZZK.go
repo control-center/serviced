@@ -26,16 +26,16 @@ func (_m *ZZK) UpdateService(ctx datastore.Context, tenantID string, svc *servic
 	return r0
 }
 func (_m *ZZK) UpdateServices(ctx datastore.Context, tenantID string, svcs []*service.Service, setLockOnCreate bool, setLockOnUpdate bool) error {
-        ret := _m.Called(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+	ret := _m.Called(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
 
-        var r0 error
-        if rf, ok := ret.Get(0).(func(datastore.Context, string, []*service.Service, bool, bool) error); ok {
-                r0 = rf(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
-        } else {
-                r0 = ret.Error(0)
-        }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, []*service.Service, bool, bool) error); ok {
+		r0 = rf(ctx, tenantID, svcs, setLockOnCreate, setLockOnUpdate)
+	} else {
+		r0 = ret.Error(0)
+	}
 
-        return r0
+	return r0
 }
 func (_m *ZZK) SyncServiceRegistry(ctx datastore.Context, tenantID string, svc *service.Service) error {
 	ret := _m.Called(ctx, tenantID, svc)
@@ -91,6 +91,18 @@ func (_m *ZZK) WaitService(svc *service.Service, state service.DesiredState, can
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*service.Service, service.DesiredState, <-chan interface{}) error); ok {
 		r0 = rf(svc, state, cancel)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) WaitInstance(ctx datastore.Context, svc *service.Service, instanceID int, checkInstance func(*zkservice.State, bool) bool, cancel <-chan struct{}) error {
+	ret := _m.Called(ctx, svc, instanceID, checkInstance, cancel)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, *service.Service, int, func(*zkservice.State, bool) bool, <-chan struct{}) error); ok {
+		r0 = rf(ctx, svc, instanceID, checkInstance, cancel)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -445,6 +457,18 @@ func (_m *ZZK) StopServiceInstances(ctx datastore.Context, poolID string, servic
 	var r0 error
 	if rf, ok := ret.Get(0).(func(datastore.Context, string, string) error); ok {
 		r0 = rf(ctx, poolID, serviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ZZK) RestartInstance(ctx datastore.Context, poolID string, serviceID string, instanceID int) error {
+	ret := _m.Called(ctx, poolID, serviceID, instanceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string, int) error); ok {
+		r0 = rf(ctx, poolID, serviceID, instanceID)
 	} else {
 		r0 = ret.Error(0)
 	}

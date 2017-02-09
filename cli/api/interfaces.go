@@ -74,6 +74,7 @@ type API interface {
 	UpdateService(io.Reader) (*service.ServiceDetails, error)
 	StartService(SchedulerConfig) (int, error)
 	RestartService(SchedulerConfig) (int, error)
+	RebalanceService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
 	GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error)

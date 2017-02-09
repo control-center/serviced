@@ -38,6 +38,7 @@ const (
 
 var (
 	ErrHostDoesNotExist = errors.New("facade: host does not exist")
+	ErrHostOffline      = errors.New("host is offline")
 )
 
 //---------------------------------------------------------------------------

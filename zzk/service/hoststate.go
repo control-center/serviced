@@ -406,7 +406,7 @@ func (l *HostStateListener) handleContainerExit(timeExit time.Time, ssdat *Servi
 	// set the service state
 	ssdat.Terminated = timeExit
 	l.setExistingThread(stateID, ssdat, nil)
-	logger.WithField("terminated", timeExit).Warn("Container exited unexpectedly, restarting")
+	logger.WithField("terminated", timeExit).Warn("Container exited, restarting")
 
 	if err := l.updateServiceStateInZK(ssdat, req); err != nil {
 		logger.WithError(err).Error("Could not set state for stopped container")

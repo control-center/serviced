@@ -1119,6 +1119,7 @@ func (d *daemon) initFacade() *facade.Facade {
 	if err := f.UpdateServiceCache(d.dsContext); err != nil {
 		log.WithError(err).Fatal("Unable to update the service cache")
 	}
+	f.SetRollingRestartTimeout(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	return f
 }
 
