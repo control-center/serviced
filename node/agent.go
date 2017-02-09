@@ -95,6 +95,7 @@ type HostAgent struct {
 	delegateKeyFile      string
 	tokenFile            string
 	serviceCache         *ServiceCache
+	vip                  VIP
 }
 
 func getZkDSN(zookeepers []string, timeout int) string {
@@ -177,7 +178,13 @@ func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, erro
 	agent.currentServices = make(map[string]*exec.Cmd)
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	agent.pullreg = reg
+	agent.vip = NewVirtualIPManager("cc")
 	return agent, err
+}
+
+// SetVIP allows you to update the default vip (primarily for testing)
+func (a *HostAgent) SetVIP(v VIP) {
+	a.vip = v
 }
 
 func attachAndRun(dockerID, command string) error {
