@@ -12,9 +12,8 @@
 
     <table jelly-table data-data="apps" data-config="servicesTable" class="table">
         <tr ng-repeat="service in $data" data-id="{{service.id}}">
-          <td data-title="'deployed_tbl_name'|translate" sortable="'name'">
-              <span ng-if="!service.deploying" ng-click="routeToService(service)" class="link">{{service.name}}<span class="version" ng-show="service.model.Version"> (v{{service.model.Version}})</span></span>
-              <span ng-if="service.deploying">{{service.name}}<span class="version" ng-show="service.model.Version"> (v{{service.model.Version}})</span></span>
+            <td data-title="'deployed_tbl_name'|translate" sortable="'name'">
+                <app-name data-service="service"></app-name>
           </td>
           <td data-title="'deployed_tbl_description'|translate">{{service.model.Description}}</td>
           <td data-title="'deployed_tbl_deployment_id'|translate" sortable="'model.DeploymentID'">{{service.model.DeploymentID}}</td>
