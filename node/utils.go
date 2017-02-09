@@ -41,9 +41,9 @@ import (
 	"time"
 )
 
-// validOwnerSpec returns true if the owner is specified in owner:group format and the
+// IsValidOwnerSpec returns true if the owner is specified in owner:group format and the
 // identifiers are valid POSIX.1-2008 username and group strings, respectively.
-func validOwnerSpec(owner string) bool {
+func IsValidOwnerSpec(owner string) bool {
 	var pattern = regexp.MustCompile(`^[a-zA-Z]+[a-zA-Z0-9.-]*:[a-zA-Z]+[a-zA-Z0-9.-]*$`)
 	return pattern.MatchString(owner)
 }
@@ -244,13 +244,13 @@ func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 	return
 }
 
-// createVolumeDir() creates a directory on the running host using the user ids
+// CreateVolumeDir() creates a directory on the running host using the user ids
 // found within the specified image. For example, it can create a directory owned
 // by the mysql user (as seen by the container) despite there being no mysql user
 // on the host system.
 // Assumes that the local docker image (imageSpec) exists and has been sync'd
 // with the registry.
-func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
+func CreateVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
 	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
 	dotfileHostPath := path.Join(filepath.Dir(hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(hostPath)))
@@ -269,7 +269,7 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 	}
 
 	// check if directory is initialzed or being initialized before getting a ZK lock
-	if initialized(){
+	if initialized() {
 		return nil
 	}
 	// use zookeeper lock of basename of hostPath (volume name)
@@ -289,7 +289,7 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 		}
 	}()
 	//double check to make sure that it wasn't initialized while waiting for loc
-	if initialized(){
+	if initialized() {
 		return nil
 	}
 	// start initializing dfs volume dir with dir in image
