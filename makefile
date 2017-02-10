@@ -158,12 +158,15 @@ $(GOBIN):
 
 $(GOBIN)/serviced: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ .
+	@chmod 750 $@
 
 $(GOBIN)/serviced-controller: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./serviced-controller
+	@chmod 750 $@
 
 $(GOBIN)/serviced-storage: $(GOSOURCEFILES) | $(GOBIN)
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} -o $@ ./tools/serviced-storage
+	@chmod 750 $@
 
 .PHONY: serviced
 serviced: $(GOBIN)/serviced
@@ -410,7 +413,8 @@ $(install_DIRS): FORCE
 				exit 1 ;\
 			fi ;\
 		done ;\
-	done
+	done ;\
+	chmod 750 $(_DESTDIR)${prefix}
 
 .PHONY: install
 install: $(install_TARGETS)

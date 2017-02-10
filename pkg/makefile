@@ -182,6 +182,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--before-install deb/preinstall \
 		--after-install deb/postinstall \
 		--config-files /etc/default/serviced \
 		.
@@ -218,6 +219,7 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--before-install rpm/preinstall \
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
