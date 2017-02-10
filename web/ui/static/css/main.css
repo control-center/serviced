@@ -932,6 +932,28 @@ input.startup {
     padding-left: 18px;
 }
 
+.popover .emergencyTooltip {
+    color: #9c1200;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.popover .emergencyTooltip h3 {
+    margin-top: 3px;
+    margin-bottom: 3px;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.popover .emergencyTooltip a.btn {
+    margin-top: 8px;
+    padding: 5px 15px 8px 8px;
+    border-radius: 6px;
+}
+
+.popover .emergencyTooltip a.btn .glyphicon {
+    padding: 0 3px;
+}
 
 .chartContainer {
   position: relative;
@@ -1289,6 +1311,20 @@ health-icon {
 .emergency_shutdown>.healthIcon:before{
     color: #9C1200;
     content: "\e090";
+}
+
+.appName {
+    position: relative;
+}
+
+.appName .healthIcon {
+    top: 3px;
+    font-size: 0.9em;
+}
+
+.appName>.link.emergency_shutdown {
+    color: #9C1200;
+    margin-left: 20px;
 }
 
 h3 health-icon {
