@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -39,7 +38,6 @@ import (
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/proxy"
@@ -48,7 +46,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/zzk/virtualips"
 )
 
 /*
@@ -334,6 +331,21 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		wg.Done()
 	}()
 
+	// run the virtual ip listener
+	go func() {
+		glog.Infof("Starting virtual ip listener")
+
+		var addrs []string
+		for _, ip := range a.vip.GetAll() {
+			addrs = append(addrs, ip.Addr)
+		}
+
+		l := zkservice.NewHostIPListener(a.hostID, a, addrs)
+		zzk.Manage(shutdown, zzk.GeneratePoolPath(a.poolID), l)
+		glog.Infof("Virtual ip listener done")
+		wg.Done()
+	}()
+
 	// Increase the number of maximal tracked connections for iptables
 	maxConnections := "655360"
 	if cnxns := strings.TrimSpace(os.Getenv("SERVICED_IPTABLES_MAX_CONNECTIONS")); cnxns != "" {
@@ -393,9 +405,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 			}
 		}()
 
-		// watch virtual IP zookeeper nodes
-		virtualIPListener := virtualips.NewVirtualIPListener(a, a.hostID)
-
 		// watch docker action nodes
 		actionListener := zkdocker.NewActionListener(a, a.hostID)
 
@@ -408,7 +417,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		go func() {
 			defer close(startExit)
 			glog.Infof("Host Agent successfully started")
-			zzk.Start(stop, conn, hsListener, virtualIPListener, actionListener)
+			zzk.Start(stop, conn, hsListener, actionListener)
 		}()
 
 		select {
@@ -450,81 +459,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 // definition
 func (a *HostAgent) AttachAndRun(dockerID string, command []string) ([]byte, error) {
 	return utils.AttachAndRun(dockerID, command)
-}
-
-// BindVirtualIP implements virtualip.VirtualIPHandler
-func (a *HostAgent) BindVirtualIP(virtualIP *pool.VirtualIP, name string) error {
-	glog.Infof("Adding: %v", virtualIP)
-	// ensure that the Bind Address is reported by ifconfig ... ?
-	if err := exec.Command("ifconfig", virtualIP.BindInterface).Run(); err != nil {
-		return fmt.Errorf("Problem with BindInterface %s", virtualIP.BindInterface)
-	}
-
-	binaryNetmask := net.IPMask(net.ParseIP(virtualIP.Netmask).To4())
-	cidr, _ := binaryNetmask.Size()
-
-	// ADD THE VIRTUAL INTERFACE
-	// sudo ifconfig eth0:1 inet 192.168.1.136 netmask 255.255.255.0
-	// ip addr add IPADDRESS/CIDR dev eth1 label BINDINTERFACE:zvip#
-	if err := exec.Command("ip", "addr", "add", virtualIP.IP+"/"+strconv.Itoa(cidr), "dev", virtualIP.BindInterface, "label", name).Run(); err != nil {
-		return fmt.Errorf("Problem with creating virtual interface %s", name)
-	}
-
-	glog.Infof("Added virtual interface/IP: %v (%+v)", name, virtualIP)
-	return nil
-}
-
-func (a *HostAgent) UnbindVirtualIP(virtualIP *pool.VirtualIP) error {
-	glog.Infof("Removing: %v", virtualIP.IP)
-
-	binaryNetmask := net.IPMask(net.ParseIP(virtualIP.Netmask).To4())
-	cidr, _ := binaryNetmask.Size()
-
-	//sudo ip addr del 192.168.0.10/24 dev eth0
-	if err := exec.Command("ip", "addr", "del", virtualIP.IP+"/"+strconv.Itoa(cidr), "dev", virtualIP.BindInterface).Run(); err != nil {
-		return fmt.Errorf("Problem with removing virtual interface %+v: %v", virtualIP, err)
-	}
-
-	glog.Infof("Removed virtual interface: %+v", virtualIP)
-	return nil
-}
-
-func (a *HostAgent) VirtualInterfaceMap(prefix string) (map[string]*pool.VirtualIP, error) {
-	interfaceMap := make(map[string]*pool.VirtualIP)
-
-	//ip addr show | awk '/zvip/{print $NF}'
-	virtualInterfaceNames, err := exec.Command("bash", "-c", "ip addr show | awk '/"+prefix+"/{print $NF}'").CombinedOutput()
-	if err != nil {
-		glog.Warningf("Determining virtual interfaces failed: %v", err)
-		return interfaceMap, err
-	}
-	glog.V(2).Infof("Control center virtual interfaces: %v", string(virtualInterfaceNames))
-
-	for _, virtualInterfaceName := range strings.Fields(string(virtualInterfaceNames)) {
-		bindInterfaceAndIndex := strings.Split(virtualInterfaceName, prefix)
-		if len(bindInterfaceAndIndex) != 2 {
-			err := fmt.Errorf("Unexpected interface format: %v", bindInterfaceAndIndex)
-			return interfaceMap, err
-		}
-		bindInterface := strings.TrimSpace(string(bindInterfaceAndIndex[0]))
-
-		//ip addr show | awk '/virtualInterfaceName/ {print $2}'
-		virtualIPAddressAndCIDR, err := exec.Command("bash", "-c", "ip addr show | awk '/"+virtualInterfaceName+"/ {print $2}'").CombinedOutput()
-		if err != nil {
-			glog.Warningf("Determining IP address of interface %v failed: %v", virtualInterfaceName, err)
-			return interfaceMap, err
-		}
-
-		virtualIPAddress, network, err := net.ParseCIDR(strings.TrimSpace(string(virtualIPAddressAndCIDR)))
-		if err != nil {
-			return interfaceMap, err
-		}
-		netmask := net.IP(network.Mask)
-
-		interfaceMap[virtualIPAddress.String()] = &pool.VirtualIP{PoolID: "", IP: virtualIPAddress.String(), Netmask: netmask.String(), BindInterface: bindInterface}
-	}
-
-	return interfaceMap, nil
 }
 
 // addStorageTenant remembers a storage tenant we have used
