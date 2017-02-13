@@ -563,6 +563,9 @@ func (s *storeImpl) getVolatileInfo(serviceID string) (volatileService, bool) {
 	s.serviceCacheLock.RLock()
 	defer s.serviceCacheLock.RUnlock()
 	cacheEntry, ok := s.serviceCache[serviceID]
+	if ok && cacheEntry.CurrentState == "" {
+		cacheEntry.CurrentState = string(SVCCSUnknown)
+	}
 	return cacheEntry, ok
 }
 
