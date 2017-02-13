@@ -2295,7 +2295,7 @@ func (f *Facade) SyncCurrentStates(ctx datastore.Context) error {
 func (f *Facade) SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string) {
 	logger := plog.WithField("currentstate", currentState)
 	for _, sid := range serviceIDs {
-		if err := f.serviceStore.UpdateCurrentState(ctx, sid, int(currentState)); err != nil {
+		if err := f.serviceStore.UpdateCurrentState(ctx, sid, string(currentState)); err != nil {
 			logger.WithField("serviceid", sid).WithError(err).Error("Failed to update service current state")
 		}
 	}

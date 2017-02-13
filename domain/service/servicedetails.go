@@ -38,7 +38,7 @@ type ServiceDetails struct {
 	HasChildren       bool
 	DeploymentID      string
 	DesiredState      int
-	CurrentState      int
+	CurrentState      string
 	Launch            string
 	Tags              []string
 	EmergencyShutdown bool

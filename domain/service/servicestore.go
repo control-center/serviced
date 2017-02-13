@@ -36,7 +36,7 @@ var (
 type volatileService struct {
 	ID           string
 	DesiredState int
-	CurrentState int
+	CurrentState string
 	UpdatedAt    time.Time // Time when the cached entry was changed, not when elastic was changed
 }
 
@@ -55,7 +55,7 @@ type Store interface {
 	UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error
 
 	// Update the CurrentState in volatile memory for the service
-	UpdateCurrentState(ctx datastore.Context, serviceID string, currentState int) error
+	UpdateCurrentState(ctx datastore.Context, serviceID string, currentState string) error
 
 	// GetServices returns all services
 	GetServices(ctx datastore.Context) ([]Service, error)
@@ -148,7 +148,7 @@ func (s *storeImpl) UpdateDesiredState(ctx datastore.Context, serviceID string, 
 }
 
 // UpdateCurrentState updates the CurrentState for the service by saving the information in volatile storage.
-func (s *storeImpl) UpdateCurrentState(ctx datastore.Context, serviceID string, currentState int) error {
+func (s *storeImpl) UpdateCurrentState(ctx datastore.Context, serviceID string, currentState string) error {
 	plog.WithFields(log.Fields{
 		"serviceID":    serviceID,
 		"currentState": currentState,
@@ -436,7 +436,7 @@ func (s *storeImpl) updateServiceFromVolatileService(svc *Service, cacheEntry vo
 }
 
 // updateVolatileInfo updates the local cache for volatile information
-func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, currentState int, updatedAt time.Time) error {
+func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, currentState string, updatedAt time.Time) error {
 	// Validate desired state
 	if err := validation.IntIn(desiredState, int(SVCRun), int(SVCStop), int(SVCPause)); err != nil {
 		plog.WithFields(log.Fields{
@@ -514,7 +514,7 @@ func (s *storeImpl) updateDesiredState(serviceID string, desiredState int, updat
 }
 
 // updateDesiredState updates the local cache for current state
-func (s *storeImpl) updateCurrentState(serviceID string, currentState int, updatedAt time.Time) error {
+func (s *storeImpl) updateCurrentState(serviceID string, currentState string, updatedAt time.Time) error {
 	// Validate desired state
 	if err := ServiceCurrentState(currentState).Validate(); err != nil {
 		plog.WithFields(log.Fields{

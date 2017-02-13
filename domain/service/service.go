@@ -57,63 +57,46 @@ const (
 	SVCPause   = DesiredState(2)
 )
 
-type ServiceCurrentState int
+type ServiceCurrentState string
 
 const (
-	SVCCSUnknown              = ServiceCurrentState(0)
-	SVCCSStopped              = ServiceCurrentState(1)
-	SVCCSPendingStart         = ServiceCurrentState(2)
-	SVCCSStarting             = ServiceCurrentState(3)
-	SVCCSRunning              = ServiceCurrentState(4)
-	SVCCSPendingRestart       = ServiceCurrentState(5)
-	SVCCSRestarting           = ServiceCurrentState(6)
-	SVCCSPendingStop          = ServiceCurrentState(7)
-	SVCCSStopping             = ServiceCurrentState(8)
-	SVCCSPendingPause         = ServiceCurrentState(9)
-	SVCCSPausing              = ServiceCurrentState(10)
-	SVCCSPaused               = ServiceCurrentState(11)
-	SVCCSPendingEmergencyStop = ServiceCurrentState(12)
-	SVCCSEmergencyStopping    = ServiceCurrentState(13)
-	SVCCSEmergencyStopped     = ServiceCurrentState(14)
+	SVCCSUnknown              = ServiceCurrentState("unknown")
+	SVCCSStopped              = ServiceCurrentState("stopped")
+	SVCCSPendingStart         = ServiceCurrentState("pending start")
+	SVCCSStarting             = ServiceCurrentState("starting")
+	SVCCSRunning              = ServiceCurrentState("running")
+	SVCCSPendingRestart       = ServiceCurrentState("pending restart")
+	SVCCSRestarting           = ServiceCurrentState("restarting")
+	SVCCSPendingStop          = ServiceCurrentState("pending stop")
+	SVCCSStopping             = ServiceCurrentState("stopping")
+	SVCCSPendingPause         = ServiceCurrentState("pending pause")
+	SVCCSPausing              = ServiceCurrentState("pausing")
+	SVCCSPaused               = ServiceCurrentState("paused")
+	SVCCSPendingEmergencyStop = ServiceCurrentState("pending emergency stop")
+	SVCCSEmergencyStopping    = ServiceCurrentState("emergency stopping")
+	SVCCSEmergencyStopped     = ServiceCurrentState("emergency stopped")
 )
 
-func (state ServiceCurrentState) String() string {
-	switch state {
-	case SVCCSStopped:
-		return "stopped"
-	case SVCCSPendingStart:
-		return "pending start"
-	case SVCCSStarting:
-		return "starting"
-	case SVCCSRunning:
-		return "running"
-	case SVCCSPendingRestart:
-		return "pending restart"
-	case SVCCSRestarting:
-		return "restarting"
-	case SVCCSPendingStop:
-		return "pending stop"
-	case SVCCSStopping:
-		return "stopping"
-	case SVCCSPendingPause:
-		return "pending pause"
-	case SVCCSPausing:
-		return "pausing"
-	case SVCCSPaused:
-		return "paused"
-	case SVCCSPendingEmergencyStop:
-		return "pending emergency stop"
-	case SVCCSEmergencyStopping:
-		return "emergency stopping"
-	case SVCCSEmergencyStopped:
-		return "emergency stopped"
-	default:
-		return "unknown"
-	}
-}
-
 func (state ServiceCurrentState) Validate() error {
-	if state.String() == "unknown" {
+	serviceCurrentStates := map[ServiceCurrentState]struct{}{
+		SVCCSUnknown:              struct{}{},
+		SVCCSStopped:              struct{}{},
+		SVCCSPendingStart:         struct{}{},
+		SVCCSStarting:             struct{}{},
+		SVCCSRunning:              struct{}{},
+		SVCCSPendingRestart:       struct{}{},
+		SVCCSRestarting:           struct{}{},
+		SVCCSPendingStop:          struct{}{},
+		SVCCSStopping:             struct{}{},
+		SVCCSPendingPause:         struct{}{},
+		SVCCSPausing:              struct{}{},
+		SVCCSPaused:               struct{}{},
+		SVCCSPendingEmergencyStop: struct{}{},
+		SVCCSEmergencyStopping:    struct{}{},
+		SVCCSEmergencyStopped:     struct{}{},
+	}
+
+	if _, ok := serviceCurrentStates[state]; !ok {
 		return errors.New("invalid current state")
 	}
 
@@ -196,7 +179,7 @@ type Service struct {
 	ImageID           string
 	PoolID            string
 	DesiredState      int
-	CurrentState      int
+	CurrentState      string
 	HostPolicy        servicedefinition.HostPolicy
 	Hostname          string
 	Privileged        bool

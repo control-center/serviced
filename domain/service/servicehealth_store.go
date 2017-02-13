@@ -97,7 +97,7 @@ func (s *storeImpl) fillHealthVolatileInfo(sh *ServiceHealth) {
 	} else {
 		// If there's no ZK data, make sure the service is stopped.
 		sh.DesiredState = int(SVCStop)
-		sh.CurrentState = 0 //unknown
+		sh.CurrentState = string(SVCCSUnknown)
 	}
 }
 

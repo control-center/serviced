@@ -27,7 +27,7 @@ type ServiceHealth struct {
 	PoolID            string
 	Instances         int
 	DesiredState      int
-	CurrentState      int
+	CurrentState      string
 	HealthChecks      map[string]health.HealthCheck
 	EmergencyShutdown bool
 	RAMCommitment     utils.EngNotation
