@@ -1341,6 +1341,48 @@ h3 .healthTooltipDetailRow .healthIcon {
     top: -1px;
 }
 
+/* service state styles */
+
+.svcstate {
+    display: inline-block;
+    font-style: italic;
+    line-height: 13px;
+    min-width: 90px;
+    text-transform: capitalize;
+}
+
+    .svcstate.running {
+        color: #0084DB;
+        font-weight: bold;
+        font-style: normal;
+    }
+
+    .svcstate.stopped {
+        color: #aaa;
+        font-style: normal;
+    }
+
+    .svcstate.pending_emergency_stop,
+    .svcstate.emergency_stopped {
+        color: #7A0000;
+        font-weight: bold;
+    }
+
+    .svcstate.emergency_stopped {
+        font-style: normal;
+    }
+
+/* service actions */
+
+.svc-actionbar {
+    display: flex;
+    font-size: 12px;
+}
+    .svc-actionbar > div {
+        flex-basis: 100px;
+    }
+
+
 /* chart styles */
 .nv-axis .tick text,
 .nv-axis .nv-axisMaxMin {

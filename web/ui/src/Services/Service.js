@@ -64,9 +64,32 @@
         }
 
         update(model) {
+
+            /* from instance.go */
+            // let currentstates = [
+            //     "pending_stop",
+            //     "stopping",
+            //     "stopped",
+            //     "pending_start",
+            //     "starting",
+            //     "started",
+            //     "running",
+            //     "pending_restart",
+            //     "restarting",
+            //     "pending_pause",
+            //     "pausing",
+            //     "paused",
+            //     "pending_emergency_stop",
+            //     "emergency_stopped",
+            //     "unknown"
+            // ];
+
+            // let r = (Math.floor(Math.random() * currentstates.length));
+
             // basically new-up with exisiting children and instances
             this.name = model.Name;
             this.id = model.ID;
+            this.currentState = model.CurrentState;
             this.desiredState = model.DesiredState;
             this.emergencyShutdown = model.EmergencyShutdown;
             this.model = Object.freeze(model);
@@ -263,7 +286,7 @@
             let ids = Object.keys(descendents);
             this.getServiceStatuses(ids)
                 .then(results => {
-                    if (results.length) {
+                    if (results && results.length) {
                         results.forEach(stat => {
                             // TODO - handle stat.NotFound
                             let svc = descendents[stat.ServiceID];
@@ -323,6 +346,9 @@
             return this.model.HasChildren;
         }
 
+        isContainer() {
+            return this.hasChildren() && !this.model.Startup;
+        }
 
         // start, stop, or restart this service
         start(skipChildren) {
