@@ -131,18 +131,10 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			}
 			row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 
+			row["Status"] = svc.CurrentState
 			if svc.Instances > 0 {
-				switch service.DesiredState(svc.DesiredState) {
-				case service.SVCRun:
-					row["Status"] = "Scheduled"
-				case service.SVCPause:
-					row["Status"] = service.StatePaused
-				case service.SVCStop:
-					if svc.EmergencyShutdown {
-						row["Status"] = "emergency stopped"
-					} else {
-						row["Status"] = service.StateStopped
-					}
+				if svc.CurrentState == string(service.SVCCSRunning) {
+					row["Status"] = "scheduled"
 				}
 			}
 			rowmap[fmt.Sprintf("%s/%d", svc.ID, 0)] = row
@@ -169,9 +161,6 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.CurrentState
-				if svc.EmergencyShutdown && stat.CurrentState == service.StateStopping {
-					row["Status"] = "emergency stopping"
-				}
 				row["Hostname"] = stat.HostName
 				row["DockerID"] = fmt.Sprintf("%.12s", stat.ContainerID)
 				row["Uptime"] = uptime.String()
