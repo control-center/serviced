@@ -185,7 +185,7 @@
                 $scope.vm.showDefaultActions = showDefaultActions;
 
                 // if status object updates, update icon
-                $scope.$watch("service.currentState", $scope.vm.update.bind($scope.vm));
+                $scope.$watch("vm.service.currentState", $scope.vm.update.bind($scope.vm));
 
                 // TODO - cleanup watch
                 $scope.$on("$destroy", function(){});

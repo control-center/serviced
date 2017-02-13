@@ -1375,6 +1375,7 @@ h3 .healthTooltipDetailRow .healthIcon {
 /* service actions */
 
 .svc-actionbar {
+    color: #bbb;
     display: flex;
     font-size: 12px;
 }

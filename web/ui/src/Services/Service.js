@@ -65,27 +65,6 @@
 
         update(model) {
 
-            /* from instance.go */
-            // let currentstates = [
-            //     "pending_stop",
-            //     "stopping",
-            //     "stopped",
-            //     "pending_start",
-            //     "starting",
-            //     "started",
-            //     "running",
-            //     "pending_restart",
-            //     "restarting",
-            //     "pending_pause",
-            //     "pausing",
-            //     "paused",
-            //     "pending_emergency_stop",
-            //     "emergency_stopped",
-            //     "unknown"
-            // ];
-
-            // let r = (Math.floor(Math.random() * currentstates.length));
-
             // basically new-up with exisiting children and instances
             this.name = model.Name;
             this.id = model.ID;
@@ -426,6 +405,7 @@
 
             // update service status
             this.desiredState = myStatus.DesiredState;
+            this.currentState = myStatus.CurrentState;
             this.emergencyShutdown = myStatus.EmergencyShutdown;
 
             // update public endpoints
