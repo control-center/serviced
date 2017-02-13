@@ -39,7 +39,7 @@
                     name: "asc"
                 },
                 watchExpression: () => this.lastInstanceUpdate,
-                searchColumns: ['model.ServiceName']                
+                searchColumns: ['model.ServiceName']
             };
 
             this.refreshHost()
@@ -277,7 +277,7 @@
 
                             resourcesFactory.resetHostKeys(scope.host.id)
                                 .success((data, status) => {
-                                    $modalService.modals.displayHostKeys(data.PrivateKey, scope.host.name);
+                                    $modalService.modals.displayHostKeys(data.PrivateKey, data.Registered, scope.host.name);
                                 })
                                 .error((data, status) => {
                                     // TODO - form error highlighting
