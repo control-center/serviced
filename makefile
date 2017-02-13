@@ -161,11 +161,12 @@ serviced: $(GO)
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
+	@chmod 750 $@
 	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced $(GOBIN)/serviced; fi
 
 serviced-controller: $(GO)
 serviced-controller: FORCE
-	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} && chmod 750 $@
 	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
 
 
@@ -173,7 +174,7 @@ tools: serviced-storage
 
 serviced-storage: $(GO)
 serviced-storage: FORCE
-	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS} && chmod 750 $@
 	if [ -n "$(GOBIN)" ]; then mkdir -p $(GOBIN); cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
 
 #
@@ -409,7 +410,8 @@ $(install_DIRS): FORCE
 				exit 1 ;\
 			fi ;\
 		done ;\
-	done
+	done ;\
+	chmod 750 $(_DESTDIR)${prefix}
 
 .PHONY: install
 install: $(install_TARGETS)
