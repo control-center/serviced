@@ -21,15 +21,15 @@ import (
 )
 
 // CurrentState tracks the current state of a service instance
-type CurrentState string
+type InstanceCurrentState string
 
 const (
-	Stopping CurrentState = "stopping"
-	Starting              = "starting"
-	Pausing               = "pausing"
-	Paused                = "paused"
-	Running               = "running"
-	Stopped               = "stopped"
+	Stopping InstanceCurrentState = "stopping"
+	Starting                      = "starting"
+	Pausing                       = "pausing"
+	Paused                        = "paused"
+	Running                       = "running"
+	Stopped                       = "stopped"
 )
 
 // Usage describes the current, max, and avg values of an instance
@@ -49,7 +49,7 @@ type Instance struct {
 	ContainerID   string
 	ImageSynced   bool
 	DesiredState  DesiredState
-	CurrentState  CurrentState
+	CurrentState  InstanceCurrentState
 	HealthStatus  map[string]health.Status
 	RAMCommitment int64
 	MemoryUsage   Usage

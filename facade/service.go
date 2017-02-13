@@ -2277,6 +2277,30 @@ func (f *Facade) getExcludedVolumes(ctx datastore.Context, serviceID string) []s
 
 }
 
+func (f *Facade) SyncCurrentStates(ctx datastore.Context) error {
+	services, err := f.GetAllServiceDetails(ctx, time.Duration(0))
+	if err != nil {
+		return err
+	}
+
+	sids := make([]string, len(services))
+	for i, svc := range services {
+		sids[i] = svc.ID
+	}
+
+	f.ssm.SyncCurrentStates(sids)
+	return nil
+}
+
+func (f *Facade) SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string) {
+	logger := plog.WithField("currentstate", currentState)
+	for _, sid := range serviceIDs {
+		if err := f.serviceStore.UpdateCurrentState(ctx, sid, int(currentState)); err != nil {
+			logger.WithField("serviceid", sid).WithError(err).Error("Failed to update service current state")
+		}
+	}
+}
+
 func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
 	return f.metricsClient.GetInstanceMemoryStats(startTime, instances...)
 }

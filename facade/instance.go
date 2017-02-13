@@ -224,7 +224,7 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 	})
 
 	// get the current state
-	var curState service.CurrentState
+	var curState service.InstanceCurrentState
 	switch state.DesiredState {
 	case service.SVCStop:
 		if state.Terminated.After(state.Started) {
@@ -352,6 +352,7 @@ func (f *Facade) GetAggregateServices(ctx datastore.Context, since time.Time, se
 			ServiceID:         serviceID,
 			Name:              svc.Name,
 			DesiredState:      service.DesiredState(svc.DesiredState),
+			CurrentState:      service.ServiceCurrentState(svc.CurrentState),
 			Status:            make([]service.StatusInstance, len(stateIDs)),
 			NotFound:          false,
 			EmergencyShutdown: svc.EmergencyShutdown,

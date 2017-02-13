@@ -57,6 +57,126 @@ const (
 	SVCPause   = DesiredState(2)
 )
 
+type ServiceCurrentState int
+
+const (
+	SVCCSUnknown              = ServiceCurrentState(0)
+	SVCCSStopped              = ServiceCurrentState(1)
+	SVCCSPendingStart         = ServiceCurrentState(2)
+	SVCCSStarting             = ServiceCurrentState(3)
+	SVCCSRunning              = ServiceCurrentState(4)
+	SVCCSPendingRestart       = ServiceCurrentState(5)
+	SVCCSRestarting           = ServiceCurrentState(6)
+	SVCCSPendingStop          = ServiceCurrentState(7)
+	SVCCSStopping             = ServiceCurrentState(8)
+	SVCCSPendingPause         = ServiceCurrentState(9)
+	SVCCSPausing              = ServiceCurrentState(10)
+	SVCCSPaused               = ServiceCurrentState(11)
+	SVCCSPendingEmergencyStop = ServiceCurrentState(12)
+	SVCCSEmergencyStopping    = ServiceCurrentState(13)
+	SVCCSEmergencyStopped     = ServiceCurrentState(14)
+)
+
+func (state ServiceCurrentState) String() string {
+	switch state {
+	case SVCCSStopped:
+		return "stopped"
+	case SVCCSPendingStart:
+		return "pending start"
+	case SVCCSStarting:
+		return "starting"
+	case SVCCSRunning:
+		return "running"
+	case SVCCSPendingRestart:
+		return "pending restart"
+	case SVCCSRestarting:
+		return "restarting"
+	case SVCCSPendingStop:
+		return "pending stop"
+	case SVCCSStopping:
+		return "stopping"
+	case SVCCSPendingPause:
+		return "pending pause"
+	case SVCCSPausing:
+		return "pausing"
+	case SVCCSPaused:
+		return "paused"
+	case SVCCSPendingEmergencyStop:
+		return "pending emergency stop"
+	case SVCCSEmergencyStopping:
+		return "emergency stopping"
+	case SVCCSEmergencyStopped:
+		return "emergency stopped"
+	default:
+		return "unknown"
+	}
+}
+
+func (state ServiceCurrentState) Validate() error {
+	if state.String() == "unknown" {
+		return errors.New("invalid current state")
+	}
+
+	return nil
+}
+
+func DesiredToCurrentPendingState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSPendingRestart
+	case SVCStop:
+		if emergency {
+			return SVCCSPendingEmergencyStop
+		} else {
+			return SVCCSPendingStop
+		}
+	case SVCRun:
+		return SVCCSPendingStart
+	case SVCPause:
+		return SVCCSPendingPause
+	default:
+		return SVCCSUnknown
+	}
+}
+
+func DesiredToCurrentTransitionState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSRestarting
+	case SVCStop:
+		if emergency {
+			return SVCCSEmergencyStopping
+		} else {
+			return SVCCSStopping
+		}
+	case SVCRun:
+		return SVCCSStarting
+	case SVCPause:
+		return SVCCSPausing
+	default:
+		return SVCCSUnknown
+	}
+}
+
+func DesiredToCurrentFinalState(state DesiredState, emergency bool) ServiceCurrentState {
+	switch state {
+	case SVCRestart:
+		return SVCCSRunning
+	case SVCStop:
+		if emergency {
+			return SVCCSEmergencyStopped
+		} else {
+			return SVCCSStopped
+		}
+	case SVCRun:
+		return SVCCSRunning
+	case SVCPause:
+		return SVCCSPaused
+	default:
+		return SVCCSUnknown
+	}
+}
+
 // Service A Service that can run in serviced.
 type Service struct {
 	ID                string
@@ -76,6 +196,7 @@ type Service struct {
 	ImageID           string
 	PoolID            string
 	DesiredState      int
+	CurrentState      int
 	HostPolicy        servicedefinition.HostPolicy
 	Hostname          string
 	Privileged        bool

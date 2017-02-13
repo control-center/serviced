@@ -407,9 +407,11 @@ func (s *storeImpl) fillDetailsVolatileInfo(d *ServiceDetails) {
 	cacheEntry, ok := s.getVolatileInfo(d.ID) // Uses Mutex RLock
 	if ok {
 		d.DesiredState = cacheEntry.DesiredState
+		d.CurrentState = cacheEntry.CurrentState
 	} else {
 		// If there's no ZK data, make sure the service is stopped.
 		d.DesiredState = int(SVCStop)
+		d.CurrentState = 0 //unknown
 	}
 }
 
