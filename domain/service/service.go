@@ -64,7 +64,7 @@ const (
 	SVCCSStopped              = ServiceCurrentState("stopped")
 	SVCCSPendingStart         = ServiceCurrentState("pending_start")
 	SVCCSStarting             = ServiceCurrentState("starting")
-	SVCCSRunning              = ServiceCurrentState("running")
+	SVCCSRunning              = ServiceCurrentState("started")
 	SVCCSPendingRestart       = ServiceCurrentState("pending_restart")
 	SVCCSRestarting           = ServiceCurrentState("restarting")
 	SVCCSPendingStop          = ServiceCurrentState("pending_stop")
