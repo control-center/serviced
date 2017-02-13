@@ -4,8 +4,6 @@
 (function() {
     'use strict';
 
-    console.log(" SERVICEACTIONS_DIRECTIVE JS ");
-
     angular.module('serviceActions', [])
     .directive("serviceActions", ["svcActions",
     function(svcActions){

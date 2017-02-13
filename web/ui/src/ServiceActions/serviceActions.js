@@ -4,8 +4,6 @@
 
     // share angular services outside of angular context
 
-    console.log(" SERVICEACTIONS JS ");
-
     controlplane.factory('svcActions', SvcActionsFactory);
 
     class svcActions {
