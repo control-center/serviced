@@ -995,15 +995,17 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 		}
 	}
 
+	// Update pending state to transition state (-ing state)
+	s.currentStateLock.Lock()
+	defer s.currentStateLock.Unlock()
+	s.updateServiceCurrentState(service.DesiredToCurrentTransitionState(batch.DesiredState, batch.Emergency), serviceIDs...)
 	failedServiceIDs, serr := s.Facade.ScheduleServiceBatch(s.ctx, services, tenantID, batch.DesiredState)
 	if serr != nil {
 		batchLogger.WithError(serr).Error("Error scheduling services")
 		return serviceIDs
 	}
 
-	// Update current states to transition state and start a watch to update to final state
-	s.currentStateLock.Lock()
-	defer s.currentStateLock.Unlock()
+	// Start a watch to update to final state
 	for _, svc := range batch.Services {
 		// Check if it was failed
 		failed := false
