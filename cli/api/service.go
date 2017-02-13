@@ -136,12 +136,12 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				case service.SVCRun:
 					row["Status"] = "Scheduled"
 				case service.SVCPause:
-					row["Status"] = service.Paused
+					row["Status"] = service.StatePaused
 				case service.SVCStop:
 					if svc.EmergencyShutdown {
 						row["Status"] = "emergency stopped"
 					} else {
-						row["Status"] = service.Stopped
+						row["Status"] = service.StateStopped
 					}
 				}
 			}
@@ -169,7 +169,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.CurrentState
-				if svc.EmergencyShutdown && stat.CurrentState == service.Stopping {
+				if svc.EmergencyShutdown && stat.CurrentState == service.StateStopping {
 					row["Status"] = "emergency stopping"
 				}
 				row["Hostname"] = stat.HostName
@@ -193,7 +193,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.InstanceID)] = row
 
-				if stat.CurrentState == service.Running && len(stat.HealthStatus) > 0 {
+				if stat.CurrentState == service.StateRunning && len(stat.HealthStatus) > 0 {
 
 					explicitFailure := false
 

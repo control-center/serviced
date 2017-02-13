@@ -24,12 +24,18 @@ import (
 type InstanceCurrentState string
 
 const (
-	Stopping InstanceCurrentState = "stopping"
-	Starting                      = "starting"
-	Pausing                       = "pausing"
-	Paused                        = "paused"
-	Running                       = "running"
-	Stopped                       = "stopped"
+	StateStopping          InstanceCurrentState = "stopping"
+	StateStarting                               = "starting"
+	StatePausing                                = "pausing"
+	StatePaused                                 = "paused"
+	StateRunning                                = "started"
+	StateStopped                                = "stopped"
+	StatePulling                                = "pulling"
+	StateResuming                               = "resuming"
+	StateResumed                                = "resumed"
+	StatePendingRestart                         = "pending_restart"
+	StateEmergencyStopping                      = "emergency_stopping"
+	StateEmergencyStopped                       = "emergency_stopped"
 )
 
 // Usage describes the current, max, and avg values of an instance

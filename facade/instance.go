@@ -225,32 +225,16 @@ func (f *Facade) getInstance(ctx datastore.Context, hst host.Host, svc service.S
 
 	// get the current state
 	var curState service.InstanceCurrentState
-	switch state.DesiredState {
-	case service.SVCStop:
-		if state.Terminated.After(state.Started) {
-			curState = service.Stopped
-		} else {
-			curState = service.Stopping
+	curState = service.InstanceCurrentState(state.CurrentStateContainer.Status)
+
+	if svc.EmergencyShutdown {
+		if curState == service.StateStopped {
+			curState = service.StateEmergencyStopped
+		} else if curState == service.StateStopping {
+			curState = service.StateEmergencyStopping
 		}
-	case service.SVCRun:
-		if state.Started.After(state.Terminated) && !state.Paused {
-			curState = service.Running
-		} else {
-			curState = service.Starting
-		}
-	case service.SVCPause:
-		if state.Started.After(state.Terminated) {
-			if state.Paused {
-				curState = service.Paused
-			} else {
-				curState = service.Pausing
-			}
-		} else {
-			curState = service.Stopped
-		}
-	default:
-		curState = ""
 	}
+
 	logger.Debug("Calulated service status")
 
 	svch := service.BuildServiceHealth(svc)
