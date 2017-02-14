@@ -295,7 +295,7 @@ func (a *HostAgent) ResumeContainer(serviceID string, instanceID int) error {
 		return err
 	}
 	logger.Debug("Resumed paused container")
-	a.setInstanceState(serviceID, instanceID, service.StateResumed)
+	a.setInstanceState(serviceID, instanceID, service.StateRunning)
 
 	return nil
 }

@@ -32,7 +32,6 @@ const (
 	StateStopped           InstanceCurrentState = "stopped"
 	StatePulling           InstanceCurrentState = "pulling"
 	StateResuming          InstanceCurrentState = "resuming"
-	StateResumed           InstanceCurrentState = "resumed"
 	StatePendingRestart    InstanceCurrentState = "pending_restart"
 	StateEmergencyStopping InstanceCurrentState = "emergency_stopping"
 	StateEmergencyStopped  InstanceCurrentState = "emergency_stopped"
