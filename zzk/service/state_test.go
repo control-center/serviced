@@ -200,37 +200,37 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	}
 	err = CreateState(conn, req)
 	c.Assert(err, IsNil)
-	// the state should be 'StateStopped' on initialization
+	// the state should be 'service.StateStopped' on initialization
 	state, err := GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Assert(state.CurrentStateContainer.Status, Equals, StateStopped)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStopped)
 	// change the state to Pulling for the first service
 	err = UpdateState(conn, req, func(s *State) bool {
-		s.Status = StatePulling
+		s.Status = service.StatePulling
 		return true
 	})
 	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Assert(state.CurrentStateContainer.Status, Equals, StatePulling)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StatePulling)
 	// change the state to Starting for the first service
 	err = UpdateState(conn, req, func(s *State) bool {
-		s.Status = StateStarting
+		s.Status = service.StateStarting
 		return true
 	})
 	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Assert(state.CurrentStateContainer.Status, Equals, StateStarting)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStarting)
 	// change the state to Running for the first service
 	err = UpdateState(conn, req, func(s *State) bool {
-		s.Status = StateRunning
+		s.Status = service.StateRunning
 		return true
 	})
 	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Assert(state.CurrentStateContainer.Status, Equals, StateRunning)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateRunning)
 
 	req = StateRequest{
 		PoolID:     "poolid",
@@ -242,7 +242,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	c.Assert(err, IsNil)
 	state, err = GetState(conn, req)
 	c.Assert(err, IsNil)
-	c.Assert(state.CurrentStateContainer.Status, Equals, StateStopped)
+	c.Assert(state.CurrentStateContainer.Status, Equals, service.StateStopped)
 }
 
 func (t *ZZKTest) TestGetServiceStates(c *C) {

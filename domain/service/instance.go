@@ -25,17 +25,17 @@ type InstanceCurrentState string
 
 const (
 	StateStopping          InstanceCurrentState = "stopping"
-	StateStarting                               = "starting"
-	StatePausing                                = "pausing"
-	StatePaused                                 = "paused"
-	StateRunning                                = "started"
-	StateStopped                                = "stopped"
-	StatePulling                                = "pulling"
-	StateResuming                               = "resuming"
-	StateResumed                                = "resumed"
-	StatePendingRestart                         = "pending_restart"
-	StateEmergencyStopping                      = "emergency_stopping"
-	StateEmergencyStopped                       = "emergency_stopped"
+	StateStarting          InstanceCurrentState = "starting"
+	StatePausing           InstanceCurrentState = "pausing"
+	StatePaused            InstanceCurrentState = "paused"
+	StateRunning           InstanceCurrentState = "started"
+	StateStopped           InstanceCurrentState = "stopped"
+	StatePulling           InstanceCurrentState = "pulling"
+	StateResuming          InstanceCurrentState = "resuming"
+	StateResumed           InstanceCurrentState = "resumed"
+	StatePendingRestart    InstanceCurrentState = "pending_restart"
+	StateEmergencyStopping InstanceCurrentState = "emergency_stopping"
+	StateEmergencyStopped  InstanceCurrentState = "emergency_stopped"
 )
 
 // Usage describes the current, max, and avg values of an instance
