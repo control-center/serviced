@@ -96,6 +96,9 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 		}
 	}
 	svc.ConfigFiles = nil
+	if svc.CurrentState == "" || svc.CurrentState == string(service.SVCCSUnknown) {
+		svc.CurrentState = string(service.SVCCSStopped)
+	}
 	// write the service into the database
 	svc.UpdatedAt = time.Now()
 	svc.CreatedAt = svc.UpdatedAt
