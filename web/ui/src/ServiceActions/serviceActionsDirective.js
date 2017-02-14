@@ -15,7 +15,7 @@
             }
 
             actionClick(action, isEnabled) {
-                let service = this.service;
+                //let service = this.service;
             }
 
             start(force) {
