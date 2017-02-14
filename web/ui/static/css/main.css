@@ -1351,7 +1351,8 @@ h3 .healthTooltipDetailRow .healthIcon {
     text-transform: capitalize;
 }
 
-    .svcstate.running {
+    .svcstate.running,
+    .svcstate.started {
         color: #0084DB;
         font-weight: bold;
         font-style: normal;
