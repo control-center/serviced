@@ -1318,6 +1318,53 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Once()
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCRun,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil)
+
+	// Set up mocks to handle stopping services and waiting
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	stoppedChannels["childService3"] = make(chan interface{})
+	stoppedChannels["childService4"] = make(chan interface{})
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
+				}
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
 	// add a service with 4 subservices
 	svc := service.Service{
 		ID:                     "ParentServiceID",
@@ -1401,47 +1448,6 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
-
-	// Set up mocks to handle stopping services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	stoppedChannels := make(map[string]chan interface{})
-	stoppedChannels["ParentServiceID"] = make(chan interface{})
-	stoppedChannels["childService1"] = make(chan interface{})
-	stoppedChannels["childService2"] = make(chan interface{})
-	stoppedChannels["childService3"] = make(chan interface{})
-	stoppedChannels["childService4"] = make(chan interface{})
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		svcs := args.Get(2).([]*service.Service)
-		for _, s := range svcs {
-			if s.DesiredState == int(service.SVCStop) {
-				if ch, ok := stoppedChannels[s.ID]; ok {
-					// Spawn a thread that will sleep 1 second and then close the channel
-					go func() {
-						time.Sleep(time.Second)
-						close(ch)
-					}()
-				}
-			}
-		}
-	})
-
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		s := args.Get(0).(*service.Service)
-		cancel := args.Get(2).(<-chan interface{})
-		if ch, ok := stoppedChannels[s.ID]; ok {
-			// Wait for the channel or cancel before returning
-			select {
-			case <-ch:
-			case <-cancel:
-			}
-		}
-	})
 
 	// watch the services to make sure they shutdown in the correct order
 	// Emergency shutdown order should be:
