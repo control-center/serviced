@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
+	"sync"
 )
 
 func TestServiceStateManager(t *testing.T) { TestingT(t) }
@@ -44,10 +45,6 @@ func (s *ServiceStateManagerSuite) SetUpTest(c *C) {
 	s.ctx = &datastoremocks.Context{}
 	s.serviceStateManager = ssm.NewBatchServiceStateManager(s.facade, s.ctx, 10*time.Second)
 }
-
-//func (s *ServiceStateManagerSuite) TearDownTest(c *C) {
-//	s.serviceStateManager.Shutdown()
-//}
 
 func getTestServicesABC() []*service.Service {
 	return []*service.Service{
@@ -1877,61 +1874,61 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_AddAndRemoveTenants(c
 
 }
 
-//func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
-//	// set up some tenants
-//	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1", "tenant2"}, nil)
-//
-//	// Start the manager
-//	s.serviceStateManager.Start()
-//
-//	// Make sure both tenants were added
-//	queue1, ok := s.serviceStateManager.TenantQueues["tenant1"][service.SVCRun]
-//	c.Assert(ok, Equals, true)
-//
-//	_, ok = s.serviceStateManager.TenantShutDowns["tenant1"]
-//	c.Assert(ok, Equals, true)
-//
-//	queue2, ok := s.serviceStateManager.TenantQueues["tenant2"][service.SVCRun]
-//	c.Assert(ok, Equals, true)
-//
-//	_, ok = s.serviceStateManager.TenantShutDowns["tenant2"]
-//	c.Assert(ok, Equals, true)
-//
-//	// Make sure the loops were started
-//	changed1 := queue1.Changed
-//	timer := time.NewTimer(1 * time.Second)
-//	select {
-//	case changed1 <- true:
-//	case <-timer.C:
-//		c.Fatalf("Tenant 1 loop not running")
-//	}
-//
-//	changed2 := queue2.Changed
-//	timer.Reset(1 * time.Second)
-//	select {
-//	case changed2 <- true:
-//	case <-timer.C:
-//		c.Fatalf("Tenant 2 loop not running")
-//	}
-//
-//	// Stop the manager
-//	s.serviceStateManager.Shutdown()
-//
-//	// Make sure both loops were stopped
-//	timer.Reset(100 * time.Millisecond)
-//	select {
-//	case changed1 <- true:
-//		c.Fatalf("Tenant loop 1 not terminated")
-//	case <-timer.C:
-//	}
-//
-//	timer.Reset(100 * time.Millisecond)
-//	select {
-//	case changed2 <- true:
-//		c.Fatalf("Tenant loop 1 not terminated")
-//	case <-timer.C:
-//	}
-//}
+func (s *ServiceStateManagerSuite) TestServiceStateManager_StartShutdown(c *C) {
+	// set up some tenants
+	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1", "tenant2"}, nil)
+
+	// Start the manager
+	s.serviceStateManager.Start()
+
+	// Make sure both tenants were added
+	queue1, ok := s.serviceStateManager.TenantQueues["tenant1"][service.SVCRun]
+	c.Assert(ok, Equals, true)
+
+	_, ok = s.serviceStateManager.TenantShutDowns["tenant1"]
+	c.Assert(ok, Equals, true)
+
+	queue2, ok := s.serviceStateManager.TenantQueues["tenant2"][service.SVCRun]
+	c.Assert(ok, Equals, true)
+
+	_, ok = s.serviceStateManager.TenantShutDowns["tenant2"]
+	c.Assert(ok, Equals, true)
+
+	// Make sure the loops were started
+	changed1 := queue1.Changed
+	timer := time.NewTimer(1 * time.Second)
+	select {
+	case changed1 <- true:
+	case <-timer.C:
+		c.Fatalf("Tenant 1 loop not running")
+	}
+
+	changed2 := queue2.Changed
+	timer.Reset(1 * time.Second)
+	select {
+	case changed2 <- true:
+	case <-timer.C:
+		c.Fatalf("Tenant 2 loop not running")
+	}
+
+	// Stop the manager
+	s.serviceStateManager.Shutdown()
+
+	// Make sure both loops were stopped
+	timer.Reset(100 * time.Millisecond)
+	select {
+	case changed1 <- true:
+		c.Fatalf("Tenant loop 1 not terminated")
+	case <-timer.C:
+	}
+
+	timer.Reset(100 * time.Millisecond)
+	select {
+	case changed2 <- true:
+		c.Fatalf("Tenant loop 1 not terminated")
+	case <-timer.C:
+	}
+}
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	// Setup a tenant
@@ -1969,11 +1966,11 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	// Those should get waited on by a call to the facade from runLoop
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Twice()
 	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Twice()
 	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Twice()
 
 	// A, D, and H will go to "Starting" first.
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
@@ -1993,24 +1990,63 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
 	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Twice()
 
 	// G will go to "starting" when its batch comes.
-	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
-		serviceIDs := args.Get(2).([]string)
-		c.Assert(len(serviceIDs), Equals, 1)
-		c.Assert(serviceIDs[0], Equals, "G")
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+
+	// After they are scheduled in the facade, they'll get set to Starting again
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"A"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"D"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"H"}).Once()
+
+	// They will eventually go to "started"
+	var wg sync.WaitGroup
+	wg.Add(4)
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"A"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"D"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"G"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"H"}).Run(func(args mock.Arguments) {
+		wg.Done()
 	}).Once()
 
 	err := s.serviceStateManager.ScheduleServices(svcs, "tenant1", service.SVCRun, false)
 	c.Assert(err, IsNil)
 
-	// Sleep so our stuff goes through the loop process and we can guarantee our calls
-	time.Sleep(time.Millisecond * 300)
+	// Wait on the waitgroup
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Timeout waiting for services to start")
+	}
+
 	s.facade.AssertExpectations(c)
 
 	// Stop the manager
-	s.serviceStateManager.Shutdown()
+	done = make(chan struct{})
+	go func() {
+		s.serviceStateManager.Shutdown()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Timeout waiting for manager to shutdown")
+	}
 }
 
 func (s *ServiceStateManagerSuite) LogBatch(c *C, b ssm.ServiceStateChangeBatch) {
