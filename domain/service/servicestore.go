@@ -132,7 +132,7 @@ func (s *storeImpl) Put(ctx datastore.Context, svc *Service) error {
 
 	err := s.ds.Put(ctx, Key(svc.ID), svc)
 	if err == nil {
-		s.updateVolatileInfo(svc.ID, svc.DesiredState, svc.CurrentState, svc.UpdatedAt) // Uses Mutex Lock
+		s.updateVolatileInfo(svc.ID, svc.DesiredState, svc.UpdatedAt) // Uses Mutex Lock
 	}
 	return err
 }
@@ -436,43 +436,9 @@ func (s *storeImpl) updateServiceFromVolatileService(svc *Service, cacheEntry vo
 }
 
 // updateVolatileInfo updates the local cache for volatile information
-func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, currentState string, updatedAt time.Time) error {
+func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updatedAt time.Time) error {
 	// Validate desired state
-	if err := validation.IntIn(desiredState, int(SVCRun), int(SVCStop), int(SVCPause)); err != nil {
-		plog.WithFields(log.Fields{
-			"serviceID":    serviceID,
-			"desiredState": desiredState,
-		}).Debug("Invalid Desired State")
-		return err
-	}
-
-	// Validate current state
-	if err := ServiceCurrentState(currentState).Validate(); err != nil {
-		plog.WithFields(log.Fields{
-			"serviceID":    serviceID,
-			"currentState": currentState,
-		}).Debug("Invalid Current State")
-		return err
-	}
-
-	plog.WithFields(log.Fields{
-		"serviceID":    serviceID,
-		"desiredState": desiredState,
-		"currentState": currentState,
-		"updatedAt":    updatedAt,
-	}).Debug("Saving desired and current states in cache")
-
-	s.serviceCacheLock.Lock()
-	defer s.serviceCacheLock.Unlock()
-	cacheEntry := volatileService{
-		ID:           serviceID,
-		DesiredState: desiredState,
-		CurrentState: currentState,
-		UpdatedAt:    updatedAt,
-	}
-	s.serviceCache[serviceID] = cacheEntry
-
-	return nil
+	return s.updateDesiredState(serviceID, desiredState, updatedAt)
 }
 
 // updateDesiredState updates the local cache for desired state

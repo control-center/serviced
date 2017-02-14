@@ -96,15 +96,15 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 		}
 	}
 	svc.ConfigFiles = nil
-	if svc.CurrentState == "" || svc.CurrentState == string(service.SVCCSUnknown) {
-		svc.CurrentState = string(service.SVCCSStopped)
-	}
 	// write the service into the database
 	svc.UpdatedAt = time.Now()
 	svc.CreatedAt = svc.UpdatedAt
 	if err := store.Put(ctx, &svc); err != nil {
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
+	}
+	if svc.CurrentState == "" || svc.CurrentState == string(service.SVCCSUnknown) {
+		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
 	}
 	glog.Infof("Created service %s (%s)", svc.Name, svc.ID)
 	// add the service configurations to the database
