@@ -19,12 +19,12 @@
 package servicedversion
 
 import (
-	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
-
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/logging"
 )
 
 var (
@@ -35,6 +35,8 @@ var (
 	Gitbranch string
 	Buildtag  string
 	Release   string
+
+	plog = logging.PackageLogger()
 )
 
 type ServicedVersion struct {
@@ -51,7 +53,7 @@ func init() {
 	var err error
 	Release, err = GetPackageRelease("serviced")
 	if err != nil {
-		glog.V(1).Infof("%s", err) // this should be Warningf or Infof, but zendev infinitely loops when seeing stderr
+		plog.WithError(err).Debug("Unable to get version information.")
 	}
 }
 
@@ -81,7 +83,6 @@ func GetPackageRelease(pkg string) (string, error) {
 		return "", e
 	}
 
-	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", command, output)
 	release := strings.TrimSuffix(string(output), "\n")
 	return release, nil
 }
