@@ -97,7 +97,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_HostNotFound(c *C) {
 			},
 		},
 	}
-	ft.zzk.On("GetServiceStates", ft.ctx,  "default", "testservice").Return(states, nil)
+	ft.zzk.On("GetServiceStates", ft.ctx, "default", "testservice").Return(states, nil)
 
 	img := &registry.Image{
 		Library: "testtenant",
@@ -214,7 +214,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 			ContainerID:  "somecontainerid",
 			ImageSynced:  true,
 			DesiredState: service.SVCRun,
-			CurrentState: service.Running,
+			CurrentState: service.StateRunning,
 			HealthStatus: make(map[string]health.Status),
 			MemoryUsage:  service.Usage{Cur: 5, Max: 10, Avg: 7},
 			Scheduled:    states[0].Scheduled,
@@ -350,7 +350,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 			ContainerID:  "somecontainerid",
 			ImageSynced:  true,
 			DesiredState: service.SVCRun,
-			CurrentState: service.Running,
+			CurrentState: service.StateRunning,
 			HealthStatus: make(map[string]health.Status),
 			MemoryUsage:  service.Usage{Cur: 5, Max: 10, Avg: 7},
 			Scheduled:    states[0].Scheduled,
@@ -445,7 +445,7 @@ func (ft *FacadeUnitTest) TestGetHostStrategyInstances(c *C) {
 	actual, err := ft.Facade.GetHostStrategyInstances(ft.ctx, []host.Host{hst1, hst2})
 	c.Assert(err, IsNil)
 	c.Assert(len(actual), Equals, len(expectedMap))
-	for _, result := range(actual) {
+	for _, result := range actual {
 		expected, ok := expectedMap[(*result).HostID]
 		c.Assert(ok, Equals, true)
 		c.Assert(*result, Equals, expected)
