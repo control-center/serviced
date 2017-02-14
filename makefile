@@ -411,7 +411,8 @@ $(install_DIRS): FORCE
 			fi ;\
 		done ;\
 	done ;\
-	chmod 750 $(_DESTDIR)${prefix}
+	chmod 750 $(_DESTDIR)${prefix} ;\
+	chmod 640 pkg/serviced.default
 
 .PHONY: install
 install: $(install_TARGETS)
