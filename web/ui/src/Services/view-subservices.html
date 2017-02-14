@@ -166,7 +166,7 @@
                 </div>
               </td>
               <td data-title="'Instances'" style="text-align:center;" ng-if="!row.isDummy">
-                <div ng-if="!row.service.model.HasChildren && row.service.currentState == 'running'">
+                <div ng-if="!row.service.model.HasChildren && row.service.currentState == 'started'">
                     <health-icon data-status="row.service.status"></health-icon>
                 </div>
               </td>
