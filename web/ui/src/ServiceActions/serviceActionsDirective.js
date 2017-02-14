@@ -20,7 +20,6 @@
 
             start(force) {
                 this.service.start();
-
             }
 
             restart(force) {
@@ -36,15 +35,12 @@
             }
 
             update(){
-
                 if (this.service.isContainer()) {
                     this.showDefaultActions();
                 } else {
                     this.showValidActions(this.service.currentState);
                 }
-
             }
-
 
         }
 
@@ -53,33 +49,33 @@
 
             <div class="svcactions-starts">
                 <button 
-                    data-valid="stopping,stopped"
-                    ng-click="vm.start(false)" 
                     class="btn btn-link action svcactions svcactions-start"
+                    ng-click="vm.start(false)" 
+                    data-valid="stopping,stopped,unknown"
                 >
                     <i class="glyphicon glyphicon-play"></i>
                     <span translate>start</span>
                 </button>
                 <button 
-                    data-valid="pending_start"
-                    ng-click="vm.start(true)" 
                     class="btn btn-link action svcactions vcactions-startnow"
+                    ng-click="vm.start(true)" 
+                    data-valid="pending_start"
                 >
                     <i class="glyphicon glyphicon-play"></i>
                     <span translate>btn_start_now</span>
                 </button>
                 <button 
-                    data-valid="running"
-                    ng-click="vm.restart(false)" 
                     class="btn btn-link action svcactions svcactions-restart"
+                    ng-click="vm.restart(false)" 
+                    data-valid="started"
                 >
                     <i class="glyphicon glyphicon-refresh"></i>
                     <span translate>action_restart</span>
                 </button>
                 <button 
-                    data-valid="pending_restart"
-                    ng-click="vm.restart(true)" 
                     class="btn btn-link action svcactions svcactions-restartnow"
+                    ng-click="vm.restart(true)" 
+                    data-valid="pending_restart"
                 >
                     <i class="glyphicon glyphicon-refresh"></i>
                     <span translate>btn_restart_now</span>
@@ -92,17 +88,17 @@
 
             <div class="svcactions-stops">
                 <button 
-                    data-valid="starting,running,pending_restart,restarting"
-                    ng-click="vm.stop(false)" 
                     class="btn btn-link action svcactions svcactions-stop"
+                    ng-click="vm.stop(false)" 
+                    data-valid="starting,started,pending_restart,restarting,unknown"
                 >
                     <i class="glyphicon glyphicon-stop"></i>
                     <span translate>stop</span>
                 </button>
                 <button 
-                    data-valid="pending_stop"
-                    ng-click="vm.stop(true)" 
                     class="btn btn-link action svcactions svcactions-stopnow"
+                    ng-click="vm.stop(true)" 
+                    data-valid="pending_stop"
                 >
                     <i class="glyphicon glyphicon-stop"></i>
                     <span translate>btn_stop_now</span>
@@ -115,9 +111,9 @@
 
             <div class="svcactions-cancels">
                 <button 
-                    data-valid="pending_stop,pending_start,pending_restart"
-                    ng-click="vm.cancel()" 
                     class="btn btn-link action svcactions svcactions-cancel"
+                    ng-click="vm.cancel()" 
+                    data-valid="pending_stop,pending_start,pending_restart"
                 >
                     <i class="glyphicon glyphicon-remove"></i>
                     <span translate>btn_cancel</span>
@@ -173,13 +169,11 @@
 
                 };
 
-
                 let showDefaultActions = function() {
                     allButtonEls.hide();
                     startActions.find(".svcactions-start").show();                    
                     stopActions.find(".svcactions-stop").show();                    
                 };
-
 
                 $scope.vm.showValidActions = showValidActions;
                 $scope.vm.showDefaultActions = showDefaultActions;

@@ -10,7 +10,6 @@
 
     }
 
-
     SvcActionsFactory.$inject = ['$serviceHealth'];
     function SvcActionsFactory(_serviceHealth) {
 
