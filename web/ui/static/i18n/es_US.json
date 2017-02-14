@@ -183,6 +183,7 @@
     "label_public_endpoints": "Puntos de destino publico",
     "label_resource_pools": "Grupo de Recursos",
     "label_service_description": "Descripci\u00f3n",
+    "label_service_health": "Estado",
     "label_service_image": "Nombre de la imagen",
     "label_service_instances": "Instancias",
     "label_service_name": "Nombre",

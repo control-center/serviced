@@ -183,6 +183,7 @@
     "label_public_endpoints": "Public Endpoints",
     "label_resource_pools": "Resource Pools",
     "label_service_description": "Description",
+    "label_service_health": "Health",
     "label_service_image": "Image Name",
     "label_service_instances": "Instances",
     "label_service_name": "Name",
