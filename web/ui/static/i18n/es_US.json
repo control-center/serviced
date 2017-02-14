@@ -290,6 +290,7 @@
     "public_endpoint_type": "Tipo",
     "public_endpoint_url": "URL",
     "public_endpoint_vhost": "VHost",
+    "pulling": "Descargando",
     "ram_commitment": "RAM solicitada",
     "refresh": "Refrescar",
     "register_keys": "Registre las claves en el servidor <strong>{{name}}</strong> usando el comando <span class=\"inline-code\">serviced host register</span>. Si pierde las claves, debe generar claves nuevas.",

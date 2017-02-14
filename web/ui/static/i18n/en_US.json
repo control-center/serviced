@@ -290,6 +290,7 @@
     "public_endpoint_type": "Type",
     "public_endpoint_url": "URL",
     "public_endpoint_vhost": "VHost",
+    "pulling": "Pulling",
     "ram_commitment": "RAM Requested",
     "refresh": "Refresh",
     "register_keys": "These keys must be registered on the host machine <strong>{{name}}</strong> using the <span class=\"inline-code\">serviced host register</span> command. If the keys are lost, new keys must be generated for the host.",
