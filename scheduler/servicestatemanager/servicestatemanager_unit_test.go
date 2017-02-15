@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
+	"sync"
 )
 
 func TestServiceStateManager(t *testing.T) { TestingT(t) }
@@ -152,6 +153,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	startQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCRun]
 	stopQueue := s.serviceStateManager.TenantQueues[tenantID][service.SVCStop]
 
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
+
 	// Test that:
 	// 1. The batch has been added to the startQueue
 	// 2. The batch has been split into batches by startlevel
@@ -201,6 +215,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	c.Assert(pass, Equals, true)
 
 	c.Assert(len(stopQueue.BatchQueue), Equals, 0)
+
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingEmergencyStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
 
 	// Test that:
 	// 1. The batch has been added to the stopQueue
@@ -313,6 +340,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	})
 	c.Assert(pass, Equals, true)
 
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["E"], Equals, true)
+		c.Assert(found["F"], Equals, true)
+	}).Once()
+
 	// Test that adding a non-conflicting non-Emergency batch gets split by start level and appended to the queue
 	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID, service.SVCRun, false)
 	if err != nil {
@@ -406,6 +446,37 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	// Add a non-Emergency batch with some expedited and some non-conflicting services, and make sure that:
 	//  1. The expedited services are removed from the incoming batch and processed on their own (mocked)
 	//  2. The non-conflicting services are merged with the end of the queue based on start level
+
+	// G and H will get set to pending start
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 2)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["G"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
+
+	// D will get expedited and set to "starting"
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 1)
+		c.Assert(serviceIDs[0], Equals, "D")
+	}).Twice() // We actually will call this twice, once before setting the state in zookeeper and again after, when we start waiting
+
+	// We will then wait on D to start and then it will get set to "started"
+	expeditedDone := make(chan struct{})
+	s.facade.On("WaitSingleService", getTestServicesADGH()[1], service.SVCRun, mock.AnythingOfType("<-chan interface {}")).Return(nil).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 1)
+		c.Assert(serviceIDs[0], Equals, "D")
+		close(expeditedDone)
+	}).Once()
+
 	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{getTestServicesADGH()[1]}).Once()
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), tenantID, service.SVCRun).Return([]string{}, nil).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCRun, false)
@@ -506,7 +577,27 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	})
 	c.Assert(pass, Equals, true)
 
+	// Wait for the expedited batch to get scheduled
+	timer := time.NewTimer(500 * time.Millisecond)
+	select {
+	case <-expeditedDone:
+	case <-timer.C:
+		c.Fatal("Timeout waiting for expedited batch")
+	}
+
 	// Stop services DEF and make sure it cancels the start requests
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["E"], Equals, true)
+		c.Assert(found["F"], Equals, true)
+	}).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID, service.SVCStop, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -626,6 +717,11 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	c.Assert(pass, Equals, true)
 	// Add an Emergency shutdown request with EmergencyShutDownLevel 0 and StartLevel 0 and make sure it gets placed
 	//  before other EmergencyShutDownLevel 0
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingEmergencyStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 1)
+		c.Assert(serviceIDs[0], Equals, "I")
+	}).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesI(), tenantID, service.SVCStop, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -758,6 +854,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NoEr
 	})
 	c.Assert(pass, Equals, true)
 
+	s.facade.AssertExpectations(c)
+
 }
 
 func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_EmergencyPauseMovesToFront(c *C) {
@@ -784,6 +882,18 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	// 1. The batch has been added to the startQueue
 	// 2. The batch has been split into batches by startlevel
 	// 3. Nothing was falsely added to the stopQueue
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -833,6 +943,18 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	// Test that:
 	// 1. The batch has been added to the stopQueue
 	// 2. The services are grouped by reverse RunLevel
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["E"], Equals, true)
+		c.Assert(found["F"], Equals, true)
+	}).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID, service.SVCStop, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -922,6 +1044,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 
 	// Add a pause request for A, D, G, and H.  Make sure this gets moved to the front of the queue
 	// and overrides existing.  Also, it should be grouped by reverse RunLevel
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingPause, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 4)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["G"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
 	err = s.serviceStateManager.ScheduleServices(getTestServicesADGH(), tenantID, service.SVCPause, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1087,6 +1222,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Canc
 	c.Assert(len(s.serviceStateManager.TenantQueues[tenantID][service.SVCStop].BatchQueue), Equals, 0)
 
 	// Add an Emergency batch that cancels a pending batch
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingEmergencyStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
+
 	err = s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1170,6 +1318,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_NonE
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add a non-Emergency batch that cancels a pending batch
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
+
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1251,6 +1412,18 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add an Emergency batch that cancels a pending batch
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingEmergencyStop, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCStop, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1338,6 +1511,18 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = queue
 
 	// Add an Emergency Pause batch that cancels a pending batch
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingPause, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCPause, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1420,6 +1605,19 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_Emer
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCStop] = &ssm.ServiceStateQueue{}
 
 	// Add an Emergency Pause batch that cancels a pending batch
+	// Add an Emergency Pause batch that cancels a pending batch
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingPause, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCPause, true)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
@@ -1500,10 +1698,36 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_ScheduleServices_TwoT
 	s.serviceStateManager.TenantQueues[tenantID][service.SVCRun] = queue
 	s.serviceStateManager.TenantQueues[tenantID2][service.SVCRun] = queue2
 
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["B"], Equals, true)
+		c.Assert(found["C"], Equals, true)
+	}).Once()
+
 	err := s.serviceStateManager.ScheduleServices(getTestServicesABC(), tenantID, service.SVCRun, false)
 	if err != nil {
 		c.Fatalf("ssm.Error in TestScheduleServices: %v\n", err)
 	}
+
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["E"], Equals, true)
+		c.Assert(found["F"], Equals, true)
+	}).Once()
 
 	err = s.serviceStateManager.ScheduleServices(getTestServicesDEF(), tenantID2, service.SVCRun, false)
 	if err != nil {
@@ -1723,31 +1947,106 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcA, svcD, svcH}).Once()
 	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcG}).Once()
 
+	// All 4 services will get set to "Pending Start" at once
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 4)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["G"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
+
 	// The first batch should contain A, D, H because of startlevel
 	// Those should get waited on by a call to the facade from runLoop
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Twice()
 	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Twice()
 	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Twice()
+
+	// A, D, and H will go to "Starting" first.
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
 
 	// We'll sleep a bit to make sure those services reach desired state in zk (mocked),
 	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
 	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Once()
+		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Twice()
+
+	// G will go to "starting" when its batch comes.
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+
+	// After they are scheduled in the facade, they'll get set to Starting again
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"A"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"D"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"H"}).Once()
+
+	// They will eventually go to "started"
+	var wg sync.WaitGroup
+	wg.Add(4)
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"A"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"D"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"G"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"H"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
 
 	err := s.serviceStateManager.ScheduleServices(svcs, "tenant1", service.SVCRun, false)
 	c.Assert(err, IsNil)
 
-	// Sleep so our stuff goes through the loop process and we can guarantee our calls
-	time.Sleep(time.Millisecond * 300)
+	// Wait on the waitgroup
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Timeout waiting for services to start")
+	}
+
 	s.facade.AssertExpectations(c)
 
 	// Stop the manager
-	s.serviceStateManager.Shutdown()
+	done = make(chan struct{})
+	go func() {
+		s.serviceStateManager.Shutdown()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Timeout waiting for manager to shutdown")
+	}
 }
 
 func (s *ServiceStateManagerSuite) LogBatch(c *C, b ssm.ServiceStateChangeBatch) {

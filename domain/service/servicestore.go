@@ -36,6 +36,7 @@ var (
 type volatileService struct {
 	ID           string
 	DesiredState int
+	CurrentState string
 	UpdatedAt    time.Time // Time when the cached entry was changed, not when elastic was changed
 }
 
@@ -52,6 +53,9 @@ type Store interface {
 
 	// Update the DesiredState in volatile memory for the service
 	UpdateDesiredState(ctx datastore.Context, serviceID string, desiredState int) error
+
+	// Update the CurrentState in volatile memory for the service
+	UpdateCurrentState(ctx datastore.Context, serviceID string, currentState string) error
 
 	// GetServices returns all services
 	GetServices(ctx datastore.Context) ([]Service, error)
@@ -139,7 +143,17 @@ func (s *storeImpl) UpdateDesiredState(ctx datastore.Context, serviceID string, 
 		"serviceID":    serviceID,
 		"desiredState": desiredState,
 	}).Debug("Storing desiredState")
-	s.updateVolatileInfo(serviceID, desiredState, time.Now())
+	s.updateDesiredState(serviceID, desiredState, time.Now())
+	return nil
+}
+
+// UpdateCurrentState updates the CurrentState for the service by saving the information in volatile storage.
+func (s *storeImpl) UpdateCurrentState(ctx datastore.Context, serviceID string, currentState string) error {
+	plog.WithFields(log.Fields{
+		"serviceID":    serviceID,
+		"currentState": currentState,
+	}).Debug("Storing currentState")
+	s.updateCurrentState(serviceID, currentState, time.Now())
 	return nil
 }
 
@@ -424,6 +438,12 @@ func (s *storeImpl) updateServiceFromVolatileService(svc *Service, cacheEntry vo
 // updateVolatileInfo updates the local cache for volatile information
 func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updatedAt time.Time) error {
 	// Validate desired state
+	return s.updateDesiredState(serviceID, desiredState, updatedAt)
+}
+
+// updateDesiredState updates the local cache for desired state
+func (s *storeImpl) updateDesiredState(serviceID string, desiredState int, updatedAt time.Time) error {
+	// Validate desired state
 	if err := validation.IntIn(desiredState, int(SVCRun), int(SVCStop), int(SVCPause)); err != nil {
 		plog.WithFields(log.Fields{
 			"serviceID":    serviceID,
@@ -440,11 +460,58 @@ func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updat
 
 	s.serviceCacheLock.Lock()
 	defer s.serviceCacheLock.Unlock()
-	cacheEntry := volatileService{
-		ID:           serviceID,
-		DesiredState: desiredState,
-		UpdatedAt:    updatedAt,
+	var cacheEntry volatileService
+
+	cacheEntry, ok := s.serviceCache[serviceID]
+	if !ok {
+		cacheEntry = volatileService{
+			ID:           serviceID,
+			DesiredState: desiredState,
+			UpdatedAt:    updatedAt,
+		}
+	} else {
+		cacheEntry.DesiredState = desiredState
+		cacheEntry.UpdatedAt = updatedAt
 	}
+
+	s.serviceCache[serviceID] = cacheEntry
+
+	return nil
+}
+
+// updateDesiredState updates the local cache for current state
+func (s *storeImpl) updateCurrentState(serviceID string, currentState string, updatedAt time.Time) error {
+	// Validate desired state
+	if err := ServiceCurrentState(currentState).Validate(); err != nil {
+		plog.WithFields(log.Fields{
+			"serviceID":    serviceID,
+			"currentState": currentState,
+		}).Debug("Invalid Current State")
+		return err
+	}
+
+	plog.WithFields(log.Fields{
+		"serviceID":    serviceID,
+		"currentState": currentState,
+		"updatedAt":    updatedAt,
+	}).Debug("Saving current state in cache")
+
+	s.serviceCacheLock.Lock()
+	defer s.serviceCacheLock.Unlock()
+	var cacheEntry volatileService
+
+	cacheEntry, ok := s.serviceCache[serviceID]
+	if !ok {
+		cacheEntry = volatileService{
+			ID:           serviceID,
+			CurrentState: currentState,
+			UpdatedAt:    updatedAt,
+		}
+	} else {
+		cacheEntry.CurrentState = currentState
+		cacheEntry.UpdatedAt = updatedAt
+	}
+
 	s.serviceCache[serviceID] = cacheEntry
 
 	return nil
@@ -462,6 +529,9 @@ func (s *storeImpl) getVolatileInfo(serviceID string) (volatileService, bool) {
 	s.serviceCacheLock.RLock()
 	defer s.serviceCacheLock.RUnlock()
 	cacheEntry, ok := s.serviceCache[serviceID]
+	if ok && cacheEntry.CurrentState == "" {
+		cacheEntry.CurrentState = string(SVCCSUnknown)
+	}
 	return cacheEntry, ok
 }
 

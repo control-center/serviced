@@ -66,22 +66,8 @@ type ServiceState struct {
 	version     interface{}
 }
 
-type CurrentState string
-
-const (
-	StatePulling  CurrentState = "pulling"
-	StateStarting CurrentState = "starting"
-	StateRunning  CurrentState = "running"
-	StateStopping CurrentState = "stopping"
-	StateStopped  CurrentState = "stopped"
-	StatePausing  CurrentState = "pausing"
-	StatePaused   CurrentState = "paused"
-	StateResuming CurrentState = "resuming"
-	StateResumed  CurrentState = "resumed"
-)
-
 type CurrentStateContainer struct {
-	Status  CurrentState
+	Status  service.InstanceCurrentState
 	version interface{}
 }
 
@@ -495,7 +481,7 @@ func CreateState(conn client.Connection, req StateRequest) error {
 
 	cspth := path.Join(sspth, "current")
 	cstate := &CurrentStateContainer{}
-	cstate.Status = StateStopped
+	cstate.Status = service.StateStopped
 	t.Create(cspth, cstate)
 
 	if err := t.Commit(); err != nil {

@@ -19,6 +19,7 @@ type AggregateService struct {
 	ServiceID         string
 	Name              string
 	DesiredState      DesiredState
+	CurrentState      ServiceCurrentState
 	Status            []StatusInstance
 	NotFound          bool
 	EmergencyShutdown bool

@@ -143,9 +143,10 @@
             <thead>
                 <tr>
                   <th style="width: 200px;" translate>label_service</th>
-                  <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
+                  <th style="width: 75px; line-height: 11px;" translate>label_service_status</th>
+                  <th style="width: 75px; line-height: 11px; text-align:center" translate>label_service_health</span></th>
                   <th translate>deployed_tbl_description</th>
-                  <th style="width: 210px;" ng-if="!currentService.isIsvc()" translate>running_tbl_actions</th>
+                  <th style="width: 260px;" ng-if="!currentService.isIsvc()" translate>running_tbl_actions</th>
                 </tr>
             </thead>
             <tr ng-repeat="row in $data" data-id="{{row.service.id}}" ng-hide="currentTreeState[row.service.id].hidden" ng-class="row.isDummy ? 'jelly-row-loader' : ''">
@@ -159,8 +160,13 @@
                     <span class="version" ng-show="row.service.model.Version"> (v{{row.service.model.Version}})</span>
                 </a>
               </td>
-              <td data-title="'Instances'" style="text-align:center;" ng-if="!row.isDummy">
+              <td ng-if="!row.isDummy">
                 <div ng-if="!row.service.model.HasChildren">
+                    <span class="svcstate {{row.service.currentState}}" translate>{{row.service.currentState}}</span>
+                </div>
+              </td>
+              <td data-title="'Instances'" style="text-align:center;" ng-if="!row.isDummy">
+                <div ng-if="!row.service.model.HasChildren && row.service.currentState == 'started'">
                     <health-icon data-status="row.service.status"></health-icon>
                 </div>
               </td>
@@ -168,25 +174,7 @@
                 <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.model.Description}}">
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc() && !row.isDummy">
-                <div title="{{row.service.emergencyShutdown ? 'Service has been emergency shutdown': ''}}" ng-if="!row.service.isIsvc()">
-                  <div ng-if="row.service.desiredState !== 2">
-                    <button ng-class="{disabled: shouldDisable(row.service, 'start')}" ng-click="clickRunning(row.service, 'start', true)" class="btn btn-link action">
-                        <i class="glyphicon glyphicon-play"></i>
-                        <span translate>start</span>
-                    </button>
-                    <button ng-class="{disabled: shouldDisable(row.service, 'stop')}" ng-click="clickRunning(row.service, 'stop', true)" class="btn btn-link action">
-                        <i class="glyphicon glyphicon-stop"></i>
-                        <span translate>stop</span>
-                    </button>
-                    <button ng-class="{disabled: shouldDisable(row.service, 'restart')}" ng-click="clickRunning(row.service, 'restart', true)" class="btn btn-link action">
-                        <i class="glyphicon glyphicon-refresh"></i>
-                        <span translate>action_restart</span>
-                    </button>
-                  </div>
-                  <div ng-if="row.service.desiredState === 2">
-                    <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
-                  </div>
-                </div>
+                  <service-actions data-service="row.service"></service-actions>
               </td>
               <td colspan="4" ng-if="row.isDummy">
               </td>
@@ -200,7 +188,10 @@
         <table jelly-table data-data="currentService.instances" data-config="instancesTable" class="table">
             <tr ng-repeat="instance in $data" data-id="{{instance.id}}.{{instance.model.InstanceID}}">
                 <td data-title="'running_tbl_instance_id'|translate" sortable="'instance.model.InstanceID'">{{instance.model.InstanceID}}</td>
-                <td data-title="'label_service_status'|translate" sortable="'status.status'" style="text-align:center;">
+                <td data-title="'label_service_status'|translate">
+                    <span class="svcstate {{instance.model.CurrentState}}" translate>{{instance.model.CurrentState}}</span>
+                </td>
+                <td data-title="'label_service_health'|translate" sortable="'status.status'" style="text-align:center;">
                     <health-icon data-status="instance.status"></health-icon>
                 </td>
                 <td data-title="'RAM Commitment'" style="text-align:left;">

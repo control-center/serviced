@@ -1318,6 +1318,53 @@ func (ft *FacadeIntegrationTest) TestFacade_StoppingParentStopsChildren(c *C) {
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *C) {
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Once()
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCRun,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil)
+
+	// Set up mocks to handle stopping services and waiting
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	stoppedChannels["childService3"] = make(chan interface{})
+	stoppedChannels["childService4"] = make(chan interface{})
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
+				}
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
 	// add a service with 4 subservices
 	svc := service.Service{
 		ID:                     "ParentServiceID",
@@ -1401,47 +1448,6 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
-
-	// Set up mocks to handle stopping services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	stoppedChannels := make(map[string]chan interface{})
-	stoppedChannels["ParentServiceID"] = make(chan interface{})
-	stoppedChannels["childService1"] = make(chan interface{})
-	stoppedChannels["childService2"] = make(chan interface{})
-	stoppedChannels["childService3"] = make(chan interface{})
-	stoppedChannels["childService4"] = make(chan interface{})
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		svcs := args.Get(2).([]*service.Service)
-		for _, s := range svcs {
-			if s.DesiredState == int(service.SVCStop) {
-				if ch, ok := stoppedChannels[s.ID]; ok {
-					// Spawn a thread that will sleep 1 second and then close the channel
-					go func() {
-						time.Sleep(time.Second)
-						close(ch)
-					}()
-				}
-			}
-		}
-	})
-
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		s := args.Get(0).(*service.Service)
-		cancel := args.Get(2).(<-chan interface{})
-		if ch, ok := stoppedChannels[s.ID]; ok {
-			// Wait for the channel or cancel before returning
-			select {
-			case <-ch:
-			case <-cancel:
-			}
-		}
-	})
 
 	// watch the services to make sure they shutdown in the correct order
 	// Emergency shutdown order should be:
@@ -1571,6 +1577,54 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Synchronous(c *
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c *C) {
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Once()
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCRun,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil)
+
+	stoppedChannels := make(map[string]chan interface{})
+	stoppedChannels["ParentServiceID"] = make(chan interface{})
+	stoppedChannels["childService1"] = make(chan interface{})
+	stoppedChannels["childService2"] = make(chan interface{})
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if s.DesiredState == int(service.SVCStop) {
+				if ch, ok := stoppedChannels[s.ID]; ok {
+					// Spawn a thread that will sleep 1 second and then close the channel
+					go func() {
+						time.Sleep(time.Second)
+						close(ch)
+					}()
+				}
+			}
+		}
+	})
+
+	var waitServiceWG sync.WaitGroup
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		waitServiceWG.Add(1)
+		defer waitServiceWG.Done()
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := stoppedChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+			case <-cancel:
+			}
+		}
+	})
+
 	svc := service.Service{
 		ID:                     "ParentServiceID",
 		Name:                   "ParentService",
@@ -1625,48 +1679,6 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, true}); err != nil {
 		c.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
-
-	// Set up mocks to handle stopping services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	stoppedChannels := make(map[string]chan interface{})
-	stoppedChannels["ParentServiceID"] = make(chan interface{})
-	stoppedChannels["childService1"] = make(chan interface{})
-	stoppedChannels["childService2"] = make(chan interface{})
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		svcs := args.Get(2).([]*service.Service)
-		for _, s := range svcs {
-			if s.DesiredState == int(service.SVCStop) {
-				if ch, ok := stoppedChannels[s.ID]; ok {
-					// Spawn a thread that will sleep 1 second and then close the channel
-					go func() {
-						time.Sleep(time.Second)
-						close(ch)
-					}()
-				}
-			}
-		}
-	})
-
-	var waitServiceWG sync.WaitGroup
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), service.SVCStop,
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		waitServiceWG.Add(1)
-		defer waitServiceWG.Done()
-		s := args.Get(0).(*service.Service)
-		cancel := args.Get(2).(<-chan interface{})
-		if ch, ok := stoppedChannels[s.ID]; ok {
-			// Wait for the channel or cancel before returning
-			select {
-			case <-ch:
-			case <-cancel:
-			}
-		}
-	})
 
 	// watch the services to make sure they shutdown in the correct order
 	go func() {
@@ -1750,6 +1762,48 @@ func (ft *FacadeIntegrationTest) TestFacade_EmergencyStopService_Asynchronous(c 
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C) {
+	// Set up mocks to handle starting services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	var mutex sync.RWMutex
+	scheduledChannels := make(map[string]chan interface{})
+	scheduledChannels["ParentServiceID"] = make(chan interface{})
+	scheduledChannels["childService1"] = make(chan interface{})
+	scheduledChannels["childService2"] = make(chan interface{})
+	scheduledChannels["childService3"] = make(chan interface{})
+	scheduledChannels["childService4"] = make(chan interface{})
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		mutex.RLock()
+		defer mutex.RUnlock()
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if ch, ok := scheduledChannels[s.ID]; ok {
+				close(ch)
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		mutex.RLock()
+		defer mutex.RUnlock()
+		s := args.Get(0).(*service.Service)
+		cancel := args.Get(2).(<-chan interface{})
+		if ch, ok := scheduledChannels[s.ID]; ok {
+			// Wait for the channel or cancel before returning
+			select {
+			case <-ch:
+				// Sleep for 1 second and then return
+				time.Sleep(time.Second)
+			case <-cancel:
+			}
+		}
+	})
+
 	// add a service with 4 subservices
 	svc := service.Service{
 		ID:             "ParentServiceID",
@@ -1825,48 +1879,6 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 	if err = ft.Facade.AddService(ft.CTX, childService4); err != nil {
 		c.Fatalf("Failed Loading Child Service 4: %+v, %s", childService4, err)
 	}
-
-	// Set up mocks to handle starting services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	var mutex sync.RWMutex
-	scheduledChannels := make(map[string]chan interface{})
-	scheduledChannels["ParentServiceID"] = make(chan interface{})
-	scheduledChannels["childService1"] = make(chan interface{})
-	scheduledChannels["childService2"] = make(chan interface{})
-	scheduledChannels["childService3"] = make(chan interface{})
-	scheduledChannels["childService4"] = make(chan interface{})
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		mutex.RLock()
-		defer mutex.RUnlock()
-		svcs := args.Get(2).([]*service.Service)
-		for _, s := range svcs {
-			if ch, ok := scheduledChannels[s.ID]; ok {
-				close(ch)
-			}
-		}
-	})
-
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		mutex.RLock()
-		defer mutex.RUnlock()
-		s := args.Get(0).(*service.Service)
-		cancel := args.Get(2).(<-chan interface{})
-		if ch, ok := scheduledChannels[s.ID]; ok {
-			// Wait for the channel or cancel before returning
-			select {
-			case <-ch:
-				// Sleep for 1 second and then return
-				time.Sleep(time.Second)
-			case <-cancel:
-			}
-		}
-	})
 
 	// watch the services to make sure they start in the correct order
 	// Start order should be:
@@ -2100,6 +2112,35 @@ func (ft *FacadeIntegrationTest) TestFacade_StartAndStopService_Synchronous(c *C
 }
 
 func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) {
+	// Set up mocks to handle starting services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	var mutex sync.RWMutex
+	scheduledChannels := make(map[string]chan int)
+	scheduledChannels["ParentServiceID"] = make(chan int, 1)
+	scheduledChannels["childService1"] = make(chan int, 1)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		mutex.RLock()
+		defer mutex.RUnlock()
+		svcs := args.Get(2).([]*service.Service)
+		for _, s := range svcs {
+			if ch, ok := scheduledChannels[s.ID]; ok {
+				ch <- s.DesiredState
+			}
+		}
+	})
+
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
+		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
+		// Sleep for 1 second and then return
+		time.Sleep(time.Second)
+		return
+	})
+
 	// add a service with 1 subservice
 	svc := service.Service{
 		ID:             "ParentServiceID",
@@ -2137,35 +2178,6 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
 		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
 	}
-
-	// Set up mocks to handle starting services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	var mutex sync.RWMutex
-	scheduledChannels := make(map[string]chan int)
-	scheduledChannels["ParentServiceID"] = make(chan int, 1)
-	scheduledChannels["childService1"] = make(chan int, 1)
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		mutex.RLock()
-		defer mutex.RUnlock()
-		svcs := args.Get(2).([]*service.Service)
-		for _, s := range svcs {
-			if ch, ok := scheduledChannels[s.ID]; ok {
-				ch <- s.DesiredState
-			}
-		}
-	})
-
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
-		mock.AnythingOfType("<-chan interface {}")).Return(nil).Run(func(args mock.Arguments) {
-		// Sleep for 1 second and then return
-		time.Sleep(time.Second)
-		return
-	})
 
 	// start the services and consume the value off the channels
 	count, err := ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false})
@@ -2231,6 +2243,19 @@ func (ft *FacadeIntegrationTest) TestFacade_RebalanceService_Asynchronous(c *C) 
 func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 	// If a service changes while pending, the change should not be reverted when it starts
 
+	// Set up mocks to handle starting services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil)
+
+	releaseWait := make(chan time.Time)
+	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
+		mock.AnythingOfType("<-chan interface {}")).WaitUntil(releaseWait).Return(nil)
+
 	// Create two services with different start levels
 	svc := service.Service{
 		ID:             "ParentServiceID",
@@ -2269,19 +2294,6 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
 	}
 
-	// Set up mocks to handle starting services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil)
-
-	releaseWait := make(chan time.Time)
-	ft.zzk.On("WaitService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("service.DesiredState"),
-		mock.AnythingOfType("<-chan interface {}")).WaitUntil(releaseWait).Return(nil)
-
 	// Start the services asynchronously.  After starting level 1, it will block until we close releaseWait
 	if _, err = ft.Facade.StartService(ft.CTX, dao.ScheduleServiceRequest{[]string{"ParentServiceID"}, true, false}); err != nil {
 		c.Fatalf("Unable to start parent service: %+v, %s", svc, err)
@@ -2308,6 +2320,31 @@ func (ft *FacadeIntegrationTest) TestFacade_ModifyServiceWhilePending(c *C) {
 
 func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	// Test to make sure services are always paused during a snapshot
+
+	// Set up mocks to handle starting services and waiting
+	// We have to reset the zzk mocks to replace what is in SetUpTest
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	var mutex sync.RWMutex
+	desiredStates := make(map[string]service.DesiredState)
+	desiredStates["ParentServiceID"] = service.SVCStop
+	desiredStates["childService1"] = service.SVCStop
+
+	ft.dfs.On("Timeout").Return(10 * time.Second)
+	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
+		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
+		svcs := args.Get(2).([]*service.Service)
+		mutex.Lock()
+		defer mutex.Unlock()
+		for _, s := range svcs {
+			desiredStates[s.ID] = service.DesiredState(s.DesiredState)
+		}
+	})
+
 	// add a service with 1 subservice
 	svc := service.Service{
 		ID:             "ParentServiceID",
@@ -2345,30 +2382,6 @@ func (ft *FacadeIntegrationTest) TestFacade_SnapshotAlwaysPauses(c *C) {
 	if err = ft.Facade.AddService(ft.CTX, childService1); err != nil {
 		c.Fatalf("Failed Loading Child Service 1: %+v, %s", childService1, err)
 	}
-
-	// Set up mocks to handle starting services and waiting
-	// We have to reset the zzk mocks to replace what is in SetUpTest
-	ft.zzk = &zzkmocks.ZZK{}
-	ft.Facade.SetZZK(ft.zzk)
-	var mutex sync.RWMutex
-	desiredStates := make(map[string]service.DesiredState)
-	desiredStates["ParentServiceID"] = service.SVCStop
-	desiredStates["childService1"] = service.SVCStop
-
-	ft.dfs.On("Timeout").Return(10 * time.Second)
-	ft.zzk.On("LockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
-	ft.zzk.On("UnlockServices", ft.CTX, mock.AnythingOfType("[]service.ServiceDetails")).Return(nil)
-	ft.zzk.On("UpdateService", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"), mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(nil)
-	ft.zzk.On("UpdateServices", mock.AnythingOfType("*datastore.context"), mock.AnythingOfType("string"),
-		mock.AnythingOfType("[]*service.Service"), mock.AnythingOfType("bool"),
-		mock.AnythingOfType("bool")).Return(nil).Run(func(args mock.Arguments) {
-		svcs := args.Get(2).([]*service.Service)
-		mutex.Lock()
-		defer mutex.Unlock()
-		for _, s := range svcs {
-			desiredStates[s.ID] = service.DesiredState(s.DesiredState)
-		}
-	})
 
 	waitBlocker := make(chan interface{})
 	close(waitBlocker)

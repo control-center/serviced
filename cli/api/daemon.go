@@ -492,6 +492,9 @@ func (d *daemon) startMaster() (err error) {
 	d.initServiceStateManager(time.Duration(options.ServiceRunLevelTimeout) * time.Second)
 	d.facade.SetServiceStateManager(d.ssm)
 
+	// Update current states
+	d.facade.SyncCurrentStates(d.dsContext)
+
 	if err = d.checkVersion(); err != nil {
 		log.WithError(err).Fatal("Unable to initialize version")
 	}

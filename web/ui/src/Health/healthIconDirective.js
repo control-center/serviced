@@ -49,12 +49,10 @@
 
 
                     // determine if we should hide healthchecks
-                    hideHealthChecks = statusObj.statusRollup.allOK() ||
-                        statusObj.statusRollup.allNotRunning() ||
-                        statusObj.desiredState  === 0;
+                    hideHealthChecks = false;
 
                     // if service should be up and there is more than 1 instance, show number of instances
-                    if(statusObj.desiredState === 1 && statusObj.statusRollup.total > 1){
+                    if(statusObj.statusRollup.total > 1){
                         $el.addClass("wide");
                         $badge.text(statusObj.statusRollup[OK] +"/"+ statusObj.statusRollup.total).show();
 

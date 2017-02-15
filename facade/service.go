@@ -103,6 +103,9 @@ func (f *Facade) addService(ctx datastore.Context, tenantID string, svc service.
 		glog.Errorf("Could not create service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
+	if svc.CurrentState == "" || svc.CurrentState == string(service.SVCCSUnknown) {
+		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
+	}
 	glog.Infof("Created service %s (%s)", svc.Name, svc.ID)
 	// add the service configurations to the database
 	if err := f.updateServiceConfigs(ctx, svc.ID, configFiles, true); err != nil {
@@ -2275,6 +2278,30 @@ func (f *Facade) getExcludedVolumes(ctx datastore.Context, serviceID string) []s
 	}
 	return volumes
 
+}
+
+func (f *Facade) SyncCurrentStates(ctx datastore.Context) error {
+	services, err := f.GetAllServiceDetails(ctx, time.Duration(0))
+	if err != nil {
+		return err
+	}
+
+	sids := make([]string, len(services))
+	for i, svc := range services {
+		sids[i] = svc.ID
+	}
+
+	f.ssm.SyncCurrentStates(sids)
+	return nil
+}
+
+func (f *Facade) SetServicesCurrentState(ctx datastore.Context, currentState service.ServiceCurrentState, serviceIDs ...string) {
+	logger := plog.WithField("currentstate", currentState)
+	for _, sid := range serviceIDs {
+		if err := f.serviceStore.UpdateCurrentState(ctx, sid, string(currentState)); err != nil {
+			logger.WithField("serviceid", sid).WithError(err).Error("Failed to update service current state")
+		}
+	}
 }
 
 func (f *Facade) GetInstanceMemoryStats(startTime time.Time, instances ...metrics.ServiceInstance) ([]metrics.MemoryUsageStats, error) {
