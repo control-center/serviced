@@ -102,18 +102,18 @@ describe('serviceHealth', function() {
         expect(status.status).toBe(hcStatus.OK);
     });
 
-    // shouldnt be running, health checks failing, maybe shutting down?
+    // shouldnt be running, health checks failing, fail.
     it("marks a stopped service with a failed health check as unknown", function(){
         var id = createServiceWithHealthCheck(STOPPED, hcStatus.FAILED);
         var status = serviceHealth.get(id);
-        expect(status.status).toBe(hcStatus.UNKNOWN);
+        expect(status.status).toBe(hcStatus.FAILED);
     });
 
-    // should be running, but health checks failing, unknown.
+    // should be running, but health checks failing, fail.
     it("marks a started service with a failed health check as failed", function(){
         var id = createServiceWithHealthCheck(STARTED, hcStatus.FAILED);
         var status = serviceHealth.get(id);
-        expect(status.status).toBe(hcStatus.UNKNOWN);
+        expect(status.status).toBe(hcStatus.FAILED);
     });
 
     // shouldnt be running, health checks marked not running, good!

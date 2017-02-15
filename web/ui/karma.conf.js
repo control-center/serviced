@@ -107,7 +107,7 @@ module.exports = function(config) {
     // For more info, see https://www.npmjs.com/package/karma-threshold-reporter
     thresholdReporter: {
       statements: 17,
-      branches: 12,
+      branches: 13,
       functions: 15,
       lines: 17
     }
