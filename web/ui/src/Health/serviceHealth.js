@@ -209,6 +209,10 @@
                     } else if(this.statusRollup.allOK()){
                         this.status = OK;
                         this.description = $translate.instant("passing_health_checks");
+                    // if all are failed, fail
+                    } else if(this.statusRollup.allFailed()){
+                        this.status = FAILED;
+                        this.description = $translate.instant("failed");
                     // if all are stopped, stopped
                     } else if(this.statusRollup.allNotRunning()){
                         this.status = NOT_RUNNING;
