@@ -339,6 +339,7 @@ func (s *BatchServiceStateManager) SyncCurrentStates(svcIDs []string) {
 	}
 }
 
+// Lock s.currentStateLock before calling this
 func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, desiredState service.DesiredState, emergency bool) {
 	if thread, ok := s.currentStateWaits[svc.ID]; ok {
 		if thread.WaitingState == desiredState {
@@ -382,6 +383,7 @@ func (s *BatchServiceStateManager) startCurrentStateWait(svc *service.Service, d
 	}()
 }
 
+// Lock s.currentStateLock before calling this
 func (s *BatchServiceStateManager) updateServiceCurrentState(state service.ServiceCurrentState, serviceIDs ...string) {
 	// Cancel any existing waits
 	for _, sid := range serviceIDs {
