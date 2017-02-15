@@ -182,6 +182,7 @@ func (ft *FacadeUnitTest) TestGetServiceInstances_Success(c *C) {
 				Paused:      false,
 				ContainerID: "somecontainerid",
 			},
+			CurrentStateContainer: zkservice.CurrentStateContainer{Status: service.StateRunning},
 		},
 	}
 	ft.zzk.On("GetServiceStates", ft.ctx, "default", "testservice").Return(states, nil)
@@ -319,6 +320,7 @@ func (ft *FacadeUnitTest) TestGetHostInstances_Success(c *C) {
 				Paused:      false,
 				ContainerID: "somecontainerid",
 			},
+			CurrentStateContainer: zkservice.CurrentStateContainer{Status: service.StateRunning},
 		},
 	}
 	ft.zzk.On("GetHostStates", ft.ctx, "default", "testhost").Return(states, nil)
