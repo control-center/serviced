@@ -1302,7 +1302,7 @@ health-icon {
 }
 .unknown>.healthIcon:before{
     color: #94C0DB;
-    content: "\e085";
+    content: "\e063";
 }
 .not_running>.healthIcon:before{
     color: #AAA;
@@ -1383,7 +1383,6 @@ h3 .healthTooltipDetailRow .healthIcon {
     .svc-actionbar > div {
         flex-basis: 100px;
     }
-
 
 /* chart styles */
 .nv-axis .tick text,
