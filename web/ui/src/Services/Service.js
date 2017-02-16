@@ -379,6 +379,16 @@
                 });
         }
 
+        cancelPending() {
+            if (this.currentState === "pending_start") {
+                return this.stop();
+            } else if (this.currentState === "pending_stop") {
+                return this.start();
+            } else if (this.currentState === "pending_restart") {
+                return this.start();
+            }
+        }
+
 
         // mark services updated to trigger render via $watch
         touch() {
