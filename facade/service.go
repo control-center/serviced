@@ -1447,6 +1447,11 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		"servicename": svc.Name,
 	})
 
+	// Run through and set all instances to "Pending Restart"
+	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
+		f.zzk.UpdateInstanceCurrentState(ctx, svc.PoolID, svc.ID, instanceID, service.StatePendingRestart)
+	}
+
 	// Build the service health object to use for getting instance health
 	svch := service.BuildServiceHealth(*svc)
 	var punctualLock sync.RWMutex
