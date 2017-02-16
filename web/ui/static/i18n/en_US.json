@@ -120,6 +120,7 @@
     "emergency_stopped": "Emergency stopped",
     "entry_content": "",
     "error": "Error",
+    "failed": "Failing Health Checks",
     "failing_health_checks": "Failing Health Checks",
     "field_description_connection_timeout": "Time the system will wait for disconnected delegate nodes to rejoin this pool before moving services to another delegate in the pool.",
     "file_name": "File Name",

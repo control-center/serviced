@@ -120,6 +120,7 @@
     "emergency_stopped": "Apagado por emergencia",
     "entry_content": "",
     "error": "Error",
+    "failed": "Instancias estan fallando",
     "failing_health_checks": "Instancias estan fallando",
     "field_description_connection_timeout": "Tiempo que el sistema esperará a los nodos desconectados para que se unan al grupo de recursos actual antes de mover los servicios a un servidor diferente que se encuentre dentro del mismo grupo de recursos.",
     "file_name": "Nombre del archivo",
