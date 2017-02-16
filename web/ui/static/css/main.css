@@ -1302,7 +1302,7 @@ health-icon {
 }
 .unknown>.healthIcon:before{
     color: #94C0DB;
-    content: "\e085";
+    content: "\e063";
 }
 .not_running>.healthIcon:before{
     color: #AAA;
@@ -1384,6 +1384,17 @@ h3 .healthTooltipDetailRow .healthIcon {
         flex-basis: 100px;
     }
 
+
+/* header service actions */
+.serviceActions .svc-actionbar {
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 22px;
+    width: 250px;
+}
+    .serviceActions .svc-actionsbar .svcactions-cancels {
+        flex-basis: 80px;
+    }
 
 /* chart styles */
 .nv-axis .tick text,
