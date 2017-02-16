@@ -1449,7 +1449,11 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 
 	// Run through and set all instances to "Pending Restart"
 	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
-		f.zzk.UpdateInstanceCurrentState(ctx, svc.PoolID, svc.ID, instanceID, service.StatePendingRestart)
+		err := f.zzk.UpdateInstanceCurrentState(ctx, svc.PoolID, svc.ID, instanceID, service.StatePendingRestart)
+		if err != nil {
+			logger.WithError(err).Debug("Failed to update instance current state to pending restart")
+			return err
+		}
 	}
 
 	// Build the service health object to use for getting instance health
