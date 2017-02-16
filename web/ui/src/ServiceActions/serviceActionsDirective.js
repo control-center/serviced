@@ -35,10 +35,10 @@
             }
 
             update(){
-                if (this.service.isContainer()) {
-                    this.showDefaultActions();
-                } else {
+                if (this.service && !this.service.isContainer()) {
                     this.showValidActions(this.service.currentState);
+                } else {
+                    this.showDefaultActions();
                 }
             }
 
