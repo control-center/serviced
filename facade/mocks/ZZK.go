@@ -553,3 +553,15 @@ func (_m *ZZK) UnregisterDfsClients(clients ...host.Host) error {
 
 	return r0
 }
+func (_m *ZZK) UpdateInstanceCurrentState(ctx datastore.Context, poolID, serviceID string, instanceID int, state service.InstanceCurrentState) error {
+	ret := _m.Called(ctx, poolID, serviceID, instanceID, state)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(datastore.Context, string, string, int, service.InstanceCurrentState) error); ok {
+		r0 = rf(ctx, poolID, serviceID, instanceID, state)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
