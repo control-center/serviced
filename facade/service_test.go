@@ -2597,6 +2597,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	for _, s := range services {
 		if s.ID == "childService1" {
 			c.Assert(s.EmergencyShutdown, Equals, false)
+            c.Assert(s.CurrentState, Equals, service.SVCCSStopped)
 		} else {
 			c.Assert(s.EmergencyShutdown, Equals, true)
 		}
@@ -2612,6 +2613,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	c.Assert(err, IsNil)
 	for _, s := range services {
 		c.Assert(s.EmergencyShutdown, Equals, false)
+        c.Assert(s.CurrentState, Equals, service.SVCCSStopped)
 	}
 
 	// Clear emergency stop on a service that is already cleared
@@ -2624,6 +2626,7 @@ func (ft *FacadeIntegrationTest) TestFacade_ClearEmergencyStopFlag(c *C) {
 	c.Assert(err, IsNil)
 	for _, s := range services {
 		c.Assert(s.EmergencyShutdown, Equals, false)
+        c.Assert(s.CurrentState, Equals, service.SVCCSStopped)
 	}
 }
 
