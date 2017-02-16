@@ -13,24 +13,14 @@
 
 // +build integration,!quick
 
-package zzk
+package zzk_test
 
 import (
-	"testing"
 	"time"
 
+	. "github.com/control-center/serviced/zzk"
 	. "gopkg.in/check.v1"
 )
-
-var _ = Suite(&ZZKTest{})
-
-type ZZKTest struct {
-	ZZKTestSuite
-}
-
-func Test(t *testing.T) {
-	TestingT(t)
-}
 
 func (t *ZZKTest) TestPathExists(c *C) {
 	conn, err := GetLocalConnection("/")
