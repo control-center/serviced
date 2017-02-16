@@ -60,4 +60,5 @@ type ZZK interface {
 	GetServiceNodes() ([]zkservice.ServiceNode, error)
 	RegisterDfsClients(clients ...host.Host) error
 	UnregisterDfsClients(clients ...host.Host) error
+	UpdateInstanceCurrentState(ctx datastore.Context, poolID, serviceID string, instanceID int, state service.InstanceCurrentState) error
 }
