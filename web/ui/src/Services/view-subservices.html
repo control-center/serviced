@@ -171,7 +171,12 @@
                 </div>
               </td>
               <td data-title="'deployed_tbl_description'|translate" ng-if="!row.isDummy">
-                <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{row.service.model.Description}}">
+                <input readonly 
+                    style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" 
+                    title="{{row.service.model.Description}}"
+                    type="text"
+                    value="{{row.service.model.Description}}"
+                    >
               </td>
               <td data-title="'running_tbl_actions'|translate" ng-if="!currentService.isIsvc() && !row.isDummy">
                   <service-actions data-service="row.service"></service-actions>
