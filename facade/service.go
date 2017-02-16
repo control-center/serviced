@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,16 +34,13 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/scheduler/servicestatemanager"
-	zkservice "github.com/control-center/serviced/zzk/service"
-
-	"github.com/control-center/serviced/domain/service"
-
 	"github.com/control-center/serviced/utils"
-	"sync"
+	zkservice "github.com/control-center/serviced/zzk/service"
 )
 
 const (
@@ -1539,6 +1537,8 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 		close(done)
 		<-cancelWait
 	}
+	f.SetServicesCurrentState(ctx, service.SVCCSRunning, svc.ID)
+
 	return nil
 }
 
