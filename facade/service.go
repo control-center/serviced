@@ -1224,7 +1224,7 @@ func (f *Facade) clearEmergencyStopFlag(ctx datastore.Context, tenantID, service
 	cleared := 0
 	for _, svc := range svcs {
 		svc.EmergencyShutdown = false
-        f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
+		f.SetServicesCurrentState(ctx, service.SVCCSStopped, svc.ID)
 		err = f.updateService(ctx, tenantID, *svc, false, false)
 		if err != nil {
 			plog.WithField("service", svc.ID).WithError(err).Error("Failed to update database with EmergencyShutdown")
