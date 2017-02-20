@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
+// +build unit
 
-package virtualips_test
+package checkers_test
 
 import (
 	"testing"

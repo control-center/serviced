@@ -47,7 +47,8 @@ type leader struct {
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string) {
 
 	// creates a listener for the host registry
-	hreg := zkservice.NewHostRegistryListener(poolID)
+	unassignmentHandler := virtualips.NewZKHostUnassignmentHandler(conn)
+	hreg := zkservice.NewHostRegistryListener(poolID, unassignmentHandler)
 
 	plog.Info("Processing leader duties")
 	leader := leader{shutdown, conn, cpClient, facade, poolID, hreg}
@@ -55,8 +56,13 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(poolID, &leader)
 
+	// create vip scheduler listener
+	assignmentHandler := virtualips.NewZKAssignmentHandler(
+		&virtualips.RandomHostSelectionStrategy{}, hreg, conn)
+	assignmentListener := virtualips.NewAssignmentListener(poolID, assignmentHandler)
+
 	// starts all of the listeners
-	zzk.Start(shutdown, conn, serviceListener, hreg)
+	zzk.Start(shutdown, conn, serviceListener, hreg, assignmentListener)
 }
 
 // SelectHost chooses a host from the pool for the specified service. If the
