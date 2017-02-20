@@ -11,15 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
+package mocks
 
-package virtualips_test
+import "github.com/stretchr/testify/mock"
 
-import (
-	"testing"
+type VirtualIPUnassignmentHandler struct {
+	mock.Mock
+}
 
-	. "gopkg.in/check.v1"
-)
+func (_m *VirtualIPUnassignmentHandler) UnassignAll(poolID, hostID string) error {
+	ret := _m.Called(poolID, hostID)
 
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { TestingT(t) }
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(poolID, hostID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

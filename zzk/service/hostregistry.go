@@ -31,12 +31,20 @@ type HostRegistryListener struct {
 	conn     client.Connection
 	poolid   string
 	isOnline chan struct{}
+	handler  VirtualIPUnassignmentHandler
+}
+
+// VirtualIPUnassignmentHandler will handle unassigning virtual IPs for a host.  UnassignAll should
+// be called when a host is about to go offline.
+type VirtualIPUnassignmentHandler interface {
+	UnassignAll(poolID, hostID string) error
 }
 
 // NewHostRegistryListener instantiates a new host registry listener
-func NewHostRegistryListener(poolid string) *HostRegistryListener {
+func NewHostRegistryListener(poolid string, handler VirtualIPUnassignmentHandler) *HostRegistryListener {
 	return &HostRegistryListener{
 		poolid:   poolid,
+		handler:  handler,
 		isOnline: make(chan struct{}),
 	}
 }
@@ -259,6 +267,8 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 						// We have exceeded the wait timeout, so reschedule as
 						// soon as possible.
+						h.handler.UnassignAll(h.poolid, hostid)
+
 						select {
 						case <-h.isOnline:
 							// Only reschedule services without address

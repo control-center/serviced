@@ -11,15 +11,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
-
-package virtualips_test
+package mocks
 
 import (
-	"testing"
-
-	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/stretchr/testify/mock"
 )
 
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { TestingT(t) }
+type HostSelectionStrategy struct {
+	mock.Mock
+}
+
+func (_m *HostSelectionStrategy) Select(virtualIP string, hosts []host.Host) (host.Host, error) {
+	ret := _m.Called(virtualIP, hosts)
+
+	var r0 host.Host
+	if rf, ok := ret.Get(0).(func(string, []host.Host) host.Host); ok {
+		r0 = rf(virtualIP, hosts)
+	} else {
+		r0 = ret.Get(0).(host.Host)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, []host.Host) error); ok {
+		r1 = rf(virtualIP, hosts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
