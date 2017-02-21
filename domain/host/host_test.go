@@ -100,32 +100,32 @@ func Test_ValidateTable(t *testing.T) {
 func Test_BuildInvalid(t *testing.T) {
 
 	empty := make([]string, 0)
-	_, err := Build("", "65535", "", "", empty...)
+	_, err := Build("", "65535", "", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("1234", "65535", "", "", empty...)
+	_, err = Build("1234", "65535", "", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("", "65535", "", "", empty...)
+	_, err = Build("", "65535", "", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("127.0.0.1", "65535", "poolid", "", empty...)
+	_, err = Build("127.0.0.1", "65535", "poolid", "", "", empty...)
 	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "", "127.0.0.1")
+	_, err = Build("", "65535", "poolid", "", "", "127.0.0.1")
 	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "", "")
+	_, err = Build("", "65535", "poolid", "", "", "")
 	if err == nil {
 		t.Errorf("Expected error %v", err)
 	}
@@ -139,7 +139,7 @@ func Test_Build(t *testing.T) {
 	}
 
 	empty := make([]string, 0)
-	host, err := Build("", "65535", "test_pool", "", empty...)
+	host, err := Build("", "65535", "test_pool", "", "", empty...)
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -163,8 +163,9 @@ func Test_Build(t *testing.T) {
 }
 
 func Test_getIPResources(t *testing.T) {
+	natIP := "10.10.10.150"
 
-	ips, err := getIPResources("dummy_hostId", "123")
+	ips, err := getIPResources("dummy_hostId", "123", natIP)
 	if _, ok := err.(InvalidIPAddress); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -172,7 +173,7 @@ func Test_getIPResources(t *testing.T) {
 		t.Errorf("Unexpected result %v", ips)
 	}
 
-	ips, err = getIPResources("dummy_hostId", "127.0.0.1")
+	ips, err = getIPResources("dummy_hostId", "127.0.0.1", natIP)
 	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
@@ -187,7 +188,7 @@ func Test_getIPResources(t *testing.T) {
 
 	validIPs := []string{ip, strings.ToLower(ip), strings.ToUpper(ip)}
 	for _, validIP := range validIPs {
-		ips, err = getIPResources("dummy_hostId", validIP)
+		ips, err = getIPResources("dummy_hostId", validIP, natIP)
 		if err != nil {
 			if err != nil {
 				t.Errorf("Unexpected error %v", err)
@@ -196,6 +197,25 @@ func Test_getIPResources(t *testing.T) {
 				t.Errorf("Unexpected result %v", ips)
 			}
 		}
+	}
+
+	// Test that we do not get an ip resource for a NAT IP when we don't
+	// pass it in as a parameter (not set in config).
+	_, err = getIPResources("hostId", natIP, "")
+	if _, ok := err.(InvalidIPAddress); !ok {
+		t.Errorf("Expected InvalidIPAddress error, got: %v", err)
+	}
+
+	// Test that we can get an ip resource for a NAT IP.
+	ips, err = getIPResources("hostId", natIP, natIP)
+	if err != nil {
+		t.Fatal("Unexpected error %v", err)
+	}
+	if len(ips) != 1 {
+		t.Fatalf("Expected the NAT IP (%s) to be returned.")
+	}
+	if ips[0].IPAddress != natIP {
+		t.Fatalf("Expected the NAT IP (%s) to be returned. Got: %s", ips[0].IPAddress)
 	}
 }
 

@@ -261,6 +261,7 @@ func (ft *FacadeIntegrationTest) Test_GetPoolsIPs(t *C) {
 	hostID := "deadb21f"
 	ipAddress1 := "192.168.100.10"
 	ipAddress2 := "10.50.9.1"
+	natIP := "10.10.10.150"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
 	oneHostIPResource := host.HostIPResource{}
@@ -273,7 +274,7 @@ func (ft *FacadeIntegrationTest) Test_GetPoolsIPs(t *C) {
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", natIP, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -321,6 +322,7 @@ func (ft *FacadeIntegrationTest) Test_VirtualIPs(t *C) {
 
 	hostID := "deadb22f"
 	ipAddress1 := "192.168.100.10"
+	natIP := "10.10.10.150"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
 	oneHostIPResource := host.HostIPResource{}
@@ -330,7 +332,7 @@ func (ft *FacadeIntegrationTest) Test_VirtualIPs(t *C) {
 	oneHostIPResource.InterfaceName = myInterfaceName
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", natIP, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -423,6 +425,7 @@ func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
 
 	hostID := "deadb22f"
 	ipAddress1 := "192.168.100.10"
+	natIP := "10.10.10.150"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
 	oneHostIPResource := host.HostIPResource{}
@@ -432,7 +435,7 @@ func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
 	oneHostIPResource.InterfaceName = myInterfaceName
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", natIP, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -505,6 +508,7 @@ func (ft *FacadeIntegrationTest) Test_InvalidVirtualIPs(t *C) {
 func (ft *FacadeIntegrationTest) Test_PoolCapacity(t *C) {
 	hostid := "deadb23f"
 	poolid := "pool-id"
+	natIP := "10.10.10.150"
 
 	//create pool for test
 	rp := pool.New(poolid)
@@ -513,7 +517,7 @@ func (ft *FacadeIntegrationTest) Test_PoolCapacity(t *C) {
 	}
 
 	//fill host with required values
-	h, err := host.Build("", "65535", poolid, "", []string{}...)
+	h, err := host.Build("", "65535", poolid, "", natIP, []string{}...)
 	h.ID = hostid
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)

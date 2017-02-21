@@ -52,6 +52,7 @@ func (s *S) Test_HostCRUD(t *C) {
 	defer s.hs.Delete(s.ctx, HostKey(hostID))
 
 	var host2 Host
+	natIP := "10.10.10.150"
 
 	if err := s.hs.Get(s.ctx, HostKey(hostID), &host2); !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
@@ -71,7 +72,7 @@ func (s *S) Test_HostCRUD(t *C) {
 	}
 
 	//fill host with required values
-	host, err = Build("", "65535", "pool-id", "", []string{}...)
+	host, err = Build("", "65535", "pool-id", "", natIP, []string{}...)
 	host.ID = hostID
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -110,8 +111,10 @@ func (s *S) Test_HostCRUD(t *C) {
 }
 
 func (s *S) TestDaoGetHostWithIPs(t *C) {
+	natIP := "10.10.10.150"
+
 	//Add host to test scenario where host exists but no IP resource registered
-	h, err := Build("", "65535", "pool-id", "", []string{}...)
+	h, err := Build("", "65535", "pool-id", "", natIP, []string{}...)
 	h.ID = "deadb41f"
 	h.IPs = []HostIPResource{
 		HostIPResource{h.ID, "testip", "ifname", "address1"},
@@ -139,10 +142,12 @@ func (s *S) TestDaoGetHostWithIPs(t *C) {
 }
 
 func (s *S) Test_GetHosts(t *C) {
+	natIP := "10.10.10.150"
+
 	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts1"))
 	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts2"))
 
-	host, err := Build("", "65535", "pool-id", "", []string{}...)
+	host, err := Build("", "65535", "pool-id", "", natIP, []string{}...)
 	host.ID = "deadb51f"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -177,12 +182,13 @@ func (s *S) Test_FindHostsInPool(t *C) {
 	id1 := "deadb61f"
 	id2 := "deadb62f"
 	id3 := "deadb63f"
+	natIP := "10.10.10.150"
 
 	defer s.hs.Delete(s.ctx, HostKey(id1))
 	defer s.hs.Delete(s.ctx, HostKey(id2))
 	defer s.hs.Delete(s.ctx, HostKey(id3))
 
-	host, err := Build("", "65535", "pool1", "", []string{}...)
+	host, err := Build("", "65535", "pool1", "", natIP, []string{}...)
 	host.ID = id1
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -226,7 +232,9 @@ func (s *S) Test_FindHostsInPool(t *C) {
 }
 
 func (s *S) Test_GetHostByIP(t *C) {
-	host, err := Build("", "65535", "pool1", "")
+	natIP := "10.10.10.150"
+
+	host, err := Build("", "65535", "pool1", "", natIP)
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}

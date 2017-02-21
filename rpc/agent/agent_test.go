@@ -31,7 +31,8 @@ func TestGetInfo(t *testing.T) {
 	}
 
 	staticIPs := []string{ip}
-	agent := NewServer(staticIPs)
+	natIP := "10.10.10.150"
+	agent := NewServer(staticIPs, natIP)
 
 	// Test that our IPs made it into the agent.
 	if !reflect.DeepEqual(agent.staticIPs, []string{ip}) {
@@ -58,7 +59,7 @@ func TestGetInfo(t *testing.T) {
 
 	// Test that we successfully build a host with an IP in the request
 	// and no static IPs defined in the AgentServer.
-	agent = NewServer([]string{})
+	agent = NewServer([]string{}, "")
 	h = host.New()
 	request = BuildHostRequest{IP: ip, PoolID: "testpool"}
 	err = agent.BuildHost(request, h)
@@ -76,7 +77,7 @@ func TestGetInfo(t *testing.T) {
 	}
 
 	// Test that we build a host with no IPs provided.
-	agent = NewServer([]string{})
+	agent = NewServer([]string{}, "")
 	h = host.New()
 	request = BuildHostRequest{IP: "", PoolID: "testpool"}
 	err = agent.BuildHost(request, h)
@@ -94,12 +95,28 @@ func TestGetInfo(t *testing.T) {
 	}
 
 	// Test that we can't build a host with bad IPs provided.
-	agent = NewServer([]string{})
+	agent = NewServer([]string{}, "")
 	h = host.New()
 	request = BuildHostRequest{IP: "1.2.3.4", PoolID: "testpool"}
 	err = agent.BuildHost(request, h)
 	if _, ok := err.(host.InvalidIPAddress); !ok {
 		t.Errorf("Unexpected error %v", err)
+	}
+
+	// Test that we can build a host with the NAT IP provided.
+	agent = NewServer([]string{}, natIP)
+	h = host.New()
+	request = BuildHostRequest{IP: natIP, PoolID: "testpool"}
+	err = agent.BuildHost(request, h)
+	if err != nil {
+		t.Fatalf("Unexpected error %v", err)
+	}
+	if len(h.IPs) != 1 {
+		t.Fatalf("Expected only 1 result: %v (%d)", h.IPs, len(h.IPs))
+	}
+	// Test that we're getting the right IP for the above condition.
+	if h.IPs[0].IPAddress != natIP {
+		t.Fatalf("Expected the nat ip (%s), got result: %s (%s)", natIP, h.IPs[0].IPAddress, ip)
 	}
 
 	// Test that we can't use loopback.
