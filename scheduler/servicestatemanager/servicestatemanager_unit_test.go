@@ -1987,8 +1987,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 		c.Assert(found["H"], Equals, true)
 	}).Once()
 
-	// We'll sleep a bit to make sure those services reach desired state in zk (mocked),
-	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
+	// It should grab another batch off of the queue (which will just contain G at this point) and it should get processed
 	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
 		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Twice()
@@ -2025,6 +2024,8 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
+		// Wait for all services to get scheduled so we don't randomly fail assertExpectations below
+		s.serviceStateManager.WaitScheduled("tenant1", "A", "D", "G", "H")
 		close(done)
 	}()
 
