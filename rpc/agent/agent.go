@@ -27,18 +27,20 @@ import (
 )
 
 // NewServer returns a new AgentServer
-func NewServer(staticIPs []string) *AgentServer {
+func NewServer(staticIPs []string, natIP string) *AgentServer {
 	// make our own copy of the slice of ips
 	ips := make([]string, len(staticIPs))
 	copy(ips, staticIPs)
 	return &AgentServer{
 		staticIPs: ips,
+		natIP: natIP,
 	}
 }
 
 // AgentServer The type is the API for a serviced agent. Get the host information from an agent.
 type AgentServer struct {
 	staticIPs []string
+	natIP     string
 }
 
 //BuildHostRequest request to build a new host. IP and IPResources will be validated to ensure they exist
@@ -55,7 +57,7 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	*hostResponse = host.Host{}
 
 	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
-	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, request.Memory, a.staticIPs...)
+	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, request.Memory, a.natIP, a.staticIPs...)
 	if err != nil {
 		return err
 	}

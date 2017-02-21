@@ -439,7 +439,7 @@ func (d *daemon) startMaster() (err error) {
 	}).Info("Determined outbound IP address")
 
 	rpcPort := strings.TrimLeft(options.Listen, ":")
-	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "", "")
 
 	if err != nil {
 		log.WithFields(logrus.Fields{
@@ -710,7 +710,7 @@ func (d *daemon) startAgent() error {
 	}).Info("Determined delegate's outbound IP address")
 
 	rpcPort := strings.TrimLeft(options.Listen, ":")
-	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "", options.StaticIPs...)
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "", options.NatIP, options.StaticIPs...)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"address": agentIP,
@@ -1018,7 +1018,7 @@ func (d *daemon) startAgent() error {
 
 	}()
 
-	agentServer := agent.NewServer(d.staticIPs)
+	agentServer := agent.NewServer(d.staticIPs, options.NatIP)
 	if err = d.rpcServer.RegisterName("Agent", agentServer); err != nil {
 		log.WithError(err).Fatal("Unable to register Agent RPC service")
 	}

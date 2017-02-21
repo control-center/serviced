@@ -191,7 +191,7 @@ func New() *Host {
 // The poolid param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
 // resources, if not set the IP used for the host will be given as an IP Resource. If any IP is not a valid IP on the
 // machine return error.
-func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...string) (*Host, error) {
+func Build(ip string, rpcport string, poolid string, memory string, natIP string, ipAddrs ...string) (*Host, error) {
 	if strings.TrimSpace(poolid) == "" {
 		return nil, errors.New("empty poolid not allowed")
 	}
@@ -209,7 +209,7 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 		}).Debug("Unable to build host object")
 		return nil, err
 	}
-	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
+	hostIPs, err := getIPResources(host.ID, host.IPAddr, natIP, ipAddrs...)
 	if err != nil {
 		plog.WithError(err).WithFields(log.Fields{
 			"hostid": host.ID,
