@@ -218,13 +218,12 @@ func (t *HostIPListenerSuite) TestSpawn_LoadCacheNoIP(c *C) {
 func (t *HostIPListenerSuite) TestSpawn_LoadNoPoolIP(c *C) {
 	assertNoPoolIP := func(ipaddr string) {
 		c.Logf("Pool IP not found for %s", ipaddr)
-		req := IPRequest{
-			HostID:    testhostid,
-			IPAddress: ipaddr,
-		}
-		err := CreateIP(t.conn, req, "255.255.255.0", "dummy0")
-		c.Assert(err, IsNil)
-		err = t.conn.Delete(path.Join("/ips", req.IPID()))
+		const (
+			netmask = "255.255.255.0"
+			iface   = "dummy0"
+		)
+		req := t.assertCreateIP(c, ipaddr, netmask, iface)
+		err := t.conn.Delete(path.Join("/ips", req.IPID()))
 		c.Assert(err, IsNil)
 		t.assertSpawnExits(c, req.IPID())
 	}
@@ -235,13 +234,12 @@ func (t *HostIPListenerSuite) TestSpawn_LoadNoPoolIP(c *C) {
 func (t *HostIPListenerSuite) TestSpawn_LoadNoHostIP(c *C) {
 	assertNoHostIP := func(ipaddr string) {
 		c.Logf("Host IP not found for %s", ipaddr)
-		req := IPRequest{
-			HostID:    testhostid,
-			IPAddress: ipaddr,
-		}
-		err := CreateIP(t.conn, req, "255.255.255.0", "dummy0")
-		c.Assert(err, IsNil)
-		err = t.conn.Delete(path.Join(t.listener.Path(), req.IPID()))
+		const (
+			netmask = "255.255.255.0"
+			iface   = "dummy0"
+		)
+		req := t.assertCreateIP(c, ipaddr, netmask, iface)
+		err := t.conn.Delete(path.Join(t.listener.Path(), req.IPID()))
 		c.Assert(err, IsNil)
 		t.assertSpawnExits(c, req.IPID())
 	}
@@ -252,13 +250,12 @@ func (t *HostIPListenerSuite) TestSpawn_LoadNoHostIP(c *C) {
 func (t *HostIPListenerSuite) TestSpawn_LoadBindFails(c *C) {
 	assertBindFails := func(ipaddr string) {
 		c.Logf("BindIP fails for %s", ipaddr)
-		req := IPRequest{
-			HostID:    testhostid,
-			IPAddress: ipaddr,
-		}
-		t.handler.On("BindIP", ipaddr, "255.255.255.0", "dummy0").Return(errors.New("bind ip failed")).Once()
-		err := CreateIP(t.conn, req, "255.255.255.0", "dummy0")
-		c.Assert(err, IsNil)
+		const (
+			netmask = "255.255.255.0"
+			iface   = "dummy0"
+		)
+		t.handler.On("BindIP", ipaddr, netmask, iface).Return(errors.New("bind ip failed")).Once()
+		req := t.assertCreateIP(c, ipaddr, netmask, iface)
 		t.assertSpawnExits(c, req.IPID())
 	}
 
