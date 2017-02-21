@@ -375,7 +375,8 @@
                     this.touch();
                 })
                 .error((data, status) => {
-                    $notification.create("Stop Instance failed", data.Detail).error();
+                    let detail = data.Detail || data || "";
+                    $notification.create("Stop Instance failed", detail).error();
                 });
         }
 
