@@ -1449,7 +1449,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 	// Build the service health object to use for getting instance health
 	svch := service.BuildServiceHealth(*svc)
 	var punctualLock sync.RWMutex
-	punctualInstances := make([]struct{}, 0)
+	punctualInstances := 0
 
 	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
 		ilogger := logger.WithField("instance", instanceID)
@@ -1464,7 +1464,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 				ilogger.Warn("Timeout waiting for instance to restart")
 			case <-done:
 				punctualLock.Lock()
-				punctualInstances = append(punctualInstances, struct{}{})
+				punctualInstances++
 				punctualLock.Unlock()
 			}
 			timer.Stop()
@@ -1544,7 +1544,7 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 	}
 
 	punctualLock.RLock()
-	instances := len(punctualInstances)
+	instances := punctualInstances
 	punctualLock.RUnlock()
 	if instances == svc.Instances {
 		f.SetServicesCurrentState(ctx, service.SVCCSRunning, svc.ID)
