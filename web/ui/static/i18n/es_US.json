@@ -118,6 +118,7 @@
     "endpoint": "Punto de destino",
     "emergency_shutdown": "Parada de emergencia",
     "emergency_stopped": "Apagado por emergencia",
+    "emergency_stopping": "Apagado de emergencia en Proceso",
     "entry_content": "",
     "error": "Error",
     "failed": "Instancias estan fallando",

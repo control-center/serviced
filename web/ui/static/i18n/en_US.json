@@ -118,6 +118,7 @@
     "endpoint": "Endpoint",
     "emergency_shutdown": "Emergency Shutdown",
     "emergency_stopped": "Emergency stopped",
+    "emergency_stopping": "Emergency stopping",
     "entry_content": "",
     "error": "Error",
     "failed": "Failing Health Checks",
