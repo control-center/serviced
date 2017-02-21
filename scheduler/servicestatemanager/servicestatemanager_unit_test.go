@@ -2086,11 +2086,20 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_WaitScheduled(c *C) {
 	// Those should get waited on by a call to the facade from runLoop
 	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on A") }).Twice()
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on A")
+	}).Twice()
 	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on D") }).Twice()
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on D")
+	}).Twice()
 	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on H") }).Twice()
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on H")
+	}).Twice()
 
 	// A, D, and H will go to "Starting" first.
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
@@ -2110,7 +2119,10 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_WaitScheduled(c *C) {
 	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
 	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
 	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
-		Return(nil).Run(func(mock.Arguments) { c.Logf("Waited on G") }).Twice()
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on G")
+	}).Twice()
 
 	// G will go to "starting" when its batch comes.
 	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
@@ -2165,7 +2177,7 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_WaitScheduled(c *C) {
 
 	select {
 	case <-done:
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		c.Fatalf("Timeout waiting for services to start")
 	}
 
