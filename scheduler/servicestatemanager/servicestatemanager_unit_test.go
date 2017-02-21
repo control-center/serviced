@@ -26,8 +26,9 @@ import (
 	"github.com/control-center/serviced/scheduler/servicestatemanager/mocks"
 	"github.com/stretchr/testify/mock"
 
-	. "gopkg.in/check.v1"
 	"sync"
+
+	. "gopkg.in/check.v1"
 )
 
 func TestServiceStateManager(t *testing.T) { TestingT(t) }
@@ -2047,6 +2048,153 @@ func (s *ServiceStateManagerSuite) TestServiceStateManager_queueLoop(c *C) {
 	case <-time.After(time.Second):
 		c.Fatalf("Timeout waiting for manager to shutdown")
 	}
+}
+
+func (s *ServiceStateManagerSuite) TestServiceStateManager_WaitScheduled(c *C) {
+	// Setup a tenant
+	s.facade.On("GetTenantIDs", s.ctx).Return([]string{"tenant1"}, nil).Once()
+
+	svcs := getTestServicesADGH()
+
+	svcA := svcs[0]
+	svcD := svcs[1]
+	svcG := svcs[2]
+	svcH := svcs[3]
+
+	// Start the manager
+	s.serviceStateManager.Start()
+
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcA, svcD, svcH}).Once()
+	s.facade.On("GetServicesForScheduling", s.ctx, mock.AnythingOfType("[]string")).Return([]*service.Service{svcG}).Once()
+
+	// All 4 services will get set to "Pending Start" at once
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSPendingStart, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 4)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["G"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
+
+	// The first batch should contain A, D, H because of startlevel
+	// Those should get waited on by a call to the facade from runLoop
+	s.facade.On("ScheduleServiceBatch", s.ctx, mock.AnythingOfType("[]*service.Service"), "tenant1", service.SVCRun).Return([]string{}, nil).Once()
+	s.facade.On("WaitSingleService", svcA, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on A")
+	}).Twice()
+	s.facade.On("WaitSingleService", svcD, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on D")
+	}).Twice()
+	s.facade.On("WaitSingleService", svcH, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on H")
+	}).Twice()
+
+	// A, D, and H will go to "Starting" first.
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, mock.AnythingOfType("[]string")).Run(func(args mock.Arguments) {
+		serviceIDs := args.Get(2).([]string)
+		c.Assert(len(serviceIDs), Equals, 3)
+		found := make(map[string]bool)
+		for _, sid := range serviceIDs {
+			found[sid] = true
+		}
+
+		c.Assert(found["A"], Equals, true)
+		c.Assert(found["D"], Equals, true)
+		c.Assert(found["H"], Equals, true)
+	}).Once()
+
+	// We'll sleep a bit to make sure those services reach desired state in zk (mocked),
+	// then it should grab another batch off of the queue (which will just contain G at this point) and it should get processed
+	s.facade.On("ScheduleServiceBatch", s.ctx, []*service.Service{svcG}, "tenant1", service.SVCRun).Return([]string{}, nil).Once()
+	s.facade.On("WaitSingleService", svcG, service.SVCRun, mock.AnythingOfType("<-chan interface {}")).
+		Return(nil).Run(func(mock.Arguments) {
+		time.Sleep(100 * time.Millisecond)
+		c.Logf("Waited on G")
+	}).Twice()
+
+	// G will go to "starting" when its batch comes.
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+
+	// After they are scheduled in the facade, they'll get set to Starting again
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"A"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"D"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"G"}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSStarting, []string{"H"}).Once()
+
+	// They will eventually go to "started"
+	var wg sync.WaitGroup
+	wg.Add(4)
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"A"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"D"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"G"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+	s.facade.On("SetServicesCurrentState", s.ctx, service.SVCCSRunning, []string{"H"}).Run(func(args mock.Arguments) {
+		wg.Done()
+	}).Once()
+
+	err := s.serviceStateManager.ScheduleServices(svcs, "tenant1", service.SVCRun, false)
+	c.Assert(err, IsNil)
+
+	done := make(chan struct{})
+	go func() {
+		s.serviceStateManager.WaitScheduled("tenant1", "A", "D", "G", "H")
+		for _, queue := range s.serviceStateManager.TenantQueues["tenant1"] {
+			queue.RLock()
+			if len(queue.CurrentBatch.Services) != 0 {
+				queue.RUnlock()
+				c.Fatal("WaitScheduled failed to wait for current batch to be empty")
+			}
+			for _, batch := range queue.BatchQueue {
+				if len(batch.Services) != 0 {
+					queue.RUnlock()
+					c.Fatal("WaitScheduled failed to wait for current batch to be empty")
+				}
+			}
+			queue.RUnlock()
+		}
+		// There is technically a race, where the services are scheduled, but
+		// have not had SetServicesCurrentState called yet, this wg makes sure we don't hit that
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		c.Fatalf("Timeout waiting for services to start")
+	}
+
+	// Stop the manager
+	done = make(chan struct{})
+	go func() {
+		s.serviceStateManager.Shutdown()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		c.Fatalf("Timeout waiting for manager to shutdown")
+	}
+
+	s.facade.AssertExpectations(c)
 }
 
 func (s *ServiceStateManagerSuite) LogBatch(c *C, b ssm.ServiceStateChangeBatch) {

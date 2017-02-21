@@ -43,6 +43,7 @@ var (
 	ErrWaitTimeout = errors.New("Timeout waiting for services")
 )
 
+// ServiceStateManager provides a way to organize and manage services before scheduling them
 type ServiceStateManager interface {
 	// ScheduleServices schedules a set of services to change their desired state
 	ScheduleServices(svcs []*service.Service, tenantID string, desiredState service.DesiredState, emergency bool) error
@@ -186,7 +187,7 @@ func (b ServiceStateChangeBatch) String() string {
 }`, svcStr, b.DesiredState, b.Emergency)
 }
 
-// NewServiceStateManager creates a new, initialized ServiceStateManager
+// NewBatchServiceStateManager creates a new, initialized ServiceStateManager
 func NewBatchServiceStateManager(facade Facade, ctx datastore.Context, runLevelTimeout time.Duration) *BatchServiceStateManager {
 	return &BatchServiceStateManager{
 		RWMutex: sync.RWMutex{},
@@ -834,16 +835,19 @@ func (s *BatchServiceStateManager) Wait(tenantID string) {
 func (s *BatchServiceStateManager) WaitScheduled(tenantID string, serviceIDs ...string) {
 	s.RLock()
 	var wg sync.WaitGroup
-	count := 0
 	for _, sid := range serviceIDs {
 		// find the service in the queues
 		if svc, ok := s.findService(tenantID, sid); ok {
 			wg.Add(1)
-			count++
-			go func(s CancellableService) {
-				<-s.C
+			go func(cs CancellableService) {
+				<-cs.C
 				wg.Done()
 			}(svc)
+		} else {
+			plog.WithFields(logrus.Fields{
+				"tenantid":  tenantID,
+				"serviceid": sid,
+			}).Debug("Not waiting for service, could not find it")
 		}
 	}
 	s.RUnlock()
@@ -861,6 +865,9 @@ func (s *BatchServiceStateManager) findService(tenantID, serviceID string) (Canc
 				if svc, ok := batch.Services[serviceID]; ok {
 					return svc, true
 				}
+			}
+			if svc, ok := queue.CurrentBatch.Services[serviceID]; ok {
+				return svc, true
 			}
 			return CancellableService{}, false
 		}()
