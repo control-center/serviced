@@ -132,7 +132,7 @@ func Listen2(shutdown <-chan interface{}, conn client.Connection, s Spawner) {
 		}
 
 		// trigger post-processing actions (for orphaned nodes, for example)
-		s.Post(copyMap(active))
+		s.Post(active)
 
 		select {
 		case <-ev:
@@ -156,12 +156,4 @@ func Listen2(shutdown <-chan interface{}, conn client.Connection, s Spawner) {
 
 func connect(root string) <-chan client.Connection {
 	return Connect(root, GetLocalConnection)
-}
-
-func copyMap(a map[string]struct{}) (b map[string]struct{}) {
-	b = make(map[string]struct{})
-	for i := range a {
-		b[i] = struct{}{}
-	}
-	return
 }
