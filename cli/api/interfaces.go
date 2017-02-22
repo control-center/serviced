@@ -25,6 +25,7 @@ import (
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/metrics"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/script"
 	"github.com/control-center/serviced/volume"
 )
@@ -46,7 +47,7 @@ type API interface {
 	SetHostMemory(HostUpdateConfig) error
 	GetHostPublicKey(string) ([]byte, error)
 	RegisterHost([]byte) error
-	RegisterRemoteHost(*host.Host, []byte, bool) error
+	RegisterRemoteHost(*host.Host, utils.URL, []byte, bool) error
 	WriteDelegateKey(string, []byte) error
 	AuthenticateHost(string) (string, int64, error)
 	ResetHostKey(string) ([]byte, error)

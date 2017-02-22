@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/hostkey"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
 const (
@@ -302,9 +303,9 @@ func (f *Facade) ResetHostKey(ctx datastore.Context, hostID string) ([]byte, err
 
 // RegisterHost attempts to register a host's keys over ssh, or locally if it's
 // the current host.
-func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, keys []byte, prompt bool) error {
+func (f *Facade) RegisterHostKeys(ctx datastore.Context, entity *host.Host, nat utils.URL, keys []byte, prompt bool) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.RegisterHostKeys"))
-	return auth.RegisterRemoteHost(entity.ID, entity.IPAddr, keys, prompt)
+	return auth.RegisterRemoteHost(entity.ID, nat, entity.IPAddr, keys, prompt)
 }
 
 // SetHostExpiration sets a host's auth token

@@ -351,7 +351,7 @@ func RegisterLocalHost(keydata []byte) error {
 	return nil
 }
 
-func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte, prompt bool) error {
+func RegisterRemoteHost(hostID string, nat utils.URL, hostIPAddr string, keydata []byte, prompt bool) error {
 	thisHostID, err := utils.HostID()
 
 	if err != nil {
@@ -364,6 +364,9 @@ func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte, prompt bool) 
 	}
 
 	log := log.WithField("hostid", hostID)
+	if len(nat.Host) > 0 {
+		log = log.WithField("nat", nat.Host)
+	}
 
 	var args []string
 
@@ -380,7 +383,14 @@ func RegisterRemoteHost(hostID, hostIPAddr string, keydata []byte, prompt bool) 
 
 	// Address to which we will ssh (the IP address used to register the
 	// host, which is the best we have)
-	args = append(args, hostIPAddr)
+	if len(nat.Host) > 0 {
+		// If we're using a NAT, we can't connect to the private IP.  Try to
+		// connect using the NAT address on the standard port.
+		log.Info("Registering through NAT address on port 22")
+		args = append(args, nat.Host)
+	} else {
+		args = append(args, hostIPAddr)
+	}
 
 	// Add the command to run on the remote side, which will read keys from stdin
 	args = append(args, "--", "serviced", "host", "register", "-")

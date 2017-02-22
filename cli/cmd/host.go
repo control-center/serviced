@@ -64,6 +64,11 @@ func (c *ServicedCli) initHost() {
 						Usage: "Memory to allocate on this host, e.g. 20G, 50%",
 					},
 					cli.StringFlag{
+						Name:  "nat-address",
+						Value: "",
+						Usage: "The HOST:PORT of the NAT for this delegate",
+					},
+					cli.StringFlag{
 						Name:  "key-file, k",
 						Value: "",
 						Usage: "Name of the output host key file",
@@ -209,7 +214,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	}
 }
 
-// serviced host add HOST:PORT POOLID [--memory SIZE|%]
+// serviced host add HOST:PORT POOLID [--memory SIZE|%] [--nat-address HOST:PORT]
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -225,7 +230,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	}
 	if ip := net.ParseIP(address.Host); ip == nil {
 		// Host did not parse, try resolving
-		addr, err := net.ResolveTCPAddr("tcp", args[0])
+		addr, err := net.ResolveTCPAddr("ip", args[0]) // unknown network tcp
 		if err != nil {
 			fmt.Printf("Could not resolve %s.\n\n", args[0])
 			return
@@ -237,8 +242,32 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		}
 	}
 
+	// Parse/resolve the NAT address, if provided.
+	var nat utils.URL
+	natString := ctx.String("nat-address")
+	if len(natString) > 0 {
+		if err := nat.Set(natString); err != nil {
+			fmt.Println(err)
+			return
+		}
+		if natip := net.ParseIP(nat.Host); natip == nil {
+			// NAT did not parse, try resolving
+			addr, err := net.ResolveIPAddr("ip", nat.Host) // unknown network tcp
+			if err != nil {
+				fmt.Printf("Could not resolve nat address (%s): %s\n", nat.Host, err)
+				return
+			}
+			nat.Host = addr.IP.String()
+		}
+		if strings.HasPrefix(nat.Host, "127.") {
+			fmt.Printf("The nat address %s must not resolve to a loopback address\n", natString)
+			return
+		}
+	}
+
 	cfg := api.HostConfig{
 		Address: &address,
+		Nat:     &nat,
 		PoolID:  args[1],
 		Memory:  ctx.String("memory"),
 	}
@@ -254,7 +283,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 
 	keyfileName := ctx.String("key-file")
 	registerHost := ctx.Bool("register")
-	c.outputDelegateKey(host, privateKey, keyfileName, registerHost)
+	c.outputDelegateKey(host, nat, privateKey, keyfileName, registerHost)
 }
 
 // serviced host remove HOSTID ...
