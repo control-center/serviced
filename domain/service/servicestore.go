@@ -433,11 +433,12 @@ func (s *storeImpl) addUpdatedServicesFromCache(ctx datastore.Context, svcs []Se
 // mutex lock needed.
 func (s *storeImpl) updateServiceFromVolatileService(svc *Service, cacheEntry volatileService) {
 	svc.DesiredState = cacheEntry.DesiredState
+	svc.CurrentState = cacheEntry.CurrentState
 }
 
 // updateVolatileInfo updates the local cache for volatile information
 func (s *storeImpl) updateVolatileInfo(serviceID string, desiredState int, updatedAt time.Time) error {
-	// Validate desired state
+	// Only update desired state.  Current state should only be set explicitly
 	return s.updateDesiredState(serviceID, desiredState, updatedAt)
 }
 

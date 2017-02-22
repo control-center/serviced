@@ -792,6 +792,59 @@ func (zk *zkf) RestartInstance(ctx datastore.Context, poolID, serviceID string, 
 	return nil
 }
 
+// UpdateInstanceCurrentState sets the current state of the instance
+func (zk *zkf) UpdateInstanceCurrentState(ctx datastore.Context, poolID, serviceID string, instanceID int, state service.InstanceCurrentState) error {
+	defer ctx.Metrics().Stop(ctx.Metrics().Start(fmt.Sprintf("zzk.UpdateInstanceCurrentState")))
+	logger := plog.WithFields(log.Fields{
+		"poolid":     poolID,
+		"serviceid":  serviceID,
+		"instanceid": instanceID,
+		"state":      state,
+	})
+
+	// get the root-based connection to update the service instance
+	conn, err := getLocalConnection(ctx, "/")
+	if err != nil {
+		logger.WithError(err).Debug("Could not acquire root-based connection")
+		return err
+	}
+
+	// get the hostid and make a state request for the service
+	hostID, err := zks.GetServiceStateHostID(conn, poolID, serviceID, instanceID)
+	if err != nil {
+		return err
+	}
+	logger = logger.WithField("hostid", hostID)
+	isOnline, err := zks.IsHostOnline(conn, poolID, hostID)
+	if err != nil {
+		logger.WithError(err).Debug("Could not check if host is online")
+		return err
+	}
+
+	req := zks.StateRequest{
+		PoolID:     poolID,
+		HostID:     hostID,
+		ServiceID:  serviceID,
+		InstanceID: instanceID,
+	}
+	// manage the service
+	if isOnline {
+		if err := zks.UpdateState(conn, req, func(s *zks.State) bool {
+			s.Status = state
+			return true
+		}); err != nil {
+			logger.WithError(err).Debug("Could not update current state of service instance")
+			return err
+		}
+		logger.Debug("Set current state on service instance")
+	} else {
+		logger.Warning("Could not update current state on service instance, host is not online")
+		return ErrHostOffline
+	}
+
+	return nil
+}
+
 // SendDockerAction submits an action to the docker queue
 func (zk *zkf) SendDockerAction(poolID, serviceID string, instanceID int, command string, args []string) error {
 	logger := plog.WithFields(log.Fields{
