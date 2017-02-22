@@ -36,17 +36,20 @@ type mySuite struct {
 	cli *ServicedCli
 }
 
-var testHost = host.Host{
-	ID:             "test-host-id-2",
-	PoolID:         "default",
-	Name:           "beta",
-	IPAddr:         "192.168.0.1",
-	Cores:          2,
-	Memory:         512 * 1024 * 1024,
-	PrivateNetwork: "10.0.0.1/66",
-}
-var testHostFilename = "IP-192-168-0-1.delegate.key"
-var testKeyData = []byte("Fake Key Data")
+var (
+	testHost = host.Host{
+		ID:             "test-host-id-2",
+		PoolID:         "default",
+		Name:           "beta",
+		IPAddr:         "192.168.0.1",
+		Cores:          2,
+		Memory:         512 * 1024 * 1024,
+		PrivateNetwork: "10.0.0.1/66",
+	}
+	testHostFilename = "IP-192-168-0-1.delegate.key"
+	testKeyData = []byte("Fake Key Data")
+	nat = utils.URL{}
+)
 
 var _ = Suite(&mySuite{})
 
@@ -78,42 +81,42 @@ func (s *mySuite) Test_cmdKeyReset_resetError(c *C) {
 
 func (s *mySuite) Test_outputDelegateKey(c *C) {
 	s.api.On("WriteDelegateKey", testHostFilename, testKeyData).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, "", false)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, "", false)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_keyfile(c *C) {
 	keyfileName := "foo.bar"
 	s.api.On("WriteDelegateKey", keyfileName, testKeyData).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, keyfileName, false)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, keyfileName, false)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_register(c *C) {
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, "", true)
+	s.api.On("RegisterRemoteHost", &testHost, nat, testKeyData, false).Return(nil)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, "", true)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_registerfail(c *C) {
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(errors.New("woot"))
+	s.api.On("RegisterRemoteHost", &testHost, nat, testKeyData, false).Return(errors.New("woot"))
 	s.api.On("WriteDelegateKey", testHostFilename, testKeyData).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, "", true)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, "", true)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_register_keyfile(c *C) {
 	keyfileName := "foo-bar"
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(nil)
+	s.api.On("RegisterRemoteHost", &testHost, nat, testKeyData, false).Return(nil)
 	s.api.On("WriteDelegateKey", keyfileName, testKeyData).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, keyfileName, true)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, keyfileName, true)
 	s.api.AssertExpectations(c)
 }
 
 func (s *mySuite) Test_outputDelegateKey_registerfail_keyfile(c *C) {
 	keyfileName := "foo-bar"
-	s.api.On("RegisterRemoteHost", &testHost, testKeyData, false).Return(errors.New("woot"))
+	s.api.On("RegisterRemoteHost", &testHost, nat, testKeyData, false).Return(errors.New("woot"))
 	s.api.On("WriteDelegateKey", keyfileName, testKeyData).Return(nil)
-	s.cli.outputDelegateKey(&testHost, testKeyData, keyfileName, true)
+	s.cli.outputDelegateKey(&testHost, nat, testKeyData, keyfileName, true)
 	s.api.AssertExpectations(c)
 }

@@ -230,7 +230,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	}
 	if ip := net.ParseIP(address.Host); ip == nil {
 		// Host did not parse, try resolving
-		addr, err := net.ResolveTCPAddr("ip", args[0]) // unknown network tcp
+		addr, err := net.ResolveTCPAddr("tcp", args[0])
 		if err != nil {
 			fmt.Printf("Could not resolve %s.\n\n", args[0])
 			return
@@ -252,9 +252,9 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		}
 		if natip := net.ParseIP(nat.Host); natip == nil {
 			// NAT did not parse, try resolving
-			addr, err := net.ResolveIPAddr("ip", nat.Host) // unknown network tcp
+			addr, err := net.ResolveTCPAddr("tcp", natString)
 			if err != nil {
-				fmt.Printf("Could not resolve nat address (%s): %s\n", nat.Host, err)
+				fmt.Printf("Could not resolve nat address (%s): %s\n", natString, err)
 				return
 			}
 			nat.Host = addr.IP.String()
