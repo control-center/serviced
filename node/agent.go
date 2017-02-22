@@ -332,6 +332,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}()
 
 	// run the virtual ip listener
+	wg.Add(1)
 	go func() {
 		glog.Infof("Starting virtual ip listener")
 
