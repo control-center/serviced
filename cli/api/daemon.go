@@ -15,7 +15,7 @@ package api
 
 import (
 	"bytes"
-
+	"errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/auth"
 	commonsdocker "github.com/control-center/serviced/commons/docker"
@@ -841,10 +841,21 @@ func (d *daemon) startAgent() error {
 				}
 				err = masterClient.UpdateHost(updatedHost)
 				if err != nil {
-					log.WithError(err).Warn("Unable to update master with delegate host information")
-					return "" // Try again
+					log.WithError(err).Warn("Unable to update master with delegate host information. Retrying silently")
+					go func(masterClient *master.Client, updatedHost host.Host) {
+						err := errors.New("")
+						for err != nil {
+							select {
+								case <-d.shutdown:
+									return
+								default:
+									time.Sleep(5 * time.Second)
+							}
+							err = masterClient.UpdateHost(updatedHost)
+						}
+						log.Info("Updated master with delegate host information")
+					}(masterClient, updatedHost)
 				}
-				log.Info("Updated master with delegate host information")
 				return poolID
 			}()
 			if poolID != "" {
