@@ -849,7 +849,7 @@ func (d *daemon) startAgent() error {
 								case <-d.shutdown:
 									return
 								default:
-									time.Sleep(5)
+									time.Sleep(5 * time.Second)
 							}
 							err = masterClient.UpdateHost(updatedHost)
 						}
