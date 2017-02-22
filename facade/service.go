@@ -1273,9 +1273,24 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 		return 0, fmt.Errorf("desired state unknown")
 	}
 
-	isRequested := make(map[string]bool)
+	isRequested := make(map[string]struct{})
 	for _, serviceID := range serviceIDs {
-		isRequested[serviceID] = true
+		isRequested[serviceID] = struct{}{}
+	}
+
+	// If this is emergency shutdown, ignore services running in pools without DFS access
+	poolsToSkip := make(map[string]struct{})
+	if emergency && desiredState == service.SVCStop {
+		pools, err := f.GetResourcePools(ctx)
+		if err != nil {
+			logger.WithError(err).Debug("Failed to get resource pools")
+			return 0, err
+		}
+		for _, pool := range pools {
+			if !pool.HasDfsAccess() {
+				poolsToSkip[pool.ID] = struct{}{}
+			}
+		}
 	}
 
 	alreadyChecked := make(map[string]struct{})
@@ -1285,10 +1300,15 @@ func (f *Facade) scheduleServiceParents(ctx datastore.Context, tenantID string, 
 	visitor := func(svc *service.Service) error {
 		if _, ok := alreadyChecked[svc.ID]; !ok {
 			alreadyChecked[svc.ID] = struct{}{}
-
-			if svc.Launch == commons.MANUAL && !emergency && !isRequested[svc.ID] {
+			_, explicit := isRequested[svc.ID]
+			if svc.Launch == commons.MANUAL && !emergency && !explicit {
 				return nil
 			}
+			// Are we skipping this pool?
+			if _, skip := poolsToSkip[svc.PoolID]; skip {
+				return nil
+			}
+
 			if desiredState != service.SVCStop {
 				// Verify that all of the services are ready to be started
 				if err := f.validateServiceStart(ctx, svc); err != nil {
