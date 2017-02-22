@@ -1888,7 +1888,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request addressassignment.Assi
 
 		// Restart the service if it is running and new address assignments are made
 		if restart && svc.DesiredState == int(service.SVCRun) {
-			f.RestartService(ctx, dao.ScheduleServiceRequest{
+			f.RebalanceService(ctx, dao.ScheduleServiceRequest{
 				ServiceIDs:  []string{svc.ID},
 				AutoLaunch:  false,
 				Synchronous: true,
