@@ -19,7 +19,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
 
@@ -96,12 +95,6 @@ func (s *scheduler) doSync(rootConn client.Connection) <-chan time.Time {
 					return time.After(minWait)
 				}
 			}
-		}
-
-		// Update Virtual IPs
-		if err := zkvirtualips.SyncVirtualIPs(conn, pool.VirtualIPs); err != nil {
-			glog.Errorf("Could not sync virtual ips for %s: %s", pool.ID, err)
-			return time.After(minWait)
 		}
 	}
 

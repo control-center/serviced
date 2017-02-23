@@ -46,7 +46,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/zzk/virtualips"
 )
 
 /*
@@ -345,7 +344,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 			addrs = append(addrs, ip.Addr)
 		}
 
-		l := virtualips.NewHostIPListener(a.hostID, a, addrs)
+		l := zkservice.NewHostIPListener(a.hostID, a, addrs)
 		zzk.Manage(shutdown, zzk.GeneratePoolPath(a.poolID), l)
 		glog.Infof("Virtual ip listener done")
 		wg.Done()

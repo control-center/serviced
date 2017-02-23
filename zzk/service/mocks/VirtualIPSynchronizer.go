@@ -11,15 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build unit integration
-
-package virtualips_test
+package mocks
 
 import (
-	"testing"
-
-	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/stretchr/testify/mock"
 )
 
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { TestingT(t) }
+type VirtualIPSynchronizer struct {
+	mock.Mock
+}
+
+func (_m *VirtualIPSynchronizer) Sync(resourcePool pool.ResourcePool, cancel <-chan interface{}) error {
+	ret := _m.Called(resourcePool, cancel)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(pool.ResourcePool, <-chan interface{}) error); ok {
+		r0 = rf(resourcePool, cancel)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

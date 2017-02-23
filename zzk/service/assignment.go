@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package virtualips
+package service
 
 import (
 	"errors"
@@ -33,9 +33,9 @@ var (
 // AssignmentHandler is used to assign, unassign, and watch virtual IP assignments
 // to hosts
 type AssignmentHandler interface {
+	GetAll(poolID string) (map[string]string, error)
 	Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error
 	Unassign(poolID, ipAddress string) error
-	Watch(poolID, ipAddress string, stop <-chan struct{}) (<-chan client.Event, error)
 }
 
 // ZKAssignmentHandler implements the AssignmentHandler interface.  Assignments are
@@ -61,6 +61,22 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 		hostHandler:           handler,
 		connection:            connection,
 	}
+}
+
+// GetAll returns a map of all current assignments for a pool (virtual ip to host id).
+func (h *ZKAssignmentHandler) GetAll(poolID string) (map[string]string, error) {
+	assignments := make(map[string]string)
+
+	hostIPs, _ := h.connection.Children(Base().Pools().ID(poolID).IPs().Path())
+	for _, hostIP := range hostIPs {
+		host, ip, err := ParseIPID(hostIP)
+		if err != nil {
+			return nil, err
+		}
+
+		assignments[ip] = host
+	}
+	return assignments, nil
 }
 
 // Assign will assign the provided virtual IP to a host.  If no host is present,
@@ -95,41 +111,6 @@ func (h *ZKAssignmentHandler) Unassign(poolID, ipAddress string) error {
 	return DeleteIP(h.connection, request)
 }
 
-// Watch will return a channel that will recieve events when an assignment changes.  An example would
-// be if a host were to go offline and delete the nodes for the assignment in ZooKeeper.  If Watch is
-// called for an IP with no assignment, ErrNoAssignedHost will be returned.
-func (h *ZKAssignmentHandler) Watch(poolID, ipAddress string, stop <-chan struct{}) (<-chan client.Event, error) {
-	assignedHost, err := h.getAssignedHostID(poolID, ipAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	request := IPRequest{PoolID: poolID, HostID: assignedHost, IPAddress: ipAddress}
-	path := Base().Pools().ID(poolID).IPs().ID(request.IPID()).Path()
-	return h.connection.GetW(path, &PoolIP{}, stop)
-}
-
-func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
-	hosts, err := h.hostHandler.GetRegisteredHosts(cancel)
-	if err != nil {
-		return err
-	}
-
-	host, err := h.hostSelectionStrategy.Select(hosts)
-	if err != nil {
-		return err
-	}
-
-	plog.WithFields(log.Fields{
-		"poolid":    poolID,
-		"ipAddress": ipAddress,
-		"host":      host.ID,
-	}).Debug("Assigning IP")
-
-	request := IPRequest{PoolID: poolID, HostID: host.ID, IPAddress: ipAddress}
-	return CreateIP(h.connection, request, netmask, binding)
-}
-
 func (h *ZKAssignmentHandler) getAssignedHostID(poolID, ipAddress string) (string, error) {
 	ipsPath := Base().Pools().ID(poolID).IPs().Path()
 	exists, err := h.connection.Exists(ipsPath)
@@ -156,4 +137,25 @@ func (h *ZKAssignmentHandler) getAssignedHostID(poolID, ipAddress string) (strin
 		}
 	}
 	return "", ErrNoAssignedHost
+}
+
+func (h *ZKAssignmentHandler) assignToHost(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error {
+	hosts, err := h.hostHandler.GetRegisteredHosts(cancel)
+	if err != nil {
+		return err
+	}
+
+	host, err := h.hostSelectionStrategy.Select(hosts)
+	if err != nil {
+		return err
+	}
+
+	plog.WithFields(log.Fields{
+		"poolid":    poolID,
+		"ipAddress": ipAddress,
+		"host":      host.ID,
+	}).Debug("Assigning IP")
+
+	request := IPRequest{PoolID: poolID, HostID: host.ID, IPAddress: ipAddress}
+	return CreateIP(h.connection, request, netmask, binding)
 }
