@@ -33,7 +33,6 @@ var (
 // AssignmentHandler is used to assign, unassign, and watch virtual IP assignments
 // to hosts
 type AssignmentHandler interface {
-	GetAll(poolID string) (map[string]string, error)
 	Assign(poolID, ipAddress, netmask, binding string, cancel <-chan interface{}) error
 	Unassign(poolID, ipAddress string) error
 }
@@ -61,22 +60,6 @@ func NewZKAssignmentHandler(strategy HostSelectionStrategy,
 		hostHandler:           handler,
 		connection:            connection,
 	}
-}
-
-// GetAll returns a map of all current assignments for a pool (virtual ip to host id).
-func (h *ZKAssignmentHandler) GetAll(poolID string) (map[string]string, error) {
-	assignments := make(map[string]string)
-
-	hostIPs, _ := h.connection.Children(Base().Pools().ID(poolID).IPs().Path())
-	for _, hostIP := range hostIPs {
-		host, ip, err := ParseIPID(hostIP)
-		if err != nil {
-			return nil, err
-		}
-
-		assignments[ip] = host
-	}
-	return assignments, nil
 }
 
 // Assign will assign the provided virtual IP to a host.  If no host is present,

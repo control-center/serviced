@@ -22,12 +22,12 @@ type VirtualIPSynchronizer struct {
 	mock.Mock
 }
 
-func (_m *VirtualIPSynchronizer) Sync(resourcePool pool.ResourcePool, cancel <-chan interface{}) error {
-	ret := _m.Called(resourcePool, cancel)
+func (_m *VirtualIPSynchronizer) Sync(resourcePool pool.ResourcePool, assignments map[string]string, cancel <-chan interface{}) error {
+	ret := _m.Called(resourcePool, assignments, cancel)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(pool.ResourcePool, <-chan interface{}) error); ok {
-		r0 = rf(resourcePool, cancel)
+	if rf, ok := ret.Get(0).(func(pool.ResourcePool, map[string]string, <-chan interface{}) error); ok {
+		r0 = rf(resourcePool, assignments, cancel)
 	} else {
 		r0 = ret.Error(0)
 	}
