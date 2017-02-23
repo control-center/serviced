@@ -15,6 +15,3 @@ if ! (python -c "import sys; sys.exit(0 if \"${LIBDEVMAPPER}\".endswith('.1') el
     [ -f "${LIBDEVMAPPER}.1" -o -h "${LIBDEVMAPPER}.1" ] || ln -sf ${LIBDEVMAPPER} ${LIBDEVMAPPER}.1
     ldconfig
 fi
-
-chgrp serviced /etc/default/serviced
-chgrp -R serviced /opt/serviced
