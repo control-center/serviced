@@ -166,6 +166,7 @@ deb: stage_deb
 		-d nfs-common \
 		-d 'docker-engine (= 1.12.1)' \
 		-d logrotate \
+		-d conntrack \
 		-d rsync \
 		-d lvm2 \
 		-d sysstat \
@@ -208,6 +209,7 @@ rpm: stage_rpm
 		-d sysstat \
 		-d lvm2 \
 		-d cronie \
+		-d conntrack-tools \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \

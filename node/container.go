@@ -446,6 +446,8 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 		"containername": ctr.Name,
 	})
 
+	protocols := map[string]struct{}{}
+
 	if ip := state.AssignedIP; ip != "" {
 		for _, exp := range state.Exports {
 			if port := exp.AssignedPortNumber; port > 0 {
@@ -457,7 +459,16 @@ func (a *HostAgent) exposeAssignedIPs(state *zkservice.ServiceState, ctr *docker
 				explog.Debug("Starting proxy for endpoint")
 				public := iptables.NewAddress(ip, int(port))
 				private := iptables.NewAddress(state.PrivateIP, int(exp.PortNumber))
-
+				if a.conntrackFlush {
+					if _, ok := protocols[exp.Protocol]; !ok {
+						if err := flushConntrack(exp.Protocol); err != nil {
+							plog.WithError(err).WithFields(log.Fields{
+								"protocol": exp.Protocol,
+							}).Warn("Unable to flush conntrack table")
+						}
+						protocols[exp.Protocol] = struct{}{}
+					}
+				}
 				a.servicedChain.Forward(iptables.Add, exp.Protocol, public, private)
 				defer a.servicedChain.Forward(iptables.Delete, exp.Protocol, public, private)
 			}
@@ -847,4 +858,14 @@ func addBindingToMap(bindsMap map[string]string, cp, rp string) {
 	} else {
 		log.WithFields(log.Fields{"ContainerPath": cp, "ResourcePath": rp}).Warn("Not adding to map, because at least one argument is empty.")
 	}
+}
+
+func flushConntrack(protocol string) error {
+	args := []string{"-D", "-p", protocol}
+	plog.WithFields(log.Fields{
+		"protocol": protocol,
+		"cmd":      fmt.Sprintf("conntrack %s", strings.Join(args, " ")),
+	}).Debug("Flushing conntrack table")
+	_, err := iptables.RunConntrackCommand(args...)
+	return err
 }

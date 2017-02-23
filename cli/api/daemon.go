@@ -923,6 +923,8 @@ func (d *daemon) startAgent() error {
 		}
 
 		muxDisableTLS, _ := strconv.ParseBool(options.MuxDisableTLS)
+		conntrackFlush, _ := strconv.ParseBool(options.ConntrackFlush)
+
 		agentOptions := node.AgentOptions{
 			IPAddress:            agentIP,
 			PoolID:               thisHost.PoolID,
@@ -942,6 +944,7 @@ func (d *daemon) startAgent() error {
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 			ControllerBinary:     options.ControllerBinary,
+			ConntrackFlush:       conntrackFlush,
 			LogstashURL:          options.LogstashURL,
 			DockerLogDriver:      options.DockerLogDriver,
 			DockerLogConfig:      convertStringSliceToMap(options.DockerLogConfigList),
