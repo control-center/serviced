@@ -465,11 +465,13 @@ func (s *BatchServiceStateManager) ScheduleServices(svcs []*service.Service, ten
 		newBatch = queue.reconcileWithPendingBatch(newBatch)
 	}
 
-	// Spawn a goroutine to update the current state of all cancelled services
-	defer func() {
-		logger.WithField("services", cancelledIDs).Info("Cancelling and re-syncing services")
-		go s.SyncCurrentStates(cancelledIDs)
-	}()
+	if len(cancelledIDs) > 0 {
+		// Spawn a goroutine to update the current state of all cancelled services
+		defer func() {
+			logger.WithField("services", cancelledIDs).Debug("Cancelling and re-syncing services")
+			go s.SyncCurrentStates(cancelledIDs)
+		}()
+	}
 
 	expeditedBatch.Services = expeditedServices
 
@@ -591,6 +593,11 @@ func (b ServiceStateChangeBatch) reconcile(newBatch ServiceStateChangeBatch) (ba
 
 				// Is this a "cancel"?
 				if service.DesiredCancelsPending(service.DesiredToCurrentPendingState(b.DesiredState, b.Emergency), newBatch.DesiredState) {
+					plog.WithFields(logrus.Fields{
+						"service":  newSvc.ID,
+						"oldstate": b.DesiredState,
+						"newstate": newBatch.DesiredState,
+					}).Debug("Cancelling pending service")
 					cancelled = append(cancelled, newSvc.ID)
 				} else {
 					newSvcs[id] = newSvc
@@ -1007,17 +1014,22 @@ func (s *BatchServiceStateManager) processBatch(tenantID string, batch ServiceSt
 			"desiredstate": batch.DesiredState,
 		})
 	// Schedule services for this batch
-	var services []*service.Service
+	var services []CancellableService
 	var serviceIDs []string
 	for _, svc := range batch.Services {
-		services = append(services, svc.Service)
-		serviceIDs = append(serviceIDs, svc.ID)
-		if batch.Emergency && batch.DesiredState == service.SVCStop {
-			// Set EmergencyShutdown to true for this service and update the database
-			svc.EmergencyShutdown = true
-			uerr := s.Facade.UpdateService(s.ctx, *svc.Service)
-			if uerr != nil {
-				batchLogger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+		select {
+		case <-svc.C:
+
+		default:
+			services = append(services, svc)
+			serviceIDs = append(serviceIDs, svc.ID)
+			if batch.Emergency && batch.DesiredState == service.SVCStop {
+				// Set EmergencyShutdown to true for this service and update the database
+				svc.EmergencyShutdown = true
+				uerr := s.Facade.UpdateService(s.ctx, *svc.Service)
+				if uerr != nil {
+					batchLogger.WithField("service", svc.ID).WithError(uerr).Error("Failed to update database with EmergencyShutdown")
+				}
 			}
 		}
 	}

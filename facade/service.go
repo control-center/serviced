@@ -1365,7 +1365,7 @@ func scheduleServices(f *Facade, svcs []*service.Service, ctx datastore.Context,
 	return len(svcs), nil
 }
 
-func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Service, tenantID string, desiredState service.DesiredState) ([]string, error) {
+func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []servicestatemanager.CancellableService, tenantID string, desiredState service.DesiredState) ([]string, error) {
 	logger := plog.WithFields(log.Fields{
 		"numservices":  len(svcs),
 		"tenantid":     tenantID,
@@ -1379,7 +1379,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 	for _, s := range svcs {
 		wg.Add(1)
 		// Do this in a goroutine because rolling restarts could take awhile
-		go func(svc *service.Service) {
+		go func(svc servicestatemanager.CancellableService) {
 			defer wg.Done()
 
 			if svc.DesiredState == int(desiredState) {
@@ -1387,7 +1387,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 			}
 			if desiredState != service.SVCStop {
 				// Verify that the service is ready to be started
-				if err := f.validateServiceStart(ctx, svc); err != nil {
+				if err := f.validateServiceStart(ctx, svc.Service); err != nil {
 					logger.WithError(err).WithField("servicename", svc.Name).WithField("serviceid", svc.ID).Error("Service failed validation for start")
 					lock.Lock()
 					failedServices = append(failedServices, svc.ID)
@@ -1404,7 +1404,13 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 				lock.Unlock()
 				return
 			}
-			if err := f.fillServiceAddr(ctx, svc); err != nil {
+			select {
+			case <-svc.C:
+				return
+			default:
+			}
+
+			if err := f.fillServiceAddr(ctx, svc.Service); err != nil {
 				logger.WithError(err).WithField("serviceid", svc.ID).Error("Error filling service address")
 				lock.Lock()
 				failedServices = append(failedServices, svc.ID)
@@ -1416,7 +1422,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 				"serviceid":   svc.ID,
 			}).Debug("Scheduled service")
 			lock.Lock()
-			servicesToSchedule = append(servicesToSchedule, svc)
+			servicesToSchedule = append(servicesToSchedule, svc.Service)
 			lock.Unlock()
 		}(s)
 	}
@@ -1431,7 +1437,7 @@ func (f *Facade) ScheduleServiceBatch(ctx datastore.Context, svcs []*service.Ser
 	return failedServices, nil
 }
 
-func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service, desiredState service.DesiredState) error {
+func (f *Facade) updateDesiredState(ctx datastore.Context, svc servicestatemanager.CancellableService, desiredState service.DesiredState) error {
 	defer ctx.Metrics().Stop(ctx.Metrics().Start("Facade.updateDesiredState"))
 	logger := plog.WithFields(log.Fields{
 		"serviceid":    svc.ID,
@@ -1444,11 +1450,17 @@ func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service,
 	}
 
 	if desiredState == service.SVCRestart {
-		if err := f.rollingRestart(ctx, svc, f.rollingRestartTimeout); err != nil {
+		if err := f.rollingRestart(ctx, svc.Service, f.rollingRestartTimeout, svc.C); err != nil {
 			logger.WithError(err).Debug("Could not perform rolling restart for service")
 			return err
 		}
 	} else {
+		select {
+		case <-svc.C:
+			return nil
+		default:
+		}
+
 		svc.DesiredState = int(desiredState)
 		// write the service into the database
 		if err := f.serviceStore.UpdateDesiredState(ctx, svc.ID, svc.DesiredState); err != nil {
@@ -1461,7 +1473,7 @@ func (f *Facade) updateDesiredState(ctx datastore.Context, svc *service.Service,
 }
 
 // rollingRestart restarts a service one instance at a time and waits for it to reach pass health checks.
-func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, timeout time.Duration) error {
+func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, timeout time.Duration, cancel <-chan interface{}) error {
 	logger := plog.WithFields(log.Fields{
 		"serviceid":   svc.ID,
 		"servicename": svc.Name,
@@ -1484,6 +1496,13 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 	for instanceID := 0; instanceID < svc.Instances; instanceID++ {
 		ilogger := logger.WithField("instance", instanceID)
 		ilogger.Debug("Restarting instance")
+
+		select {
+		case <-cancel:
+			return nil
+		default:
+		}
+
 		// Set up the timeout
 		cancelWait := make(chan struct{})
 		done := make(chan struct{})
@@ -1496,6 +1515,8 @@ func (f *Facade) rollingRestart(ctx datastore.Context, svc *service.Service, tim
 				punctualLock.Lock()
 				punctualInstances++
 				punctualLock.Unlock()
+			case <-cancel:
+				ilogger.Debug("Rolling restart cancelled")
 			}
 			timer.Stop()
 			close(cancelWait)
