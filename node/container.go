@@ -143,6 +143,7 @@ func (a *HostAgent) StartContainer(cancel <-chan interface{}, serviceID string, 
 		"instanceid": instanceID,
 	})
 
+	a.serviceCache.Invalidate(serviceID, instanceID)
 	evaluatedService, tenantID, err := a.serviceCache.GetEvaluatedService(serviceID, instanceID)
 	if err != nil {
 		logger.WithError(err).Error("Failed to get service")
