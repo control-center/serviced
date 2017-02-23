@@ -174,6 +174,7 @@ func GetDefaultOptions(cfg utils.ConfigReader) config.Options {
 		DockerLogConfigList:        cfg.StringSlice("DOCKER_LOG_CONFIG", []string{"max-file=5", "max-size=10m"}),
 		AllowLoopBack:              strconv.FormatBool(cfg.BoolVal("ALLOW_LOOP_BACK", false)),
 		UIPollFrequency:            cfg.IntVal("UI_POLL_FREQUENCY", 3),
+		ConntrackFlush:             strconv.FormatBool(cfg.BoolVal("CONNTRACK_FLUSH", false)),
 		StorageStatsUpdateInterval: cfg.IntVal("STORAGE_STATS_UPDATE_INTERVAL", 300),
 		SnapshotSpacePercent:       cfg.IntVal("SNAPSHOT_USE_PERCENT", 20),
 		ZKSessionTimeout:           cfg.IntVal("ZK_SESSION_TIMEOUT", 15),

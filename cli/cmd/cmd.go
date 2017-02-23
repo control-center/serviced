@@ -128,7 +128,7 @@ func New(driver api.API, config utils.ConfigReader, logControl logging.LogContro
 		cli.IntFlag{"storage-stats-update-interval", defaultOps.StorageStatsUpdateInterval, "frequency in seconds that the thin pool usage will be analyzed"},
 		cli.IntFlag{"zk-session-timeout", defaultOps.ZKSessionTimeout, "zookeeper session timeout in seconds"},
 		cli.IntFlag{"auth-token-expiry", defaultOps.TokenExpiration, "authentication token expiration in seconds"},
-
+		cli.StringFlag{"conntrack-flush", defaultOps.ConntrackFlush, "whether to flush the conntrack table when a service with an assigned IP is started"},
 		cli.IntFlag{"service-run-level-timeout", defaultOps.ServiceRunLevelTimeout, "max time in seconds to wait for services to start/stop before moving on to services at the next run level"},
 
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -285,6 +285,7 @@ func getRuntimeOptions(cfg utils.ConfigReader, ctx *cli.Context) config.Options 
 		StorageReportInterval:      ctx.GlobalInt("storage-report-interval"),
 		ZKSessionTimeout:           ctx.GlobalInt("zk-session-timeout"),
 		TokenExpiration:            ctx.GlobalInt("auth-token-expiry"),
+		ConntrackFlush:             ctx.GlobalString("conntrack-flush"),
 		ServiceRunLevelTimeout:     ctx.GlobalInt("service-run-level-timeout"),
 		StorageMetricMonitorWindow: ctx.GlobalInt("storage-metric-monitor-window"),
 		StorageLookaheadPeriod:     ctx.GlobalInt("storage-lookahead-period"),
