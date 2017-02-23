@@ -60,14 +60,13 @@ func (s *SynchronizerTestSuite) TestSyncsVirtualIPAssignments(c *C) {
 	}
 
 	// Two assignments, 4.3.2.1 and 7.7.7.7
-	s.handler.On("GetAll", s.pool.ID).Return(
-		map[string]string{
-			"4.3.2.1": "host",
-			"7.7.7.7": "host",
-		}, nil)
+	assignments := map[string]string{
+		"4.3.2.1": "host",
+		"7.7.7.7": "host",
+	}
 
 	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, cancel)
+	s.synchronizer.Sync(s.pool, assignments, cancel)
 
 	// 1.2.3.4 has a virtual IP but is not assigned so Assign should be called
 	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1", cancel)
@@ -99,10 +98,10 @@ func (s *SynchronizerTestSuite) TestSyncsAssignsAllIfNoneAssigned(c *C) {
 	}
 
 	// No assignments
-	s.handler.On("GetAll", s.pool.ID).Return(map[string]string{}, nil)
+	assignments := map[string]string{}
 
 	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, cancel)
+	s.synchronizer.Sync(s.pool, assignments, cancel)
 
 	s.handler.AssertCalled(c, "Assign", s.pool.ID, "1.2.3.4", "255.255.255.0", "eth1", cancel)
 	s.handler.AssertCalled(c, "Assign", s.pool.ID, "7.7.7.7", "255.255.255.0", "eth1", cancel)
@@ -113,14 +112,13 @@ func (s *SynchronizerTestSuite) TestSyncUnassignsAll(c *C) {
 	s.pool.VirtualIPs = nil
 
 	// Two assignments, 4.3.2.1 and 7.7.7.7
-	s.handler.On("GetAll", s.pool.ID).Return(
-		map[string]string{
-			"4.3.2.1": "host",
-			"7.7.7.7": "host",
-		}, nil)
+	assignments := map[string]string{
+		"4.3.2.1": "host",
+		"7.7.7.7": "host",
+	}
 
 	cancel := make(<-chan interface{})
-	s.synchronizer.Sync(s.pool, cancel)
+	s.synchronizer.Sync(s.pool, assignments, cancel)
 
 	s.handler.AssertCalled(c, "Unassign", s.pool.ID, "4.3.2.1")
 	s.handler.AssertCalled(c, "Unassign", s.pool.ID, "7.7.7.7")
