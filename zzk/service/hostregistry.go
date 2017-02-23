@@ -267,12 +267,14 @@ func (h *HostRegistryListener) Spawn(cancel <-chan interface{}, hostid string) {
 
 						// We have exceeded the wait timeout, so reschedule as
 						// soon as possible.
-						h.handler.UnassignAll(h.poolid, hostid)
 
 						select {
 						case <-h.isOnline:
 							// Only reschedule services without address
 							// assignments.
+
+							h.handler.UnassignAll(h.poolid, hostid)
+
 							count := DeleteHostStatesWhen(h.conn, h.poolid, hostid, func(s *State) bool {
 								return s.DesiredState == service.SVCStop || !s.Static
 							})
